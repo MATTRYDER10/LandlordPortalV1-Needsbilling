@@ -6,6 +6,8 @@ import ForgotPassword from '../views/ForgotPassword.vue'
 import ResetPassword from '../views/ResetPassword.vue'
 import Dashboard from '../views/Dashboard.vue'
 import References from '../views/References.vue'
+import ReferenceDetail from '../views/ReferenceDetail.vue'
+import SubmitReference from '../views/SubmitReference.vue'
 import Settings from '../views/Settings.vue'
 
 const router = createRouter({
@@ -51,6 +53,17 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/references/:id',
+      name: 'ReferenceDetail',
+      component: ReferenceDetail,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/submit-reference/:token',
+      name: 'SubmitReference',
+      component: SubmitReference
+    },
+    {
       path: '/settings',
       name: 'Settings',
       component: Settings,
@@ -60,8 +73,14 @@ const router = createRouter({
 })
 
 // Navigation guards
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+
+  // Ensure auth is initialized by checking the session
+  if (!authStore.session && !authStore.user) {
+    await authStore.initialize()
+  }
+
   const isAuthenticated = !!authStore.user
 
   if (to.meta.requiresAuth && !isAuthenticated) {

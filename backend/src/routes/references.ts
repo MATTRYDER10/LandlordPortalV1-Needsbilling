@@ -317,7 +317,7 @@ router.get('/view/:token', async (req, res) => {
 
     const { data: reference, error } = await supabase
       .from('tenant_references')
-      .select('id, tenant_first_name, tenant_last_name, property_address, property_city, property_postcode, monthly_rent, move_in_date, submitted_at, status')
+      .select('id, tenant_first_name, tenant_last_name, tenant_email, property_address, property_city, property_postcode, monthly_rent, move_in_date, submitted_at, status')
       .eq('reference_token', token)
       .gte('token_expires_at', new Date().toISOString())
       .single()

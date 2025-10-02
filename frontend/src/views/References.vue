@@ -15,7 +15,7 @@
       </div>
 
       <!-- References List -->
-      <div v-if="references.length > 0" class="bg-white rounded-lg shadow overflow-hidden">
+      <div v-if="loading || references.length > 0" class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -26,7 +26,39 @@
               <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
+          <tbody v-if="loading" class="bg-white">
+            <tr>
+              <td class="px-6 py-4 whitespace-nowrap" style="width: 250px;">
+                <div class="text-sm font-medium text-gray-900 flex items-center gap-2">
+                  <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <div class="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+                </div>
+                <div class="text-sm text-gray-500 mt-1">
+                  <div class="h-4 bg-gray-100 rounded w-48 animate-pulse"></div>
+                </div>
+              </td>
+              <td class="px-6 py-4" style="width: 300px;">
+                <div class="text-sm text-gray-900">
+                  <div class="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
+                </div>
+                <div class="text-sm text-gray-500 mt-1">
+                  <div class="h-4 bg-gray-100 rounded w-40 animate-pulse"></div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap" style="width: 120px;">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                  Pending
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" style="width: 150px;">
+                <div class="h-4 bg-gray-100 rounded w-28 animate-pulse"></div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style="width: 180px;">
+                <div class="h-4 bg-gray-100 rounded w-36 animate-pulse ml-auto"></div>
+              </td>
+            </tr>
+          </tbody>
+          <tbody v-else class="bg-white divide-y divide-gray-200">
             <tr v-for="reference in references" :key="reference.id" class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium text-gray-900">
@@ -259,6 +291,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const showCreateModal = ref(false)
 const references = ref<any[]>([])
+const loading = ref(true)
 const createLoading = ref(false)
 const createError = ref('')
 const createSuccess = ref('')
@@ -282,6 +315,7 @@ onMounted(() => {
 
 const fetchReferences = async () => {
   try {
+    loading.value = true
     const token = authStore.session?.access_token
     if (!token) {
       console.error('No auth token available')
@@ -303,6 +337,8 @@ const fetchReferences = async () => {
     references.value = data.references
   } catch (error) {
     console.error('Failed to fetch references:', error)
+  } finally {
+    loading.value = false
   }
 }
 
