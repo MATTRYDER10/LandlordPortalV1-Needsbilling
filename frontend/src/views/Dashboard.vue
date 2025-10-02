@@ -7,12 +7,12 @@
       </div>
 
       <!-- Stats Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-0 mb-8">
+        <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Total References</p>
-              <p class="text-3xl font-bold text-gray-900">0</p>
+              <p class="text-3xl font-bold text-gray-900">{{ totalReferences }}</p>
             </div>
             <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,11 +22,11 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">In Progress</p>
-              <p class="text-3xl font-bold text-primary">0</p>
+              <p class="text-3xl font-bold text-primary">{{ inProgressReferences }}</p>
             </div>
             <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,11 +36,11 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Completed</p>
-              <p class="text-3xl font-bold text-green-600">0</p>
+              <p class="text-3xl font-bold text-green-600">{{ completedReferences }}</p>
             </div>
             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,5 +76,47 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
+
+const authStore = useAuthStore()
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+const totalReferences = ref(0)
+const inProgressReferences = ref(0)
+const completedReferences = ref(0)
+
+const fetchReferences = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/references`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) return
+
+    const data = await response.json()
+    const references = data.references || []
+
+    totalReferences.value = references.length
+    inProgressReferences.value = references.filter((ref: any) =>
+      ref.status === 'pending' || ref.status === 'in_progress'
+    ).length
+    completedReferences.value = references.filter((ref: any) =>
+      ref.status === 'completed'
+    ).length
+  } catch (error) {
+    console.error('Failed to fetch references:', error)
+  }
+}
+
+onMounted(() => {
+  fetchReferences()
+})
 </script>
