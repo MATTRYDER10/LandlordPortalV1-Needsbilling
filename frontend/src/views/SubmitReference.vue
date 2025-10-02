@@ -111,14 +111,25 @@
               </div>
             </div>
 
-            <div>
-              <label for="employer-contact" class="block text-sm font-medium text-gray-700">Employer Contact (Email or Phone)</label>
-              <input
-                id="employer-contact"
-                v-model="formData.employer_contact"
-                type="text"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="employer-email" class="block text-sm font-medium text-gray-700">Employer Email</label>
+                <input
+                  id="employer-email"
+                  v-model="formData.employer_email"
+                  type="email"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label for="employer-phone" class="block text-sm font-medium text-gray-700">Employer Phone</label>
+                <input
+                  id="employer-phone"
+                  v-model="formData.employer_phone"
+                  type="tel"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -159,24 +170,63 @@
             </div>
 
             <div>
-              <label for="previous-address" class="block text-sm font-medium text-gray-700">Previous Address</label>
+              <label for="previous-street" class="block text-sm font-medium text-gray-700">Previous Street Address</label>
               <input
-                id="previous-address"
-                v-model="formData.previous_address"
+                id="previous-street"
+                v-model="formData.previous_street"
                 type="text"
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="previous-city" class="block text-sm font-medium text-gray-700">Previous City</label>
+                <input
+                  id="previous-city"
+                  v-model="formData.previous_city"
+                  type="text"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label for="previous-postcode" class="block text-sm font-medium text-gray-700">Previous Postcode</label>
+                <input
+                  id="previous-postcode"
+                  v-model="formData.previous_postcode"
+                  type="text"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
             <div>
-              <label for="tenancy-duration" class="block text-sm font-medium text-gray-700">How long did you live there?</label>
-              <input
-                id="tenancy-duration"
-                v-model="formData.previous_tenancy_duration"
-                type="text"
-                placeholder="e.g., 2 years, 6 months"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <label class="block text-sm font-medium text-gray-700 mb-2">How long did you live there?</label>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label for="tenancy-years" class="block text-xs text-gray-600 mb-1">Years</label>
+                  <input
+                    id="tenancy-years"
+                    v-model="formData.tenancy_years"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label for="tenancy-months" class="block text-xs text-gray-600 mb-1">Months</label>
+                  <input
+                    id="tenancy-months"
+                    v-model="formData.tenancy_months"
+                    type="number"
+                    min="0"
+                    max="11"
+                    placeholder="0"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -227,15 +277,19 @@ const justSubmitted = ref(false)
 const formData = ref({
   employment_status: '',
   employer_name: '',
-  employer_contact: '',
+  employer_email: '',
+  employer_phone: '',
   job_title: '',
   annual_income: null,
   employment_start_date: '',
   previous_landlord_name: '',
   previous_landlord_email: '',
   previous_landlord_phone: '',
-  previous_address: '',
-  previous_tenancy_duration: ''
+  previous_street: '',
+  previous_city: '',
+  previous_postcode: '',
+  tenancy_years: null,
+  tenancy_months: null
 })
 
 onMounted(() => {

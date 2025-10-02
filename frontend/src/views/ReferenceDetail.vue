@@ -103,8 +103,12 @@
               <p class="mt-1 text-gray-900">{{ reference.annual_income ? `£${reference.annual_income}` : 'Not provided' }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-500">Employer Contact</label>
-              <p class="mt-1 text-gray-900">{{ reference.employer_contact || 'Not provided' }}</p>
+              <label class="block text-sm font-medium text-gray-500">Employer Email</label>
+              <p class="mt-1 text-gray-900">{{ reference.employer_email || 'Not provided' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Employer Phone</label>
+              <p class="mt-1 text-gray-900">{{ reference.employer_phone || 'Not provided' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
@@ -133,12 +137,20 @@
               <p class="mt-1 text-gray-900">{{ reference.previous_landlord_phone || 'Not provided' }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-500">Previous Address</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_address || 'Not provided' }}</p>
+              <label class="block text-sm font-medium text-gray-500">Previous Street</label>
+              <p class="mt-1 text-gray-900">{{ reference.previous_street || 'Not provided' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Previous City</label>
+              <p class="mt-1 text-gray-900">{{ reference.previous_city || 'Not provided' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Previous Postcode</label>
+              <p class="mt-1 text-gray-900">{{ reference.previous_postcode || 'Not provided' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_tenancy_duration || 'Not provided' }}</p>
+              <p class="mt-1 text-gray-900">{{ formatTenancyDuration(reference.tenancy_years, reference.tenancy_months) }}</p>
             </div>
           </div>
           <div v-else class="text-gray-500 text-center py-4">
@@ -198,6 +210,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 
@@ -248,6 +261,18 @@ const formatStatus = (status: string) => {
   return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
+const formatTenancyDuration = (years: number | null, months: number | null) => {
+  if (!years && !months) return 'Not provided'
+  const parts = []
+  if (years && years > 0) {
+    parts.push(`${years} year${years !== 1 ? 's' : ''}`)
+  }
+  if (months && months > 0) {
+    parts.push(`${months} month${months !== 1 ? 's' : ''}`)
+  }
+  return parts.join(', ')
+}
+
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -270,7 +295,7 @@ const copyTenantLink = () => {
   if (reference.value) {
     const link = `${window.location.origin}/submit-reference/${reference.value.reference_token}`
     navigator.clipboard.writeText(link)
-    alert('Tenant link copied to clipboard!')
+    useToast().success('Tenant link copied to clipboard!')
   }
 }
 </script>

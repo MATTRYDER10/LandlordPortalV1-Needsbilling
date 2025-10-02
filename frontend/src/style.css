@@ -1,3 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Toast Customization */
+.Vue-Toastification__toast--success {
+  background-color: #FF8C41 !important;
+}
+
+.Vue-Toastification__toast--success .Vue-Toastification__progress-bar {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+}

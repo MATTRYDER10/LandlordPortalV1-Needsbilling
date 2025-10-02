@@ -247,15 +247,19 @@ router.post('/submit/:token', async (req, res) => {
     const {
       employment_status,
       employer_name,
-      employer_contact,
+      employer_email,
+      employer_phone,
       job_title,
       annual_income,
       employment_start_date,
       previous_landlord_name,
       previous_landlord_email,
       previous_landlord_phone,
-      previous_address,
-      previous_tenancy_duration
+      previous_street,
+      previous_city,
+      previous_postcode,
+      tenancy_years,
+      tenancy_months
     } = req.body
 
     // Get reference by token
@@ -281,15 +285,19 @@ router.post('/submit/:token', async (req, res) => {
       .update({
         employment_status,
         employer_name,
-        employer_contact,
+        employer_email,
+        employer_phone,
         job_title,
         annual_income,
         employment_start_date,
         previous_landlord_name,
         previous_landlord_email,
         previous_landlord_phone,
-        previous_address,
-        previous_tenancy_duration,
+        previous_street,
+        previous_city,
+        previous_postcode,
+        tenancy_years,
+        tenancy_months,
         submitted_at: new Date().toISOString(),
         status: 'in_progress'
       })

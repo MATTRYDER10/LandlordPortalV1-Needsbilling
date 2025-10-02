@@ -169,11 +169,12 @@
                 />
               </div>
               <div>
-                <label for="phone" class="block text-sm font-medium text-gray-700">Phone</label>
+                <label for="phone" class="block text-sm font-medium text-gray-700">Phone *</label>
                 <input
                   id="phone"
                   v-model="formData.tenant_phone"
                   type="tel"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
@@ -195,32 +196,35 @@
             </div>
             <div class="grid grid-cols-2 gap-4 mt-4">
               <div>
-                <label for="city" class="block text-sm font-medium text-gray-700">City</label>
+                <label for="city" class="block text-sm font-medium text-gray-700">City *</label>
                 <input
                   id="city"
                   v-model="formData.property_city"
                   type="text"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
-                <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode</label>
+                <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
                 <input
                   id="postcode"
                   v-model="formData.property_postcode"
                   type="text"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
             <div class="grid grid-cols-2 gap-4 mt-4">
               <div>
-                <label for="rent" class="block text-sm font-medium text-gray-700">Monthly Rent (£)</label>
+                <label for="rent" class="block text-sm font-medium text-gray-700">Monthly Rent (£) *</label>
                 <input
                   id="rent"
                   v-model="formData.monthly_rent"
                   type="number"
                   step="0.01"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
@@ -281,6 +285,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 
@@ -419,6 +424,6 @@ const viewReference = (reference: any) => {
 const copyTenantLink = (reference: any) => {
   const link = `${window.location.origin}/submit-reference/${reference.reference_token}`
   navigator.clipboard.writeText(link)
-  alert('Tenant link copied to clipboard!')
+  useToast().success('Tenant link copied to clipboard!')
 }
 </script>
