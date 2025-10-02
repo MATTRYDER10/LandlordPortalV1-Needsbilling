@@ -1,0 +1,9 @@
+# Nixpacks configuration for Railway monorepo
+[phases.setup]
+nixPkgs = ["nodejs_18"]
+
+[phases.install]
+cmds = ["echo 'Root install skipped for monorepo'"]
+
+[phases.build]
+cmds = ["echo 'Build handled per service'"]
