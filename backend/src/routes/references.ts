@@ -529,18 +529,34 @@ router.post('/landlord/:referenceId', async (req, res) => {
       return res.status(400).json({ error: insertError.message })
     }
 
-    // Update reference status if both landlord and employer references are complete
-    const { data: employerRef } = await supabase
-      .from('employer_references')
-      .select('id')
-      .eq('reference_id', referenceId)
+    // Update reference status based on required references
+    // Check if employer reference is required (employer email provided)
+    const { data: tenantRef } = await supabase
+      .from('tenant_references')
+      .select('employer_email')
+      .eq('id', referenceId)
       .single()
 
-    if (employerRef) {
+    // If no employer email provided, mark as complete immediately
+    // If employer email provided, only mark complete if employer reference exists
+    if (!tenantRef?.employer_email) {
       await supabase
         .from('tenant_references')
-        .update({ status: 'completed' })
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', referenceId)
+    } else {
+      const { data: employerRef } = await supabase
+        .from('employer_references')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .single()
+
+      if (employerRef) {
+        await supabase
+          .from('tenant_references')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('id', referenceId)
+      }
     }
 
     res.json({ message: 'Landlord reference submitted successfully' })
@@ -614,18 +630,34 @@ router.post('/employer/:referenceId', async (req, res) => {
       return res.status(400).json({ error: insertError.message })
     }
 
-    // Update reference status if both landlord and employer references are complete
-    const { data: landlordRef } = await supabase
-      .from('landlord_references')
-      .select('id')
-      .eq('reference_id', referenceId)
+    // Update reference status based on required references
+    // Check if landlord reference is required (landlord email provided)
+    const { data: tenantRef } = await supabase
+      .from('tenant_references')
+      .select('previous_landlord_email')
+      .eq('id', referenceId)
       .single()
 
-    if (landlordRef) {
+    // If no landlord email provided, mark as complete immediately
+    // If landlord email provided, only mark complete if landlord reference exists
+    if (!tenantRef?.previous_landlord_email) {
       await supabase
         .from('tenant_references')
-        .update({ status: 'completed' })
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', referenceId)
+    } else {
+      const { data: landlordRef } = await supabase
+        .from('landlord_references')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .single()
+
+      if (landlordRef) {
+        await supabase
+          .from('tenant_references')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('id', referenceId)
+      }
     }
 
     res.json({ message: 'Employer reference submitted successfully' })
