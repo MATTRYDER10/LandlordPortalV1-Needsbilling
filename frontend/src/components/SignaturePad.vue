@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const props = defineProps<{
   modelValue: string
@@ -112,6 +112,7 @@ const handleTouchStart = (e: TouchEvent) => {
   isDrawing.value = true
   const rect = canvas.value.getBoundingClientRect()
   const touch = e.touches[0]
+  if (!touch) return
   const x = touch.clientX - rect.left
   const y = touch.clientY - rect.top
 
@@ -124,6 +125,7 @@ const handleTouchMove = (e: TouchEvent) => {
 
   const rect = canvas.value.getBoundingClientRect()
   const touch = e.touches[0]
+  if (!touch) return
   const x = touch.clientX - rect.left
   const y = touch.clientY - rect.top
 

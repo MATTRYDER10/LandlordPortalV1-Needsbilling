@@ -254,7 +254,7 @@
               />
               <button
                 type="button"
-                @click="$refs.bankStatementInput.click()"
+                @click="($refs.bankStatementInput as any).click()"
                 class="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
               >
                 Choose files
@@ -285,7 +285,7 @@
               />
               <button
                 type="button"
-                @click="$refs.payslipInput.click()"
+                @click="($refs.payslipInput as any).click()"
                 class="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
               >
                 Choose files
@@ -458,7 +458,7 @@ const formatFileSize = (bytes: number) => {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 
-const uploadFiles = async (referenceId: string) => {
+const uploadFiles = async (_referenceId: string) => {
   const formDataFiles = new FormData()
 
   bankStatements.value.forEach((file) => {

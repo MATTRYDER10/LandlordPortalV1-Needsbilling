@@ -538,13 +538,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 
 const route = useRoute()
-const router = useRouter()
 const authStore = useAuthStore()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -670,7 +669,7 @@ const downloadFile = async (filePath: string) => {
 
     // Parse file path: referenceId/folder/filename
     const parts = filePath.split('/')
-    const downloadUrl = `${API_URL}/api/references/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2])}`
+    const downloadUrl = `${API_URL}/api/references/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
 
     const response = await fetch(downloadUrl, {
       headers: {

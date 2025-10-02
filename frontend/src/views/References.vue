@@ -373,7 +373,7 @@ const handleCreate = async () => {
       throw new Error(errorData.error || 'Failed to create reference')
     }
 
-    const data = await response.json()
+    await response.json()
     createSuccess.value = 'Reference created successfully! Share the link with the tenant.'
 
     setTimeout(() => {

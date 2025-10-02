@@ -203,7 +203,7 @@ const teamMembers = ref([
   }
 ])
 
-const pendingInvitations = ref([])
+const pendingInvitations = ref<any[]>([])
 
 const getInitials = (email: string) => {
   return email.charAt(0).toUpperCase()
@@ -248,12 +248,12 @@ const handleRemoveMember = async (member: any) => {
   }
 }
 
-const handleResendInvite = async (invite: any) => {
+const handleResendInvite = async (_invite: any) => {
   // TODO: Resend invitation
 }
 
-const handleRevokeInvite = async (invite: any) => {
-  if (confirm(`Are you sure you want to revoke the invitation to ${invite.email}?`)) {
+const handleRevokeInvite = async (_invite: any) => {
+  if (confirm(`Are you sure you want to revoke the invitation to ${_invite.email}?`)) {
     // TODO: Revoke invitation via API
   }
 }
