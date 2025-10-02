@@ -244,18 +244,21 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statements (Last 3 months) *</label>
               <input
+                ref="bankStatementInput"
                 type="file"
                 @change="handleBankStatementUpload"
                 accept=".pdf,.jpg,.jpeg,.png"
                 multiple
                 required
-                class="block w-full text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-md file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100"
+                class="hidden"
               />
+              <button
+                type="button"
+                @click="$refs.bankStatementInput.click()"
+                class="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
+              >
+                Choose files
+              </button>
               <p class="mt-1 text-xs text-gray-500">Upload PDF or images (max 10MB per file)</p>
               <div v-if="bankStatements.length > 0" class="mt-2 space-y-1">
                 <div v-for="(file, index) in bankStatements" :key="index" class="flex items-center justify-between text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
@@ -272,18 +275,21 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Payslips (Last 3 months) *</label>
               <input
+                ref="payslipInput"
                 type="file"
                 @change="handlePayslipUpload"
                 accept=".pdf,.jpg,.jpeg,.png"
                 multiple
                 required
-                class="block w-full text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-md file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100"
+                class="hidden"
               />
+              <button
+                type="button"
+                @click="$refs.payslipInput.click()"
+                class="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
+              >
+                Choose files
+              </button>
               <p class="mt-1 text-xs text-gray-500">Upload PDF or images (max 10MB per file)</p>
               <div v-if="payslips.length > 0" class="mt-2 space-y-1">
                 <div v-for="(file, index) in payslips" :key="index" class="flex items-center justify-between text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
