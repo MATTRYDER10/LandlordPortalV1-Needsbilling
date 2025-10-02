@@ -90,7 +90,21 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .select('*')
       .eq('reference_id', referenceId)
 
-    res.json({ reference, documents })
+    // Get landlord reference if exists
+    const { data: landlordReference } = await supabase
+      .from('landlord_references')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single()
+
+    // Get employer reference if exists
+    const { data: employerReference } = await supabase
+      .from('employer_references')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single()
+
+    res.json({ reference, documents, landlordReference, employerReference })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -455,6 +469,164 @@ router.get('/view/:token', async (req, res) => {
     }
 
     res.json({ reference })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Landlord submits reference (public route)
+router.post('/landlord/:referenceId', async (req, res) => {
+  try {
+    const { referenceId } = req.params
+    const formData = req.body
+
+    // Verify reference exists
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, status')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Convert camelCase to snake_case for database
+    const dbData = {
+      reference_id: referenceId,
+      landlord_name: formData.landlordName,
+      landlord_email: formData.landlordEmail,
+      landlord_phone: formData.landlordPhone,
+      property_address: formData.propertyAddress,
+      property_city: formData.propertyCity || null,
+      property_postcode: formData.propertyPostcode || null,
+      tenancy_start_date: formData.tenancyStartDate,
+      tenancy_end_date: formData.tenancyEndDate,
+      monthly_rent: formData.monthlyRent,
+      rent_paid_on_time: formData.rentPaidOnTime,
+      rent_paid_on_time_details: formData.rentPaidOnTimeDetails || null,
+      property_condition: formData.propertyCondition,
+      property_condition_details: formData.propertyConditionDetails || null,
+      neighbour_complaints: formData.neighbourComplaints,
+      neighbour_complaints_details: formData.neighbourComplaintsDetails || null,
+      breach_of_tenancy: formData.breachOfTenancy,
+      breach_of_tenancy_details: formData.breachOfTenancyDetails || null,
+      would_rent_again: formData.wouldRentAgain,
+      would_rent_again_details: formData.wouldRentAgainDetails || null,
+      additional_comments: formData.additionalComments || null,
+      signature: formData.signature,
+      date: formData.date,
+      submitted_at: new Date().toISOString()
+    }
+
+    // Store landlord reference data
+    const { error: insertError } = await supabase
+      .from('landlord_references')
+      .insert(dbData)
+
+    if (insertError) {
+      return res.status(400).json({ error: insertError.message })
+    }
+
+    // Update reference status if both landlord and employer references are complete
+    const { data: employerRef } = await supabase
+      .from('employer_references')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .single()
+
+    if (employerRef) {
+      await supabase
+        .from('tenant_references')
+        .update({ status: 'completed' })
+        .eq('id', referenceId)
+    }
+
+    res.json({ message: 'Landlord reference submitted successfully' })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Employer submits reference (public route)
+router.post('/employer/:referenceId', async (req, res) => {
+  try {
+    const { referenceId } = req.params
+    const formData = req.body
+
+    // Verify reference exists
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, status')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Convert camelCase to snake_case for database
+    const dbData: any = {
+      reference_id: referenceId,
+      company_name: formData.companyName,
+      employer_name: formData.employerName,
+      employer_position: formData.employerPosition,
+      employer_email: formData.employerEmail,
+      employer_phone: formData.employerPhone,
+      employee_position: formData.employeePosition,
+      employment_type: formData.employmentType,
+      employment_start_date: formData.employmentStartDate,
+      is_current_employee: formData.isCurrentEmployee,
+      annual_salary: formData.annualSalary,
+      salary_frequency: formData.salaryFrequency,
+      is_probation: formData.isProbation,
+      employment_status: formData.employmentStatus,
+      performance_rating: formData.performanceRating,
+      performance_details: formData.performanceDetails || null,
+      disciplinary_issues: formData.disciplinaryIssues,
+      disciplinary_details: formData.disciplinaryDetails || null,
+      absence_record: formData.absenceRecord,
+      absence_details: formData.absenceDetails || null,
+      would_reemploy: formData.wouldReemploy,
+      would_reemploy_details: formData.wouldReemployDetails || null,
+      additional_comments: formData.additionalComments || null,
+      signature: formData.signature,
+      date: formData.date,
+      submitted_at: new Date().toISOString()
+    }
+
+    // Add optional date fields only if they have values
+    if (formData.employmentEndDate) {
+      dbData.employment_end_date = formData.employmentEndDate
+    }
+    if (formData.probationEndDate) {
+      dbData.probation_end_date = formData.probationEndDate
+    }
+
+    // Store employer reference data
+    const { error: insertError } = await supabase
+      .from('employer_references')
+      .insert(dbData)
+
+    if (insertError) {
+      return res.status(400).json({ error: insertError.message })
+    }
+
+    // Update reference status if both landlord and employer references are complete
+    const { data: landlordRef } = await supabase
+      .from('landlord_references')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .single()
+
+    if (landlordRef) {
+      await supabase
+        .from('tenant_references')
+        .update({ status: 'completed' })
+        .eq('id', referenceId)
+    }
+
+    res.json({ message: 'Employer reference submitted successfully' })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

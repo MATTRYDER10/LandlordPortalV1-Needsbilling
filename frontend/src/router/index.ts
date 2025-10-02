@@ -8,6 +8,8 @@ import Dashboard from '../views/Dashboard.vue'
 import References from '../views/References.vue'
 import ReferenceDetail from '../views/ReferenceDetail.vue'
 import SubmitReference from '../views/SubmitReference.vue'
+import LandlordReference from '../views/LandlordReference.vue'
+import EmployerReference from '../views/EmployerReference.vue'
 import Settings from '../views/Settings.vue'
 
 const router = createRouter({
@@ -62,6 +64,16 @@ const router = createRouter({
       path: '/submit-reference/:token',
       name: 'SubmitReference',
       component: SubmitReference
+    },
+    {
+      path: '/landlord-reference/:referenceId',
+      name: 'LandlordReference',
+      component: LandlordReference
+    },
+    {
+      path: '/employer-reference/:referenceId',
+      name: 'EmployerReference',
+      component: EmployerReference
     },
     {
       path: '/settings',

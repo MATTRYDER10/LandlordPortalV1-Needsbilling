@@ -118,6 +118,109 @@
           <div v-else class="text-gray-500 text-center py-4">
             Tenant has not submitted employment information yet
           </div>
+
+          <!-- Employer Reference Link (only show if not submitted) -->
+          <div v-if="reference.employer_email && !employerReference" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 class="text-sm font-semibold text-blue-900 mb-2">Employer Reference Form</h4>
+            <p class="text-sm text-blue-800 mb-2">
+              Share this link with the employer to complete their reference:
+            </p>
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                readonly
+                :value="getEmployerReferenceLink()"
+                class="flex-1 px-3 py-2 text-sm bg-white border border-blue-300 rounded-md font-mono text-xs"
+              />
+              <button
+                type="button"
+                @click="copyEmployerLink"
+                class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 whitespace-nowrap"
+              >
+                Copy Link
+              </button>
+            </div>
+          </div>
+
+          <!-- Employer Reference Submitted (show completed reference) -->
+          <div v-if="employerReference" class="mt-4 bg-green-50 border border-green-200 rounded-lg">
+            <div class="p-4">
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="text-lg font-semibold text-green-900">✓ Employer Reference Completed</h4>
+                <span class="text-xs text-green-700">Submitted {{ formatDateTime(employerReference.submitted_at) }}</span>
+              </div>
+
+              <div class="space-y-6">
+                <!-- Company Info -->
+                <div>
+                  <h5 class="text-sm font-semibold text-green-800 mb-2">Company Information</h5>
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-green-700 font-medium">Company:</span> <span class="text-green-900">{{ employerReference.company_name }}</span></div>
+                    <div><span class="text-green-700 font-medium">Contact:</span> <span class="text-green-900">{{ employerReference.employer_name }}</span></div>
+                    <div><span class="text-green-700 font-medium">Position:</span> <span class="text-green-900">{{ employerReference.employer_position }}</span></div>
+                    <div><span class="text-green-700 font-medium">Email:</span> <span class="text-green-900">{{ employerReference.employer_email }}</span></div>
+                  </div>
+                </div>
+
+                <!-- Employment Details -->
+                <div>
+                  <h5 class="text-sm font-semibold text-green-800 mb-2">Employment Details</h5>
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-green-700 font-medium">Position:</span> <span class="text-green-900">{{ employerReference.employee_position }}</span></div>
+                    <div><span class="text-green-700 font-medium">Type:</span> <span class="text-green-900">{{ employerReference.employment_type }}</span></div>
+                    <div><span class="text-green-700 font-medium">Start Date:</span> <span class="text-green-900">{{ formatDate(employerReference.employment_start_date) }}</span></div>
+                    <div v-if="employerReference.employment_end_date"><span class="text-green-700 font-medium">End Date:</span> <span class="text-green-900">{{ formatDate(employerReference.employment_end_date) }}</span></div>
+                    <div><span class="text-green-700 font-medium">Currently Employed:</span> <span class="text-green-900">{{ employerReference.is_current_employee ? 'Yes' : 'No' }}</span></div>
+                  </div>
+                </div>
+
+                <!-- Salary Info -->
+                <div>
+                  <h5 class="text-sm font-semibold text-green-800 mb-2">Compensation</h5>
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-green-700 font-medium">Salary:</span> <span class="text-green-900">£{{ employerReference.annual_salary }} ({{ employerReference.salary_frequency }})</span></div>
+                    <div><span class="text-green-700 font-medium">Probation:</span> <span class="text-green-900">{{ employerReference.is_probation === 'yes' ? 'Yes' : 'No' }}</span></div>
+                  </div>
+                </div>
+
+                <!-- Reference Assessment -->
+                <div>
+                  <h5 class="text-sm font-semibold text-green-800 mb-2">Performance Assessment</h5>
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-green-700 font-medium">Employment Verified:</span> <span class="text-green-900">{{ employerReference.employment_status }}</span></div>
+                    <div><span class="text-green-700 font-medium">Performance Rating:</span> <span class="text-green-900">{{ employerReference.performance_rating }}</span></div>
+                    <div><span class="text-green-700 font-medium">Attendance:</span> <span class="text-green-900">{{ employerReference.absence_record }}</span></div>
+                    <div><span class="text-green-700 font-medium">Disciplinary Issues:</span> <span class="text-green-900">{{ employerReference.disciplinary_issues }}</span></div>
+                    <div class="col-span-2"><span class="text-green-700 font-medium">Would Re-employ:</span> <span class="text-green-900 font-semibold">{{ employerReference.would_reemploy }}</span></div>
+                  </div>
+
+                  <div v-if="employerReference.performance_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                    <span class="text-green-700 font-medium text-sm">Performance Notes:</span>
+                    <p class="text-green-900 text-sm mt-1">{{ employerReference.performance_details }}</p>
+                  </div>
+
+                  <div v-if="employerReference.additional_comments" class="mt-3 p-3 bg-white rounded border border-green-200">
+                    <span class="text-green-700 font-medium text-sm">Additional Comments:</span>
+                    <p class="text-green-900 text-sm mt-1">{{ employerReference.additional_comments }}</p>
+                  </div>
+                </div>
+
+                <!-- Signature -->
+                <div class="pt-3 border-t border-green-300">
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span class="text-green-700 font-medium">Signed By:</span>
+                      <span class="ml-2 text-green-900">{{ employerReference.signature }}</span>
+                    </div>
+                    <div>
+                      <span class="text-green-700 font-medium">Date:</span>
+                      <span class="ml-2 text-green-900">{{ formatDate(employerReference.date) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Previous Landlord Information -->
@@ -155,6 +258,167 @@
           </div>
           <div v-else class="text-gray-500 text-center py-4">
             Tenant has not submitted previous landlord information yet
+          </div>
+
+          <!-- Landlord Reference Link (only show if not submitted) -->
+          <div v-if="reference.previous_landlord_email && !landlordReference" class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+            <h4 class="text-sm font-semibold text-purple-900 mb-2">Landlord Reference Form</h4>
+            <p class="text-sm text-purple-800 mb-2">
+              Share this link with the previous landlord to complete their reference:
+            </p>
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                readonly
+                :value="getLandlordReferenceLink()"
+                class="flex-1 px-3 py-2 text-sm bg-white border border-purple-300 rounded-md font-mono text-xs"
+              />
+              <button
+                type="button"
+                @click="copyLandlordLink"
+                class="px-4 py-2 text-sm font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 whitespace-nowrap"
+              >
+                Copy Link
+              </button>
+            </div>
+          </div>
+
+          <!-- Landlord Reference Submitted (show completed reference) -->
+          <div v-if="landlordReference" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-sm font-semibold text-green-900">✓ Landlord Reference Completed</h4>
+              <span class="text-xs text-green-700">Submitted {{ formatDateTime(landlordReference.submitted_at) }}</span>
+            </div>
+
+            <div class="space-y-6 text-sm">
+              <!-- Landlord Contact Information -->
+              <div>
+                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Landlord Contact Information</h5>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <span class="text-green-700 font-medium">Full Name:</span>
+                    <span class="ml-2 text-green-900">{{ landlordReference.landlord_name }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Email:</span>
+                    <span class="ml-2 text-green-900">{{ landlordReference.landlord_email }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Phone:</span>
+                    <span class="ml-2 text-green-900">{{ landlordReference.landlord_phone }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Property & Tenancy Details -->
+              <div>
+                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy Details</h5>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <span class="text-green-700 font-medium">Property Address:</span>
+                    <span class="ml-2 text-green-900">{{ landlordReference.property_address }}</span>
+                  </div>
+                  <div v-if="landlordReference.property_city">
+                    <span class="text-green-700 font-medium">City:</span>
+                    <span class="ml-2 text-green-900">{{ landlordReference.property_city }}</span>
+                  </div>
+                  <div v-if="landlordReference.property_postcode">
+                    <span class="text-green-700 font-medium">Postcode:</span>
+                    <span class="ml-2 text-green-900">{{ landlordReference.property_postcode }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Tenancy Start:</span>
+                    <span class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_start_date) }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Tenancy End:</span>
+                    <span class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_end_date) }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Monthly Rent:</span>
+                    <span class="ml-2 text-green-900">£{{ landlordReference.monthly_rent }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reference Assessment -->
+              <div>
+                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Reference Assessment</h5>
+                <div class="space-y-3">
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Rent Paid On Time:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.rent_paid_on_time }}</span>
+                    </div>
+                    <div v-if="landlordReference.rent_paid_on_time_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ landlordReference.rent_paid_on_time_details }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Property Condition:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.property_condition }}</span>
+                    </div>
+                    <div v-if="landlordReference.property_condition_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ landlordReference.property_condition_details }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Neighbour Complaints:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.neighbour_complaints }}</span>
+                    </div>
+                    <div v-if="landlordReference.neighbour_complaints_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ landlordReference.neighbour_complaints_details }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Breach of Tenancy:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.breach_of_tenancy }}</span>
+                    </div>
+                    <div v-if="landlordReference.breach_of_tenancy_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ landlordReference.breach_of_tenancy_details }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Would Rent Again:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.would_rent_again }}</span>
+                    </div>
+                    <div v-if="landlordReference.would_rent_again_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ landlordReference.would_rent_again_details }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Additional Comments -->
+              <div v-if="landlordReference.additional_comments">
+                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Additional Comments</h5>
+                <div class="bg-green-100 p-3 rounded border border-green-300 text-green-900">
+                  {{ landlordReference.additional_comments }}
+                </div>
+              </div>
+
+              <!-- Signature -->
+              <div class="pt-3 border-t border-green-300">
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <span class="text-green-700 font-medium">Signed By:</span>
+                    <span class="ml-2 text-green-900">{{ landlordReference.signature }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Date:</span>
+                    <span class="ml-2 text-green-900">{{ formatDate(landlordReference.date) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -230,6 +494,14 @@
               <label class="block text-sm font-medium text-gray-500">Submitted by Tenant</label>
               <p class="mt-1 text-gray-900">{{ formatDateTime(reference.submitted_at) }}</p>
             </div>
+            <div v-if="landlordReference?.submitted_at">
+              <label class="block text-sm font-medium text-gray-500">Landlord Reference Submitted</label>
+              <p class="mt-1 text-gray-900">{{ formatDateTime(landlordReference.submitted_at) }}</p>
+            </div>
+            <div v-if="employerReference?.submitted_at">
+              <label class="block text-sm font-medium text-gray-500">Employer Reference Submitted</label>
+              <p class="mt-1 text-gray-900">{{ formatDateTime(employerReference.submitted_at) }}</p>
+            </div>
             <div v-if="reference.completed_at">
               <label class="block text-sm font-medium text-gray-500">Completed</label>
               <p class="mt-1 text-gray-900">{{ formatDateTime(reference.completed_at) }}</p>
@@ -268,6 +540,8 @@ const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const reference = ref<any>(null)
+const landlordReference = ref<any>(null)
+const employerReference = ref<any>(null)
 const loading = ref(true)
 const error = ref('')
 
@@ -297,6 +571,8 @@ const fetchReference = async () => {
 
     const data = await response.json()
     reference.value = data.reference
+    landlordReference.value = data.landlordReference
+    employerReference.value = data.employerReference
   } catch (err: any) {
     error.value = err.message || 'Failed to load reference'
   } finally {
@@ -336,6 +612,34 @@ const formatDateTime = (date: string) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const getLandlordReferenceLink = () => {
+  return `${window.location.origin}/landlord-reference/${reference.value?.id || ''}`
+}
+
+const getEmployerReferenceLink = () => {
+  return `${window.location.origin}/employer-reference/${reference.value?.id || ''}`
+}
+
+const toast = useToast()
+
+const copyLandlordLink = async () => {
+  try {
+    await navigator.clipboard.writeText(getLandlordReferenceLink())
+    toast.success('Landlord reference link copied to clipboard!')
+  } catch (error) {
+    toast.error('Failed to copy link to clipboard')
+  }
+}
+
+const copyEmployerLink = async () => {
+  try {
+    await navigator.clipboard.writeText(getEmployerReferenceLink())
+    toast.success('Employer reference link copied to clipboard!')
+  } catch (error) {
+    toast.error('Failed to copy link to clipboard')
+  }
 }
 
 const copyTenantLink = () => {
