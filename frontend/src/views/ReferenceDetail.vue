@@ -354,7 +354,11 @@ const downloadFile = async (filePath: string) => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/references/download/${encodeURIComponent(filePath)}`, {
+    // Parse file path: referenceId/folder/filename
+    const parts = filePath.split('/')
+    const downloadUrl = `${API_URL}/api/references/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2])}`
+
+    const response = await fetch(downloadUrl, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -365,13 +369,13 @@ const downloadFile = async (filePath: string) => {
     }
 
     const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
+    const blobUrl = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
+    a.href = blobUrl
     a.download = filePath.split('/').pop() || 'document'
     document.body.appendChild(a)
     a.click()
-    window.URL.revokeObjectURL(url)
+    window.URL.revokeObjectURL(blobUrl)
     document.body.removeChild(a)
   } catch (error) {
     useToast().error('Failed to download file')

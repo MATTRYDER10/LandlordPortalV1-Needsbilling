@@ -335,94 +335,25 @@ router.post('/submit/:token', async (req, res) => {
   }
 })
 
-// Get reference by token (public route - for tenant to view)
-router.get('/view/:token', async (req, res) => {
-  try {
-    const { token } = req.params
-
-    const { data: reference, error } = await supabase
-      .from('tenant_references')
-      .select('id, tenant_first_name, tenant_last_name, tenant_email, property_address, property_city, property_postcode, monthly_rent, move_in_date, submitted_at, status')
-      .eq('reference_token', token)
-      .gte('token_expires_at', new Date().toISOString())
-      .single()
-
-    if (error || !reference) {
-      return res.status(404).json({ error: 'Invalid or expired reference link' })
-    }
-
-    res.json({ reference })
-  } catch (error: any) {
-    res.status(500).json({ error: error.message })
-  }
+// Test route
+router.post('/upload-test/:token', async (req, res) => {
+  res.json({ message: 'Test route works', token: req.params.token })
 })
 
-// Download file from reference (authenticated route)
-router.get('/download/:filePath(*)', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const userId = req.user?.id
-    const filePath = decodeURIComponent(req.params.filePath)
+// Upload files for a reference (public route - for tenant) - MUST be before /view/:token
+router.post('/upload/:token', (req, res, next) => {
+  const uploadMiddleware = upload.fields([
+    { name: 'bank_statements', maxCount: 10 },
+    { name: 'payslips', maxCount: 10 }
+  ])
 
-    // Extract reference ID from file path (format: referenceId/type/filename)
-    const referenceId = filePath.split('/')[0]
-
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    if (!companyUser) {
-      return res.status(404).json({ error: 'Company not found' })
+  uploadMiddleware(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message })
     }
-
-    // Verify reference belongs to user's company
-    const { data: reference, error: refError } = await supabase
-      .from('tenant_references')
-      .select('company_id')
-      .eq('id', referenceId)
-      .eq('company_id', companyUser.company_id)
-      .single()
-
-    if (refError || !reference) {
-      return res.status(403).json({ error: 'Access denied' })
-    }
-
-    // Download file from storage
-    const { data, error: downloadError } = await supabase.storage
-      .from('tenant-documents')
-      .download(filePath)
-
-    if (downloadError) {
-      return res.status(404).json({ error: 'File not found' })
-    }
-
-    // Get file extension to set correct content type
-    const ext = filePath.split('.').pop()?.toLowerCase()
-    const contentTypes: { [key: string]: string } = {
-      'pdf': 'application/pdf',
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png'
-    }
-    const contentType = contentTypes[ext || ''] || 'application/octet-stream'
-
-    res.setHeader('Content-Type', contentType)
-    res.setHeader('Content-Disposition', `attachment; filename="${filePath.split('/').pop()}"`)
-
-    const buffer = Buffer.from(await data.arrayBuffer())
-    res.send(buffer)
-  } catch (error: any) {
-    res.status(500).json({ error: error.message })
-  }
-})
-
-// Upload files for a reference (public route - for tenant)
-router.post('/upload/:token', upload.fields([
-  { name: 'bank_statements', maxCount: 10 },
-  { name: 'payslips', maxCount: 10 }
-]), async (req, res) => {
+    next()
+  })
+}, async (req, res) => {
   try {
     const { token } = req.params
     const files = req.files as { [fieldname: string]: Express.Multer.File[] }
@@ -502,6 +433,87 @@ router.post('/upload/:token', upload.fields([
       bank_statements: bankStatementPaths.length,
       payslips: payslipPaths.length
     })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Get reference by token (public route - for tenant to view)
+router.get('/view/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+
+    const { data: reference, error } = await supabase
+      .from('tenant_references')
+      .select('id, tenant_first_name, tenant_last_name, tenant_email, property_address, property_city, property_postcode, monthly_rent, move_in_date, submitted_at, status')
+      .eq('reference_token', token)
+      .gte('token_expires_at', new Date().toISOString())
+      .single()
+
+    if (error || !reference) {
+      return res.status(404).json({ error: 'Invalid or expired reference link' })
+    }
+
+    res.json({ reference })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Download file from reference (authenticated route)
+router.get('/download/:referenceId/:folder/:filename', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const { referenceId, folder, filename } = req.params
+    const filePath = `${referenceId}/${folder}/${filename}`
+
+    // Get user's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .single()
+
+    if (!companyUser) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    // Verify reference belongs to user's company
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('company_id')
+      .eq('id', referenceId)
+      .eq('company_id', companyUser.company_id)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Download file from storage
+    const { data, error: downloadError } = await supabase.storage
+      .from('tenant-documents')
+      .download(filePath)
+
+    if (downloadError) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+
+    // Get file extension to set correct content type
+    const ext = filePath.split('.').pop()?.toLowerCase()
+    const contentTypes: { [key: string]: string } = {
+      'pdf': 'application/pdf',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png'
+    }
+    const contentType = contentTypes[ext || ''] || 'application/octet-stream'
+
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Disposition', `attachment; filename="${filePath.split('/').pop()}"`)
+
+    const buffer = Buffer.from(await data.arrayBuffer())
+    res.send(buffer)
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
