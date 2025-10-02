@@ -207,13 +207,18 @@
 
                 <!-- Signature -->
                 <div class="pt-3 border-t border-green-300">
-                  <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div class="space-y-3">
                     <div>
-                      <span class="text-green-700 font-medium">Signed By:</span>
-                      <span class="ml-2 text-green-900">{{ employerReference.signature }}</span>
+                      <span class="text-green-700 font-medium text-sm">Signature:</span>
+                      <div class="mt-2 p-3 bg-white rounded border border-green-200">
+                        <div v-if="employerReference.signature_name" class="mb-2 text-sm text-gray-700 font-medium">
+                          {{ employerReference.signature_name }}
+                        </div>
+                        <img :src="employerReference.signature" alt="Signature" class="max-w-md h-auto" />
+                      </div>
                     </div>
                     <div>
-                      <span class="text-green-700 font-medium">Date:</span>
+                      <span class="text-green-700 font-medium text-sm">Date:</span>
                       <span class="ml-2 text-green-900">{{ formatDate(employerReference.date) }}</span>
                     </div>
                   </div>
@@ -407,13 +412,18 @@
 
               <!-- Signature -->
               <div class="pt-3 border-t border-green-300">
-                <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-3">
                   <div>
-                    <span class="text-green-700 font-medium">Signed By:</span>
-                    <span class="ml-2 text-green-900">{{ landlordReference.signature }}</span>
+                    <span class="text-green-700 font-medium text-sm">Signature:</span>
+                    <div class="mt-2 p-3 bg-white rounded border border-green-200">
+                      <div v-if="landlordReference.signature_name" class="mb-2 text-sm text-gray-700 font-medium">
+                        {{ landlordReference.signature_name }}
+                      </div>
+                      <img :src="landlordReference.signature" alt="Signature" class="max-w-md h-auto" />
+                    </div>
                   </div>
                   <div>
-                    <span class="text-green-700 font-medium">Date:</span>
+                    <span class="text-green-700 font-medium text-sm">Date:</span>
                     <span class="ml-2 text-green-900">{{ formatDate(landlordReference.date) }}</span>
                   </div>
                 </div>

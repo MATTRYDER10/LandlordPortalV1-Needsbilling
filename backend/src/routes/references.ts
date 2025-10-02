@@ -514,6 +514,7 @@ router.post('/landlord/:referenceId', async (req, res) => {
       would_rent_again: formData.wouldRentAgain,
       would_rent_again_details: formData.wouldRentAgainDetails || null,
       additional_comments: formData.additionalComments || null,
+      signature_name: formData.signatureName,
       signature: formData.signature,
       date: formData.date,
       submitted_at: new Date().toISOString()
@@ -590,6 +591,7 @@ router.post('/employer/:referenceId', async (req, res) => {
       would_reemploy: formData.wouldReemploy,
       would_reemploy_details: formData.wouldReemployDetails || null,
       additional_comments: formData.additionalComments || null,
+      signature_name: formData.signatureName,
       signature: formData.signature,
       date: formData.date,
       submitted_at: new Date().toISOString()

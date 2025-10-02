@@ -302,15 +302,20 @@
 
           <div class="space-y-4">
             <div>
-              <label for="signature" class="block text-sm font-medium text-gray-700">Full Name (Electronic Signature) *</label>
+              <label for="signature-name" class="block text-sm font-medium text-gray-700">Full Name *</label>
               <input
-                id="signature"
-                v-model="formData.signature"
+                id="signature-name"
+                v-model="formData.signatureName"
                 type="text"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+
+            <SignaturePad
+              v-model="formData.signature"
+              label="Signature"
+            />
 
             <div>
               <label for="date" class="block text-sm font-medium text-gray-700">Date *</label>
@@ -348,6 +353,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import SignaturePad from '../components/SignaturePad.vue'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -378,6 +384,7 @@ const formData = ref({
   wouldRentAgain: '',
   wouldRentAgainDetails: '',
   additionalComments: '',
+  signatureName: '',
   signature: '',
   date: new Date().toISOString().split('T')[0]
 })
@@ -387,6 +394,13 @@ const handleSubmit = async () => {
   error.value = ''
 
   try {
+    // Validate signature
+    if (!formData.value.signature) {
+      error.value = 'Please provide your signature'
+      submitting.value = false
+      return
+    }
+
     const referenceId = route.params.referenceId
     const response = await fetch(`${API_URL}/api/references/landlord/${referenceId}`, {
       method: 'POST',
