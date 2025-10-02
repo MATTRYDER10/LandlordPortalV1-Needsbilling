@@ -158,6 +158,53 @@
           </div>
         </div>
 
+        <!-- Supporting Documents -->
+        <div v-if="reference.bank_statement_files?.length || reference.payslip_files?.length" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Supporting Documents</h3>
+
+          <div v-if="reference.bank_statement_files?.length" class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Bank Statements</label>
+            <div class="space-y-2">
+              <div v-for="(file, index) in reference.bank_statement_files" :key="index"
+                   class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                <div class="flex items-center">
+                  <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span class="text-sm text-gray-900">Bank Statement {{ index + 1 }}</span>
+                </div>
+                <button
+                  @click="downloadFile(file)"
+                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md"
+                >
+                  Download
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="reference.payslip_files?.length">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Payslips</label>
+            <div class="space-y-2">
+              <div v-for="(file, index) in reference.payslip_files" :key="index"
+                   class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                <div class="flex items-center">
+                  <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span class="text-sm text-gray-900">Payslip {{ index + 1 }}</span>
+                </div>
+                <button
+                  @click="downloadFile(file)"
+                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md"
+                >
+                  Download
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Notes -->
         <div v-if="reference.notes || reference.internal_notes" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Notes</h3>
@@ -296,6 +343,38 @@ const copyTenantLink = () => {
     const link = `${window.location.origin}/submit-reference/${reference.value.reference_token}`
     navigator.clipboard.writeText(link)
     useToast().success('Tenant link copied to clipboard!')
+  }
+}
+
+const downloadFile = async (filePath: string) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      useToast().error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/references/download/${encodeURIComponent(filePath)}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to download file')
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filePath.split('/').pop() || 'document'
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  } catch (error) {
+    useToast().error('Failed to download file')
   }
 }
 </script>

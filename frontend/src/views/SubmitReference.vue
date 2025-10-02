@@ -237,6 +237,78 @@
           </div>
         </div>
 
+        <!-- Supporting Documents -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Supporting Documents</h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statements (Last 3 months) *</label>
+              <input
+                type="file"
+                @change="handleBankStatementUpload"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                required
+                class="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-md file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"
+              />
+              <p class="mt-1 text-xs text-gray-500">Upload PDF or images (max 10MB per file)</p>
+              <div v-if="bankStatements.length > 0" class="mt-2 space-y-1">
+                <div v-for="(file, index) in bankStatements" :key="index" class="flex items-center justify-between text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
+                  <span>{{ file.name }} ({{ formatFileSize(file.size) }})</span>
+                  <button type="button" @click="removeBankStatement(index)" class="text-red-600 hover:text-red-800">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Payslips (Last 3 months) *</label>
+              <input
+                type="file"
+                @change="handlePayslipUpload"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                required
+                class="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-md file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"
+              />
+              <p class="mt-1 text-xs text-gray-500">Upload PDF or images (max 10MB per file)</p>
+              <div v-if="payslips.length > 0" class="mt-2 space-y-1">
+                <div v-for="(file, index) in payslips" :key="index" class="flex items-center justify-between text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
+                  <span>{{ file.name }} ({{ formatFileSize(file.size) }})</span>
+                  <button type="button" @click="removePayslip(index)" class="text-red-600 hover:text-red-800">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="uploadProgress > 0 && uploadProgress < 100" class="mt-4">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm text-gray-600">Uploading files...</span>
+                <span class="text-sm text-gray-600">{{ uploadProgress }}%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" :style="{ width: uploadProgress + '%' }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Error/Success Messages -->
         <div v-if="submitError" class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-lg">
           {{ submitError }}
@@ -279,6 +351,9 @@ const submitting = ref(false)
 const submitError = ref('')
 const submitSuccess = ref('')
 const justSubmitted = ref(false)
+const uploadProgress = ref(0)
+const bankStatements = ref<File[]>([])
+const payslips = ref<File[]>([])
 
 const formData = ref({
   employment_status: '',
@@ -329,13 +404,98 @@ const fetchReferenceByToken = async () => {
   }
 }
 
+const handleBankStatementUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files) {
+    const files = Array.from(target.files)
+    const validFiles = files.filter(file => {
+      const maxSize = 10 * 1024 * 1024 // 10MB
+      if (file.size > maxSize) {
+        submitError.value = `File ${file.name} is too large. Max size is 10MB.`
+        return false
+      }
+      return true
+    })
+    bankStatements.value = [...bankStatements.value, ...validFiles]
+  }
+}
+
+const handlePayslipUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files) {
+    const files = Array.from(target.files)
+    const validFiles = files.filter(file => {
+      const maxSize = 10 * 1024 * 1024 // 10MB
+      if (file.size > maxSize) {
+        submitError.value = `File ${file.name} is too large. Max size is 10MB.`
+        return false
+      }
+      return true
+    })
+    payslips.value = [...payslips.value, ...validFiles]
+  }
+}
+
+const removeBankStatement = (index: number) => {
+  bankStatements.value.splice(index, 1)
+}
+
+const removePayslip = (index: number) => {
+  payslips.value.splice(index, 1)
+}
+
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+const uploadFiles = async (referenceId: string) => {
+  const formDataFiles = new FormData()
+
+  bankStatements.value.forEach((file) => {
+    formDataFiles.append('bank_statements', file)
+  })
+
+  payslips.value.forEach((file) => {
+    formDataFiles.append('payslips', file)
+  })
+
+  const token = route.params.token
+  const response = await fetch(`${API_URL}/api/references/upload/${token}`, {
+    method: 'POST',
+    body: formDataFiles
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw new Error(errorData.error || 'Failed to upload files')
+  }
+
+  return response.json()
+}
+
 const handleSubmit = async () => {
   submitting.value = true
   submitError.value = ''
   submitSuccess.value = ''
+  uploadProgress.value = 0
 
   try {
+    // Validate files are uploaded
+    if (bankStatements.value.length === 0) {
+      throw new Error('Please upload at least one bank statement')
+    }
+    if (payslips.value.length === 0) {
+      throw new Error('Please upload at least one payslip')
+    }
+
     const token = route.params.token
+
+    // Step 1: Submit form data
+    uploadProgress.value = 25
     const response = await fetch(`${API_URL}/api/references/submit/${token}`, {
       method: 'POST',
       headers: {
@@ -349,6 +509,13 @@ const handleSubmit = async () => {
       throw new Error(errorData.error || 'Failed to submit reference')
     }
 
+    const data = await response.json()
+
+    // Step 2: Upload files
+    uploadProgress.value = 50
+    await uploadFiles(data.reference.id)
+
+    uploadProgress.value = 100
     submitSuccess.value = 'Reference submitted successfully! Thank you for completing the form.'
     justSubmitted.value = true
 
@@ -358,6 +525,7 @@ const handleSubmit = async () => {
     }, 2000)
   } catch (error: any) {
     submitError.value = error.message || 'Failed to submit reference'
+    uploadProgress.value = 0
   } finally {
     submitting.value = false
   }

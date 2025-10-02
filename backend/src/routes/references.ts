@@ -2,8 +2,25 @@ import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
+import multer from 'multer'
 
 const router = Router()
+
+// Configure multer for file uploads (store in memory)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Invalid file type. Only PDF and images are allowed.'))
+    }
+  }
+})
 
 // Get all references for company
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
@@ -335,6 +352,156 @@ router.get('/view/:token', async (req, res) => {
     }
 
     res.json({ reference })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Download file from reference (authenticated route)
+router.get('/download/:filePath(*)', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const filePath = decodeURIComponent(req.params.filePath)
+
+    // Extract reference ID from file path (format: referenceId/type/filename)
+    const referenceId = filePath.split('/')[0]
+
+    // Get user's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .single()
+
+    if (!companyUser) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    // Verify reference belongs to user's company
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('company_id')
+      .eq('id', referenceId)
+      .eq('company_id', companyUser.company_id)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Download file from storage
+    const { data, error: downloadError } = await supabase.storage
+      .from('tenant-documents')
+      .download(filePath)
+
+    if (downloadError) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+
+    // Get file extension to set correct content type
+    const ext = filePath.split('.').pop()?.toLowerCase()
+    const contentTypes: { [key: string]: string } = {
+      'pdf': 'application/pdf',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png'
+    }
+    const contentType = contentTypes[ext || ''] || 'application/octet-stream'
+
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Disposition', `attachment; filename="${filePath.split('/').pop()}"`)
+
+    const buffer = Buffer.from(await data.arrayBuffer())
+    res.send(buffer)
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Upload files for a reference (public route - for tenant)
+router.post('/upload/:token', upload.fields([
+  { name: 'bank_statements', maxCount: 10 },
+  { name: 'payslips', maxCount: 10 }
+]), async (req, res) => {
+  try {
+    const { token } = req.params
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] }
+
+    // Get reference by token
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, company_id, reference_token')
+      .eq('reference_token', token)
+      .gte('token_expires_at', new Date().toISOString())
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Invalid or expired reference link' })
+    }
+
+    const bankStatementPaths: string[] = []
+    const payslipPaths: string[] = []
+
+    // Upload bank statements
+    if (files.bank_statements) {
+      for (const file of files.bank_statements) {
+        const fileExt = file.originalname.split('.').pop()
+        const fileName = `${reference.id}/bank_statements/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('tenant-documents')
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+            upsert: false
+          })
+
+        if (uploadError) {
+          throw new Error(`Failed to upload ${file.originalname}: ${uploadError.message}`)
+        }
+
+        bankStatementPaths.push(fileName)
+      }
+    }
+
+    // Upload payslips
+    if (files.payslips) {
+      for (const file of files.payslips) {
+        const fileExt = file.originalname.split('.').pop()
+        const fileName = `${reference.id}/payslips/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('tenant-documents')
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+            upsert: false
+          })
+
+        if (uploadError) {
+          throw new Error(`Failed to upload ${file.originalname}: ${uploadError.message}`)
+        }
+
+        payslipPaths.push(fileName)
+      }
+    }
+
+    // Update reference with file paths
+    const { error: updateError } = await supabase
+      .from('tenant_references')
+      .update({
+        bank_statement_files: bankStatementPaths,
+        payslip_files: payslipPaths
+      })
+      .eq('id', reference.id)
+
+    if (updateError) {
+      throw new Error(`Failed to update reference: ${updateError.message}`)
+    }
+
+    res.json({
+      message: 'Files uploaded successfully',
+      bank_statements: bankStatementPaths.length,
+      payslips: payslipPaths.length
+    })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
