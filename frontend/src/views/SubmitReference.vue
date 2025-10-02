@@ -70,20 +70,22 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label for="employer-name" class="block text-sm font-medium text-gray-700">Employer Name</label>
+                <label for="employer-name" class="block text-sm font-medium text-gray-700">Employer Name *</label>
                 <input
                   id="employer-name"
                   v-model="formData.employer_name"
                   type="text"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
-                <label for="job-title" class="block text-sm font-medium text-gray-700">Job Title</label>
+                <label for="job-title" class="block text-sm font-medium text-gray-700">Job Title *</label>
                 <input
                   id="job-title"
                   v-model="formData.job_title"
                   type="text"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -91,21 +93,23 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label for="annual-income" class="block text-sm font-medium text-gray-700">Annual Income (£)</label>
+                <label for="annual-income" class="block text-sm font-medium text-gray-700">Annual Income (£) *</label>
                 <input
                   id="annual-income"
                   v-model="formData.annual_income"
                   type="number"
                   step="0.01"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
-                <label for="employment-start-date" class="block text-sm font-medium text-gray-700">Employment Start Date</label>
+                <label for="employment-start-date" class="block text-sm font-medium text-gray-700">Employment Start Date *</label>
                 <input
                   id="employment-start-date"
                   v-model="formData.employment_start_date"
                   type="date"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -113,20 +117,22 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label for="employer-email" class="block text-sm font-medium text-gray-700">Employer Email</label>
+                <label for="employer-email" class="block text-sm font-medium text-gray-700">Employer Email *</label>
                 <input
                   id="employer-email"
                   v-model="formData.employer_email"
                   type="email"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
-                <label for="employer-phone" class="block text-sm font-medium text-gray-700">Employer Phone</label>
+                <label for="employer-phone" class="block text-sm font-medium text-gray-700">Employer Phone *</label>
                 <input
                   id="employer-phone"
                   v-model="formData.employer_phone"
                   type="tel"
+                  required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
