@@ -4,4 +4,11 @@ import vue from '@vitejs/plugin-vue'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  preview: {
+    allowedHosts: [
+      'localhost',
+      '.up.railway.app', // Allow all Railway domains
+      '.railway.app'
+    ]
+  }
 })
