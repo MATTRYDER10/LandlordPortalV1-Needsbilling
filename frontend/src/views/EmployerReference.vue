@@ -5,7 +5,7 @@
       <div v-if="brandingLoaded" class="text-center mb-8">
         <div class="flex justify-center items-center gap-3 mb-4">
           <template v-if="companyLogo">
-            <img :src="companyLogo" alt="Company Logo" class="h-12 object-contain" />
+            <img :src="companyLogo" alt="Company Logo" class="h-20 object-contain" />
           </template>
           <template v-else>
             <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
