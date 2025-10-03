@@ -51,24 +51,91 @@
         </div>
       </div>
 
-      <!-- References Table -->
+      <!-- Recent References -->
       <div class="bg-white rounded-lg shadow">
-        <div class="px-6 py-4 border-b border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h3 class="text-lg font-semibold text-gray-900">Recent References</h3>
+          <router-link
+            to="/references"
+            class="text-sm font-medium text-primary hover:text-primary/80"
+          >
+            View All →
+          </router-link>
         </div>
-        <div class="p-6">
+
+        <!-- Empty State -->
+        <div v-if="recentReferences.length === 0" class="p-6">
           <div class="text-center py-12">
             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No references</h3>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No references yet</h3>
             <p class="mt-1 text-sm text-gray-500">Get started by creating a new tenant reference.</p>
             <div class="mt-6">
-              <button class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
+              <router-link
+                to="/references"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block"
+              >
                 Create New Reference
-              </button>
+              </router-link>
             </div>
           </div>
+        </div>
+
+        <!-- References Table -->
+        <div v-else class="overflow-hidden">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="reference in recentReferences" :key="reference.id" class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-medium text-gray-900">
+                    {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
+                  </div>
+                  <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
+                  <div class="text-sm text-gray-500">
+                    {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode : '' }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span
+                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                    :class="{
+                      'bg-yellow-100 text-yellow-800': reference.status === 'pending',
+                      'bg-blue-100 text-blue-800': reference.status === 'in_progress',
+                      'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
+                      'bg-green-100 text-green-800': reference.status === 'completed',
+                      'bg-gray-100 text-gray-800': reference.status === 'cancelled'
+                    }"
+                  >
+                    {{ formatStatus(reference.status) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ formatDate(reference.created_at) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button
+                    @click="viewReference(reference.id)"
+                    class="text-primary hover:text-primary/80"
+                  >
+                    View
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -77,15 +144,18 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const totalReferences = ref(0)
 const inProgressReferences = ref(0)
 const completedReferences = ref(0)
+const recentReferences = ref<any[]>([])
 
 const fetchReferences = async () => {
   try {
@@ -111,9 +181,30 @@ const fetchReferences = async () => {
     completedReferences.value = references.filter((ref: any) =>
       ref.status === 'completed'
     ).length
+
+    // Show 5 most recent references
+    recentReferences.value = references
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 5)
   } catch (error) {
     console.error('Failed to fetch references:', error)
   }
+}
+
+const viewReference = (id: string) => {
+  router.push(`/references/${id}`)
+}
+
+const formatStatus = (status: string) => {
+  return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
 }
 
 onMounted(() => {
