@@ -41,17 +41,136 @@
           </span>
         </div>
 
-        <!-- Tenant Information -->
+        <!-- Personal Details -->
         <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Tenant Information</h3>
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Personal Details</h3>
           <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Full Name</label>
+              <p class="mt-1 text-gray-900">{{ reference.tenant_first_name }} {{ reference.middle_name || '' }} {{ reference.tenant_last_name }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Date of Birth</label>
+              <p class="mt-1 text-gray-900">{{ reference.date_of_birth ? formatDate(reference.date_of_birth) : 'Not provided' }}</p>
+            </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Email</label>
               <p class="mt-1 text-gray-900">{{ reference.tenant_email }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-500">Phone</label>
-              <p class="mt-1 text-gray-900">{{ reference.tenant_phone || 'Not provided' }}</p>
+              <label class="block text-sm font-medium text-gray-500">Contact Number</label>
+              <p class="mt-1 text-gray-900">{{ reference.contact_number || reference.tenant_phone || 'Not provided' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Nationality</label>
+              <p class="mt-1 text-gray-900">{{ reference.nationality || 'Not provided' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ID Documents -->
+        <div v-if="reference.id_document_type || reference.id_document_path || reference.selfie_path" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Identification Documents</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div v-if="reference.id_document_type">
+              <label class="block text-sm font-medium text-gray-500">Document Type</label>
+              <p class="mt-1 text-gray-900 capitalize">{{ reference.id_document_type.replace('_', ' ') }}</p>
+            </div>
+          </div>
+          <div class="mt-4 space-y-2">
+            <div v-if="reference.id_document_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+              <div class="flex items-center">
+                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm text-gray-900">ID Document</span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="viewFile(reference.id_document_path)"
+                  class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                >
+                  View
+                </button>
+                <button
+                  @click="downloadFile(reference.id_document_path)"
+                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                >
+                  Download
+                </button>
+              </div>
+            </div>
+            <div v-if="reference.selfie_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+              <div class="flex items-center">
+                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm text-gray-900">Selfie Verification</span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="viewFile(reference.selfie_path)"
+                  class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                >
+                  View
+                </button>
+                <button
+                  @click="downloadFile(reference.selfie_path)"
+                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                >
+                  Download
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current Address -->
+        <div v-if="reference.current_address_line1" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Address</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2">
+              <label class="block text-sm font-medium text-gray-500">Address</label>
+              <p class="mt-1 text-gray-900">
+                {{ reference.current_address_line1 }}
+                <span v-if="reference.current_address_line2">, {{ reference.current_address_line2 }}</span>
+              </p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">City</label>
+              <p class="mt-1 text-gray-900">{{ reference.current_city || 'Not provided' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Postcode</label>
+              <p class="mt-1 text-gray-900">{{ reference.current_postcode || 'Not provided' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Country</label>
+              <p class="mt-1 text-gray-900">{{ reference.current_country || 'Not provided' }}</p>
+            </div>
+          </div>
+          <div v-if="reference.proof_of_address_path" class="mt-4">
+            <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+              <div class="flex items-center">
+                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm text-gray-900">Proof of Address</span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="viewFile(reference.proof_of_address_path)"
+                  class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                >
+                  View
+                </button>
+                <button
+                  @click="downloadFile(reference.proof_of_address_path)"
+                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                >
+                  Download
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -83,10 +202,271 @@
           </div>
         </div>
 
-        <!-- Employment Information -->
+        <!-- Financial Information -->
         <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Employment Information</h3>
-          <div v-if="reference.employment_status" class="grid grid-cols-2 gap-4">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Financial Information</h3>
+
+          <!-- Income Sources -->
+          <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Income Sources</label>
+            <div class="flex flex-wrap gap-2">
+              <span v-if="reference.income_regular_employment" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Regular Employment</span>
+              <span v-if="reference.income_benefits" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Benefits</span>
+              <span v-if="reference.income_savings_pension_investments" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Savings/Pension/Investments</span>
+              <span v-if="reference.income_student" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Student</span>
+              <span v-if="reference.income_unemployed" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Unemployed</span>
+              <span v-if="!reference.income_regular_employment && !reference.income_benefits && !reference.income_savings_pension_investments && !reference.income_student && !reference.income_unemployed" class="text-gray-500 text-sm">Not provided</span>
+            </div>
+          </div>
+
+          <!-- Employment Details -->
+          <div v-if="reference.income_regular_employment" class="border-t pt-6">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Employment Details</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Contract Type</label>
+                <p class="mt-1 text-gray-900 capitalize">{{ reference.employment_contract_type?.replace('_', ' ') || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
+                <p class="mt-1 text-gray-900">{{ reference.employment_start_date ? formatDate(reference.employment_start_date) : 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Compensation Type</label>
+                <p class="mt-1 text-gray-900">{{ reference.employment_is_hourly ? 'Hourly' : 'Salary' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">{{ reference.employment_is_hourly ? 'Hourly Rate' : 'Annual Salary' }}</label>
+                <p class="mt-1 text-gray-900">{{ reference.employment_salary_amount ? `£${reference.employment_salary_amount}` : 'Not provided' }}</p>
+              </div>
+              <div v-if="reference.employment_is_hourly">
+                <label class="block text-sm font-medium text-gray-500">Hours per Month</label>
+                <p class="mt-1 text-gray-900">{{ reference.employment_hours_per_month || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Company Name</label>
+                <p class="mt-1 text-gray-900">{{ reference.employment_company_name || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Job Title</label>
+                <p class="mt-1 text-gray-900">{{ reference.employment_job_title || 'Not provided' }}</p>
+              </div>
+              <div class="col-span-2">
+                <label class="block text-sm font-medium text-gray-500">Company Address</label>
+                <p class="mt-1 text-gray-900">
+                  {{ reference.employment_company_address_line1 || 'Not provided' }}
+                  <span v-if="reference.employment_company_address_line2">, {{ reference.employment_company_address_line2 }}</span>
+                </p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Company City</label>
+                <p class="mt-1 text-gray-900">{{ reference.employment_company_city || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Company Postcode</label>
+                <p class="mt-1 text-gray-900">{{ reference.employment_company_postcode || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Company Country</label>
+                <p class="mt-1 text-gray-900">{{ reference.employment_company_country || 'Not provided' }}</p>
+              </div>
+            </div>
+
+            <!-- Employer Reference Contact -->
+            <div class="mt-6 pt-6 border-t">
+              <h5 class="text-sm font-semibold text-gray-700 mb-3">Employer Reference Contact</h5>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Position</label>
+                  <p class="mt-1 text-gray-900">{{ reference.employer_ref_position || 'Not provided' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Name</label>
+                  <p class="mt-1 text-gray-900">{{ reference.employer_ref_name || 'Not provided' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Email</label>
+                  <p class="mt-1 text-gray-900">{{ reference.employer_ref_email || 'Not provided' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Phone</label>
+                  <p class="mt-1 text-gray-900">{{ reference.employer_ref_phone || 'Not provided' }}</p>
+                </div>
+              </div>
+
+              <!-- Employer Reference Link (only show if not submitted) -->
+              <div v-if="reference.employer_ref_email && !employerReference" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 class="text-sm font-semibold text-blue-900 mb-2">Employer Reference Form</h4>
+                <p class="text-sm text-blue-800 mb-2">
+                  Share this link with the employer to complete their reference:
+                </p>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readonly
+                    :value="getEmployerReferenceLink()"
+                    class="flex-1 px-3 py-2 text-sm bg-white border border-blue-300 rounded-md font-mono text-xs"
+                  />
+                  <button
+                    type="button"
+                    @click="copyEmployerLink"
+                    class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 whitespace-nowrap"
+                  >
+                    Copy Link
+                  </button>
+                </div>
+              </div>
+
+              <!-- Employer Reference Submitted (show completed reference) -->
+              <div v-if="employerReference" class="mt-4 bg-green-50 border border-green-200 rounded-lg">
+                <div class="p-4">
+                  <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-lg font-semibold text-green-900">✓ Employer Reference Completed</h4>
+                    <span class="text-xs text-green-700">Submitted {{ formatDateTime(employerReference.submitted_at) }}</span>
+                  </div>
+
+                  <div class="space-y-6">
+                    <!-- Company Info -->
+                    <div>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Company Information</h5>
+                      <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-green-700 font-medium">Company:</span> <span class="text-green-900">{{ employerReference.company_name }}</span></div>
+                        <div><span class="text-green-700 font-medium">Contact:</span> <span class="text-green-900">{{ employerReference.employer_name }}</span></div>
+                        <div><span class="text-green-700 font-medium">Position:</span> <span class="text-green-900">{{ employerReference.employer_position }}</span></div>
+                        <div><span class="text-green-700 font-medium">Email:</span> <span class="text-green-900">{{ employerReference.employer_email }}</span></div>
+                      </div>
+                    </div>
+
+                    <!-- Employment Details -->
+                    <div>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Employment Details</h5>
+                      <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-green-700 font-medium">Position:</span> <span class="text-green-900">{{ employerReference.employee_position }}</span></div>
+                        <div><span class="text-green-700 font-medium">Type:</span> <span class="text-green-900">{{ employerReference.employment_type }}</span></div>
+                        <div><span class="text-green-700 font-medium">Start Date:</span> <span class="text-green-900">{{ formatDate(employerReference.employment_start_date) }}</span></div>
+                        <div v-if="employerReference.employment_end_date"><span class="text-green-700 font-medium">End Date:</span> <span class="text-green-900">{{ formatDate(employerReference.employment_end_date) }}</span></div>
+                        <div><span class="text-green-700 font-medium">Currently Employed:</span> <span class="text-green-900">{{ employerReference.is_current_employee ? 'Yes' : 'No' }}</span></div>
+                      </div>
+                    </div>
+
+                    <!-- Salary Info -->
+                    <div>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Compensation</h5>
+                      <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-green-700 font-medium">Salary:</span> <span class="text-green-900">£{{ employerReference.annual_salary }} ({{ employerReference.salary_frequency }})</span></div>
+                        <div><span class="text-green-700 font-medium">Probation:</span> <span class="text-green-900">{{ employerReference.is_probation === 'yes' ? 'Yes' : 'No' }}</span></div>
+                      </div>
+                    </div>
+
+                    <!-- Reference Assessment -->
+                    <div>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Performance Assessment</h5>
+                      <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-green-700 font-medium">Employment Verified:</span> <span class="text-green-900">{{ employerReference.employment_status }}</span></div>
+                        <div><span class="text-green-700 font-medium">Performance Rating:</span> <span class="text-green-900">{{ employerReference.performance_rating }}</span></div>
+                        <div><span class="text-green-700 font-medium">Attendance:</span> <span class="text-green-900">{{ employerReference.absence_record }}</span></div>
+                        <div><span class="text-green-700 font-medium">Disciplinary Issues:</span> <span class="text-green-900">{{ employerReference.disciplinary_issues }}</span></div>
+                        <div class="col-span-2"><span class="text-green-700 font-medium">Would Re-employ:</span> <span class="text-green-900 font-semibold">{{ employerReference.would_reemploy }}</span></div>
+                      </div>
+
+                      <div v-if="employerReference.performance_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Performance Notes:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ employerReference.performance_details }}</p>
+                      </div>
+
+                      <div v-if="employerReference.additional_comments" class="mt-3 p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Additional Comments:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ employerReference.additional_comments }}</p>
+                      </div>
+                    </div>
+
+                    <!-- Signature -->
+                    <div class="pt-3 border-t border-green-300">
+                      <div class="space-y-3">
+                        <div>
+                          <span class="text-green-700 font-medium text-sm">Signature:</span>
+                          <div class="mt-2 p-3 bg-white rounded border border-green-200">
+                            <div v-if="employerReference.signature_name" class="mb-2 text-sm text-gray-700 font-medium">
+                              {{ employerReference.signature_name }}
+                            </div>
+                            <img :src="employerReference.signature" alt="Signature" class="max-w-md h-auto" />
+                          </div>
+                        </div>
+                        <div>
+                          <span class="text-green-700 font-medium text-sm">Date:</span>
+                          <span class="ml-2 text-green-900">{{ formatDate(employerReference.date) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Additional Income -->
+          <div v-if="reference.has_additional_income" class="mt-6 pt-6 border-t">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Additional Income</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Source</label>
+                <p class="mt-1 text-gray-900">{{ reference.additional_income_source || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Amount</label>
+                <p class="mt-1 text-gray-900">{{ reference.additional_income_amount ? `£${reference.additional_income_amount}` : 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Frequency</label>
+                <p class="mt-1 text-gray-900 capitalize">{{ reference.additional_income_frequency || 'Not provided' }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Adverse Credit -->
+          <div v-if="reference.has_adverse_credit" class="mt-6 pt-6 border-t">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Adverse Credit History</h4>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p class="text-sm text-yellow-900">{{ reference.adverse_credit_details || 'Details not provided' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tenant Details -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">About the Tenant</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Smoker</label>
+              <p class="mt-1 text-gray-900">{{ reference.is_smoker === true ? 'Yes' : reference.is_smoker === false ? 'No' : 'Not provided' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Pets</label>
+              <p class="mt-1 text-gray-900">{{ reference.has_pets ? 'Yes' : 'No' }}</p>
+            </div>
+            <div v-if="reference.has_pets" class="col-span-2">
+              <label class="block text-sm font-medium text-gray-500">Pet Details</label>
+              <p class="mt-1 text-gray-900">{{ reference.pet_details || 'Not provided' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Marital Status</label>
+              <p class="mt-1 text-gray-900 capitalize">{{ reference.marital_status?.replace('_', ' ') || 'Not provided' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Number of Dependants</label>
+              <p class="mt-1 text-gray-900">{{ reference.number_of_dependants || 0 }}</p>
+            </div>
+            <div v-if="reference.number_of_dependants > 0" class="col-span-2">
+              <label class="block text-sm font-medium text-gray-500">Dependants Details</label>
+              <p class="mt-1 text-gray-900">{{ reference.dependants_details || 'Not provided' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Old Employment Information (for compatibility with old references) -->
+        <div v-if="reference.employment_status && !reference.income_regular_employment" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Employment Information (Legacy)</h3>
+          <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-500">Employment Status</label>
               <p class="mt-1 text-gray-900">{{ reference.employment_status }}</p>
@@ -115,9 +495,6 @@
               <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
               <p class="mt-1 text-gray-900">{{ reference.employment_start_date ? formatDate(reference.employment_start_date) : 'Not provided' }}</p>
             </div>
-          </div>
-          <div v-else class="text-gray-500 text-center py-4">
-            Tenant has not submitted employment information yet
           </div>
 
           <!-- Employer Reference Link (only show if not submitted) -->
@@ -448,12 +825,20 @@
                   </svg>
                   <span class="text-sm text-gray-900">Bank Statement {{ index + 1 }}</span>
                 </div>
-                <button
-                  @click="downloadFile(file)"
-                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md"
-                >
-                  Download
-                </button>
+                <div class="flex gap-2">
+                  <button
+                    @click="viewFile(file)"
+                    class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                  >
+                    View
+                  </button>
+                  <button
+                    @click="downloadFile(file)"
+                    class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                  >
+                    Download
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -469,12 +854,20 @@
                   </svg>
                   <span class="text-sm text-gray-900">Payslip {{ index + 1 }}</span>
                 </div>
-                <button
-                  @click="downloadFile(file)"
-                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md"
-                >
-                  Download
-                </button>
+                <div class="flex gap-2">
+                  <button
+                    @click="viewFile(file)"
+                    class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                  >
+                    View
+                  </button>
+                  <button
+                    @click="downloadFile(file)"
+                    class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                  >
+                    Download
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -534,6 +927,51 @@
         </div>
       </div>
     </div>
+
+    <!-- Document Viewer Modal -->
+    <div v-if="viewingDocument" class="fixed inset-0 z-50 overflow-y-auto" @click="closeDocumentViewer">
+      <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" aria-hidden="true"></div>
+
+        <!-- Center modal -->
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <!-- Modal panel -->
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-7xl sm:w-full" @click.stop>
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-medium text-gray-900">
+                {{ viewingDocumentName }}
+              </h3>
+              <button @click="closeDocumentViewer" class="text-gray-400 hover:text-gray-500">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div class="w-full flex items-center justify-center" style="height: 70vh;">
+              <img v-if="viewingDocumentType === 'image'" :src="viewingDocumentUrl" class="max-w-full max-h-full object-contain" />
+              <iframe v-else-if="viewingDocumentType === 'pdf'" :src="viewingDocumentUrl" class="w-full h-full border-0"></iframe>
+            </div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              @click="downloadFile(viewingDocumentPath)"
+              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary/90 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm"
+            >
+              Download
+            </button>
+            <button
+              @click="closeDocumentViewer"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </Sidebar>
 </template>
 
@@ -554,6 +992,13 @@ const landlordReference = ref<any>(null)
 const employerReference = ref<any>(null)
 const loading = ref(true)
 const error = ref('')
+
+// Document viewer modal state
+const viewingDocument = ref(false)
+const viewingDocumentUrl = ref('')
+const viewingDocumentName = ref('')
+const viewingDocumentPath = ref('')
+const viewingDocumentType = ref('') // 'image' or 'pdf'
 
 onMounted(() => {
   fetchReference()
@@ -694,5 +1139,65 @@ const downloadFile = async (filePath: string) => {
   } catch (error) {
     useToast().error('Failed to download file')
   }
+}
+
+const viewFile = async (filePath: string) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      useToast().error('Authentication required')
+      return
+    }
+
+    // Parse file path: referenceId/folder/filename
+    const parts = filePath.split('/')
+    const downloadUrl = `${API_URL}/api/references/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
+
+    const response = await fetch(downloadUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to load file')
+    }
+
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+
+    // Detect file type from filename
+    const filename = parts[2] || ''
+    const extension = filename.split('.').pop()?.toLowerCase()
+    const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
+    const pdfExtensions = ['pdf']
+
+    let docType = 'image'
+    if (pdfExtensions.includes(extension || '')) {
+      docType = 'pdf'
+    } else if (imageExtensions.includes(extension || '')) {
+      docType = 'image'
+    }
+
+    // Set modal state
+    viewingDocumentUrl.value = blobUrl
+    viewingDocumentName.value = filename
+    viewingDocumentPath.value = filePath
+    viewingDocumentType.value = docType
+    viewingDocument.value = true
+  } catch (error) {
+    useToast().error('Failed to view file')
+  }
+}
+
+const closeDocumentViewer = () => {
+  if (viewingDocumentUrl.value) {
+    window.URL.revokeObjectURL(viewingDocumentUrl.value)
+  }
+  viewingDocument.value = false
+  viewingDocumentUrl.value = ''
+  viewingDocumentName.value = ''
+  viewingDocumentPath.value = ''
+  viewingDocumentType.value = ''
 }
 </script>

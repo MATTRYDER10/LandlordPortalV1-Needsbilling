@@ -275,23 +275,7 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 router.post('/submit/:token', async (req, res) => {
   try {
     const { token } = req.params
-    const {
-      employment_status,
-      employer_name,
-      employer_email,
-      employer_phone,
-      job_title,
-      annual_income,
-      employment_start_date,
-      previous_landlord_name,
-      previous_landlord_email,
-      previous_landlord_phone,
-      previous_street,
-      previous_city,
-      previous_postcode,
-      tenancy_years,
-      tenancy_months
-    } = req.body
+    const data = req.body
 
     // Get reference by token
     const { data: reference, error: refError } = await supabase
@@ -310,28 +294,84 @@ router.post('/submit/:token', async (req, res) => {
       return res.status(400).json({ error: 'Reference has already been submitted' })
     }
 
+    // Build update object with all new fields
+    const updateData: any = {
+      // Personal Details (Page 2)
+      tenant_first_name: data.first_name,
+      tenant_last_name: data.last_name,
+      middle_name: data.middle_name || null,
+      date_of_birth: data.date_of_birth || null,
+      contact_number: data.contact_number || null,
+      nationality: data.nationality || null,
+
+      // ID Document (Page 1)
+      id_document_type: data.id_document_type || null,
+      id_document_path: data.id_document_path || null,
+      selfie_path: data.selfie_path || null,
+
+      // Current Address (Page 4)
+      current_address_line1: data.current_address_line1 || null,
+      current_address_line2: data.current_address_line2 || null,
+      current_city: data.current_city || null,
+      current_postcode: data.current_postcode || null,
+      current_country: data.current_country || null,
+      proof_of_address_path: data.proof_of_address_path || null,
+
+      // Financial Information - Income Sources (Page 6)
+      income_regular_employment: data.income_regular_employment || false,
+      income_benefits: data.income_benefits || false,
+      income_savings_pension_investments: data.income_savings_pension_investments || false,
+      income_student: data.income_student || false,
+      income_unemployed: data.income_unemployed || false,
+
+      // Employment Details (Page 6)
+      employment_contract_type: data.employment_contract_type || null,
+      employment_start_date: data.employment_start_date || null,
+      employment_is_hourly: data.employment_is_hourly || false,
+      employment_hours_per_month: data.employment_hours_per_month || null,
+      employment_salary_amount: data.employment_salary_amount || null,
+      employment_company_name: data.employment_company_name || null,
+      employment_company_address_line1: data.employment_company_address_line1 || null,
+      employment_company_address_line2: data.employment_company_address_line2 || null,
+      employment_company_city: data.employment_company_city || null,
+      employment_company_postcode: data.employment_company_postcode || null,
+      employment_company_country: data.employment_company_country || null,
+      employment_job_title: data.employment_job_title || null,
+      payslip_files: data.payslip_files || [],
+
+      // Employer Reference Contact (Page 6)
+      employer_ref_position: data.employer_ref_position || null,
+      employer_ref_name: data.employer_ref_name || null,
+      employer_ref_email: data.employer_ref_email || null,
+      employer_ref_phone: data.employer_ref_phone || null,
+
+      // Additional Income (Page 7)
+      has_additional_income: data.has_additional_income || false,
+      additional_income_source: data.additional_income_source || null,
+      additional_income_amount: data.additional_income_amount || null,
+      additional_income_frequency: data.additional_income_frequency || null,
+
+      // Adverse Credit (Page 8)
+      has_adverse_credit: data.has_adverse_credit || false,
+      adverse_credit_details: data.adverse_credit_details || null,
+
+      // Tenant Details (Page 9)
+      is_smoker: data.is_smoker,
+      has_pets: data.has_pets || false,
+      pet_details: data.pet_details || null,
+      marital_status: data.marital_status || null,
+      number_of_dependants: data.number_of_dependants || 0,
+      dependants_details: data.dependants_details || null,
+
+      // Submission tracking
+      submitted_at: new Date().toISOString(),
+      status: 'in_progress'
+    }
+
     // Update reference with tenant's information
     const { data: updatedReference, error } = await supabase
       .from('tenant_references')
-      .update({
-        employment_status,
-        employer_name,
-        employer_email,
-        employer_phone,
-        job_title,
-        annual_income,
-        employment_start_date,
-        previous_landlord_name,
-        previous_landlord_email,
-        previous_landlord_phone,
-        previous_street,
-        previous_city,
-        previous_postcode,
-        tenancy_years,
-        tenancy_months,
-        submitted_at: new Date().toISOString(),
-        status: 'in_progress'
-      })
+      .update(updateData)
       .eq('id', reference.id)
       .select()
       .single()
@@ -357,6 +397,9 @@ router.post('/upload-test/:token', async (req, res) => {
 // Upload files for a reference (public route - for tenant) - MUST be before /view/:token
 router.post('/upload/:token', (req, res, next) => {
   const uploadMiddleware = upload.fields([
+    { name: 'id_document', maxCount: 1 },
+    { name: 'selfie', maxCount: 1 },
+    { name: 'proof_of_address', maxCount: 1 },
     { name: 'bank_statements', maxCount: 10 },
     { name: 'payslips', maxCount: 10 }
   ])
@@ -384,8 +427,71 @@ router.post('/upload/:token', (req, res, next) => {
       return res.status(404).json({ error: 'Invalid or expired reference link' })
     }
 
+    let idDocumentPath: string | null = null
+    let selfiePath: string | null = null
+    let proofOfAddressPath: string | null = null
     const bankStatementPaths: string[] = []
     const payslipPaths: string[] = []
+
+    // Upload ID document
+    if (files.id_document && files.id_document[0]) {
+      const file = files.id_document[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/id_document/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload ID document: ${uploadError.message}`)
+      }
+
+      idDocumentPath = fileName
+    }
+
+    // Upload selfie
+    if (files.selfie && files.selfie[0]) {
+      const file = files.selfie[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/selfie/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload selfie: ${uploadError.message}`)
+      }
+
+      selfiePath = fileName
+    }
+
+    // Upload proof of address
+    if (files.proof_of_address && files.proof_of_address[0]) {
+      const file = files.proof_of_address[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/proof_of_address/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload proof of address: ${uploadError.message}`)
+      }
+
+      proofOfAddressPath = fileName
+    }
 
     // Upload bank statements
     if (files.bank_statements) {
@@ -429,23 +535,13 @@ router.post('/upload/:token', (req, res, next) => {
       }
     }
 
-    // Update reference with file paths
-    const { error: updateError } = await supabase
-      .from('tenant_references')
-      .update({
-        bank_statement_files: bankStatementPaths,
-        payslip_files: payslipPaths
-      })
-      .eq('id', reference.id)
-
-    if (updateError) {
-      throw new Error(`Failed to update reference: ${updateError.message}`)
-    }
-
     res.json({
       message: 'Files uploaded successfully',
-      bank_statements: bankStatementPaths.length,
-      payslips: payslipPaths.length
+      id_document: idDocumentPath,
+      selfie: selfiePath,
+      proof_of_address: proofOfAddressPath,
+      bank_statements: bankStatementPaths,
+      payslips: payslipPaths
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })

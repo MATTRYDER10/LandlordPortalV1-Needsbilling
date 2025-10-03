@@ -85,6 +85,13 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/staff',
+      redirect: (to) => {
+        const authStore = useAuthStore()
+        return authStore.user ? '/staff/dashboard' : '/staff/login'
+      }
+    },
+    {
       path: '/staff/login',
       name: 'StaffLogin',
       component: StaffLogin,
