@@ -13,7 +13,8 @@
       </button>
     </div>
 
-    <div class="signature-pad-wrapper border-2 border-gray-300 rounded-lg bg-white">
+    <!-- Draw Mode -->
+    <div v-if="mode === 'draw'" class="signature-pad-wrapper border-2 border-gray-300 rounded-t-lg bg-white">
       <canvas
         ref="canvas"
         @mousedown="startDrawing"
@@ -27,18 +28,60 @@
       ></canvas>
     </div>
 
+    <!-- Type Mode -->
+    <div v-else class="signature-pad-wrapper border-2 border-gray-300 rounded-t-lg bg-white p-4">
+      <input
+        v-model="typedSignature"
+        type="text"
+        :placeholder="typePlaceholder"
+        @input="updateTypedSignature"
+        class="w-full text-4xl font-signature text-center border-none focus:outline-none focus:ring-0"
+        style="font-family: 'Brush Script MT', cursive;"
+      />
+      <canvas ref="typeCanvas" class="hidden"></canvas>
+    </div>
+
+    <!-- Mode Toggle Buttons -->
+    <div class="flex border-2 border-t-0 border-gray-300 rounded-b-lg overflow-hidden">
+      <button
+        type="button"
+        @click="mode = 'draw'"
+        :class="[
+          'w-1/2 py-2 text-sm font-medium transition-colors',
+          mode === 'draw'
+            ? 'bg-primary text-white'
+            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+        ]"
+      >
+        Draw
+      </button>
+      <button
+        type="button"
+        @click="mode = 'type'"
+        :class="[
+          'w-1/2 py-2 text-sm font-medium transition-colors border-l-2 border-gray-300',
+          mode === 'type'
+            ? 'bg-primary text-white'
+            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+        ]"
+      >
+        Type
+      </button>
+    </div>
+
     <p class="mt-1 text-xs text-gray-500">
-      Draw your signature above using your mouse or touchscreen
+      {{ mode === 'draw' ? 'Draw your signature above using your mouse or touchscreen' : 'Type your signature above' }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 const props = defineProps<{
   modelValue: string
   label?: string
+  typePlaceholder?: string
 }>()
 
 const emit = defineEmits<{
@@ -46,8 +89,11 @@ const emit = defineEmits<{
 }>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
+const typeCanvas = ref<HTMLCanvasElement | null>(null)
 const isDrawing = ref(false)
 const context = ref<CanvasRenderingContext2D | null>(null)
+const mode = ref<'draw' | 'type'>('draw')
+const typedSignature = ref('')
 
 onMounted(() => {
   if (canvas.value) {
@@ -73,6 +119,25 @@ onMounted(() => {
       }
       img.src = props.modelValue
     }
+  }
+
+  // Setup type canvas
+  if (typeCanvas.value) {
+    typeCanvas.value.width = 600
+    typeCanvas.value.height = 200
+  }
+})
+
+// Watch mode changes to clear when switching
+watch(mode, (newMode) => {
+  if (newMode === 'type') {
+    // Clear draw canvas when switching to type
+    if (context.value && canvas.value) {
+      context.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
+    }
+  } else {
+    // Clear typed signature when switching to draw
+    typedSignature.value = ''
   }
 })
 
@@ -134,9 +199,12 @@ const handleTouchMove = (e: TouchEvent) => {
 }
 
 const clear = () => {
-  if (!context.value || !canvas.value) return
-
-  context.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
+  if (mode.value === 'draw') {
+    if (!context.value || !canvas.value) return
+    context.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
+  } else {
+    typedSignature.value = ''
+  }
   emit('update:modelValue', '')
 }
 
@@ -146,6 +214,33 @@ const saveSignature = () => {
   // Convert canvas to base64 image
   const dataUrl = canvas.value.toDataURL('image/png')
   emit('update:modelValue', dataUrl)
+}
+
+const updateTypedSignature = () => {
+  if (!typeCanvas.value) return
+
+  const ctx = typeCanvas.value.getContext('2d')
+  if (!ctx) return
+
+  // Clear canvas
+  ctx.clearRect(0, 0, typeCanvas.value.width, typeCanvas.value.height)
+
+  if (typedSignature.value) {
+    // Set font and style
+    ctx.font = '60px "Brush Script MT", cursive'
+    ctx.fillStyle = '#000000'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    // Draw text
+    ctx.fillText(typedSignature.value, typeCanvas.value.width / 2, typeCanvas.value.height / 2)
+
+    // Convert to image and emit
+    const dataUrl = typeCanvas.value.toDataURL('image/png')
+    emit('update:modelValue', dataUrl)
+  } else {
+    emit('update:modelValue', '')
+  }
 }
 </script>
 
@@ -160,5 +255,9 @@ const saveSignature = () => {
   width: 100%;
   height: 200px;
   touch-action: none;
+}
+
+.font-signature {
+  font-family: 'Brush Script MT', cursive;
 }
 </style>

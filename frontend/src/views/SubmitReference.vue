@@ -72,7 +72,6 @@
                 type="file"
                 @change="handleIdDocumentUpload"
                 accept=".pdf,.jpg,.jpeg,.png"
-                required
                 class="hidden"
               />
               <button
@@ -230,7 +229,6 @@
                 type="file"
                 @change="handleSelfieUpload"
                 accept=".jpg,.jpeg,.png"
-                required
                 class="hidden"
               />
               <button
@@ -347,7 +345,6 @@
                 type="file"
                 @change="handleProofOfAddressUpload"
                 accept=".pdf,.jpg,.jpeg,.png"
-                required
                 class="hidden"
               />
               <button
@@ -2043,7 +2040,7 @@ const handlePageSubmit = async () => {
       submitError.value = 'Please select your complete date of birth'
       return
     }
-    if (!phoneNumber.value) {
+    if (!formData.value.contact_number) {
       submitError.value = 'Please enter your contact number'
       return
     }
