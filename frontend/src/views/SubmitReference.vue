@@ -4,10 +4,13 @@
       <!-- Header -->
       <div class="text-center mb-8">
         <div class="flex justify-center items-center gap-3 mb-4">
-          <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
-          <span class="text-2xl font-bold">
-            <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-          </span>
+          <img v-if="branding.logo_url" :src="branding.logo_url" :alt="branding.company_name" class="h-12 object-contain" />
+          <template v-else>
+            <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
+            <span class="text-2xl font-bold">
+              <span class="text-gray-900">Property</span><span :style="{ color: branding.primary_color }">Goose</span>
+            </span>
+          </template>
         </div>
         <h1 class="text-3xl font-bold text-gray-900">Tenant Reference Form</h1>
         <p class="mt-2 text-gray-600">Please complete all sections to submit your reference</p>
@@ -20,7 +23,7 @@
           <span class="text-sm text-gray-500">{{ Math.round((currentPage / 10) * 100) }}% Complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
-          <div class="bg-primary h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 10 * 100) + '%' }"></div>
+          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 10 * 100) + '%', backgroundColor: branding.primary_color }"></div>
         </div>
       </div>
 
@@ -999,7 +1002,8 @@
               v-if="currentPage < 10"
               type="submit"
               :disabled="submitting"
-              class="px-6 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+              class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 transition-colors"
+              :style="{ backgroundColor: branding.button_color }"
             >
               Next
             </button>
@@ -1007,7 +1011,8 @@
               v-else
               type="submit"
               :disabled="submitting || !consentGiven"
-              class="px-6 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              :style="{ backgroundColor: branding.button_color }"
             >
               {{ submitting ? 'Submitting...' : 'Submit Reference' }}
             </button>
@@ -1031,6 +1036,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getStorageKey = () => `tenant_reference_form_${route.params.token}`
 
 const reference = ref<any>(null)
+const branding = ref({
+  company_name: 'PropertyGoose',
+  logo_url: null,
+  primary_color: '#A855F7',
+  button_color: '#A855F7'
+})
 const initialLoading = ref(true)
 const tokenError = ref('')
 const submitting = ref(false)
@@ -1855,6 +1866,11 @@ const fetchReferenceByToken = async () => {
 
     const data = await response.json()
     reference.value = data.reference
+
+    // Load branding if available
+    if (data.branding) {
+      branding.value = data.branding
+    }
 
     // Pre-fill name from reference
     formData.value.first_name = reference.value.tenant_first_name || ''

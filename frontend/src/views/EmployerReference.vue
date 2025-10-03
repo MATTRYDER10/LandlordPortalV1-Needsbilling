@@ -3,6 +3,15 @@
     <div class="max-w-3xl mx-auto">
       <!-- Header -->
       <div class="text-center mb-8">
+        <div class="flex justify-center items-center gap-3 mb-4">
+          <img v-if="branding.logo_url" :src="branding.logo_url" :alt="branding.company_name" class="h-12 object-contain" />
+          <template v-else>
+            <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
+            <span class="text-2xl font-bold">
+              <span class="text-gray-900">Property</span><span :style="{ color: branding.primary_color }">Goose</span>
+            </span>
+          </template>
+        </div>
         <h1 class="text-3xl font-bold text-gray-900">Employer Reference Form</h1>
         <p class="mt-2 text-gray-600">Please provide an employment reference for your employee/former employee</p>
       </div>
@@ -389,7 +398,8 @@
           <button
             type="submit"
             :disabled="submitting"
-            class="w-full px-6 py-3 text-base font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full px-6 py-3 text-base font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            :style="{ backgroundColor: branding.button_color }"
           >
             {{ submitting ? 'Submitting...' : 'Submit Reference' }}
           </button>
@@ -400,7 +410,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
@@ -413,6 +423,12 @@ const loading = ref(false)
 const submitted = ref(false)
 const submitting = ref(false)
 const error = ref('')
+const branding = ref({
+  company_name: 'PropertyGoose',
+  logo_url: null,
+  primary_color: '#A855F7',
+  button_color: '#A855F7'
+})
 
 const formData = ref({
   companyName: '',
@@ -477,4 +493,22 @@ const handleSubmit = async () => {
     submitting.value = false
   }
 }
+
+// Fetch branding on mount
+onMounted(async () => {
+  try {
+    const referenceId = route.params.referenceId
+    const response = await fetch(`${API_URL}/api/references/branding/${referenceId}`)
+
+    if (response.ok) {
+      const data = await response.json()
+      if (data.branding) {
+        branding.value = data.branding
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load branding:', err)
+    // Continue with default branding
+  }
+})
 </script>

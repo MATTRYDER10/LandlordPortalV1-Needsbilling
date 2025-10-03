@@ -555,7 +555,26 @@ router.get('/view/:token', async (req, res) => {
 
     const { data: reference, error } = await supabase
       .from('tenant_references')
-      .select('id, tenant_first_name, tenant_last_name, tenant_email, property_address, property_city, property_postcode, monthly_rent, move_in_date, submitted_at, status')
+      .select(`
+        id,
+        tenant_first_name,
+        tenant_last_name,
+        tenant_email,
+        property_address,
+        property_city,
+        property_postcode,
+        monthly_rent,
+        move_in_date,
+        submitted_at,
+        status,
+        company_id,
+        companies:company_id (
+          name,
+          logo_url,
+          primary_color,
+          button_color
+        )
+      `)
       .eq('reference_token', token)
       .gte('token_expires_at', new Date().toISOString())
       .single()
@@ -564,7 +583,58 @@ router.get('/view/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invalid or expired reference link' })
     }
 
-    res.json({ reference })
+    // Extract company branding
+    const branding = reference.companies || {}
+
+    res.json({
+      reference,
+      branding: {
+        company_name: branding.name || 'PropertyGoose',
+        logo_url: branding.logo_url || null,
+        primary_color: branding.primary_color || '#A855F7',
+        button_color: branding.button_color || '#A855F7'
+      }
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Get company branding for a reference (public route)
+router.get('/branding/:referenceId', async (req, res) => {
+  try {
+    const { referenceId } = req.params
+
+    // Get reference with company info
+    const { data: reference, error } = await supabase
+      .from('tenant_references')
+      .select(`
+        company_id,
+        companies:company_id (
+          name,
+          logo_url,
+          primary_color,
+          button_color
+        )
+      `)
+      .eq('id', referenceId)
+      .single()
+
+    if (error || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Extract company branding with defaults
+    const branding = reference.companies || {}
+
+    res.json({
+      branding: {
+        company_name: branding.name || 'PropertyGoose',
+        logo_url: branding.logo_url || null,
+        primary_color: branding.primary_color || '#A855F7',
+        button_color: branding.button_color || '#A855F7'
+      }
+    })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
