@@ -6,8 +6,34 @@ import type { User, Session } from '@supabase/supabase-js'
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const session = ref<Session | null>(null)
+  const company = ref<{ name: string } | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+
+  // Fetch company data
+  const fetchCompany = async () => {
+    try {
+      const token = session.value?.access_token
+      if (!token) return
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/company`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.company) {
+          company.value = { name: data.company.name }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch company:', err)
+    }
+  }
 
   // Initialize auth state
   const initialize = async () => {
@@ -17,10 +43,22 @@ export const useAuthStore = defineStore('auth', () => {
       session.value = currentSession
       user.value = currentSession?.user ?? null
 
+      // Fetch company data if user is logged in
+      if (currentSession?.user) {
+        await fetchCompany()
+      }
+
       // Listen for auth changes
-      supabase.auth.onAuthStateChange((_event, newSession) => {
+      supabase.auth.onAuthStateChange(async (_event, newSession) => {
         session.value = newSession
         user.value = newSession?.user ?? null
+
+        // Fetch company data when user signs in
+        if (newSession?.user) {
+          await fetchCompany()
+        } else {
+          company.value = null
+        }
       })
     } catch (err: any) {
       error.value = err.message
@@ -134,6 +172,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     session,
+    company,
     loading,
     error,
     initialize,
@@ -141,6 +180,7 @@ export const useAuthStore = defineStore('auth', () => {
     signIn,
     signOut,
     resetPassword,
-    updatePassword
+    updatePassword,
+    fetchCompany
   }
 })

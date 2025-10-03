@@ -39,6 +39,7 @@
                 </div>
               </div>
               <div class="ml-3 flex-1 min-w-0">
+                <p v-if="companyName" class="text-xs text-gray-400 truncate mb-0.5">{{ companyName }}</p>
                 <p class="text-sm font-medium text-gray-900 truncate">{{ userEmail }}</p>
                 <p class="text-xs text-gray-500 truncate">{{ userRole }}</p>
               </div>
@@ -93,6 +94,7 @@ const navigation = [
 
 const userEmail = computed(() => authStore.user?.email || '')
 const userRole = computed(() => 'Admin') // TODO: Get from store
+const companyName = computed(() => authStore.company?.name || '')
 const userInitials = computed(() => {
   const email = authStore.user?.email || ''
   return email.charAt(0).toUpperCase()
