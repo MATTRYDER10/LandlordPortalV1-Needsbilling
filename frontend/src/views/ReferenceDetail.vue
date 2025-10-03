@@ -295,9 +295,9 @@
             </div>
 
             <!-- Payslips -->
-            <div v-if="reference.payslip_files?.length" class="mt-6">
-              <label class="block text-sm font-medium text-gray-700 mb-3">Payslips</label>
-              <div class="space-y-2">
+            <div class="mt-6">
+              <label class="block text-sm font-medium text-gray-700 mb-3">Payslips (Last 3 months)</label>
+              <div v-if="reference.payslip_files?.length" class="space-y-2">
                 <div v-for="(file, index) in reference.payslip_files" :key="index"
                      class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
                   <div class="flex items-center">
@@ -321,6 +321,9 @@
                     </button>
                   </div>
                 </div>
+              </div>
+              <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg">
+                Payslips not uploaded yet
               </div>
             </div>
 
