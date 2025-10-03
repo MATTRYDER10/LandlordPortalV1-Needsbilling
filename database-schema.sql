@@ -14,8 +14,8 @@ CREATE TABLE companies (
   phone TEXT,
   website TEXT,
   logo_url TEXT,
-  primary_color TEXT DEFAULT '#A855F7',
-  button_color TEXT DEFAULT '#A855F7',
+  primary_color TEXT DEFAULT '#FF8C41',
+  button_color TEXT DEFAULT '#FF8C41',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

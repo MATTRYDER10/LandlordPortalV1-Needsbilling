@@ -569,7 +569,6 @@ router.get('/view/:token', async (req, res) => {
         status,
         company_id,
         companies:company_id (
-          name,
           logo_url,
           primary_color,
           button_color
@@ -583,35 +582,22 @@ router.get('/view/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invalid or expired reference link' })
     }
 
-    // Extract company branding
-    const branding = reference.companies || {}
-
-    res.json({
-      reference,
-      branding: {
-        company_name: branding.name || 'PropertyGoose',
-        logo_url: branding.logo_url || null,
-        primary_color: branding.primary_color || '#A855F7',
-        button_color: branding.button_color || '#A855F7'
-      }
-    })
+    res.json({ reference })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
 })
 
-// Get company branding for a reference (public route)
+// Get company branding for a reference (public route - for landlord/employer forms)
 router.get('/branding/:referenceId', async (req, res) => {
   try {
     const { referenceId } = req.params
 
-    // Get reference with company info
     const { data: reference, error } = await supabase
       .from('tenant_references')
       .select(`
         company_id,
         companies:company_id (
-          name,
           logo_url,
           primary_color,
           button_color
@@ -624,17 +610,7 @@ router.get('/branding/:referenceId', async (req, res) => {
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    // Extract company branding with defaults
-    const branding = reference.companies || {}
-
-    res.json({
-      branding: {
-        company_name: branding.name || 'PropertyGoose',
-        logo_url: branding.logo_url || null,
-        primary_color: branding.primary_color || '#A855F7',
-        button_color: branding.button_color || '#A855F7'
-      }
-    })
+    res.json({ branding: reference.companies })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

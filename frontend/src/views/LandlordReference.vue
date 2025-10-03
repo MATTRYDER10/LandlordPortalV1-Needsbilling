@@ -2,17 +2,19 @@
   <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl mx-auto">
       <!-- Header -->
-      <div class="text-center mb-8">
+      <div v-if="brandingLoaded" class="text-center mb-8">
         <div class="flex justify-center items-center gap-3 mb-4">
-          <img v-if="branding.logo_url" :src="branding.logo_url" :alt="branding.company_name" class="h-12 object-contain" />
+          <template v-if="companyLogo">
+            <img :src="companyLogo" alt="Company Logo" class="h-12 object-contain" />
+          </template>
           <template v-else>
             <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
             <span class="text-2xl font-bold">
-              <span class="text-gray-900">Property</span><span :style="{ color: branding.primary_color }">Goose</span>
+              <span class="text-gray-900">Property</span><span :style="{ color: primaryColor }">Goose</span>
             </span>
           </template>
         </div>
-        <h1 class="text-3xl font-bold text-gray-900">Landlord Reference Form</h1>
+        <h1 class="text-3xl font-bold" :style="{ color: primaryColor }">Landlord Reference Form</h1>
         <p class="mt-2 text-gray-600">Please provide a reference for your previous/current tenant</p>
       </div>
 
@@ -336,8 +338,10 @@
           <button
             type="submit"
             :disabled="submitting"
-            class="w-full px-6 py-3 text-base font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            :style="{ backgroundColor: branding.button_color }"
+            class="w-full px-6 py-3 text-base font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            :style="{ backgroundColor: buttonColor }"
+            @mouseover="$event.target.style.opacity = '0.9'"
+            @mouseout="$event.target.style.opacity = '1'"
           >
             {{ submitting ? 'Submitting...' : 'Submit Reference' }}
           </button>
@@ -361,12 +365,12 @@ const loading = ref(false)
 const submitted = ref(false)
 const submitting = ref(false)
 const error = ref('')
-const branding = ref({
-  company_name: 'PropertyGoose',
-  logo_url: null,
-  primary_color: '#A855F7',
-  button_color: '#A855F7'
-})
+
+// Company branding
+const companyLogo = ref('')
+const primaryColor = ref('#FF8C41')
+const buttonColor = ref('#FF8C41')
+const brandingLoaded = ref(false)
 
 const formData = ref({
   landlordName: '',
@@ -428,7 +432,7 @@ const handleSubmit = async () => {
   }
 }
 
-// Fetch branding on mount
+// Fetch company branding on mount
 onMounted(async () => {
   try {
     const referenceId = route.params.referenceId
@@ -437,12 +441,29 @@ onMounted(async () => {
     if (response.ok) {
       const data = await response.json()
       if (data.branding) {
-        branding.value = data.branding
+        companyLogo.value = data.branding.logo_url || ''
+        primaryColor.value = data.branding.primary_color || '#FF8C41'
+        buttonColor.value = data.branding.button_color || '#FF8C41'
       }
     }
   } catch (err) {
+    // Silently fail - just use defaults
     console.error('Failed to load branding:', err)
-    // Continue with default branding
+  } finally {
+    brandingLoaded.value = true
   }
 })
 </script>
+
+<style scoped>
+/* Override focus colors with company branding */
+select:focus,
+input:focus,
+textarea:focus,
+:deep(select:focus),
+:deep(input:focus),
+:deep(textarea:focus) {
+  --tw-ring-color: v-bind(primaryColor);
+  border-color: v-bind(primaryColor) !important;
+}
+</style>

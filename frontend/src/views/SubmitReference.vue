@@ -2,13 +2,15 @@
   <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl mx-auto">
       <!-- Header -->
-      <div class="text-center mb-8">
+      <div v-if="!initialLoading" class="text-center mb-8">
         <div class="flex justify-center items-center gap-3 mb-4">
-          <img v-if="branding.logo_url" :src="branding.logo_url" :alt="branding.company_name" class="h-12 object-contain" />
+          <template v-if="companyLogo">
+            <img :src="companyLogo" alt="Company Logo" class="h-12 object-contain" />
+          </template>
           <template v-else>
             <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
             <span class="text-2xl font-bold">
-              <span class="text-gray-900">Property</span><span :style="{ color: branding.primary_color }">Goose</span>
+              <span class="text-gray-900">Property</span><span :style="{ color: primaryColor }">Goose</span>
             </span>
           </template>
         </div>
@@ -23,7 +25,7 @@
           <span class="text-sm text-gray-500">{{ Math.round((currentPage / 10) * 100) }}% Complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
-          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 10 * 100) + '%', backgroundColor: branding.primary_color }"></div>
+          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 10 * 100) + '%', backgroundColor: primaryColor }"></div>
         </div>
       </div>
 
@@ -80,7 +82,8 @@
               <button
                 type="button"
                 @click="($refs.idDocumentInput as any).click()"
-                class="px-4 py-2 text-sm font-semibold text-primary bg-blue-50 rounded-md hover:bg-blue-100"
+                class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                :style="{ color: buttonColor }"
               >
                 {{ idDocument ? 'Change File' : 'Choose File' }}
               </button>
@@ -237,7 +240,8 @@
               <button
                 type="button"
                 @click="($refs.selfieInput as any).click()"
-                class="px-4 py-2 text-sm font-semibold text-primary bg-blue-50 rounded-md hover:bg-blue-100"
+                class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                :style="{ color: buttonColor }"
               >
                 {{ selfie ? 'Change Photo' : 'Take/Upload Photo' }}
               </button>
@@ -353,7 +357,8 @@
               <button
                 type="button"
                 @click="($refs.proofOfAddressInput as any).click()"
-                class="px-4 py-2 text-sm font-semibold text-primary bg-blue-50 rounded-md hover:bg-blue-100"
+                class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                :style="{ color: buttonColor }"
               >
                 {{ proofOfAddress ? 'Change File' : 'Choose File' }}
               </button>
@@ -654,7 +659,8 @@
                   <button
                     type="button"
                     @click="($refs.payslipInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold text-primary bg-blue-50 rounded-md hover:bg-blue-100"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    :style="{ color: buttonColor }"
                   >
                     Choose Files
                   </button>
@@ -937,19 +943,19 @@
             <div class="space-y-3">
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-sm font-medium text-gray-700">✓ Personal Details</span>
-                <button type="button" @click="currentPage = 2" class="text-xs text-primary hover:text-primary/80">Edit</button>
+                <button type="button" @click="currentPage = 2" class="text-xs transition-opacity" :style="{ color: primaryColor }" @mouseover="$event.target.style.opacity = '0.8'" @mouseout="$event.target.style.opacity = '1'">Edit</button>
               </div>
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-sm font-medium text-gray-700">✓ Address Information</span>
-                <button type="button" @click="currentPage = 4" class="text-xs text-primary hover:text-primary/80">Edit</button>
+                <button type="button" @click="currentPage = 4" class="text-xs transition-opacity" :style="{ color: primaryColor }" @mouseover="$event.target.style.opacity = '0.8'" @mouseout="$event.target.style.opacity = '1'">Edit</button>
               </div>
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-sm font-medium text-gray-700">✓ Financial Information</span>
-                <button type="button" @click="currentPage = 6" class="text-xs text-primary hover:text-primary/80">Edit</button>
+                <button type="button" @click="currentPage = 6" class="text-xs transition-opacity" :style="{ color: primaryColor }" @mouseover="$event.target.style.opacity = '0.8'" @mouseout="$event.target.style.opacity = '1'">Edit</button>
               </div>
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-sm font-medium text-gray-700">✓ Personal Details</span>
-                <button type="button" @click="currentPage = 9" class="text-xs text-primary hover:text-primary/80">Edit</button>
+                <button type="button" @click="currentPage = 9" class="text-xs transition-opacity" :style="{ color: primaryColor }" @mouseover="$event.target.style.opacity = '0.8'" @mouseout="$event.target.style.opacity = '1'">Edit</button>
               </div>
             </div>
 
@@ -981,7 +987,7 @@
             <span class="text-sm text-gray-600">{{ uploadProgress }}%</span>
           </div>
           <div class="w-full bg-gray-200 rounded-full h-2">
-            <div class="bg-primary h-2 rounded-full transition-all duration-300" :style="{ width: uploadProgress + '%' }"></div>
+            <div class="h-2 rounded-full transition-all duration-300" :style="{ width: uploadProgress + '%', backgroundColor: primaryColor }"></div>
           </div>
         </div>
 
@@ -1003,7 +1009,9 @@
               type="submit"
               :disabled="submitting"
               class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 transition-colors"
-              :style="{ backgroundColor: branding.button_color }"
+              :style="{ backgroundColor: buttonColor }"
+              @mouseover="$event.target.style.opacity = '0.9'"
+              @mouseout="$event.target.style.opacity = '1'"
             >
               Next
             </button>
@@ -1012,7 +1020,9 @@
               type="submit"
               :disabled="submitting || !consentGiven"
               class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              :style="{ backgroundColor: branding.button_color }"
+              :style="{ backgroundColor: buttonColor }"
+              @mouseover="$event.target.style.opacity = '0.9'"
+              @mouseout="$event.target.style.opacity = '1'"
             >
               {{ submitting ? 'Submitting...' : 'Submit Reference' }}
             </button>
@@ -1036,12 +1046,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getStorageKey = () => `tenant_reference_form_${route.params.token}`
 
 const reference = ref<any>(null)
-const branding = ref({
-  company_name: 'PropertyGoose',
-  logo_url: null,
-  primary_color: '#A855F7',
-  button_color: '#A855F7'
-})
 const initialLoading = ref(true)
 const tokenError = ref('')
 const submitting = ref(false)
@@ -1050,6 +1054,11 @@ const justSubmitted = ref(false)
 const uploadProgress = ref(0)
 const currentPage = ref(1)
 const consentGiven = ref(false)
+
+// Company branding
+const companyLogo = ref('')
+const primaryColor = ref('#FF8C41')
+const buttonColor = ref('#FF8C41')
 
 // Nationality search
 const nationalitySearch = ref('')
@@ -1867,9 +1876,11 @@ const fetchReferenceByToken = async () => {
     const data = await response.json()
     reference.value = data.reference
 
-    // Load branding if available
-    if (data.branding) {
-      branding.value = data.branding
+    // Extract company branding
+    if (reference.value.companies) {
+      companyLogo.value = reference.value.companies.logo_url || ''
+      primaryColor.value = reference.value.companies.primary_color || '#FF8C41'
+      buttonColor.value = reference.value.companies.button_color || '#FF8C41'
     }
 
     // Pre-fill name from reference
@@ -2181,3 +2192,23 @@ const uploadAllFiles = async (token: string) => {
   return response.json()
 }
 </script>
+
+<style scoped>
+/* Override focus colors with company branding */
+select:focus,
+input:focus,
+textarea:focus,
+:deep(select:focus),
+:deep(input:focus),
+:deep(textarea:focus) {
+  --tw-ring-color: v-bind(primaryColor);
+  border-color: v-bind(primaryColor) !important;
+}
+
+/* Checkbox and radio colors */
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background-color: v-bind(primaryColor);
+  border-color: v-bind(primaryColor);
+}
+</style>
