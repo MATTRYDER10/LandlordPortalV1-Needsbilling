@@ -8,6 +8,14 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE companies (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
+  address TEXT,
+  city TEXT,
+  postcode TEXT,
+  phone TEXT,
+  website TEXT,
+  logo_url TEXT,
+  primary_color TEXT DEFAULT '#A855F7',
+  button_color TEXT DEFAULT '#A855F7',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

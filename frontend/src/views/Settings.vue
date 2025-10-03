@@ -213,6 +213,128 @@
           </div>
         </div>
 
+        <!-- Branding Tab -->
+        <div v-show="activeTab === 'branding'" class="max-w-3xl">
+          <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Branding Settings</h3>
+            <p class="text-sm text-gray-600 mb-6">Customize the appearance of forms sent to tenants, landlords, and employers</p>
+
+            <form @submit.prevent="handleUpdateBranding" class="space-y-6">
+              <!-- Logo Upload -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Company Logo</label>
+                <div class="flex items-center space-x-6">
+                  <div class="flex-shrink-0">
+                    <div class="w-32 h-32 border-2 border-gray-300 border-dashed rounded-lg flex items-center justify-center bg-gray-50">
+                      <img v-if="logoPreview" :src="logoPreview" alt="Logo preview" class="w-full h-full object-contain rounded-lg" />
+                      <div v-else class="text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p class="mt-1 text-xs text-gray-500">No logo</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex-1">
+                    <input
+                      type="file"
+                      @change="handleLogoSelect"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-white hover:file:bg-primary/90"
+                    />
+                    <p class="mt-2 text-xs text-gray-500">PNG, JPG, or WEBP. Max 2MB.</p>
+                    <button
+                      v-if="logoPreview"
+                      type="button"
+                      @click="handleRemoveLogo"
+                      class="mt-2 text-sm text-red-600 hover:text-red-800"
+                    >
+                      Remove logo
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Primary Color -->
+              <div>
+                <label for="primary-color" class="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
+                <div class="flex items-center space-x-4">
+                  <input
+                    id="primary-color"
+                    v-model="brandingData.primary_color"
+                    type="color"
+                    class="h-10 w-20 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <input
+                    v-model="brandingData.primary_color"
+                    type="text"
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="#A855F7"
+                  />
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Used for headings and key UI elements</p>
+              </div>
+
+              <!-- Button Color -->
+              <div>
+                <label for="button-color" class="block text-sm font-medium text-gray-700 mb-2">Button Color</label>
+                <div class="flex items-center space-x-4">
+                  <input
+                    id="button-color"
+                    v-model="brandingData.button_color"
+                    type="color"
+                    class="h-10 w-20 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <input
+                    v-model="brandingData.button_color"
+                    type="text"
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="#A855F7"
+                  />
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Used for action buttons throughout forms</p>
+              </div>
+
+              <!-- Preview -->
+              <div class="border-t pt-6">
+                <h4 class="text-sm font-medium text-gray-700 mb-3">Preview</h4>
+                <div class="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                  <div v-if="logoPreview" class="mb-4">
+                    <img :src="logoPreview" alt="Logo" class="h-12 object-contain" />
+                  </div>
+                  <h3 class="text-xl font-bold mb-4" :style="{ color: brandingData.primary_color }">
+                    Reference Request Form
+                  </h3>
+                  <p class="text-gray-600 mb-4">This is how your forms will appear to recipients.</p>
+                  <button
+                    type="button"
+                    class="px-4 py-2 rounded-md text-white font-medium"
+                    :style="{ backgroundColor: brandingData.button_color }"
+                  >
+                    Submit Form
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="brandingSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+                {{ brandingSuccess }}
+              </div>
+
+              <div v-if="brandingError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+                {{ brandingError }}
+              </div>
+
+              <button
+                type="submit"
+                :disabled="brandingLoading"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+              >
+                {{ brandingLoading ? 'Saving...' : 'Save Branding Settings' }}
+              </button>
+            </form>
+          </div>
+        </div>
+
         <!-- Team Tab -->
         <div v-show="activeTab === 'team'">
           <div class="mb-6 flex justify-end">
@@ -404,6 +526,7 @@ const activeTab = ref('profile')
 const tabs = [
   { id: 'profile', name: 'Profile' },
   { id: 'company', name: 'Company' },
+  { id: 'branding', name: 'Branding' },
   { id: 'team', name: 'Team' }
 ]
 
@@ -441,6 +564,19 @@ const companyData = ref({
 const companyLoading = ref(false)
 const companySuccess = ref('')
 const companyError = ref('')
+
+// Branding data
+const brandingData = ref({
+  logo_url: '',
+  primary_color: '#A855F7',
+  button_color: '#A855F7'
+})
+
+const brandingLoading = ref(false)
+const brandingSuccess = ref('')
+const brandingError = ref('')
+const logoFile = ref<File | null>(null)
+const logoPreview = ref('')
 
 // Team data
 const showInviteModal = ref(false)
@@ -486,6 +622,12 @@ const fetchCompanyData = async () => {
         companyData.value.postcode = data.company.postcode || ''
         companyData.value.phone = data.company.phone || ''
         companyData.value.website = data.company.website || ''
+
+        // Load branding data
+        brandingData.value.logo_url = data.company.logo_url || ''
+        brandingData.value.primary_color = data.company.primary_color || '#A855F7'
+        brandingData.value.button_color = data.company.button_color || '#A855F7'
+        logoPreview.value = data.company.logo_url || ''
       }
     }
   } catch (error) {
@@ -629,6 +771,105 @@ const handleResendInvite = async (_invite: any) => {
 const handleRevokeInvite = async (_invite: any) => {
   if (confirm(`Are you sure you want to revoke the invitation to ${_invite.email}?`)) {
     // TODO: Revoke invitation via API
+  }
+}
+
+const handleLogoSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+
+  if (!file) return
+
+  // Validate file size (2MB max)
+  if (file.size > 2 * 1024 * 1024) {
+    brandingError.value = 'File size must be less than 2MB'
+    return
+  }
+
+  // Validate file type
+  const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+  if (!validTypes.includes(file.type)) {
+    brandingError.value = 'File must be PNG, JPG, or WEBP'
+    return
+  }
+
+  logoFile.value = file
+
+  // Create preview
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    logoPreview.value = e.target?.result as string
+  }
+  reader.readAsDataURL(file)
+}
+
+const handleRemoveLogo = () => {
+  logoFile.value = null
+  logoPreview.value = ''
+  brandingData.value.logo_url = ''
+}
+
+const handleUpdateBranding = async () => {
+  brandingLoading.value = true
+  brandingSuccess.value = ''
+  brandingError.value = ''
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      brandingError.value = 'No auth token available'
+      return
+    }
+
+    let logoUrl = brandingData.value.logo_url
+
+    // Upload logo if a new file was selected
+    if (logoFile.value) {
+      const formData = new FormData()
+      formData.append('logo', logoFile.value)
+
+      const uploadResponse = await fetch(`${API_URL}/api/company/logo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json()
+        throw new Error(errorData.error || 'Failed to upload logo')
+      }
+
+      const uploadData = await uploadResponse.json()
+      logoUrl = uploadData.logo_url
+    }
+
+    // Update branding settings
+    const response = await fetch(`${API_URL}/api/company`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        logo_url: logoUrl,
+        primary_color: brandingData.value.primary_color,
+        button_color: brandingData.value.button_color
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to update branding settings')
+    }
+
+    brandingSuccess.value = 'Branding settings updated successfully'
+    logoFile.value = null
+  } catch (error: any) {
+    brandingError.value = error.message || 'Failed to update branding settings'
+  } finally {
+    brandingLoading.value = false
   }
 }
 </script>

@@ -1,8 +1,26 @@
 import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
+import multer from 'multer'
+import crypto from 'crypto'
 
 const router = Router()
+
+// Configure multer for logo uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Invalid file type. Only PNG, JPG, and WEBP are allowed.'))
+    }
+  }
+})
 
 // Get user's company
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
@@ -29,11 +47,64 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+// Upload company logo
+router.post('/logo', authenticateToken, upload.single('logo'), async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const file = req.file
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file provided' })
+    }
+
+    // Get user's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id, role')
+      .eq('user_id', userId)
+      .single()
+
+    if (!companyUser) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    // Check if user is owner or admin
+    if (companyUser.role !== 'owner' && companyUser.role !== 'admin') {
+      return res.status(403).json({ error: 'Insufficient permissions' })
+    }
+
+    // Generate unique filename
+    const fileExt = file.originalname.split('.').pop()
+    const fileName = `company-logos/${companyUser.company_id}/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('company-assets')
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+      })
+
+    if (uploadError) {
+      return res.status(400).json({ error: uploadError.message })
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('company-assets')
+      .getPublicUrl(fileName)
+
+    res.json({ logo_url: publicUrl })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Update company
 router.put('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
-    const { name, address, city, postcode, phone, website } = req.body
+    const { name, address, city, postcode, phone, website, logo_url, primary_color, button_color } = req.body
 
     // Get user's company
     const { data: companyUser } = await supabase
@@ -61,6 +132,9 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
         postcode,
         phone,
         website,
+        logo_url,
+        primary_color,
+        button_color,
         updated_at: new Date().toISOString()
       })
       .eq('id', companyUser.company_id)
