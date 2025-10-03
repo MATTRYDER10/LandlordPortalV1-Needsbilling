@@ -742,6 +742,49 @@
           </div>
         </div>
 
+        <!-- Verification Status (Show if verification notes exist) -->
+        <div v-if="reference.verification_notes" class="bg-white rounded-lg shadow p-6 border-l-4" :class="{
+          'border-red-500 bg-red-50': reference.status === 'in_progress' && reference.verified_at,
+          'border-green-500 bg-green-50': reference.status === 'completed' && reference.verified_at
+        }">
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg v-if="reference.status === 'completed'" class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <svg v-else class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <div class="ml-3 flex-1">
+              <h3 class="text-lg font-semibold mb-2" :class="{
+                'text-red-900': reference.status === 'in_progress' && reference.verified_at,
+                'text-green-900': reference.status === 'completed' && reference.verified_at
+              }">
+                {{ reference.status === 'completed' ? 'Verified & Completed' : 'Rejected - Corrections Required' }}
+              </h3>
+              <div class="mb-2">
+                <label class="block text-sm font-medium" :class="{
+                  'text-red-700': reference.status === 'in_progress' && reference.verified_at,
+                  'text-green-700': reference.status === 'completed' && reference.verified_at
+                }">
+                  {{ reference.status === 'completed' ? 'Verification Notes:' : 'Rejection Notes:' }}
+                </label>
+                <p class="mt-1" :class="{
+                  'text-red-800': reference.status === 'in_progress' && reference.verified_at,
+                  'text-green-800': reference.status === 'completed' && reference.verified_at
+                }">{{ reference.verification_notes }}</p>
+              </div>
+              <p class="text-sm" :class="{
+                'text-red-600': reference.status === 'in_progress' && reference.verified_at,
+                'text-green-600': reference.status === 'completed' && reference.verified_at
+              }">
+                {{ reference.status === 'completed' ? 'Verified' : 'Rejected' }} on {{ formatDateTime(reference.verified_at) }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Notes -->
         <div v-if="reference.notes || reference.internal_notes" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Notes</h3>
