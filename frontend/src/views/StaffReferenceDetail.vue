@@ -782,43 +782,28 @@
           </div>
         </div>
 
-        <!-- Actions -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
-          <div class="space-y-4">
-            <div class="flex space-x-4">
-              <button
-                @click="copyTenantLink"
-                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
-              >
-                Copy Tenant Link
-              </button>
-            </div>
-
-            <!-- Verification Actions (only show if status is pending_verification) -->
-            <div v-if="reference.status === 'pending_verification'" class="border-t pt-4">
-              <h4 class="text-sm font-semibold text-gray-700 mb-3">Verification</h4>
-              <div class="flex space-x-4">
-                <button
-                  @click="showVerifyModal = true"
-                  class="px-6 py-3 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md flex items-center"
-                >
-                  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Verify & Complete
-                </button>
-                <button
-                  @click="showRejectModal = true"
-                  class="px-6 py-3 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center"
-                >
-                  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Reject for Corrections
-                </button>
-              </div>
-            </div>
+        <!-- Verification Actions (only show if status is pending_verification) -->
+        <div v-if="reference.status === 'pending_verification'" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Verification</h3>
+          <div class="flex space-x-4">
+            <button
+              @click="showVerifyModal = true"
+              class="px-6 py-3 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md flex items-center"
+            >
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Verify & Complete
+            </button>
+            <button
+              @click="showRejectModal = true"
+              class="px-6 py-3 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center"
+            >
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Reject for Corrections
+            </button>
           </div>
         </div>
       </div>
@@ -1093,14 +1078,6 @@ const copyEmployerLink = async () => {
     toast.success('Employer reference link copied to clipboard!')
   } catch (error) {
     toast.error('Failed to copy link to clipboard')
-  }
-}
-
-const copyTenantLink = () => {
-  if (reference.value) {
-    const link = `${window.location.origin}/submit-reference/${reference.value.reference_token}`
-    navigator.clipboard.writeText(link)
-    toast.success('Tenant link copied to clipboard!')
   }
 }
 
