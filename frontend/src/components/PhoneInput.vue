@@ -60,7 +60,7 @@ const number = ref('')
 // Initialize from modelValue only once
 if (props.modelValue) {
   const match = props.modelValue.match(/^(\+\d+)(.*)$/)
-  if (match) {
+  if (match && match[1] && match[2]) {
     countryCode.value = match[1]
     number.value = match[2]
   }

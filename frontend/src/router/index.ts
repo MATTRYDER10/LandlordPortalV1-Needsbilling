@@ -86,7 +86,7 @@ const router = createRouter({
     },
     {
       path: '/staff',
-      redirect: (to) => {
+      redirect: () => {
         const authStore = useAuthStore()
         return authStore.user ? '/staff/dashboard' : '/staff/login'
       }

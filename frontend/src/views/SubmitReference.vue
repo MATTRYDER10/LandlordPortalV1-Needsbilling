@@ -1022,7 +1022,6 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PhoneInput from '../components/PhoneInput.vue'
-import DatePicker from '../components/DatePicker.vue'
 
 const route = useRoute()
 
@@ -2077,7 +2076,7 @@ const handleFinalSubmit = async () => {
   uploadProgress.value = 0
 
   try {
-    const token = route.params.token
+    const token = route.params.token as string
 
     // Step 1: Upload all files first
     uploadProgress.value = 10

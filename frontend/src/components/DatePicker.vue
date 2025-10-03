@@ -77,7 +77,7 @@ const parseInitialValue = (value: string) => {
   if (!value) return { day: '', month: '', year: '' }
 
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (match) {
+  if (match && match[1] && match[2] && match[3]) {
     return {
       year: match[1],
       month: match[2],
