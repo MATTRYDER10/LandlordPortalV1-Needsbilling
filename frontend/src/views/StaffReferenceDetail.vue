@@ -785,12 +785,135 @@
         <!-- Actions -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
-          <div class="flex space-x-4">
+          <div class="space-y-4">
+            <div class="flex space-x-4">
+              <button
+                @click="copyTenantLink"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+              >
+                Copy Tenant Link
+              </button>
+            </div>
+
+            <!-- Verification Actions (only show if status is pending_verification) -->
+            <div v-if="reference.status === 'pending_verification'" class="border-t pt-4">
+              <h4 class="text-sm font-semibold text-gray-700 mb-3">Verification</h4>
+              <div class="flex space-x-4">
+                <button
+                  @click="showVerifyModal = true"
+                  class="px-6 py-3 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md flex items-center"
+                >
+                  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Verify & Complete
+                </button>
+                <button
+                  @click="showRejectModal = true"
+                  class="px-6 py-3 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center"
+                >
+                  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Reject for Corrections
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Verify Modal -->
+    <div v-if="showVerifyModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="showVerifyModal = false"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="sm:flex sm:items-start">
+              <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Verify Reference</h3>
+                <div class="mt-4">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Verification Notes (Optional)</label>
+                  <textarea
+                    v-model="verificationNotes"
+                    rows="4"
+                    placeholder="Add any notes about this verification..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             <button
-              @click="copyTenantLink"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+              @click="verifyReference"
+              :disabled="verifying"
+              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
             >
-              Copy Tenant Link
+              {{ verifying ? 'Verifying...' : 'Verify & Complete' }}
+            </button>
+            <button
+              @click="showVerifyModal = false"
+              :disabled="verifying"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div v-if="showRejectModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="showRejectModal = false"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="sm:flex sm:items-start">
+              <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Reject Reference</h3>
+                <div class="mt-4">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Rejection Notes (Required) *</label>
+                  <textarea
+                    v-model="rejectionNotes"
+                    rows="4"
+                    placeholder="Explain what needs to be corrected..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
+                    required
+                  ></textarea>
+                  <p class="mt-2 text-sm text-gray-500">These notes will be sent to the agent so they know what needs to be corrected.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              @click="rejectReference"
+              :disabled="rejecting || !rejectionNotes.trim()"
+              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+            >
+              {{ rejecting ? 'Rejecting...' : 'Reject & Send Back' }}
+            </button>
+            <button
+              @click="showRejectModal = false"
+              :disabled="rejecting"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
+            >
+              Cancel
             </button>
           </div>
         </div>
@@ -868,6 +991,14 @@ const viewingDocumentUrl = ref('')
 const viewingDocumentName = ref('')
 const viewingDocumentPath = ref('')
 const viewingDocumentType = ref('') // 'image' or 'pdf'
+
+// Verification/Rejection modal state
+const showVerifyModal = ref(false)
+const showRejectModal = ref(false)
+const verificationNotes = ref('')
+const rejectionNotes = ref('')
+const verifying = ref(false)
+const rejecting = ref(false)
 
 onMounted(() => {
   fetchReference()
@@ -1067,6 +1198,87 @@ const closeDocumentViewer = () => {
   viewingDocumentName.value = ''
   viewingDocumentPath.value = ''
   viewingDocumentType.value = ''
+}
+
+const verifyReference = async () => {
+  try {
+    verifying.value = true
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/staff/references/${route.params.id}/verify`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        notes: verificationNotes.value || null
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to verify reference')
+    }
+
+    toast.success('Reference verified and completed successfully!')
+    showVerifyModal.value = false
+    verificationNotes.value = ''
+
+    // Refresh the reference data
+    await fetchReference()
+  } catch (error: any) {
+    toast.error(error.message || 'Failed to verify reference')
+  } finally {
+    verifying.value = false
+  }
+}
+
+const rejectReference = async () => {
+  if (!rejectionNotes.value.trim()) {
+    toast.error('Rejection notes are required')
+    return
+  }
+
+  try {
+    rejecting.value = true
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/staff/references/${route.params.id}/reject`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        notes: rejectionNotes.value
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to reject reference')
+    }
+
+    toast.success('Reference rejected and sent back for corrections')
+    showRejectModal.value = false
+    rejectionNotes.value = ''
+
+    // Refresh the reference data
+    await fetchReference()
+  } catch (error: any) {
+    toast.error(error.message || 'Failed to reject reference')
+  } finally {
+    rejecting.value = false
+  }
 }
 
 const handleSignOut = async () => {
