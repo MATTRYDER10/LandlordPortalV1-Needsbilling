@@ -7,7 +7,7 @@
       </div>
 
       <!-- Stats Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-0 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-0 mb-8">
         <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
           <div class="flex items-center">
             <div class="flex-1">
@@ -45,6 +45,20 @@
             <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
+          <div class="flex items-center">
+            <div class="flex-1">
+              <p class="text-sm font-medium text-gray-600">Rejected</p>
+              <p class="text-3xl font-bold text-red-600">{{ rejectedReferences }}</p>
+            </div>
+            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
           </div>
@@ -170,6 +184,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const totalReferences = ref(0)
 const inProgressReferences = ref(0)
 const pendingVerificationReferences = ref(0)
+const rejectedReferences = ref(0)
 const completedReferences = ref(0)
 const recentReferences = ref<any[]>([])
 
@@ -196,6 +211,9 @@ const fetchReferences = async () => {
     ).length
     pendingVerificationReferences.value = references.filter((ref: any) =>
       ref.status === 'pending_verification'
+    ).length
+    rejectedReferences.value = references.filter((ref: any) =>
+      ref.status === 'rejected'
     ).length
     completedReferences.value = references.filter((ref: any) =>
       ref.status === 'completed'
