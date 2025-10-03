@@ -11,6 +11,9 @@ import SubmitReference from '../views/SubmitReference.vue'
 import LandlordReference from '../views/LandlordReference.vue'
 import EmployerReference from '../views/EmployerReference.vue'
 import Settings from '../views/Settings.vue'
+import StaffLogin from '../views/StaffLogin.vue'
+import StaffDashboard from '../views/StaffDashboard.vue'
+import StaffReferenceDetail from '../views/StaffReferenceDetail.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -79,6 +82,24 @@ const router = createRouter({
       path: '/settings',
       name: 'Settings',
       component: Settings,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/login',
+      name: 'StaffLogin',
+      component: StaffLogin,
+      meta: { requiresGuest: true }
+    },
+    {
+      path: '/staff/dashboard',
+      name: 'StaffDashboard',
+      component: StaffDashboard,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/references/:id',
+      name: 'StaffReferenceDetail',
+      component: StaffReferenceDetail,
       meta: { requiresAuth: true }
     }
   ]

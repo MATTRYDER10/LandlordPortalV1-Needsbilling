@@ -537,12 +537,12 @@ router.post('/landlord/:referenceId', async (req, res) => {
       .eq('id', referenceId)
       .single()
 
-    // If no employer email provided, mark as complete immediately
-    // If employer email provided, only mark complete if employer reference exists
+    // If no employer email provided, mark as pending verification immediately
+    // If employer email provided, only mark as pending verification if employer reference exists
     if (!tenantRef?.employer_email) {
       await supabase
         .from('tenant_references')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .update({ status: 'pending_verification' })
         .eq('id', referenceId)
     } else {
       const { data: employerRef } = await supabase
@@ -554,7 +554,7 @@ router.post('/landlord/:referenceId', async (req, res) => {
       if (employerRef) {
         await supabase
           .from('tenant_references')
-          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .update({ status: 'pending_verification' })
           .eq('id', referenceId)
       }
     }
@@ -638,12 +638,12 @@ router.post('/employer/:referenceId', async (req, res) => {
       .eq('id', referenceId)
       .single()
 
-    // If no landlord email provided, mark as complete immediately
-    // If landlord email provided, only mark complete if landlord reference exists
+    // If no landlord email provided, mark as pending verification immediately
+    // If landlord email provided, only mark as pending verification if landlord reference exists
     if (!tenantRef?.previous_landlord_email) {
       await supabase
         .from('tenant_references')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .update({ status: 'pending_verification' })
         .eq('id', referenceId)
     } else {
       const { data: landlordRef } = await supabase
@@ -655,7 +655,7 @@ router.post('/employer/:referenceId', async (req, res) => {
       if (landlordRef) {
         await supabase
           .from('tenant_references')
-          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .update({ status: 'pending_verification' })
           .eq('id', referenceId)
       }
     }

@@ -5,6 +5,7 @@ import companyRoutes from './routes/company'
 import invitationRoutes from './routes/invitations'
 import profileRoutes from './routes/profile'
 import referencesRoutes from './routes/references'
+import staffRoutes from './routes/staff'
 
 dotenv.config()
 
@@ -44,6 +45,7 @@ app.use('/api/company', companyRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/profile', profileRoutes)
 app.use('/api/references', referencesRoutes)
+app.use('/api/staff', staffRoutes)
 
 // Start server
 app.listen(PORT, () => {
