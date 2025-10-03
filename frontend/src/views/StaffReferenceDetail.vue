@@ -883,7 +883,7 @@ const fetchReference = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/references/${route.params.id}`, {
+    const response = await fetch(`${API_URL}/api/staff/references/${route.params.id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -983,7 +983,7 @@ const downloadFile = async (filePath: string) => {
 
     // Parse file path: referenceId/folder/filename
     const parts = filePath.split('/')
-    const downloadUrl = `${API_URL}/api/references/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
+    const downloadUrl = `${API_URL}/api/staff/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
 
     const response = await fetch(downloadUrl, {
       headers: {
@@ -1019,7 +1019,7 @@ const viewFile = async (filePath: string) => {
 
     // Parse file path: referenceId/folder/filename
     const parts = filePath.split('/')
-    const downloadUrl = `${API_URL}/api/references/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
+    const downloadUrl = `${API_URL}/api/staff/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
 
     const response = await fetch(downloadUrl, {
       headers: {

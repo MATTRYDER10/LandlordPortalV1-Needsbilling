@@ -204,4 +204,55 @@ router.get('/stats', authenticateStaff, async (req: StaffAuthRequest, res) => {
   }
 })
 
+// Download file from reference (staff authenticated route)
+router.get('/download/:referenceId/:folder/:filename', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { referenceId, folder, filename } = req.params
+
+    // Verify the reference exists (staff can access all references)
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Construct file path
+    const filePath = `${referenceId}/${folder}/${filename}`
+
+    // Download file from storage
+    const { data, error: downloadError } = await supabase.storage
+      .from('tenant-documents')
+      .download(filePath)
+
+    if (downloadError) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+
+    // Set content type based on file extension
+    const ext = filename.split('.').pop()?.toLowerCase()
+    const contentTypes: { [key: string]: string } = {
+      'pdf': 'application/pdf',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'webp': 'image/webp'
+    }
+    const contentType = contentTypes[ext || ''] || 'application/octet-stream'
+
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+
+    // Convert blob to buffer and send
+    const buffer = Buffer.from(await data.arrayBuffer())
+    res.send(buffer)
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router
