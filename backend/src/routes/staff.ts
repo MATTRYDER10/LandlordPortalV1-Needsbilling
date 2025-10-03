@@ -150,11 +150,11 @@ router.put('/references/:id/reject', authenticateStaff, async (req: StaffAuthReq
       return res.status(400).json({ error: 'Rejection notes are required' })
     }
 
-    // Update reference status back to in_progress
+    // Update reference status to rejected
     const { data: reference, error } = await supabase
       .from('tenant_references')
       .update({
-        status: 'in_progress',
+        status: 'rejected',
         verified_by: staffUserId,
         verified_at: new Date().toISOString(),
         verification_notes: notes

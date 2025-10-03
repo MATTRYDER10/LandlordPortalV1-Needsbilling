@@ -84,6 +84,7 @@
               <option value="pending_verification">Pending Verification</option>
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
+              <option value="rejected">Rejected</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
@@ -155,6 +156,7 @@
                     'bg-blue-100 text-blue-800': reference.status === 'in_progress',
                     'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
                     'bg-green-100 text-green-800': reference.status === 'completed',
+                    'bg-red-100 text-red-800': reference.status === 'rejected',
                     'bg-gray-100 text-gray-800': reference.status === 'cancelled'
                   }"
                 >

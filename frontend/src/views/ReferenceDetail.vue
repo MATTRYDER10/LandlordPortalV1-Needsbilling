@@ -34,6 +34,7 @@
               'bg-blue-100 text-blue-800': reference.status === 'in_progress',
               'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
               'bg-green-100 text-green-800': reference.status === 'completed',
+              'bg-red-100 text-red-800': reference.status === 'rejected',
               'bg-gray-100 text-gray-800': reference.status === 'cancelled'
             }"
           >
@@ -735,26 +736,26 @@
             </div>
             <div class="ml-3 flex-1">
               <h3 class="text-lg font-semibold mb-2" :class="{
-                'text-red-900': reference.status === 'in_progress' && reference.verified_at,
-                'text-green-900': reference.status === 'completed' && reference.verified_at
+                'text-red-900': reference.status === 'rejected',
+                'text-green-900': reference.status === 'completed'
               }">
                 {{ reference.status === 'completed' ? 'Verified & Completed' : 'Rejected - Corrections Required' }}
               </h3>
               <div class="mb-2">
                 <label class="block text-sm font-medium" :class="{
-                  'text-red-700': reference.status === 'in_progress' && reference.verified_at,
-                  'text-green-700': reference.status === 'completed' && reference.verified_at
+                  'text-red-700': reference.status === 'rejected',
+                  'text-green-700': reference.status === 'completed'
                 }">
                   {{ reference.status === 'completed' ? 'Verification Notes:' : 'Rejection Notes:' }}
                 </label>
                 <p class="mt-1" :class="{
-                  'text-red-800': reference.status === 'in_progress' && reference.verified_at,
-                  'text-green-800': reference.status === 'completed' && reference.verified_at
+                  'text-red-800': reference.status === 'rejected',
+                  'text-green-800': reference.status === 'completed'
                 }">{{ reference.verification_notes }}</p>
               </div>
               <p class="text-sm" :class="{
-                'text-red-600': reference.status === 'in_progress' && reference.verified_at,
-                'text-green-600': reference.status === 'completed' && reference.verified_at
+                'text-red-600': reference.status === 'rejected',
+                'text-green-600': reference.status === 'completed'
               }">
                 {{ reference.status === 'completed' ? 'Verified' : 'Rejected' }} on {{ formatDateTime(reference.verified_at) }}
               </p>

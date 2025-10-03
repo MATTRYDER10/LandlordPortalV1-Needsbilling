@@ -2,7 +2,7 @@
 -- Run this in Supabase SQL Editor after the multi-tenancy schema
 
 -- Reference Status Enum
-CREATE TYPE reference_status AS ENUM ('pending', 'in_progress', 'completed', 'cancelled');
+CREATE TYPE reference_status AS ENUM ('pending', 'in_progress', 'pending_verification', 'completed', 'rejected', 'cancelled');
 
 -- References Table
 CREATE TABLE tenant_references (
