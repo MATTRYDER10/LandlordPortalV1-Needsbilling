@@ -400,10 +400,8 @@
           <button
             type="submit"
             :disabled="submitting"
-            class="w-full px-6 py-3 text-base font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            class="w-full px-6 py-3 text-base font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
             :style="{ backgroundColor: buttonColor }"
-            @mouseover="$event.target.style.opacity = '0.9'"
-            @mouseout="$event.target.style.opacity = '1'"
           >
             {{ submitting ? 'Submitting...' : 'Submit Reference' }}
           </button>

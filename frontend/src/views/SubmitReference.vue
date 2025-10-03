@@ -943,19 +943,19 @@
             <div class="space-y-3">
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-sm font-medium text-gray-700">✓ Personal Details</span>
-                <button type="button" @click="currentPage = 2" class="text-xs transition-opacity" :style="{ color: primaryColor }" @mouseover="$event.target.style.opacity = '0.8'" @mouseout="$event.target.style.opacity = '1'">Edit</button>
+                <button type="button" @click="currentPage = 2" class="text-xs hover:opacity-80" :style="{ color: primaryColor }">Edit</button>
               </div>
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-sm font-medium text-gray-700">✓ Address Information</span>
-                <button type="button" @click="currentPage = 4" class="text-xs transition-opacity" :style="{ color: primaryColor }" @mouseover="$event.target.style.opacity = '0.8'" @mouseout="$event.target.style.opacity = '1'">Edit</button>
+                <button type="button" @click="currentPage = 4" class="text-xs hover:opacity-80" :style="{ color: primaryColor }">Edit</button>
               </div>
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-sm font-medium text-gray-700">✓ Financial Information</span>
-                <button type="button" @click="currentPage = 6" class="text-xs transition-opacity" :style="{ color: primaryColor }" @mouseover="$event.target.style.opacity = '0.8'" @mouseout="$event.target.style.opacity = '1'">Edit</button>
+                <button type="button" @click="currentPage = 6" class="text-xs hover:opacity-80" :style="{ color: primaryColor }">Edit</button>
               </div>
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span class="text-sm font-medium text-gray-700">✓ Personal Details</span>
-                <button type="button" @click="currentPage = 9" class="text-xs transition-opacity" :style="{ color: primaryColor }" @mouseover="$event.target.style.opacity = '0.8'" @mouseout="$event.target.style.opacity = '1'">Edit</button>
+                <button type="button" @click="currentPage = 9" class="text-xs hover:opacity-80" :style="{ color: primaryColor }">Edit</button>
               </div>
             </div>
 
@@ -1008,10 +1008,8 @@
               v-if="currentPage < 10"
               type="submit"
               :disabled="submitting"
-              class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 transition-colors"
+              class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 hover:opacity-90"
               :style="{ backgroundColor: buttonColor }"
-              @mouseover="$event.target.style.opacity = '0.9'"
-              @mouseout="$event.target.style.opacity = '1'"
             >
               Next
             </button>
@@ -1019,10 +1017,8 @@
               v-else
               type="submit"
               :disabled="submitting || !consentGiven"
-              class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
               :style="{ backgroundColor: buttonColor }"
-              @mouseover="$event.target.style.opacity = '0.9'"
-              @mouseout="$event.target.style.opacity = '1'"
             >
               {{ submitting ? 'Submitting...' : 'Submit Reference' }}
             </button>
