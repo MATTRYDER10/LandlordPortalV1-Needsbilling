@@ -2,7 +2,12 @@
   <div class="min-h-screen bg-background flex items-center justify-center px-4">
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
-        <h1 class="text-4xl font-bold text-gray-900">PropertyGoose</h1>
+        <div class="flex items-center justify-center mb-4">
+          <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="w-10 h-10 mr-3" />
+          <h1 class="text-4xl font-bold">
+            <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
+          </h1>
+        </div>
         <h2 class="mt-6 text-3xl font-bold text-gray-900">Reset your password</h2>
         <p class="mt-2 text-sm text-gray-600">
           Remember your password?
