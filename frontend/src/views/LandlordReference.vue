@@ -50,16 +50,14 @@
                 />
               </div>
 
-              <div>
-                <label for="landlord-phone" class="block text-sm font-medium text-gray-700">Phone Number *</label>
-                <input
-                  id="landlord-phone"
-                  v-model="formData.landlordPhone"
-                  type="tel"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+              <PhoneInput
+                v-model="formData.landlordPhone"
+                label="Phone Number"
+                id="landlord-phone"
+                :required="true"
+                select-class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                input-class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
           </div>
         </div>
@@ -105,29 +103,21 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="tenancy-start" class="block text-sm font-medium text-gray-700">Tenancy Start Date *</label>
-                <input
-                  id="tenancy-start"
-                  v-model="formData.tenancyStartDate"
-                  type="date"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+            <DatePicker
+              v-model="formData.tenancyStartDate"
+              label="Tenancy Start Date"
+              :required="true"
+              year-range-type="tenancy"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
 
-              <div>
-                <label for="tenancy-end" class="block text-sm font-medium text-gray-700">Tenancy End Date *</label>
-                <input
-                  id="tenancy-end"
-                  v-model="formData.tenancyEndDate"
-                  type="date"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
+            <DatePicker
+              v-model="formData.tenancyEndDate"
+              label="Tenancy End Date"
+              :required="true"
+              year-range-type="tenancy"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
 
             <div>
               <label for="monthly-rent" class="block text-sm font-medium text-gray-700">Monthly Rent (£) *</label>
@@ -317,16 +307,13 @@
               label="Signature"
             />
 
-            <div>
-              <label for="date" class="block text-sm font-medium text-gray-700">Date *</label>
-              <input
-                id="date"
-                v-model="formData.date"
-                type="date"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            <DatePicker
+              v-model="formData.date"
+              label="Date"
+              :required="true"
+              year-range-type="current"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
         </div>
 
@@ -354,6 +341,8 @@
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
+import PhoneInput from '../components/PhoneInput.vue'
+import DatePicker from '../components/DatePicker.vue'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'

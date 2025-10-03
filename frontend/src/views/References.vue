@@ -169,16 +169,12 @@
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
-              <div>
-                <label for="phone" class="block text-sm font-medium text-gray-700">Phone *</label>
-                <input
-                  id="phone"
-                  v-model="formData.tenant_phone"
-                  type="tel"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
+              <PhoneInput
+                v-model="formData.tenant_phone"
+                label="Phone"
+                id="phone"
+                :required="true"
+              />
             </div>
           </div>
 
@@ -229,15 +225,12 @@
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
-              <div>
-                <label for="move-in-date" class="block text-sm font-medium text-gray-700">Move-in Date</label>
-                <input
-                  id="move-in-date"
-                  v-model="formData.move_in_date"
-                  type="date"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
+              <DatePicker
+                v-model="formData.move_in_date"
+                label="Move-in Date"
+                :required="false"
+                year-range-type="future"
+              />
             </div>
           </div>
 
@@ -289,6 +282,8 @@ import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
+import PhoneInput from '../components/PhoneInput.vue'
+import DatePicker from '../components/DatePicker.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

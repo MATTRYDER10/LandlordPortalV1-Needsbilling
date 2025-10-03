@@ -180,26 +180,12 @@
               </div>
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number *</label>
-              <div class="flex gap-2">
-                <select
-                  v-model="countryCode"
-                  class="w-48 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary text-sm"
-                >
-                  <option v-for="country in countryCodes" :key="country.code" :value="country.dial">
-                    {{ country.name }} ({{ country.dial }})
-                  </option>
-                </select>
-                <input
-                  v-model="phoneNumber"
-                  type="tel"
-                  required
-                  :placeholder="phonePlaceholder"
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-            </div>
+            <PhoneInput
+              v-model="formData.contact_number"
+              label="Contact Number"
+              id="contact-number"
+              :required="true"
+            />
 
             <div class="relative">
               <label class="block text-sm font-medium text-gray-700">Nationality *</label>
@@ -720,15 +706,12 @@
                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                         />
                       </div>
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700">Phone *</label>
-                        <input
-                          v-model="formData.employer_ref_phone"
-                          type="tel"
-                          :required="formData.income_regular_employment"
-                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                        />
-                      </div>
+                      <PhoneInput
+                        v-model="formData.employer_ref_phone"
+                        label="Phone"
+                        id="employer-ref-phone"
+                        :required="formData.income_regular_employment"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1041,6 +1024,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import PhoneInput from '../components/PhoneInput.vue'
+import DatePicker from '../components/DatePicker.vue'
 
 const route = useRoute()
 
@@ -1081,89 +1066,6 @@ const employmentStartDay = ref('')
 const employmentStartMonth = ref('')
 const employmentStartYear = ref('')
 
-// Phone number fields
-const countryCode = ref('+44')
-const phoneNumber = ref('')
-
-// Comprehensive country codes list
-const countryCodes = [
-  { code: 'GB', name: 'United Kingdom', dial: '+44' },
-  { code: 'US', name: 'United States', dial: '+1' },
-  { code: 'IE', name: 'Ireland', dial: '+353' },
-  { code: 'AF', name: 'Afghanistan', dial: '+93' },
-  { code: 'AL', name: 'Albania', dial: '+355' },
-  { code: 'DZ', name: 'Algeria', dial: '+213' },
-  { code: 'AR', name: 'Argentina', dial: '+54' },
-  { code: 'AU', name: 'Australia', dial: '+61' },
-  { code: 'AT', name: 'Austria', dial: '+43' },
-  { code: 'BD', name: 'Bangladesh', dial: '+880' },
-  { code: 'BE', name: 'Belgium', dial: '+32' },
-  { code: 'BR', name: 'Brazil', dial: '+55' },
-  { code: 'BG', name: 'Bulgaria', dial: '+359' },
-  { code: 'CA', name: 'Canada', dial: '+1' },
-  { code: 'CL', name: 'Chile', dial: '+56' },
-  { code: 'CN', name: 'China', dial: '+86' },
-  { code: 'CO', name: 'Colombia', dial: '+57' },
-  { code: 'HR', name: 'Croatia', dial: '+385' },
-  { code: 'CY', name: 'Cyprus', dial: '+357' },
-  { code: 'CZ', name: 'Czech Republic', dial: '+420' },
-  { code: 'DK', name: 'Denmark', dial: '+45' },
-  { code: 'EG', name: 'Egypt', dial: '+20' },
-  { code: 'EE', name: 'Estonia', dial: '+372' },
-  { code: 'FI', name: 'Finland', dial: '+358' },
-  { code: 'FR', name: 'France', dial: '+33' },
-  { code: 'DE', name: 'Germany', dial: '+49' },
-  { code: 'GR', name: 'Greece', dial: '+30' },
-  { code: 'HK', name: 'Hong Kong', dial: '+852' },
-  { code: 'HU', name: 'Hungary', dial: '+36' },
-  { code: 'IS', name: 'Iceland', dial: '+354' },
-  { code: 'IN', name: 'India', dial: '+91' },
-  { code: 'ID', name: 'Indonesia', dial: '+62' },
-  { code: 'IR', name: 'Iran', dial: '+98' },
-  { code: 'IQ', name: 'Iraq', dial: '+964' },
-  { code: 'IL', name: 'Israel', dial: '+972' },
-  { code: 'IT', name: 'Italy', dial: '+39' },
-  { code: 'JP', name: 'Japan', dial: '+81' },
-  { code: 'JO', name: 'Jordan', dial: '+962' },
-  { code: 'KE', name: 'Kenya', dial: '+254' },
-  { code: 'KW', name: 'Kuwait', dial: '+965' },
-  { code: 'LV', name: 'Latvia', dial: '+371' },
-  { code: 'LB', name: 'Lebanon', dial: '+961' },
-  { code: 'LT', name: 'Lithuania', dial: '+370' },
-  { code: 'LU', name: 'Luxembourg', dial: '+352' },
-  { code: 'MY', name: 'Malaysia', dial: '+60' },
-  { code: 'MT', name: 'Malta', dial: '+356' },
-  { code: 'MX', name: 'Mexico', dial: '+52' },
-  { code: 'MA', name: 'Morocco', dial: '+212' },
-  { code: 'NL', name: 'Netherlands', dial: '+31' },
-  { code: 'NZ', name: 'New Zealand', dial: '+64' },
-  { code: 'NG', name: 'Nigeria', dial: '+234' },
-  { code: 'NO', name: 'Norway', dial: '+47' },
-  { code: 'PK', name: 'Pakistan', dial: '+92' },
-  { code: 'PH', name: 'Philippines', dial: '+63' },
-  { code: 'PL', name: 'Poland', dial: '+48' },
-  { code: 'PT', name: 'Portugal', dial: '+351' },
-  { code: 'QA', name: 'Qatar', dial: '+974' },
-  { code: 'RO', name: 'Romania', dial: '+40' },
-  { code: 'RU', name: 'Russia', dial: '+7' },
-  { code: 'SA', name: 'Saudi Arabia', dial: '+966' },
-  { code: 'RS', name: 'Serbia', dial: '+381' },
-  { code: 'SG', name: 'Singapore', dial: '+65' },
-  { code: 'SK', name: 'Slovakia', dial: '+421' },
-  { code: 'SI', name: 'Slovenia', dial: '+386' },
-  { code: 'ZA', name: 'South Africa', dial: '+27' },
-  { code: 'KR', name: 'South Korea', dial: '+82' },
-  { code: 'ES', name: 'Spain', dial: '+34' },
-  { code: 'LK', name: 'Sri Lanka', dial: '+94' },
-  { code: 'SE', name: 'Sweden', dial: '+46' },
-  { code: 'CH', name: 'Switzerland', dial: '+41' },
-  { code: 'TW', name: 'Taiwan', dial: '+886' },
-  { code: 'TH', name: 'Thailand', dial: '+66' },
-  { code: 'TR', name: 'Turkey', dial: '+90' },
-  { code: 'UA', name: 'Ukraine', dial: '+380' },
-  { code: 'AE', name: 'United Arab Emirates', dial: '+971' },
-  { code: 'VN', name: 'Vietnam', dial: '+84' }
-]
 
 // Generate year range (from current year - 18 to current year - 100)
 const currentYear = new Date().getFullYear()
@@ -1578,89 +1480,6 @@ const filteredCompanyCountries = computed(() => {
   return filtered
 })
 
-// Phone number placeholder based on country
-const phonePlaceholder = computed(() => {
-  const placeholders: { [key: string]: string } = {
-    '+44': '7123456789',           // UK
-    '+1': '2025551234',             // US/Canada
-    '+353': '851234567',            // Ireland
-    '+93': '701234567',             // Afghanistan
-    '+355': '672123456',            // Albania
-    '+213': '551234567',            // Algeria
-    '+54': '91123456789',           // Argentina
-    '+61': '412345678',             // Australia
-    '+43': '6641234567',            // Austria
-    '+880': '1712345678',           // Bangladesh
-    '+32': '470123456',             // Belgium
-    '+55': '11912345678',           // Brazil
-    '+359': '876543210',            // Bulgaria
-    '+1': '4165551234',             // Canada (same as US)
-    '+56': '912345678',             // Chile
-    '+86': '13812345678',           // China
-    '+57': '3101234567',            // Colombia
-    '+385': '912345678',            // Croatia
-    '+357': '96123456',             // Cyprus
-    '+420': '601123456',            // Czech Republic
-    '+45': '20123456',              // Denmark
-    '+20': '1001234567',            // Egypt
-    '+372': '51234567',             // Estonia
-    '+358': '412345678',            // Finland
-    '+33': '612345678',             // France
-    '+49': '15123456789',           // Germany
-    '+30': '6912345678',            // Greece
-    '+852': '51234567',             // Hong Kong
-    '+36': '201234567',             // Hungary
-    '+354': '6111234',              // Iceland
-    '+91': '9876543210',            // India
-    '+62': '81234567890',           // Indonesia
-    '+98': '9123456789',            // Iran
-    '+964': '7901234567',           // Iraq
-    '+972': '501234567',            // Israel
-    '+39': '3123456789',            // Italy
-    '+81': '9012345678',            // Japan
-    '+962': '790123456',            // Jordan
-    '+254': '712123456',            // Kenya
-    '+965': '50012345',             // Kuwait
-    '+371': '21234567',             // Latvia
-    '+961': '71123456',             // Lebanon
-    '+370': '61234567',             // Lithuania
-    '+352': '621123456',            // Luxembourg
-    '+60': '123456789',             // Malaysia
-    '+356': '79123456',             // Malta
-    '+52': '5512345678',            // Mexico
-    '+212': '612345678',            // Morocco
-    '+31': '612345678',             // Netherlands
-    '+64': '211234567',             // New Zealand
-    '+234': '8021234567',           // Nigeria
-    '+47': '40612345',              // Norway
-    '+92': '3001234567',            // Pakistan
-    '+63': '9171234567',            // Philippines
-    '+48': '501234567',             // Poland
-    '+351': '912345678',            // Portugal
-    '+974': '33123456',             // Qatar
-    '+40': '712345678',             // Romania
-    '+7': '9161234567',             // Russia
-    '+966': '501234567',            // Saudi Arabia
-    '+381': '601234567',            // Serbia
-    '+65': '81234567',              // Singapore
-    '+421': '901123456',            // Slovakia
-    '+386': '31234567',             // Slovenia
-    '+27': '821234567',             // South Africa
-    '+82': '1012345678',            // South Korea
-    '+34': '612345678',             // Spain
-    '+94': '712345678',             // Sri Lanka
-    '+46': '701234567',             // Sweden
-    '+41': '781234567',             // Switzerland
-    '+886': '912345678',            // Taiwan
-    '+66': '812345678',             // Thailand
-    '+90': '5321234567',            // Turkey
-    '+380': '501234567',            // Ukraine
-    '+971': '501234567',            // UAE
-    '+84': '912345678'              // Vietnam
-  }
-
-  return placeholders[countryCode.value] || '123456789'
-})
 
 // Select nationality from dropdown
 const selectNationality = (nationality: string) => {
@@ -1958,6 +1777,7 @@ const formData = ref({
   middle_name: '',
   last_name: '',
   nationality: '',
+  contact_number: '',
 
   // Page 1: ID Document
   id_document_type: '',
@@ -2069,8 +1889,6 @@ const saveToLocalStorage = () => {
     employmentStartDay: employmentStartDay.value,
     employmentStartMonth: employmentStartMonth.value,
     employmentStartYear: employmentStartYear.value,
-    countryCode: countryCode.value,
-    phoneNumber: phoneNumber.value,
     nationalitySearch: nationalitySearch.value,
     countrySearch: countrySearch.value,
     companyCountrySearch: companyCountrySearch.value,
@@ -2098,8 +1916,6 @@ const loadFromLocalStorage = () => {
       if (data.employmentStartDay) employmentStartDay.value = data.employmentStartDay
       if (data.employmentStartMonth) employmentStartMonth.value = data.employmentStartMonth
       if (data.employmentStartYear) employmentStartYear.value = data.employmentStartYear
-      if (data.countryCode) countryCode.value = data.countryCode
-      if (data.phoneNumber) phoneNumber.value = data.phoneNumber
       if (data.nationalitySearch) nationalitySearch.value = data.nationalitySearch
       if (data.countrySearch) countrySearch.value = data.countrySearch
       if (data.companyCountrySearch) companyCountrySearch.value = data.companyCountrySearch
@@ -2115,7 +1931,7 @@ const clearLocalStorage = () => {
 }
 
 // Watch for changes and save to localStorage
-watch([formData, currentPage, dobDay, dobMonth, dobYear, employmentStartDay, employmentStartMonth, employmentStartYear, countryCode, phoneNumber, nationalitySearch, countrySearch, companyCountrySearch, consentGiven], () => {
+watch([formData, currentPage, dobDay, dobMonth, dobYear, employmentStartDay, employmentStartMonth, employmentStartYear, nationalitySearch, countrySearch, companyCountrySearch, consentGiven], () => {
   saveToLocalStorage()
 }, { deep: true })
 
@@ -2282,15 +2098,11 @@ const handleFinalSubmit = async () => {
       ? `${employmentStartYear.value}-${employmentStartMonth.value.padStart(2, '0')}-${String(employmentStartDay.value).padStart(2, '0')}`
       : ''
 
-    // Combine country code and phone number
-    const fullPhoneNumber = phoneNumber.value ? `${countryCode.value}${phoneNumber.value}` : ''
-
     // Step 2: Submit form data with file paths
     const submitData = {
       ...formData.value,
       date_of_birth: dateOfBirth,
       employment_start_date: employmentStartDate,
-      contact_number: fullPhoneNumber,
       id_document_path: uploadedFiles.id_document,
       selfie_path: uploadedFiles.selfie,
       proof_of_address_path: uploadedFiles.proof_of_address,

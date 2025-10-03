@@ -72,16 +72,14 @@
                 />
               </div>
 
-              <div>
-                <label for="employer-phone" class="block text-sm font-medium text-gray-700">Your Phone Number *</label>
-                <input
-                  id="employer-phone"
-                  v-model="formData.employerPhone"
-                  type="tel"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+              <PhoneInput
+                v-model="formData.employerPhone"
+                label="Your Phone Number"
+                id="employer-phone"
+                :required="true"
+                select-class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                input-class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
           </div>
         </div>
@@ -130,29 +128,22 @@
               </label>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="employment-start" class="block text-sm font-medium text-gray-700">Employment Start Date *</label>
-                <input
-                  id="employment-start"
-                  v-model="formData.employmentStartDate"
-                  type="date"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+            <DatePicker
+              v-model="formData.employmentStartDate"
+              label="Employment Start Date"
+              :required="true"
+              year-range-type="employment"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
 
-              <div v-if="!formData.isCurrentEmployee">
-                <label for="employment-end" class="block text-sm font-medium text-gray-700">Employment End Date *</label>
-                <input
-                  id="employment-end"
-                  v-model="formData.employmentEndDate"
-                  type="date"
-                  :required="!formData.isCurrentEmployee"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
+            <DatePicker
+              v-if="!formData.isCurrentEmployee"
+              v-model="formData.employmentEndDate"
+              label="Employment End Date"
+              :required="!formData.isCurrentEmployee"
+              year-range-type="employment"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
         </div>
 
@@ -203,16 +194,14 @@
               </select>
             </div>
 
-            <div v-if="formData.isProbation === 'yes'">
-              <label for="probation-end" class="block text-sm font-medium text-gray-700">Probation End Date *</label>
-              <input
-                id="probation-end"
-                v-model="formData.probationEndDate"
-                type="date"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            <DatePicker
+              v-if="formData.isProbation === 'yes'"
+              v-model="formData.probationEndDate"
+              label="Probation End Date"
+              :required="true"
+              year-range-type="future"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
         </div>
 
@@ -380,16 +369,13 @@
               label="Signature"
             />
 
-            <div>
-              <label for="date" class="block text-sm font-medium text-gray-700">Date *</label>
-              <input
-                id="date"
-                v-model="formData.date"
-                type="date"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            <DatePicker
+              v-model="formData.date"
+              label="Date"
+              :required="true"
+              year-range-type="current"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
         </div>
 
@@ -417,6 +403,8 @@
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
+import PhoneInput from '../components/PhoneInput.vue'
+import DatePicker from '../components/DatePicker.vue'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
