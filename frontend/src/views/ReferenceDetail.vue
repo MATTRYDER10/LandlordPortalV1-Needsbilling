@@ -166,56 +166,57 @@
         <!-- Current Address -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Address</h3>
-          <div v-if="reference.current_address_line1">
-            <div class="grid grid-cols-2 gap-4">
-              <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-500">Address Line 1</label>
-                <p class="mt-1 text-gray-900">{{ reference.current_address_line1 }}</p>
-              </div>
-              <div v-if="reference.current_address_line2" class="col-span-2">
-                <label class="block text-sm font-medium text-gray-500">Address Line 2</label>
-                <p class="mt-1 text-gray-900">{{ reference.current_address_line2 }}</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-500">City</label>
-                <p class="mt-1 text-gray-900">{{ reference.current_city || 'Not provided' }}</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Postcode</label>
-                <p class="mt-1 text-gray-900">{{ reference.current_postcode || 'Not provided' }}</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Country</label>
-                <p class="mt-1 text-gray-900">{{ reference.current_country || 'Not provided' }}</p>
-              </div>
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="col-span-2">
+              <label class="block text-sm font-medium text-gray-500">Address Line 1</label>
+              <p class="mt-1 text-gray-900">{{ reference.current_address_line1 || 'Not provided yet' }}</p>
             </div>
-            <div v-if="reference.proof_of_address_path" class="mt-4">
-              <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
-                <div class="flex items-center">
-                  <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  <span class="text-sm text-gray-900">Proof of Address</span>
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    @click="viewFile(reference.proof_of_address_path)"
-                    class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
-                  >
-                    View
-                  </button>
-                  <button
-                    @click="downloadFile(reference.proof_of_address_path)"
-                    class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                  >
-                    Download
-                  </button>
-                </div>
-              </div>
+            <div class="col-span-2">
+              <label class="block text-sm font-medium text-gray-500">Address Line 2</label>
+              <p class="mt-1 text-gray-900">{{ reference.current_address_line2 || 'Not provided yet' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">City</label>
+              <p class="mt-1 text-gray-900">{{ reference.current_city || 'Not provided yet' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Postcode</label>
+              <p class="mt-1 text-gray-900">{{ reference.current_postcode || 'Not provided yet' }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Country</label>
+              <p class="mt-1 text-gray-900">{{ reference.current_country || 'Not provided yet' }}</p>
             </div>
           </div>
-          <div v-else class="text-gray-500 text-center py-4">
-            Current address not provided yet
+
+          <!-- Proof of Address Document -->
+          <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Address Document</label>
+            <div v-if="reference.proof_of_address_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+              <div class="flex items-center">
+                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm text-gray-900">Proof of Address</span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="viewFile(reference.proof_of_address_path)"
+                  class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                >
+                  View
+                </button>
+                <button
+                  @click="downloadFile(reference.proof_of_address_path)"
+                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                >
+                  Download
+                </button>
+              </div>
+            </div>
+            <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg">
+              Proof of address document not uploaded yet
+            </div>
           </div>
         </div>
 
@@ -481,36 +482,6 @@
               <p class="text-sm text-yellow-900">{{ reference.adverse_credit_details || 'Details not provided' }}</p>
             </div>
           </div>
-
-          <!-- Bank Statements -->
-          <div v-if="reference.bank_statement_files?.length" class="mt-6 pt-6 border-t">
-            <label class="block text-sm font-medium text-gray-700 mb-3">Bank Statements</label>
-            <div class="space-y-2">
-              <div v-for="(file, index) in reference.bank_statement_files" :key="index"
-                   class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
-                <div class="flex items-center">
-                  <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  <span class="text-sm text-gray-900">Bank Statement {{ index + 1 }}</span>
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    @click="viewFile(file)"
-                    class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
-                  >
-                    View
-                  </button>
-                  <button
-                    @click="downloadFile(file)"
-                    class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                  >
-                    Download
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- About the Tenant -->
@@ -547,38 +518,35 @@
         <!-- Previous Landlord Information -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Previous Landlord Information</h3>
-          <div v-if="reference.previous_landlord_name" class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label class="block text-sm font-medium text-gray-500">Landlord Name</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_landlord_name }}</p>
+              <p class="mt-1 text-gray-900">{{ reference.previous_landlord_name || 'Not provided yet' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Landlord Email</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_landlord_email || 'Not provided' }}</p>
+              <p class="mt-1 text-gray-900">{{ reference.previous_landlord_email || 'Not provided yet' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Landlord Phone</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_landlord_phone || 'Not provided' }}</p>
+              <p class="mt-1 text-gray-900">{{ reference.previous_landlord_phone || 'Not provided yet' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Previous Street</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_street || 'Not provided' }}</p>
+              <p class="mt-1 text-gray-900">{{ reference.previous_street || 'Not provided yet' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Previous City</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_city || 'Not provided' }}</p>
+              <p class="mt-1 text-gray-900">{{ reference.previous_city || 'Not provided yet' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Previous Postcode</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_postcode || 'Not provided' }}</p>
+              <p class="mt-1 text-gray-900">{{ reference.previous_postcode || 'Not provided yet' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
               <p class="mt-1 text-gray-900">{{ formatTenancyDuration(reference.tenancy_years, reference.tenancy_months) }}</p>
             </div>
-          </div>
-          <div v-else class="text-gray-500 text-center py-4">
-            Tenant has not submitted previous landlord information yet
           </div>
 
           <!-- Landlord Reference Link (only show if not submitted) -->
