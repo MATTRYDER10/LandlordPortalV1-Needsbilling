@@ -101,7 +101,7 @@
             <p class="mt-1 text-sm text-gray-500">Get started by creating a new tenant reference.</p>
             <div class="mt-6">
               <router-link
-                to="/references"
+                to="/references?create=true"
                 class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block"
               >
                 Create New Reference

@@ -273,13 +273,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 import PhoneInput from '../components/PhoneInput.vue'
 import DatePicker from '../components/DatePicker.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -306,6 +307,13 @@ const formData = ref({
 
 onMounted(() => {
   fetchReferences()
+
+  // Check if we should open the create modal
+  if (route.query.create === 'true') {
+    showCreateModal.value = true
+    // Remove the query parameter from the URL
+    router.replace('/references')
+  }
 })
 
 const fetchReferences = async () => {
