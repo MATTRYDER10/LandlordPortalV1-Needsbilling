@@ -98,6 +98,14 @@
                   </button>
                 </div>
               </div>
+              <div v-else-if="formData.id_document_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                <div class="flex items-center">
+                  <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span class="text-sm text-green-700">Document uploaded successfully</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -255,6 +263,14 @@
                   </button>
                 </div>
               </div>
+              <div v-else-if="formData.selfie_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                <div class="flex items-center">
+                  <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span class="text-sm text-green-700">Selfie uploaded successfully</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -371,6 +387,14 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
+                </div>
+              </div>
+              <div v-else-if="formData.proof_of_address_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                <div class="flex items-center">
+                  <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span class="text-sm text-green-700">Proof of address uploaded successfully</span>
                 </div>
               </div>
             </div>
@@ -673,6 +697,14 @@
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
+                    </div>
+                  </div>
+                  <div v-else-if="formData.payslip_paths.length > 0" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span class="text-sm text-green-700">{{ formData.payslip_paths.length }} payslip(s) uploaded successfully</span>
                     </div>
                   </div>
                 </div>
@@ -1011,7 +1043,7 @@
               class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 hover:opacity-90"
               :style="{ backgroundColor: buttonColor }"
             >
-              Next
+              {{ submitting ? 'Uploading...' : 'Next' }}
             </button>
             <button
               v-else
@@ -1793,6 +1825,7 @@ const formData = ref({
 
   // Page 1: ID Document
   id_document_type: '',
+  id_document_path: '', // Uploaded file path
 
   // Page 4: Current Address
   current_address_line1: '',
@@ -1800,6 +1833,12 @@ const formData = ref({
   current_city: '',
   current_postcode: '',
   current_country: '',
+
+  // Page 3: Selfie
+  selfie_path: '', // Uploaded file path
+
+  // Page 5: Proof of Address
+  proof_of_address_path: '', // Uploaded file path
 
   // Page 6: Financial - Income Sources
   income_regular_employment: false,
@@ -1827,6 +1866,9 @@ const formData = ref({
   employer_ref_name: '',
   employer_ref_email: '',
   employer_ref_phone: '',
+
+  // Payslips
+  payslip_paths: [] as string[], // Uploaded file paths
 
   // Page 7: Additional Income
   has_additional_income: false,
@@ -2048,12 +2090,74 @@ const goToPreviousPage = () => {
   }
 }
 
+// Upload files for the current page
+const uploadCurrentPageFiles = async () => {
+  const token = route.params.token as string
+  const formDataFiles = new FormData()
+  let hasFilesToUpload = false
+
+  // Check which page we're on and add appropriate files
+  if (currentPage.value === 1 && idDocument.value && !formData.value.id_document_path) {
+    formDataFiles.append('id_document', idDocument.value)
+    hasFilesToUpload = true
+  }
+
+  if (currentPage.value === 3 && selfie.value && !formData.value.selfie_path) {
+    formDataFiles.append('selfie', selfie.value)
+    hasFilesToUpload = true
+  }
+
+  if (currentPage.value === 5 && proofOfAddress.value && !formData.value.proof_of_address_path) {
+    formDataFiles.append('proof_of_address', proofOfAddress.value)
+    hasFilesToUpload = true
+  }
+
+  if (currentPage.value === 6 && payslips.value.length > 0 && formData.value.payslip_paths.length === 0) {
+    payslips.value.forEach((file) => {
+      formDataFiles.append('payslips', file)
+    })
+    hasFilesToUpload = true
+  }
+
+  // If there are no files to upload, skip
+  if (!hasFilesToUpload) {
+    return
+  }
+
+  // Upload the files
+  const response = await fetch(`${API_URL}/api/references/upload/${token}`, {
+    method: 'POST',
+    body: formDataFiles
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw new Error(errorData.error || 'Failed to upload files')
+  }
+
+  const uploadedFiles = await response.json()
+
+  // Store the uploaded file paths in formData
+  if (uploadedFiles.id_document) {
+    formData.value.id_document_path = uploadedFiles.id_document
+  }
+  if (uploadedFiles.selfie) {
+    formData.value.selfie_path = uploadedFiles.selfie
+  }
+  if (uploadedFiles.proof_of_address) {
+    formData.value.proof_of_address_path = uploadedFiles.proof_of_address
+  }
+  if (uploadedFiles.payslips && uploadedFiles.payslips.length > 0) {
+    formData.value.payslip_paths = uploadedFiles.payslips
+  }
+}
+
 const handlePageSubmit = async () => {
   submitError.value = ''
 
   // Validate current page
   if (currentPage.value === 1) {
-    if (!formData.value.id_document_type || !idDocument.value) {
+    if (!formData.value.id_document_type || (!idDocument.value && !formData.value.id_document_path)) {
       submitError.value = 'Please select document type and upload your ID document'
       return
     }
@@ -2067,17 +2171,17 @@ const handlePageSubmit = async () => {
       return
     }
   } else if (currentPage.value === 3) {
-    if (!selfie.value) {
+    if (!selfie.value && !formData.value.selfie_path) {
       submitError.value = 'Please upload a selfie'
       return
     }
   } else if (currentPage.value === 5) {
-    if (!proofOfAddress.value) {
+    if (!proofOfAddress.value && !formData.value.proof_of_address_path) {
       submitError.value = 'Please upload proof of address'
       return
     }
   } else if (currentPage.value === 6) {
-    if (formData.value.income_regular_employment && payslips.value.length === 0) {
+    if (formData.value.income_regular_employment && payslips.value.length === 0 && formData.value.payslip_paths.length === 0) {
       submitError.value = 'Please upload your payslips'
       return
     }
@@ -2087,9 +2191,24 @@ const handlePageSubmit = async () => {
   if (currentPage.value === 10) {
     await handleFinalSubmit()
   } else {
-    // Move to next page
-    currentPage.value++
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Upload files for current page before moving to next page
+    try {
+      submitting.value = true
+      uploadProgress.value = 10
+
+      await uploadCurrentPageFiles()
+
+      uploadProgress.value = 0
+      submitting.value = false
+
+      // Move to next page
+      currentPage.value++
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (error: any) {
+      submitError.value = error.message || 'Failed to upload files'
+      uploadProgress.value = 0
+      submitting.value = false
+    }
   }
 }
 
@@ -2101,11 +2220,7 @@ const handleFinalSubmit = async () => {
   try {
     const token = route.params.token as string
 
-    // Step 1: Upload all files first
-    uploadProgress.value = 10
-    const uploadedFiles = await uploadAllFiles(token)
-
-    uploadProgress.value = 50
+    uploadProgress.value = 30
 
     // Combine DOB fields into proper date format
     const dateOfBirth = dobDay.value && dobMonth.value && dobYear.value
@@ -2117,15 +2232,15 @@ const handleFinalSubmit = async () => {
       ? `${employmentStartYear.value}-${employmentStartMonth.value.padStart(2, '0')}-${String(employmentStartDay.value).padStart(2, '0')}`
       : ''
 
-    // Step 2: Submit form data with file paths
+    uploadProgress.value = 50
+
+    // Submit form data with already uploaded file paths
     const submitData = {
       ...formData.value,
       date_of_birth: dateOfBirth,
       employment_start_date: employmentStartDate,
-      id_document_path: uploadedFiles.id_document,
-      selfie_path: uploadedFiles.selfie,
-      proof_of_address_path: uploadedFiles.proof_of_address,
-      payslip_files: uploadedFiles.payslips
+      // Use the paths already stored in formData (uploaded on each step)
+      payslip_files: formData.value.payslip_paths
     }
 
     const response = await fetch(`${API_URL}/api/references/submit/${token}`, {
@@ -2159,34 +2274,6 @@ const handleFinalSubmit = async () => {
   }
 }
 
-const uploadAllFiles = async (token: string) => {
-  const formDataFiles = new FormData()
-
-  if (idDocument.value) {
-    formDataFiles.append('id_document', idDocument.value)
-  }
-  if (selfie.value) {
-    formDataFiles.append('selfie', selfie.value)
-  }
-  if (proofOfAddress.value) {
-    formDataFiles.append('proof_of_address', proofOfAddress.value)
-  }
-  payslips.value.forEach((file) => {
-    formDataFiles.append('payslips', file)
-  })
-
-  const response = await fetch(`${API_URL}/api/references/upload/${token}`, {
-    method: 'POST',
-    body: formDataFiles
-  })
-
-  if (!response.ok) {
-    const errorData = await response.json()
-    throw new Error(errorData.error || 'Failed to upload files')
-  }
-
-  return response.json()
-}
 </script>
 
 <style scoped>
