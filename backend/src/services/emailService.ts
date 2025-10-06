@@ -56,11 +56,11 @@ export async function sendTenantReferenceRequest(
   tenantEmail: string,
   tenantName: string,
   referenceLink: string,
-  agentName: string
+  companyName: string
 ): Promise<void> {
   const html = loadEmailTemplate('tenant-reference-request', {
     TenantName: tenantName,
-    AgentName: agentName,
+    CompanyName: companyName,
     ReferenceLink: referenceLink,
   });
 

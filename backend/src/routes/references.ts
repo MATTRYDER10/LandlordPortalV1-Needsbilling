@@ -139,7 +139,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     console.log('Looking up company for user:', userId)
     const { data: companyUser, error: companyError } = await supabase
       .from('company_users')
-      .select('company_id')
+      .select('company_id, companies:company_id(name)')
       .eq('user_id', userId)
       .single()
 
@@ -183,9 +183,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: error.message })
     }
 
-    // Get the user's profile to get their name
-    const { data: profile } = await supabase.auth.admin.getUserById(userId)
-    const agentName = profile?.user?.user_metadata?.full_name || profile?.user?.email || 'Your agent'
+    // Get the company name for the email
+    const companyName = (companyUser as any).companies?.name || 'Your agent'
 
     // Send email to tenant with link to submit their information
     const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
@@ -195,7 +194,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         tenant_email,
         `${tenant_first_name} ${tenant_last_name}`,
         tenantUrl,
-        agentName
+        companyName
       )
       console.log('Email sent successfully to tenant:', tenant_email)
     } catch (emailError: any) {
