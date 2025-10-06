@@ -93,15 +93,9 @@
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button
                   @click="viewReference(reference)"
-                  class="text-primary hover:text-primary/80 mr-4"
+                  class="text-primary hover:text-primary/80"
                 >
                   View
-                </button>
-                <button
-                  @click="copyTenantLink(reference)"
-                  class="text-gray-600 hover:text-gray-900"
-                >
-                  Copy Link
                 </button>
               </td>
             </tr>
@@ -280,7 +274,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 import PhoneInput from '../components/PhoneInput.vue'
@@ -416,11 +409,5 @@ const formatDate = (date: string) => {
 
 const viewReference = (reference: any) => {
   router.push(`/references/${reference.id}`)
-}
-
-const copyTenantLink = (reference: any) => {
-  const link = `${window.location.origin}/submit-reference/${reference.reference_token}`
-  navigator.clipboard.writeText(link)
-  useToast().success('Tenant link copied to clipboard!')
 }
 </script>

@@ -324,13 +324,23 @@
                 {{ brandingError }}
               </div>
 
-              <button
-                type="submit"
-                :disabled="brandingLoading"
-                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
-              >
-                {{ brandingLoading ? 'Saving...' : 'Save Branding Settings' }}
-              </button>
+              <div class="flex gap-3">
+                <button
+                  type="submit"
+                  :disabled="brandingLoading"
+                  class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+                >
+                  {{ brandingLoading ? 'Saving...' : 'Save Branding Settings' }}
+                </button>
+                <button
+                  type="button"
+                  @click="handleResetBranding"
+                  :disabled="brandingLoading"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md disabled:opacity-50"
+                >
+                  Reset to Default
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -510,6 +520,39 @@
         </form>
       </div>
     </div>
+
+    <!-- Reset Branding Confirmation Modal -->
+    <div v-if="showResetBrandingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div class="flex items-center mb-4">
+          <div class="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 class="ml-3 text-lg font-semibold text-gray-900">Reset to Default Branding?</h3>
+        </div>
+        <p class="text-gray-600 mb-6">
+          This will remove your custom logo and reset colors to PropertyGoose orange. This action cannot be undone.
+        </p>
+        <div class="flex justify-end space-x-3">
+          <button
+            type="button"
+            @click="showResetBrandingModal = false"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="confirmResetBranding"
+            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
+          >
+            Reset Branding
+          </button>
+        </div>
+      </div>
+    </div>
   </Sidebar>
 </template>
 
@@ -577,6 +620,7 @@ const brandingSuccess = ref('')
 const brandingError = ref('')
 const logoFile = ref<File | null>(null)
 const logoPreview = ref('')
+const showResetBrandingModal = ref(false)
 
 // Team data
 const showInviteModal = ref(false)
@@ -807,6 +851,57 @@ const handleRemoveLogo = () => {
   logoFile.value = null
   logoPreview.value = ''
   brandingData.value.logo_url = ''
+}
+
+const handleResetBranding = () => {
+  showResetBrandingModal.value = true
+}
+
+const confirmResetBranding = async () => {
+  showResetBrandingModal.value = false
+  brandingLoading.value = true
+  brandingSuccess.value = ''
+  brandingError.value = ''
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      brandingError.value = 'No auth token available'
+      return
+    }
+
+    // Reset to default values
+    const response = await fetch(`${API_URL}/api/company`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        logo_url: null,
+        primary_color: '#f97316',
+        button_color: '#f97316'
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to reset branding')
+    }
+
+    // Update local state
+    brandingData.value.logo_url = ''
+    brandingData.value.primary_color = '#f97316'
+    brandingData.value.button_color = '#f97316'
+    logoFile.value = null
+    logoPreview.value = ''
+
+    brandingSuccess.value = 'Branding reset to default successfully'
+  } catch (error: any) {
+    brandingError.value = error.message || 'Failed to reset branding'
+  } finally {
+    brandingLoading.value = false
+  }
 }
 
 const handleUpdateBranding = async () => {

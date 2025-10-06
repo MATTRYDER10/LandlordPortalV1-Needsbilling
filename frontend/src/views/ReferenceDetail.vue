@@ -350,27 +350,12 @@
                 </div>
               </div>
 
-              <!-- Employer Reference Link (only show if not submitted) -->
+              <!-- Employer Reference Status -->
               <div v-if="reference.employer_ref_email && !employerReference" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 class="text-sm font-semibold text-blue-900 mb-2">Employer Reference Form</h4>
-                <p class="text-sm text-blue-800 mb-2">
-                  Share this link with the employer to complete their reference:
+                <h4 class="text-sm font-semibold text-blue-900 mb-2">Employer Reference</h4>
+                <p class="text-sm text-blue-800">
+                  An email has been sent to the employer to complete their reference.
                 </p>
-                <div class="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readonly
-                    :value="getEmployerReferenceLink()"
-                    class="flex-1 px-3 py-2 text-sm bg-white border border-blue-300 rounded-md font-mono text-xs"
-                  />
-                  <button
-                    type="button"
-                    @click="copyEmployerLink"
-                    class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 whitespace-nowrap"
-                  >
-                    Copy Link
-                  </button>
-                </div>
               </div>
 
               <!-- Employer Reference Submitted -->
@@ -553,27 +538,12 @@
             </div>
           </div>
 
-          <!-- Landlord Reference Link (only show if not submitted) -->
+          <!-- Landlord Reference Status -->
           <div v-if="reference.previous_landlord_email && !landlordReference" class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-            <h4 class="text-sm font-semibold text-purple-900 mb-2">Landlord Reference Form</h4>
-            <p class="text-sm text-purple-800 mb-2">
-              Share this link with the previous landlord to complete their reference:
+            <h4 class="text-sm font-semibold text-purple-900 mb-2">Landlord Reference</h4>
+            <p class="text-sm text-purple-800">
+              Waiting for landlord reference to be submitted.
             </p>
-            <div class="flex items-center gap-2">
-              <input
-                type="text"
-                readonly
-                :value="getLandlordReferenceLink()"
-                class="flex-1 px-3 py-2 text-sm bg-white border border-purple-300 rounded-md font-mono text-xs"
-              />
-              <button
-                type="button"
-                @click="copyLandlordLink"
-                class="px-4 py-2 text-sm font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 whitespace-nowrap"
-              >
-                Copy Link
-              </button>
-            </div>
           </div>
 
           <!-- Landlord Reference Submitted -->
@@ -803,18 +773,6 @@
           </div>
         </div>
 
-        <!-- Actions -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
-          <div class="flex space-x-4">
-            <button
-              @click="copyTenantLink"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
-            >
-              Copy Tenant Link
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -959,41 +917,6 @@ const formatDateTime = (date: string) => {
   })
 }
 
-const getLandlordReferenceLink = () => {
-  return `${window.location.origin}/landlord-reference/${reference.value?.id || ''}`
-}
-
-const getEmployerReferenceLink = () => {
-  return `${window.location.origin}/employer-reference/${reference.value?.id || ''}`
-}
-
-const toast = useToast()
-
-const copyLandlordLink = async () => {
-  try {
-    await navigator.clipboard.writeText(getLandlordReferenceLink())
-    toast.success('Landlord reference link copied to clipboard!')
-  } catch (error) {
-    toast.error('Failed to copy link to clipboard')
-  }
-}
-
-const copyEmployerLink = async () => {
-  try {
-    await navigator.clipboard.writeText(getEmployerReferenceLink())
-    toast.success('Employer reference link copied to clipboard!')
-  } catch (error) {
-    toast.error('Failed to copy link to clipboard')
-  }
-}
-
-const copyTenantLink = () => {
-  if (reference.value) {
-    const link = `${window.location.origin}/submit-reference/${reference.value.reference_token}`
-    navigator.clipboard.writeText(link)
-    useToast().success('Tenant link copied to clipboard!')
-  }
-}
 
 const downloadFile = async (filePath: string) => {
   try {
