@@ -92,3 +92,25 @@ export async function sendEmployerReferenceRequest(
     html,
   });
 }
+
+/**
+ * Send landlord reference request email
+ */
+export async function sendLandlordReferenceRequest(
+  landlordEmail: string,
+  landlordName: string,
+  tenantName: string,
+  referenceLink: string
+): Promise<void> {
+  const html = loadEmailTemplate('landlord-reference-request', {
+    LandlordName: landlordName,
+    TenantName: tenantName,
+    ReferenceLink: referenceLink,
+  });
+
+  await sendEmail({
+    to: landlordEmail,
+    subject: 'Landlord Reference Request - PropertyGoose',
+    html,
+  });
+}

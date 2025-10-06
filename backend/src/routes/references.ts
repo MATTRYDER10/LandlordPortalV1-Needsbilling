@@ -3,7 +3,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
-import { sendTenantReferenceRequest, sendEmployerReferenceRequest } from '../services/emailService'
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest } from '../services/emailService'
 
 const router = Router()
 
@@ -380,6 +380,14 @@ router.post('/submit/:token', async (req, res) => {
       number_of_dependants: data.number_of_dependants || 0,
       dependants_details: data.dependants_details || null,
 
+      // Previous Landlord Reference (Page 10)
+      previous_landlord_name: data.previous_landlord_name || null,
+      previous_landlord_email: data.previous_landlord_email || null,
+      previous_landlord_phone: data.previous_landlord_phone || null,
+      previous_rental_address: data.previous_rental_address || null,
+      tenancy_years: data.tenancy_years || 0,
+      tenancy_months: data.tenancy_months || 0,
+
       // Submission tracking
       submitted_at: new Date().toISOString(),
       status: 'in_progress'
@@ -411,6 +419,24 @@ router.post('/submit/:token', async (req, res) => {
         console.log('Employer reference email sent successfully to:', data.employer_ref_email)
       } catch (emailError: any) {
         console.error('Failed to send employer reference email:', emailError)
+        // Don't fail the request if email fails, just log it
+      }
+    }
+
+    // Send email to landlord if landlord reference details are provided
+    if (data.previous_landlord_email && data.previous_landlord_name) {
+      try {
+        const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${updatedReference.id}`
+
+        await sendLandlordReferenceRequest(
+          data.previous_landlord_email,
+          data.previous_landlord_name,
+          `${data.first_name} ${data.last_name}`,
+          landlordReferenceUrl
+        )
+        console.log('Landlord reference email sent successfully to:', data.previous_landlord_email)
+      } catch (emailError: any) {
+        console.error('Failed to send landlord reference email:', emailError)
         // Don't fail the request if email fails, just log it
       }
     }
