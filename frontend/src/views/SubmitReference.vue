@@ -21,11 +21,11 @@
       <!-- Progress Bar -->
       <div v-if="!initialLoading && !tokenError && reference && !reference.submitted_at" class="mb-8">
         <div class="flex justify-between items-center mb-2">
-          <span class="text-sm font-medium text-gray-700">Page {{ currentPage }} of 10</span>
-          <span class="text-sm text-gray-500">{{ Math.round((currentPage / 10) * 100) }}% Complete</span>
+          <span class="text-sm font-medium text-gray-700">Page {{ currentPage }} of 11</span>
+          <span class="text-sm text-gray-500">{{ Math.round((currentPage / 11) * 100) }}% Complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
-          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 10 * 100) + '%', backgroundColor: primaryColor }"></div>
+          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 11 * 100) + '%', backgroundColor: primaryColor }"></div>
         </div>
       </div>
 
@@ -945,8 +945,96 @@
           </div>
         </div>
 
-        <!-- PAGE 10: Review and Submit -->
+        <!-- PAGE 10: Previous Landlord Reference -->
         <div v-if="currentPage === 10" class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Previous Landlord Reference</h2>
+          <p class="text-sm text-gray-600 mb-6">Please provide details of your previous landlord so we can request a reference</p>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Previous Landlord's Full Name *</label>
+              <input
+                v-model="formData.previous_landlord_name"
+                type="text"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="Enter landlord's full name"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Previous Landlord's Email *</label>
+              <input
+                v-model="formData.previous_landlord_email"
+                type="email"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="landlord@example.com"
+              />
+              <p class="mt-1 text-xs text-gray-500">We will send an email to this address to request a reference</p>
+            </div>
+
+            <PhoneInput
+              v-model="formData.previous_landlord_phone"
+              label="Previous Landlord's Phone Number"
+              id="previous-landlord-phone"
+              :required="true"
+            />
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Previous Rental Address *</label>
+              <input
+                v-model="formData.previous_rental_address"
+                type="text"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="Enter the address you rented from this landlord"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tenancy Duration (Years)</label>
+                <input
+                  v-model.number="formData.tenancy_years"
+                  type="number"
+                  min="0"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tenancy Duration (Months)</label>
+                <input
+                  v-model.number="formData.tenancy_months"
+                  type="number"
+                  min="0"
+                  max="11"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-blue-700">
+                    Your previous landlord will receive an email asking them to provide a reference about your tenancy.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE 11: Review and Submit -->
+        <div v-if="currentPage === 11" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Review & Submit</h2>
           <p class="text-sm text-gray-600 mb-6">Please review your information before submitting</p>
 
@@ -1886,7 +1974,15 @@ const formData = ref({
   pet_details: '',
   marital_status: '',
   number_of_dependants: 0,
-  dependants_details: ''
+  dependants_details: '',
+
+  // Page 10: Previous Landlord Reference
+  previous_landlord_name: '',
+  previous_landlord_email: '',
+  previous_landlord_phone: '',
+  previous_rental_address: '',
+  tenancy_years: 0,
+  tenancy_months: 0
 })
 
 onMounted(() => {
@@ -2188,7 +2284,7 @@ const handlePageSubmit = async () => {
   }
 
   // If on last page, submit the form
-  if (currentPage.value === 10) {
+  if (currentPage.value === 11) {
     await handleFinalSubmit()
   } else {
     // Upload files for current page before moving to next page
