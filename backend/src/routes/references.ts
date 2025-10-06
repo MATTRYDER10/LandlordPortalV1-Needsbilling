@@ -3,7 +3,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
-import { sendTenantReferenceRequest } from '../services/emailService'
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest } from '../services/emailService'
 
 const router = Router()
 
@@ -396,6 +396,24 @@ router.post('/submit/:token', async (req, res) => {
 
     if (error) {
       return res.status(400).json({ error: error.message })
+    }
+
+    // Send email to employer if employer reference details are provided
+    if (data.employer_ref_email && data.employer_ref_name) {
+      try {
+        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${updatedReference.id}`
+
+        await sendEmployerReferenceRequest(
+          data.employer_ref_email,
+          data.employer_ref_name,
+          `${data.first_name} ${data.last_name}`,
+          employerReferenceUrl
+        )
+        console.log('Employer reference email sent successfully to:', data.employer_ref_email)
+      } catch (emailError: any) {
+        console.error('Failed to send employer reference email:', emailError)
+        // Don't fail the request if email fails, just log it
+      }
     }
 
     res.json({

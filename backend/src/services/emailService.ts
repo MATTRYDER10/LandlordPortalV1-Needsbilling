@@ -70,3 +70,25 @@ export async function sendTenantReferenceRequest(
     html,
   });
 }
+
+/**
+ * Send employer reference request email
+ */
+export async function sendEmployerReferenceRequest(
+  employerEmail: string,
+  employerName: string,
+  tenantName: string,
+  referenceLink: string
+): Promise<void> {
+  const html = loadEmailTemplate('employer-reference-request', {
+    EmployerName: employerName,
+    TenantName: tenantName,
+    ReferenceLink: referenceLink,
+  });
+
+  await sendEmail({
+    to: employerEmail,
+    subject: 'Employment Reference Request - PropertyGoose',
+    html,
+  });
+}
