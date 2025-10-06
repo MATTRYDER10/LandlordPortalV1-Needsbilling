@@ -982,14 +982,66 @@
             />
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Previous Rental Address *</label>
+              <h3 class="text-md font-semibold text-gray-700 mb-3 mt-6">Previous Rental Address</h3>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Address Line 1 *</label>
               <input
-                v-model="formData.previous_rental_address"
+                v-model="formData.previous_rental_address_line1"
                 type="text"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Enter the address you rented from this landlord"
+                placeholder="Street address"
               />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Address Line 2</label>
+              <input
+                v-model="formData.previous_rental_address_line2"
+                type="text"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="Apartment, suite, etc. (optional)"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">City *</label>
+                <input
+                  v-model="formData.previous_rental_city"
+                  type="text"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="City"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Postcode *</label>
+                <input
+                  v-model="formData.previous_rental_postcode"
+                  type="text"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="Postcode"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Country *</label>
+              <input
+                v-model="formData.previous_rental_country"
+                type="text"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="Country"
+              />
+            </div>
+
+            <div>
+              <h3 class="text-md font-semibold text-gray-700 mb-3 mt-6">Tenancy Duration</h3>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -1980,7 +2032,11 @@ const formData = ref({
   previous_landlord_name: '',
   previous_landlord_email: '',
   previous_landlord_phone: '',
-  previous_rental_address: '',
+  previous_rental_address_line1: '',
+  previous_rental_address_line2: '',
+  previous_rental_city: '',
+  previous_rental_postcode: '',
+  previous_rental_country: '',
   tenancy_years: 0,
   tenancy_months: 0
 })

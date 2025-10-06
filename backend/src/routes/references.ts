@@ -384,7 +384,11 @@ router.post('/submit/:token', async (req, res) => {
       previous_landlord_name: data.previous_landlord_name || null,
       previous_landlord_email: data.previous_landlord_email || null,
       previous_landlord_phone: data.previous_landlord_phone || null,
-      previous_rental_address: data.previous_rental_address || null,
+      previous_rental_address_line1: data.previous_rental_address_line1 || null,
+      previous_rental_address_line2: data.previous_rental_address_line2 || null,
+      previous_rental_city: data.previous_rental_city || null,
+      previous_rental_postcode: data.previous_rental_postcode || null,
+      previous_rental_country: data.previous_rental_country || null,
       tenancy_years: data.tenancy_years || 0,
       tenancy_months: data.tenancy_months || 0,
 
