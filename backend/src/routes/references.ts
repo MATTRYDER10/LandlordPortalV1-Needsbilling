@@ -3,6 +3,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
+import { sendTenantReferenceRequest } from '../services/emailService'
 
 const router = Router()
 
@@ -182,8 +183,25 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: error.message })
     }
 
-    // TODO: Send email to tenant with link to submit their information
+    // Get the user's profile to get their name
+    const { data: profile } = await supabase.auth.admin.getUserById(userId)
+    const agentName = profile?.user?.user_metadata?.full_name || profile?.user?.email || 'Your agent'
+
+    // Send email to tenant with link to submit their information
     const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
+
+    try {
+      await sendTenantReferenceRequest(
+        tenant_email,
+        `${tenant_first_name} ${tenant_last_name}`,
+        tenantUrl,
+        agentName
+      )
+      console.log('Email sent successfully to tenant:', tenant_email)
+    } catch (emailError: any) {
+      console.error('Failed to send email:', emailError)
+      // Don't fail the request if email fails, just log it
+    }
 
     res.json({
       reference,

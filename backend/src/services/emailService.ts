@@ -1,0 +1,72 @@
+import sgMail = require('@sendgrid/mail');
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Initialize SendGrid with API key
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
+
+interface EmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  from?: string;
+}
+
+/**
+ * Send an email using SendGrid
+ */
+export async function sendEmail(options: EmailOptions): Promise<void> {
+  const msg = {
+    to: options.to,
+    from: options.from || 'noreply@propertygoose.co.uk',
+    subject: options.subject,
+    html: options.html,
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`Email sent successfully to ${options.to}`);
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
+}
+
+/**
+ * Load and process an email template
+ */
+export function loadEmailTemplate(templateName: string, variables: Record<string, string>): string {
+  const templatePath = path.join(__dirname, '../../../email-templates', `${templateName}.html`);
+
+  let template = fs.readFileSync(templatePath, 'utf-8');
+
+  // Replace all variables in the template
+  Object.keys(variables).forEach(key => {
+    const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
+    template = template.replace(regex, variables[key]);
+  });
+
+  return template;
+}
+
+/**
+ * Send tenant reference request email
+ */
+export async function sendTenantReferenceRequest(
+  tenantEmail: string,
+  tenantName: string,
+  referenceLink: string,
+  agentName: string
+): Promise<void> {
+  const html = loadEmailTemplate('tenant-reference-request', {
+    TenantName: tenantName,
+    AgentName: agentName,
+    ReferenceLink: referenceLink,
+  });
+
+  await sendEmail({
+    to: tenantEmail,
+    subject: 'Complete Your Tenant Reference - PropertyGoose',
+    html,
+  });
+}
