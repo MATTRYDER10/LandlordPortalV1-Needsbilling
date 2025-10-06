@@ -125,9 +125,12 @@
 
     <!-- Create Reference Modal -->
     <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Create New Reference</h3>
-        <form @submit.prevent="handleCreate" class="space-y-6">
+      <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+        <div class="p-6 pb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Create New Reference</h3>
+        </div>
+        <form @submit.prevent="handleCreate" class="flex flex-col flex-1 min-h-0">
+          <div class="px-6 overflow-y-auto flex-1 space-y-6">
           <!-- Tenant Information -->
           <div>
             <h4 class="text-md font-semibold text-gray-700 mb-3">Tenant Information</h4>
@@ -248,22 +251,26 @@
           <div v-if="createSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
             {{ createSuccess }}
           </div>
+          </div>
 
-          <div class="flex justify-end space-x-3">
-            <button
-              type="button"
-              @click="closeCreateModal"
-              class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              :disabled="createLoading"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
-            >
-              {{ createLoading ? 'Creating...' : 'Create Reference' }}
-            </button>
+          <!-- Sticky Footer with Buttons -->
+          <div class="p-6 pt-4 border-t border-gray-200 bg-white rounded-b-lg">
+            <div class="flex justify-end space-x-3">
+              <button
+                type="button"
+                @click="closeCreateModal"
+                class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                :disabled="createLoading"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+              >
+                {{ createLoading ? 'Creating...' : 'Create Reference' }}
+              </button>
+            </div>
           </div>
         </form>
       </div>
