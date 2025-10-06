@@ -1194,7 +1194,7 @@
             <div v-else></div>
 
             <button
-              v-if="currentPage < 10"
+              v-if="currentPage < 11"
               type="submit"
               :disabled="submitting"
               class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 hover:opacity-90"
