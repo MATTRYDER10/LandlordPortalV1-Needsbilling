@@ -1029,15 +1029,32 @@
               </div>
             </div>
 
-            <div>
+            <div class="relative">
               <label class="block text-sm font-medium text-gray-700 mb-2">Country *</label>
               <input
-                v-model="formData.previous_rental_country"
+                v-model="previousRentalCountrySearch"
+                @focus="showPreviousRentalCountryDropdown = true"
+                @input="showPreviousRentalCountryDropdown = true"
+                @blur="hidePreviousRentalCountryDropdown"
                 type="text"
                 required
+                placeholder="Search and select country..."
+                autocomplete="off"
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Country"
               />
+              <div
+                v-if="showPreviousRentalCountryDropdown && filteredPreviousRentalCountries.length > 0"
+                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+              >
+                <div
+                  v-for="country in filteredPreviousRentalCountries"
+                  :key="country"
+                  @mousedown.prevent="selectPreviousRentalCountry(country)"
+                  class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                >
+                  {{ country }}
+                </div>
+              </div>
             </div>
 
             <div>
@@ -1239,6 +1256,10 @@ const showCountryDropdown = ref(false)
 // Company Country search
 const companyCountrySearch = ref('')
 const showCompanyCountryDropdown = ref(false)
+
+// Previous Rental Country search
+const previousRentalCountrySearch = ref('')
+const showPreviousRentalCountryDropdown = ref(false)
 
 // Date of Birth fields
 const dobDay = ref('')
@@ -1664,6 +1685,27 @@ const filteredCompanyCountries = computed(() => {
   return filtered
 })
 
+// Filtered previous rental countries based on search
+const filteredPreviousRentalCountries = computed(() => {
+  if (!previousRentalCountrySearch.value) {
+    // Show United Kingdom first, then all other countries
+    const ukIndex = countries.indexOf('United Kingdom')
+    if (ukIndex !== -1) {
+      return ['United Kingdom', ...countries.filter(c => c !== 'United Kingdom')]
+    }
+    return countries
+  }
+  const search = previousRentalCountrySearch.value.toLowerCase()
+  const filtered = countries.filter(c => c.toLowerCase().includes(search))
+
+  // If UK matches the search, show it first
+  const ukIndex = filtered.indexOf('United Kingdom')
+  if (ukIndex !== -1) {
+    return ['United Kingdom', ...filtered.filter(c => c !== 'United Kingdom')]
+  }
+  return filtered
+})
+
 
 // Select nationality from dropdown
 const selectNationality = (nationality: string) => {
@@ -1704,6 +1746,20 @@ const selectCompanyCountry = (country: string) => {
 const hideCompanyCountryDropdown = () => {
   setTimeout(() => {
     showCompanyCountryDropdown.value = false
+  }, 200)
+}
+
+// Select previous rental country from dropdown
+const selectPreviousRentalCountry = (country: string) => {
+  previousRentalCountrySearch.value = country
+  formData.value.previous_rental_country = country
+  showPreviousRentalCountryDropdown.value = false
+}
+
+// Hide previous rental country dropdown with delay to allow click
+const hidePreviousRentalCountryDropdown = () => {
+  setTimeout(() => {
+    showPreviousRentalCountryDropdown.value = false
   }, 200)
 }
 
