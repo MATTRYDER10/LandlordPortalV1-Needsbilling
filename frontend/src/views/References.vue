@@ -130,105 +130,104 @@
           <h3 class="text-lg font-semibold text-gray-900">Create New Reference</h3>
         </div>
         <form @submit.prevent="handleCreate" class="flex flex-col flex-1 min-h-0">
-          <div class="px-6 overflow-y-auto flex-1 space-y-6">
-          <!-- Tenant Information -->
-          <div>
-            <h4 class="text-md font-semibold text-gray-700 mb-3">Tenant Information</h4>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label for="first-name" class="block text-sm font-medium text-gray-700">First Name *</label>
-                <input
-                  id="first-name"
-                  v-model="formData.tenant_first_name"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <div>
-                <label for="last-name" class="block text-sm font-medium text-gray-700">Last Name *</label>
-                <input
-                  id="last-name"
-                  v-model="formData.tenant_last_name"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4 mt-4">
-              <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email *</label>
-                <input
-                  id="email"
-                  v-model="formData.tenant_email"
-                  type="email"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <PhoneInput
-                v-model="formData.tenant_phone"
-                label="Phone"
-                id="phone"
-                :required="true"
-              />
-            </div>
-          </div>
-
-          <!-- Property Information -->
-          <div>
-            <h4 class="text-md font-semibold text-gray-700 mb-3">Property Information</h4>
+          <div class="px-6 overflow-y-auto flex-1 space-y-4">
+          <!-- Tenant & Property Information Grid -->
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Tenant Information -->
             <div>
-              <label for="address" class="block text-sm font-medium text-gray-700">Property Address *</label>
-              <input
-                id="address"
-                v-model="formData.property_address"
-                type="text"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
+              <h4 class="text-md font-semibold text-gray-700 mb-3">Tenant Information</h4>
+              <div class="space-y-3">
+                <div>
+                  <label for="first-name" class="block text-sm font-medium text-gray-700">First Name *</label>
+                  <input
+                    id="first-name"
+                    v-model="formData.tenant_first_name"
+                    type="text"
+                    required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label for="last-name" class="block text-sm font-medium text-gray-700">Last Name *</label>
+                  <input
+                    id="last-name"
+                    v-model="formData.tenant_last_name"
+                    type="text"
+                    required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label for="email" class="block text-sm font-medium text-gray-700">Email *</label>
+                  <input
+                    id="email"
+                    v-model="formData.tenant_email"
+                    type="email"
+                    required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <PhoneInput
+                  v-model="formData.tenant_phone"
+                  label="Phone"
+                  id="phone"
+                  :required="true"
+                />
+              </div>
             </div>
-            <div class="grid grid-cols-2 gap-4 mt-4">
-              <div>
-                <label for="city" class="block text-sm font-medium text-gray-700">City *</label>
-                <input
-                  id="city"
-                  v-model="formData.property_city"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+
+            <!-- Property Information -->
+            <div>
+              <h4 class="text-md font-semibold text-gray-700 mb-3">Property Information</h4>
+              <div class="space-y-3">
+                <div>
+                  <label for="address" class="block text-sm font-medium text-gray-700">Property Address *</label>
+                  <input
+                    id="address"
+                    v-model="formData.property_address"
+                    type="text"
+                    required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label for="city" class="block text-sm font-medium text-gray-700">City *</label>
+                  <input
+                    id="city"
+                    v-model="formData.property_city"
+                    type="text"
+                    required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
+                  <input
+                    id="postcode"
+                    v-model="formData.property_postcode"
+                    type="text"
+                    required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label for="rent" class="block text-sm font-medium text-gray-700">Monthly Rent (£) *</label>
+                  <input
+                    id="rent"
+                    v-model="formData.monthly_rent"
+                    type="number"
+                    step="0.01"
+                    required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <DatePicker
+                  v-model="formData.move_in_date"
+                  label="Move-in Date"
+                  :required="false"
+                  year-range-type="future"
                 />
               </div>
-              <div>
-                <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
-                <input
-                  id="postcode"
-                  v-model="formData.property_postcode"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4 mt-4">
-              <div>
-                <label for="rent" class="block text-sm font-medium text-gray-700">Monthly Rent (£) *</label>
-                <input
-                  id="rent"
-                  v-model="formData.monthly_rent"
-                  type="number"
-                  step="0.01"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <DatePicker
-                v-model="formData.move_in_date"
-                label="Move-in Date"
-                :required="false"
-                year-range-type="future"
-              />
             </div>
           </div>
 
@@ -238,7 +237,7 @@
             <textarea
               id="notes"
               v-model="formData.notes"
-              rows="3"
+              rows="2"
               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               placeholder="Optional notes about this reference..."
             ></textarea>
