@@ -803,9 +803,11 @@
               <div>
                 <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy Details</h5>
                 <div class="grid grid-cols-2 gap-3">
-                  <div>
+                  <div class="col-span-2">
                     <span class="text-green-700 font-medium">Property Address:</span>
-                    <span class="ml-2 text-green-900">{{ landlordReference.property_address }}</span>
+                    <span class="ml-2 text-green-900">
+                      {{ [landlordReference.property_address_line1, landlordReference.property_address_line2].filter(Boolean).join(', ') || landlordReference.property_address }}
+                    </span>
                   </div>
                   <div v-if="landlordReference.property_city">
                     <span class="text-green-700 font-medium">City:</span>
@@ -950,9 +952,12 @@
               <div>
                 <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy Details</h5>
                 <div class="grid grid-cols-2 gap-3">
-                  <div>
+                  <div class="col-span-2">
                     <span class="text-green-700 font-medium">Property Address:</span>
-                    <span class="ml-2 text-green-900">{{ agentReference.property_address }}</span>
+                    <span class="ml-2 text-green-900">
+                      {{ [agentReference.property_address_line1, agentReference.property_address_line2]
+                         .filter(Boolean).join(', ') || agentReference.property_address }}
+                    </span>
                   </div>
                   <div v-if="agentReference.property_city">
                     <span class="text-green-700 font-medium">City:</span>

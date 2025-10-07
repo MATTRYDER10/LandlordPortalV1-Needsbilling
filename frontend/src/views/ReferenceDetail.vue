@@ -631,7 +631,14 @@
                           <div>
                             <h6 class="text-xs font-semibold text-green-800 mb-2">Property & Tenancy Details</h6>
                             <div class="grid grid-cols-2 gap-3 text-sm">
-                              <div><span class="text-green-700 font-medium">Property:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].landlordReference.property_address }}</span></div>
+                              <div class="col-span-2">
+                                <span class="text-green-700 font-medium">Property:</span>
+                                <span class="text-green-900">
+                                  {{ [childReferenceDetails[child.id].landlordReference.property_address_line1, childReferenceDetails[child.id].landlordReference.property_address_line2].filter(Boolean).join(', ') || childReferenceDetails[child.id].landlordReference.property_address }}
+                                </span>
+                              </div>
+                              <div><span class="text-green-700 font-medium">City:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].landlordReference.property_city }}</span></div>
+                              <div><span class="text-green-700 font-medium">Postcode:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].landlordReference.property_postcode }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy Start:</span> <span class="text-green-900">{{ formatDate(childReferenceDetails[child.id].landlordReference.tenancy_start_date) }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy End:</span> <span class="text-green-900">{{ formatDate(childReferenceDetails[child.id].landlordReference.tenancy_end_date) }}</span></div>
                               <div><span class="text-green-700 font-medium">Monthly Rent:</span> <span class="text-green-900">£{{ childReferenceDetails[child.id].landlordReference.monthly_rent }}</span></div>
@@ -726,7 +733,14 @@
                           <div>
                             <h6 class="text-xs font-semibold text-green-800 mb-2">Property & Tenancy Details</h6>
                             <div class="grid grid-cols-2 gap-3 text-sm">
-                              <div><span class="text-green-700 font-medium">Property:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].agentReference.property_address }}</span></div>
+                              <div class="col-span-2">
+                                <span class="text-green-700 font-medium">Property:</span>
+                                <span class="text-green-900">
+                                  {{ [childReferenceDetails[child.id].agentReference.property_address_line1, childReferenceDetails[child.id].agentReference.property_address_line2].filter(Boolean).join(', ') || childReferenceDetails[child.id].agentReference.property_address }}
+                                </span>
+                              </div>
+                              <div><span class="text-green-700 font-medium">City:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].agentReference.property_city }}</span></div>
+                              <div><span class="text-green-700 font-medium">Postcode:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].agentReference.property_postcode }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy Start:</span> <span class="text-green-900">{{ formatDate(childReferenceDetails[child.id].agentReference.tenancy_start_date) }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy End:</span> <span class="text-green-900">{{ formatDate(childReferenceDetails[child.id].agentReference.tenancy_end_date) }}</span></div>
                               <div><span class="text-green-700 font-medium">Monthly Rent:</span> <span class="text-green-900">£{{ childReferenceDetails[child.id].agentReference.monthly_rent }}</span></div>
@@ -1500,9 +1514,11 @@
               <div>
                 <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy Details</h5>
                 <div class="grid grid-cols-2 gap-3">
-                  <div>
+                  <div class="col-span-2">
                     <span class="text-green-700 font-medium">Property Address:</span>
-                    <span class="ml-2 text-green-900">{{ landlordReference.property_address }}</span>
+                    <span class="ml-2 text-green-900">
+                      {{ [landlordReference.property_address_line1, landlordReference.property_address_line2].filter(Boolean).join(', ') || landlordReference.property_address }}
+                    </span>
                   </div>
                   <div v-if="landlordReference.property_city">
                     <span class="text-green-700 font-medium">City:</span>
@@ -1647,9 +1663,11 @@
               <div>
                 <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy Details</h5>
                 <div class="grid grid-cols-2 gap-3">
-                  <div>
+                  <div class="col-span-2">
                     <span class="text-green-700 font-medium">Property Address:</span>
-                    <span class="ml-2 text-green-900">{{ agentReference.property_address }}</span>
+                    <span class="ml-2 text-green-900">
+                      {{ [agentReference.property_address_line1, agentReference.property_address_line2].filter(Boolean).join(', ') || agentReference.property_address }}
+                    </span>
                   </div>
                   <div v-if="agentReference.property_city">
                     <span class="text-green-700 font-medium">City:</span>

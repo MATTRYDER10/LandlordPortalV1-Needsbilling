@@ -89,13 +89,24 @@
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Property & Tenancy Information</h2>
           <div class="space-y-4">
             <div>
-              <label for="property-address" class="block text-sm font-medium text-gray-700">Street Address *</label>
+              <label for="property-address-line1" class="block text-sm font-medium text-gray-700">Address Line 1 *</label>
               <input
-                id="property-address"
-                v-model="formData.propertyAddress"
+                id="property-address-line1"
+                v-model="formData.propertyAddressLine1"
                 type="text"
                 required
                 placeholder="e.g. 123 Main Street"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label for="property-address-line2" class="block text-sm font-medium text-gray-700">Address Line 2</label>
+              <input
+                id="property-address-line2"
+                v-model="formData.propertyAddressLine2"
+                type="text"
+                placeholder="e.g. Apartment 4B"
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -386,7 +397,8 @@ const formData = ref({
   agentEmail: '',
   agentPhone: '',
   agencyName: '',
-  propertyAddress: '',
+  propertyAddressLine1: '',
+  propertyAddressLine2: '',
   propertyCity: '',
   propertyPostcode: '',
   tenancyStartDate: '',
