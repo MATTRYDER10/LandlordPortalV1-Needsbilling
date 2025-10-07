@@ -141,6 +141,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       property_postcode,
       monthly_rent,
       move_in_date,
+      term_years,
+      term_months,
       notes
     } = req.body
 
@@ -185,6 +187,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         property_postcode,
         monthly_rent,
         move_in_date,
+        term_years: term_years || 0,
+        term_months: term_months || 0,
         notes,
         reference_token: token,
         token_expires_at: expiresAt.toISOString(),
