@@ -173,6 +173,12 @@
                   id="phone"
                   :required="true"
                 />
+                <DatePicker
+                  v-model="formData.move_in_date"
+                  label="Move-in Date (Optional)"
+                  :required="false"
+                  year-range-type="move-in"
+                />
               </div>
             </div>
 
@@ -222,44 +228,32 @@
                   />
                 </div>
 
-                <!-- Move-in Date and Term Length side by side -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <DatePicker
-                      v-model="formData.move_in_date"
-                      label="Move-in Date (Optional)"
-                      :required="false"
-                      year-range-type="move-in"
-                    />
-                  </div>
-
-                  <!-- Term Length -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Term Length</label>
-                    <div class="grid grid-cols-2 gap-3">
-                      <div>
-                        <label for="term-years" class="block text-xs text-gray-600 mb-1">Years</label>
-                        <input
-                          id="term-years"
-                          v-model.number="formData.term_years"
-                          type="number"
-                          min="0"
-                          class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label for="term-months" class="block text-xs text-gray-600 mb-1">Months</label>
-                        <input
-                          id="term-months"
-                          v-model.number="formData.term_months"
-                          type="number"
-                          min="0"
-                          max="11"
-                          class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                          placeholder="0"
-                        />
-                      </div>
+                <!-- Term Length -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Term Length</label>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label for="term-years" class="block text-xs text-gray-600 mb-1">Years</label>
+                      <input
+                        id="term-years"
+                        v-model.number="formData.term_years"
+                        type="number"
+                        min="0"
+                        class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label for="term-months" class="block text-xs text-gray-600 mb-1">Months</label>
+                      <input
+                        id="term-months"
+                        v-model.number="formData.term_months"
+                        type="number"
+                        min="0"
+                        max="11"
+                        class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        placeholder="0"
+                      />
                     </div>
                   </div>
                 </div>
