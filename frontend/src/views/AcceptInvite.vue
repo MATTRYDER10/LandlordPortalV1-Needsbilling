@@ -34,6 +34,19 @@
 
         <div class="rounded-md shadow-sm space-y-4">
           <div>
+            <label for="full-name" class="block text-sm font-medium text-gray-700">Full Name</label>
+            <input
+              id="full-name"
+              v-model="formData.fullName"
+              type="text"
+              autocomplete="name"
+              required
+              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+              placeholder="Enter your full name"
+            />
+          </div>
+
+          <div>
             <label for="email-address" class="block text-sm font-medium text-gray-700">Email address</label>
             <input
               id="email-address"
@@ -114,6 +127,7 @@ const invitationEmail = ref('')
 const invitationRole = ref('')
 
 const formData = ref({
+  fullName: '',
   password: '',
   confirmPassword: ''
 })
@@ -151,6 +165,12 @@ const handleSubmit = async () => {
   errorMessage.value = ''
   successMessage.value = ''
 
+  // Validate full name
+  if (!formData.value.fullName.trim()) {
+    errorMessage.value = 'Full name is required'
+    return
+  }
+
   // Validate passwords match
   if (formData.value.password !== formData.value.confirmPassword) {
     errorMessage.value = 'Passwords do not match'
@@ -172,6 +192,7 @@ const handleSubmit = async () => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        fullName: formData.value.fullName.trim(),
         password: formData.value.password
       })
     })

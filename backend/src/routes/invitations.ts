@@ -318,10 +318,10 @@ router.get('/details/:token', async (req, res) => {
 router.post('/accept/:token', async (req, res) => {
   try {
     const { token } = req.params
-    const { password } = req.body
+    const { fullName, password } = req.body
 
-    if (!password) {
-      return res.status(400).json({ error: 'Password is required' })
+    if (!fullName || !password) {
+      return res.status(400).json({ error: 'Full name and password are required' })
     }
 
     // Get invitation
@@ -343,7 +343,8 @@ router.post('/accept/:token', async (req, res) => {
       password: password,
       email_confirm: true,
       user_metadata: {
-        is_invited: true
+        is_invited: true,
+        full_name: fullName
       }
     })
 
