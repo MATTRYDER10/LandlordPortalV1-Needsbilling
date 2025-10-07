@@ -51,13 +51,40 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: error.message })
     }
 
-    // For each parent reference, count the children
+    // For each parent reference, count the children and sync status
     const referencesWithCount = await Promise.all(references.map(async (ref) => {
       if (ref.is_group_parent) {
-        const { count } = await supabase
+        const { data: children, count } = await supabase
           .from('tenant_references')
-          .select('*', { count: 'exact', head: true })
+          .select('*', { count: 'exact' })
           .eq('parent_reference_id', ref.id)
+
+        // Sync parent status with children's statuses
+        if (children && children.length > 0) {
+          const statuses = children.map(child => child.status)
+          let parentStatus = ref.status
+
+          // Determine parent status based on children
+          if (statuses.every(s => s === 'completed')) {
+            parentStatus = 'completed'
+          } else if (statuses.every(s => s === 'pending_verification' || s === 'completed')) {
+            parentStatus = 'pending_verification'
+          } else if (statuses.some(s => s === 'in_progress' || s === 'pending_verification')) {
+            parentStatus = 'in_progress'
+          } else if (statuses.every(s => s === 'pending')) {
+            parentStatus = 'pending'
+          }
+
+          // Update parent if status changed
+          if (parentStatus !== ref.status) {
+            await supabase
+              .from('tenant_references')
+              .update({ status: parentStatus })
+              .eq('id', ref.id)
+
+            ref.status = parentStatus
+          }
+        }
 
         return { ...ref, tenant_count: count || 0 }
       }
@@ -143,6 +170,33 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         .order('tenant_position', { ascending: true })
 
       childReferences = children
+
+      // Sync parent status with children's statuses
+      if (children && children.length > 0) {
+        const statuses = children.map(child => child.status)
+        let parentStatus = reference.status
+
+        // Determine parent status based on children
+        if (statuses.every(s => s === 'completed')) {
+          parentStatus = 'completed'
+        } else if (statuses.every(s => s === 'pending_verification' || s === 'completed')) {
+          parentStatus = 'pending_verification'
+        } else if (statuses.some(s => s === 'in_progress' || s === 'pending_verification')) {
+          parentStatus = 'in_progress'
+        } else if (statuses.every(s => s === 'pending')) {
+          parentStatus = 'pending'
+        }
+
+        // Update parent if status changed
+        if (parentStatus !== reference.status) {
+          await supabase
+            .from('tenant_references')
+            .update({ status: parentStatus })
+            .eq('id', referenceId)
+
+          reference.status = parentStatus
+        }
+      }
     }
 
     // Check if this is a child reference and fetch parent + siblings
