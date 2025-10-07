@@ -557,7 +557,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Sidebar from '../components/Sidebar.vue'
 import { useAuthStore } from '../stores/auth'
 
@@ -566,12 +566,25 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const activeTab = ref('profile')
 
-const tabs = [
-  { id: 'profile', name: 'Profile' },
-  { id: 'company', name: 'Company' },
-  { id: 'branding', name: 'Branding' },
-  { id: 'team', name: 'Team' }
-]
+// Filter tabs based on user role
+const tabs = computed(() => {
+  const allTabs = [
+    { id: 'profile', name: 'Profile' },
+    { id: 'company', name: 'Company' },
+    { id: 'branding', name: 'Branding' },
+    { id: 'team', name: 'Team' }
+  ]
+
+  const userRole = authStore.company?.role || ''
+
+  // Members can only see Profile tab
+  if (userRole === 'member') {
+    return allTabs.filter(tab => tab.id === 'profile')
+  }
+
+  // Admins and Owners see all tabs
+  return allTabs
+})
 
 // Profile data
 const profileData = ref({
@@ -759,6 +772,14 @@ const fetchCompanyData = async () => {
     console.error('Failed to fetch company data:', error)
   }
 }
+
+// Ensure members can't access admin tabs
+watch([activeTab, () => authStore.company?.role], () => {
+  const userRole = authStore.company?.role || ''
+  if (userRole === 'member' && activeTab.value !== 'profile') {
+    activeTab.value = 'profile'
+  }
+})
 
 onMounted(() => {
   fetchCompanyData()
