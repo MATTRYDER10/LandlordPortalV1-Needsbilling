@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS agent_references (
     additional_comments TEXT,
 
     -- Signature
+    signature_name TEXT,
     signature TEXT NOT NULL,
     date DATE NOT NULL,
 
