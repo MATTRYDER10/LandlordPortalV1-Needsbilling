@@ -1433,6 +1433,9 @@ router.post('/accountant/:token', async (req, res) => {
         additional_comments: formData.additionalComments || null,
         would_recommend: formData.wouldRecommend,
         recommendation_comments: formData.recommendationComments || null,
+        signature_name: formData.signatureName,
+        signature: formData.signature,
+        date: formData.date,
         submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })

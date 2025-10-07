@@ -367,6 +367,44 @@
           </div>
         </div>
 
+        <!-- Declaration and Signature -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Declaration & Signature</h2>
+
+          <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <p class="text-sm text-gray-700">
+              I declare that the information provided in this reference is true and accurate to the best of my knowledge.
+              I understand that this information will be used to assess the individual's suitability for a tenancy.
+            </p>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label for="signature-name" class="block text-sm font-medium text-gray-700">Full Name *</label>
+              <input
+                id="signature-name"
+                v-model="formData.signatureName"
+                type="text"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <SignaturePad
+              v-model="formData.signature"
+              label="Signature"
+            />
+
+            <DatePicker
+              v-model="formData.date"
+              label="Date"
+              :required="true"
+              year-range-type="current"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+
         <!-- Submit Button -->
         <div class="bg-white rounded-lg shadow p-6">
           <div v-if="submitError" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
@@ -391,6 +429,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import DatePicker from '../components/DatePicker.vue'
+import SignaturePad from '../components/SignaturePad.vue'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -426,7 +465,10 @@ const formData = ref({
   estimatedMonthlyIncome: null,
   additionalComments: '',
   wouldRecommend: null,
-  recommendationComments: ''
+  recommendationComments: '',
+  signatureName: '',
+  signature: '',
+  date: ''
 })
 
 onMounted(async () => {
@@ -478,6 +520,13 @@ onMounted(async () => {
 const handleSubmit = async () => {
   submitting.value = true
   submitError.value = ''
+
+  // Validate signature
+  if (!formData.value.signature) {
+    submitError.value = 'Please provide your signature'
+    submitting.value = false
+    return
+  }
 
   try {
     const token = route.params.token as string
