@@ -446,6 +446,15 @@ const primaryColor = ref('#FF8C41')
 const buttonColor = ref('#FF8C41')
 const brandingLoaded = ref(false)
 
+// Get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const formData = ref({
   tenantName: '',
   businessName: '',
@@ -468,7 +477,7 @@ const formData = ref({
   recommendationComments: '',
   signatureName: '',
   signature: '',
-  date: ''
+  date: getTodayDate()
 })
 
 onMounted(async () => {
