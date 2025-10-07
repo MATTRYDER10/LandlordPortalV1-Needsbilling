@@ -6,7 +6,7 @@ import type { User, Session } from '@supabase/supabase-js'
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const session = ref<Session | null>(null)
-  const company = ref<{ name: string } | null>(null)
+  const company = ref<{ name: string, role: string } | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -26,8 +26,8 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (response.ok) {
         const data = await response.json()
-        if (data.company) {
-          company.value = { name: data.company.name }
+        if (data.company && data.role) {
+          company.value = { name: data.company.name, role: data.role }
         }
       } else if (response.status === 404) {
         // User is not associated with any company (likely removed from team)

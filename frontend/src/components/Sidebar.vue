@@ -93,7 +93,10 @@ const navigation = [
 ]
 
 const userEmail = computed(() => authStore.user?.email || '')
-const userRole = computed(() => 'Admin') // TODO: Get from store
+const userRole = computed(() => {
+  const role = authStore.company?.role || ''
+  return role.charAt(0).toUpperCase() + role.slice(1)
+})
 const companyName = computed(() => authStore.company?.name || '')
 const userInitials = computed(() => {
   const email = authStore.user?.email || ''
