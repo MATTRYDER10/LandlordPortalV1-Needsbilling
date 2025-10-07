@@ -3,7 +3,7 @@
     <label v-if="label" class="block text-sm font-medium text-gray-700 mb-2">
       {{ label }} <span v-if="required" class="text-red-500">*</span>
     </label>
-    <div class="grid grid-cols-3" :class="gap">
+    <div class="flex" :class="gap">
       <div>
         <select
           v-model="selectedDay"
