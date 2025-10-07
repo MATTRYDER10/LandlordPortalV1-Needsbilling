@@ -78,6 +78,11 @@ CREATE POLICY "Owners and admins can update company" ON companies
     )
   );
 
+-- Companies: Allow company creation on signup (used by trigger)
+CREATE POLICY "Allow company creation on signup" ON companies
+  FOR INSERT
+  WITH CHECK (true);
+
 -- Company Users: Users can see members of their companies
 CREATE POLICY "Users can view company members" ON company_users
   FOR SELECT USING (
@@ -94,6 +99,11 @@ CREATE POLICY "Owners and admins can manage members" ON company_users
       WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
     )
   );
+
+-- Company Users: Allow insert on signup (used by trigger)
+CREATE POLICY "Allow insert on signup" ON company_users
+  FOR INSERT
+  WITH CHECK (true);
 
 -- Invitations: Users can see invitations for their companies
 CREATE POLICY "Users can view company invitations" ON invitations
@@ -114,10 +124,11 @@ CREATE POLICY "Owners and admins can create invitations" ON invitations
 
 -- Function to automatically create company and assign owner role on user signup
 -- NOTE: If user is accepting an invitation (is_invited metadata = true), skip company creation
-CREATE OR REPLACE FUNCTION handle_new_user()
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
   is_invited BOOLEAN;
+  new_company_id UUID;
 BEGIN
   -- Check if user is accepting an invitation (via metadata)
   is_invited := COALESCE((NEW.raw_user_meta_data->>'is_invited')::boolean, false);
@@ -125,22 +136,19 @@ BEGIN
   -- Only create a company if user is NOT accepting an invitation
   IF NOT is_invited THEN
     -- Create a new company with the company name from user metadata
-    INSERT INTO companies (name)
+    INSERT INTO public.companies (name)
     VALUES (COALESCE(NEW.raw_user_meta_data->>'company_name', 'My Company'))
-    RETURNING id INTO NEW.raw_user_meta_data;
+    RETURNING id INTO new_company_id;
 
     -- Link the user to the company as owner
-    INSERT INTO company_users (company_id, user_id, role)
-    VALUES (
-      (SELECT id FROM companies ORDER BY created_at DESC LIMIT 1),
-      NEW.id,
-      'owner'
-    );
+    INSERT INTO public.company_users (company_id, user_id, role)
+    VALUES (new_company_id, NEW.id, 'owner');
   END IF;
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public;
 
 -- Trigger to run the function on new user signup
 CREATE TRIGGER on_auth_user_created
