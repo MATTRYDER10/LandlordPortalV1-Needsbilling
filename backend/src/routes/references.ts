@@ -759,6 +759,46 @@ router.get('/branding/:referenceId', async (req, res) => {
   }
 })
 
+// Get company branding for accountant reference by token (public route)
+router.get('/accountant/branding/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+
+    // First, get the tenant_reference_id from the accountant_references table
+    const { data: accountantRef, error: accountantError } = await supabase
+      .from('accountant_references')
+      .select('tenant_reference_id')
+      .eq('token', token)
+      .single()
+
+    if (accountantError || !accountantRef) {
+      return res.status(404).json({ error: 'Accountant reference not found' })
+    }
+
+    // Now fetch the branding using the tenant_reference_id
+    const { data: reference, error } = await supabase
+      .from('tenant_references')
+      .select(`
+        company_id,
+        companies:company_id (
+          logo_url,
+          primary_color,
+          button_color
+        )
+      `)
+      .eq('id', accountantRef.tenant_reference_id)
+      .single()
+
+    if (error || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    res.json({ branding: reference.companies })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Landlord submits reference (public route)
 router.post('/landlord/:referenceId', async (req, res) => {
   try {
