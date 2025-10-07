@@ -464,7 +464,9 @@
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Previous Address</label>
-                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.previous_street || 'Not provided yet' }}</p>
+                        <p class="mt-1 text-gray-900">
+                          {{ [childReferenceDetails[child.id].reference.previous_rental_address_line1, childReferenceDetails[child.id].reference.previous_rental_address_line2, childReferenceDetails[child.id].reference.previous_rental_city, childReferenceDetails[child.id].reference.previous_rental_postcode].filter(Boolean).join(', ') || 'Not provided yet' }}
+                        </p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
@@ -1114,16 +1116,18 @@
               <p class="mt-1 text-gray-900">{{ reference.previous_landlord_phone || 'Not provided yet' }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-500">Previous Street</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_street || 'Not provided yet' }}</p>
+              <label class="block text-sm font-medium text-gray-500">Previous Address</label>
+              <p class="mt-1 text-gray-900">
+                {{ [reference.previous_rental_address_line1, reference.previous_rental_address_line2].filter(Boolean).join(', ') || 'Not provided yet' }}
+              </p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Previous City</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_city || 'Not provided yet' }}</p>
+              <p class="mt-1 text-gray-900">{{ reference.previous_rental_city || 'Not provided yet' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Previous Postcode</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_postcode || 'Not provided yet' }}</p>
+              <p class="mt-1 text-gray-900">{{ reference.previous_rental_postcode || 'Not provided yet' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
