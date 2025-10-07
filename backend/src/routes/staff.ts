@@ -246,10 +246,11 @@ router.put('/references/:id/reject', authenticateStaff, async (req: StaffAuthReq
 // Get staff dashboard stats
 router.get('/stats', authenticateStaff, async (req: StaffAuthRequest, res) => {
   try {
-    // Count references by status
+    // Count references by status (excluding parent multi-tenant references)
     const { data: stats, error } = await supabase
       .from('tenant_references')
       .select('status')
+      .neq('is_group_parent', true) // Exclude parent multi-tenant references from stats
 
     if (error) {
       return res.status(400).json({ error: error.message })
