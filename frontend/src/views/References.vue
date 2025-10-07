@@ -420,7 +420,7 @@ const handleCreate = async () => {
     }
 
     await response.json()
-    createSuccess.value = 'Reference created successfully! Share the link with the tenant.'
+    createSuccess.value = 'Reference created successfully!'
 
     setTimeout(() => {
       closeCreateModal()
