@@ -1296,6 +1296,17 @@
                   </div>
 
                   <div class="space-y-4">
+                    <!-- Accountant Information -->
+                    <div>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Accountant Information</h5>
+                      <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-green-700 font-medium">Name:</span> <span class="text-green-900">{{ accountantReference.accountant_name }}</span></div>
+                        <div><span class="text-green-700 font-medium">Firm:</span> <span class="text-green-900">{{ accountantReference.firm_name }}</span></div>
+                        <div><span class="text-green-700 font-medium">Email:</span> <span class="text-green-900">{{ accountantReference.accountant_email }}</span></div>
+                        <div><span class="text-green-700 font-medium">Phone:</span> <span class="text-green-900">{{ accountantReference.accountant_phone }}</span></div>
+                      </div>
+                    </div>
+
                     <!-- Business Details -->
                     <div>
                       <h5 class="text-sm font-semibold text-green-800 mb-2">Business Information</h5>
@@ -1314,33 +1325,31 @@
                         <div><span class="text-green-700 font-medium">Annual Turnover:</span> <span class="text-green-900">£{{ accountantReference.annual_turnover?.toLocaleString() }}</span></div>
                         <div><span class="text-green-700 font-medium">Annual Profit:</span> <span class="text-green-900">£{{ accountantReference.annual_profit?.toLocaleString() }}</span></div>
                         <div><span class="text-green-700 font-medium">Tax Returns Filed:</span> <span class="text-green-900">{{ accountantReference.tax_returns_filed ? 'Yes' : 'No' }}</span></div>
+                        <div v-if="accountantReference.last_tax_return_date"><span class="text-green-700 font-medium">Last Tax Return:</span> <span class="text-green-900">{{ formatDate(accountantReference.last_tax_return_date) }}</span></div>
                         <div><span class="text-green-700 font-medium">Accounts Prepared:</span> <span class="text-green-900">{{ accountantReference.accounts_prepared ? 'Yes' : 'No' }}</span></div>
-                        <div><span class="text-green-700 font-medium">Financially Stable:</span> <span class="text-green-900 font-semibold">{{ accountantReference.business_financially_stable ? 'Yes' : 'No' }}</span></div>
+                        <div v-if="accountantReference.accounts_year_end"><span class="text-green-700 font-medium">Accounts Year End:</span> <span class="text-green-900">{{ formatDate(accountantReference.accounts_year_end) }}</span></div>
                         <div><span class="text-green-700 font-medium">Tax Liabilities:</span> <span class="text-green-900">{{ accountantReference.any_outstanding_tax_liabilities ? 'Yes' : 'No' }}</span></div>
+                        <div><span class="text-green-700 font-medium">Financially Stable:</span> <span class="text-green-900 font-semibold">{{ accountantReference.business_financially_stable ? 'Yes' : 'No' }}</span></div>
+                      </div>
+
+                      <div v-if="accountantReference.tax_liabilities_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Tax Liabilities Details:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ accountantReference.tax_liabilities_details }}</p>
                       </div>
                     </div>
 
-                    <!-- Income Verification -->
+                    <!-- Assessment -->
                     <div class="pt-3 border-t border-green-200">
-                      <h5 class="text-sm font-semibold text-green-800 mb-2">Income Verification</h5>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Assessment</h5>
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-green-700 font-medium">Income Confirmed:</span> <span class="text-green-900 font-semibold">{{ accountantReference.accountant_confirms_income ? 'Yes' : 'No' }}</span></div>
                         <div><span class="text-green-700 font-medium">Est. Monthly Income:</span> <span class="text-green-900">£{{ accountantReference.estimated_monthly_income?.toLocaleString() }}</span></div>
+                        <div class="col-span-2"><span class="text-green-700 font-medium">Would Recommend:</span> <span class="text-green-900 font-semibold">{{ accountantReference.would_recommend ? 'Yes' : 'No' }}</span></div>
                       </div>
-                    </div>
 
-                    <!-- Recommendation -->
-                    <div class="pt-3 border-t border-green-200">
-                      <div class="mb-2">
-                        <span class="text-green-700 font-medium text-sm">Recommendation:</span>
-                        <span class="ml-2 text-green-900 font-semibold">{{ accountantReference.would_recommend ? 'Yes' : 'No' }}</span>
-                      </div>
-                      <div v-if="accountantReference.recommendation_comments" class="mt-2 p-3 bg-white rounded border border-green-200">
-                        <p class="text-green-900 text-sm">{{ accountantReference.recommendation_comments }}</p>
-                      </div>
-                      <div v-if="accountantReference.additional_comments" class="mt-2 p-3 bg-white rounded border border-green-200">
-                        <span class="text-green-700 font-medium text-sm">Additional Comments:</span>
-                        <p class="text-green-900 text-sm mt-1">{{ accountantReference.additional_comments }}</p>
+                      <div v-if="accountantReference.recommendation_comments" class="mt-3 p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Recommendation Comments:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ accountantReference.recommendation_comments }}</p>
                       </div>
                     </div>
                   </div>
