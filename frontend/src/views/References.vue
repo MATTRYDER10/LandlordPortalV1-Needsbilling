@@ -223,9 +223,9 @@
                 </div>
                 <DatePicker
                   v-model="formData.move_in_date"
-                  label="Move-in Date"
+                  label="Move-in Date (Optional)"
                   :required="false"
-                  year-range-type="future"
+                  year-range-type="move-in"
                 />
               </div>
             </div>
@@ -363,13 +363,19 @@ const handleCreate = async () => {
       return
     }
 
+    // Convert empty date strings to null
+    const payload = {
+      ...formData.value,
+      move_in_date: formData.value.move_in_date || null
+    }
+
     const response = await fetch(`${API_URL}/api/references`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(formData.value)
+      body: JSON.stringify(payload)
     })
 
     if (!response.ok) {

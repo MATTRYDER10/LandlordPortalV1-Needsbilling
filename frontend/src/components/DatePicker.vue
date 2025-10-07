@@ -57,7 +57,7 @@ interface Props {
   label?: string
   required?: boolean
   selectClass?: string
-  yearRangeType?: 'past' | 'future' | 'current' | 'employment' | 'tenancy'
+  yearRangeType?: 'past' | 'future' | 'current' | 'employment' | 'tenancy' | 'move-in'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -130,6 +130,13 @@ const years = computed(() => {
     case 'tenancy':
       // For tenancy dates (2 years forward, 50 years back)
       for (let i = currentYear + 2; i >= currentYear - 50; i--) {
+        yearList.push(i)
+      }
+      break
+
+    case 'move-in':
+      // For move-in dates (current year and 2 years forward only)
+      for (let i = currentYear + 2; i >= currentYear; i--) {
         yearList.push(i)
       }
       break
