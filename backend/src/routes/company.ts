@@ -27,16 +27,25 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
 
-    // Get company via company_users table
-    const { data: companyUser, error: companyUserError } = await supabase
+    // Get company via company_users table (use limit(1) to handle duplicates)
+    const { data: companyUsers, error: companyUserError } = await supabase
       .from('company_users')
       .select('company_id, role, companies(*)')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    if (companyUserError) {
-      return res.status(404).json({ error: 'Company not found' })
+    if (companyUserError || !companyUsers || companyUsers.length === 0) {
+      console.error('Company lookup error for user', userId, ':', companyUserError)
+      return res.status(404).json({
+        error: 'Company not found',
+        debug: {
+          userId,
+          errorMessage: companyUserError?.message
+        }
+      })
     }
+
+    const companyUser = companyUsers[0]
 
     res.json({
       company: companyUser.companies,
@@ -151,21 +160,23 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
-// Get company members
+// Get company members (all users can view the team)
 router.get('/members', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
+    // Get user's company (use limit(1) to handle duplicates)
+    const { data: companyUsers } = await supabase
       .from('company_users')
       .select('company_id')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    if (!companyUser) {
+    if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const companyUser = companyUsers[0]
 
     // Get all members of the company
     const { data: members, error } = await supabase
@@ -215,36 +226,37 @@ router.delete('/members/:userId', authenticateToken, async (req: AuthRequest, re
     const currentUserId = req.user?.id
     const targetUserId = req.params.userId
 
-    // Get current user's company and role
-    const { data: currentUserCompany } = await supabase
+    // Get current user's company and role (use limit(1) to handle duplicates)
+    const { data: currentUserCompanies } = await supabase
       .from('company_users')
       .select('company_id, role')
       .eq('user_id', currentUserId)
-      .single()
+      .limit(1)
 
-    if (!currentUserCompany) {
+    if (!currentUserCompanies || currentUserCompanies.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const currentUserCompany = currentUserCompanies[0]
 
     // Check if user is owner or admin
     if (currentUserCompany.role !== 'owner' && currentUserCompany.role !== 'admin') {
       return res.status(403).json({ error: 'Insufficient permissions' })
     }
 
-    // Get target user's role
-    const { data: targetUser } = await supabase
+    // Get target user's roles (there might be duplicates)
+    const { data: targetUsers } = await supabase
       .from('company_users')
       .select('role')
       .eq('user_id', targetUserId)
       .eq('company_id', currentUserCompany.company_id)
-      .single()
 
     // Cannot remove owner
-    if (targetUser?.role === 'owner') {
+    if (targetUsers && targetUsers.some(u => u.role === 'owner')) {
       return res.status(403).json({ error: 'Cannot remove company owner' })
     }
 
-    // Remove user from company
+    // Remove ALL entries for this user from company (handles duplicates)
     const { error } = await supabase
       .from('company_users')
       .delete()

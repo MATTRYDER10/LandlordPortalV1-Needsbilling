@@ -633,17 +633,98 @@ const inviteLoading = ref(false)
 const inviteError = ref('')
 const inviteSuccess = ref('')
 
-const teamMembers = ref([
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'owner',
-    joined: new Date('2024-01-01')
-  }
-])
+const teamMembers = ref<any[]>([])
 
 const pendingInvitations = ref<any[]>([])
+
+const fetchProfileData = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/profile`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+
+      // Update profile data for Profile tab
+      profileData.value.email = data.email
+      profileData.value.fullName = data.fullName || ''
+      profileData.value.phone = data.phone || ''
+
+      // Fetch team members for Team tab
+      await fetchTeamMembers()
+    }
+  } catch (error) {
+    console.error('Failed to fetch profile data:', error)
+  }
+}
+
+const fetchTeamMembers = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/company/members`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      teamMembers.value = data.members.map((member: any) => ({
+        id: member.id,
+        user_id: member.user_id,
+        name: member.name || 'N/A',
+        email: member.email,
+        role: member.role,
+        joined: new Date(member.joined)
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to fetch team members:', error)
+  }
+}
+
+const fetchPendingInvitations = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/invitations`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.status === 403 || response.status === 404) {
+      // User doesn't have permission (member role) - that's okay, just skip
+      pendingInvitations.value = []
+      return
+    }
+
+    if (response.ok) {
+      const data = await response.json()
+      pendingInvitations.value = data.invitations.map((invite: any) => ({
+        id: invite.id,
+        email: invite.email,
+        role: invite.role,
+        created: new Date(invite.created_at),
+        expires: new Date(invite.expires_at)
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to fetch invitations:', error)
+  }
+}
 
 const fetchCompanyData = async () => {
   try {
@@ -680,8 +761,9 @@ const fetchCompanyData = async () => {
 }
 
 onMounted(() => {
-  profileData.value.email = authStore.user?.email || ''
   fetchCompanyData()
+  fetchProfileData()
+  fetchPendingInvitations()
 })
 
 const handleUpdateProfile = async () => {
@@ -690,8 +772,32 @@ const handleUpdateProfile = async () => {
   profileError.value = ''
 
   try {
-    // TODO: Update user profile in Supabase
+    const token = authStore.session?.access_token
+    if (!token) {
+      profileError.value = 'No auth token available'
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/profile`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fullName: profileData.value.fullName,
+        phone: profileData.value.phone
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to update profile')
+    }
+
     profileSuccess.value = 'Profile updated successfully'
+    // Refresh team member data to reflect name changes
+    await fetchProfileData()
   } catch (error: any) {
     profileError.value = error.message || 'Failed to update profile'
   } finally {
@@ -783,8 +889,34 @@ const handleInvite = async () => {
   inviteSuccess.value = ''
 
   try {
-    // TODO: Send invitation via backend API
+    const token = authStore.session?.access_token
+    if (!token) {
+      inviteError.value = 'No auth token available'
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/invitations`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: inviteData.value.email,
+        role: inviteData.value.role
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to send invitation')
+    }
+
     inviteSuccess.value = `Invitation sent to ${inviteData.value.email}`
+
+    // Refresh invitations list
+    await fetchPendingInvitations()
+
     setTimeout(() => {
       closeInviteModal()
     }, 2000)
@@ -803,18 +935,85 @@ const closeInviteModal = () => {
 }
 
 const handleRemoveMember = async (member: any) => {
-  if (confirm(`Are you sure you want to remove ${member.email}?`)) {
-    // TODO: Remove member via API
+  if (!confirm(`Are you sure you want to remove ${member.email}?`)) {
+    return
+  }
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/company/members/${member.user_id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to remove member')
+    }
+
+    // Refresh team members list
+    await fetchTeamMembers()
+  } catch (error: any) {
+    alert(error.message || 'Failed to remove member')
   }
 }
 
-const handleResendInvite = async (_invite: any) => {
-  // TODO: Resend invitation
+const handleResendInvite = async (invite: any) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/invitations/${invite.id}/resend`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to resend invitation')
+    }
+
+    alert('Invitation resent successfully')
+    await fetchPendingInvitations()
+  } catch (error: any) {
+    alert(error.message || 'Failed to resend invitation')
+  }
 }
 
-const handleRevokeInvite = async (_invite: any) => {
-  if (confirm(`Are you sure you want to revoke the invitation to ${_invite.email}?`)) {
-    // TODO: Revoke invitation via API
+const handleRevokeInvite = async (invite: any) => {
+  if (!confirm(`Are you sure you want to revoke the invitation to ${invite.email}?`)) {
+    return
+  }
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/invitations/${invite.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to revoke invitation')
+    }
+
+    // Refresh invitations list
+    await fetchPendingInvitations()
+  } catch (error: any) {
+    alert(error.message || 'Failed to revoke invitation')
   }
 }
 

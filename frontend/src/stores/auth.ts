@@ -29,6 +29,12 @@ export const useAuthStore = defineStore('auth', () => {
         if (data.company) {
           company.value = { name: data.company.name }
         }
+      } else if (response.status === 404) {
+        // User is not associated with any company (likely removed from team)
+        // Log them out automatically
+        console.log('User no longer associated with a company, logging out...')
+        await signOut()
+        window.location.href = '/login'
       }
     } catch (err) {
       console.error('Failed to fetch company:', err)

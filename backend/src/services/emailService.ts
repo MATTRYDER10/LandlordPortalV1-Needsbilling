@@ -159,3 +159,29 @@ export async function sendAgentReferenceRequest(
     html,
   });
 }
+
+/**
+ * Send user invitation email
+ */
+export async function sendUserInvitation(
+  inviteeEmail: string,
+  inviterName: string,
+  companyName: string,
+  role: string,
+  invitationUrl: string,
+  expiresAt: string
+): Promise<void> {
+  const html = loadEmailTemplate('invite-user', {
+    InviterName: inviterName,
+    CompanyName: companyName,
+    Role: role.charAt(0).toUpperCase() + role.slice(1),
+    InvitationUrl: invitationUrl,
+    ExpiresAt: expiresAt,
+  });
+
+  await sendEmail({
+    to: inviteeEmail,
+    subject: `You've been invited to join ${companyName} on PropertyGoose`,
+    html,
+  });
+}

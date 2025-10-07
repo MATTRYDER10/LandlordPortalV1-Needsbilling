@@ -1,12 +1,13 @@
 import { Router } from 'express'
-import { authenticateToken, AuthRequest } from '../middleware/auth'
+import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
+import { sendUserInvitation } from '../services/emailService'
 
 const router = Router()
 
-// Get invitations for company
-router.get('/', authenticateToken, async (req: AuthRequest, res) => {
+// Get invitations for company (admin only)
+router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
 
@@ -39,8 +40,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
-// Create invitation
-router.post('/', authenticateToken, async (req: AuthRequest, res) => {
+// Create invitation (admin only)
+router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     const { email, role } = req.body
@@ -100,8 +101,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     const token = crypto.randomBytes(32).toString('hex')
 
     // Create invitation (expires in 7 days)
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 7)
+    const invitationExpiresAt = new Date()
+    invitationExpiresAt.setDate(invitationExpiresAt.getDate() + 7)
 
     const { data: invitation, error } = await supabase
       .from('invitations')
@@ -111,7 +112,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         role,
         token,
         invited_by: userId,
-        expires_at: expiresAt.toISOString()
+        expires_at: invitationExpiresAt.toISOString()
       })
       .select()
       .single()
@@ -120,21 +121,50 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: error.message })
     }
 
-    // TODO: Send invitation email via SendGrid
+    // Get company and inviter details for email
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name')
+      .eq('id', companyUser.company_id)
+      .single()
+
+    const { data: { user: inviter } } = await supabase.auth.admin.getUserById(userId!)
+
     const invitationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invite/${token}`
+
+    // Send invitation email
+    try {
+      const inviterName = inviter?.user_metadata?.full_name || inviter?.email?.split('@')[0] || 'A team member'
+      const expiresAtFormatted = new Date(invitation.expires_at).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      })
+
+      await sendUserInvitation(
+        email,
+        inviterName,
+        company?.name || 'the team',
+        role,
+        invitationUrl,
+        expiresAtFormatted
+      )
+    } catch (emailError) {
+      console.error('Failed to send invitation email:', emailError)
+      // Continue anyway - invitation was created
+    }
 
     res.json({
       invitation,
-      invitationUrl,
-      message: 'Invitation created successfully'
+      message: 'Invitation sent successfully'
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
 })
 
-// Resend invitation
-router.post('/:invitationId/resend', authenticateToken, async (req: AuthRequest, res) => {
+// Resend invitation (admin only)
+router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     const invitationId = req.params.invitationId
@@ -168,28 +198,57 @@ router.post('/:invitationId/resend', authenticateToken, async (req: AuthRequest,
     }
 
     // Extend expiration
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 7)
+    const newExpiresAt = new Date()
+    newExpiresAt.setDate(newExpiresAt.getDate() + 7)
 
     await supabase
       .from('invitations')
-      .update({ expires_at: expiresAt.toISOString() })
+      .update({ expires_at: newExpiresAt.toISOString() })
       .eq('id', invitationId)
 
-    // TODO: Resend invitation email via SendGrid
     const invitationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invite/${invitation.token}`
 
+    // Resend invitation email
+    try {
+      // Get company and inviter details for email
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', companyUser.company_id)
+        .single()
+
+      const { data: { user: inviter } } = await supabase.auth.admin.getUserById(userId!)
+
+      const inviterName = inviter?.user_metadata?.full_name || inviter?.email?.split('@')[0] || 'A team member'
+      const expiresAtFormatted = newExpiresAt.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      })
+
+      await sendUserInvitation(
+        invitation.email,
+        inviterName,
+        company?.name || 'the team',
+        invitation.role,
+        invitationUrl,
+        expiresAtFormatted
+      )
+    } catch (emailError) {
+      console.error('Failed to resend invitation email:', emailError)
+      // Continue anyway
+    }
+
     res.json({
-      message: 'Invitation resent successfully',
-      invitationUrl
+      message: 'Invitation resent successfully'
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
 })
 
-// Revoke invitation
-router.delete('/:invitationId', authenticateToken, async (req: AuthRequest, res) => {
+// Revoke invitation (admin only)
+router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     const invitationId = req.params.invitationId
@@ -227,14 +286,42 @@ router.delete('/:invitationId', authenticateToken, async (req: AuthRequest, res)
   }
 })
 
+// Get invitation details (public route)
+router.get('/details/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+
+    // Get invitation
+    const { data: invitation, error: inviteError } = await supabase
+      .from('invitations')
+      .select('email, role, expires_at')
+      .eq('token', token)
+      .eq('status', 'pending')
+      .gte('expires_at', new Date().toISOString())
+      .single()
+
+    if (inviteError || !invitation) {
+      return res.status(404).json({ error: 'Invalid or expired invitation' })
+    }
+
+    res.json({
+      email: invitation.email,
+      role: invitation.role,
+      expiresAt: invitation.expires_at
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Accept invitation (public route)
 router.post('/accept/:token', async (req, res) => {
   try {
     const { token } = req.params
-    const { email, password } = req.body
+    const { password } = req.body
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' })
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' })
     }
 
     // Get invitation
@@ -250,33 +337,41 @@ router.post('/accept/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invalid or expired invitation' })
     }
 
-    // Check if email matches
-    if (invitation.email !== email) {
-      return res.status(400).json({ error: 'Email does not match invitation' })
-    }
-
-    // Create user account
+    // Create user account (with metadata flag to prevent company creation in trigger)
     const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true
+      email: invitation.email,
+      password: password,
+      email_confirm: true,
+      user_metadata: {
+        is_invited: true
+      }
     })
 
     if (signUpError) {
       return res.status(400).json({ error: signUpError.message })
     }
 
-    // Add user to company
-    const { error: companyUserError } = await supabase
+    // Check if user is already in company (prevent duplicates)
+    const { data: existingMembership } = await supabase
       .from('company_users')
-      .insert({
-        company_id: invitation.company_id,
-        user_id: authData.user.id,
-        role: invitation.role
-      })
+      .select('id')
+      .eq('user_id', authData.user.id)
+      .eq('company_id', invitation.company_id)
+      .limit(1)
 
-    if (companyUserError) {
-      return res.status(400).json({ error: companyUserError.message })
+    // Add user to company only if not already a member
+    if (!existingMembership || existingMembership.length === 0) {
+      const { error: companyUserError } = await supabase
+        .from('company_users')
+        .insert({
+          company_id: invitation.company_id,
+          user_id: authData.user.id,
+          role: invitation.role
+        })
+
+      if (companyUserError) {
+        return res.status(400).json({ error: companyUserError.message })
+      }
     }
 
     // Mark invitation as accepted

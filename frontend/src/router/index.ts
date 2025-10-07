@@ -4,6 +4,7 @@ import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import ForgotPassword from '../views/ForgotPassword.vue'
 import ResetPassword from '../views/ResetPassword.vue'
+import AcceptInvite from '../views/AcceptInvite.vue'
 import Dashboard from '../views/Dashboard.vue'
 import References from '../views/References.vue'
 import ReferenceDetail from '../views/ReferenceDetail.vue'
@@ -46,6 +47,12 @@ const router = createRouter({
       path: '/reset-password',
       name: 'ResetPassword',
       component: ResetPassword
+    },
+    {
+      path: '/accept-invite/:token',
+      name: 'AcceptInvite',
+      component: AcceptInvite,
+      meta: { requiresGuest: true }
     },
     {
       path: '/dashboard',

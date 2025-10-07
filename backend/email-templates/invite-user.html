@@ -35,7 +35,11 @@
                             <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: bold; color: #111827; text-align: center;">You've Been Invited!</h1>
 
                             <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
-                                You've been invited to join PropertyGoose, the modern tenant referencing platform.
+                                <strong>{{InviterName}}</strong> has invited you to join <strong>{{CompanyName}}</strong> on PropertyGoose, the modern tenant referencing platform.
+                            </p>
+
+                            <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                You're being invited as a <strong>{{Role}}</strong>.
                             </p>
 
                             <p style="margin: 0 0 32px; font-size: 16px; line-height: 24px; color: #4b5563;">
@@ -46,7 +50,7 @@
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                                 <tr>
                                     <td style="text-align: center;">
-                                        <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 14px 32px; background-color: #f97316 !important; color: #ffffff !important; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 6px; mso-padding-alt: 0; text-underline-color: #f97316;">
+                                        <a href="{{InvitationUrl}}" style="display: inline-block; padding: 14px 32px; background-color: #f97316 !important; color: #ffffff !important; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 6px; mso-padding-alt: 0; text-underline-color: #f97316;">
                                             <span style="color: #ffffff !important; text-decoration: none;">Accept Invitation</span>
                                         </a>
                                     </td>
@@ -57,7 +61,11 @@
                                 If the button doesn't work, copy and paste this link into your browser:
                             </p>
                             <p style="margin: 8px 0 0; font-size: 14px; line-height: 20px; word-break: break-all;">
-                                <a href="{{ .ConfirmationURL }}" style="color: #f97316; text-decoration: none;">{{ .ConfirmationURL }}</a>
+                                <a href="{{InvitationUrl}}" style="color: #f97316; text-decoration: none;">{{InvitationUrl}}</a>
+                            </p>
+
+                            <p style="margin: 24px 0 0; font-size: 14px; line-height: 20px; color: #6b7280;">
+                                This invitation will expire on {{ExpiresAt}}.
                             </p>
                         </td>
                     </tr>

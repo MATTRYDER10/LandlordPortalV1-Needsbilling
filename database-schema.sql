@@ -113,21 +113,30 @@ CREATE POLICY "Owners and admins can create invitations" ON invitations
   );
 
 -- Function to automatically create company and assign owner role on user signup
+-- NOTE: If user is accepting an invitation (is_invited metadata = true), skip company creation
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  is_invited BOOLEAN;
 BEGIN
-  -- Create a new company with the company name from user metadata
-  INSERT INTO companies (name)
-  VALUES (COALESCE(NEW.raw_user_meta_data->>'company_name', 'My Company'))
-  RETURNING id INTO NEW.raw_user_meta_data;
+  -- Check if user is accepting an invitation (via metadata)
+  is_invited := COALESCE((NEW.raw_user_meta_data->>'is_invited')::boolean, false);
 
-  -- Link the user to the company as owner
-  INSERT INTO company_users (company_id, user_id, role)
-  VALUES (
-    (SELECT id FROM companies ORDER BY created_at DESC LIMIT 1),
-    NEW.id,
-    'owner'
-  );
+  -- Only create a company if user is NOT accepting an invitation
+  IF NOT is_invited THEN
+    -- Create a new company with the company name from user metadata
+    INSERT INTO companies (name)
+    VALUES (COALESCE(NEW.raw_user_meta_data->>'company_name', 'My Company'))
+    RETURNING id INTO NEW.raw_user_meta_data;
+
+    -- Link the user to the company as owner
+    INSERT INTO company_users (company_id, user_id, role)
+    VALUES (
+      (SELECT id FROM companies ORDER BY created_at DESC LIMIT 1),
+      NEW.id,
+      'owner'
+    );
+  END IF;
 
   RETURN NEW;
 END;

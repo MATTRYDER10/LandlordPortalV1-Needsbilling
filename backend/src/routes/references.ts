@@ -27,17 +27,38 @@ const upload = multer({
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
+    console.log('=== FETCHING REFERENCES FOR USER:', userId)
 
-    // Get user's company
-    const { data: companyUser } = await supabase
+    // Get ALL company_users entries to diagnose the issue
+    const { data: allCompanyUsers } = await supabase
+      .from('company_users')
+      .select('id, company_id, role, created_at')
+      .eq('user_id', userId)
+
+    console.log('ALL company_users entries for this user:', JSON.stringify(allCompanyUsers, null, 2))
+
+    // Get user's company (use limit(1) to handle duplicates)
+    const { data: companyUsers } = await supabase
       .from('company_users')
       .select('company_id')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    if (!companyUser) {
+    if (!companyUsers || companyUsers.length === 0) {
+      console.log('ERROR: No company found for user')
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const companyUser = companyUsers[0]
+    console.log('Using company_id:', companyUser.company_id)
+
+    // Count total references for this company
+    const { count: totalCount } = await supabase
+      .from('tenant_references')
+      .select('*', { count: 'exact', head: true })
+      .eq('company_id', companyUser.company_id)
+
+    console.log('Total references in this company:', totalCount)
 
     // Get all references for the company (excluding child references)
     const { data: references, error } = await supabase
@@ -46,6 +67,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       .eq('company_id', companyUser.company_id)
       .is('parent_reference_id', null) // Only get top-level references (no children)
       .order('created_at', { ascending: false })
+
+    console.log('Top-level references found:', references?.length || 0)
 
     if (error) {
       return res.status(400).json({ error: error.message })
@@ -103,16 +126,18 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id
     const referenceId = req.params.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
+    // Get user's company (use limit(1) to handle duplicates)
+    const { data: companyUsers } = await supabase
       .from('company_users')
       .select('company_id')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    if (!companyUser) {
+    if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const companyUser = companyUsers[0]
 
     // Get reference
     const { data: reference, error } = await supabase
@@ -304,20 +329,21 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       notes
     } = req.body
 
-    // Get user's company
+    // Get user's company (use limit(1) to handle duplicates)
     console.log('Looking up company for user:', userId)
-    const { data: companyUser, error: companyError } = await supabase
+    const { data: companyUsers, error: companyError } = await supabase
       .from('company_users')
       .select('company_id, companies:company_id(name)')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    console.log('Company lookup result:', companyUser, 'Error:', companyError)
+    console.log('Company lookup result:', companyUsers, 'Error:', companyError)
 
-    if (!companyUser) {
+    if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
+    const companyUser = companyUsers[0]
     const companyName = (companyUser as any).companies?.name || 'Your agent'
 
     // Check if this is a multi-tenant reference
@@ -514,16 +540,18 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const referenceId = req.params.id
     const updates = req.body
 
-    // Get user's company
-    const { data: companyUser } = await supabase
+    // Get user's company (use limit(1) to handle duplicates)
+    const { data: companyUsers } = await supabase
       .from('company_users')
       .select('company_id')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    if (!companyUser) {
+    if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const companyUser = companyUsers[0]
 
     // Update reference
     const { data: reference, error } = await supabase
@@ -550,16 +578,18 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id
     const referenceId = req.params.id
 
-    // Get user's company and role
-    const { data: companyUser } = await supabase
+    // Get user's company and role (use limit(1) to handle duplicates)
+    const { data: companyUsers } = await supabase
       .from('company_users')
       .select('company_id, role')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    if (!companyUser) {
+    if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const companyUser = companyUsers[0]
 
     // Check if user is owner or admin
     if (companyUser.role !== 'owner' && companyUser.role !== 'admin') {
@@ -1613,16 +1643,18 @@ router.get('/download/:referenceId/:folder/:filename', authenticateToken, async 
     const { referenceId, folder, filename } = req.params
     const filePath = `${referenceId}/${folder}/${filename}`
 
-    // Get user's company
-    const { data: companyUser } = await supabase
+    // Get user's company (use limit(1) to handle duplicates)
+    const { data: companyUsers } = await supabase
       .from('company_users')
       .select('company_id')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    if (!companyUser) {
+    if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const companyUser = companyUsers[0]
 
     // Verify reference belongs to user's company
     const { data: reference, error: refError } = await supabase

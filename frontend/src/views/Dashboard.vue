@@ -200,6 +200,14 @@ const fetchReferences = async () => {
       }
     })
 
+    if (response.status === 404) {
+      // User no longer has access to company (likely removed from team)
+      console.log('User no longer has access, logging out...')
+      await authStore.signOut()
+      router.push('/login')
+      return
+    }
+
     if (!response.ok) return
 
     const data = await response.json()
