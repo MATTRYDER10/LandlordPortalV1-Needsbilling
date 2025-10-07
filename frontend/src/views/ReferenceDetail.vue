@@ -128,59 +128,385 @@
               </button>
 
               <!-- Expanded Content -->
-              <div v-if="expandedTenant === child.id" class="border-t border-gray-200 px-6 py-6 space-y-6">
+              <div v-if="expandedTenant === child.id" class="border-t border-gray-200 px-6 py-6 space-y-6 bg-gray-50">
                 <!-- Load full reference details -->
-                <div v-if="childReferenceDetails[child.id]">
-                  <!-- Contact Information -->
-                  <div>
-                    <h5 class="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Contact Information</h5>
+                <div v-if="childReferenceDetails[child.id]" class="space-y-6">
+                  <!-- Personal Details -->
+                  <div class="bg-white rounded-lg shadow p-6">
+                    <h5 class="text-md font-semibold text-gray-900 mb-4">Personal Details</h5>
                     <div class="grid grid-cols-2 gap-4">
                       <div>
-                        <label class="block text-xs font-medium text-gray-500">Email</label>
-                        <p class="mt-1 text-sm text-gray-900">{{ child.tenant_email }}</p>
+                        <label class="block text-sm font-medium text-gray-500">First Name</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.first_name || childReferenceDetails[child.id].reference.tenant_first_name || 'Not provided' }}</p>
                       </div>
                       <div>
-                        <label class="block text-xs font-medium text-gray-500">Phone</label>
-                        <p class="mt-1 text-sm text-gray-900">{{ child.tenant_phone || 'Not provided' }}</p>
+                        <label class="block text-sm font-medium text-gray-500">Middle Name</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.middle_name || 'Not provided' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Last Name</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.last_name || childReferenceDetails[child.id].reference.tenant_last_name || 'Not provided' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Date of Birth</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.date_of_birth ? formatDate(childReferenceDetails[child.id].reference.date_of_birth) : 'Not provided' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Email</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.tenant_email }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Contact Number</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.contact_number || childReferenceDetails[child.id].reference.tenant_phone || 'Not provided' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Nationality</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.nationality || 'Not provided' }}</p>
                       </div>
                     </div>
                   </div>
 
-                  <!-- Reference Status Summary -->
-                  <div>
-                    <h5 class="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Reference Status</h5>
-                    <div class="grid grid-cols-2 gap-4">
+                  <!-- Identification Documents -->
+                  <div class="bg-white rounded-lg shadow p-6">
+                    <h5 class="text-md font-semibold text-gray-900 mb-4">Identification Documents</h5>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
                       <div>
-                        <label class="block text-xs font-medium text-gray-500">Overall Status</label>
-                        <p class="mt-1">
-                          <span
-                            class="px-2 py-1 text-xs font-semibold rounded-full"
-                            :class="{
-                              'bg-yellow-100 text-yellow-800': child.status === 'pending',
-                              'bg-blue-100 text-blue-800': child.status === 'in_progress',
-                              'bg-orange-100 text-orange-800': child.status === 'pending_verification',
-                              'bg-green-100 text-green-800': child.status === 'completed'
-                            }"
+                        <label class="block text-sm font-medium text-gray-500">Document Type</label>
+                        <p class="mt-1 text-gray-900 capitalize">{{ childReferenceDetails[child.id].reference.id_document_type ? childReferenceDetails[child.id].reference.id_document_type.replace('_', ' ') : 'Not provided' }}</p>
+                      </div>
+                    </div>
+                    <div class="space-y-2">
+                      <div v-if="childReferenceDetails[child.id].reference.id_document_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                        <div class="flex items-center">
+                          <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          <span class="text-sm text-gray-900">ID Document</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <button
+                            @click="viewFile(childReferenceDetails[child.id].reference.id_document_path)"
+                            class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
                           >
-                            {{ formatStatus(child.status) }}
-                          </span>
+                            View
+                          </button>
+                          <button
+                            @click="downloadFile(childReferenceDetails[child.id].reference.id_document_path)"
+                            class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                          >
+                            Download
+                          </button>
+                        </div>
+                      </div>
+                      <div v-if="childReferenceDetails[child.id].reference.selfie_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                        <div class="flex items-center">
+                          <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span class="text-sm text-gray-900">Selfie Verification</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <button
+                            @click="viewFile(childReferenceDetails[child.id].reference.selfie_path)"
+                            class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                          >
+                            View
+                          </button>
+                          <button
+                            @click="downloadFile(childReferenceDetails[child.id].reference.selfie_path)"
+                            class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                          >
+                            Download
+                          </button>
+                        </div>
+                      </div>
+                      <div v-if="!childReferenceDetails[child.id].reference.id_document_path && !childReferenceDetails[child.id].reference.selfie_path" class="text-gray-500 text-center py-4">
+                        No identification documents uploaded yet
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Current Address -->
+                  <div class="bg-white rounded-lg shadow p-6">
+                    <h5 class="text-md font-semibold text-gray-900 mb-4">Current Address</h5>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                      <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-500">Address Line 1</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_address_line1 || 'Not provided yet' }}</p>
+                      </div>
+                      <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-500">Address Line 2</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_address_line2 || 'Not provided yet' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">City</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_city || 'Not provided yet' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Postcode</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_postcode || 'Not provided yet' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Country</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_country || 'Not provided yet' }}</p>
+                      </div>
+                    </div>
+
+                    <!-- Proof of Address Document -->
+                    <div class="mt-4">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Address Document</label>
+                      <div v-if="childReferenceDetails[child.id].reference.proof_of_address_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                        <div class="flex items-center">
+                          <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          <span class="text-sm text-gray-900">Proof of Address</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <button
+                            @click="viewFile(childReferenceDetails[child.id].reference.proof_of_address_path)"
+                            class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                          >
+                            View
+                          </button>
+                          <button
+                            @click="downloadFile(childReferenceDetails[child.id].reference.proof_of_address_path)"
+                            class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                          >
+                            Download
+                          </button>
+                        </div>
+                      </div>
+                      <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg">
+                        Proof of address document not uploaded yet
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Financial Information -->
+                  <div class="bg-white rounded-lg shadow p-6">
+                    <h5 class="text-md font-semibold text-gray-900 mb-4">Financial Information</h5>
+
+                    <!-- Income Sources -->
+                    <div class="mb-6">
+                      <label class="block text-sm font-medium text-gray-700 mb-3">Income Sources</label>
+                      <div class="flex flex-wrap gap-2">
+                        <span v-if="childReferenceDetails[child.id].reference.income_regular_employment" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Employed</span>
+                        <span v-if="childReferenceDetails[child.id].reference.income_self_employed" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Self Employed</span>
+                        <span v-if="childReferenceDetails[child.id].reference.income_benefits" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Benefits</span>
+                        <span v-if="childReferenceDetails[child.id].reference.income_savings_pension_investments" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Savings/Pension/Investments</span>
+                        <span v-if="childReferenceDetails[child.id].reference.income_student" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Student</span>
+                        <span v-if="childReferenceDetails[child.id].reference.income_unemployed" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Unemployed</span>
+                        <span v-if="!childReferenceDetails[child.id].reference.income_regular_employment && !childReferenceDetails[child.id].reference.income_self_employed && !childReferenceDetails[child.id].reference.income_benefits && !childReferenceDetails[child.id].reference.income_savings_pension_investments && !childReferenceDetails[child.id].reference.income_student && !childReferenceDetails[child.id].reference.income_unemployed" class="text-gray-500 text-sm">Not provided yet</span>
+                      </div>
+                    </div>
+
+                    <!-- Employment Details -->
+                    <div v-if="childReferenceDetails[child.id].reference.income_regular_employment" class="border-t pt-6">
+                      <h6 class="text-sm font-semibold text-gray-900 mb-4">Employment Details</h6>
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Contract Type</label>
+                          <p class="mt-1 text-gray-900 capitalize">{{ childReferenceDetails[child.id].reference.employment_contract_type?.replace('_', ' ') || 'Not provided' }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.employment_start_date ? formatDate(childReferenceDetails[child.id].reference.employment_start_date) : 'Not provided' }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Job Title</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.employment_job_title || 'Not provided' }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Company Name</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.employment_company_name || 'Not provided' }}</p>
+                        </div>
+                        <div v-if="!childReferenceDetails[child.id].reference.employment_is_hourly">
+                          <label class="block text-sm font-medium text-gray-500">Annual Salary</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.employment_salary_amount ? `£${childReferenceDetails[child.id].reference.employment_salary_amount}` : 'Not provided' }}</p>
+                        </div>
+                        <div v-if="childReferenceDetails[child.id].reference.employment_is_hourly">
+                          <label class="block text-sm font-medium text-gray-500">Hourly Rate</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.employment_salary_amount ? `£${childReferenceDetails[child.id].reference.employment_salary_amount}/hour` : 'Not provided' }}</p>
+                        </div>
+                      </div>
+
+                      <!-- Payslips -->
+                      <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Payslips (Last 3 months)</label>
+                        <div v-if="childReferenceDetails[child.id].reference.payslip_files?.length" class="space-y-2">
+                          <div v-for="(file, idx) in childReferenceDetails[child.id].reference.payslip_files" :key="idx"
+                               class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                            <div class="flex items-center">
+                              <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                              </svg>
+                              <span class="text-sm text-gray-900">Payslip {{ idx + 1 }}</span>
+                            </div>
+                            <div class="flex gap-2">
+                              <button
+                                @click="viewFile(file)"
+                                class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                              >
+                                View
+                              </button>
+                              <button
+                                @click="downloadFile(file)"
+                                class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
+                              >
+                                Download
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg">
+                          Payslips not uploaded yet
+                        </div>
+                      </div>
+
+                      <!-- Employer Reference -->
+                      <div v-if="childReferenceDetails[child.id].employerReference" class="mt-6 bg-green-50 border border-green-200 rounded-lg">
+                        <div class="p-4">
+                          <div class="flex items-center justify-between mb-4">
+                            <h6 class="text-sm font-semibold text-green-900">✓ Employer Reference Completed</h6>
+                            <span class="text-xs text-green-700">Submitted {{ formatDateTime(childReferenceDetails[child.id].employerReference.submitted_at) }}</span>
+                          </div>
+                          <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div><span class="text-green-700 font-medium">Company:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].employerReference.company_name }}</span></div>
+                            <div><span class="text-green-700 font-medium">Position:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].employerReference.employee_position }}</span></div>
+                            <div><span class="text-green-700 font-medium">Performance:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].employerReference.performance_rating }}</span></div>
+                            <div><span class="text-green-700 font-medium">Would Re-employ:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].employerReference.would_reemploy }}</span></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-else-if="childReferenceDetails[child.id].reference.employer_ref_email" class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-sm text-blue-800">
+                          Waiting for employer reference from {{ childReferenceDetails[child.id].reference.employer_ref_email }}
                         </p>
                       </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-500">Form Submitted</label>
-                        <p class="mt-1 text-sm text-gray-900">{{ child.submitted_at ? formatDateTime(child.submitted_at) : 'Not yet' }}</p>
+                    </div>
+
+                    <!-- Self-Employed & Accountant Details -->
+                    <div v-if="childReferenceDetails[child.id].reference.income_self_employed" class="border-t pt-6">
+                      <h6 class="text-sm font-semibold text-gray-900 mb-4">Self-Employed Details</h6>
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Business Name</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.self_employed_business_name || 'Not provided' }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Annual Income</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.self_employed_annual_income ? `£${childReferenceDetails[child.id].reference.self_employed_annual_income}` : 'Not provided' }}</p>
+                        </div>
+                      </div>
+
+                      <!-- Accountant Reference -->
+                      <div v-if="childReferenceDetails[child.id].accountantReference?.submitted_at" class="mt-6 bg-green-50 border border-green-200 rounded-lg">
+                        <div class="p-4">
+                          <div class="flex items-center justify-between mb-4">
+                            <h6 class="text-sm font-semibold text-green-900">✓ Accountant Reference Completed</h6>
+                            <span class="text-xs text-green-700">Submitted {{ formatDateTime(childReferenceDetails[child.id].accountantReference.submitted_at) }}</span>
+                          </div>
+                          <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div><span class="text-green-700 font-medium">Business:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].accountantReference.business_name }}</span></div>
+                            <div><span class="text-green-700 font-medium">Annual Profit:</span> <span class="text-green-900">£{{ childReferenceDetails[child.id].accountantReference.annual_profit?.toLocaleString() }}</span></div>
+                            <div><span class="text-green-700 font-medium">Financially Stable:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].accountantReference.business_financially_stable ? 'Yes' : 'No' }}</span></div>
+                            <div><span class="text-green-700 font-medium">Would Recommend:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].accountantReference.would_recommend ? 'Yes' : 'No' }}</span></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-else-if="childReferenceDetails[child.id].reference.accountant_email" class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-sm text-blue-800">
+                          Waiting for accountant reference from {{ childReferenceDetails[child.id].reference.accountant_email }}
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  <!-- Quick Action -->
-                  <div class="pt-4 border-t border-gray-200">
-                    <button
-                      @click="$router.push(`/references/${child.id}`)"
-                      class="w-full px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 font-medium"
-                    >
-                      View Full Reference Details
-                    </button>
+                  <!-- About the Tenant -->
+                  <div class="bg-white rounded-lg shadow p-6">
+                    <h5 class="text-md font-semibold text-gray-900 mb-4">About the Tenant</h5>
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Smoker</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.is_smoker === true ? 'Yes' : childReferenceDetails[child.id].reference.is_smoker === false ? 'No' : 'Not provided' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Pets</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.has_pets ? 'Yes' : 'No' }}</p>
+                      </div>
+                      <div v-if="childReferenceDetails[child.id].reference.has_pets" class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-500">Pet Details</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.pet_details || 'Not provided' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Marital Status</label>
+                        <p class="mt-1 text-gray-900 capitalize">{{ childReferenceDetails[child.id].reference.marital_status?.replace('_', ' ') || 'Not provided' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Number of Dependants</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.number_of_dependants || 0 }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Previous Landlord/Agent Reference -->
+                  <div class="bg-white rounded-lg shadow p-6">
+                    <h5 class="text-md font-semibold text-gray-900 mb-4">Previous Landlord/Agent Information</h5>
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">{{ childReferenceDetails[child.id].reference.reference_type === 'agent' ? 'Agent' : 'Landlord' }} Name</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.previous_landlord_name || 'Not provided yet' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Email</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.previous_landlord_email || 'Not provided yet' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Previous Address</label>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.previous_street || 'Not provided yet' }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
+                        <p class="mt-1 text-gray-900">{{ formatTenancyDuration(childReferenceDetails[child.id].reference.tenancy_years, childReferenceDetails[child.id].reference.tenancy_months) }}</p>
+                      </div>
+                    </div>
+
+                    <!-- Landlord Reference -->
+                    <div v-if="childReferenceDetails[child.id].landlordReference && childReferenceDetails[child.id].reference.reference_type === 'landlord'" class="mt-6 bg-green-50 border border-green-200 rounded-lg">
+                      <div class="p-4">
+                        <div class="flex items-center justify-between mb-4">
+                          <h6 class="text-sm font-semibold text-green-900">✓ Landlord Reference Completed</h6>
+                          <span class="text-xs text-green-700">Submitted {{ formatDateTime(childReferenceDetails[child.id].landlordReference.submitted_at) }}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                          <div><span class="text-green-700 font-medium">Rent Paid On Time:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.rent_paid_on_time }}</span></div>
+                          <div><span class="text-green-700 font-medium">Property Condition:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.property_condition }}</span></div>
+                          <div><span class="text-green-700 font-medium">Would Rent Again:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.would_rent_again }}</span></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Agent Reference -->
+                    <div v-if="childReferenceDetails[child.id].agentReference && childReferenceDetails[child.id].reference.reference_type === 'agent'" class="mt-6 bg-green-50 border border-green-200 rounded-lg">
+                      <div class="p-4">
+                        <div class="flex items-center justify-between mb-4">
+                          <h6 class="text-sm font-semibold text-green-900">✓ Letting Agent Reference Completed</h6>
+                          <span class="text-xs text-green-700">Submitted {{ formatDateTime(childReferenceDetails[child.id].agentReference.submitted_at) }}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                          <div><span class="text-green-700 font-medium">Rent Paid On Time:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].agentReference.rent_paid_on_time }}</span></div>
+                          <div><span class="text-green-700 font-medium">Property Condition:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].agentReference.property_condition }}</span></div>
+                          <div><span class="text-green-700 font-medium">Would Rent Again:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].agentReference.would_rent_again }}</span></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div v-if="childReferenceDetails[child.id].reference.previous_landlord_email && !childReferenceDetails[child.id].landlordReference && !childReferenceDetails[child.id].agentReference" class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p class="text-sm text-blue-800">
+                        Waiting for {{ childReferenceDetails[child.id].reference.reference_type === 'agent' ? 'letting agent' : 'landlord' }} reference
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -257,7 +583,7 @@
         </div>
 
         <!-- Identification Documents -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Identification Documents</h3>
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -317,7 +643,7 @@
         </div>
 
         <!-- Current Address -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Address</h3>
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div class="col-span-2">
@@ -374,7 +700,7 @@
         </div>
 
         <!-- Financial Information -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Financial Information</h3>
 
           <!-- Income Sources -->
@@ -741,7 +1067,7 @@
         </div>
 
         <!-- About the Tenant -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">About the Tenant</h3>
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -772,7 +1098,7 @@
         </div>
 
         <!-- Previous Landlord Information -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Previous Landlord Information</h3>
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
