@@ -1219,7 +1219,7 @@
                 </div>
                 <div class="ml-3">
                   <p class="text-sm text-blue-700">
-                    Your previous landlord will receive an email asking them to provide a reference about your tenancy.
+                    Your previous {{ formData.reference_type === 'agent' ? 'letting agent' : 'landlord' }} will receive an email asking them to provide a reference about your tenancy.
                   </p>
                 </div>
               </div>
