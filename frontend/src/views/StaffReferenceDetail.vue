@@ -716,7 +716,7 @@
           </div>
 
           <!-- Landlord Reference Link (only show if not submitted) -->
-          <div v-if="reference.previous_landlord_email && !landlordReference" class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+          <div v-if="reference.previous_landlord_email && reference.reference_type === 'landlord' && !landlordReference" class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
             <h4 class="text-sm font-semibold text-purple-900 mb-2">Landlord Reference Form</h4>
             <p class="text-sm text-purple-800 mb-2">
               Share this link with the previous landlord to complete their reference:
@@ -731,6 +731,29 @@
               <button
                 type="button"
                 @click="copyLandlordLink"
+                class="px-4 py-2 text-sm font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 whitespace-nowrap"
+              >
+                Copy Link
+              </button>
+            </div>
+          </div>
+
+          <!-- Agent Reference Link (only show if not submitted) -->
+          <div v-if="reference.previous_landlord_email && reference.reference_type === 'agent' && !agentReference" class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+            <h4 class="text-sm font-semibold text-purple-900 mb-2">Letting Agent Reference Form</h4>
+            <p class="text-sm text-purple-800 mb-2">
+              Share this link with the letting agent to complete their reference:
+            </p>
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                readonly
+                :value="getAgentReferenceLink()"
+                class="flex-1 px-3 py-2 text-sm bg-white border border-purple-300 rounded-md font-mono text-xs"
+              />
+              <button
+                type="button"
+                @click="copyAgentLink"
                 class="px-4 py-2 text-sm font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 whitespace-nowrap"
               >
                 Copy Link
@@ -875,6 +898,153 @@
                   <div>
                     <span class="text-green-700 font-medium text-sm">Date:</span>
                     <span class="ml-2 text-green-900">{{ formatDate(landlordReference.date) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Agent Reference Submitted -->
+          <div v-if="agentReference" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-sm font-semibold text-green-900">✓ Letting Agent Reference Completed</h4>
+              <span class="text-xs text-green-700">Submitted {{ formatDateTime(agentReference.submitted_at) }}</span>
+            </div>
+
+            <div class="space-y-6 text-sm">
+              <!-- Agent Contact Information -->
+              <div>
+                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Agent Contact Information</h5>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <span class="text-green-700 font-medium">Full Name:</span>
+                    <span class="ml-2 text-green-900">{{ agentReference.agent_name }}</span>
+                  </div>
+                  <div v-if="agentReference.agency_name">
+                    <span class="text-green-700 font-medium">Agency:</span>
+                    <span class="ml-2 text-green-900">{{ agentReference.agency_name }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Email:</span>
+                    <span class="ml-2 text-green-900">{{ agentReference.agent_email }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Phone:</span>
+                    <span class="ml-2 text-green-900">{{ agentReference.agent_phone }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Property & Tenancy Details -->
+              <div>
+                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy Details</h5>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <span class="text-green-700 font-medium">Property Address:</span>
+                    <span class="ml-2 text-green-900">{{ agentReference.property_address }}</span>
+                  </div>
+                  <div v-if="agentReference.property_city">
+                    <span class="text-green-700 font-medium">City:</span>
+                    <span class="ml-2 text-green-900">{{ agentReference.property_city }}</span>
+                  </div>
+                  <div v-if="agentReference.property_postcode">
+                    <span class="text-green-700 font-medium">Postcode:</span>
+                    <span class="ml-2 text-green-900">{{ agentReference.property_postcode }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Tenancy Start:</span>
+                    <span class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_start_date) }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Tenancy End:</span>
+                    <span class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_end_date) }}</span>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium">Monthly Rent:</span>
+                    <span class="ml-2 text-green-900">£{{ agentReference.monthly_rent }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reference Assessment -->
+              <div>
+                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Reference Assessment</h5>
+                <div class="space-y-3">
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Rent Paid On Time:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.rent_paid_on_time }}</span>
+                    </div>
+                    <div v-if="agentReference.rent_paid_on_time_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ agentReference.rent_paid_on_time_details }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Property Condition:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.property_condition }}</span>
+                    </div>
+                    <div v-if="agentReference.property_condition_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ agentReference.property_condition_details }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Neighbour Complaints:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.neighbour_complaints }}</span>
+                    </div>
+                    <div v-if="agentReference.neighbour_complaints_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ agentReference.neighbour_complaints_details }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Breach of Tenancy:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.breach_of_tenancy }}</span>
+                    </div>
+                    <div v-if="agentReference.breach_of_tenancy_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ agentReference.breach_of_tenancy_details }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="mb-1">
+                      <span class="text-green-700 font-medium">Would Rent Again:</span>
+                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.would_rent_again }}</span>
+                    </div>
+                    <div v-if="agentReference.would_rent_again_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                      {{ agentReference.would_rent_again_details }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Additional Comments -->
+              <div v-if="agentReference.additional_comments">
+                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Additional Comments</h5>
+                <div class="bg-green-100 p-3 rounded border border-green-300 text-green-900">
+                  {{ agentReference.additional_comments }}
+                </div>
+              </div>
+
+              <!-- Signature -->
+              <div class="pt-3 border-t border-green-300">
+                <div class="space-y-3">
+                  <div>
+                    <span class="text-green-700 font-medium text-sm">Signature:</span>
+                    <div class="mt-2 p-3 bg-white rounded border border-green-200">
+                      <div v-if="agentReference.signature_name" class="mb-2 text-sm text-gray-700 font-medium">
+                        {{ agentReference.signature_name }}
+                      </div>
+                      <img :src="agentReference.signature" alt="Signature" class="max-w-md h-auto" />
+                    </div>
+                  </div>
+                  <div>
+                    <span class="text-green-700 font-medium text-sm">Date:</span>
+                    <span class="ml-2 text-green-900">{{ formatDate(agentReference.date) }}</span>
                   </div>
                 </div>
               </div>
@@ -1154,6 +1324,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const reference = ref<any>(null)
 const landlordReference = ref<any>(null)
+const agentReference = ref<any>(null)
 const employerReference = ref<any>(null)
 const accountantReference = ref<any>(null)
 const loading = ref(true)
@@ -1201,6 +1372,7 @@ const fetchReference = async () => {
     const data = await response.json()
     reference.value = data.reference
     landlordReference.value = data.landlordReference
+    agentReference.value = data.agentReference
     employerReference.value = data.employerReference
     accountantReference.value = data.accountantReference
   } catch (error: any) {
@@ -1248,6 +1420,10 @@ const getLandlordReferenceLink = () => {
   return `${window.location.origin}/landlord-reference/${reference.value?.id || ''}`
 }
 
+const getAgentReferenceLink = () => {
+  return `${window.location.origin}/agent-reference/${reference.value?.id || ''}`
+}
+
 const getEmployerReferenceLink = () => {
   return `${window.location.origin}/employer-reference/${reference.value?.id || ''}`
 }
@@ -1256,6 +1432,15 @@ const copyLandlordLink = async () => {
   try {
     await navigator.clipboard.writeText(getLandlordReferenceLink())
     toast.success('Landlord reference link copied to clipboard!')
+  } catch (error) {
+    toast.error('Failed to copy link to clipboard')
+  }
+}
+
+const copyAgentLink = async () => {
+  try {
+    await navigator.clipboard.writeText(getAgentReferenceLink())
+    toast.success('Agent reference link copied to clipboard!')
   } catch (error) {
     toast.error('Failed to copy link to clipboard')
   }

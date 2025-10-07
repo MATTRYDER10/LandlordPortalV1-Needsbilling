@@ -9,6 +9,7 @@ import References from '../views/References.vue'
 import ReferenceDetail from '../views/ReferenceDetail.vue'
 import SubmitReference from '../views/SubmitReference.vue'
 import LandlordReference from '../views/LandlordReference.vue'
+import AgentReference from '../views/AgentReference.vue'
 import EmployerReference from '../views/EmployerReference.vue'
 import AccountantReference from '../views/AccountantReference.vue'
 import Settings from '../views/Settings.vue'
@@ -73,6 +74,11 @@ const router = createRouter({
       path: '/landlord-reference/:referenceId',
       name: 'LandlordReference',
       component: LandlordReference
+    },
+    {
+      path: '/agent-reference/:referenceId',
+      name: 'AgentReference',
+      component: AgentReference
     },
     {
       path: '/employer-reference/:referenceId',

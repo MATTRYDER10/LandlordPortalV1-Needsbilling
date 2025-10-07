@@ -3,7 +3,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
-import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAccountantReferenceRequest } from '../services/emailService'
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest } from '../services/emailService'
 
 const router = Router()
 
@@ -98,6 +98,13 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .eq('reference_id', referenceId)
       .single()
 
+    // Get agent reference if exists
+    const { data: agentReference } = await supabase
+      .from('agent_references')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single()
+
     // Get employer reference if exists
     const { data: employerReference } = await supabase
       .from('employer_references')
@@ -112,7 +119,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .eq('tenant_reference_id', referenceId)
       .single()
 
-    res.json({ reference, documents, landlordReference, employerReference, accountantReference })
+    res.json({ reference, documents, landlordReference, agentReference, employerReference, accountantReference })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -447,20 +454,34 @@ router.post('/submit/:token', async (req, res) => {
       }
     }
 
-    // Send email to landlord if landlord reference details are provided
+    // Send email to landlord/agent if rental reference details are provided
     if (data.previous_landlord_email && data.previous_landlord_name) {
       try {
-        const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${updatedReference.id}`
+        const referenceType = data.reference_type || 'landlord'
 
-        await sendLandlordReferenceRequest(
-          data.previous_landlord_email,
-          data.previous_landlord_name,
-          `${data.first_name} ${data.last_name}`,
-          landlordReferenceUrl
-        )
-        console.log('Landlord reference email sent successfully to:', data.previous_landlord_email)
+        if (referenceType === 'agent') {
+          const agentReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${updatedReference.id}`
+
+          await sendAgentReferenceRequest(
+            data.previous_landlord_email,
+            data.previous_landlord_name,
+            `${data.first_name} ${data.last_name}`,
+            agentReferenceUrl
+          )
+          console.log('Agent reference email sent successfully to:', data.previous_landlord_email)
+        } else {
+          const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${updatedReference.id}`
+
+          await sendLandlordReferenceRequest(
+            data.previous_landlord_email,
+            data.previous_landlord_name,
+            `${data.first_name} ${data.last_name}`,
+            landlordReferenceUrl
+          )
+          console.log('Landlord reference email sent successfully to:', data.previous_landlord_email)
+        }
       } catch (emailError: any) {
-        console.error('Failed to send landlord reference email:', emailError)
+        console.error('Failed to send landlord/agent reference email:', emailError)
         // Don't fail the request if email fails, just log it
       }
     }
@@ -824,6 +845,98 @@ router.post('/landlord/:referenceId', async (req, res) => {
     }
 
     res.json({ message: 'Landlord reference submitted successfully' })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Agent submits reference (public route)
+router.post('/agent/:referenceId', async (req, res) => {
+  try {
+    const { referenceId } = req.params
+    const formData = req.body
+
+    // Verify reference exists
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, status')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Convert camelCase to snake_case for database
+    const dbData = {
+      reference_id: referenceId,
+      agent_name: formData.agentName,
+      agent_email: formData.agentEmail,
+      agent_phone: formData.agentPhone,
+      agency_name: formData.agencyName || null,
+      property_address: formData.propertyAddress,
+      property_city: formData.propertyCity || null,
+      property_postcode: formData.propertyPostcode || null,
+      tenancy_start_date: formData.tenancyStartDate,
+      tenancy_end_date: formData.tenancyEndDate,
+      monthly_rent: formData.monthlyRent,
+      rent_paid_on_time: formData.rentPaidOnTime,
+      rent_paid_on_time_details: formData.rentPaidOnTimeDetails || null,
+      property_condition: formData.propertyCondition,
+      property_condition_details: formData.propertyConditionDetails || null,
+      neighbour_complaints: formData.neighbourComplaints,
+      neighbour_complaints_details: formData.neighbourComplaintsDetails || null,
+      breach_of_tenancy: formData.breachOfTenancy,
+      breach_of_tenancy_details: formData.breachOfTenancyDetails || null,
+      would_rent_again: formData.wouldRentAgain,
+      would_rent_again_details: formData.wouldRentAgainDetails || null,
+      additional_comments: formData.additionalComments || null,
+      signature_name: formData.signatureName,
+      signature: formData.signature,
+      date: formData.date,
+      submitted_at: new Date().toISOString()
+    }
+
+    // Store agent reference data
+    const { error: insertError } = await supabase
+      .from('agent_references')
+      .insert(dbData)
+
+    if (insertError) {
+      return res.status(400).json({ error: insertError.message })
+    }
+
+    // Update reference status based on required references
+    // Check if employer reference is required (employer email provided)
+    const { data: tenantRef } = await supabase
+      .from('tenant_references')
+      .select('employer_ref_email')
+      .eq('id', referenceId)
+      .single()
+
+    // If no employer email provided, mark as pending verification immediately
+    // If employer email provided, only mark as pending verification if employer reference exists
+    if (!tenantRef?.employer_ref_email) {
+      await supabase
+        .from('tenant_references')
+        .update({ status: 'pending_verification' })
+        .eq('id', referenceId)
+    } else {
+      const { data: employerRef } = await supabase
+        .from('employer_references')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .single()
+
+      if (employerRef) {
+        await supabase
+          .from('tenant_references')
+          .update({ status: 'pending_verification' })
+          .eq('id', referenceId)
+      }
+    }
+
+    res.json({ message: 'Agent reference submitted successfully' })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

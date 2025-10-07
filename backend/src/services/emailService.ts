@@ -137,3 +137,25 @@ export async function sendAccountantReferenceRequest(
     html,
   });
 }
+
+/**
+ * Send agent reference request email
+ */
+export async function sendAgentReferenceRequest(
+  agentEmail: string,
+  agentName: string,
+  tenantName: string,
+  referenceLink: string
+): Promise<void> {
+  const html = loadEmailTemplate('agent-reference-request', {
+    AgentName: agentName,
+    TenantName: tenantName,
+    ReferenceLink: referenceLink,
+  });
+
+  await sendEmail({
+    to: agentEmail,
+    subject: 'Agent Reference Request - PropertyGoose',
+    html,
+  });
+}

@@ -1043,14 +1043,41 @@
           </div>
         </div>
 
-        <!-- PAGE 10: Previous Landlord Reference -->
+        <!-- PAGE 10: Previous Landlord/Agent Reference -->
         <div v-if="currentPage === 10" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Previous Landlord Reference</h2>
-          <p class="text-sm text-gray-600 mb-6">Please provide details of your previous landlord so we can request a reference</p>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Previous Rental Reference</h2>
+          <p class="text-sm text-gray-600 mb-6">Please provide details so we can request a reference from your previous landlord or letting agent</p>
 
           <div class="space-y-4">
+            <!-- Reference Type Selector -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Previous Landlord's Full Name *</label>
+              <label class="block text-sm font-medium text-gray-700 mb-3">Reference Type *</label>
+              <div class="flex gap-4">
+                <label class="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    v-model="formData.reference_type"
+                    value="landlord"
+                    class="mr-2"
+                    :style="{ accentColor: primaryColor }"
+                  />
+                  <span class="text-sm text-gray-700">Landlord</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    v-model="formData.reference_type"
+                    value="agent"
+                    class="mr-2"
+                    :style="{ accentColor: primaryColor }"
+                  />
+                  <span class="text-sm text-gray-700">Letting Agent</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">{{ formData.reference_type === 'agent' ? "Agent's Full Name" : "Landlord's Full Name" }} *</label>
               <input
                 v-model="formData.previous_landlord_name"
                 type="text"
@@ -1061,20 +1088,20 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Previous Landlord's Email *</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">{{ formData.reference_type === 'agent' ? "Agent's Email" : "Landlord's Email" }} *</label>
               <input
                 v-model="formData.previous_landlord_email"
                 type="email"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="landlord@example.com"
+                :placeholder="formData.reference_type === 'agent' ? 'agent@example.com' : 'landlord@example.com'"
               />
               <p class="mt-1 text-xs text-gray-500">We will send an email to this address to request a reference</p>
             </div>
 
             <PhoneInput
               v-model="formData.previous_landlord_phone"
-              label="Previous Landlord's Phone Number"
+              :label="formData.reference_type === 'agent' ? 'Agent\'s Phone Number' : 'Landlord\'s Phone Number'"
               id="previous-landlord-phone"
               :required="true"
             />
@@ -2195,7 +2222,8 @@ const formData = ref({
   number_of_dependants: 0,
   dependants_details: '',
 
-  // Page 10: Previous Landlord Reference
+  // Page 10: Previous Landlord/Agent Reference
+  reference_type: 'landlord', // 'landlord' or 'agent'
   previous_landlord_name: '',
   previous_landlord_email: '',
   previous_landlord_phone: '',
