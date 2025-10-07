@@ -408,6 +408,7 @@ router.post('/submit/:token', async (req, res) => {
       dependants_details: data.dependants_details || null,
 
       // Previous Landlord Reference (Page 10)
+      reference_type: data.reference_type || 'landlord',
       previous_landlord_name: data.previous_landlord_name || null,
       previous_landlord_email: data.previous_landlord_email || null,
       previous_landlord_phone: data.previous_landlord_phone || null,
