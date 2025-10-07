@@ -49,7 +49,7 @@
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Business Information</h2>
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700">Tenant Name *</label>
+              <label class="block text-sm font-medium text-gray-700">Client Name *</label>
               <input
                 v-model="formData.tenantName"
                 type="text"
