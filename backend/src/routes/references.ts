@@ -133,14 +133,14 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .eq('reference_id', referenceId)
 
     // Get landlord reference if exists
-    const { data: landlordReference } = await supabase
+    let { data: landlordReference } = await supabase
       .from('landlord_references')
       .select('*')
       .eq('reference_id', referenceId)
       .single()
 
     // Get agent reference if exists
-    const { data: agentReference } = await supabase
+    let { data: agentReference } = await supabase
       .from('agent_references')
       .select('*')
       .eq('reference_id', referenceId)
@@ -154,11 +154,56 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .single()
 
     // Get accountant reference if exists
-    const { data: accountantReference } = await supabase
+    let { data: accountantReference } = await supabase
       .from('accountant_references')
       .select('*')
       .eq('tenant_reference_id', referenceId)
       .single()
+
+    // If this is a child reference and no landlord/agent/accountant ref found, check siblings
+    if (reference.parent_reference_id && (!landlordReference && !agentReference && !accountantReference)) {
+      // Get all sibling references
+      const { data: siblings } = await supabase
+        .from('tenant_references')
+        .select('id')
+        .eq('parent_reference_id', reference.parent_reference_id)
+        .neq('id', referenceId)
+
+      if (siblings && siblings.length > 0) {
+        // Check each sibling for references
+        for (const sibling of siblings) {
+          if (!landlordReference) {
+            const { data: siblingLandlordRef } = await supabase
+              .from('landlord_references')
+              .select('*')
+              .eq('reference_id', sibling.id)
+              .single()
+            if (siblingLandlordRef) landlordReference = siblingLandlordRef
+          }
+
+          if (!agentReference) {
+            const { data: siblingAgentRef } = await supabase
+              .from('agent_references')
+              .select('*')
+              .eq('reference_id', sibling.id)
+              .single()
+            if (siblingAgentRef) agentReference = siblingAgentRef
+          }
+
+          if (!accountantReference) {
+            const { data: siblingAccountantRef } = await supabase
+              .from('accountant_references')
+              .select('*')
+              .eq('tenant_reference_id', sibling.id)
+              .single()
+            if (siblingAccountantRef) accountantReference = siblingAccountantRef
+          }
+
+          // Break early if we found all references
+          if (landlordReference && agentReference && accountantReference) break
+        }
+      }
+    }
 
     // Check if this is a parent reference and fetch children
     let childReferences = null
