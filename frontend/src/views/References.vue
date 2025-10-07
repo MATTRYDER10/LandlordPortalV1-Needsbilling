@@ -131,42 +131,107 @@
         </div>
         <form @submit.prevent="handleCreate" class="flex flex-col flex-1 min-h-0">
           <div class="px-6 overflow-y-auto flex-1 space-y-4">
-          <!-- Tenant & Property Information Grid -->
-          <div class="grid grid-cols-2 gap-6">
-            <!-- Tenant Information -->
-            <div>
-              <h4 class="text-md font-semibold text-gray-700 mb-3">Tenant Information</h4>
-              <div class="space-y-3">
-                <div>
-                  <label for="first-name" class="block text-sm font-medium text-gray-700">First Name *</label>
-                  <input
-                    id="first-name"
-                    v-model="formData.tenant_first_name"
-                    type="text"
-                    required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label for="last-name" class="block text-sm font-medium text-gray-700">Last Name *</label>
-                  <input
-                    id="last-name"
-                    v-model="formData.tenant_last_name"
-                    type="text"
-                    required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label for="email" class="block text-sm font-medium text-gray-700">Email *</label>
-                  <input
-                    id="email"
-                    v-model="formData.tenant_email"
-                    type="email"
-                    required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                </div>
+          <!-- Tenant Count Selector -->
+          <div>
+            <label for="tenant-count" class="block text-sm font-medium text-gray-700 mb-2">Number of Tenants *</label>
+            <select
+              id="tenant-count"
+              v-model.number="tenantCount"
+              @change="updateTenantCount(tenantCount)"
+              class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            >
+              <option :value="1">1 Tenant</option>
+              <option :value="2">2 Tenants</option>
+              <option :value="3">3 Tenants</option>
+              <option :value="4">4 Tenants</option>
+              <option :value="5">5 Tenants</option>
+              <option :value="6">6 Tenants</option>
+            </select>
+          </div>
+
+          <!-- Property Information (shown once) -->
+          <div>
+            <h4 class="text-md font-semibold text-gray-700 mb-3">Property Information</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="address" class="block text-sm font-medium text-gray-700">Property Address *</label>
+                <input
+                  id="address"
+                  v-model="formData.property_address"
+                  type="text"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div>
+                <label for="city" class="block text-sm font-medium text-gray-700">City *</label>
+                <input
+                  id="city"
+                  v-model="formData.property_city"
+                  type="text"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div>
+                <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
+                <input
+                  id="postcode"
+                  v-model="formData.property_postcode"
+                  type="text"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div>
+                <label for="rent" class="block text-sm font-medium text-gray-700">Total Monthly Rent (£) *</label>
+                <input
+                  id="rent"
+                  v-model="formData.monthly_rent"
+                  type="number"
+                  step="0.01"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Single Tenant Information (v-if tenantCount === 1) -->
+          <div v-if="tenantCount === 1">
+            <h4 class="text-md font-semibold text-gray-700 mb-3">Tenant Information</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="first-name" class="block text-sm font-medium text-gray-700">First Name *</label>
+                <input
+                  id="first-name"
+                  v-model="formData.tenant_first_name"
+                  type="text"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div>
+                <label for="last-name" class="block text-sm font-medium text-gray-700">Last Name *</label>
+                <input
+                  id="last-name"
+                  v-model="formData.tenant_last_name"
+                  type="text"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email *</label>
+                <input
+                  id="email"
+                  v-model="formData.tenant_email"
+                  type="email"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div>
                 <PhoneInput
                   v-model="formData.tenant_phone"
                   label="Phone"
@@ -175,53 +240,83 @@
                 />
               </div>
             </div>
+          </div>
 
-            <!-- Property Information -->
-            <div>
-              <h4 class="text-md font-semibold text-gray-700 mb-3">Property Information</h4>
-              <div class="space-y-3">
+          <!-- Multiple Tenants (v-if tenantCount > 1) -->
+          <div v-if="tenantCount > 1">
+            <h4 class="text-md font-semibold text-gray-700 mb-3">Tenants</h4>
+            <div v-for="(tenant, index) in tenants" :key="index" class="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <h5 class="text-sm font-semibold text-gray-700 mb-3">Tenant {{ index + 1 }}</h5>
+              <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <label for="address" class="block text-sm font-medium text-gray-700">Property Address *</label>
+                  <label :for="`tenant-${index}-first-name`" class="block text-sm font-medium text-gray-700">First Name *</label>
                   <input
-                    id="address"
-                    v-model="formData.property_address"
+                    :id="`tenant-${index}-first-name`"
+                    v-model="tenant.first_name"
                     type="text"
                     required
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label for="city" class="block text-sm font-medium text-gray-700">City *</label>
+                  <label :for="`tenant-${index}-last-name`" class="block text-sm font-medium text-gray-700">Last Name *</label>
                   <input
-                    id="city"
-                    v-model="formData.property_city"
+                    :id="`tenant-${index}-last-name`"
+                    v-model="tenant.last_name"
                     type="text"
                     required
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
+                  <label :for="`tenant-${index}-email`" class="block text-sm font-medium text-gray-700">Email *</label>
                   <input
-                    id="postcode"
-                    v-model="formData.property_postcode"
-                    type="text"
+                    :id="`tenant-${index}-email`"
+                    v-model="tenant.email"
+                    type="email"
                     required
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label for="rent" class="block text-sm font-medium text-gray-700">Monthly Rent (£) *</label>
+                  <PhoneInput
+                    v-model="tenant.phone"
+                    :label="`Phone`"
+                    :id="`tenant-${index}-phone`"
+                    :required="false"
+                  />
+                </div>
+                <div class="col-span-2">
+                  <label :for="`tenant-${index}-rent-share`" class="block text-sm font-medium text-gray-700">Rent Share (£) *</label>
                   <input
-                    id="rent"
-                    v-model="formData.monthly_rent"
+                    :id="`tenant-${index}-rent-share`"
+                    v-model.number="tenant.rent_share"
                     type="number"
                     step="0.01"
                     required
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="0.00"
                   />
                 </div>
               </div>
+            </div>
+
+            <!-- Rent Calculator -->
+            <div class="p-4 rounded-lg" :class="rentSharesValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium" :class="rentSharesValid ? 'text-green-900' : 'text-red-900'">
+                  Total Rent Shares:
+                </span>
+                <span class="text-lg font-bold" :class="rentSharesValid ? 'text-green-900' : 'text-red-900'">
+                  £{{ totalRentShare.toFixed(2) }} / £{{ Number(formData.monthly_rent || 0).toFixed(2) }}
+                </span>
+              </div>
+              <p v-if="!rentSharesValid" class="text-xs text-red-700 mt-2">
+                Rent shares must sum exactly to the total monthly rent
+              </p>
+              <p v-else class="text-xs text-green-700 mt-2">
+                ✓ Rent shares match total rent
+              </p>
             </div>
           </div>
 
@@ -312,7 +407,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
@@ -332,6 +427,21 @@ const createLoading = ref(false)
 const createError = ref('')
 const createSuccess = ref('')
 
+const tenantCount = ref(1)
+const tenants = ref<Array<{
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  rent_share: number | null
+}>>([{
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone: '',
+  rent_share: null
+}])
+
 const formData = ref({
   tenant_first_name: '',
   tenant_last_name: '',
@@ -346,6 +456,34 @@ const formData = ref({
   term_months: 0,
   notes: ''
 })
+
+const totalRentShare = computed(() => {
+  return tenants.value.reduce((sum, t) => sum + (Number(t.rent_share) || 0), 0)
+})
+
+const rentSharesValid = computed(() => {
+  if (tenantCount.value === 1) return true
+  const total = totalRentShare.value
+  const monthlyRent = Number(formData.value.monthly_rent) || 0
+  return Math.abs(total - monthlyRent) < 0.01 && monthlyRent > 0
+})
+
+const updateTenantCount = (count: number) => {
+  tenantCount.value = count
+  // Adjust tenants array
+  while (tenants.value.length < count) {
+    tenants.value.push({
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      rent_share: null
+    })
+  }
+  while (tenants.value.length > count) {
+    tenants.value.pop()
+  }
+}
 
 onMounted(() => {
   fetchReferences()
@@ -399,10 +537,33 @@ const handleCreate = async () => {
       return
     }
 
-    // Convert empty date strings to null
-    const payload = {
-      ...formData.value,
-      move_in_date: formData.value.move_in_date || null
+    let payload: any
+
+    if (tenantCount.value === 1) {
+      // Single tenant flow
+      payload = {
+        ...formData.value,
+        move_in_date: formData.value.move_in_date || null
+      }
+    } else {
+      // Multi-tenant flow
+      if (!rentSharesValid.value) {
+        createError.value = 'Rent shares must sum to the total monthly rent'
+        createLoading.value = false
+        return
+      }
+
+      payload = {
+        tenants: tenants.value,
+        property_address: formData.value.property_address,
+        property_city: formData.value.property_city,
+        property_postcode: formData.value.property_postcode,
+        monthly_rent: formData.value.monthly_rent,
+        move_in_date: formData.value.move_in_date || null,
+        term_years: formData.value.term_years,
+        term_months: formData.value.term_months,
+        notes: formData.value.notes
+      }
     }
 
     const response = await fetch(`${API_URL}/api/references`, {
@@ -420,7 +581,9 @@ const handleCreate = async () => {
     }
 
     await response.json()
-    createSuccess.value = 'Reference created successfully!'
+    createSuccess.value = tenantCount.value > 1
+      ? `Reference created successfully for ${tenantCount.value} tenants!`
+      : 'Reference created successfully!'
 
     setTimeout(() => {
       closeCreateModal()
@@ -435,6 +598,14 @@ const handleCreate = async () => {
 
 const closeCreateModal = () => {
   showCreateModal.value = false
+  tenantCount.value = 1
+  tenants.value = [{
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    rent_share: null
+  }]
   formData.value = {
     tenant_first_name: '',
     tenant_last_name: '',

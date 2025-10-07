@@ -119,7 +119,51 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .eq('tenant_reference_id', referenceId)
       .single()
 
-    res.json({ reference, documents, landlordReference, agentReference, employerReference, accountantReference })
+    // Check if this is a parent reference and fetch children
+    let childReferences = null
+    if (reference.is_group_parent) {
+      const { data: children } = await supabase
+        .from('tenant_references')
+        .select('*')
+        .eq('parent_reference_id', referenceId)
+        .order('tenant_position', { ascending: true })
+
+      childReferences = children
+    }
+
+    // Check if this is a child reference and fetch parent + siblings
+    let parentReference = null
+    let siblingReferences = null
+    if (reference.parent_reference_id) {
+      const { data: parent } = await supabase
+        .from('tenant_references')
+        .select('*')
+        .eq('id', reference.parent_reference_id)
+        .single()
+
+      parentReference = parent
+
+      const { data: siblings } = await supabase
+        .from('tenant_references')
+        .select('*')
+        .eq('parent_reference_id', reference.parent_reference_id)
+        .neq('id', referenceId)
+        .order('tenant_position', { ascending: true })
+
+      siblingReferences = siblings
+    }
+
+    res.json({
+      reference,
+      documents,
+      landlordReference,
+      agentReference,
+      employerReference,
+      accountantReference,
+      childReferences,
+      parentReference,
+      siblingReferences
+    })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -136,6 +180,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       tenant_last_name,
       tenant_email,
       tenant_phone,
+      tenants, // New: array of tenants for multi-tenant properties
       property_address,
       property_city,
       property_postcode,
@@ -145,11 +190,6 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       term_months,
       notes
     } = req.body
-
-    // Validate required fields
-    if (!tenant_first_name || !tenant_last_name || !tenant_email || !property_address) {
-      return res.status(400).json({ error: 'Missing required fields' })
-    }
 
     // Get user's company
     console.log('Looking up company for user:', userId)
@@ -165,66 +205,190 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Generate unique token for tenant
-    const token = crypto.randomBytes(32).toString('hex')
-
-    // Token expires in 30 days
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 30)
-
-    // Create reference
-    const { data: reference, error } = await supabase
-      .from('tenant_references')
-      .insert({
-        company_id: companyUser.company_id,
-        created_by: userId,
-        tenant_first_name,
-        tenant_last_name,
-        tenant_email,
-        tenant_phone,
-        property_address,
-        property_city,
-        property_postcode,
-        monthly_rent,
-        move_in_date,
-        term_years: term_years || 0,
-        term_months: term_months || 0,
-        notes,
-        reference_token: token,
-        token_expires_at: expiresAt.toISOString(),
-        status: 'pending'
-      })
-      .select()
-      .single()
-
-    if (error) {
-      return res.status(400).json({ error: error.message })
-    }
-
-    // Get the company name for the email
     const companyName = (companyUser as any).companies?.name || 'Your agent'
 
-    // Send email to tenant with link to submit their information
-    const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
+    // Check if this is a multi-tenant reference
+    if (tenants && Array.isArray(tenants) && tenants.length > 1) {
+      // Multi-tenant flow
+      console.log('Creating multi-tenant reference with', tenants.length, 'tenants')
 
-    try {
-      await sendTenantReferenceRequest(
-        tenant_email,
-        `${tenant_first_name} ${tenant_last_name}`,
+      // Validate property fields
+      if (!property_address || !monthly_rent) {
+        return res.status(400).json({ error: 'Missing required property fields' })
+      }
+
+      // Validate all tenants have required fields and rent shares sum to monthly rent
+      const totalRentShare = tenants.reduce((sum, t) => sum + (parseFloat(t.rent_share) || 0), 0)
+      if (Math.abs(totalRentShare - parseFloat(monthly_rent)) > 0.01) {
+        return res.status(400).json({ error: 'Rent shares must sum to total monthly rent' })
+      }
+
+      for (const tenant of tenants) {
+        if (!tenant.first_name || !tenant.last_name || !tenant.email || !tenant.rent_share) {
+          return res.status(400).json({ error: 'Each tenant must have first name, last name, email, and rent share' })
+        }
+      }
+
+      // Token expires in 30 days
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + 30)
+
+      // Create parent reference (placeholder for the property)
+      const { data: parentReference, error: parentError } = await supabase
+        .from('tenant_references')
+        .insert({
+          company_id: companyUser.company_id,
+          created_by: userId,
+          tenant_first_name: 'Multi-Tenant Property',
+          tenant_last_name: `(${tenants.length} Tenants)`,
+          tenant_email: tenants[0].email, // Use first tenant's email as primary
+          tenant_phone: tenants[0].phone || null,
+          property_address,
+          property_city,
+          property_postcode,
+          monthly_rent,
+          move_in_date,
+          term_years: term_years || 0,
+          term_months: term_months || 0,
+          notes,
+          reference_token: crypto.randomBytes(32).toString('hex'), // Parent token (not used for form)
+          token_expires_at: expiresAt.toISOString(),
+          status: 'pending',
+          is_group_parent: true
+        })
+        .select()
+        .single()
+
+      if (parentError) {
+        return res.status(400).json({ error: parentError.message })
+      }
+
+      // Create child references for each tenant
+      const childReferences = []
+      for (let i = 0; i < tenants.length; i++) {
+        const tenant = tenants[i]
+        const token = crypto.randomBytes(32).toString('hex')
+
+        const { data: childReference, error: childError } = await supabase
+          .from('tenant_references')
+          .insert({
+            company_id: companyUser.company_id,
+            created_by: userId,
+            parent_reference_id: parentReference.id,
+            tenant_position: i + 1,
+            tenant_first_name: tenant.first_name,
+            tenant_last_name: tenant.last_name,
+            tenant_email: tenant.email,
+            tenant_phone: tenant.phone || null,
+            property_address,
+            property_city,
+            property_postcode,
+            monthly_rent, // Keep full rent for context
+            rent_share: tenant.rent_share,
+            move_in_date,
+            term_years: term_years || 0,
+            term_months: term_months || 0,
+            notes,
+            reference_token: token,
+            token_expires_at: expiresAt.toISOString(),
+            status: 'pending'
+          })
+          .select()
+          .single()
+
+        if (childError) {
+          console.error('Error creating child reference:', childError)
+          continue
+        }
+
+        childReferences.push(childReference)
+
+        // Send email to each tenant
+        const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
+        try {
+          await sendTenantReferenceRequest(
+            tenant.email,
+            `${tenant.first_name} ${tenant.last_name}`,
+            tenantUrl,
+            companyName
+          )
+          console.log('Email sent successfully to tenant:', tenant.email)
+        } catch (emailError: any) {
+          console.error('Failed to send email to', tenant.email, emailError)
+        }
+      }
+
+      res.json({
+        reference: parentReference,
+        childReferences,
+        message: `Reference created successfully for ${tenants.length} tenants`
+      })
+
+    } else {
+      // Single tenant flow (backward compatible)
+      // Validate required fields
+      if (!tenant_first_name || !tenant_last_name || !tenant_email || !property_address) {
+        return res.status(400).json({ error: 'Missing required fields' })
+      }
+
+      // Generate unique token for tenant
+      const token = crypto.randomBytes(32).toString('hex')
+
+      // Token expires in 30 days
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + 30)
+
+      // Create reference
+      const { data: reference, error } = await supabase
+        .from('tenant_references')
+        .insert({
+          company_id: companyUser.company_id,
+          created_by: userId,
+          tenant_first_name,
+          tenant_last_name,
+          tenant_email,
+          tenant_phone,
+          property_address,
+          property_city,
+          property_postcode,
+          monthly_rent,
+          move_in_date,
+          term_years: term_years || 0,
+          term_months: term_months || 0,
+          notes,
+          reference_token: token,
+          token_expires_at: expiresAt.toISOString(),
+          status: 'pending'
+        })
+        .select()
+        .single()
+
+      if (error) {
+        return res.status(400).json({ error: error.message })
+      }
+
+      // Send email to tenant with link to submit their information
+      const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
+
+      try {
+        await sendTenantReferenceRequest(
+          tenant_email,
+          `${tenant_first_name} ${tenant_last_name}`,
+          tenantUrl,
+          companyName
+        )
+        console.log('Email sent successfully to tenant:', tenant_email)
+      } catch (emailError: any) {
+        console.error('Failed to send email:', emailError)
+        // Don't fail the request if email fails, just log it
+      }
+
+      res.json({
+        reference,
         tenantUrl,
-        companyName
-      )
-      console.log('Email sent successfully to tenant:', tenant_email)
-    } catch (emailError: any) {
-      console.error('Failed to send email:', emailError)
-      // Don't fail the request if email fails, just log it
+        message: 'Reference created successfully'
+      })
     }
-
-    res.json({
-      reference,
-      tenantUrl,
-      message: 'Reference created successfully'
-    })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
