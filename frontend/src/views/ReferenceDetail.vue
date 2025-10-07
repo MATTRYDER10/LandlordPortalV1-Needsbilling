@@ -670,7 +670,7 @@
           </div>
 
           <!-- Landlord Reference Submitted -->
-          <div v-if="landlordReference" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div v-if="landlordReference && reference.reference_type === 'landlord'" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div class="flex items-center justify-between mb-4">
               <h4 class="text-sm font-semibold text-green-900">✓ Landlord Reference Completed</h4>
               <span class="text-xs text-green-700">Submitted {{ formatDateTime(landlordReference.submitted_at) }}</span>
@@ -813,7 +813,7 @@
           </div>
 
           <!-- Agent Reference Submitted -->
-          <div v-if="agentReference" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div v-if="agentReference && reference.reference_type === 'agent'" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div class="flex items-center justify-between mb-4">
               <h4 class="text-sm font-semibold text-green-900">✓ Letting Agent Reference Completed</h4>
               <span class="text-xs text-green-700">Submitted {{ formatDateTime(agentReference.submitted_at) }}</span>
