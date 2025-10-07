@@ -36,7 +36,7 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
  * Load and process an email template
  */
 export function loadEmailTemplate(templateName: string, variables: Record<string, string>): string {
-  const templatePath = path.join(__dirname, '../../../email-templates', `${templateName}.html`);
+  const templatePath = path.join(__dirname, '../../email-templates', `${templateName}.html`);
 
   let template = fs.readFileSync(templatePath, 'utf-8');
 
