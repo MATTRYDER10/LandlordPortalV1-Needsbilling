@@ -238,23 +238,29 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Term Length</label>
               <div class="grid grid-cols-2 gap-3">
-                <input
-                  id="term-years"
-                  v-model.number="formData.term_years"
-                  type="number"
-                  min="0"
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="Years (0)"
-                />
-                <input
-                  id="term-months"
-                  v-model.number="formData.term_months"
-                  type="number"
-                  min="0"
-                  max="11"
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="Months (0-11)"
-                />
+                <div class="flex items-center gap-2">
+                  <label for="term-years" class="text-sm text-gray-600 whitespace-nowrap">Years</label>
+                  <input
+                    id="term-years"
+                    v-model.number="formData.term_years"
+                    type="number"
+                    min="0"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="0"
+                  />
+                </div>
+                <div class="flex items-center gap-2">
+                  <label for="term-months" class="text-sm text-gray-600 whitespace-nowrap">Months</label>
+                  <input
+                    id="term-months"
+                    v-model.number="formData.term_months"
+                    type="number"
+                    min="0"
+                    max="11"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="0"
+                  />
+                </div>
               </div>
             </div>
           </div>
