@@ -928,33 +928,47 @@ router.post('/landlord/:referenceId', async (req, res) => {
     }
 
     // Update reference status based on required references
-    // Check if employer reference is required (employer email provided)
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('employer_email')
+      .select('employer_ref_email, income_self_employed')
       .eq('id', referenceId)
       .single()
 
-    // If no employer email provided, mark as pending verification immediately
-    // If employer email provided, only mark as pending verification if employer reference exists
-    if (!tenantRef?.employer_email) {
-      await supabase
-        .from('tenant_references')
-        .update({ status: 'pending_verification' })
-        .eq('id', referenceId)
-    } else {
+    // Check all required references
+    let allReferencesSubmitted = true
+
+    // Check employer reference if required
+    if (tenantRef?.employer_ref_email) {
       const { data: employerRef } = await supabase
         .from('employer_references')
         .select('id')
         .eq('reference_id', referenceId)
         .single()
 
-      if (employerRef) {
-        await supabase
-          .from('tenant_references')
-          .update({ status: 'pending_verification' })
-          .eq('id', referenceId)
+      if (!employerRef) {
+        allReferencesSubmitted = false
       }
+    }
+
+    // Check accountant reference if required (self-employed)
+    if (tenantRef?.income_self_employed) {
+      const { data: accountantRef } = await supabase
+        .from('accountant_references')
+        .select('id, submitted_at')
+        .eq('tenant_reference_id', referenceId)
+        .single()
+
+      if (!accountantRef || !accountantRef.submitted_at) {
+        allReferencesSubmitted = false
+      }
+    }
+
+    // Only mark as pending verification if all required references are submitted
+    if (allReferencesSubmitted) {
+      await supabase
+        .from('tenant_references')
+        .update({ status: 'pending_verification' })
+        .eq('id', referenceId)
     }
 
     res.json({ message: 'Landlord reference submitted successfully' })
@@ -1020,33 +1034,47 @@ router.post('/agent/:referenceId', async (req, res) => {
     }
 
     // Update reference status based on required references
-    // Check if employer reference is required (employer email provided)
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('employer_ref_email')
+      .select('employer_ref_email, income_self_employed')
       .eq('id', referenceId)
       .single()
 
-    // If no employer email provided, mark as pending verification immediately
-    // If employer email provided, only mark as pending verification if employer reference exists
-    if (!tenantRef?.employer_ref_email) {
-      await supabase
-        .from('tenant_references')
-        .update({ status: 'pending_verification' })
-        .eq('id', referenceId)
-    } else {
+    // Check all required references
+    let allReferencesSubmitted = true
+
+    // Check employer reference if required
+    if (tenantRef?.employer_ref_email) {
       const { data: employerRef } = await supabase
         .from('employer_references')
         .select('id')
         .eq('reference_id', referenceId)
         .single()
 
-      if (employerRef) {
-        await supabase
-          .from('tenant_references')
-          .update({ status: 'pending_verification' })
-          .eq('id', referenceId)
+      if (!employerRef) {
+        allReferencesSubmitted = false
       }
+    }
+
+    // Check accountant reference if required (self-employed)
+    if (tenantRef?.income_self_employed) {
+      const { data: accountantRef } = await supabase
+        .from('accountant_references')
+        .select('id, submitted_at')
+        .eq('tenant_reference_id', referenceId)
+        .single()
+
+      if (!accountantRef || !accountantRef.submitted_at) {
+        allReferencesSubmitted = false
+      }
+    }
+
+    // Only mark as pending verification if all required references are submitted
+    if (allReferencesSubmitted) {
+      await supabase
+        .from('tenant_references')
+        .update({ status: 'pending_verification' })
+        .eq('id', referenceId)
     }
 
     res.json({ message: 'Agent reference submitted successfully' })
@@ -1121,33 +1149,59 @@ router.post('/employer/:referenceId', async (req, res) => {
     }
 
     // Update reference status based on required references
-    // Check if landlord reference is required (landlord email provided)
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('previous_landlord_email')
+      .select('previous_landlord_email, reference_type, income_self_employed')
       .eq('id', referenceId)
       .single()
 
-    // If no landlord email provided, mark as pending verification immediately
-    // If landlord email provided, only mark as pending verification if landlord reference exists
-    if (!tenantRef?.previous_landlord_email) {
+    // Check all required references
+    let allReferencesSubmitted = true
+
+    // Check landlord or agent reference if required
+    if (tenantRef?.previous_landlord_email) {
+      if (tenantRef.reference_type === 'agent') {
+        const { data: agentRef } = await supabase
+          .from('agent_references')
+          .select('id')
+          .eq('reference_id', referenceId)
+          .single()
+
+        if (!agentRef) {
+          allReferencesSubmitted = false
+        }
+      } else {
+        const { data: landlordRef } = await supabase
+          .from('landlord_references')
+          .select('id')
+          .eq('reference_id', referenceId)
+          .single()
+
+        if (!landlordRef) {
+          allReferencesSubmitted = false
+        }
+      }
+    }
+
+    // Check accountant reference if required (self-employed)
+    if (tenantRef?.income_self_employed) {
+      const { data: accountantRef } = await supabase
+        .from('accountant_references')
+        .select('id, submitted_at')
+        .eq('tenant_reference_id', referenceId)
+        .single()
+
+      if (!accountantRef || !accountantRef.submitted_at) {
+        allReferencesSubmitted = false
+      }
+    }
+
+    // Only mark as pending verification if all required references are submitted
+    if (allReferencesSubmitted) {
       await supabase
         .from('tenant_references')
         .update({ status: 'pending_verification' })
         .eq('id', referenceId)
-    } else {
-      const { data: landlordRef } = await supabase
-        .from('landlord_references')
-        .select('id')
-        .eq('reference_id', referenceId)
-        .single()
-
-      if (landlordRef) {
-        await supabase
-          .from('tenant_references')
-          .update({ status: 'pending_verification' })
-          .eq('id', referenceId)
-      }
     }
 
     res.json({ message: 'Employer reference submitted successfully' })
@@ -1208,6 +1262,62 @@ router.post('/accountant/:token', async (req, res) => {
 
     if (updateError) {
       return res.status(400).json({ error: updateError.message })
+    }
+
+    // Update reference status based on required references
+    const { data: tenantRef } = await supabase
+      .from('tenant_references')
+      .select('employer_ref_email, previous_landlord_email, reference_type')
+      .eq('id', accountantRef.tenant_reference_id)
+      .single()
+
+    // Check all required references
+    let allReferencesSubmitted = true
+
+    // Check employer reference if required
+    if (tenantRef?.employer_ref_email) {
+      const { data: employerRef } = await supabase
+        .from('employer_references')
+        .select('id')
+        .eq('reference_id', accountantRef.tenant_reference_id)
+        .single()
+
+      if (!employerRef) {
+        allReferencesSubmitted = false
+      }
+    }
+
+    // Check landlord or agent reference if required
+    if (tenantRef?.previous_landlord_email) {
+      if (tenantRef.reference_type === 'agent') {
+        const { data: agentRef } = await supabase
+          .from('agent_references')
+          .select('id')
+          .eq('reference_id', accountantRef.tenant_reference_id)
+          .single()
+
+        if (!agentRef) {
+          allReferencesSubmitted = false
+        }
+      } else {
+        const { data: landlordRef } = await supabase
+          .from('landlord_references')
+          .select('id')
+          .eq('reference_id', accountantRef.tenant_reference_id)
+          .single()
+
+        if (!landlordRef) {
+          allReferencesSubmitted = false
+        }
+      }
+    }
+
+    // Only mark as pending verification if all required references are submitted
+    if (allReferencesSubmitted) {
+      await supabase
+        .from('tenant_references')
+        .update({ status: 'pending_verification' })
+        .eq('id', accountantRef.tenant_reference_id)
     }
 
     res.json({ message: 'Accountant reference submitted successfully' })
