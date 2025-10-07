@@ -434,6 +434,19 @@ const handleSubmit = async () => {
 onMounted(async () => {
   try {
     const referenceId = route.params.referenceId
+
+    // Check if reference already submitted
+    const checkResponse = await fetch(`${API_URL}/api/references/landlord/${referenceId}/check`)
+    if (checkResponse.ok) {
+      const checkData = await checkResponse.json()
+      if (checkData.submitted) {
+        submitted.value = true
+        brandingLoaded.value = true
+        return
+      }
+    }
+
+    // Load branding
     const response = await fetch(`${API_URL}/api/references/branding/${referenceId}`)
 
     if (response.ok) {

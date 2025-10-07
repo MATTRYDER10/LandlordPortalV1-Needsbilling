@@ -438,6 +438,22 @@ onMounted(async () => {
     return
   }
 
+  // Check if reference already submitted
+  try {
+    const checkResponse = await fetch(`${API_URL}/api/references/accountant/${token}/check`)
+    if (checkResponse.ok) {
+      const checkData = await checkResponse.json()
+      if (checkData.submitted) {
+        submitted.value = true
+        brandingLoaded.value = true
+        loading.value = false
+        return
+      }
+    }
+  } catch (err) {
+    console.error('Failed to check submission status:', err)
+  }
+
   // Fetch company branding
   try {
     const response = await fetch(`${API_URL}/api/references/accountant/branding/${token}`)

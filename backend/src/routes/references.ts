@@ -799,6 +799,74 @@ router.get('/accountant/branding/:token', async (req, res) => {
   }
 })
 
+// Check if landlord reference already submitted (public route)
+router.get('/landlord/:referenceId/check', async (req, res) => {
+  try {
+    const { referenceId } = req.params
+
+    const { data: landlordRef } = await supabase
+      .from('landlord_references')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .single()
+
+    res.json({ submitted: !!landlordRef })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Check if agent reference already submitted (public route)
+router.get('/agent/:referenceId/check', async (req, res) => {
+  try {
+    const { referenceId } = req.params
+
+    const { data: agentRef } = await supabase
+      .from('agent_references')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .single()
+
+    res.json({ submitted: !!agentRef })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Check if employer reference already submitted (public route)
+router.get('/employer/:referenceId/check', async (req, res) => {
+  try {
+    const { referenceId } = req.params
+
+    const { data: employerRef } = await supabase
+      .from('employer_references')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .single()
+
+    res.json({ submitted: !!employerRef })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Check if accountant reference already submitted (public route)
+router.get('/accountant/:token/check', async (req, res) => {
+  try {
+    const { token } = req.params
+
+    const { data: accountantRef } = await supabase
+      .from('accountant_references')
+      .select('id')
+      .eq('token', token)
+      .single()
+
+    res.json({ submitted: !!accountantRef })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Landlord submits reference (public route)
 router.post('/landlord/:referenceId', async (req, res) => {
   try {
