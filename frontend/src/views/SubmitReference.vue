@@ -679,7 +679,7 @@
 
                 <!-- Payslips Upload -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Payslips (Last 3 months) *</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Payslips (Last 3 months) (Optional)</label>
                   <input
                     ref="payslipInput"
                     type="file"
@@ -2497,11 +2497,6 @@ const handlePageSubmit = async () => {
   } else if (currentPage.value === 5) {
     if (!proofOfAddress.value && !formData.value.proof_of_address_path) {
       submitError.value = 'Please upload proof of address'
-      return
-    }
-  } else if (currentPage.value === 6) {
-    if (formData.value.income_regular_employment && payslips.value.length === 0 && formData.value.payslip_paths.length === 0) {
-      submitError.value = 'Please upload your payslips'
       return
     }
   }
