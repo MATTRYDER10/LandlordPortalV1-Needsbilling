@@ -491,7 +491,7 @@
               </div>
 
               <!-- Accountant Reference Status -->
-              <div v-if="reference.accountant_email && !accountantReference" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div v-if="reference.accountant_email && (!accountantReference || !accountantReference.submitted_at)" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h4 class="text-sm font-semibold text-blue-900 mb-2">Accountant Reference</h4>
                 <p class="text-sm text-blue-800">
                   An email has been sent to the accountant to complete their reference.
@@ -499,7 +499,7 @@
               </div>
 
               <!-- Accountant Reference Submitted -->
-              <div v-if="accountantReference" class="mt-4 bg-green-50 border border-green-200 rounded-lg">
+              <div v-if="accountantReference && accountantReference.submitted_at" class="mt-4 bg-green-50 border border-green-200 rounded-lg">
                 <div class="p-4">
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-lg font-semibold text-green-900">✓ Accountant Reference Completed</h4>

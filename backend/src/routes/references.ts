@@ -862,11 +862,11 @@ router.get('/accountant/:token/check', async (req, res) => {
 
     const { data: accountantRef } = await supabase
       .from('accountant_references')
-      .select('id')
+      .select('id, submitted_at')
       .eq('token', token)
       .single()
 
-    res.json({ submitted: !!accountantRef })
+    res.json({ submitted: !!(accountantRef && accountantRef.submitted_at) })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

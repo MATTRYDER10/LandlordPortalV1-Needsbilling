@@ -530,7 +530,7 @@
               </div>
 
               <!-- Accountant Reference Status -->
-              <div v-if="reference.accountant_email && !accountantReference" class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div v-if="reference.accountant_email && (!accountantReference || !accountantReference.submitted_at)" class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p class="text-sm text-yellow-800">
                   <strong>Status:</strong> Pending accountant response
                 </p>
@@ -540,7 +540,7 @@
               </div>
 
               <!-- Accountant Reference Submitted -->
-              <div v-if="accountantReference" class="mt-4 bg-green-50 border border-green-200 rounded-lg">
+              <div v-if="accountantReference && accountantReference.submitted_at" class="mt-4 bg-green-50 border border-green-200 rounded-lg">
                 <div class="p-4">
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-lg font-semibold text-green-900">✓ Accountant Reference Completed</h4>
