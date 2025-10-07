@@ -61,10 +61,17 @@
           <tbody v-else class="bg-white divide-y divide-gray-200">
             <tr v-for="reference in references" :key="reference.id" class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium text-gray-900">
-                  {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
+                <div class="flex items-center gap-2">
+                  <div>
+                    <div class="text-sm font-medium text-gray-900">
+                      {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
+                    </div>
+                    <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
+                  </div>
+                  <span v-if="reference.is_group_parent" class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                    {{ reference.tenant_count || 0 }} Tenants
+                  </span>
                 </div>
-                <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
               </td>
               <td class="px-6 py-4">
                 <div class="text-sm text-gray-900">{{ reference.property_address }}</div>

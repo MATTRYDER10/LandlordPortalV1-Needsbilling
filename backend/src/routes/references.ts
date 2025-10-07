@@ -39,18 +39,32 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Get all references for the company
+    // Get all references for the company (excluding child references)
     const { data: references, error } = await supabase
       .from('tenant_references')
       .select('*')
       .eq('company_id', companyUser.company_id)
+      .is('parent_reference_id', null) // Only get top-level references (no children)
       .order('created_at', { ascending: false })
 
     if (error) {
       return res.status(400).json({ error: error.message })
     }
 
-    res.json({ references })
+    // For each parent reference, count the children
+    const referencesWithCount = await Promise.all(references.map(async (ref) => {
+      if (ref.is_group_parent) {
+        const { count } = await supabase
+          .from('tenant_references')
+          .select('*', { count: 'exact', head: true })
+          .eq('parent_reference_id', ref.id)
+
+        return { ...ref, tenant_count: count || 0 }
+      }
+      return ref
+    }))
+
+    res.json({ references: referencesWithCount })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

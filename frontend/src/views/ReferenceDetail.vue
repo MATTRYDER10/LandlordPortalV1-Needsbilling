@@ -42,6 +42,77 @@
           </span>
         </div>
 
+        <!-- Child Reference Context Banner -->
+        <div v-if="parentReference" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start">
+            <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+            <div class="flex-1">
+              <h4 class="text-sm font-semibold text-blue-900 mb-1">Multi-Tenant Property</h4>
+              <p class="text-sm text-blue-800">
+                This is one of multiple tenants for this property.
+                <span v-if="reference.rent_share">
+                  This tenant's rent share: <strong>£{{ reference.rent_share }}</strong> of £{{ reference.monthly_rent }} total.
+                </span>
+              </p>
+              <div v-if="siblingReferences && siblingReferences.length > 0" class="mt-2">
+                <p class="text-xs text-blue-700 font-medium mb-1">Other tenants:</p>
+                <ul class="text-xs text-blue-700 space-y-1">
+                  <li v-for="sibling in siblingReferences" :key="sibling.id" class="flex items-center">
+                    <span class="mr-2">•</span>
+                    {{ sibling.tenant_first_name }} {{ sibling.tenant_last_name }}
+                    <span v-if="sibling.rent_share" class="ml-2 text-blue-600">(£{{ sibling.rent_share }})</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Parent Reference - All Tenants List -->
+        <div v-if="reference.is_group_parent && childReferences && childReferences.length > 0" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            All Tenants ({{ childReferences.length }})
+          </h3>
+          <div class="space-y-3">
+            <div v-for="(child, index) in childReferences" :key="child.id" class="border border-gray-200 rounded-lg p-4 hover:border-primary transition-colors">
+              <div class="flex justify-between items-start">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs font-semibold text-gray-500">Tenant {{ index + 1 }}</span>
+                    <span
+                      class="px-2 py-0.5 text-xs font-semibold rounded-full"
+                      :class="{
+                        'bg-yellow-100 text-yellow-800': child.status === 'pending',
+                        'bg-blue-100 text-blue-800': child.status === 'in_progress',
+                        'bg-orange-100 text-orange-800': child.status === 'pending_verification',
+                        'bg-green-100 text-green-800': child.status === 'completed'
+                      }"
+                    >
+                      {{ formatStatus(child.status) }}
+                    </span>
+                  </div>
+                  <h4 class="text-base font-semibold text-gray-900">
+                    {{ child.tenant_first_name }} {{ child.tenant_last_name }}
+                  </h4>
+                  <p class="text-sm text-gray-600">{{ child.tenant_email }}</p>
+                  <p v-if="child.tenant_phone" class="text-sm text-gray-600">{{ child.tenant_phone }}</p>
+                  <p class="text-sm font-medium text-gray-900 mt-2">
+                    Rent Share: <span class="text-primary">£{{ child.rent_share }}</span>
+                  </p>
+                </div>
+                <button
+                  @click="$router.push(`/references/${child.id}`)"
+                  class="ml-4 px-3 py-1.5 text-sm bg-primary text-white rounded-md hover:bg-primary/90"
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Property Information (from initial reference creation) -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Property Information</h3>
@@ -1110,6 +1181,9 @@ const landlordReference = ref<any>(null)
 const agentReference = ref<any>(null)
 const employerReference = ref<any>(null)
 const accountantReference = ref<any>(null)
+const childReferences = ref<any[]>([])
+const parentReference = ref<any>(null)
+const siblingReferences = ref<any[]>([])
 const loading = ref(true)
 const error = ref('')
 
@@ -1150,6 +1224,9 @@ const fetchReference = async () => {
     agentReference.value = data.agentReference
     employerReference.value = data.employerReference
     accountantReference.value = data.accountantReference
+    childReferences.value = data.childReferences || []
+    parentReference.value = data.parentReference
+    siblingReferences.value = data.siblingReferences || []
   } catch (err: any) {
     error.value = err.message || 'Failed to load reference'
   } finally {
