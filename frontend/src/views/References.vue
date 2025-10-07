@@ -59,20 +59,32 @@
             </tr>
           </tbody>
           <tbody v-else class="bg-white divide-y divide-gray-200">
-            <tr v-for="reference in references" :key="reference.id" class="hover:bg-gray-50">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center gap-2">
-                  <div>
-                    <div class="text-sm font-medium text-gray-900">
-                      {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
+            <template v-for="reference in references" :key="reference.id">
+              <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center gap-2">
+                    <button
+                      v-if="reference.is_group_parent"
+                      @click.stop="toggleExpanded(reference.id)"
+                      class="text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                      <svg class="w-5 h-5 transition-transform" :class="{ 'rotate-90': expandedReference === reference.id }" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                      </svg>
+                    </button>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <div class="text-sm font-medium text-gray-900">
+                          {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
+                        </div>
+                        <span v-if="reference.is_group_parent" class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                          {{ reference.tenant_count || 0 }} Tenants
+                        </span>
+                      </div>
+                      <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
                     </div>
-                    <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
                   </div>
-                  <span v-if="reference.is_group_parent" class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                    {{ reference.tenant_count || 0 }} Tenants
-                  </span>
-                </div>
-              </td>
+                </td>
               <td class="px-6 py-4">
                 <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
                 <div class="text-sm text-gray-500">
@@ -106,6 +118,53 @@
                 </button>
               </td>
             </tr>
+            <!-- Expanded Tenant List -->
+            <tr v-if="reference.is_group_parent && expandedReference === reference.id" class="bg-gray-50">
+              <td colspan="5" class="px-6 py-4">
+                <div class="ml-8">
+                  <h4 class="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Individual Tenants</h4>
+                  <div v-if="reference.children" class="space-y-2">
+                    <div v-for="(child, index) in reference.children" :key="child.id"
+                         class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-primary transition-colors">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-medium text-gray-500">Tenant {{ index + 1 }}</span>
+                          <span
+                            class="px-2 py-0.5 text-xs font-semibold rounded-full"
+                            :class="{
+                              'bg-yellow-100 text-yellow-800': child.status === 'pending',
+                              'bg-blue-100 text-blue-800': child.status === 'in_progress',
+                              'bg-orange-100 text-orange-800': child.status === 'pending_verification',
+                              'bg-green-100 text-green-800': child.status === 'completed'
+                            }"
+                          >
+                            {{ formatStatus(child.status) }}
+                          </span>
+                        </div>
+                        <p class="text-sm font-medium text-gray-900 mt-1">
+                          {{ child.tenant_first_name }} {{ child.tenant_last_name }}
+                        </p>
+                        <p class="text-xs text-gray-600">{{ child.tenant_email }}</p>
+                        <p class="text-xs text-gray-900 mt-1">
+                          Rent Share: <span class="font-semibold text-primary">£{{ child.rent_share }}</span>
+                        </p>
+                      </div>
+                      <button
+                        @click="viewReference(child)"
+                        class="ml-4 px-3 py-1.5 text-xs bg-primary text-white rounded-md hover:bg-primary/90"
+                      >
+                        View
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="flex items-center justify-center py-4">
+                    <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                    <span class="ml-2 text-sm text-gray-600">Loading tenants...</span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -433,6 +492,7 @@ const loading = ref(true)
 const createLoading = ref(false)
 const createError = ref('')
 const createSuccess = ref('')
+const expandedReference = ref<string | null>(null)
 
 const tenantCount = ref(1)
 const tenants = ref<Array<{
@@ -645,5 +705,42 @@ const formatDate = (date: string) => {
 
 const viewReference = (reference: any) => {
   router.push(`/references/${reference.id}`)
+}
+
+const toggleExpanded = async (referenceId: string) => {
+  if (expandedReference.value === referenceId) {
+    expandedReference.value = null
+  } else {
+    expandedReference.value = referenceId
+    // Fetch children if not already loaded
+    const reference = references.value.find(r => r.id === referenceId)
+    if (reference && reference.is_group_parent && !reference.children) {
+      await fetchChildren(referenceId)
+    }
+  }
+}
+
+const fetchChildren = async (parentId: string) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/references/${parentId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      const reference = references.value.find(r => r.id === parentId)
+      if (reference && data.childReferences) {
+        reference.children = data.childReferences
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch children:', error)
+  }
 }
 </script>

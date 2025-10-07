@@ -253,8 +253,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         .insert({
           company_id: companyUser.company_id,
           created_by: userId,
-          tenant_first_name: 'Multi-Tenant Property',
-          tenant_last_name: `(${tenants.length} Tenants)`,
+          tenant_first_name: 'Multi-Tenant',
+          tenant_last_name: 'Property',
           tenant_email: tenants[0].email, // Use first tenant's email as primary
           tenant_phone: tenants[0].phone || null,
           property_address,
