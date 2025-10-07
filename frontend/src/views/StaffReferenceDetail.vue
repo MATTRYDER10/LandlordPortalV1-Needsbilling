@@ -557,7 +557,7 @@
                       <h5 class="text-sm font-semibold text-green-800 mb-2">Business Information</h5>
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-green-700 font-medium">Business Name:</span> <span class="text-green-900">{{ accountantReference.business_name }}</span></div>
-                        <div><span class="text-green-700 font-medium">Trading Status:</span> <span class="text-green-900">{{ accountantReference.trading_status }}</span></div>
+                        <div><span class="text-green-700 font-medium">Trading Status:</span> <span class="text-green-900 capitalize">{{ accountantReference.business_trading_status }}</span></div>
                         <div><span class="text-green-700 font-medium">Start Date:</span> <span class="text-green-900">{{ formatDate(accountantReference.business_start_date) }}</span></div>
                         <div><span class="text-green-700 font-medium">Nature:</span> <span class="text-green-900">{{ accountantReference.nature_of_business }}</span></div>
                       </div>
@@ -567,17 +567,18 @@
                     <div>
                       <h5 class="text-sm font-semibold text-green-800 mb-2">Financial Information</h5>
                       <div class="grid grid-cols-2 gap-3 text-sm">
-                        <div><span class="text-green-700 font-medium">Annual Turnover:</span> <span class="text-green-900">£{{ accountantReference.annual_turnover }}</span></div>
-                        <div><span class="text-green-700 font-medium">Net Profit:</span> <span class="text-green-900">£{{ accountantReference.net_profit }}</span></div>
-                        <div><span class="text-green-700 font-medium">Tax Year:</span> <span class="text-green-900">{{ accountantReference.tax_year }}</span></div>
-                        <div><span class="text-green-700 font-medium">Tax Returns Filed:</span> <span class="text-green-900">{{ accountantReference.tax_returns_filed }}</span></div>
-                        <div><span class="text-green-700 font-medium">Accounts Prepared:</span> <span class="text-green-900">{{ accountantReference.accounts_prepared }}</span></div>
-                        <div><span class="text-green-700 font-medium">Tax Liabilities:</span> <span class="text-green-900">{{ accountantReference.outstanding_tax_liabilities }}</span></div>
-                        <div><span class="text-green-700 font-medium">Financial Stability:</span> <span class="text-green-900">{{ accountantReference.financial_stability }}</span></div>
+                        <div><span class="text-green-700 font-medium">Annual Turnover:</span> <span class="text-green-900">£{{ accountantReference.annual_turnover?.toLocaleString() }}</span></div>
+                        <div><span class="text-green-700 font-medium">Annual Net Profit:</span> <span class="text-green-900">£{{ accountantReference.annual_profit?.toLocaleString() }}</span></div>
+                        <div><span class="text-green-700 font-medium">Tax Returns Filed:</span> <span class="text-green-900">{{ accountantReference.tax_returns_filed ? 'Yes' : 'No' }}</span></div>
+                        <div v-if="accountantReference.last_tax_return_date"><span class="text-green-700 font-medium">Last Tax Return:</span> <span class="text-green-900">{{ formatDate(accountantReference.last_tax_return_date) }}</span></div>
+                        <div><span class="text-green-700 font-medium">Accounts Prepared:</span> <span class="text-green-900">{{ accountantReference.accounts_prepared ? 'Yes' : 'No' }}</span></div>
+                        <div v-if="accountantReference.accounts_year_end"><span class="text-green-700 font-medium">Accounts Year End:</span> <span class="text-green-900">{{ formatDate(accountantReference.accounts_year_end) }}</span></div>
+                        <div><span class="text-green-700 font-medium">Tax Liabilities:</span> <span class="text-green-900">{{ accountantReference.any_outstanding_tax_liabilities ? 'Yes' : 'No' }}</span></div>
+                        <div><span class="text-green-700 font-medium">Financially Stable:</span> <span class="text-green-900 font-semibold">{{ accountantReference.business_financially_stable ? 'Yes' : 'No' }}</span></div>
                       </div>
-                      <div v-if="accountantReference.financial_concerns_details" class="mt-3 p-3 bg-white rounded border border-green-200">
-                        <span class="text-green-700 font-medium text-sm">Financial Concerns:</span>
-                        <p class="text-green-900 text-sm mt-1">{{ accountantReference.financial_concerns_details }}</p>
+                      <div v-if="accountantReference.tax_liabilities_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Tax Liabilities Details:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ accountantReference.tax_liabilities_details }}</p>
                       </div>
                     </div>
 
@@ -585,18 +586,22 @@
                     <div>
                       <h5 class="text-sm font-semibold text-green-800 mb-2">Income Verification</h5>
                       <div class="grid grid-cols-2 gap-3 text-sm">
-                        <div><span class="text-green-700 font-medium">Income Confirmed:</span> <span class="text-green-900">{{ accountantReference.income_confirmed }}</span></div>
-                        <div><span class="text-green-700 font-medium">Estimated Monthly Income:</span> <span class="text-green-900">£{{ accountantReference.estimated_monthly_income }}</span></div>
+                        <div><span class="text-green-700 font-medium">Income Confirmed:</span> <span class="text-green-900 font-semibold">{{ accountantReference.accountant_confirms_income ? 'Yes' : 'No' }}</span></div>
+                        <div><span class="text-green-700 font-medium">Est. Monthly Income:</span> <span class="text-green-900">£{{ accountantReference.estimated_monthly_income?.toLocaleString() }}</span></div>
                       </div>
                     </div>
 
                     <!-- Recommendation -->
                     <div>
                       <h5 class="text-sm font-semibold text-green-800 mb-2">Professional Recommendation</h5>
-                      <div class="grid grid-cols-2 gap-3 text-sm mb-3">
-                        <div class="col-span-2"><span class="text-green-700 font-medium">Would Recommend:</span> <span class="text-green-900 font-semibold">{{ accountantReference.would_recommend }}</span></div>
+                      <div class="mb-2">
+                        <span class="text-green-700 font-medium text-sm">Would Recommend:</span>
+                        <span class="ml-2 text-green-900 font-semibold">{{ accountantReference.would_recommend ? 'Yes' : 'No' }}</span>
                       </div>
-                      <div v-if="accountantReference.additional_comments" class="p-3 bg-white rounded border border-green-200">
+                      <div v-if="accountantReference.recommendation_comments" class="mt-2 p-3 bg-white rounded border border-green-200">
+                        <p class="text-green-900 text-sm">{{ accountantReference.recommendation_comments }}</p>
+                      </div>
+                      <div v-if="accountantReference.additional_comments" class="mt-2 p-3 bg-white rounded border border-green-200">
                         <span class="text-green-700 font-medium text-sm">Additional Comments:</span>
                         <p class="text-green-900 text-sm mt-1">{{ accountantReference.additional_comments }}</p>
                       </div>
