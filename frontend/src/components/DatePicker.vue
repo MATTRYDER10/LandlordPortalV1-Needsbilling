@@ -3,7 +3,7 @@
     <label v-if="label" class="block text-sm font-medium text-gray-700 mb-2">
       {{ label }} <span v-if="required" class="text-red-500">*</span>
     </label>
-    <div class="grid grid-cols-3 gap-3">
+    <div class="grid grid-cols-3" :class="gap">
       <div>
         <select
           v-model="selectedDay"
@@ -58,6 +58,7 @@ interface Props {
   required?: boolean
   selectClass?: string
   yearRangeType?: 'past' | 'future' | 'current' | 'employment' | 'tenancy' | 'move-in'
+  gap?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -65,7 +66,8 @@ const props = withDefaults(defineProps<Props>(), {
   label: '',
   required: false,
   selectClass: 'block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary',
-  yearRangeType: 'past'
+  yearRangeType: 'past',
+  gap: 'gap-3'
 })
 
 const emit = defineEmits<{
