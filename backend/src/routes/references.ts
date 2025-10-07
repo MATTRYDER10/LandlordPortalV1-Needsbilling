@@ -3,7 +3,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
-import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest } from '../services/emailService'
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAccountantReferenceRequest } from '../services/emailService'
 
 const router = Router()
 
@@ -105,7 +105,14 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .eq('reference_id', referenceId)
       .single()
 
-    res.json({ reference, documents, landlordReference, employerReference })
+    // Get accountant reference if exists
+    const { data: accountantReference } = await supabase
+      .from('accountant_references')
+      .select('*')
+      .eq('tenant_reference_id', referenceId)
+      .single()
+
+    res.json({ reference, documents, landlordReference, employerReference, accountantReference })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -336,6 +343,7 @@ router.post('/submit/:token', async (req, res) => {
 
       // Financial Information - Income Sources (Page 6)
       income_regular_employment: data.income_regular_employment || false,
+      income_self_employed: data.income_self_employed || false,
       income_benefits: data.income_benefits || false,
       income_savings_pension_investments: data.income_savings_pension_investments || false,
       income_student: data.income_student || false,
@@ -361,6 +369,18 @@ router.post('/submit/:token', async (req, res) => {
       employer_ref_name: data.employer_ref_name || null,
       employer_ref_email: data.employer_ref_email || null,
       employer_ref_phone: data.employer_ref_phone || null,
+
+      // Self-Employed Details (Page 6)
+      self_employed_business_name: data.self_employed_business_name || null,
+      self_employed_start_date: data.self_employed_start_date || null,
+      self_employed_nature_of_business: data.self_employed_nature_of_business || null,
+      self_employed_annual_income: data.self_employed_annual_income || null,
+
+      // Accountant Details (Page 6)
+      accountant_name: data.accountant_name || null,
+      accountant_contact_name: data.accountant_contact_name || null,
+      accountant_email: data.accountant_email || null,
+      accountant_phone: data.accountant_phone || null,
 
       // Additional Income (Page 7)
       has_additional_income: data.has_additional_income || false,
@@ -441,6 +461,43 @@ router.post('/submit/:token', async (req, res) => {
         console.log('Landlord reference email sent successfully to:', data.previous_landlord_email)
       } catch (emailError: any) {
         console.error('Failed to send landlord reference email:', emailError)
+        // Don't fail the request if email fails, just log it
+      }
+    }
+
+    // Send email to accountant if self-employed and accountant details are provided
+    if (data.income_self_employed && data.accountant_email && data.accountant_contact_name) {
+      try {
+        // Create accountant reference record with unique token
+        const accountantToken = crypto.randomBytes(32).toString('hex')
+        const { data: accountantRef, error: accountantError } = await supabase
+          .from('accountant_references')
+          .insert({
+            tenant_reference_id: updatedReference.id,
+            token: accountantToken,
+            accountant_firm_name: data.accountant_name || '',
+            accountant_contact_name: data.accountant_contact_name,
+            accountant_email: data.accountant_email,
+            accountant_phone: data.accountant_phone || null,
+          })
+          .select()
+          .single()
+
+        if (accountantError) {
+          console.error('Failed to create accountant reference:', accountantError)
+        } else {
+          const accountantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accountant-reference/${accountantToken}`
+
+          await sendAccountantReferenceRequest(
+            data.accountant_email,
+            data.accountant_contact_name,
+            `${data.first_name} ${data.last_name}`,
+            accountantReferenceUrl
+          )
+          console.log('Accountant reference email sent successfully to:', data.accountant_email)
+        }
+      } catch (emailError: any) {
+        console.error('Failed to send accountant reference email:', emailError)
         // Don't fail the request if email fails, just log it
       }
     }
@@ -868,6 +925,66 @@ router.post('/employer/:referenceId', async (req, res) => {
     }
 
     res.json({ message: 'Employer reference submitted successfully' })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Accountant submits reference (public route)
+router.post('/accountant/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+    const formData = req.body
+
+    // Verify accountant reference exists by token
+    const { data: accountantRef, error: refError } = await supabase
+      .from('accountant_references')
+      .select('*, tenant_reference_id')
+      .eq('token', token)
+      .single()
+
+    if (refError || !accountantRef) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Check if already submitted
+    if (accountantRef.submitted_at) {
+      return res.status(400).json({ error: 'Reference already submitted' })
+    }
+
+    // Update accountant reference with form data
+    const { error: updateError } = await supabase
+      .from('accountant_references')
+      .update({
+        tenant_name: formData.tenantName,
+        business_name: formData.businessName,
+        nature_of_business: formData.natureOfBusiness,
+        business_start_date: formData.businessStartDate,
+        annual_turnover: formData.annualTurnover,
+        annual_profit: formData.annualProfit,
+        tax_returns_filed: formData.taxReturnsFiled,
+        last_tax_return_date: formData.lastTaxReturnDate || null,
+        accounts_prepared: formData.accountsPrepared,
+        accounts_year_end: formData.accountsYearEnd || null,
+        business_trading_status: formData.businessTradingStatus,
+        any_outstanding_tax_liabilities: formData.anyOutstandingTaxLiabilities,
+        tax_liabilities_details: formData.taxLiabilitiesDetails || null,
+        business_financially_stable: formData.businessFinanciallyStable,
+        accountant_confirms_income: formData.accountantConfirmsIncome,
+        estimated_monthly_income: formData.estimatedMonthlyIncome,
+        additional_comments: formData.additionalComments || null,
+        would_recommend: formData.wouldRecommend,
+        recommendation_comments: formData.recommendationComments || null,
+        submitted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', accountantRef.id)
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message })
+    }
+
+    res.json({ message: 'Accountant reference submitted successfully' })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

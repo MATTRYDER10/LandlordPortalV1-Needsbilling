@@ -417,7 +417,15 @@
                     type="checkbox"
                     class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Regular Income (Employment)</span>
+                  <span class="ml-2 text-sm text-gray-700">Employed</span>
+                </label>
+                <label class="flex items-center">
+                  <input
+                    v-model="formData.income_self_employed"
+                    type="checkbox"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                  <span class="ml-2 text-sm text-gray-700">Self Employed</span>
                 </label>
                 <label class="flex items-center">
                   <input
@@ -751,6 +759,96 @@
                         :required="formData.income_regular_employment"
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Accountant Details (shown if Self Employed is selected) -->
+            <div v-if="formData.income_self_employed" class="pt-6 border-t border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Accountant Details</h3>
+
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Business Name *</label>
+                  <input
+                    v-model="formData.self_employed_business_name"
+                    type="text"
+                    :required="formData.income_self_employed"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Business Start Date *</label>
+                  <DatePicker
+                    v-model="formData.self_employed_start_date"
+                    :required="formData.income_self_employed"
+                    year-range-type="employment"
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Nature of Business *</label>
+                  <input
+                    v-model="formData.self_employed_nature_of_business"
+                    type="text"
+                    :required="formData.income_self_employed"
+                    placeholder="e.g. Freelance Graphic Design"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Annual Income (£) *</label>
+                  <input
+                    v-model="formData.self_employed_annual_income"
+                    type="number"
+                    step="0.01"
+                    :required="formData.income_self_employed"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+
+                <!-- Accountant Contact -->
+                <div class="pt-4 border-t border-gray-200">
+                  <h4 class="text-md font-semibold text-gray-900 mb-3">Accountant Contact</h4>
+                  <div class="space-y-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Accountant/Firm Name *</label>
+                      <input
+                        v-model="formData.accountant_name"
+                        type="text"
+                        :required="formData.income_self_employed"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      />
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700">Contact Name *</label>
+                        <input
+                          v-model="formData.accountant_contact_name"
+                          type="text"
+                          :required="formData.income_self_employed"
+                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700">Email *</label>
+                        <input
+                          v-model="formData.accountant_email"
+                          type="email"
+                          :required="formData.income_self_employed"
+                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        />
+                      </div>
+                    </div>
+                    <PhoneInput
+                      v-model="formData.accountant_phone"
+                      label="Phone"
+                      id="accountant-phone"
+                      :required="formData.income_self_employed"
+                    />
                   </div>
                 </div>
               </div>
@@ -2038,6 +2136,7 @@ const formData = ref({
 
   // Page 6: Financial - Income Sources
   income_regular_employment: false,
+  income_self_employed: false,
   income_benefits: false,
   income_savings_pension_investments: false,
   income_student: false,
@@ -2065,6 +2164,18 @@ const formData = ref({
 
   // Payslips
   payslip_paths: [] as string[], // Uploaded file paths
+
+  // Self-Employed Details
+  self_employed_business_name: '',
+  self_employed_start_date: '',
+  self_employed_nature_of_business: '',
+  self_employed_annual_income: null,
+
+  // Accountant Details
+  accountant_name: '',
+  accountant_contact_name: '',
+  accountant_email: '',
+  accountant_phone: '',
 
   // Page 7: Additional Income
   has_additional_income: false,

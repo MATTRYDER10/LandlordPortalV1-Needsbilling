@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accountant Reference Request</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+        <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px 40px; background-color: #2563eb; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">PropertyGoose</h1>
+              <p style="margin: 10px 0 0 0; color: #e0e7ff; font-size: 16px;">Accountant Reference Request</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                Dear {{ AccountantName }},
+              </p>
+
+              <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                We are writing to request a professional accountant reference for <strong>{{ TenantName }}</strong>, who has applied for a residential tenancy. As their accountant, your verification of their self-employment income and financial standing is an important part of our reference checking process.
+              </p>
+
+              <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 20px; margin: 30px 0;">
+                <p style="margin: 0 0 10px 0; color: #1e293b; font-size: 14px; font-weight: bold;">
+                  What we need:
+                </p>
+                <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #475569; font-size: 14px; line-height: 1.8;">
+                  <li>Business and financial details</li>
+                  <li>Income verification</li>
+                  <li>Tax and accounts status</li>
+                  <li>Professional recommendation</li>
+                </ul>
+              </div>
+
+              <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                The form should take approximately 5-10 minutes to complete. All information provided will be treated confidentially and used solely for the purpose of processing this tenancy application.
+              </p>
+
+              <!-- CTA Button -->
+              <table role="presentation" style="margin: 30px 0;">
+                <tr>
+                  <td style="border-radius: 6px; background-color: #2563eb;">
+                    <a href="{{ ReferenceLink }}" target="_blank" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; border-radius: 6px;">
+                      Complete Reference Form
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 30px 0 20px 0; color: #64748b; font-size: 14px; line-height: 1.6;">
+                Or copy and paste this link into your browser:<br>
+                <a href="{{ ReferenceLink }}" style="color: #2563eb; word-break: break-all;">{{ ReferenceLink }}</a>
+              </p>
+
+              <p style="margin: 30px 0 0 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                If you have any questions or concerns, please don't hesitate to contact us.
+              </p>
+
+              <p style="margin: 20px 0 0 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                Thank you for your assistance,<br>
+                <strong>PropertyGoose Team</strong>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 30px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #64748b; font-size: 12px; line-height: 1.6; text-align: center;">
+                This is an automated email from PropertyGoose. Please do not reply to this email.
+              </p>
+              <p style="margin: 10px 0 0 0; color: #64748b; font-size: 12px; text-align: center;">
+                © {{ Year }} PropertyGoose. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

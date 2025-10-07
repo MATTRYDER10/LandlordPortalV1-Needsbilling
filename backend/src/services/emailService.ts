@@ -114,3 +114,26 @@ export async function sendLandlordReferenceRequest(
     html,
   });
 }
+
+/**
+ * Send accountant reference request email
+ */
+export async function sendAccountantReferenceRequest(
+  accountantEmail: string,
+  accountantName: string,
+  tenantName: string,
+  referenceLink: string
+): Promise<void> {
+  const html = loadEmailTemplate('accountant-reference-request', {
+    AccountantName: accountantName,
+    TenantName: tenantName,
+    ReferenceLink: referenceLink,
+    Year: new Date().getFullYear().toString(),
+  });
+
+  await sendEmail({
+    to: accountantEmail,
+    subject: 'Accountant Reference Request - PropertyGoose',
+    html,
+  });
+}

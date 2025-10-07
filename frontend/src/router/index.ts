@@ -10,6 +10,7 @@ import ReferenceDetail from '../views/ReferenceDetail.vue'
 import SubmitReference from '../views/SubmitReference.vue'
 import LandlordReference from '../views/LandlordReference.vue'
 import EmployerReference from '../views/EmployerReference.vue'
+import AccountantReference from '../views/AccountantReference.vue'
 import Settings from '../views/Settings.vue'
 import StaffLogin from '../views/StaffLogin.vue'
 import StaffDashboard from '../views/StaffDashboard.vue'
@@ -77,6 +78,11 @@ const router = createRouter({
       path: '/employer-reference/:referenceId',
       name: 'EmployerReference',
       component: EmployerReference
+    },
+    {
+      path: '/accountant-reference/:token',
+      name: 'AccountantReference',
+      component: AccountantReference
     },
     {
       path: '/settings',

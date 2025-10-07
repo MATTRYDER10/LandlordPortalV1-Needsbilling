@@ -253,12 +253,13 @@
           <div class="mb-6">
             <label class="block text-sm font-medium text-gray-700 mb-3">Income Sources</label>
             <div class="flex flex-wrap gap-2">
-              <span v-if="reference.income_regular_employment" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Regular Employment</span>
+              <span v-if="reference.income_regular_employment" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Employed</span>
+              <span v-if="reference.income_self_employed" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Self Employed</span>
               <span v-if="reference.income_benefits" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Benefits</span>
               <span v-if="reference.income_savings_pension_investments" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Savings/Pension/Investments</span>
               <span v-if="reference.income_student" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Student</span>
               <span v-if="reference.income_unemployed" class="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full">Unemployed</span>
-              <span v-if="!reference.income_regular_employment && !reference.income_benefits && !reference.income_savings_pension_investments && !reference.income_student && !reference.income_unemployed" class="text-gray-500 text-sm">Not provided yet</span>
+              <span v-if="!reference.income_regular_employment && !reference.income_self_employed && !reference.income_benefits && !reference.income_savings_pension_investments && !reference.income_student && !reference.income_unemployed" class="text-gray-500 text-sm">Not provided yet</span>
             </div>
           </div>
 
@@ -475,6 +476,143 @@
                         <div>
                           <span class="text-green-700 font-medium text-sm">Date:</span>
                           <span class="ml-2 text-green-900">{{ formatDate(employerReference.date) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Self-Employed & Accountant Details -->
+          <div v-if="reference.income_self_employed" class="border-t pt-6">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Self-Employed Details</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Business Name</label>
+                <p class="mt-1 text-gray-900">{{ reference.self_employed_business_name || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Business Start Date</label>
+                <p class="mt-1 text-gray-900">{{ reference.self_employed_start_date ? formatDate(reference.self_employed_start_date) : 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Nature of Business</label>
+                <p class="mt-1 text-gray-900">{{ reference.self_employed_nature_of_business || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Annual Income</label>
+                <p class="mt-1 text-gray-900">{{ reference.self_employed_annual_income ? `£${reference.self_employed_annual_income}` : 'Not provided' }}</p>
+              </div>
+            </div>
+
+            <!-- Accountant Contact -->
+            <div class="mt-6 pt-6 border-t">
+              <h5 class="text-sm font-semibold text-gray-700 mb-3">Accountant Contact</h5>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Accountant/Firm Name</label>
+                  <p class="mt-1 text-gray-900">{{ reference.accountant_name || 'Not provided' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Contact Name</label>
+                  <p class="mt-1 text-gray-900">{{ reference.accountant_contact_name || 'Not provided' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Email</label>
+                  <p class="mt-1 text-gray-900">{{ reference.accountant_email || 'Not provided' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Phone</label>
+                  <p class="mt-1 text-gray-900">{{ reference.accountant_phone || 'Not provided' }}</p>
+                </div>
+              </div>
+
+              <!-- Accountant Reference Status -->
+              <div v-if="reference.accountant_email && !accountantReference" class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p class="text-sm text-yellow-800">
+                  <strong>Status:</strong> Pending accountant response
+                </p>
+                <p class="text-xs text-yellow-700 mt-1">
+                  An email has been sent to the accountant to complete their reference.
+                </p>
+              </div>
+
+              <!-- Accountant Reference Submitted -->
+              <div v-if="accountantReference" class="mt-4 bg-green-50 border border-green-200 rounded-lg">
+                <div class="p-4">
+                  <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-lg font-semibold text-green-900">✓ Accountant Reference Completed</h4>
+                    <span class="text-xs text-green-700">Submitted {{ formatDateTime(accountantReference.submitted_at) }}</span>
+                  </div>
+
+                  <div class="space-y-6">
+                    <!-- Business Information -->
+                    <div>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Business Information</h5>
+                      <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-green-700 font-medium">Business Name:</span> <span class="text-green-900">{{ accountantReference.business_name }}</span></div>
+                        <div><span class="text-green-700 font-medium">Trading Status:</span> <span class="text-green-900">{{ accountantReference.trading_status }}</span></div>
+                        <div><span class="text-green-700 font-medium">Start Date:</span> <span class="text-green-900">{{ formatDate(accountantReference.business_start_date) }}</span></div>
+                        <div><span class="text-green-700 font-medium">Nature:</span> <span class="text-green-900">{{ accountantReference.nature_of_business }}</span></div>
+                      </div>
+                    </div>
+
+                    <!-- Financial Information -->
+                    <div>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Financial Information</h5>
+                      <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-green-700 font-medium">Annual Turnover:</span> <span class="text-green-900">£{{ accountantReference.annual_turnover }}</span></div>
+                        <div><span class="text-green-700 font-medium">Net Profit:</span> <span class="text-green-900">£{{ accountantReference.net_profit }}</span></div>
+                        <div><span class="text-green-700 font-medium">Tax Year:</span> <span class="text-green-900">{{ accountantReference.tax_year }}</span></div>
+                        <div><span class="text-green-700 font-medium">Tax Returns Filed:</span> <span class="text-green-900">{{ accountantReference.tax_returns_filed }}</span></div>
+                        <div><span class="text-green-700 font-medium">Accounts Prepared:</span> <span class="text-green-900">{{ accountantReference.accounts_prepared }}</span></div>
+                        <div><span class="text-green-700 font-medium">Tax Liabilities:</span> <span class="text-green-900">{{ accountantReference.outstanding_tax_liabilities }}</span></div>
+                        <div><span class="text-green-700 font-medium">Financial Stability:</span> <span class="text-green-900">{{ accountantReference.financial_stability }}</span></div>
+                      </div>
+                      <div v-if="accountantReference.financial_concerns_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Financial Concerns:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ accountantReference.financial_concerns_details }}</p>
+                      </div>
+                    </div>
+
+                    <!-- Income Verification -->
+                    <div>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Income Verification</h5>
+                      <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-green-700 font-medium">Income Confirmed:</span> <span class="text-green-900">{{ accountantReference.income_confirmed }}</span></div>
+                        <div><span class="text-green-700 font-medium">Estimated Monthly Income:</span> <span class="text-green-900">£{{ accountantReference.estimated_monthly_income }}</span></div>
+                      </div>
+                    </div>
+
+                    <!-- Recommendation -->
+                    <div>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Professional Recommendation</h5>
+                      <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                        <div class="col-span-2"><span class="text-green-700 font-medium">Would Recommend:</span> <span class="text-green-900 font-semibold">{{ accountantReference.would_recommend }}</span></div>
+                      </div>
+                      <div v-if="accountantReference.additional_comments" class="p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Additional Comments:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ accountantReference.additional_comments }}</p>
+                      </div>
+                    </div>
+
+                    <!-- Signature -->
+                    <div class="pt-3 border-t border-green-300">
+                      <div class="space-y-3">
+                        <div>
+                          <span class="text-green-700 font-medium text-sm">Signature:</span>
+                          <div class="mt-2 p-3 bg-white rounded border border-green-200">
+                            <div v-if="accountantReference.signature_name" class="mb-2 text-sm text-gray-700 font-medium">
+                              {{ accountantReference.signature_name }}
+                            </div>
+                            <img :src="accountantReference.signature" alt="Signature" class="max-w-md h-auto" />
+                          </div>
+                        </div>
+                        <div>
+                          <span class="text-green-700 font-medium text-sm">Date:</span>
+                          <span class="ml-2 text-green-900">{{ formatDate(accountantReference.date) }}</span>
                         </div>
                       </div>
                     </div>
@@ -820,6 +958,10 @@
               <label class="block text-sm font-medium text-gray-500">Employer Reference Submitted</label>
               <p class="mt-1 text-gray-900">{{ formatDateTime(employerReference.submitted_at) }}</p>
             </div>
+            <div v-if="accountantReference?.submitted_at">
+              <label class="block text-sm font-medium text-gray-500">Accountant Reference Submitted</label>
+              <p class="mt-1 text-gray-900">{{ formatDateTime(accountantReference.submitted_at) }}</p>
+            </div>
             <div v-if="reference.completed_at">
               <label class="block text-sm font-medium text-gray-500">Completed</label>
               <p class="mt-1 text-gray-900">{{ formatDateTime(reference.completed_at) }}</p>
@@ -1013,6 +1155,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const reference = ref<any>(null)
 const landlordReference = ref<any>(null)
 const employerReference = ref<any>(null)
+const accountantReference = ref<any>(null)
 const loading = ref(true)
 
 // Document viewer modal state
@@ -1059,6 +1202,7 @@ const fetchReference = async () => {
     reference.value = data.reference
     landlordReference.value = data.landlordReference
     employerReference.value = data.employerReference
+    accountantReference.value = data.accountantReference
   } catch (error: any) {
     toast.error(error.message || 'Failed to load reference')
   } finally {
