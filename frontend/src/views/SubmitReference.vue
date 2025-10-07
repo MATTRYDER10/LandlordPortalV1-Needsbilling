@@ -750,7 +750,9 @@
                           type="email"
                           :required="formData.income_regular_employment"
                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          :class="{ 'border-red-500': employerEmailError }"
                         />
+                        <p v-if="employerEmailError" class="mt-1 text-sm text-red-600">{{ employerEmailError }}</p>
                       </div>
                       <PhoneInput
                         v-model="formData.employer_ref_phone"
@@ -840,7 +842,9 @@
                           type="email"
                           :required="formData.income_self_employed"
                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          :class="{ 'border-red-500': accountantEmailError }"
                         />
+                        <p v-if="accountantEmailError" class="mt-1 text-sm text-red-600">{{ accountantEmailError }}</p>
                       </div>
                     </div>
                     <PhoneInput
@@ -1094,9 +1098,11 @@
                 type="email"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                :class="{ 'border-red-500': landlordEmailError }"
                 :placeholder="formData.reference_type === 'agent' ? 'agent@example.com' : 'landlord@example.com'"
               />
-              <p class="mt-1 text-xs text-gray-500">We will send an email to this address to request a reference</p>
+              <p v-if="landlordEmailError" class="mt-1 text-sm text-red-600">{{ landlordEmailError }}</p>
+              <p v-else class="mt-1 text-xs text-gray-500">We will send an email to this address to request a reference</p>
             </div>
 
             <PhoneInput
@@ -1365,6 +1371,11 @@ const uploadProgress = ref(0)
 const currentPage = ref(1)
 const consentGiven = ref(false)
 
+// Email validation errors
+const employerEmailError = ref('')
+const accountantEmailError = ref('')
+const landlordEmailError = ref('')
+
 // Company branding
 const companyLogo = ref('')
 const primaryColor = ref('#FF8C41')
@@ -1403,6 +1414,28 @@ const yearRange = Array.from({ length: 83 }, (_, i) => currentYear - 18 - i)
 
 // Generate employment year range (from current year to current year - 60)
 const employmentYearRange = Array.from({ length: 61 }, (_, i) => currentYear - i)
+
+// Email domain validation
+const isWorkEmail = (email: string): boolean => {
+  if (!email || !email.includes('@')) return false
+
+  const freeEmailDomains = [
+    'gmail.com', 'googlemail.com',
+    'yahoo.com', 'yahoo.co.uk', 'yahoo.co.in', 'yahoo.ca', 'yahoo.com.au',
+    'hotmail.com', 'hotmail.co.uk', 'hotmail.fr', 'hotmail.de',
+    'outlook.com', 'outlook.co.uk',
+    'live.com', 'live.co.uk',
+    'aol.com', 'aol.co.uk',
+    'icloud.com', 'me.com', 'mac.com',
+    'protonmail.com', 'proton.me',
+    'mail.com', 'email.com',
+    'yandex.com', 'yandex.ru',
+    'zoho.com', 'zohomail.com'
+  ]
+
+  const domain = email.split('@')[1]?.toLowerCase().trim()
+  return domain ? !freeEmailDomains.includes(domain) : false
+}
 
 // Nationalities list
 const nationalities = [
@@ -2343,6 +2376,19 @@ watch([formData, currentPage, dobDay, dobMonth, dobYear, employmentStartDay, emp
   saveToLocalStorage()
 }, { deep: true })
 
+// Watch email fields to clear errors when they change
+watch(() => formData.value.employer_ref_email, () => {
+  employerEmailError.value = ''
+})
+
+watch(() => formData.value.accountant_email, () => {
+  accountantEmailError.value = ''
+})
+
+watch(() => formData.value.previous_landlord_email, () => {
+  landlordEmailError.value = ''
+})
+
 // File upload handlers
 const handleIdDocumentUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
@@ -2525,6 +2571,35 @@ const handlePageSubmit = async () => {
   } else if (currentPage.value === 5) {
     if (!proofOfAddress.value && !formData.value.proof_of_address_path) {
       submitError.value = 'Please upload proof of address'
+      return
+    }
+  } else if (currentPage.value === 6) {
+    // Validate employer email if regular employment income is selected
+    if (formData.value.income_regular_employment && formData.value.employer_ref_email) {
+      if (!isWorkEmail(formData.value.employer_ref_email)) {
+        employerEmailError.value = 'Please use a work email address (not Gmail, Hotmail, Yahoo, etc.)'
+        submitError.value = 'Please use a work email address for your employer'
+        return
+      }
+    }
+
+    // Validate accountant email if self-employed income is selected
+    if (formData.value.income_self_employed && formData.value.accountant_email) {
+      if (!isWorkEmail(formData.value.accountant_email)) {
+        accountantEmailError.value = 'Please use a professional accountant email address (not Gmail, Hotmail, Yahoo, etc.)'
+        submitError.value = 'Please use a professional email address for your accountant'
+        return
+      }
+    }
+  } else if (currentPage.value === 10) {
+    // Validate landlord/agent email
+    if (formData.value.previous_landlord_email && !isWorkEmail(formData.value.previous_landlord_email)) {
+      landlordEmailError.value = formData.value.reference_type === 'agent'
+        ? 'Please use the letting agency email address (not a personal Gmail, Hotmail, etc.)'
+        : 'Please use the landlord\'s professional email address (not a personal Gmail, Hotmail, etc.)'
+      submitError.value = formData.value.reference_type === 'agent'
+        ? 'Please use the letting agency email address'
+        : 'Please use a professional email address for your landlord'
       return
     }
   }
