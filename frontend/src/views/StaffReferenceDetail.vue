@@ -84,7 +84,11 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Monthly Rent</label>
-              <p class="mt-1 text-gray-900">{{ reference.monthly_rent ? `£${reference.monthly_rent}` : 'Not provided' }}</p>
+              <p v-if="reference.parent_reference_id" class="mt-1 text-gray-900">
+                <span class="font-semibold text-primary">£{{ reference.rent_share }}</span>
+                <span class="text-sm text-gray-600"> (Tenant's share of £{{ reference.monthly_rent }} total)</span>
+              </p>
+              <p v-else class="mt-1 text-gray-900">{{ reference.monthly_rent ? `£${reference.monthly_rent}` : 'Not provided' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Move-in Date</label>
