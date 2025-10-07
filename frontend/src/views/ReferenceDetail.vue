@@ -70,51 +70,132 @@
           </div>
         </div>
 
-        <!-- Parent Reference - All Tenants List -->
-        <div v-if="reference.is_group_parent && childReferences && childReferences.length > 0" class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">
-            All Tenants ({{ childReferences.length }})
-          </h3>
-          <div class="space-y-3">
-            <div v-for="(child, index) in childReferences" :key="child.id" class="border border-gray-200 rounded-lg p-4 hover:border-primary transition-colors">
-              <div class="flex justify-between items-start">
-                <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-2">
-                    <span class="text-xs font-semibold text-gray-500">Tenant {{ index + 1 }}</span>
-                    <span
-                      class="px-2 py-0.5 text-xs font-semibold rounded-full"
-                      :class="{
-                        'bg-yellow-100 text-yellow-800': child.status === 'pending',
-                        'bg-blue-100 text-blue-800': child.status === 'in_progress',
-                        'bg-orange-100 text-orange-800': child.status === 'pending_verification',
-                        'bg-green-100 text-green-800': child.status === 'completed'
-                      }"
-                    >
-                      {{ formatStatus(child.status) }}
-                    </span>
+        <!-- Parent Reference - All Tenants Overview -->
+        <div v-if="reference.is_group_parent && childReferences && childReferences.length > 0">
+          <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 mb-6 border border-purple-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">
+                  Multi-Tenant Property Overview
+                </h3>
+                <p class="text-sm text-gray-700">
+                  This property has <strong>{{ childReferences.length }} tenants</strong> with a total monthly rent of <strong>£{{ reference.monthly_rent }}</strong>
+                </p>
+              </div>
+              <div class="text-right">
+                <div class="text-2xl font-bold text-primary">{{ childReferences.length }}</div>
+                <div class="text-xs text-gray-600 uppercase tracking-wide">Tenants</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div v-for="(child, index) in childReferences" :key="child.id" class="bg-white rounded-lg shadow border border-gray-200">
+              <!-- Card Header -->
+              <button
+                @click="toggleTenantExpanded(child.id)"
+                class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              >
+                <div class="flex items-center gap-4 flex-1 text-left">
+                  <svg class="w-5 h-5 text-gray-400 transition-transform" :class="{ 'rotate-90': expandedTenant === child.id }" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                  </svg>
+                  <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-1">
+                      <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Tenant {{ index + 1 }}</span>
+                      <span
+                        class="px-2 py-0.5 text-xs font-semibold rounded-full"
+                        :class="{
+                          'bg-yellow-100 text-yellow-800': child.status === 'pending',
+                          'bg-blue-100 text-blue-800': child.status === 'in_progress',
+                          'bg-orange-100 text-orange-800': child.status === 'pending_verification',
+                          'bg-green-100 text-green-800': child.status === 'completed'
+                        }"
+                      >
+                        {{ formatStatus(child.status) }}
+                      </span>
+                    </div>
+                    <h4 class="text-lg font-bold text-gray-900">
+                      {{ child.tenant_first_name }} {{ child.tenant_last_name }}
+                    </h4>
+                    <p class="text-sm text-gray-600">{{ child.tenant_email }}</p>
                   </div>
-                  <h4 class="text-base font-semibold text-gray-900">
-                    {{ child.tenant_first_name }} {{ child.tenant_last_name }}
-                  </h4>
-                  <p class="text-sm text-gray-600">{{ child.tenant_email }}</p>
-                  <p v-if="child.tenant_phone" class="text-sm text-gray-600">{{ child.tenant_phone }}</p>
-                  <p class="text-sm font-medium text-gray-900 mt-2">
-                    Rent Share: <span class="text-primary">£{{ child.rent_share }}</span>
-                  </p>
+                  <div class="text-right">
+                    <div class="text-sm text-gray-500">Rent Share</div>
+                    <div class="text-xl font-bold text-primary">£{{ child.rent_share }}</div>
+                  </div>
                 </div>
-                <button
-                  @click="$router.push(`/references/${child.id}`)"
-                  class="ml-4 px-3 py-1.5 text-sm bg-primary text-white rounded-md hover:bg-primary/90"
-                >
-                  View Details
-                </button>
+              </button>
+
+              <!-- Expanded Content -->
+              <div v-if="expandedTenant === child.id" class="border-t border-gray-200 px-6 py-6 space-y-6">
+                <!-- Load full reference details -->
+                <div v-if="childReferenceDetails[child.id]">
+                  <!-- Contact Information -->
+                  <div>
+                    <h5 class="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Contact Information</h5>
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-xs font-medium text-gray-500">Email</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ child.tenant_email }}</p>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-gray-500">Phone</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ child.tenant_phone || 'Not provided' }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Reference Status Summary -->
+                  <div>
+                    <h5 class="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Reference Status</h5>
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-xs font-medium text-gray-500">Overall Status</label>
+                        <p class="mt-1">
+                          <span
+                            class="px-2 py-1 text-xs font-semibold rounded-full"
+                            :class="{
+                              'bg-yellow-100 text-yellow-800': child.status === 'pending',
+                              'bg-blue-100 text-blue-800': child.status === 'in_progress',
+                              'bg-orange-100 text-orange-800': child.status === 'pending_verification',
+                              'bg-green-100 text-green-800': child.status === 'completed'
+                            }"
+                          >
+                            {{ formatStatus(child.status) }}
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-gray-500">Form Submitted</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ child.submitted_at ? formatDateTime(child.submitted_at) : 'Not yet' }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Quick Action -->
+                  <div class="pt-4 border-t border-gray-200">
+                    <button
+                      @click="$router.push(`/references/${child.id}`)"
+                      class="w-full px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 font-medium"
+                    >
+                      View Full Reference Details
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Loading State -->
+                <div v-else class="flex items-center justify-center py-8">
+                  <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  <span class="ml-3 text-sm text-gray-600">Loading details...</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Property Information (from initial reference creation) -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Property Information</h3>
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -141,7 +222,7 @@
         </div>
 
         <!-- Personal Details -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Personal Details</h3>
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -1186,6 +1267,8 @@ const parentReference = ref<any>(null)
 const siblingReferences = ref<any[]>([])
 const loading = ref(true)
 const error = ref('')
+const expandedTenant = ref<string | null>(null)
+const childReferenceDetails = ref<Record<string, any>>({})
 
 // Document viewer modal state
 const viewingDocument = ref(false)
@@ -1268,6 +1351,38 @@ const formatDateTime = (date: string) => {
   })
 }
 
+const toggleTenantExpanded = async (tenantId: string) => {
+  if (expandedTenant.value === tenantId) {
+    expandedTenant.value = null
+  } else {
+    expandedTenant.value = tenantId
+    // Fetch details if not already loaded
+    if (!childReferenceDetails.value[tenantId]) {
+      await fetchChildDetails(tenantId)
+    }
+  }
+}
+
+const fetchChildDetails = async (childId: string) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/references/${childId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      childReferenceDetails.value[childId] = data
+    }
+  } catch (error) {
+    console.error('Failed to fetch child details:', error)
+  }
+}
 
 const downloadFile = async (filePath: string) => {
   try {
