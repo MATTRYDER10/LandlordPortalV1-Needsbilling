@@ -18,6 +18,7 @@ router.get('/references', authenticateStaff, async (req: StaffAuthRequest, res) 
           name
         )
       `)
+      .neq('is_group_parent', true) // Exclude parent multi-tenant references from staff view
       .order('created_at', { ascending: false })
 
     // Filter by status if provided
