@@ -365,7 +365,10 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         accountant_name: decrypt(ref.accountant_firm_encrypted),
         accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
-        accountant_phone: decrypt(ref.accountant_phone_encrypted)
+        accountant_phone: decrypt(ref.accountant_phone_encrypted),
+        notes: decrypt(ref.notes_encrypted),
+        internal_notes: decrypt(ref.internal_notes_encrypted),
+        verification_notes: decrypt(ref.verification_notes_encrypted)
       }
     }
 
@@ -566,7 +569,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           move_in_date,
           term_years: term_years || 0,
           term_months: term_months || 0,
-          notes,
+          notes_encrypted: encrypt(notes || ''),
           reference_token_hash: parentTokenHash,
           token_expires_at: expiresAt.toISOString(),
           status: 'pending',
@@ -605,7 +608,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             move_in_date,
             term_years: term_years || 0,
             term_months: term_months || 0,
-            notes,
+            notes_encrypted: encrypt(notes || ''),
             reference_token_hash: tokenHash,
             token_expires_at: expiresAt.toISOString(),
             status: 'pending'
@@ -688,7 +691,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           move_in_date,
           term_years: term_years || 0,
           term_months: term_months || 0,
-          notes,
+          notes_encrypted: encrypt(notes || ''),
           reference_token_hash: tokenHash,
           token_expires_at: expiresAt.toISOString(),
           status: 'pending'

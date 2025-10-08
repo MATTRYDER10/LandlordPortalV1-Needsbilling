@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { authenticateStaff, StaffAuthRequest } from '../middleware/staffAuth'
 import { supabase } from '../config/supabase'
-import { decrypt } from '../services/encryption'
+import { decrypt, encrypt } from '../services/encryption'
 
 const router = Router()
 
@@ -223,7 +223,10 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
         accountant_name: decrypt(ref.accountant_firm_encrypted),
         accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
-        accountant_phone: decrypt(ref.accountant_phone_encrypted)
+        accountant_phone: decrypt(ref.accountant_phone_encrypted),
+        notes: decrypt(ref.notes_encrypted),
+        internal_notes: decrypt(ref.internal_notes_encrypted),
+        verification_notes: decrypt(ref.verification_notes_encrypted)
       }
     }
 
@@ -331,7 +334,7 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
         completed_at: new Date().toISOString(),
         verified_by: staffUserId,
         verified_at: new Date().toISOString(),
-        verification_notes: notes || null
+        verification_notes_encrypted: encrypt(notes || '')
       })
       .eq('id', id)
       .eq('status', 'pending_verification') // Only allow verification if status is pending_verification
@@ -373,7 +376,7 @@ router.put('/references/:id/reject', authenticateStaff, async (req: StaffAuthReq
         status: 'rejected',
         verified_by: staffUserId,
         verified_at: new Date().toISOString(),
-        verification_notes: notes
+        verification_notes_encrypted: encrypt(notes || '')
       })
       .eq('id', id)
       .eq('status', 'pending_verification')
