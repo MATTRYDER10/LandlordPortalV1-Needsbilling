@@ -1062,6 +1062,44 @@
               Proof of address document not uploaded yet
             </div>
           </div>
+
+          <!-- Previous Address History (3-year history) -->
+          <div v-if="previousAddresses.length > 0" class="mt-6 pt-6 border-t">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Previous Address History</h4>
+            <p class="text-xs text-gray-500 mb-4">Previous addresses provided to meet 3-year address history requirement</p>
+
+            <div v-for="(address, index) in previousAddresses" :key="address.id" class="mb-4 p-4 bg-gray-50 rounded-lg">
+              <h5 class="text-sm font-semibold text-gray-900 mb-3">Previous Address {{ index + 1 }}</h5>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                  <label class="block text-xs font-medium text-gray-500">Address</label>
+                  <p class="mt-1 text-sm text-gray-900">
+                    {{ address.address_line1 }}
+                    <span v-if="address.address_line2">, {{ address.address_line2 }}</span>
+                  </p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-500">City</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ address.city }}</p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-500">Postcode</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ address.postcode }}</p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-500">Country</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ address.country }}</p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-500">Time at Address</label>
+                  <p class="mt-1 text-sm text-gray-900">
+                    {{ address.time_at_address_years || 0 }} year{{ address.time_at_address_years !== 1 ? 's' : '' }},
+                    {{ address.time_at_address_months || 0 }} month{{ address.time_at_address_months !== 1 ? 's' : '' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Financial Information -->
@@ -2034,6 +2072,7 @@ const accountantReference = ref<any>(null)
 const childReferences = ref<any[]>([])
 const parentReference = ref<any>(null)
 const siblingReferences = ref<any[]>([])
+const previousAddresses = ref<any[]>([])
 const loading = ref(true)
 const error = ref('')
 const expandedTenant = ref<string | null>(null)
@@ -2079,6 +2118,7 @@ const fetchReference = async () => {
     childReferences.value = data.childReferences || []
     parentReference.value = data.parentReference
     siblingReferences.value = data.siblingReferences || []
+    previousAddresses.value = data.previousAddresses || []
   } catch (err: any) {
     error.value = err.message || 'Failed to load reference'
   } finally {

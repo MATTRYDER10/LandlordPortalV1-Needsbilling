@@ -291,6 +291,13 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       siblingReferences = siblings
     }
 
+    // Get previous addresses for 3-year history
+    const { data: previousAddresses } = await supabase
+      .from('tenant_reference_previous_addresses')
+      .select('*')
+      .eq('tenant_reference_id', referenceId)
+      .order('address_order', { ascending: true })
+
     res.json({
       reference,
       documents,
@@ -300,7 +307,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       accountantReference,
       childReferences,
       parentReference,
-      siblingReferences
+      siblingReferences,
+      previousAddresses: previousAddresses || []
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -755,6 +763,34 @@ router.post('/submit/:token', async (req, res) => {
 
     if (error) {
       return res.status(400).json({ error: error.message })
+    }
+
+    // Save previous addresses for 3-year history tracking
+    if (data.previous_addresses && Array.isArray(data.previous_addresses) && data.previous_addresses.length > 0) {
+      try {
+        const previousAddressesData = data.previous_addresses.map((addr: any, index: number) => ({
+          tenant_reference_id: reference.id,
+          address_line1: addr.address_line1,
+          address_line2: addr.address_line2 || null,
+          city: addr.city,
+          postcode: addr.postcode,
+          country: addr.country,
+          time_at_address_years: addr.time_at_address_years || 0,
+          time_at_address_months: addr.time_at_address_months || 0,
+          address_order: index
+        }))
+
+        const { error: addressError } = await supabase
+          .from('tenant_reference_previous_addresses')
+          .insert(previousAddressesData)
+
+        if (addressError) {
+          console.error('Failed to save previous addresses:', addressError)
+          // Don't fail the whole submission if previous addresses fail
+        }
+      } catch (addressErr) {
+        console.error('Error saving previous addresses:', addressErr)
+      }
     }
 
     // Send email to employer if employer reference details are provided

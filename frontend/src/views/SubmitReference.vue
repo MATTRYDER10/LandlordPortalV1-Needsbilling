@@ -383,6 +383,129 @@
               </div>
               <p class="mt-1 text-xs text-gray-500">How long have you been living at this address?</p>
             </div>
+
+            <!-- Previous Addresses (if needed for 3-year history) -->
+            <div v-if="needsMoreAddressHistory" class="mt-8 pt-6 border-t">
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">Previous Address History</h3>
+              <p class="text-sm text-gray-600 mb-4">We need 3 years of address history. Please provide your previous addresses.</p>
+              <p class="text-xs text-gray-500 mb-6">
+                Current history: {{ totalAddressHistoryYears }} year{{ totalAddressHistoryYears !== 1 ? 's' : '' }},
+                {{ totalAddressHistoryMonths }} month{{ totalAddressHistoryMonths !== 1 ? 's' : '' }}
+                ({{ Math.floor(totalAddressHistoryInMonths / 12) }} years {{ totalAddressHistoryInMonths % 12 }} months total)
+              </p>
+
+              <div v-for="(address, index) in previousAddresses" :key="index" class="mb-6 p-4 bg-gray-50 rounded-lg">
+                <div class="flex justify-between items-center mb-4">
+                  <h4 class="text-md font-semibold text-gray-900">Previous Address {{ index + 1 }}</h4>
+                  <button
+                    v-if="index === previousAddresses.length - 1 && previousAddresses.length > 1"
+                    type="button"
+                    @click="removePreviousAddress(index)"
+                    class="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Country *</label>
+                    <input
+                      v-model="address.country"
+                      type="text"
+                      required
+                      placeholder="Country"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Address Line 1 *</label>
+                    <input
+                      v-model="address.address_line1"
+                      type="text"
+                      required
+                      placeholder="Street address"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Address Line 2</label>
+                    <input
+                      v-model="address.address_line2"
+                      type="text"
+                      placeholder="Apartment, suite, building, floor, etc."
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">City *</label>
+                      <input
+                        v-model="address.city"
+                        type="text"
+                        required
+                        placeholder="City"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Postcode *</label>
+                      <input
+                        v-model="address.postcode"
+                        type="text"
+                        required
+                        placeholder="Postcode"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Time at This Address *</label>
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-xs text-gray-600 mb-1">Years</label>
+                        <input
+                          v-model.number="address.time_at_address_years"
+                          type="number"
+                          min="0"
+                          max="100"
+                          required
+                          placeholder="0"
+                          class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          @input="updateAddressHistory"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-xs text-gray-600 mb-1">Months</label>
+                        <input
+                          v-model.number="address.time_at_address_months"
+                          type="number"
+                          min="0"
+                          max="11"
+                          required
+                          placeholder="0"
+                          class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          @input="updateAddressHistory"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                v-if="totalAddressHistoryInMonths < 36"
+                type="button"
+                @click="addPreviousAddress"
+                class="px-4 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-md"
+              >
+                Add Another Previous Address
+              </button>
+            </div>
           </div>
         </div>
 
@@ -2296,6 +2419,38 @@ const cityPlaceholder = computed(() => {
   return capitals[country] || 'City'
 })
 
+// Computed properties for address history tracking
+const totalAddressHistoryInMonths = computed(() => {
+  // Start with current address
+  let totalMonths = ((formData.value.time_at_address_years || 0) * 12) + (formData.value.time_at_address_months || 0)
+
+  // Add previous addresses
+  previousAddresses.value.forEach(addr => {
+    totalMonths += ((addr.time_at_address_years || 0) * 12) + (addr.time_at_address_months || 0)
+  })
+
+  return totalMonths
+})
+
+const totalAddressHistoryYears = computed(() => {
+  return Math.floor(totalAddressHistoryInMonths.value / 12)
+})
+
+const totalAddressHistoryMonths = computed(() => {
+  return totalAddressHistoryInMonths.value % 12
+})
+
+const needsMoreAddressHistory = computed(() => {
+  // Check if we have at least some time at current address
+  const hasCurrentAddress = (formData.value.time_at_address_years !== null && formData.value.time_at_address_years !== undefined) ||
+                           (formData.value.time_at_address_months !== null && formData.value.time_at_address_months !== undefined)
+
+  if (!hasCurrentAddress) return false
+
+  // Need 3 years (36 months) of address history
+  return totalAddressHistoryInMonths.value < 36
+})
+
 // File uploads
 const idDocument = ref<File | null>(null)
 const selfie = ref<File | null>(null)
@@ -2304,6 +2459,19 @@ const proofOfAddress = ref<File | null>(null)
 const payslips = ref<File[]>([])
 const proofOfFunds = ref<File | null>(null)
 const proofOfAdditionalIncome = ref<File | null>(null)
+
+// Previous addresses for 3-year history
+interface PreviousAddress {
+  address_line1: string
+  address_line2: string
+  city: string
+  postcode: string
+  country: string
+  time_at_address_years: number
+  time_at_address_months: number
+}
+
+const previousAddresses = ref<PreviousAddress[]>([])
 
 const formData = ref({
   // Page 2: Personal Details
@@ -2645,6 +2813,28 @@ const removeProofOfAdditionalIncome = () => {
   proofOfAdditionalIncome.value = null
 }
 
+// Previous address management
+const addPreviousAddress = () => {
+  previousAddresses.value.push({
+    address_line1: '',
+    address_line2: '',
+    city: '',
+    postcode: '',
+    country: '',
+    time_at_address_years: 0,
+    time_at_address_months: 0
+  })
+}
+
+const removePreviousAddress = (index: number) => {
+  previousAddresses.value.splice(index, 1)
+}
+
+const updateAddressHistory = () => {
+  // This function is called when time at address changes
+  // The computed properties will automatically recalculate
+}
+
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return '0 Bytes'
   const k = 1024
@@ -2761,6 +2951,25 @@ const handlePageSubmit = async () => {
       submitError.value = 'Please upload a selfie'
       return
     }
+  } else if (currentPage.value === 4) {
+    // Validate address history - need 3 years total
+    if (totalAddressHistoryInMonths.value < 36) {
+      // Validate all previous addresses have required fields
+      for (let i = 0; i < previousAddresses.value.length; i++) {
+        const addr = previousAddresses.value[i]
+        if (!addr.address_line1 || !addr.city || !addr.postcode || !addr.country) {
+          submitError.value = `Please complete all required fields for Previous Address ${i + 1}`
+          return
+        }
+        if (addr.time_at_address_years === null || addr.time_at_address_years === undefined) {
+          submitError.value = `Please enter the time at Previous Address ${i + 1}`
+          return
+        }
+      }
+
+      submitError.value = 'Please provide enough address history to cover 3 years. Add more previous addresses if needed.'
+      return
+    }
   } else if (currentPage.value === 5) {
     if (!proofOfAddress.value && !formData.value.proof_of_address_path) {
       submitError.value = 'Please upload proof of address'
@@ -2866,7 +3075,9 @@ const handleFinalSubmit = async () => {
       date_of_birth: dateOfBirth,
       employment_start_date: employmentStartDate,
       // Use the paths already stored in formData (uploaded on each step)
-      payslip_files: formData.value.payslip_paths
+      payslip_files: formData.value.payslip_paths,
+      // Include previous addresses for 3-year history
+      previous_addresses: previousAddresses.value
     }
 
     const response = await fetch(`${API_URL}/api/references/submit/${token}`, {
