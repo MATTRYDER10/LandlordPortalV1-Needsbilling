@@ -250,8 +250,8 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
         year: 'numeric'
       })
 
-      const invitationEmail = decrypt(invitation.email_encrypted) as string
-      const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'the team') : 'the team'
+      const invitationEmail: string = decrypt(invitation.email_encrypted) || ''
+      const companyName: string = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'the team') : 'the team'
 
       await sendUserInvitation(
         invitationEmail,
@@ -408,7 +408,7 @@ router.post('/accept/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invalid or expired invitation' })
     }
 
-    const invitationEmail = decrypt(invitation.email_encrypted) as string
+    const invitationEmail: string = decrypt(invitation.email_encrypted) || ''
 
     // Create user account (with metadata flag to prevent company creation in trigger)
     const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
