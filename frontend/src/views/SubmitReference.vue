@@ -352,6 +352,37 @@
                 />
               </div>
             </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Time at Current Address *</label>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1">Years</label>
+                  <input
+                    v-model.number="formData.time_at_address_years"
+                    type="number"
+                    min="0"
+                    max="100"
+                    required
+                    placeholder="0"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1">Months</label>
+                  <input
+                    v-model.number="formData.time_at_address_months"
+                    type="number"
+                    min="0"
+                    max="11"
+                    required
+                    placeholder="0"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">How long have you been living at this address?</p>
+            </div>
           </div>
         </div>
 
@@ -857,6 +888,68 @@
                 </div>
               </div>
             </div>
+
+            <!-- Savings, Pensions or Investments Details (shown if selected) -->
+            <div v-if="formData.income_savings_pension_investments" class="pt-6 border-t border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Savings, Pensions or Investments Details</h3>
+
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Total Savings Amount (£) *</label>
+                  <input
+                    v-model.number="formData.savings_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    :required="formData.income_savings_pension_investments"
+                    placeholder="Enter total amount in savings"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Include savings, pensions, and investment values</p>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Funds *</label>
+                  <input
+                    ref="proofOfFundsInput"
+                    type="file"
+                    @change="handleProofOfFundsUpload"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    class="hidden"
+                  />
+                  <button
+                    type="button"
+                    @click="($refs.proofOfFundsInput as any).click()"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    :style="{ color: buttonColor }"
+                  >
+                    {{ proofOfFunds ? 'Change Document' : 'Upload Document' }}
+                  </button>
+                  <p class="mt-1 text-xs text-gray-500">Upload bank statement, pension statement, or investment portfolio statement (max 10MB, PDF/JPG/PNG)</p>
+                  <div v-if="proofOfFunds" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center">
+                        <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span class="text-sm text-gray-700">{{ proofOfFunds.name }} ({{ formatFileSize(proofOfFunds.size) }})</span>
+                      </div>
+                      <button type="button" @click="removeProofOfFunds" class="text-red-600 hover:text-red-800 text-sm">
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else-if="formData.proof_of_funds_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span class="text-sm text-green-700">Proof of funds uploaded successfully</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -912,6 +1005,47 @@
                     <option value="monthly">Monthly</option>
                     <option value="annually">Annually</option>
                   </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Additional Income *</label>
+                <input
+                  ref="proofOfAdditionalIncomeInput"
+                  type="file"
+                  @change="handleProofOfAdditionalIncomeUpload"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  class="hidden"
+                />
+                <button
+                  type="button"
+                  @click="($refs.proofOfAdditionalIncomeInput as any).click()"
+                  class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                  :style="{ color: buttonColor }"
+                >
+                  {{ proofOfAdditionalIncome ? 'Change Document' : 'Upload Document' }}
+                </button>
+                <p class="mt-1 text-xs text-gray-500">Upload proof of additional income such as invoices, contracts, or bank statements (max 10MB, PDF/JPG/PNG)</p>
+                <div v-if="proofOfAdditionalIncome" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span class="text-sm text-gray-700">{{ proofOfAdditionalIncome.name }} ({{ formatFileSize(proofOfAdditionalIncome.size) }})</span>
+                    </div>
+                    <button type="button" @click="removeProofOfAdditionalIncome" class="text-red-600 hover:text-red-800 text-sm">
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                <div v-else-if="formData.proof_of_additional_income_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                  <div class="flex items-center">
+                    <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span class="text-sm text-green-700">Proof of additional income uploaded successfully</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2168,6 +2302,8 @@ const selfie = ref<File | null>(null)
 const selfiePreview = ref<string | null>(null)
 const proofOfAddress = ref<File | null>(null)
 const payslips = ref<File[]>([])
+const proofOfFunds = ref<File | null>(null)
+const proofOfAdditionalIncome = ref<File | null>(null)
 
 const formData = ref({
   // Page 2: Personal Details
@@ -2187,6 +2323,8 @@ const formData = ref({
   current_city: '',
   current_postcode: '',
   current_country: '',
+  time_at_address_years: null,
+  time_at_address_months: null,
 
   // Page 3: Selfie
   selfie_path: '', // Uploaded file path
@@ -2201,6 +2339,10 @@ const formData = ref({
   income_savings_pension_investments: false,
   income_student: false,
   income_unemployed: false,
+
+  // Savings, Pensions or Investments Details
+  savings_amount: null,
+  proof_of_funds_path: '',
 
   // Employment Details
   employment_contract_type: '',
@@ -2242,6 +2384,7 @@ const formData = ref({
   additional_income_source: '',
   additional_income_amount: null,
   additional_income_frequency: '',
+  proof_of_additional_income_path: '',
 
   // Page 8: Adverse Credit
   has_adverse_credit: false,
@@ -2468,6 +2611,40 @@ const removePayslip = (index: number) => {
   payslips.value.splice(index, 1)
 }
 
+const handleProofOfFundsUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    const file = target.files[0]
+    if (file.size > 10 * 1024 * 1024) {
+      submitError.value = 'File is too large. Max size is 10MB.'
+      return
+    }
+    proofOfFunds.value = file
+    submitError.value = ''
+  }
+}
+
+const removeProofOfFunds = () => {
+  proofOfFunds.value = null
+}
+
+const handleProofOfAdditionalIncomeUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    const file = target.files[0]
+    if (file.size > 10 * 1024 * 1024) {
+      submitError.value = 'File is too large. Max size is 10MB.'
+      return
+    }
+    proofOfAdditionalIncome.value = file
+    submitError.value = ''
+  }
+}
+
+const removeProofOfAdditionalIncome = () => {
+  proofOfAdditionalIncome.value = null
+}
+
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return '0 Bytes'
   const k = 1024
@@ -2512,6 +2689,16 @@ const uploadCurrentPageFiles = async () => {
     hasFilesToUpload = true
   }
 
+  if (currentPage.value === 6 && proofOfFunds.value && !formData.value.proof_of_funds_path) {
+    formDataFiles.append('proof_of_funds', proofOfFunds.value)
+    hasFilesToUpload = true
+  }
+
+  if (currentPage.value === 7 && proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {
+    formDataFiles.append('proof_of_additional_income', proofOfAdditionalIncome.value)
+    hasFilesToUpload = true
+  }
+
   // If there are no files to upload, skip
   if (!hasFilesToUpload) {
     return
@@ -2539,6 +2726,12 @@ const uploadCurrentPageFiles = async () => {
   }
   if (uploadedFiles.proof_of_address) {
     formData.value.proof_of_address_path = uploadedFiles.proof_of_address
+  }
+  if (uploadedFiles.proof_of_funds) {
+    formData.value.proof_of_funds_path = uploadedFiles.proof_of_funds
+  }
+  if (uploadedFiles.proof_of_additional_income) {
+    formData.value.proof_of_additional_income_path = uploadedFiles.proof_of_additional_income
   }
   if (uploadedFiles.payslips && uploadedFiles.payslips.length > 0) {
     formData.value.payslip_paths = uploadedFiles.payslips
@@ -2588,6 +2781,22 @@ const handlePageSubmit = async () => {
       if (!isWorkEmail(formData.value.accountant_email)) {
         accountantEmailError.value = 'Please use a professional accountant email address (not Gmail, Hotmail, Yahoo, etc.)'
         submitError.value = 'Please use a professional email address for your accountant'
+        return
+      }
+    }
+
+    // Validate proof of funds if savings/pensions/investments is selected
+    if (formData.value.income_savings_pension_investments) {
+      if (!proofOfFunds.value && !formData.value.proof_of_funds_path) {
+        submitError.value = 'Please upload proof of funds (bank statement, pension statement, or investment portfolio)'
+        return
+      }
+    }
+  } else if (currentPage.value === 7) {
+    // Validate proof of additional income if additional income is declared
+    if (formData.value.has_additional_income) {
+      if (!proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {
+        submitError.value = 'Please upload proof of additional income'
         return
       }
     }

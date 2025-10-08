@@ -190,12 +190,6 @@
                           >
                             View
                           </button>
-                          <button
-                            @click="downloadFile(childReferenceDetails[child.id].reference.id_document_path)"
-                            class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                          >
-                            Download
-                          </button>
                         </div>
                       </div>
                       <div v-if="childReferenceDetails[child.id].reference.selfie_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
@@ -211,12 +205,6 @@
                             class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
                           >
                             View
-                          </button>
-                          <button
-                            @click="downloadFile(childReferenceDetails[child.id].reference.selfie_path)"
-                            class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                          >
-                            Download
                           </button>
                         </div>
                       </div>
@@ -250,6 +238,16 @@
                         <label class="block text-sm font-medium text-gray-500">Country</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_country || 'Not provided yet' }}</p>
                       </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">Time at Address</label>
+                        <p class="mt-1 text-gray-900">
+                          <span v-if="childReferenceDetails[child.id].reference.time_at_address_years !== null || childReferenceDetails[child.id].reference.time_at_address_months !== null">
+                            {{ childReferenceDetails[child.id].reference.time_at_address_years || 0 }} year{{ childReferenceDetails[child.id].reference.time_at_address_years !== 1 ? 's' : '' }},
+                            {{ childReferenceDetails[child.id].reference.time_at_address_months || 0 }} month{{ childReferenceDetails[child.id].reference.time_at_address_months !== 1 ? 's' : '' }}
+                          </span>
+                          <span v-else>Not provided yet</span>
+                        </p>
+                      </div>
                     </div>
 
                     <!-- Proof of Address Document -->
@@ -268,12 +266,6 @@
                             class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
                           >
                             View
-                          </button>
-                          <button
-                            @click="downloadFile(childReferenceDetails[child.id].reference.proof_of_address_path)"
-                            class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                          >
-                            Download
                           </button>
                         </div>
                       </div>
@@ -349,12 +341,6 @@
                                 class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
                               >
                                 View
-                              </button>
-                              <button
-                                @click="downloadFile(file)"
-                                class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                              >
-                                Download
                               </button>
                             </div>
                           </div>
@@ -537,6 +523,84 @@
                         <p class="text-sm text-blue-800">
                           Waiting for accountant reference from {{ childReferenceDetails[child.id].reference.accountant_email }}
                         </p>
+                      </div>
+                    </div>
+
+                    <!-- Savings, Pensions or Investments Details -->
+                    <div v-if="childReferenceDetails[child.id].reference.income_savings_pension_investments" class="border-t pt-6">
+                      <h6 class="text-sm font-semibold text-gray-900 mb-4">Savings, Pensions or Investments</h6>
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Total Savings Amount</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.savings_amount ? `£${childReferenceDetails[child.id].reference.savings_amount.toLocaleString()}` : 'Not provided' }}</p>
+                        </div>
+                      </div>
+
+                      <!-- Proof of Funds Document -->
+                      <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Funds</label>
+                        <div v-if="childReferenceDetails[child.id].reference.proof_of_funds_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                          <div class="flex items-center">
+                            <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-sm text-gray-900">Proof of Funds</span>
+                          </div>
+                          <div class="flex gap-2">
+                            <button
+                              @click="viewFile(childReferenceDetails[child.id].reference.proof_of_funds_path)"
+                              class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
+                        <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg">
+                          Proof of funds not uploaded yet
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Additional Income -->
+                    <div v-if="childReferenceDetails[child.id].reference.has_additional_income" class="mt-6 pt-6 border-t">
+                      <h6 class="text-sm font-semibold text-gray-900 mb-4">Additional Income</h6>
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Source</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.additional_income_source || 'Not provided' }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Amount</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.additional_income_amount ? `£${childReferenceDetails[child.id].reference.additional_income_amount}` : 'Not provided' }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Frequency</label>
+                          <p class="mt-1 text-gray-900 capitalize">{{ childReferenceDetails[child.id].reference.additional_income_frequency || 'Not provided' }}</p>
+                        </div>
+                      </div>
+
+                      <!-- Proof of Additional Income Document -->
+                      <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Additional Income</label>
+                        <div v-if="childReferenceDetails[child.id].reference.proof_of_additional_income_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                          <div class="flex items-center">
+                            <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-sm text-gray-900">Proof of Additional Income</span>
+                          </div>
+                          <div class="flex gap-2">
+                            <button
+                              @click="viewFile(childReferenceDetails[child.id].reference.proof_of_additional_income_path)"
+                              class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
+                        <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg">
+                          Proof of additional income not uploaded yet
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -915,12 +979,6 @@
                 >
                   View
                 </button>
-                <button
-                  @click="downloadFile(reference.id_document_path)"
-                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                >
-                  Download
-                </button>
               </div>
             </div>
             <div v-if="reference.selfie_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
@@ -936,12 +994,6 @@
                   class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
                 >
                   View
-                </button>
-                <button
-                  @click="downloadFile(reference.selfie_path)"
-                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                >
-                  Download
                 </button>
               </div>
             </div>
@@ -975,6 +1027,16 @@
               <label class="block text-sm font-medium text-gray-500">Country</label>
               <p class="mt-1 text-gray-900">{{ reference.current_country || 'Not provided yet' }}</p>
             </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-500">Time at Address</label>
+              <p class="mt-1 text-gray-900">
+                <span v-if="reference.time_at_address_years !== null || reference.time_at_address_months !== null">
+                  {{ reference.time_at_address_years || 0 }} year{{ reference.time_at_address_years !== 1 ? 's' : '' }},
+                  {{ reference.time_at_address_months || 0 }} month{{ reference.time_at_address_months !== 1 ? 's' : '' }}
+                </span>
+                <span v-else>Not provided yet</span>
+              </p>
+            </div>
           </div>
 
           <!-- Proof of Address Document -->
@@ -993,12 +1055,6 @@
                   class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
                 >
                   View
-                </button>
-                <button
-                  @click="downloadFile(reference.proof_of_address_path)"
-                  class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                >
-                  Download
                 </button>
               </div>
             </div>
@@ -1101,12 +1157,6 @@
                       class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
                     >
                       View
-                    </button>
-                    <button
-                      @click="downloadFile(file)"
-                      class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80 rounded-md border border-primary"
-                    >
-                      Download
                     </button>
                   </div>
                 </div>
@@ -1372,6 +1422,41 @@
             </div>
           </div>
 
+          <!-- Savings, Pensions or Investments Details -->
+          <div v-if="reference.income_savings_pension_investments" class="border-t pt-6">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Savings, Pensions or Investments</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Total Savings Amount</label>
+                <p class="mt-1 text-gray-900">{{ reference.savings_amount ? `£${reference.savings_amount.toLocaleString()}` : 'Not provided' }}</p>
+              </div>
+            </div>
+
+            <!-- Proof of Funds Document -->
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Funds</label>
+              <div v-if="reference.proof_of_funds_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                <div class="flex items-center">
+                  <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span class="text-sm text-gray-900">Proof of Funds</span>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    @click="viewFile(reference.proof_of_funds_path)"
+                    class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                  >
+                    View
+                  </button>
+                </div>
+              </div>
+              <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg">
+                Proof of funds not uploaded yet
+              </div>
+            </div>
+          </div>
+
           <!-- Additional Income -->
           <div v-if="reference.has_additional_income" class="mt-6 pt-6 border-t">
             <h4 class="text-md font-semibold text-gray-900 mb-4">Additional Income</h4>
@@ -1387,6 +1472,30 @@
               <div>
                 <label class="block text-sm font-medium text-gray-500">Frequency</label>
                 <p class="mt-1 text-gray-900 capitalize">{{ reference.additional_income_frequency || 'Not provided' }}</p>
+              </div>
+            </div>
+
+            <!-- Proof of Additional Income Document -->
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Additional Income</label>
+              <div v-if="reference.proof_of_additional_income_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                <div class="flex items-center">
+                  <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span class="text-sm text-gray-900">Proof of Additional Income</span>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    @click="viewFile(reference.proof_of_additional_income_path)"
+                    class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                  >
+                    View
+                  </button>
+                </div>
+              </div>
+              <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg">
+                Proof of additional income not uploaded yet
               </div>
             </div>
           </div>
@@ -1893,14 +2002,8 @@
           </div>
           <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             <button
-              @click="downloadFile(viewingDocumentPath)"
-              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary/90 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm"
-            >
-              Download
-            </button>
-            <button
               @click="closeDocumentViewer"
-              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
+              class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:w-auto sm:text-sm"
             >
               Close
             </button>

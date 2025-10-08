@@ -657,6 +657,8 @@ router.post('/submit/:token', async (req, res) => {
       current_city: data.current_city || null,
       current_postcode: data.current_postcode || null,
       current_country: data.current_country || null,
+      time_at_address_years: data.time_at_address_years || null,
+      time_at_address_months: data.time_at_address_months || null,
       proof_of_address_path: data.proof_of_address_path || null,
 
       // Financial Information - Income Sources (Page 6)
@@ -666,6 +668,13 @@ router.post('/submit/:token', async (req, res) => {
       income_savings_pension_investments: data.income_savings_pension_investments || false,
       income_student: data.income_student || false,
       income_unemployed: data.income_unemployed || false,
+
+      // Savings, Pensions or Investments Details
+      savings_amount: data.savings_amount || null,
+      proof_of_funds_path: data.proof_of_funds_path || null,
+
+      // Additional Income
+      proof_of_additional_income_path: data.proof_of_additional_income_path || null,
 
       // Employment Details (Page 6)
       employment_contract_type: data.employment_contract_type || null,
@@ -855,6 +864,8 @@ router.post('/upload/:token', (req, res, next) => {
     { name: 'id_document', maxCount: 1 },
     { name: 'selfie', maxCount: 1 },
     { name: 'proof_of_address', maxCount: 1 },
+    { name: 'proof_of_funds', maxCount: 1 },
+    { name: 'proof_of_additional_income', maxCount: 1 },
     { name: 'bank_statements', maxCount: 10 },
     { name: 'payslips', maxCount: 10 }
   ])
@@ -885,6 +896,8 @@ router.post('/upload/:token', (req, res, next) => {
     let idDocumentPath: string | null = null
     let selfiePath: string | null = null
     let proofOfAddressPath: string | null = null
+    let proofOfFundsPath: string | null = null
+    let proofOfAdditionalIncomePath: string | null = null
     const bankStatementPaths: string[] = []
     const payslipPaths: string[] = []
 
@@ -948,6 +961,46 @@ router.post('/upload/:token', (req, res, next) => {
       proofOfAddressPath = fileName
     }
 
+    // Upload proof of funds
+    if (files.proof_of_funds && files.proof_of_funds[0]) {
+      const file = files.proof_of_funds[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/proof_of_funds/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload proof of funds: ${uploadError.message}`)
+      }
+
+      proofOfFundsPath = fileName
+    }
+
+    // Upload proof of additional income
+    if (files.proof_of_additional_income && files.proof_of_additional_income[0]) {
+      const file = files.proof_of_additional_income[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/proof_of_additional_income/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload proof of additional income: ${uploadError.message}`)
+      }
+
+      proofOfAdditionalIncomePath = fileName
+    }
+
     // Upload bank statements
     if (files.bank_statements) {
       for (const file of files.bank_statements) {
@@ -995,6 +1048,8 @@ router.post('/upload/:token', (req, res, next) => {
       id_document: idDocumentPath,
       selfie: selfiePath,
       proof_of_address: proofOfAddressPath,
+      proof_of_funds: proofOfFundsPath,
+      proof_of_additional_income: proofOfAdditionalIncomePath,
       bank_statements: bankStatementPaths,
       payslips: payslipPaths
     })
