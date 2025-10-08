@@ -2153,42 +2153,6 @@ const fetchChildDetails = async (childId: string) => {
   }
 }
 
-const downloadFile = async (filePath: string) => {
-  try {
-    const token = authStore.session?.access_token
-    if (!token) {
-      useToast().error('Authentication required')
-      return
-    }
-
-    // Parse file path: referenceId/folder/filename
-    const parts = filePath.split('/')
-    const downloadUrl = `${API_URL}/api/references/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
-
-    const response = await fetch(downloadUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to download file')
-    }
-
-    const blob = await response.blob()
-    const blobUrl = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = filePath.split('/').pop() || 'document'
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(blobUrl)
-    document.body.removeChild(a)
-  } catch (error) {
-    useToast().error('Failed to download file')
-  }
-}
-
 const viewFile = async (filePath: string) => {
   try {
     const token = authStore.session?.access_token
