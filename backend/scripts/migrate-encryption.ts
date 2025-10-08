@@ -180,24 +180,46 @@ async function main() {
 
   // Migrate each table with encrypted columns
   await migrateTable('companies', [
-    'name_encrypted',
-    'address_encrypted'
+    'name_encrypted'
   ])
 
   await migrateTable('tenant_references', [
-    'first_name_encrypted',
-    'last_name_encrypted',
-    'email_encrypted',
-    'phone_encrypted',
-    'dob_encrypted',
-    'landlord_name_encrypted',
-    'landlord_email_encrypted',
-    'landlord_phone_encrypted',
-    'property_address_encrypted',
-    'rent_amount_encrypted',
-    'notes_encrypted',
+    'accountant_email_encrypted',
+    'accountant_firm_encrypted',
+    'accountant_name_encrypted',
+    'accountant_phone_encrypted',
+    'additional_income_amount_encrypted',
+    'additional_income_source_encrypted',
+    'adverse_credit_details_encrypted',
+    'contact_number_encrypted',
+    'current_address_line1_encrypted',
+    'current_address_line2_encrypted',
+    'current_city_encrypted',
+    'current_country_encrypted',
+    'current_postcode_encrypted',
+    'date_of_birth_encrypted',
+    'dependants_details_encrypted',
+    'employer_ref_email_encrypted',
+    'employer_ref_name_encrypted',
+    'employer_ref_phone_encrypted',
+    'employment_company_address_line1_encrypted',
+    'employment_company_address_line2_encrypted',
+    'employment_company_city_encrypted',
+    'employment_company_country_encrypted',
+    'employment_company_name_encrypted',
+    'employment_company_postcode_encrypted',
+    'employment_position_encrypted',
+    'employment_salary_amount_encrypted',
+    'guarantor_name_encrypted',
+    'guarantor_relationship_encrypted',
     'internal_notes_encrypted',
-    'verification_notes_encrypted'
+    'marital_status_encrypted',
+    'middle_name_encrypted',
+    'nationality_encrypted',
+    'notes_encrypted',
+    'pet_details_encrypted',
+    'previous_landlord_address_encrypted',
+    'previous_landlord_email_encrypted'
   ])
 
   await migrateTable('tenant_reference_previous_addresses', [
@@ -209,10 +231,72 @@ async function main() {
   ])
 
   await migrateTable('employer_references', [
+    'absence_details_encrypted',
+    'additional_comments_encrypted',
+    'annual_salary_encrypted',
+    'company_name_encrypted',
+    'disciplinary_details_encrypted',
+    'employee_position_encrypted',
+    'employer_email_encrypted',
     'employer_name_encrypted',
-    'employer_contact_encrypted',
-    'position_encrypted',
-    'salary_encrypted'
+    'employer_phone_encrypted',
+    'employer_position_encrypted',
+    'performance_details_encrypted',
+    'signature_encrypted',
+    'would_reemploy_details_encrypted'
+  ])
+
+  await migrateTable('accountant_references', [
+    'accountant_email_encrypted',
+    'accountant_firm_encrypted',
+    'accountant_name_encrypted',
+    'accountant_phone_encrypted',
+    'additional_comments_encrypted',
+    'annual_profit_encrypted',
+    'annual_turnover_encrypted',
+    'business_name_encrypted',
+    'estimated_monthly_income_encrypted',
+    'nature_of_business_encrypted',
+    'recommendation_comments_encrypted',
+    'signature_encrypted',
+    'tax_liabilities_details_encrypted'
+  ])
+
+  await migrateTable('agent_references', [
+    'additional_comments_encrypted',
+    'agency_name_encrypted',
+    'agent_email_encrypted',
+    'agent_name_encrypted',
+    'agent_phone_encrypted',
+    'breach_of_tenancy_details_encrypted',
+    'monthly_rent_encrypted',
+    'neighbour_complaints_details_encrypted',
+    'property_address_encrypted',
+    'property_city_encrypted',
+    'property_condition_details_encrypted',
+    'property_postcode_encrypted',
+    'rent_paid_on_time_details_encrypted',
+    'signature_encrypted',
+    'signature_name_encrypted',
+    'would_rent_again_details_encrypted'
+  ])
+
+  await migrateTable('landlord_references', [
+    'additional_comments_encrypted',
+    'breach_of_tenancy_details_encrypted',
+    'landlord_email_encrypted',
+    'landlord_name_encrypted',
+    'landlord_phone_encrypted',
+    'monthly_rent_encrypted',
+    'neighbour_complaints_details_encrypted',
+    'property_address_encrypted',
+    'property_city_encrypted',
+    'property_condition_details_encrypted',
+    'property_postcode_encrypted',
+    'rent_paid_on_time_details_encrypted',
+    'signature_encrypted',
+    'signature_name_encrypted',
+    'would_rent_again_details_encrypted'
   ])
 
   await migrateTable('invitations', [
