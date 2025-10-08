@@ -132,7 +132,7 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
     // Get company and inviter details for email
     const { data: company } = await supabase
       .from('companies')
-      .select('name')
+      .select('name_encrypted')
       .eq('id', companyUser.company_id)
       .single()
 
@@ -149,10 +149,12 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
         year: 'numeric'
       })
 
+      const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'the team') : 'the team'
+
       await sendUserInvitation(
         email,
         inviterName,
-        company?.name || 'the team',
+        companyName,
         role,
         invitationUrl,
         expiresAtFormatted
@@ -235,7 +237,7 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
       // Get company and inviter details for email
       const { data: company } = await supabase
         .from('companies')
-        .select('name')
+        .select('name_encrypted')
         .eq('id', companyUser.company_id)
         .single()
 
@@ -249,11 +251,12 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
       })
 
       const invitationEmail = decrypt(invitation.email_encrypted) as string
+      const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'the team') : 'the team'
 
       await sendUserInvitation(
         invitationEmail,
         inviterName,
-        company?.name || 'the team',
+        companyName,
         invitation.role,
         invitationUrl,
         expiresAtFormatted

@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase'
 import multer from 'multer'
 import crypto from 'crypto'
 import { createAuditLog, formatUserName } from '../services/auditLog'
+import { encrypt, decrypt } from '../services/encryption'
 
 const router = Router()
 
@@ -48,8 +49,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     const companyUser = companyUsers[0]
 
+    // Decrypt company name
+    const company = companyUser.companies ? {
+      ...companyUser.companies,
+      name: decrypt((companyUser.companies as any).name_encrypted)
+    } : null
+
     res.json({
-      company: companyUser.companies,
+      company,
       role: companyUser.role
     })
   } catch (error: any) {
@@ -157,7 +164,7 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     const { data, error } = await supabase
       .from('companies')
       .update({
-        name,
+        name_encrypted: encrypt(name),
         address,
         city,
         postcode,
@@ -178,12 +185,20 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // Track what changed for audit log
     const changes: Record<string, any> = {}
-    const fields = ['name', 'address', 'city', 'postcode', 'phone', 'website', 'logo_url', 'primary_color', 'button_color']
+    const fields = ['address', 'city', 'postcode', 'phone', 'website', 'logo_url', 'primary_color', 'button_color']
     fields.forEach(field => {
       if (oldCompany && data[field] !== oldCompany[field]) {
         changes[field] = { old: oldCompany[field], new: data[field] }
       }
     })
+
+    // Handle encrypted name field separately
+    if (oldCompany && data.name_encrypted !== oldCompany.name_encrypted) {
+      changes['name'] = {
+        old: oldCompany.name_encrypted ? decrypt(oldCompany.name_encrypted) : null,
+        new: data.name_encrypted ? decrypt(data.name_encrypted) : null
+      }
+    }
 
     // Audit log
     if (Object.keys(changes).length > 0) {
@@ -202,7 +217,13 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
       )
     }
 
-    res.json({ company: data })
+    // Decrypt company name for response
+    const decryptedCompany = {
+      ...data,
+      name: decrypt(data.name_encrypted)
+    }
+
+    res.json({ company: decryptedCompany })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

@@ -16,7 +16,7 @@ router.get('/references', authenticateStaff, async (req: StaffAuthRequest, res) 
         *,
         companies:company_id (
           id,
-          name
+          name_encrypted
         )
       `)
       .neq('is_group_parent', true) // Exclude parent multi-tenant references from staff view
@@ -46,8 +46,17 @@ router.get('/references', authenticateStaff, async (req: StaffAuthRequest, res) 
     // Decrypt tenant reference fields for list view
     const decryptedReferences = references?.map(ref => ({
       ...ref,
+      companies: ref.companies ? {
+        ...ref.companies,
+        name: decrypt(ref.companies.name_encrypted)
+      } : null,
+      tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
+      tenant_last_name: decrypt(ref.tenant_last_name_encrypted),
       tenant_email: decrypt(ref.tenant_email_encrypted),
-      tenant_phone: decrypt(ref.tenant_phone_encrypted)
+      tenant_phone: decrypt(ref.tenant_phone_encrypted),
+      property_address: decrypt(ref.property_address_encrypted),
+      property_city: decrypt(ref.property_city_encrypted),
+      property_postcode: decrypt(ref.property_postcode_encrypted)
     }))
 
     res.json({ references: decryptedReferences })
@@ -68,7 +77,7 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
         *,
         companies:company_id (
           id,
-          name
+          name_encrypted
         )
       `)
       .eq('id', id)
@@ -162,17 +171,46 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       if (!ref) return ref
       return {
         ...ref,
+        companies: ref.companies ? {
+          ...ref.companies,
+          name: decrypt(ref.companies.name_encrypted)
+        } : null,
+        tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
+        tenant_last_name: decrypt(ref.tenant_last_name_encrypted),
         tenant_email: decrypt(ref.tenant_email_encrypted),
         tenant_phone: decrypt(ref.tenant_phone_encrypted),
         contact_number: decrypt(ref.contact_number_encrypted),
         date_of_birth: decrypt(ref.date_of_birth_encrypted),
+        property_address: decrypt(ref.property_address_encrypted),
+        property_city: decrypt(ref.property_city_encrypted),
+        property_postcode: decrypt(ref.property_postcode_encrypted),
+        current_address_line1: decrypt(ref.current_address_line1_encrypted),
+        current_address_line2: decrypt(ref.current_address_line2_encrypted),
+        current_city: decrypt(ref.current_city_encrypted),
+        current_postcode: decrypt(ref.current_postcode_encrypted),
+        current_country: decrypt(ref.current_country_encrypted),
+        employment_company_name: decrypt(ref.employment_company_name_encrypted),
+        employment_job_title: decrypt(ref.employment_position_encrypted),
         employment_salary_amount: decrypt(ref.employment_salary_amount_encrypted),
+        employment_company_address_line1: decrypt(ref.employment_company_address_line1_encrypted),
+        employment_company_address_line2: decrypt(ref.employment_company_address_line2_encrypted),
+        employment_company_city: decrypt(ref.employment_company_city_encrypted),
+        employment_company_postcode: decrypt(ref.employment_company_postcode_encrypted),
+        employment_company_country: decrypt(ref.employment_company_country_encrypted),
         self_employed_annual_income: decrypt(ref.self_employed_annual_income_encrypted),
         savings_amount: decrypt(ref.savings_amount_encrypted),
         employer_ref_email: decrypt(ref.employer_ref_email_encrypted),
         employer_ref_phone: decrypt(ref.employer_ref_phone_encrypted),
+        previous_landlord_name: decrypt(ref.previous_landlord_name_encrypted),
         previous_landlord_email: decrypt(ref.previous_landlord_email_encrypted),
         previous_landlord_phone: decrypt(ref.previous_landlord_phone_encrypted),
+        previous_rental_address_line1: decrypt(ref.previous_rental_address_line1_encrypted),
+        previous_rental_address_line2: decrypt(ref.previous_rental_address_line2_encrypted),
+        previous_rental_city: decrypt(ref.previous_rental_city_encrypted),
+        previous_rental_postcode: decrypt(ref.previous_rental_postcode_encrypted),
+        previous_rental_country: decrypt(ref.previous_rental_country_encrypted),
+        accountant_name: decrypt(ref.accountant_firm_encrypted),
+        accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
         accountant_phone: decrypt(ref.accountant_phone_encrypted)
       }
@@ -183,32 +221,54 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
 
     const decryptedLandlordReference = landlordReference ? {
       ...landlordReference,
+      landlord_name: decrypt(landlordReference.landlord_name_encrypted),
       landlord_email: decrypt(landlordReference.landlord_email_encrypted),
       landlord_phone: decrypt(landlordReference.landlord_phone_encrypted),
-      monthly_rent: decrypt(landlordReference.monthly_rent_encrypted)
+      property_address: decrypt(landlordReference.property_address_encrypted),
+      property_city: decrypt(landlordReference.property_city_encrypted),
+      property_postcode: decrypt(landlordReference.property_postcode_encrypted),
+      monthly_rent: decrypt(landlordReference.monthly_rent_encrypted),
+      signature_name: decrypt(landlordReference.signature_name_encrypted),
+      signature: decrypt(landlordReference.signature_encrypted)
     } : null
 
     const decryptedAgentReference = agentReference ? {
       ...agentReference,
+      agent_name: decrypt(agentReference.agent_name_encrypted),
+      agency_name: decrypt(agentReference.agency_name_encrypted),
       agent_email: decrypt(agentReference.agent_email_encrypted),
       agent_phone: decrypt(agentReference.agent_phone_encrypted),
-      monthly_rent: decrypt(agentReference.monthly_rent_encrypted)
+      property_address: decrypt(agentReference.property_address_encrypted),
+      property_city: decrypt(agentReference.property_city_encrypted),
+      property_postcode: decrypt(agentReference.property_postcode_encrypted),
+      monthly_rent: decrypt(agentReference.monthly_rent_encrypted),
+      signature_name: decrypt(agentReference.signature_name_encrypted),
+      signature: decrypt(agentReference.signature_encrypted)
     } : null
 
     const decryptedEmployerReference = employerReference ? {
       ...employerReference,
+      company_name: decrypt(employerReference.company_name_encrypted),
+      employer_name: decrypt(employerReference.employer_name_encrypted),
+      employer_position: decrypt(employerReference.employer_position_encrypted),
       employer_email: decrypt(employerReference.employer_email_encrypted),
       employer_phone: decrypt(employerReference.employer_phone_encrypted),
-      annual_salary: decrypt(employerReference.annual_salary_encrypted)
+      employee_position: decrypt(employerReference.employee_position_encrypted),
+      annual_salary: decrypt(employerReference.annual_salary_encrypted),
+      signature: decrypt(employerReference.signature_encrypted)
     } : null
 
     const decryptedAccountantReference = accountantReference ? {
       ...accountantReference,
+      accountant_name: decrypt(accountantReference.accountant_name_encrypted),
+      accountant_firm: decrypt(accountantReference.accountant_firm_encrypted),
       accountant_email: decrypt(accountantReference.accountant_email_encrypted),
       accountant_phone: decrypt(accountantReference.accountant_phone_encrypted),
+      business_name: decrypt(accountantReference.business_name_encrypted),
       annual_turnover: decrypt(accountantReference.annual_turnover_encrypted),
       annual_profit: decrypt(accountantReference.annual_profit_encrypted),
-      estimated_monthly_income: decrypt(accountantReference.estimated_monthly_income_encrypted)
+      estimated_monthly_income: decrypt(accountantReference.estimated_monthly_income_encrypted),
+      signature: decrypt(accountantReference.signature_encrypted)
     } : null
 
     res.json({

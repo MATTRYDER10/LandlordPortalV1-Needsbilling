@@ -119,8 +119,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     // Decrypt tenant reference fields for list view
     const decryptedReferences = referencesWithCount.map(ref => ({
       ...ref,
+      tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
+      tenant_last_name: decrypt(ref.tenant_last_name_encrypted),
       tenant_email: decrypt(ref.tenant_email_encrypted),
-      tenant_phone: decrypt(ref.tenant_phone_encrypted)
+      tenant_phone: decrypt(ref.tenant_phone_encrypted),
+      property_address: decrypt(ref.property_address_encrypted),
+      property_city: decrypt(ref.property_city_encrypted),
+      property_postcode: decrypt(ref.property_postcode_encrypted)
     }))
 
     res.json({ references: decryptedReferences })
@@ -312,17 +317,42 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       if (!ref) return ref
       return {
         ...ref,
+        tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
+        tenant_last_name: decrypt(ref.tenant_last_name_encrypted),
         tenant_email: decrypt(ref.tenant_email_encrypted),
         tenant_phone: decrypt(ref.tenant_phone_encrypted),
         contact_number: decrypt(ref.contact_number_encrypted),
         date_of_birth: decrypt(ref.date_of_birth_encrypted),
+        property_address: decrypt(ref.property_address_encrypted),
+        property_city: decrypt(ref.property_city_encrypted),
+        property_postcode: decrypt(ref.property_postcode_encrypted),
+        current_address_line1: decrypt(ref.current_address_line1_encrypted),
+        current_address_line2: decrypt(ref.current_address_line2_encrypted),
+        current_city: decrypt(ref.current_city_encrypted),
+        current_postcode: decrypt(ref.current_postcode_encrypted),
+        current_country: decrypt(ref.current_country_encrypted),
+        employment_company_name: decrypt(ref.employment_company_name_encrypted),
+        employment_job_title: decrypt(ref.employment_position_encrypted),
         employment_salary_amount: decrypt(ref.employment_salary_amount_encrypted),
+        employment_company_address_line1: decrypt(ref.employment_company_address_line1_encrypted),
+        employment_company_address_line2: decrypt(ref.employment_company_address_line2_encrypted),
+        employment_company_city: decrypt(ref.employment_company_city_encrypted),
+        employment_company_postcode: decrypt(ref.employment_company_postcode_encrypted),
+        employment_company_country: decrypt(ref.employment_company_country_encrypted),
         self_employed_annual_income: decrypt(ref.self_employed_annual_income_encrypted),
         savings_amount: decrypt(ref.savings_amount_encrypted),
         employer_ref_email: decrypt(ref.employer_ref_email_encrypted),
         employer_ref_phone: decrypt(ref.employer_ref_phone_encrypted),
+        previous_landlord_name: decrypt(ref.previous_landlord_name_encrypted),
         previous_landlord_email: decrypt(ref.previous_landlord_email_encrypted),
         previous_landlord_phone: decrypt(ref.previous_landlord_phone_encrypted),
+        previous_rental_address_line1: decrypt(ref.previous_rental_address_line1_encrypted),
+        previous_rental_address_line2: decrypt(ref.previous_rental_address_line2_encrypted),
+        previous_rental_city: decrypt(ref.previous_rental_city_encrypted),
+        previous_rental_postcode: decrypt(ref.previous_rental_postcode_encrypted),
+        previous_rental_country: decrypt(ref.previous_rental_country_encrypted),
+        accountant_name: decrypt(ref.accountant_firm_encrypted),
+        accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
         accountant_phone: decrypt(ref.accountant_phone_encrypted)
       }
@@ -336,32 +366,54 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     const decryptedLandlordReference = landlordReference ? {
       ...landlordReference,
+      landlord_name: decrypt(landlordReference.landlord_name_encrypted),
       landlord_email: decrypt(landlordReference.landlord_email_encrypted),
       landlord_phone: decrypt(landlordReference.landlord_phone_encrypted),
-      monthly_rent: decrypt(landlordReference.monthly_rent_encrypted)
+      property_address: decrypt(landlordReference.property_address_encrypted),
+      property_city: decrypt(landlordReference.property_city_encrypted),
+      property_postcode: decrypt(landlordReference.property_postcode_encrypted),
+      monthly_rent: decrypt(landlordReference.monthly_rent_encrypted),
+      signature_name: decrypt(landlordReference.signature_name_encrypted),
+      signature: decrypt(landlordReference.signature_encrypted)
     } : null
 
     const decryptedAgentReference = agentReference ? {
       ...agentReference,
+      agent_name: decrypt(agentReference.agent_name_encrypted),
+      agency_name: decrypt(agentReference.agency_name_encrypted),
       agent_email: decrypt(agentReference.agent_email_encrypted),
       agent_phone: decrypt(agentReference.agent_phone_encrypted),
-      monthly_rent: decrypt(agentReference.monthly_rent_encrypted)
+      property_address: decrypt(agentReference.property_address_encrypted),
+      property_city: decrypt(agentReference.property_city_encrypted),
+      property_postcode: decrypt(agentReference.property_postcode_encrypted),
+      monthly_rent: decrypt(agentReference.monthly_rent_encrypted),
+      signature_name: decrypt(agentReference.signature_name_encrypted),
+      signature: decrypt(agentReference.signature_encrypted)
     } : null
 
     const decryptedEmployerReference = employerReference ? {
       ...employerReference,
+      company_name: decrypt(employerReference.company_name_encrypted),
+      employer_name: decrypt(employerReference.employer_name_encrypted),
+      employer_position: decrypt(employerReference.employer_position_encrypted),
       employer_email: decrypt(employerReference.employer_email_encrypted),
       employer_phone: decrypt(employerReference.employer_phone_encrypted),
-      annual_salary: decrypt(employerReference.annual_salary_encrypted)
+      employee_position: decrypt(employerReference.employee_position_encrypted),
+      annual_salary: decrypt(employerReference.annual_salary_encrypted),
+      signature: decrypt(employerReference.signature_encrypted)
     } : null
 
     const decryptedAccountantReference = accountantReference ? {
       ...accountantReference,
+      accountant_name: decrypt(accountantReference.accountant_name_encrypted),
+      accountant_firm: decrypt(accountantReference.accountant_firm_encrypted),
       accountant_email: decrypt(accountantReference.accountant_email_encrypted),
       accountant_phone: decrypt(accountantReference.accountant_phone_encrypted),
+      business_name: decrypt(accountantReference.business_name_encrypted),
       annual_turnover: decrypt(accountantReference.annual_turnover_encrypted),
       annual_profit: decrypt(accountantReference.annual_profit_encrypted),
-      estimated_monthly_income: decrypt(accountantReference.estimated_monthly_income_encrypted)
+      estimated_monthly_income: decrypt(accountantReference.estimated_monthly_income_encrypted),
+      signature: decrypt(accountantReference.signature_encrypted)
     } : null
 
     res.json({
@@ -407,7 +459,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     console.log('Looking up company for user:', userId)
     const { data: companyUsers, error: companyError } = await supabase
       .from('company_users')
-      .select('company_id, companies:company_id(name)')
+      .select('company_id, companies:company_id(name_encrypted)')
       .eq('user_id', userId)
       .limit(1)
 
@@ -418,7 +470,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     const companyUser = companyUsers[0]
-    const companyName = (companyUser as any).companies?.name || 'Your agent'
+    const companyName = (companyUser as any).companies?.name_encrypted
+      ? (decrypt((companyUser as any).companies.name_encrypted) || 'Your agent')
+      : 'Your agent'
 
     // Check if this is a multi-tenant reference
     if (tenants && Array.isArray(tenants) && tenants.length > 1) {
@@ -455,13 +509,13 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         .insert({
           company_id: companyUser.company_id,
           created_by: userId,
-          tenant_first_name: 'Multi-Tenant',
-          tenant_last_name: 'Property',
+          tenant_first_name_encrypted: encrypt('Multi-Tenant'),
+          tenant_last_name_encrypted: encrypt('Property'),
           tenant_email_encrypted: encrypt(tenants[0].email),
           tenant_phone_encrypted: encrypt(tenants[0].phone),
-          property_address,
-          property_city,
-          property_postcode,
+          property_address_encrypted: encrypt(property_address),
+          property_city_encrypted: encrypt(property_city || ''),
+          property_postcode_encrypted: encrypt(property_postcode || ''),
           monthly_rent,
           move_in_date,
           term_years: term_years || 0,
@@ -493,13 +547,13 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             created_by: userId,
             parent_reference_id: parentReference.id,
             tenant_position: i + 1,
-            tenant_first_name: tenant.first_name,
-            tenant_last_name: tenant.last_name,
+            tenant_first_name_encrypted: encrypt(tenant.first_name),
+            tenant_last_name_encrypted: encrypt(tenant.last_name),
             tenant_email_encrypted: encrypt(tenant.email),
             tenant_phone_encrypted: encrypt(tenant.phone),
-            property_address,
-            property_city,
-            property_postcode,
+            property_address_encrypted: encrypt(property_address),
+            property_city_encrypted: encrypt(property_city || ''),
+            property_postcode_encrypted: encrypt(property_postcode || ''),
             monthly_rent, // Keep full rent for context
             rent_share: tenant.rent_share,
             move_in_date,
@@ -577,13 +631,13 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         .insert({
           company_id: companyUser.company_id,
           created_by: userId,
-          tenant_first_name,
-          tenant_last_name,
+          tenant_first_name_encrypted: encrypt(tenant_first_name),
+          tenant_last_name_encrypted: encrypt(tenant_last_name),
           tenant_email_encrypted: encrypt(tenant_email),
           tenant_phone_encrypted: encrypt(tenant_phone),
-          property_address,
-          property_city,
-          property_postcode,
+          property_address_encrypted: encrypt(property_address),
+          property_city_encrypted: encrypt(property_city || ''),
+          property_postcode_encrypted: encrypt(property_postcode || ''),
           monthly_rent,
           move_in_date,
           term_years: term_years || 0,
@@ -788,8 +842,8 @@ router.post('/submit/:token', async (req, res) => {
     // Build update object with all new fields
     const updateData: any = {
       // Personal Details (Page 2)
-      tenant_first_name: data.first_name,
-      tenant_last_name: data.last_name,
+      tenant_first_name_encrypted: encrypt(data.first_name),
+      tenant_last_name_encrypted: encrypt(data.last_name),
       middle_name: data.middle_name || null,
       date_of_birth_encrypted: encrypt(data.date_of_birth),
       contact_number_encrypted: encrypt(data.contact_number),
@@ -801,11 +855,11 @@ router.post('/submit/:token', async (req, res) => {
       selfie_path: data.selfie_path || null,
 
       // Current Address (Page 4)
-      current_address_line1: data.current_address_line1 || null,
-      current_address_line2: data.current_address_line2 || null,
-      current_city: data.current_city || null,
-      current_postcode: data.current_postcode || null,
-      current_country: data.current_country || null,
+      current_address_line1_encrypted: encrypt(data.current_address_line1 || ''),
+      current_address_line2_encrypted: encrypt(data.current_address_line2 || ''),
+      current_city_encrypted: encrypt(data.current_city || ''),
+      current_postcode_encrypted: encrypt(data.current_postcode || ''),
+      current_country_encrypted: encrypt(data.current_country || ''),
       time_at_address_years: data.time_at_address_years || null,
       time_at_address_months: data.time_at_address_months || null,
       proof_of_address_path: data.proof_of_address_path || null,
@@ -831,13 +885,13 @@ router.post('/submit/:token', async (req, res) => {
       employment_is_hourly: data.employment_is_hourly || false,
       employment_hours_per_month: data.employment_hours_per_month || null,
       employment_salary_amount_encrypted: encrypt(data.employment_salary_amount ? String(data.employment_salary_amount) : null),
-      employment_company_name: data.employment_company_name || null,
-      employment_company_address_line1: data.employment_company_address_line1 || null,
-      employment_company_address_line2: data.employment_company_address_line2 || null,
-      employment_company_city: data.employment_company_city || null,
-      employment_company_postcode: data.employment_company_postcode || null,
-      employment_company_country: data.employment_company_country || null,
-      employment_job_title: data.employment_job_title || null,
+      employment_company_name_encrypted: encrypt(data.employment_company_name),
+      employment_company_address_line1_encrypted: encrypt(data.employment_company_address_line1 || ''),
+      employment_company_address_line2_encrypted: encrypt(data.employment_company_address_line2 || ''),
+      employment_company_city_encrypted: encrypt(data.employment_company_city || ''),
+      employment_company_postcode_encrypted: encrypt(data.employment_company_postcode || ''),
+      employment_company_country_encrypted: encrypt(data.employment_company_country || ''),
+      employment_position_encrypted: encrypt(data.employment_job_title),
       payslip_files: data.payslip_files || [],
 
       // Employer Reference Contact (Page 6)
@@ -853,8 +907,8 @@ router.post('/submit/:token', async (req, res) => {
       self_employed_annual_income_encrypted: encrypt(data.self_employed_annual_income ? String(data.self_employed_annual_income) : null),
 
       // Accountant Details (Page 6)
-      accountant_name: data.accountant_name || null,
-      accountant_contact_name: data.accountant_contact_name || null,
+      accountant_firm_encrypted: encrypt(data.accountant_name),
+      accountant_name_encrypted: encrypt(data.accountant_contact_name),
       accountant_email_encrypted: encrypt(data.accountant_email),
       accountant_phone_encrypted: encrypt(data.accountant_phone),
 
@@ -878,14 +932,14 @@ router.post('/submit/:token', async (req, res) => {
 
       // Previous Landlord Reference (Page 10)
       reference_type: data.reference_type || 'landlord',
-      previous_landlord_name: data.previous_landlord_name || null,
+      previous_landlord_name_encrypted: encrypt(data.previous_landlord_name),
       previous_landlord_email_encrypted: encrypt(data.previous_landlord_email),
       previous_landlord_phone_encrypted: encrypt(data.previous_landlord_phone),
-      previous_rental_address_line1: data.previous_rental_address_line1 || null,
-      previous_rental_address_line2: data.previous_rental_address_line2 || null,
-      previous_rental_city: data.previous_rental_city || null,
-      previous_rental_postcode: data.previous_rental_postcode || null,
-      previous_rental_country: data.previous_rental_country || null,
+      previous_rental_address_line1_encrypted: encrypt(data.previous_rental_address_line1 || ''),
+      previous_rental_address_line2_encrypted: encrypt(data.previous_rental_address_line2 || ''),
+      previous_rental_city_encrypted: encrypt(data.previous_rental_city || ''),
+      previous_rental_postcode_encrypted: encrypt(data.previous_rental_postcode || ''),
+      previous_rental_country_encrypted: encrypt(data.previous_rental_country || ''),
       tenancy_years: data.tenancy_years || 0,
       tenancy_months: data.tenancy_months || 0,
 
@@ -996,8 +1050,8 @@ router.post('/submit/:token', async (req, res) => {
           .insert({
             tenant_reference_id: updatedReference.id,
             token_hash: accountantTokenHash,
-            accountant_firm_name: data.accountant_name || '',
-            accountant_contact_name: data.accountant_contact_name,
+            accountant_firm_encrypted: encrypt(data.accountant_name || ''),
+            accountant_name_encrypted: encrypt(data.accountant_contact_name),
             accountant_email_encrypted: encrypt(data.accountant_email),
             accountant_phone_encrypted: encrypt(data.accountant_phone),
           })
@@ -1251,12 +1305,12 @@ router.get('/view/:token', async (req, res) => {
       .from('tenant_references')
       .select(`
         id,
-        tenant_first_name,
-        tenant_last_name,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
         tenant_email_encrypted,
-        property_address,
-        property_city,
-        property_postcode,
+        property_address_encrypted,
+        property_city_encrypted,
+        property_postcode_encrypted,
         monthly_rent,
         move_in_date,
         submitted_at,
@@ -1276,10 +1330,15 @@ router.get('/view/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invalid or expired reference link' })
     }
 
-    // Decrypt tenant email for display
+    // Decrypt fields for display
     const decryptedReference = {
       ...reference,
-      tenant_email: decrypt((reference as any).tenant_email_encrypted)
+      tenant_first_name: decrypt((reference as any).tenant_first_name_encrypted),
+      tenant_last_name: decrypt((reference as any).tenant_last_name_encrypted),
+      tenant_email: decrypt((reference as any).tenant_email_encrypted),
+      property_address: decrypt((reference as any).property_address_encrypted),
+      property_city: decrypt((reference as any).property_city_encrypted),
+      property_postcode: decrypt((reference as any).property_postcode_encrypted)
     }
 
     res.json({ reference: decryptedReference })
@@ -1447,12 +1506,12 @@ router.post('/landlord/:referenceId', async (req, res) => {
     // Convert camelCase to snake_case for database
     const dbData = {
       reference_id: referenceId,
-      landlord_name: formData.landlordName,
+      landlord_name_encrypted: encrypt(formData.landlordName),
       landlord_email_encrypted: encrypt(formData.landlordEmail),
       landlord_phone_encrypted: encrypt(formData.landlordPhone),
-      property_address: formData.propertyAddress,
-      property_city: formData.propertyCity || null,
-      property_postcode: formData.propertyPostcode || null,
+      property_address_encrypted: encrypt(formData.propertyAddress),
+      property_city_encrypted: encrypt(formData.propertyCity || ''),
+      property_postcode_encrypted: encrypt(formData.propertyPostcode || ''),
       tenancy_start_date: formData.tenancyStartDate,
       tenancy_end_date: formData.tenancyEndDate,
       monthly_rent_encrypted: encrypt(formData.monthlyRent ? String(formData.monthlyRent) : null),
@@ -1467,8 +1526,8 @@ router.post('/landlord/:referenceId', async (req, res) => {
       would_rent_again: formData.wouldRentAgain,
       would_rent_again_details: formData.wouldRentAgainDetails || null,
       additional_comments: formData.additionalComments || null,
-      signature_name: formData.signatureName,
-      signature: formData.signature,
+      signature_name_encrypted: encrypt(formData.signatureName),
+      signature_encrypted: encrypt(formData.signature),
       date: formData.date,
       submitted_at: new Date().toISOString()
     }
@@ -1552,13 +1611,13 @@ router.post('/agent/:referenceId', async (req, res) => {
     // Convert camelCase to snake_case for database
     const dbData = {
       reference_id: referenceId,
-      agent_name: formData.agentName,
+      agent_name_encrypted: encrypt(formData.agentName),
       agent_email_encrypted: encrypt(formData.agentEmail),
       agent_phone_encrypted: encrypt(formData.agentPhone),
-      agency_name: formData.agencyName || null,
-      property_address: formData.propertyAddress,
-      property_city: formData.propertyCity || null,
-      property_postcode: formData.propertyPostcode || null,
+      agency_name_encrypted: encrypt(formData.agencyName || ''),
+      property_address_encrypted: encrypt(formData.propertyAddress),
+      property_city_encrypted: encrypt(formData.propertyCity || ''),
+      property_postcode_encrypted: encrypt(formData.propertyPostcode || ''),
       tenancy_start_date: formData.tenancyStartDate,
       tenancy_end_date: formData.tenancyEndDate,
       monthly_rent_encrypted: encrypt(formData.monthlyRent ? String(formData.monthlyRent) : null),
@@ -1573,8 +1632,8 @@ router.post('/agent/:referenceId', async (req, res) => {
       would_rent_again: formData.wouldRentAgain,
       would_rent_again_details: formData.wouldRentAgainDetails || null,
       additional_comments: formData.additionalComments || null,
-      signature_name: formData.signatureName,
-      signature: formData.signature,
+      signature_name_encrypted: encrypt(formData.signatureName),
+      signature_encrypted: encrypt(formData.signature),
       date: formData.date,
       submitted_at: new Date().toISOString()
     }
@@ -1658,12 +1717,12 @@ router.post('/employer/:referenceId', async (req, res) => {
     // Convert camelCase to snake_case for database
     const dbData: any = {
       reference_id: referenceId,
-      company_name: formData.companyName,
-      employer_name: formData.employerName,
-      employer_position: formData.employerPosition,
+      company_name_encrypted: encrypt(formData.companyName),
+      employer_name_encrypted: encrypt(formData.employerName),
+      employer_position_encrypted: encrypt(formData.employerPosition),
       employer_email_encrypted: encrypt(formData.employerEmail),
       employer_phone_encrypted: encrypt(formData.employerPhone),
-      employee_position: formData.employeePosition,
+      employee_position_encrypted: encrypt(formData.employeePosition),
       employment_type: formData.employmentType,
       employment_start_date: formData.employmentStartDate,
       is_current_employee: formData.isCurrentEmployee,
@@ -1680,8 +1739,7 @@ router.post('/employer/:referenceId', async (req, res) => {
       would_reemploy: formData.wouldReemploy,
       would_reemploy_details: formData.wouldReemployDetails || null,
       additional_comments: formData.additionalComments || null,
-      signature_name: formData.signatureName,
-      signature: formData.signature,
+      signature_encrypted: encrypt(formData.signature),
       date: formData.date,
       submitted_at: new Date().toISOString()
     }
@@ -1794,8 +1852,7 @@ router.post('/accountant/:token', async (req, res) => {
     const { error: updateError } = await supabase
       .from('accountant_references')
       .update({
-        tenant_name: formData.tenantName,
-        business_name: formData.businessName,
+        business_name_encrypted: encrypt(formData.businessName),
         nature_of_business: formData.natureOfBusiness,
         business_start_date: formData.businessStartDate,
         annual_turnover_encrypted: encrypt(formData.annualTurnover ? String(formData.annualTurnover) : null),
@@ -1813,8 +1870,7 @@ router.post('/accountant/:token', async (req, res) => {
         additional_comments: formData.additionalComments || null,
         would_recommend: formData.wouldRecommend,
         recommendation_comments: formData.recommendationComments || null,
-        signature_name: formData.signatureName,
-        signature: formData.signature,
+        signature_encrypted: encrypt(formData.signature),
         date: formData.date,
         submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
