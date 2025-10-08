@@ -17,20 +17,21 @@ function getEncryptionKey(): Buffer {
   return Buffer.from(key, 'base64')
 }
 
-// Decrypt with legacy 100k iterations
+// Decrypt with legacy formats (10k or 100k iterations)
 function decryptLegacy(encryptedData: string | null): string | null {
   if (!encryptedData) return null
 
+  const key = getEncryptionKey()
+  const combined = Buffer.from(encryptedData, 'base64')
+
+  const salt = combined.subarray(0, SALT_LENGTH)
+  const iv = combined.subarray(SALT_LENGTH, TAG_POSITION)
+  const tag = combined.subarray(TAG_POSITION, ENCRYPTED_POSITION)
+  const encrypted = combined.subarray(ENCRYPTED_POSITION)
+
+  // Try 10k iterations first (most recent legacy format)
   try {
-    const key = getEncryptionKey()
-    const combined = Buffer.from(encryptedData, 'base64')
-
-    const salt = combined.subarray(0, SALT_LENGTH)
-    const iv = combined.subarray(SALT_LENGTH, TAG_POSITION)
-    const tag = combined.subarray(TAG_POSITION, ENCRYPTED_POSITION)
-    const encrypted = combined.subarray(ENCRYPTED_POSITION)
-
-    const derivedKey = crypto.pbkdf2Sync(key, salt, 100000, 32, 'sha512')
+    const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
     const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
     decipher.setAuthTag(tag)
 
@@ -41,22 +42,35 @@ function decryptLegacy(encryptedData: string | null): string | null {
 
     return decrypted.toString('utf8')
   } catch (error) {
-    console.error('Legacy decryption failed:', error)
-    return null
+    // Try 100k iterations (original legacy format)
+    try {
+      const derivedKey = crypto.pbkdf2Sync(key, salt, 100000, 32, 'sha512')
+      const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
+      decipher.setAuthTag(tag)
+
+      const decrypted = Buffer.concat([
+        decipher.update(encrypted),
+        decipher.final()
+      ])
+
+      return decrypted.toString('utf8')
+    } catch (error2) {
+      console.error('Legacy decryption failed:', error2)
+      return null
+    }
   }
 }
 
-// Encrypt with new 10k iterations
+// Encrypt with new format (direct key - fastest)
 function encryptNew(plaintext: string | null): string | null {
   if (!plaintext) return null
 
   try {
     const key = getEncryptionKey()
-    const salt = crypto.randomBytes(SALT_LENGTH)
+    const salt = Buffer.alloc(SALT_LENGTH) // Empty salt for format compatibility
     const iv = crypto.randomBytes(IV_LENGTH)
 
-    const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
-    const cipher = crypto.createCipheriv(ALGORITHM, derivedKey, iv)
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
 
     const encrypted = Buffer.concat([
       cipher.update(plaintext, 'utf8'),
@@ -106,24 +120,22 @@ async function migrateTable(
       const encryptedValue = record[column]
       if (!encryptedValue) continue
 
-      // First check if already using new format (10k iterations)
+      // First check if already using new format (direct key - no PBKDF2)
       try {
         const key = getEncryptionKey()
         const combined = Buffer.from(encryptedValue, 'base64')
-        const salt = combined.subarray(0, SALT_LENGTH)
         const iv = combined.subarray(SALT_LENGTH, TAG_POSITION)
         const tag = combined.subarray(TAG_POSITION, ENCRYPTED_POSITION)
         const encrypted = combined.subarray(ENCRYPTED_POSITION)
 
-        const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
-        const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
+        const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
         decipher.setAuthTag(tag)
 
         Buffer.concat([decipher.update(encrypted), decipher.final()])
         alreadyMigrated = true
         break // Already migrated, skip this record
       } catch {
-        // Not in new format, try legacy
+        // Not in new format, needs migration
       }
 
       // Decrypt with legacy method
@@ -167,7 +179,7 @@ async function migrateTable(
 }
 
 async function main() {
-  console.log('🚀 Starting encryption migration (100k → 10k iterations)\n')
+  console.log('🚀 Starting encryption migration to fastest format (direct key - no PBKDF2)\n')
 
   // Migrate each table with encrypted columns
   await migrateTable('companies', [
@@ -211,7 +223,7 @@ async function main() {
   ])
 
   console.log('\n✨ Migration complete!')
-  console.log('All encrypted data has been re-encrypted with 10k iterations for faster performance.')
+  console.log('All encrypted data has been re-encrypted with direct key method for maximum performance (~100x faster).')
 }
 
 main().catch(console.error)
