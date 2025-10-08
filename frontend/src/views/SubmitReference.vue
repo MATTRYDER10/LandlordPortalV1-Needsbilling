@@ -300,11 +300,11 @@
               >
                 <div
                   v-for="country in filteredCountries"
-                  :key="country.code"
-                  @mousedown.prevent="selectCountry(country)"
+                  :key="country?.code || ''"
+                  @mousedown.prevent="country && selectCountry(country)"
                   class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                 >
-                  {{ country.name }}
+                  {{ country?.name }}
                 </div>
               </div>
             </div>
@@ -427,11 +427,11 @@
                     >
                       <div
                         v-for="country in filteredPreviousAddressCountries(index)"
-                        :key="country.code"
-                        @mousedown.prevent="selectPreviousAddressCountry(index, country)"
+                        :key="country?.code || ''"
+                        @mousedown.prevent="country && selectPreviousAddressCountry(index, country)"
                         class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                       >
-                        {{ country.name }}
+                        {{ country?.name }}
                       </div>
                     </div>
                   </div>
@@ -839,11 +839,11 @@
                   >
                     <div
                       v-for="country in filteredCompanyCountries"
-                      :key="country.code"
-                      @mousedown.prevent="selectCompanyCountry(country)"
+                      :key="country?.code || ''"
+                      @mousedown.prevent="country && selectCompanyCountry(country)"
                       class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                     >
-                      {{ country.name }}
+                      {{ country?.name }}
                     </div>
                   </div>
                 </div>
@@ -1453,11 +1453,11 @@
               >
                 <div
                   v-for="country in filteredPreviousRentalCountries"
-                  :key="country.code"
-                  @mousedown.prevent="selectPreviousRentalCountry(country)"
+                  :key="country?.code || ''"
+                  @mousedown.prevent="country && selectPreviousRentalCountry(country)"
                   class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                 >
-                  {{ country.name }}
+                  {{ country?.name }}
                 </div>
               </div>
             </div>
@@ -1627,7 +1627,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PhoneInput from '../components/PhoneInput.vue'
-import { COUNTRIES, getCountryName, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
+import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 
 const route = useRoute()
 
@@ -2057,7 +2057,9 @@ const filteredPreviousAddressCountries = (index: number) => {
 
 const selectPreviousAddressCountry = (index: number, country: { code: string, name: string }) => {
   previousAddressCountrySearches.value[index] = country.name
-  previousAddresses.value[index].country = country.code
+  if (previousAddresses.value[index]) {
+    previousAddresses.value[index].country = country.code
+  }
   showPreviousAddressCountryDropdowns.value[index] = false
 }
 
@@ -2069,17 +2071,17 @@ const hidePreviousAddressCountryDropdown = (index: number) => {
 
 const getPreviousAddressPostcodeLabel = (index: number) => {
   const countryCode = previousAddresses.value[index]?.country
-  return POSTCODE_LABELS[countryCode] || 'Postcode'
+  return (countryCode && POSTCODE_LABELS[countryCode]) || 'Postcode'
 }
 
 const getPreviousAddressPostcodePlaceholder = (index: number) => {
   const countryCode = previousAddresses.value[index]?.country
-  return POSTCODE_PLACEHOLDERS[countryCode] || 'Enter postal code'
+  return (countryCode && POSTCODE_PLACEHOLDERS[countryCode]) || 'Enter postal code'
 }
 
 const getPreviousAddressCityPlaceholder = (index: number) => {
   const countryCode = previousAddresses.value[index]?.country
-  return CAPITAL_CITIES[countryCode] || 'City'
+  return (countryCode && CAPITAL_CITIES[countryCode]) || 'City'
 }
 
 // Computed properties for address history tracking
@@ -2634,6 +2636,10 @@ const handlePageSubmit = async () => {
       // Validate all previous addresses have required fields
       for (let i = 0; i < previousAddresses.value.length; i++) {
         const addr = previousAddresses.value[i]
+        if (!addr) {
+          submitError.value = `Previous Address ${i + 1} is missing`
+          return
+        }
         if (!addr.address_line1 || !addr.city || !addr.postcode || !addr.country) {
           submitError.value = `Please complete all required fields for Previous Address ${i + 1}`
           return
