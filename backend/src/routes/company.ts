@@ -267,6 +267,22 @@ router.delete('/members/:userId', authenticateToken, async (req: AuthRequest, re
       return res.status(400).json({ error: error.message })
     }
 
+    // Check if user belongs to any other companies
+    const { data: otherCompanies } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', targetUserId)
+
+    // If user doesn't belong to any other companies, delete from Supabase Auth
+    if (!otherCompanies || otherCompanies.length === 0) {
+      const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(targetUserId)
+
+      if (deleteAuthError) {
+        console.error('Failed to delete user from auth:', deleteAuthError)
+        // Don't fail the request if auth deletion fails - user is already removed from company
+      }
+    }
+
     res.json({ message: 'Member removed successfully' })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
