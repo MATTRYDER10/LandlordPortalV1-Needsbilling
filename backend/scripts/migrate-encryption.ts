@@ -168,7 +168,7 @@ async function main() {
     'verification_notes_encrypted'
   ])
 
-  await migrateTable('previous_addresses', [
+  await migrateTable('tenant_reference_previous_addresses', [
     'address_line1_encrypted',
     'address_line2_encrypted',
     'city_encrypted',
