@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
 import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest } from '../services/emailService'
+import { auditReferenceAction } from '../services/auditLog'
 
 const router = Router()
 
@@ -465,6 +466,21 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         }
       }
 
+      // Audit log for multi-tenant reference
+      await auditReferenceAction(
+        companyUser.company_id,
+        userId!,
+        parentReference.id,
+        'reference.created',
+        `Created multi-tenant reference for ${tenants.length} tenants at ${property_address}`,
+        req,
+        {
+          tenant_count: tenants.length,
+          property_address,
+          monthly_rent
+        }
+      )
+
       res.json({
         reference: parentReference,
         childReferences,
@@ -530,6 +546,21 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         // Don't fail the request if email fails, just log it
       }
 
+      // Audit log for single-tenant reference
+      await auditReferenceAction(
+        companyUser.company_id,
+        userId!,
+        reference.id,
+        'reference.created',
+        `Created reference for ${tenant_first_name} ${tenant_last_name} at ${property_address}`,
+        req,
+        {
+          tenant_email,
+          property_address,
+          monthly_rent
+        }
+      )
+
       res.json({
         reference,
         tenantUrl,
@@ -574,6 +605,18 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: error.message })
     }
 
+    // Audit log
+    const updatedFields = Object.keys(updates).join(', ')
+    await auditReferenceAction(
+      companyUser.company_id,
+      userId!,
+      referenceId,
+      'reference.updated',
+      `Updated reference: ${updatedFields}`,
+      req,
+      { updates }
+    )
+
     res.json({ reference, message: 'Reference updated successfully' })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -604,6 +647,14 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Insufficient permissions' })
     }
 
+    // Get reference details for audit log before deletion
+    const { data: reference } = await supabase
+      .from('tenant_references')
+      .select('tenant_first_name, tenant_last_name, property_address')
+      .eq('id', referenceId)
+      .eq('company_id', companyUser.company_id)
+      .single()
+
     // Delete reference
     const { error } = await supabase
       .from('tenant_references')
@@ -613,6 +664,23 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     if (error) {
       return res.status(400).json({ error: error.message })
+    }
+
+    // Audit log
+    if (reference) {
+      await auditReferenceAction(
+        companyUser.company_id,
+        userId!,
+        referenceId,
+        'reference.deleted',
+        `Deleted reference for ${reference.tenant_first_name} ${reference.tenant_last_name} at ${reference.property_address}`,
+        req,
+        {
+          tenant_first_name: reference.tenant_first_name,
+          tenant_last_name: reference.tenant_last_name,
+          property_address: reference.property_address
+        }
+      )
     }
 
     res.json({ message: 'Reference deleted successfully' })

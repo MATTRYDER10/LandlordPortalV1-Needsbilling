@@ -460,6 +460,174 @@
             </table>
           </div>
         </div>
+
+        <!-- Audit Logs Tab -->
+        <div v-show="activeTab === 'audit'">
+          <!-- Filters -->
+          <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Action Type</label>
+                <select
+                  v-model="auditFilters.action_type"
+                  @change="fetchAuditLogs"
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                >
+                  <option value="">All Actions</option>
+                  <option value="user.invited">User Invited</option>
+                  <option value="user.removed">User Removed</option>
+                  <option value="user.joined">User Joined</option>
+                  <option value="user.profile_updated">Profile Updated</option>
+                  <option value="company.updated">Company Updated</option>
+                  <option value="company.logo_uploaded">Logo Uploaded</option>
+                  <option value="reference.created">Reference Created</option>
+                  <option value="reference.updated">Reference Updated</option>
+                  <option value="reference.deleted">Reference Deleted</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Resource Type</label>
+                <select
+                  v-model="auditFilters.resource_type"
+                  @change="fetchAuditLogs"
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                >
+                  <option value="">All Resources</option>
+                  <option value="user">User</option>
+                  <option value="company">Company</option>
+                  <option value="reference">Reference</option>
+                  <option value="invitation">Invitation</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Date From</label>
+                <input
+                  type="date"
+                  v-model="auditFilters.start_date"
+                  @change="fetchAuditLogs"
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Date To</label>
+                <input
+                  type="date"
+                  v-model="auditFilters.end_date"
+                  @change="fetchAuditLogs"
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div class="mt-4 flex justify-between items-center">
+              <button
+                @click="resetAuditFilters"
+                class="text-sm text-gray-600 hover:text-gray-900"
+              >
+                Reset Filters
+              </button>
+              <button
+                @click="exportAuditLogs"
+                :disabled="auditLoading"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+              >
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- Loading State -->
+          <div v-if="auditLoading" class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p class="mt-2 text-gray-600">Loading audit logs...</p>
+          </div>
+
+          <!-- Error State -->
+          <div v-else-if="auditError" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p class="text-red-800">{{ auditError }}</p>
+          </div>
+
+          <!-- Audit Logs Table -->
+          <div v-else class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date/Time</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-if="auditLogs.length === 0">
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                      No audit logs found
+                    </td>
+                  </tr>
+                  <tr v-for="log in auditLogs" :key="log.id" class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {{ formatAuditDateTime(log.created_at) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center">
+                        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-semibold">
+                          {{ getAuditUserInitials(log.user) }}
+                        </div>
+                        <div class="ml-3">
+                          <div class="text-sm font-medium text-gray-900">{{ log.user?.name || 'System' }}</div>
+                          <div class="text-xs text-gray-500">{{ log.user?.email || '-' }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                        :class="getAuditActionBadgeClass(log.action_type)">
+                        {{ formatAuditActionType(log.action_type) }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-900">
+                      {{ log.description }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {{ log.ip_address || '-' }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination -->
+            <div v-if="auditPagination.totalPages > 1" class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
+              <div class="text-sm text-gray-700">
+                Showing {{ (auditPagination.page - 1) * auditPagination.limit + 1 }} to
+                {{ Math.min(auditPagination.page * auditPagination.limit, auditPagination.total) }} of
+                {{ auditPagination.total }} results
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="changeAuditPage(auditPagination.page - 1)"
+                  :disabled="auditPagination.page === 1"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  @click="changeAuditPage(auditPagination.page + 1)"
+                  :disabled="auditPagination.page >= auditPagination.totalPages"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
     </div>
@@ -572,7 +740,8 @@ const tabs = computed(() => {
     { id: 'profile', name: 'Profile' },
     { id: 'company', name: 'Company' },
     { id: 'branding', name: 'Branding' },
-    { id: 'team', name: 'Team' }
+    { id: 'team', name: 'Team' },
+    { id: 'audit', name: 'Audit Logs' }
   ]
 
   const userRole = authStore.company?.role || ''
@@ -649,6 +818,25 @@ const inviteSuccess = ref('')
 const teamMembers = ref<any[]>([])
 
 const pendingInvitations = ref<any[]>([])
+
+// Audit Logs data
+const auditLogs = ref<any[]>([])
+const auditLoading = ref(false)
+const auditError = ref('')
+
+const auditFilters = ref({
+  action_type: '',
+  resource_type: '',
+  start_date: '',
+  end_date: ''
+})
+
+const auditPagination = ref({
+  page: 1,
+  limit: 50,
+  total: 0,
+  totalPages: 0
+})
 
 const fetchProfileData = async () => {
   try {
@@ -778,6 +966,11 @@ watch([activeTab, () => authStore.company?.role], () => {
   const userRole = authStore.company?.role || ''
   if (userRole === 'member' && activeTab.value !== 'profile') {
     activeTab.value = 'profile'
+  }
+
+  // Load audit logs when navigating to audit tab
+  if (activeTab.value === 'audit' && auditLogs.value.length === 0) {
+    fetchAuditLogs()
   }
 })
 
@@ -1186,5 +1379,141 @@ const handleUpdateBranding = async () => {
   } finally {
     brandingLoading.value = false
   }
+}
+
+// Audit Logs functions
+const fetchAuditLogs = async () => {
+  auditLoading.value = true
+  auditError.value = ''
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      throw new Error('Not authenticated')
+    }
+
+    const params: any = {
+      page: auditPagination.value.page,
+      limit: auditPagination.value.limit
+    }
+
+    if (auditFilters.value.action_type) params.action_type = auditFilters.value.action_type
+    if (auditFilters.value.resource_type) params.resource_type = auditFilters.value.resource_type
+    if (auditFilters.value.start_date) params.start_date = new Date(auditFilters.value.start_date).toISOString()
+    if (auditFilters.value.end_date) params.end_date = new Date(auditFilters.value.end_date).toISOString()
+
+    const queryString = new URLSearchParams(params).toString()
+    const response = await fetch(`${API_URL}/api/audit-logs?${queryString}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to load audit logs')
+    }
+
+    const data = await response.json()
+    auditLogs.value = data.logs
+    auditPagination.value = data.pagination
+  } catch (err: any) {
+    auditError.value = err.message || 'Failed to load audit logs'
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+const changeAuditPage = (page: number) => {
+  auditPagination.value.page = page
+  fetchAuditLogs()
+}
+
+const resetAuditFilters = () => {
+  auditFilters.value.action_type = ''
+  auditFilters.value.resource_type = ''
+  auditFilters.value.start_date = ''
+  auditFilters.value.end_date = ''
+  auditPagination.value.page = 1
+  fetchAuditLogs()
+}
+
+const exportAuditLogs = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      throw new Error('Not authenticated')
+    }
+
+    const params: any = {}
+    if (auditFilters.value.start_date) params.start_date = new Date(auditFilters.value.start_date).toISOString()
+    if (auditFilters.value.end_date) params.end_date = new Date(auditFilters.value.end_date).toISOString()
+
+    const queryString = new URLSearchParams(params).toString()
+    const response = await fetch(`${API_URL}/api/audit-logs/export?${queryString}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to export audit logs')
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `audit-logs-${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+
+    alert('Audit logs exported successfully')
+  } catch (err: any) {
+    alert('Failed to export audit logs')
+  }
+}
+
+const formatAuditDateTime = (dateString: string) => {
+  const date = new Date(dateString)
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
+}
+
+const formatAuditActionType = (actionType: string) => {
+  return actionType
+    .split('.')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+const getAuditUserInitials = (user: any) => {
+  if (!user) return 'S'
+  if (user.name) {
+    const names = user.name.split(' ')
+    return names.map((n: string) => n.charAt(0).toUpperCase()).join('')
+  }
+  return user.email.charAt(0).toUpperCase()
+}
+
+const getAuditActionBadgeClass = (actionType: string) => {
+  if (actionType.includes('deleted') || actionType.includes('removed')) {
+    return 'bg-red-100 text-red-800'
+  }
+  if (actionType.includes('created') || actionType.includes('invited') || actionType.includes('joined')) {
+    return 'bg-green-100 text-green-800'
+  }
+  if (actionType.includes('updated')) {
+    return 'bg-blue-100 text-blue-800'
+  }
+  return 'bg-gray-100 text-gray-800'
 }
 </script>

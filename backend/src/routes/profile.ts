@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
+import { createAuditLog } from '../services/auditLog'
 
 const router = Router()
 
@@ -33,6 +34,9 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id
     const { fullName, phone } = req.body
 
+    // Get current user data for audit trail
+    const { data: { user: oldUser } } = await supabase.auth.admin.getUserById(userId!)
+
     const { data, error } = await supabase.auth.admin.updateUserById(
       userId!,
       {
@@ -45,6 +49,39 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
 
     if (error) {
       return res.status(400).json({ error: error.message })
+    }
+
+    // Get user's company for audit log
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId!)
+      .limit(1)
+
+    if (companyUser && companyUser.length > 0) {
+      // Track what changed
+      const changes: Record<string, any> = {}
+      if (oldUser?.user_metadata?.full_name !== fullName) {
+        changes.fullName = { old: oldUser?.user_metadata?.full_name, new: fullName }
+      }
+      if (oldUser?.user_metadata?.phone !== phone) {
+        changes.phone = { old: oldUser?.user_metadata?.phone, new: phone }
+      }
+
+      if (Object.keys(changes).length > 0) {
+        await createAuditLog(
+          {
+            companyId: companyUser[0].company_id,
+            userId: userId!,
+            actionType: 'user.profile_updated',
+            resourceType: 'profile',
+            resourceId: userId!,
+            description: `Updated profile: ${Object.keys(changes).join(', ')}`,
+            metadata: { changes }
+          },
+          req
+        )
+      }
     }
 
     res.json({

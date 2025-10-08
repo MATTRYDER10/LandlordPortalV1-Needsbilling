@@ -3,6 +3,7 @@ import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import { sendUserInvitation } from '../services/emailService'
+import { createAuditLog, formatUserName } from '../services/auditLog'
 
 const router = Router()
 
@@ -154,6 +155,20 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
       // Continue anyway - invitation was created
     }
 
+    // Audit log
+    await createAuditLog(
+      {
+        companyId: companyUser.company_id,
+        userId: userId!,
+        actionType: 'user.invited',
+        resourceType: 'invitation',
+        resourceId: invitation.id,
+        description: `Invited ${email} as ${role}`,
+        metadata: { email, role }
+      },
+      req
+    )
+
     res.json({
       invitation,
       message: 'Invitation sent successfully'
@@ -239,6 +254,20 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
       // Continue anyway
     }
 
+    // Audit log
+    await createAuditLog(
+      {
+        companyId: companyUser.company_id,
+        userId: userId!,
+        actionType: 'user.invitation_resent',
+        resourceType: 'invitation',
+        resourceId: invitationId,
+        description: `Resent invitation to ${invitation.email}`,
+        metadata: { email: invitation.email, role: invitation.role }
+      },
+      req
+    )
+
     res.json({
       message: 'Invitation resent successfully'
     })
@@ -269,6 +298,14 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
       return res.status(403).json({ error: 'Insufficient permissions' })
     }
 
+    // Get invitation details before deletion for audit log
+    const { data: invitation } = await supabase
+      .from('invitations')
+      .select('email, role')
+      .eq('id', invitationId)
+      .eq('company_id', companyUser.company_id)
+      .single()
+
     // Delete invitation
     const { error } = await supabase
       .from('invitations')
@@ -278,6 +315,22 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
 
     if (error) {
       return res.status(400).json({ error: error.message })
+    }
+
+    // Audit log
+    if (invitation) {
+      await createAuditLog(
+        {
+          companyId: companyUser.company_id,
+          userId: userId!,
+          actionType: 'user.invitation_revoked',
+          resourceType: 'invitation',
+          resourceId: invitationId,
+          description: `Revoked invitation for ${invitation.email}`,
+          metadata: { email: invitation.email, role: invitation.role }
+        },
+        req
+      )
     }
 
     res.json({ message: 'Invitation revoked successfully' })
@@ -383,6 +436,20 @@ router.post('/accept/:token', async (req, res) => {
         accepted_at: new Date().toISOString()
       })
       .eq('id', invitation.id)
+
+    // Audit log
+    await createAuditLog(
+      {
+        companyId: invitation.company_id,
+        userId: authData.user.id,
+        actionType: 'user.joined',
+        resourceType: 'user',
+        resourceId: authData.user.id,
+        description: `${fullName} (${invitation.email}) joined as ${invitation.role}`,
+        metadata: { email: invitation.email, role: invitation.role, fullName }
+      },
+      req
+    )
 
     res.json({
       message: 'Invitation accepted successfully',

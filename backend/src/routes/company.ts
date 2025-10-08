@@ -3,6 +3,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import multer from 'multer'
 import crypto from 'crypto'
+import { createAuditLog, formatUserName } from '../services/auditLog'
 
 const router = Router()
 
@@ -103,6 +104,20 @@ router.post('/logo', authenticateToken, upload.single('logo'), async (req: AuthR
       .from('company-assets')
       .getPublicUrl(fileName)
 
+    // Audit log
+    await createAuditLog(
+      {
+        companyId: companyUser.company_id,
+        userId: userId!,
+        actionType: 'company.logo_uploaded',
+        resourceType: 'company',
+        resourceId: companyUser.company_id,
+        description: 'Updated company logo',
+        metadata: { fileName }
+      },
+      req
+    )
+
     res.json({ logo_url: publicUrl })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -131,6 +146,13 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Insufficient permissions' })
     }
 
+    // Get current company data for audit trail
+    const { data: oldCompany } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('id', companyUser.company_id)
+      .single()
+
     // Update company
     const { data, error } = await supabase
       .from('companies')
@@ -152,6 +174,32 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
 
     if (error) {
       return res.status(400).json({ error: error.message })
+    }
+
+    // Track what changed for audit log
+    const changes: Record<string, any> = {}
+    const fields = ['name', 'address', 'city', 'postcode', 'phone', 'website', 'logo_url', 'primary_color', 'button_color']
+    fields.forEach(field => {
+      if (oldCompany && data[field] !== oldCompany[field]) {
+        changes[field] = { old: oldCompany[field], new: data[field] }
+      }
+    })
+
+    // Audit log
+    if (Object.keys(changes).length > 0) {
+      const changedFields = Object.keys(changes).join(', ')
+      await createAuditLog(
+        {
+          companyId: companyUser.company_id,
+          userId: userId!,
+          actionType: 'company.updated',
+          resourceType: 'company',
+          resourceId: companyUser.company_id,
+          description: `Updated company details: ${changedFields}`,
+          metadata: { changes }
+        },
+        req
+      )
     }
 
     res.json({ company: data })
@@ -256,6 +304,11 @@ router.delete('/members/:userId', authenticateToken, async (req: AuthRequest, re
       return res.status(403).json({ error: 'Cannot remove company owner' })
     }
 
+    // Get target user details for audit log
+    const { data: { user: targetUser } } = await supabase.auth.admin.getUserById(targetUserId)
+    const targetUserName = formatUserName(targetUser)
+    const targetUserRole = targetUsers && targetUsers.length > 0 ? targetUsers[0].role : 'member'
+
     // Remove ALL entries for this user from company (handles duplicates)
     const { error } = await supabase
       .from('company_users')
@@ -282,6 +335,25 @@ router.delete('/members/:userId', authenticateToken, async (req: AuthRequest, re
         // Don't fail the request if auth deletion fails - user is already removed from company
       }
     }
+
+    // Audit log
+    await createAuditLog(
+      {
+        companyId: currentUserCompany.company_id,
+        userId: currentUserId!,
+        actionType: 'user.removed',
+        resourceType: 'user',
+        resourceId: targetUserId,
+        description: `Removed ${targetUserName} from company`,
+        metadata: {
+          targetUserEmail: targetUser?.email,
+          targetUserName,
+          role: targetUserRole,
+          deletedFromAuth: !otherCompanies || otherCompanies.length === 0
+        }
+      },
+      req
+    )
 
     res.json({ message: 'Member removed successfully' })
   } catch (error: any) {
