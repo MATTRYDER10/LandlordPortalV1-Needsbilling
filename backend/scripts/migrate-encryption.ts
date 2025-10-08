@@ -100,10 +100,31 @@ async function migrateTable(
   for (const record of records) {
     const updates: Record<string, string | null> = {}
     let needsUpdate = false
+    let alreadyMigrated = false
 
     for (const column of encryptedColumns) {
       const encryptedValue = record[column]
       if (!encryptedValue) continue
+
+      // First check if already using new format (10k iterations)
+      try {
+        const key = getEncryptionKey()
+        const combined = Buffer.from(encryptedValue, 'base64')
+        const salt = combined.subarray(0, SALT_LENGTH)
+        const iv = combined.subarray(SALT_LENGTH, TAG_POSITION)
+        const tag = combined.subarray(TAG_POSITION, ENCRYPTED_POSITION)
+        const encrypted = combined.subarray(ENCRYPTED_POSITION)
+
+        const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
+        const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
+        decipher.setAuthTag(tag)
+
+        Buffer.concat([decipher.update(encrypted), decipher.final()])
+        alreadyMigrated = true
+        break // Already migrated, skip this record
+      } catch {
+        // Not in new format, try legacy
+      }
 
       // Decrypt with legacy method
       const decrypted = decryptLegacy(encryptedValue)
@@ -123,7 +144,9 @@ async function migrateTable(
       needsUpdate = true
     }
 
-    if (needsUpdate) {
+    if (alreadyMigrated) {
+      skipped++
+    } else if (needsUpdate) {
       const { error: updateError } = await supabase
         .from(tableName)
         .update(updates)
