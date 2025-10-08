@@ -114,13 +114,12 @@ async function migrateTable(
   for (const record of records) {
     const updates: Record<string, string | null> = {}
     let needsUpdate = false
-    let alreadyMigrated = false
 
     for (const column of encryptedColumns) {
       const encryptedValue = record[column]
       if (!encryptedValue) continue
 
-      // First check if already using new format (direct key - no PBKDF2)
+      // Check if this field is already using new format (direct key - no PBKDF2)
       try {
         const key = getEncryptionKey()
         const combined = Buffer.from(encryptedValue, 'base64')
@@ -132,8 +131,8 @@ async function migrateTable(
         decipher.setAuthTag(tag)
 
         Buffer.concat([decipher.update(encrypted), decipher.final()])
-        alreadyMigrated = true
-        break // Already migrated, skip this record
+        // This field is already migrated, skip just this field (continue to next field)
+        continue
       } catch {
         // Not in new format, needs migration
       }
@@ -156,9 +155,7 @@ async function migrateTable(
       needsUpdate = true
     }
 
-    if (alreadyMigrated) {
-      skipped++
-    } else if (needsUpdate) {
+    if (needsUpdate) {
       const { error: updateError } = await supabase
         .from(tableName)
         .update(updates)
