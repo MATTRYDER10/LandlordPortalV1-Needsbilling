@@ -33,15 +33,12 @@ export function encrypt(plaintext: string | null): string | null {
   try {
     const key = getEncryptionKey()
 
-    // Generate random salt and IV
-    const salt = crypto.randomBytes(SALT_LENGTH)
+    // Generate random IV (no longer need salt since we use key directly)
+    const salt = Buffer.alloc(SALT_LENGTH) // Empty salt for format compatibility
     const iv = crypto.randomBytes(IV_LENGTH)
 
-    // Derive key using PBKDF2
-    const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
-
-    // Create cipher
-    const cipher = crypto.createCipheriv(ALGORITHM, derivedKey, iv)
+    // Create cipher using master key directly (no PBKDF2 needed for strong keys)
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
 
     // Encrypt the data
     const encrypted = Buffer.concat([
@@ -66,7 +63,7 @@ export function encrypt(plaintext: string | null): string | null {
 /**
  * Decrypt a string value encrypted with AES-256-GCM
  * Expects base64-encoded data with salt, IV, and auth tag
- * Supports both new (10k iterations) and legacy (100k iterations) formats
+ * Supports multiple formats: direct key (newest/fastest), 10k iterations, 100k iterations (legacy)
  */
 export function decrypt(encryptedData: string | null): string | null {
   if (!encryptedData) return null
@@ -82,10 +79,9 @@ export function decrypt(encryptedData: string | null): string | null {
   const tag = combined.subarray(TAG_POSITION, ENCRYPTED_POSITION)
   const encrypted = combined.subarray(ENCRYPTED_POSITION)
 
-  // Try new format first (10k iterations - faster)
+  // Try newest format first (direct key - fastest, ~100x faster than legacy)
   try {
-    const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
-    const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
     decipher.setAuthTag(tag)
 
     const decrypted = Buffer.concat([
@@ -95,9 +91,9 @@ export function decrypt(encryptedData: string | null): string | null {
 
     return decrypted.toString('utf8')
   } catch (error) {
-    // Try legacy format (100k iterations) for backward compatibility
+    // Try 10k iterations format
     try {
-      const derivedKey = crypto.pbkdf2Sync(key, salt, 100000, 32, 'sha512')
+      const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
       const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
       decipher.setAuthTag(tag)
 
@@ -107,9 +103,23 @@ export function decrypt(encryptedData: string | null): string | null {
       ])
 
       return decrypted.toString('utf8')
-    } catch (legacyError) {
-      console.error('Decryption error:', legacyError)
-      throw new Error('Failed to decrypt data')
+    } catch (error2) {
+      // Try legacy 100k iterations format for backward compatibility
+      try {
+        const derivedKey = crypto.pbkdf2Sync(key, salt, 100000, 32, 'sha512')
+        const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
+        decipher.setAuthTag(tag)
+
+        const decrypted = Buffer.concat([
+          decipher.update(encrypted),
+          decipher.final()
+        ])
+
+        return decrypted.toString('utf8')
+      } catch (legacyError) {
+        console.error('Decryption error:', legacyError)
+        throw new Error('Failed to decrypt data')
+      }
     }
   }
 }
