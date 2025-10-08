@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import multer from 'multer'
 import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest } from '../services/emailService'
 import { auditReferenceAction } from '../services/auditLog'
+import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
 
 const router = Router()
 
@@ -382,6 +383,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       expiresAt.setDate(expiresAt.getDate() + 30)
 
       // Create parent reference (placeholder for the property)
+      const parentToken = generateToken()
+      const parentTokenHash = hash(parentToken)
+
       const { data: parentReference, error: parentError } = await supabase
         .from('tenant_references')
         .insert({
@@ -399,7 +403,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           term_years: term_years || 0,
           term_months: term_months || 0,
           notes,
-          reference_token: crypto.randomBytes(32).toString('hex'), // Parent token (not used for form)
+          reference_token: parentToken, // Parent token (not used for form, will be removed in future)
+          reference_token_hash: parentTokenHash, // Hashed token for secure storage
           token_expires_at: expiresAt.toISOString(),
           status: 'pending',
           is_group_parent: true
@@ -415,7 +420,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       const childReferences = []
       for (let i = 0; i < tenants.length; i++) {
         const tenant = tenants[i]
-        const token = crypto.randomBytes(32).toString('hex')
+        const token = generateToken()
+        const tokenHash = hash(token)
 
         const { data: childReference, error: childError } = await supabase
           .from('tenant_references')
@@ -438,6 +444,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             term_months: term_months || 0,
             notes,
             reference_token: token,
+            reference_token_hash: tokenHash, // Hashed token for secure storage
             token_expires_at: expiresAt.toISOString(),
             status: 'pending'
           })
@@ -494,8 +501,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         return res.status(400).json({ error: 'Missing required fields' })
       }
 
-      // Generate unique token for tenant
-      const token = crypto.randomBytes(32).toString('hex')
+      // Generate unique token for tenant and hash it
+      const token = generateToken()
+      const tokenHash = hash(token)
 
       // Token expires in 30 days
       const expiresAt = new Date()
@@ -520,6 +528,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           term_months: term_months || 0,
           notes,
           reference_token: token,
+          reference_token_hash: tokenHash, // Hashed token for secure storage
           token_expires_at: expiresAt.toISOString(),
           status: 'pending'
         })
@@ -695,11 +704,14 @@ router.post('/submit/:token', async (req, res) => {
     const { token } = req.params
     const data = req.body
 
-    // Get reference by token
+    // Hash the token to look up the reference securely
+    const tokenHash = hash(token)
+
+    // Get reference by token hash (secure) or plaintext token (backward compatibility)
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('*')
-      .eq('reference_token', token)
+      .or(`reference_token_hash.eq.${tokenHash},reference_token.eq.${token}`)
       .gte('token_expires_at', new Date().toISOString())
       .single()
 
@@ -914,13 +926,16 @@ router.post('/submit/:token', async (req, res) => {
     // Send email to accountant if self-employed and accountant details are provided
     if (data.income_self_employed && data.accountant_email && data.accountant_contact_name) {
       try {
-        // Create accountant reference record with unique token
-        const accountantToken = crypto.randomBytes(32).toString('hex')
+        // Create accountant reference record with unique token and hash
+        const accountantToken = generateToken()
+        const accountantTokenHash = hash(accountantToken)
+
         const { data: accountantRef, error: accountantError } = await supabase
           .from('accountant_references')
           .insert({
             tenant_reference_id: updatedReference.id,
             token: accountantToken,
+            token_hash: accountantTokenHash, // Hashed token for secure storage
             accountant_firm_name: data.accountant_name || '',
             accountant_contact_name: data.accountant_contact_name,
             accountant_email: data.accountant_email,
@@ -985,11 +1000,14 @@ router.post('/upload/:token', (req, res, next) => {
     const { token } = req.params
     const files = req.files as { [fieldname: string]: Express.Multer.File[] }
 
-    // Get reference by token
+    // Hash the token to look up the reference securely
+    const tokenHash = hash(token)
+
+    // Get reference by token hash (secure) or plaintext token (backward compatibility)
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('id, company_id, reference_token')
-      .eq('reference_token', token)
+      .or(`reference_token_hash.eq.${tokenHash},reference_token.eq.${token}`)
       .gte('token_expires_at', new Date().toISOString())
       .single()
 
@@ -1166,7 +1184,9 @@ router.post('/upload/:token', (req, res, next) => {
 router.get('/view/:token', async (req, res) => {
   try {
     const { token } = req.params
+    const tokenHash = hash(token)
 
+    // Get reference by token hash (secure) or plaintext token (backward compatibility)
     const { data: reference, error } = await supabase
       .from('tenant_references')
       .select(`
@@ -1188,7 +1208,7 @@ router.get('/view/:token', async (req, res) => {
           button_color
         )
       `)
-      .eq('reference_token', token)
+      .or(`reference_token_hash.eq.${tokenHash},reference_token.eq.${token}`)
       .gte('token_expires_at', new Date().toISOString())
       .single()
 
@@ -1234,12 +1254,13 @@ router.get('/branding/:referenceId', async (req, res) => {
 router.get('/accountant/branding/:token', async (req, res) => {
   try {
     const { token } = req.params
+    const tokenHash = hash(token)
 
-    // First, get the tenant_reference_id from the accountant_references table
+    // Get the tenant_reference_id using token hash (secure) or plaintext (backward compatibility)
     const { data: accountantRef, error: accountantError } = await supabase
       .from('accountant_references')
       .select('tenant_reference_id')
-      .eq('token', token)
+      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
       .single()
 
     if (accountantError || !accountantRef) {
@@ -1325,11 +1346,13 @@ router.get('/employer/:referenceId/check', async (req, res) => {
 router.get('/accountant/:token/check', async (req, res) => {
   try {
     const { token } = req.params
+    const tokenHash = hash(token)
 
+    // Check using token hash (secure) or plaintext (backward compatibility)
     const { data: accountantRef } = await supabase
       .from('accountant_references')
       .select('id, submitted_at')
-      .eq('token', token)
+      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
       .single()
 
     res.json({ submitted: !!(accountantRef && accountantRef.submitted_at) })
@@ -1682,11 +1705,14 @@ router.post('/accountant/:token', async (req, res) => {
     const { token } = req.params
     const formData = req.body
 
-    // Verify accountant reference exists by token
+    // Hash the token to look up securely
+    const tokenHash = hash(token)
+
+    // Verify accountant reference exists using token hash (secure) or plaintext (backward compatibility)
     const { data: accountantRef, error: refError } = await supabase
       .from('accountant_references')
       .select('*, tenant_reference_id')
-      .eq('token', token)
+      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
       .single()
 
     if (refError || !accountantRef) {

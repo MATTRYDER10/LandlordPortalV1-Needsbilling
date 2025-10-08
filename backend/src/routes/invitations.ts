@@ -1,9 +1,9 @@
 import { Router } from 'express'
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
-import crypto from 'crypto'
 import { sendUserInvitation } from '../services/emailService'
 import { createAuditLog, formatUserName } from '../services/auditLog'
+import { generateToken, hash } from '../services/encryption'
 
 const router = Router()
 
@@ -98,8 +98,9 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
       return res.status(400).json({ error: 'An invitation has already been sent to this email' })
     }
 
-    // Generate unique token
-    const token = crypto.randomBytes(32).toString('hex')
+    // Generate unique token and hash it for secure storage
+    const token = generateToken()
+    const tokenHash = hash(token)
 
     // Create invitation (expires in 7 days)
     const invitationExpiresAt = new Date()
@@ -111,7 +112,8 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
         company_id: companyUser.company_id,
         email,
         role,
-        token,
+        token, // Plaintext token (will be removed in future migration)
+        token_hash: tokenHash, // Hashed token for secure storage
         invited_by: userId,
         expires_at: invitationExpiresAt.toISOString()
       })
@@ -343,12 +345,13 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
 router.get('/details/:token', async (req, res) => {
   try {
     const { token } = req.params
+    const tokenHash = hash(token)
 
-    // Get invitation
+    // Get invitation by token hash (secure) or plaintext token (backward compatibility)
     const { data: invitation, error: inviteError } = await supabase
       .from('invitations')
       .select('email, role, expires_at')
-      .eq('token', token)
+      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
       .eq('status', 'pending')
       .gte('expires_at', new Date().toISOString())
       .single()
@@ -377,11 +380,14 @@ router.post('/accept/:token', async (req, res) => {
       return res.status(400).json({ error: 'Full name and password are required' })
     }
 
-    // Get invitation
+    // Hash the token to look up the invitation securely
+    const tokenHash = hash(token)
+
+    // Get invitation by token hash (secure) or plaintext token (backward compatibility)
     const { data: invitation, error: inviteError } = await supabase
       .from('invitations')
       .select('*')
-      .eq('token', token)
+      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
       .eq('status', 'pending')
       .gte('expires_at', new Date().toISOString())
       .single()
