@@ -236,7 +236,7 @@
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Country</label>
-                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_country || 'Not provided yet' }}</p>
+                        <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_country ? getCountryName(childReferenceDetails[child.id].reference.current_country) : 'Not provided yet' }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Time at Address</label>
@@ -1025,7 +1025,7 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Country</label>
-              <p class="mt-1 text-gray-900">{{ reference.current_country || 'Not provided yet' }}</p>
+              <p class="mt-1 text-gray-900">{{ reference.current_country ? getCountryName(reference.current_country) : 'Not provided yet' }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Time at Address</label>
@@ -1088,7 +1088,7 @@
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-gray-500">Country</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ address.country }}</p>
+                  <p class="mt-1 text-sm text-gray-900">{{ getCountryName(address.country) }}</p>
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-gray-500">Time at Address</label>
@@ -1173,7 +1173,7 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-500">Company Country</label>
-                <p class="mt-1 text-gray-900">{{ reference.employment_company_country || 'Not provided' }}</p>
+                <p class="mt-1 text-gray-900">{{ reference.employment_company_country ? getCountryName(reference.employment_company_country) : 'Not provided' }}</p>
               </div>
             </div>
 
@@ -2058,6 +2058,7 @@ import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
+import { getCountryName } from '../utils/countries'
 
 const route = useRoute()
 const authStore = useAuthStore()

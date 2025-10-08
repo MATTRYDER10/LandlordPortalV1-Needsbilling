@@ -300,11 +300,11 @@
               >
                 <div
                   v-for="country in filteredCountries"
-                  :key="country"
+                  :key="country.code"
                   @mousedown.prevent="selectCountry(country)"
                   class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                 >
-                  {{ country }}
+                  {{ country.name }}
                 </div>
               </div>
             </div>
@@ -385,20 +385,20 @@
             </div>
 
             <!-- Previous Addresses (if needed for 3-year history) -->
-            <div v-if="needsMoreAddressHistory" class="mt-8 pt-6 border-t">
+            <div v-if="needsMoreAddressHistory || previousAddresses.length > 0" class="mt-8 pt-6 border-t">
               <h3 class="text-lg font-semibold text-gray-900 mb-2">Previous Address History</h3>
               <p class="text-sm text-gray-600 mb-4">We need 3 years of address history. Please provide your previous addresses.</p>
               <p class="text-xs text-gray-500 mb-6">
                 Current history: {{ totalAddressHistoryYears }} year{{ totalAddressHistoryYears !== 1 ? 's' : '' }},
                 {{ totalAddressHistoryMonths }} month{{ totalAddressHistoryMonths !== 1 ? 's' : '' }}
                 ({{ Math.floor(totalAddressHistoryInMonths / 12) }} years {{ totalAddressHistoryInMonths % 12 }} months total)
+                <span v-if="totalAddressHistoryInMonths >= 36" class="text-green-600 font-medium">✓ Requirement met</span>
               </p>
 
               <div v-for="(address, index) in previousAddresses" :key="index" class="mb-6 p-4 bg-gray-50 rounded-lg">
                 <div class="flex justify-between items-center mb-4">
                   <h4 class="text-md font-semibold text-gray-900">Previous Address {{ index + 1 }}</h4>
                   <button
-                    v-if="index === previousAddresses.length - 1 && previousAddresses.length > 1"
                     type="button"
                     @click="removePreviousAddress(index)"
                     class="text-red-600 hover:text-red-800 text-sm"
@@ -408,15 +408,32 @@
                 </div>
 
                 <div class="space-y-4">
-                  <div>
+                  <div class="relative">
                     <label class="block text-sm font-medium text-gray-700">Country *</label>
                     <input
-                      v-model="address.country"
+                      v-model="previousAddressCountrySearches[index]"
+                      @focus="showPreviousAddressCountryDropdowns[index] = true"
+                      @input="showPreviousAddressCountryDropdowns[index] = true"
+                      @blur="hidePreviousAddressCountryDropdown(index)"
                       type="text"
                       required
-                      placeholder="Country"
+                      placeholder="Search and select country..."
+                      autocomplete="off"
                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     />
+                    <div
+                      v-if="showPreviousAddressCountryDropdowns[index] && filteredPreviousAddressCountries(index).length > 0"
+                      class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                    >
+                      <div
+                        v-for="country in filteredPreviousAddressCountries(index)"
+                        :key="country.code"
+                        @mousedown.prevent="selectPreviousAddressCountry(index, country)"
+                        class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      >
+                        {{ country.name }}
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -447,17 +464,17 @@
                         v-model="address.city"
                         type="text"
                         required
-                        placeholder="City"
+                        :placeholder="getPreviousAddressCityPlaceholder(index)"
                         class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       />
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-gray-700">Postcode *</label>
+                      <label class="block text-sm font-medium text-gray-700">{{ getPreviousAddressPostcodeLabel(index) }} *</label>
                       <input
                         v-model="address.postcode"
                         type="text"
                         required
-                        placeholder="Postcode"
+                        :placeholder="getPreviousAddressPostcodePlaceholder(index)"
                         class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       />
                     </div>
@@ -822,11 +839,11 @@
                   >
                     <div
                       v-for="country in filteredCompanyCountries"
-                      :key="country"
+                      :key="country.code"
                       @mousedown.prevent="selectCompanyCountry(country)"
                       class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                     >
-                      {{ country }}
+                      {{ country.name }}
                     </div>
                   </div>
                 </div>
@@ -1436,11 +1453,11 @@
               >
                 <div
                   v-for="country in filteredPreviousRentalCountries"
-                  :key="country"
+                  :key="country.code"
                   @mousedown.prevent="selectPreviousRentalCountry(country)"
                   class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                 >
-                  {{ country }}
+                  {{ country.name }}
                 </div>
               </div>
             </div>
@@ -1610,6 +1627,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PhoneInput from '../components/PhoneInput.vue'
+import { COUNTRIES, getCountryName, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 
 const route = useRoute()
 
@@ -1870,185 +1888,6 @@ const nationalities = [
   'Zimbabwean'
 ]
 
-// Countries list
-const countries = [
-  'Afghanistan',
-  'Albania',
-  'Algeria',
-  'Andorra',
-  'Angola',
-  'Argentina',
-  'Armenia',
-  'Australia',
-  'Austria',
-  'Azerbaijan',
-  'Bahamas',
-  'Bahrain',
-  'Bangladesh',
-  'Barbados',
-  'Belarus',
-  'Belgium',
-  'Belize',
-  'Benin',
-  'Bhutan',
-  'Bolivia',
-  'Bosnia and Herzegovina',
-  'Botswana',
-  'Brazil',
-  'Brunei',
-  'Bulgaria',
-  'Burkina Faso',
-  'Burundi',
-  'Cambodia',
-  'Cameroon',
-  'Canada',
-  'Cape Verde',
-  'Central African Republic',
-  'Chad',
-  'Chile',
-  'China',
-  'Colombia',
-  'Comoros',
-  'Congo',
-  'Costa Rica',
-  'Croatia',
-  'Cuba',
-  'Cyprus',
-  'Czech Republic',
-  'Denmark',
-  'Djibouti',
-  'Dominican Republic',
-  'East Timor',
-  'Ecuador',
-  'Egypt',
-  'El Salvador',
-  'Equatorial Guinea',
-  'Eritrea',
-  'Estonia',
-  'Ethiopia',
-  'Fiji',
-  'Finland',
-  'France',
-  'Gabon',
-  'Gambia',
-  'Georgia',
-  'Germany',
-  'Ghana',
-  'Greece',
-  'Grenada',
-  'Guatemala',
-  'Guinea',
-  'Guinea-Bissau',
-  'Guyana',
-  'Haiti',
-  'Honduras',
-  'Hong Kong',
-  'Hungary',
-  'Iceland',
-  'India',
-  'Indonesia',
-  'Iran',
-  'Iraq',
-  'Ireland',
-  'Israel',
-  'Italy',
-  'Ivory Coast',
-  'Jamaica',
-  'Japan',
-  'Jordan',
-  'Kazakhstan',
-  'Kenya',
-  'Kuwait',
-  'Kyrgyzstan',
-  'Laos',
-  'Latvia',
-  'Lebanon',
-  'Lesotho',
-  'Liberia',
-  'Libya',
-  'Liechtenstein',
-  'Lithuania',
-  'Luxembourg',
-  'Macedonia',
-  'Madagascar',
-  'Malawi',
-  'Malaysia',
-  'Maldives',
-  'Mali',
-  'Malta',
-  'Mauritania',
-  'Mauritius',
-  'Mexico',
-  'Moldova',
-  'Monaco',
-  'Mongolia',
-  'Montenegro',
-  'Morocco',
-  'Mozambique',
-  'Myanmar',
-  'Namibia',
-  'Nepal',
-  'Netherlands',
-  'New Zealand',
-  'Nicaragua',
-  'Niger',
-  'Nigeria',
-  'North Korea',
-  'Norway',
-  'Oman',
-  'Pakistan',
-  'Panama',
-  'Papua New Guinea',
-  'Paraguay',
-  'Peru',
-  'Philippines',
-  'Poland',
-  'Portugal',
-  'Qatar',
-  'Romania',
-  'Russia',
-  'Rwanda',
-  'Saudi Arabia',
-  'Scotland',
-  'Senegal',
-  'Serbia',
-  'Singapore',
-  'Slovakia',
-  'Slovenia',
-  'Somalia',
-  'South Africa',
-  'South Korea',
-  'Spain',
-  'Sri Lanka',
-  'Sudan',
-  'Suriname',
-  'Sweden',
-  'Switzerland',
-  'Syria',
-  'Taiwan',
-  'Tajikistan',
-  'Tanzania',
-  'Thailand',
-  'Togo',
-  'Trinidad and Tobago',
-  'Tunisia',
-  'Turkey',
-  'Turkmenistan',
-  'Uganda',
-  'Ukraine',
-  'United Arab Emirates',
-  'United Kingdom',
-  'United States',
-  'Uruguay',
-  'Uzbekistan',
-  'Venezuela',
-  'Vietnam',
-  'Wales',
-  'Yemen',
-  'Zambia',
-  'Zimbabwe'
-]
-
 // Filtered nationalities based on search
 const filteredNationalities = computed(() => {
   if (!nationalitySearch.value) {
@@ -2062,19 +1901,19 @@ const filteredNationalities = computed(() => {
 const filteredCountries = computed(() => {
   if (!countrySearch.value) {
     // Show United Kingdom first, then all other countries
-    const ukIndex = countries.indexOf('United Kingdom')
+    const ukIndex = COUNTRIES.findIndex(c => c.code === 'GB')
     if (ukIndex !== -1) {
-      return ['United Kingdom', ...countries.filter(c => c !== 'United Kingdom')]
+      return [COUNTRIES[ukIndex], ...COUNTRIES.filter(c => c.code !== 'GB')]
     }
-    return countries
+    return COUNTRIES
   }
   const search = countrySearch.value.toLowerCase()
-  const filtered = countries.filter(c => c.toLowerCase().includes(search))
+  const filtered = COUNTRIES.filter(c => c.name.toLowerCase().includes(search))
 
   // If UK matches the search, show it first
-  const ukIndex = filtered.indexOf('United Kingdom')
+  const ukIndex = filtered.findIndex(c => c.code === 'GB')
   if (ukIndex !== -1) {
-    return ['United Kingdom', ...filtered.filter(c => c !== 'United Kingdom')]
+    return [filtered[ukIndex], ...filtered.filter(c => c.code !== 'GB')]
   }
   return filtered
 })
@@ -2083,19 +1922,19 @@ const filteredCountries = computed(() => {
 const filteredCompanyCountries = computed(() => {
   if (!companyCountrySearch.value) {
     // Show United Kingdom first, then all other countries
-    const ukIndex = countries.indexOf('United Kingdom')
+    const ukIndex = COUNTRIES.findIndex(c => c.code === 'GB')
     if (ukIndex !== -1) {
-      return ['United Kingdom', ...countries.filter(c => c !== 'United Kingdom')]
+      return [COUNTRIES[ukIndex], ...COUNTRIES.filter(c => c.code !== 'GB')]
     }
-    return countries
+    return COUNTRIES
   }
   const search = companyCountrySearch.value.toLowerCase()
-  const filtered = countries.filter(c => c.toLowerCase().includes(search))
+  const filtered = COUNTRIES.filter(c => c.name.toLowerCase().includes(search))
 
   // If UK matches the search, show it first
-  const ukIndex = filtered.indexOf('United Kingdom')
+  const ukIndex = filtered.findIndex(c => c.code === 'GB')
   if (ukIndex !== -1) {
-    return ['United Kingdom', ...filtered.filter(c => c !== 'United Kingdom')]
+    return [filtered[ukIndex], ...filtered.filter(c => c.code !== 'GB')]
   }
   return filtered
 })
@@ -2104,19 +1943,19 @@ const filteredCompanyCountries = computed(() => {
 const filteredPreviousRentalCountries = computed(() => {
   if (!previousRentalCountrySearch.value) {
     // Show United Kingdom first, then all other countries
-    const ukIndex = countries.indexOf('United Kingdom')
+    const ukIndex = COUNTRIES.findIndex(c => c.code === 'GB')
     if (ukIndex !== -1) {
-      return ['United Kingdom', ...countries.filter(c => c !== 'United Kingdom')]
+      return [COUNTRIES[ukIndex], ...COUNTRIES.filter(c => c.code !== 'GB')]
     }
-    return countries
+    return COUNTRIES
   }
   const search = previousRentalCountrySearch.value.toLowerCase()
-  const filtered = countries.filter(c => c.toLowerCase().includes(search))
+  const filtered = COUNTRIES.filter(c => c.name.toLowerCase().includes(search))
 
   // If UK matches the search, show it first
-  const ukIndex = filtered.indexOf('United Kingdom')
+  const ukIndex = filtered.findIndex(c => c.code === 'GB')
   if (ukIndex !== -1) {
-    return ['United Kingdom', ...filtered.filter(c => c !== 'United Kingdom')]
+    return [filtered[ukIndex], ...filtered.filter(c => c.code !== 'GB')]
   }
   return filtered
 })
@@ -2137,9 +1976,9 @@ const hideNationalityDropdown = () => {
 }
 
 // Select country from dropdown
-const selectCountry = (country: string) => {
-  countrySearch.value = country
-  formData.value.current_country = country
+const selectCountry = (country: { code: string, name: string }) => {
+  countrySearch.value = country.name
+  formData.value.current_country = country.code
   showCountryDropdown.value = false
 }
 
@@ -2151,9 +1990,9 @@ const hideCountryDropdown = () => {
 }
 
 // Select company country from dropdown
-const selectCompanyCountry = (country: string) => {
-  companyCountrySearch.value = country
-  formData.value.employment_company_country = country
+const selectCompanyCountry = (country: { code: string, name: string }) => {
+  companyCountrySearch.value = country.name
+  formData.value.employment_company_country = country.code
   showCompanyCountryDropdown.value = false
 }
 
@@ -2165,9 +2004,9 @@ const hideCompanyCountryDropdown = () => {
 }
 
 // Select previous rental country from dropdown
-const selectPreviousRentalCountry = (country: string) => {
-  previousRentalCountrySearch.value = country
-  formData.value.previous_rental_country = country
+const selectPreviousRentalCountry = (country: { code: string, name: string }) => {
+  previousRentalCountrySearch.value = country.name
+  formData.value.previous_rental_country = country.code
   showPreviousRentalCountryDropdown.value = false
 }
 
@@ -2180,244 +2019,68 @@ const hidePreviousRentalCountryDropdown = () => {
 
 // Dynamic postcode label based on country
 const postcodeLabel = computed(() => {
-  const country = formData.value.current_country || countrySearch.value
-
-  if (country === 'United States') {
-    return 'ZIP Code'
-  } else if (country === 'Canada') {
-    return 'Postal Code'
-  } else if (country === 'Ireland' || country === 'United Kingdom') {
-    return 'Postcode'
-  } else if (country === 'India') {
-    return 'PIN Code'
-  }
-
-  return 'Postal Code'
+  const countryCode = formData.value.current_country
+  return POSTCODE_LABELS[countryCode] || 'Postcode'
 })
 
 // Dynamic postcode placeholder based on country
 const postcodePlaceholder = computed(() => {
-  const country = formData.value.current_country || countrySearch.value
-
-  const placeholders: { [key: string]: string } = {
-    'United Kingdom': 'SW1A 1AA',
-    'United States': '10001',
-    'Ireland': 'D02 XY45',
-    'Canada': 'K1A 0B1',
-    'Australia': '2000',
-    'Germany': '10115',
-    'France': '75001',
-    'Spain': '28001',
-    'Italy': '00100',
-    'Netherlands': '1012',
-    'Belgium': '1000',
-    'Switzerland': '8000',
-    'Austria': '1010',
-    'Sweden': '111 22',
-    'Norway': '0001',
-    'Denmark': '1050',
-    'Finland': '00100',
-    'Poland': '00-001',
-    'India': '110001',
-    'China': '100000',
-    'Japan': '100-0001',
-    'Singapore': '018956',
-    'Hong Kong': '999077',
-    'South Korea': '03163',
-    'Brazil': '01000-000',
-    'Mexico': '01000',
-    'Argentina': 'C1001',
-    'South Africa': '0001',
-    'New Zealand': '1010'
-  }
-
-  return placeholders[country] || 'Enter postal code'
+  const countryCode = formData.value.current_country
+  return POSTCODE_PLACEHOLDERS[countryCode] || 'Enter postal code'
 })
 
 // Dynamic city placeholder based on country
 const cityPlaceholder = computed(() => {
-  const country = formData.value.current_country || countrySearch.value
-
-  const capitals: { [key: string]: string } = {
-    'United Kingdom': 'London',
-    'United States': 'Washington D.C.',
-    'Ireland': 'Dublin',
-    'Canada': 'Ottawa',
-    'Australia': 'Canberra',
-    'Germany': 'Berlin',
-    'France': 'Paris',
-    'Spain': 'Madrid',
-    'Italy': 'Rome',
-    'Netherlands': 'Amsterdam',
-    'Belgium': 'Brussels',
-    'Switzerland': 'Bern',
-    'Austria': 'Vienna',
-    'Sweden': 'Stockholm',
-    'Norway': 'Oslo',
-    'Denmark': 'Copenhagen',
-    'Finland': 'Helsinki',
-    'Poland': 'Warsaw',
-    'India': 'New Delhi',
-    'China': 'Beijing',
-    'Japan': 'Tokyo',
-    'Singapore': 'Singapore',
-    'Hong Kong': 'Hong Kong',
-    'South Korea': 'Seoul',
-    'Brazil': 'Brasília',
-    'Mexico': 'Mexico City',
-    'Argentina': 'Buenos Aires',
-    'South Africa': 'Pretoria',
-    'New Zealand': 'Wellington',
-    'Afghanistan': 'Kabul',
-    'Albania': 'Tirana',
-    'Algeria': 'Algiers',
-    'Andorra': 'Andorra la Vella',
-    'Angola': 'Luanda',
-    'Armenia': 'Yerevan',
-    'Azerbaijan': 'Baku',
-    'Bahamas': 'Nassau',
-    'Bahrain': 'Manama',
-    'Bangladesh': 'Dhaka',
-    'Barbados': 'Bridgetown',
-    'Belarus': 'Minsk',
-    'Belize': 'Belmopan',
-    'Benin': 'Porto-Novo',
-    'Bhutan': 'Thimphu',
-    'Bolivia': 'La Paz',
-    'Bosnia and Herzegovina': 'Sarajevo',
-    'Botswana': 'Gaborone',
-    'Brunei': 'Bandar Seri Begawan',
-    'Bulgaria': 'Sofia',
-    'Burkina Faso': 'Ouagadougou',
-    'Burundi': 'Gitega',
-    'Cambodia': 'Phnom Penh',
-    'Cameroon': 'Yaoundé',
-    'Cape Verde': 'Praia',
-    'Central African Republic': 'Bangui',
-    'Chad': 'N\'Djamena',
-    'Chile': 'Santiago',
-    'Colombia': 'Bogotá',
-    'Comoros': 'Moroni',
-    'Congo': 'Brazzaville',
-    'Costa Rica': 'San José',
-    'Croatia': 'Zagreb',
-    'Cuba': 'Havana',
-    'Cyprus': 'Nicosia',
-    'Czech Republic': 'Prague',
-    'Djibouti': 'Djibouti',
-    'Dominican Republic': 'Santo Domingo',
-    'East Timor': 'Dili',
-    'Ecuador': 'Quito',
-    'Egypt': 'Cairo',
-    'El Salvador': 'San Salvador',
-    'Equatorial Guinea': 'Malabo',
-    'Eritrea': 'Asmara',
-    'Estonia': 'Tallinn',
-    'Ethiopia': 'Addis Ababa',
-    'Fiji': 'Suva',
-    'Gabon': 'Libreville',
-    'Gambia': 'Banjul',
-    'Georgia': 'Tbilisi',
-    'Ghana': 'Accra',
-    'Greece': 'Athens',
-    'Grenada': 'St. George\'s',
-    'Guatemala': 'Guatemala City',
-    'Guinea': 'Conakry',
-    'Guinea-Bissau': 'Bissau',
-    'Guyana': 'Georgetown',
-    'Haiti': 'Port-au-Prince',
-    'Honduras': 'Tegucigalpa',
-    'Hungary': 'Budapest',
-    'Iceland': 'Reykjavik',
-    'Indonesia': 'Jakarta',
-    'Iran': 'Tehran',
-    'Iraq': 'Baghdad',
-    'Israel': 'Jerusalem',
-    'Ivory Coast': 'Yamoussoukro',
-    'Jamaica': 'Kingston',
-    'Jordan': 'Amman',
-    'Kazakhstan': 'Nur-Sultan',
-    'Kenya': 'Nairobi',
-    'Kuwait': 'Kuwait City',
-    'Kyrgyzstan': 'Bishkek',
-    'Laos': 'Vientiane',
-    'Latvia': 'Riga',
-    'Lebanon': 'Beirut',
-    'Lesotho': 'Maseru',
-    'Liberia': 'Monrovia',
-    'Libya': 'Tripoli',
-    'Liechtenstein': 'Vaduz',
-    'Lithuania': 'Vilnius',
-    'Luxembourg': 'Luxembourg',
-    'Macedonia': 'Skopje',
-    'Madagascar': 'Antananarivo',
-    'Malawi': 'Lilongwe',
-    'Malaysia': 'Kuala Lumpur',
-    'Maldives': 'Malé',
-    'Mali': 'Bamako',
-    'Malta': 'Valletta',
-    'Mauritania': 'Nouakchott',
-    'Mauritius': 'Port Louis',
-    'Moldova': 'Chișinău',
-    'Monaco': 'Monaco',
-    'Mongolia': 'Ulaanbaatar',
-    'Montenegro': 'Podgorica',
-    'Morocco': 'Rabat',
-    'Mozambique': 'Maputo',
-    'Myanmar': 'Naypyidaw',
-    'Namibia': 'Windhoek',
-    'Nepal': 'Kathmandu',
-    'Nicaragua': 'Managua',
-    'Niger': 'Niamey',
-    'Nigeria': 'Abuja',
-    'North Korea': 'Pyongyang',
-    'Oman': 'Muscat',
-    'Pakistan': 'Islamabad',
-    'Panama': 'Panama City',
-    'Papua New Guinea': 'Port Moresby',
-    'Paraguay': 'Asunción',
-    'Peru': 'Lima',
-    'Philippines': 'Manila',
-    'Portugal': 'Lisbon',
-    'Qatar': 'Doha',
-    'Romania': 'Bucharest',
-    'Russia': 'Moscow',
-    'Rwanda': 'Kigali',
-    'Saudi Arabia': 'Riyadh',
-    'Scotland': 'Edinburgh',
-    'Senegal': 'Dakar',
-    'Serbia': 'Belgrade',
-    'Slovakia': 'Bratislava',
-    'Slovenia': 'Ljubljana',
-    'Somalia': 'Mogadishu',
-    'Sri Lanka': 'Colombo',
-    'Sudan': 'Khartoum',
-    'Suriname': 'Paramaribo',
-    'Syria': 'Damascus',
-    'Taiwan': 'Taipei',
-    'Tajikistan': 'Dushanbe',
-    'Tanzania': 'Dodoma',
-    'Thailand': 'Bangkok',
-    'Togo': 'Lomé',
-    'Trinidad and Tobago': 'Port of Spain',
-    'Tunisia': 'Tunis',
-    'Turkey': 'Ankara',
-    'Turkmenistan': 'Ashgabat',
-    'Uganda': 'Kampala',
-    'Ukraine': 'Kyiv',
-    'United Arab Emirates': 'Abu Dhabi',
-    'Uruguay': 'Montevideo',
-    'Uzbekistan': 'Tashkent',
-    'Venezuela': 'Caracas',
-    'Vietnam': 'Hanoi',
-    'Wales': 'Cardiff',
-    'Yemen': 'Sana\'a',
-    'Zambia': 'Lusaka',
-    'Zimbabwe': 'Harare'
-  }
-
-  return capitals[country] || 'City'
+  const countryCode = formData.value.current_country
+  return CAPITAL_CITIES[countryCode] || 'City'
 })
+
+// Previous address country dropdowns
+const filteredPreviousAddressCountries = (index: number) => {
+  const search = previousAddressCountrySearches.value[index] || ''
+  if (!search) {
+    // Show United Kingdom first, then all other countries
+    const ukIndex = COUNTRIES.findIndex(c => c.code === 'GB')
+    if (ukIndex !== -1) {
+      return [COUNTRIES[ukIndex], ...COUNTRIES.filter(c => c.code !== 'GB')]
+    }
+    return COUNTRIES
+  }
+  const filtered = COUNTRIES.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+  // If UK matches the search, show it first
+  const ukIndex = filtered.findIndex(c => c.code === 'GB')
+  if (ukIndex !== -1) {
+    return [filtered[ukIndex], ...filtered.filter(c => c.code !== 'GB')]
+  }
+  return filtered
+}
+
+const selectPreviousAddressCountry = (index: number, country: { code: string, name: string }) => {
+  previousAddressCountrySearches.value[index] = country.name
+  previousAddresses.value[index].country = country.code
+  showPreviousAddressCountryDropdowns.value[index] = false
+}
+
+const hidePreviousAddressCountryDropdown = (index: number) => {
+  setTimeout(() => {
+    showPreviousAddressCountryDropdowns.value[index] = false
+  }, 200)
+}
+
+const getPreviousAddressPostcodeLabel = (index: number) => {
+  const countryCode = previousAddresses.value[index]?.country
+  return POSTCODE_LABELS[countryCode] || 'Postcode'
+}
+
+const getPreviousAddressPostcodePlaceholder = (index: number) => {
+  const countryCode = previousAddresses.value[index]?.country
+  return POSTCODE_PLACEHOLDERS[countryCode] || 'Enter postal code'
+}
+
+const getPreviousAddressCityPlaceholder = (index: number) => {
+  const countryCode = previousAddresses.value[index]?.country
+  return CAPITAL_CITIES[countryCode] || 'City'
+}
 
 // Computed properties for address history tracking
 const totalAddressHistoryInMonths = computed(() => {
@@ -2472,6 +2135,8 @@ interface PreviousAddress {
 }
 
 const previousAddresses = ref<PreviousAddress[]>([])
+const previousAddressCountrySearches = ref<string[]>([])
+const showPreviousAddressCountryDropdowns = ref<boolean[]>([])
 
 const formData = ref({
   // Page 2: Personal Details
@@ -2644,7 +2309,9 @@ const saveToLocalStorage = () => {
     nationalitySearch: nationalitySearch.value,
     countrySearch: countrySearch.value,
     companyCountrySearch: companyCountrySearch.value,
-    consentGiven: consentGiven.value
+    consentGiven: consentGiven.value,
+    previousAddresses: previousAddresses.value,
+    previousAddressCountrySearches: previousAddressCountrySearches.value
   }
   localStorage.setItem(getStorageKey(), JSON.stringify(dataToSave))
 }
@@ -2672,6 +2339,12 @@ const loadFromLocalStorage = () => {
       if (data.countrySearch) countrySearch.value = data.countrySearch
       if (data.companyCountrySearch) companyCountrySearch.value = data.companyCountrySearch
       if (data.consentGiven !== undefined) consentGiven.value = data.consentGiven
+      if (data.previousAddresses) {
+        previousAddresses.value = data.previousAddresses
+        // Initialize dropdown visibility for loaded addresses
+        showPreviousAddressCountryDropdowns.value = new Array(data.previousAddresses.length).fill(false)
+      }
+      if (data.previousAddressCountrySearches) previousAddressCountrySearches.value = data.previousAddressCountrySearches
     } catch (error) {
       console.error('Failed to load from localStorage:', error)
     }
@@ -2683,7 +2356,7 @@ const clearLocalStorage = () => {
 }
 
 // Watch for changes and save to localStorage
-watch([formData, currentPage, dobDay, dobMonth, dobYear, employmentStartDay, employmentStartMonth, employmentStartYear, nationalitySearch, countrySearch, companyCountrySearch, consentGiven], () => {
+watch([formData, currentPage, dobDay, dobMonth, dobYear, employmentStartDay, employmentStartMonth, employmentStartYear, nationalitySearch, countrySearch, companyCountrySearch, consentGiven, previousAddresses, previousAddressCountrySearches], () => {
   saveToLocalStorage()
 }, { deep: true })
 
@@ -2824,10 +2497,14 @@ const addPreviousAddress = () => {
     time_at_address_years: 0,
     time_at_address_months: 0
   })
+  previousAddressCountrySearches.value.push('')
+  showPreviousAddressCountryDropdowns.value.push(false)
 }
 
 const removePreviousAddress = (index: number) => {
   previousAddresses.value.splice(index, 1)
+  previousAddressCountrySearches.value.splice(index, 1)
+  showPreviousAddressCountryDropdowns.value.splice(index, 1)
 }
 
 const updateAddressHistory = () => {
