@@ -751,7 +751,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import { useAuthStore } from '../stores/auth'
 
@@ -759,7 +759,6 @@ const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const route = useRoute()
-const router = useRouter()
 
 const activeTab = computed(() => {
   const path = route.path
