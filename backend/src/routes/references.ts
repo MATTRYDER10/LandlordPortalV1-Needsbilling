@@ -369,11 +369,25 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
+    // Helper function to decrypt previous addresses
+    const decryptPreviousAddress = (addr: any) => {
+      if (!addr) return addr
+      return {
+        ...addr,
+        address_line1: decrypt(addr.address_line1_encrypted),
+        address_line2: decrypt(addr.address_line2_encrypted),
+        city: decrypt(addr.city_encrypted),
+        postcode: decrypt(addr.postcode_encrypted),
+        country: decrypt(addr.country_encrypted)
+      }
+    }
+
     // Decrypt all reference data
     const decryptedReference = decryptTenantReference(reference)
     const decryptedChildReferences = childReferences?.map(decryptTenantReference)
     const decryptedParentReference = decryptTenantReference(parentReference)
     const decryptedSiblingReferences = siblingReferences?.map(decryptTenantReference)
+    const decryptedPreviousAddresses = previousAddresses?.map(decryptPreviousAddress)
 
     const decryptedLandlordReference = landlordReference ? {
       ...landlordReference,
@@ -458,7 +472,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       childReferences: decryptedChildReferences,
       parentReference: decryptedParentReference,
       siblingReferences: decryptedSiblingReferences,
-      previousAddresses: previousAddresses || []
+      previousAddresses: decryptedPreviousAddresses || []
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
