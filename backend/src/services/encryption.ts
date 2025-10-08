@@ -66,30 +66,28 @@ export function encrypt(plaintext: string | null): string | null {
 /**
  * Decrypt a string value encrypted with AES-256-GCM
  * Expects base64-encoded data with salt, IV, and auth tag
+ * Supports both new (10k iterations) and legacy (100k iterations) formats
  */
 export function decrypt(encryptedData: string | null): string | null {
   if (!encryptedData) return null
 
+  const key = getEncryptionKey()
+
+  // Convert from base64
+  const combined = Buffer.from(encryptedData, 'base64')
+
+  // Extract components
+  const salt = combined.subarray(0, SALT_LENGTH)
+  const iv = combined.subarray(SALT_LENGTH, TAG_POSITION)
+  const tag = combined.subarray(TAG_POSITION, ENCRYPTED_POSITION)
+  const encrypted = combined.subarray(ENCRYPTED_POSITION)
+
+  // Try new format first (10k iterations - faster)
   try {
-    const key = getEncryptionKey()
-
-    // Convert from base64
-    const combined = Buffer.from(encryptedData, 'base64')
-
-    // Extract components
-    const salt = combined.subarray(0, SALT_LENGTH)
-    const iv = combined.subarray(SALT_LENGTH, TAG_POSITION)
-    const tag = combined.subarray(TAG_POSITION, ENCRYPTED_POSITION)
-    const encrypted = combined.subarray(ENCRYPTED_POSITION)
-
-    // Derive key using same parameters as encryption
     const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
-
-    // Create decipher
     const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
     decipher.setAuthTag(tag)
 
-    // Decrypt the data
     const decrypted = Buffer.concat([
       decipher.update(encrypted),
       decipher.final()
@@ -97,8 +95,22 @@ export function decrypt(encryptedData: string | null): string | null {
 
     return decrypted.toString('utf8')
   } catch (error) {
-    console.error('Decryption error:', error)
-    throw new Error('Failed to decrypt data')
+    // Try legacy format (100k iterations) for backward compatibility
+    try {
+      const derivedKey = crypto.pbkdf2Sync(key, salt, 100000, 32, 'sha512')
+      const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
+      decipher.setAuthTag(tag)
+
+      const decrypted = Buffer.concat([
+        decipher.update(encrypted),
+        decipher.final()
+      ])
+
+      return decrypted.toString('utf8')
+    } catch (legacyError) {
+      console.error('Decryption error:', legacyError)
+      throw new Error('Failed to decrypt data')
+    }
   }
 }
 
