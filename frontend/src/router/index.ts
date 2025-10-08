@@ -99,9 +99,41 @@ const router = createRouter({
     },
     {
       path: '/settings',
-      name: 'Settings',
       component: Settings,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
+      redirect: '/settings/profile',
+      children: [
+        {
+          path: 'profile',
+          name: 'SettingsProfile',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'company',
+          name: 'SettingsCompany',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'branding',
+          name: 'SettingsBranding',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'team',
+          name: 'SettingsTeam',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'audit-logs',
+          name: 'SettingsAuditLogs',
+          component: Settings,
+          meta: { requiresAuth: true }
+        }
+      ]
     },
     {
       path: '/staff',

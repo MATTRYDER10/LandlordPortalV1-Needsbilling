@@ -11,24 +11,49 @@
         <!-- Vertical Tabs -->
         <nav class="w-64 flex-shrink-0">
           <div class="bg-white rounded-lg shadow p-2 space-y-1">
-            <button
+            <router-link
               v-for="tab in tabs"
               :key="tab.id"
-              @click="activeTab = tab.id"
-              class="w-full text-left px-4 py-3 rounded-md font-medium text-sm transition-colors"
+              :to="`/settings/${tab.id}`"
+              class="block w-full text-left px-4 py-3 rounded-md font-medium text-sm transition-colors"
               :class="activeTab === tab.id
                 ? 'bg-primary text-white'
                 : 'text-gray-700 hover:bg-gray-100'"
             >
               {{ tab.name }}
-            </button>
+            </router-link>
           </div>
         </nav>
 
         <!-- Tab Content -->
         <div class="flex-1">
+        <!-- Permission Denied Message -->
+        <div v-if="!hasPermission(activeTab)" class="max-w-3xl">
+          <div class="bg-white rounded-lg shadow p-8">
+            <div class="flex items-center justify-center mb-6">
+              <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+                <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900 text-center mb-2">Access Denied</h3>
+            <p class="text-gray-600 text-center mb-6">
+              You don't have permission to access this section. Please contact your company owner or admin for access.
+            </p>
+            <div class="flex justify-center">
+              <router-link
+                to="/settings/profile"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+              >
+                Go to Profile
+              </router-link>
+            </div>
+          </div>
+        </div>
+
         <!-- Profile Tab -->
-        <div v-show="activeTab === 'profile'" class="max-w-3xl">
+        <div v-else-if="activeTab === 'profile'" class="max-w-3xl">
           <div class="bg-white rounded-lg shadow p-6 mb-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
             <form @submit.prevent="handleUpdateProfile" class="space-y-4">
@@ -127,7 +152,7 @@
         </div>
 
         <!-- Company Tab -->
-        <div v-show="activeTab === 'company'" class="max-w-3xl">
+        <div v-else-if="activeTab === 'company'" class="max-w-3xl">
           <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Company Information</h3>
             <form @submit.prevent="handleUpdateCompany" class="space-y-4">
@@ -214,7 +239,7 @@
         </div>
 
         <!-- Branding Tab -->
-        <div v-show="activeTab === 'branding'" class="max-w-3xl">
+        <div v-else-if="activeTab === 'branding'" class="max-w-3xl">
           <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Branding Settings</h3>
             <p class="text-sm text-gray-600 mb-6">Customize the appearance of forms sent to tenants, landlords, and employers</p>
@@ -346,7 +371,7 @@
         </div>
 
         <!-- Team Tab -->
-        <div v-show="activeTab === 'team'">
+        <div v-else-if="activeTab === 'team'">
           <div class="mb-6 flex justify-end">
             <button
               @click="showInviteModal = true"
@@ -462,7 +487,7 @@
         </div>
 
         <!-- Audit Logs Tab -->
-        <div v-show="activeTab === 'audit'">
+        <div v-else-if="activeTab === 'audit-logs'">
           <!-- Filters -->
           <div class="bg-white rounded-lg shadow p-6 mb-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
@@ -726,13 +751,24 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-const activeTab = ref('profile')
+const route = useRoute()
+const router = useRouter()
+
+const activeTab = computed(() => {
+  const path = route.path
+  if (path.includes('/settings/company')) return 'company'
+  if (path.includes('/settings/branding')) return 'branding'
+  if (path.includes('/settings/team')) return 'team'
+  if (path.includes('/settings/audit-logs')) return 'audit-logs'
+  return 'profile'
+})
 
 // Filter tabs based on user role
 const tabs = computed(() => {
@@ -741,7 +777,7 @@ const tabs = computed(() => {
     { id: 'company', name: 'Company' },
     { id: 'branding', name: 'Branding' },
     { id: 'team', name: 'Team' },
-    { id: 'audit', name: 'Audit Logs' }
+    { id: 'audit-logs', name: 'Audit Logs' }
   ]
 
   const userRole = authStore.company?.role || ''
@@ -837,6 +873,19 @@ const auditPagination = ref({
   total: 0,
   totalPages: 0
 })
+
+// Permission checking
+const hasPermission = (tabId: string) => {
+  const userRole = authStore.company?.role || ''
+
+  // Everyone can access profile
+  if (tabId === 'profile') return true
+
+  // Only admins and owners can access other tabs
+  if (userRole === 'owner' || userRole === 'admin') return true
+
+  return false
+}
 
 const fetchProfileData = async () => {
   try {
@@ -961,15 +1010,9 @@ const fetchCompanyData = async () => {
   }
 }
 
-// Ensure members can't access admin tabs
-watch([activeTab, () => authStore.company?.role], () => {
-  const userRole = authStore.company?.role || ''
-  if (userRole === 'member' && activeTab.value !== 'profile') {
-    activeTab.value = 'profile'
-  }
-
-  // Load audit logs when navigating to audit tab
-  if (activeTab.value === 'audit' && auditLogs.value.length === 0) {
+// Load audit logs when navigating to audit tab
+watch(activeTab, (newTab) => {
+  if (newTab === 'audit-logs' && auditLogs.value.length === 0 && hasPermission('audit-logs')) {
     fetchAuditLogs()
   }
 })
