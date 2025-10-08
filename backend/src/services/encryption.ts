@@ -38,7 +38,7 @@ export function encrypt(plaintext: string | null): string | null {
     const iv = crypto.randomBytes(IV_LENGTH)
 
     // Derive key using PBKDF2
-    const derivedKey = crypto.pbkdf2Sync(key, salt, 100000, 32, 'sha512')
+    const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
 
     // Create cipher
     const cipher = crypto.createCipheriv(ALGORITHM, derivedKey, iv)
@@ -83,7 +83,7 @@ export function decrypt(encryptedData: string | null): string | null {
     const encrypted = combined.subarray(ENCRYPTED_POSITION)
 
     // Derive key using same parameters as encryption
-    const derivedKey = crypto.pbkdf2Sync(key, salt, 100000, 32, 'sha512')
+    const derivedKey = crypto.pbkdf2Sync(key, salt, 10000, 32, 'sha512')
 
     // Create decipher
     const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
