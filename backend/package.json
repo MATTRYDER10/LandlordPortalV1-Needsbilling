@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "tsc && cp -r email-templates dist/email-templates",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "migrate-encryption": "ts-node scripts/migrate-encryption.ts"
   },
   "keywords": [],
   "author": "",
