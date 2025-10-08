@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticateStaff, StaffAuthRequest } from '../middleware/staffAuth'
 import { supabase } from '../config/supabase'
+import { decrypt } from '../services/encryption'
 
 const router = Router()
 
@@ -42,7 +43,14 @@ router.get('/references', authenticateStaff, async (req: StaffAuthRequest, res) 
       return res.status(400).json({ error: error.message })
     }
 
-    res.json({ references })
+    // Decrypt tenant reference fields for list view
+    const decryptedReferences = references?.map(ref => ({
+      ...ref,
+      tenant_email: decrypt(ref.tenant_email_encrypted),
+      tenant_phone: decrypt(ref.tenant_phone_encrypted)
+    }))
+
+    res.json({ references: decryptedReferences })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -149,12 +157,66 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       .select('*')
       .eq('reference_id', id)
 
+    // Helper function to decrypt tenant reference fields
+    const decryptTenantReference = (ref: any) => {
+      if (!ref) return ref
+      return {
+        ...ref,
+        tenant_email: decrypt(ref.tenant_email_encrypted),
+        tenant_phone: decrypt(ref.tenant_phone_encrypted),
+        contact_number: decrypt(ref.contact_number_encrypted),
+        date_of_birth: decrypt(ref.date_of_birth_encrypted),
+        employment_salary_amount: decrypt(ref.employment_salary_amount_encrypted),
+        self_employed_annual_income: decrypt(ref.self_employed_annual_income_encrypted),
+        savings_amount: decrypt(ref.savings_amount_encrypted),
+        employer_ref_email: decrypt(ref.employer_ref_email_encrypted),
+        employer_ref_phone: decrypt(ref.employer_ref_phone_encrypted),
+        previous_landlord_email: decrypt(ref.previous_landlord_email_encrypted),
+        previous_landlord_phone: decrypt(ref.previous_landlord_phone_encrypted),
+        accountant_email: decrypt(ref.accountant_email_encrypted),
+        accountant_phone: decrypt(ref.accountant_phone_encrypted)
+      }
+    }
+
+    // Decrypt all reference data
+    const decryptedReference = decryptTenantReference(reference)
+
+    const decryptedLandlordReference = landlordReference ? {
+      ...landlordReference,
+      landlord_email: decrypt(landlordReference.landlord_email_encrypted),
+      landlord_phone: decrypt(landlordReference.landlord_phone_encrypted),
+      monthly_rent: decrypt(landlordReference.monthly_rent_encrypted)
+    } : null
+
+    const decryptedAgentReference = agentReference ? {
+      ...agentReference,
+      agent_email: decrypt(agentReference.agent_email_encrypted),
+      agent_phone: decrypt(agentReference.agent_phone_encrypted),
+      monthly_rent: decrypt(agentReference.monthly_rent_encrypted)
+    } : null
+
+    const decryptedEmployerReference = employerReference ? {
+      ...employerReference,
+      employer_email: decrypt(employerReference.employer_email_encrypted),
+      employer_phone: decrypt(employerReference.employer_phone_encrypted),
+      annual_salary: decrypt(employerReference.annual_salary_encrypted)
+    } : null
+
+    const decryptedAccountantReference = accountantReference ? {
+      ...accountantReference,
+      accountant_email: decrypt(accountantReference.accountant_email_encrypted),
+      accountant_phone: decrypt(accountantReference.accountant_phone_encrypted),
+      annual_turnover: decrypt(accountantReference.annual_turnover_encrypted),
+      annual_profit: decrypt(accountantReference.annual_profit_encrypted),
+      estimated_monthly_income: decrypt(accountantReference.estimated_monthly_income_encrypted)
+    } : null
+
     res.json({
-      reference,
-      landlordReference,
-      agentReference,
-      employerReference,
-      accountantReference,
+      reference: decryptedReference,
+      landlordReference: decryptedLandlordReference,
+      agentReference: decryptedAgentReference,
+      employerReference: decryptedEmployerReference,
+      accountantReference: decryptedAccountantReference,
       documents
     })
   } catch (error: any) {

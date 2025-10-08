@@ -3,7 +3,7 @@ import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth
 import { supabase } from '../config/supabase'
 import { sendUserInvitation } from '../services/emailService'
 import { createAuditLog, formatUserName } from '../services/auditLog'
-import { generateToken, hash } from '../services/encryption'
+import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
 
 const router = Router()
 
@@ -35,7 +35,13 @@ router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) =
       return res.status(400).json({ error: error.message })
     }
 
-    res.json({ invitations })
+    // Decrypt sensitive fields
+    const decryptedInvitations = invitations?.map(inv => ({
+      ...inv,
+      email: decrypt(inv.email_encrypted)
+    }))
+
+    res.json({ invitations: decryptedInvitations })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -110,10 +116,9 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
       .from('invitations')
       .insert({
         company_id: companyUser.company_id,
-        email,
+        email_encrypted: encrypt(email),
         role,
-        token, // Plaintext token (will be removed in future migration)
-        token_hash: tokenHash, // Hashed token for secure storage
+        token_hash: tokenHash,
         invited_by: userId,
         expires_at: invitationExpiresAt.toISOString()
       })
@@ -243,8 +248,10 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
         year: 'numeric'
       })
 
+      const invitationEmail = decrypt(invitation.email_encrypted) as string
+
       await sendUserInvitation(
-        invitation.email,
+        invitationEmail,
         inviterName,
         company?.name || 'the team',
         invitation.role,
@@ -257,6 +264,7 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
     }
 
     // Audit log
+    const invitationEmail = decrypt(invitation.email_encrypted) as string
     await createAuditLog(
       {
         companyId: companyUser.company_id,
@@ -264,8 +272,8 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
         actionType: 'user.invitation_resent',
         resourceType: 'invitation',
         resourceId: invitationId,
-        description: `Resent invitation to ${invitation.email}`,
-        metadata: { email: invitation.email, role: invitation.role }
+        description: `Resent invitation to ${invitationEmail}`,
+        metadata: { email: invitationEmail, role: invitation.role }
       },
       req
     )
@@ -303,7 +311,7 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
     // Get invitation details before deletion for audit log
     const { data: invitation } = await supabase
       .from('invitations')
-      .select('email, role')
+      .select('email_encrypted, role')
       .eq('id', invitationId)
       .eq('company_id', companyUser.company_id)
       .single()
@@ -321,6 +329,7 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
 
     // Audit log
     if (invitation) {
+      const invitationEmail = decrypt(invitation.email_encrypted) as string
       await createAuditLog(
         {
           companyId: companyUser.company_id,
@@ -328,8 +337,8 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
           actionType: 'user.invitation_revoked',
           resourceType: 'invitation',
           resourceId: invitationId,
-          description: `Revoked invitation for ${invitation.email}`,
-          metadata: { email: invitation.email, role: invitation.role }
+          description: `Revoked invitation for ${invitationEmail}`,
+          metadata: { email: invitationEmail, role: invitation.role }
         },
         req
       )
@@ -347,11 +356,11 @@ router.get('/details/:token', async (req, res) => {
     const { token } = req.params
     const tokenHash = hash(token)
 
-    // Get invitation by token hash (secure) or plaintext token (backward compatibility)
+    // Get invitation by token hash
     const { data: invitation, error: inviteError } = await supabase
       .from('invitations')
-      .select('email, role, expires_at')
-      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
+      .select('email_encrypted, role, expires_at')
+      .eq('token_hash', tokenHash)
       .eq('status', 'pending')
       .gte('expires_at', new Date().toISOString())
       .single()
@@ -361,7 +370,7 @@ router.get('/details/:token', async (req, res) => {
     }
 
     res.json({
-      email: invitation.email,
+      email: decrypt(invitation.email_encrypted),
       role: invitation.role,
       expiresAt: invitation.expires_at
     })
@@ -383,11 +392,11 @@ router.post('/accept/:token', async (req, res) => {
     // Hash the token to look up the invitation securely
     const tokenHash = hash(token)
 
-    // Get invitation by token hash (secure) or plaintext token (backward compatibility)
+    // Get invitation by token hash
     const { data: invitation, error: inviteError } = await supabase
       .from('invitations')
       .select('*')
-      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
+      .eq('token_hash', tokenHash)
       .eq('status', 'pending')
       .gte('expires_at', new Date().toISOString())
       .single()
@@ -396,9 +405,11 @@ router.post('/accept/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invalid or expired invitation' })
     }
 
+    const invitationEmail = decrypt(invitation.email_encrypted) as string
+
     // Create user account (with metadata flag to prevent company creation in trigger)
     const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
-      email: invitation.email,
+      email: invitationEmail,
       password: password,
       email_confirm: true,
       user_metadata: {
@@ -451,8 +462,8 @@ router.post('/accept/:token', async (req, res) => {
         actionType: 'user.joined',
         resourceType: 'user',
         resourceId: authData.user.id,
-        description: `${fullName} (${invitation.email}) joined as ${invitation.role}`,
-        metadata: { email: invitation.email, role: invitation.role, fullName }
+        description: `${fullName} (${invitationEmail}) joined as ${invitation.role}`,
+        metadata: { email: invitationEmail, role: invitation.role, fullName }
       },
       req
     )

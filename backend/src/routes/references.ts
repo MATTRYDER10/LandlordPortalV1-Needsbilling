@@ -116,7 +116,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return ref
     }))
 
-    res.json({ references: referencesWithCount })
+    // Decrypt tenant reference fields for list view
+    const decryptedReferences = referencesWithCount.map(ref => ({
+      ...ref,
+      tenant_email: decrypt(ref.tenant_email_encrypted),
+      tenant_phone: decrypt(ref.tenant_phone_encrypted)
+    }))
+
+    res.json({ references: decryptedReferences })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -300,16 +307,73 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .eq('tenant_reference_id', referenceId)
       .order('address_order', { ascending: true })
 
+    // Helper function to decrypt tenant reference fields
+    const decryptTenantReference = (ref: any) => {
+      if (!ref) return ref
+      return {
+        ...ref,
+        tenant_email: decrypt(ref.tenant_email_encrypted),
+        tenant_phone: decrypt(ref.tenant_phone_encrypted),
+        contact_number: decrypt(ref.contact_number_encrypted),
+        date_of_birth: decrypt(ref.date_of_birth_encrypted),
+        employment_salary_amount: decrypt(ref.employment_salary_amount_encrypted),
+        self_employed_annual_income: decrypt(ref.self_employed_annual_income_encrypted),
+        savings_amount: decrypt(ref.savings_amount_encrypted),
+        employer_ref_email: decrypt(ref.employer_ref_email_encrypted),
+        employer_ref_phone: decrypt(ref.employer_ref_phone_encrypted),
+        previous_landlord_email: decrypt(ref.previous_landlord_email_encrypted),
+        previous_landlord_phone: decrypt(ref.previous_landlord_phone_encrypted),
+        accountant_email: decrypt(ref.accountant_email_encrypted),
+        accountant_phone: decrypt(ref.accountant_phone_encrypted)
+      }
+    }
+
+    // Decrypt all reference data
+    const decryptedReference = decryptTenantReference(reference)
+    const decryptedChildReferences = childReferences?.map(decryptTenantReference)
+    const decryptedParentReference = decryptTenantReference(parentReference)
+    const decryptedSiblingReferences = siblingReferences?.map(decryptTenantReference)
+
+    const decryptedLandlordReference = landlordReference ? {
+      ...landlordReference,
+      landlord_email: decrypt(landlordReference.landlord_email_encrypted),
+      landlord_phone: decrypt(landlordReference.landlord_phone_encrypted),
+      monthly_rent: decrypt(landlordReference.monthly_rent_encrypted)
+    } : null
+
+    const decryptedAgentReference = agentReference ? {
+      ...agentReference,
+      agent_email: decrypt(agentReference.agent_email_encrypted),
+      agent_phone: decrypt(agentReference.agent_phone_encrypted),
+      monthly_rent: decrypt(agentReference.monthly_rent_encrypted)
+    } : null
+
+    const decryptedEmployerReference = employerReference ? {
+      ...employerReference,
+      employer_email: decrypt(employerReference.employer_email_encrypted),
+      employer_phone: decrypt(employerReference.employer_phone_encrypted),
+      annual_salary: decrypt(employerReference.annual_salary_encrypted)
+    } : null
+
+    const decryptedAccountantReference = accountantReference ? {
+      ...accountantReference,
+      accountant_email: decrypt(accountantReference.accountant_email_encrypted),
+      accountant_phone: decrypt(accountantReference.accountant_phone_encrypted),
+      annual_turnover: decrypt(accountantReference.annual_turnover_encrypted),
+      annual_profit: decrypt(accountantReference.annual_profit_encrypted),
+      estimated_monthly_income: decrypt(accountantReference.estimated_monthly_income_encrypted)
+    } : null
+
     res.json({
-      reference,
+      reference: decryptedReference,
       documents,
-      landlordReference,
-      agentReference,
-      employerReference,
-      accountantReference,
-      childReferences,
-      parentReference,
-      siblingReferences,
+      landlordReference: decryptedLandlordReference,
+      agentReference: decryptedAgentReference,
+      employerReference: decryptedEmployerReference,
+      accountantReference: decryptedAccountantReference,
+      childReferences: decryptedChildReferences,
+      parentReference: decryptedParentReference,
+      siblingReferences: decryptedSiblingReferences,
       previousAddresses: previousAddresses || []
     })
   } catch (error: any) {
@@ -393,8 +457,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           created_by: userId,
           tenant_first_name: 'Multi-Tenant',
           tenant_last_name: 'Property',
-          tenant_email: tenants[0].email, // Use first tenant's email as primary
-          tenant_phone: tenants[0].phone || null,
+          tenant_email_encrypted: encrypt(tenants[0].email),
+          tenant_phone_encrypted: encrypt(tenants[0].phone),
           property_address,
           property_city,
           property_postcode,
@@ -403,8 +467,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           term_years: term_years || 0,
           term_months: term_months || 0,
           notes,
-          reference_token: parentToken, // Parent token (not used for form, will be removed in future)
-          reference_token_hash: parentTokenHash, // Hashed token for secure storage
+          reference_token_hash: parentTokenHash,
           token_expires_at: expiresAt.toISOString(),
           status: 'pending',
           is_group_parent: true
@@ -432,8 +495,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             tenant_position: i + 1,
             tenant_first_name: tenant.first_name,
             tenant_last_name: tenant.last_name,
-            tenant_email: tenant.email,
-            tenant_phone: tenant.phone || null,
+            tenant_email_encrypted: encrypt(tenant.email),
+            tenant_phone_encrypted: encrypt(tenant.phone),
             property_address,
             property_city,
             property_postcode,
@@ -443,8 +506,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             term_years: term_years || 0,
             term_months: term_months || 0,
             notes,
-            reference_token: token,
-            reference_token_hash: tokenHash, // Hashed token for secure storage
+            reference_token_hash: tokenHash,
             token_expires_at: expiresAt.toISOString(),
             status: 'pending'
           })
@@ -517,8 +579,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           created_by: userId,
           tenant_first_name,
           tenant_last_name,
-          tenant_email,
-          tenant_phone,
+          tenant_email_encrypted: encrypt(tenant_email),
+          tenant_phone_encrypted: encrypt(tenant_phone),
           property_address,
           property_city,
           property_postcode,
@@ -527,8 +589,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           term_years: term_years || 0,
           term_months: term_months || 0,
           notes,
-          reference_token: token,
-          reference_token_hash: tokenHash, // Hashed token for secure storage
+          reference_token_hash: tokenHash,
           token_expires_at: expiresAt.toISOString(),
           status: 'pending'
         })
@@ -707,11 +768,11 @@ router.post('/submit/:token', async (req, res) => {
     // Hash the token to look up the reference securely
     const tokenHash = hash(token)
 
-    // Get reference by token hash (secure) or plaintext token (backward compatibility)
+    // Get reference by token hash
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('*')
-      .or(`reference_token_hash.eq.${tokenHash},reference_token.eq.${token}`)
+      .eq('reference_token_hash', tokenHash)
       .gte('token_expires_at', new Date().toISOString())
       .single()
 
@@ -730,8 +791,8 @@ router.post('/submit/:token', async (req, res) => {
       tenant_first_name: data.first_name,
       tenant_last_name: data.last_name,
       middle_name: data.middle_name || null,
-      date_of_birth: data.date_of_birth || null,
-      contact_number: data.contact_number || null,
+      date_of_birth_encrypted: encrypt(data.date_of_birth),
+      contact_number_encrypted: encrypt(data.contact_number),
       nationality: data.nationality || null,
 
       // ID Document (Page 1)
@@ -758,7 +819,7 @@ router.post('/submit/:token', async (req, res) => {
       income_unemployed: data.income_unemployed || false,
 
       // Savings, Pensions or Investments Details
-      savings_amount: data.savings_amount || null,
+      savings_amount_encrypted: encrypt(data.savings_amount ? String(data.savings_amount) : null),
       proof_of_funds_path: data.proof_of_funds_path || null,
 
       // Additional Income
@@ -769,7 +830,7 @@ router.post('/submit/:token', async (req, res) => {
       employment_start_date: data.employment_start_date || null,
       employment_is_hourly: data.employment_is_hourly || false,
       employment_hours_per_month: data.employment_hours_per_month || null,
-      employment_salary_amount: data.employment_salary_amount || null,
+      employment_salary_amount_encrypted: encrypt(data.employment_salary_amount ? String(data.employment_salary_amount) : null),
       employment_company_name: data.employment_company_name || null,
       employment_company_address_line1: data.employment_company_address_line1 || null,
       employment_company_address_line2: data.employment_company_address_line2 || null,
@@ -782,20 +843,20 @@ router.post('/submit/:token', async (req, res) => {
       // Employer Reference Contact (Page 6)
       employer_ref_position: data.employer_ref_position || null,
       employer_ref_name: data.employer_ref_name || null,
-      employer_ref_email: data.employer_ref_email || null,
-      employer_ref_phone: data.employer_ref_phone || null,
+      employer_ref_email_encrypted: encrypt(data.employer_ref_email),
+      employer_ref_phone_encrypted: encrypt(data.employer_ref_phone),
 
       // Self-Employed Details (Page 6)
       self_employed_business_name: data.self_employed_business_name || null,
       self_employed_start_date: data.self_employed_start_date || null,
       self_employed_nature_of_business: data.self_employed_nature_of_business || null,
-      self_employed_annual_income: data.self_employed_annual_income || null,
+      self_employed_annual_income_encrypted: encrypt(data.self_employed_annual_income ? String(data.self_employed_annual_income) : null),
 
       // Accountant Details (Page 6)
       accountant_name: data.accountant_name || null,
       accountant_contact_name: data.accountant_contact_name || null,
-      accountant_email: data.accountant_email || null,
-      accountant_phone: data.accountant_phone || null,
+      accountant_email_encrypted: encrypt(data.accountant_email),
+      accountant_phone_encrypted: encrypt(data.accountant_phone),
 
       // Additional Income (Page 7)
       has_additional_income: data.has_additional_income || false,
@@ -818,8 +879,8 @@ router.post('/submit/:token', async (req, res) => {
       // Previous Landlord Reference (Page 10)
       reference_type: data.reference_type || 'landlord',
       previous_landlord_name: data.previous_landlord_name || null,
-      previous_landlord_email: data.previous_landlord_email || null,
-      previous_landlord_phone: data.previous_landlord_phone || null,
+      previous_landlord_email_encrypted: encrypt(data.previous_landlord_email),
+      previous_landlord_phone_encrypted: encrypt(data.previous_landlord_phone),
       previous_rental_address_line1: data.previous_rental_address_line1 || null,
       previous_rental_address_line2: data.previous_rental_address_line2 || null,
       previous_rental_city: data.previous_rental_city || null,
@@ -934,12 +995,11 @@ router.post('/submit/:token', async (req, res) => {
           .from('accountant_references')
           .insert({
             tenant_reference_id: updatedReference.id,
-            token: accountantToken,
-            token_hash: accountantTokenHash, // Hashed token for secure storage
+            token_hash: accountantTokenHash,
             accountant_firm_name: data.accountant_name || '',
             accountant_contact_name: data.accountant_contact_name,
-            accountant_email: data.accountant_email,
-            accountant_phone: data.accountant_phone || null,
+            accountant_email_encrypted: encrypt(data.accountant_email),
+            accountant_phone_encrypted: encrypt(data.accountant_phone),
           })
           .select()
           .single()
@@ -1003,11 +1063,11 @@ router.post('/upload/:token', (req, res, next) => {
     // Hash the token to look up the reference securely
     const tokenHash = hash(token)
 
-    // Get reference by token hash (secure) or plaintext token (backward compatibility)
+    // Get reference by token hash
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
-      .select('id, company_id, reference_token')
-      .or(`reference_token_hash.eq.${tokenHash},reference_token.eq.${token}`)
+      .select('id, company_id')
+      .eq('reference_token_hash', tokenHash)
       .gte('token_expires_at', new Date().toISOString())
       .single()
 
@@ -1186,14 +1246,14 @@ router.get('/view/:token', async (req, res) => {
     const { token } = req.params
     const tokenHash = hash(token)
 
-    // Get reference by token hash (secure) or plaintext token (backward compatibility)
+    // Get reference by token hash
     const { data: reference, error } = await supabase
       .from('tenant_references')
       .select(`
         id,
         tenant_first_name,
         tenant_last_name,
-        tenant_email,
+        tenant_email_encrypted,
         property_address,
         property_city,
         property_postcode,
@@ -1208,7 +1268,7 @@ router.get('/view/:token', async (req, res) => {
           button_color
         )
       `)
-      .or(`reference_token_hash.eq.${tokenHash},reference_token.eq.${token}`)
+      .eq('reference_token_hash', tokenHash)
       .gte('token_expires_at', new Date().toISOString())
       .single()
 
@@ -1216,7 +1276,13 @@ router.get('/view/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invalid or expired reference link' })
     }
 
-    res.json({ reference })
+    // Decrypt tenant email for display
+    const decryptedReference = {
+      ...reference,
+      tenant_email: decrypt((reference as any).tenant_email_encrypted)
+    }
+
+    res.json({ reference: decryptedReference })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -1256,11 +1322,11 @@ router.get('/accountant/branding/:token', async (req, res) => {
     const { token } = req.params
     const tokenHash = hash(token)
 
-    // Get the tenant_reference_id using token hash (secure) or plaintext (backward compatibility)
+    // Get the tenant_reference_id using token hash
     const { data: accountantRef, error: accountantError } = await supabase
       .from('accountant_references')
       .select('tenant_reference_id')
-      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
+      .eq('token_hash', tokenHash)
       .single()
 
     if (accountantError || !accountantRef) {
@@ -1348,11 +1414,11 @@ router.get('/accountant/:token/check', async (req, res) => {
     const { token } = req.params
     const tokenHash = hash(token)
 
-    // Check using token hash (secure) or plaintext (backward compatibility)
+    // Check using token hash
     const { data: accountantRef } = await supabase
       .from('accountant_references')
       .select('id, submitted_at')
-      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
+      .eq('token_hash', tokenHash)
       .single()
 
     res.json({ submitted: !!(accountantRef && accountantRef.submitted_at) })
@@ -1382,14 +1448,14 @@ router.post('/landlord/:referenceId', async (req, res) => {
     const dbData = {
       reference_id: referenceId,
       landlord_name: formData.landlordName,
-      landlord_email: formData.landlordEmail,
-      landlord_phone: formData.landlordPhone,
+      landlord_email_encrypted: encrypt(formData.landlordEmail),
+      landlord_phone_encrypted: encrypt(formData.landlordPhone),
       property_address: formData.propertyAddress,
       property_city: formData.propertyCity || null,
       property_postcode: formData.propertyPostcode || null,
       tenancy_start_date: formData.tenancyStartDate,
       tenancy_end_date: formData.tenancyEndDate,
-      monthly_rent: formData.monthlyRent,
+      monthly_rent_encrypted: encrypt(formData.monthlyRent ? String(formData.monthlyRent) : null),
       rent_paid_on_time: formData.rentPaidOnTime,
       rent_paid_on_time_details: formData.rentPaidOnTimeDetails || null,
       property_condition: formData.propertyCondition,
@@ -1487,15 +1553,15 @@ router.post('/agent/:referenceId', async (req, res) => {
     const dbData = {
       reference_id: referenceId,
       agent_name: formData.agentName,
-      agent_email: formData.agentEmail,
-      agent_phone: formData.agentPhone,
+      agent_email_encrypted: encrypt(formData.agentEmail),
+      agent_phone_encrypted: encrypt(formData.agentPhone),
       agency_name: formData.agencyName || null,
       property_address: formData.propertyAddress,
       property_city: formData.propertyCity || null,
       property_postcode: formData.propertyPostcode || null,
       tenancy_start_date: formData.tenancyStartDate,
       tenancy_end_date: formData.tenancyEndDate,
-      monthly_rent: formData.monthlyRent,
+      monthly_rent_encrypted: encrypt(formData.monthlyRent ? String(formData.monthlyRent) : null),
       rent_paid_on_time: formData.rentPaidOnTime,
       rent_paid_on_time_details: formData.rentPaidOnTimeDetails || null,
       property_condition: formData.propertyCondition,
@@ -1595,13 +1661,13 @@ router.post('/employer/:referenceId', async (req, res) => {
       company_name: formData.companyName,
       employer_name: formData.employerName,
       employer_position: formData.employerPosition,
-      employer_email: formData.employerEmail,
-      employer_phone: formData.employerPhone,
+      employer_email_encrypted: encrypt(formData.employerEmail),
+      employer_phone_encrypted: encrypt(formData.employerPhone),
       employee_position: formData.employeePosition,
       employment_type: formData.employmentType,
       employment_start_date: formData.employmentStartDate,
       is_current_employee: formData.isCurrentEmployee,
-      annual_salary: formData.annualSalary,
+      annual_salary_encrypted: encrypt(formData.annualSalary ? String(formData.annualSalary) : null),
       salary_frequency: formData.salaryFrequency,
       is_probation: formData.isProbation,
       employment_status: formData.employmentStatus,
@@ -1708,11 +1774,11 @@ router.post('/accountant/:token', async (req, res) => {
     // Hash the token to look up securely
     const tokenHash = hash(token)
 
-    // Verify accountant reference exists using token hash (secure) or plaintext (backward compatibility)
+    // Verify accountant reference exists using token hash
     const { data: accountantRef, error: refError } = await supabase
       .from('accountant_references')
       .select('*, tenant_reference_id')
-      .or(`token_hash.eq.${tokenHash},token.eq.${token}`)
+      .eq('token_hash', tokenHash)
       .single()
 
     if (refError || !accountantRef) {
@@ -1732,8 +1798,8 @@ router.post('/accountant/:token', async (req, res) => {
         business_name: formData.businessName,
         nature_of_business: formData.natureOfBusiness,
         business_start_date: formData.businessStartDate,
-        annual_turnover: formData.annualTurnover,
-        annual_profit: formData.annualProfit,
+        annual_turnover_encrypted: encrypt(formData.annualTurnover ? String(formData.annualTurnover) : null),
+        annual_profit_encrypted: encrypt(formData.annualProfit ? String(formData.annualProfit) : null),
         tax_returns_filed: formData.taxReturnsFiled,
         last_tax_return_date: formData.lastTaxReturnDate || null,
         accounts_prepared: formData.accountsPrepared,
@@ -1743,7 +1809,7 @@ router.post('/accountant/:token', async (req, res) => {
         tax_liabilities_details: formData.taxLiabilitiesDetails || null,
         business_financially_stable: formData.businessFinanciallyStable,
         accountant_confirms_income: formData.accountantConfirmsIncome,
-        estimated_monthly_income: formData.estimatedMonthlyIncome,
+        estimated_monthly_income_encrypted: encrypt(formData.estimatedMonthlyIncome ? String(formData.estimatedMonthlyIncome) : null),
         additional_comments: formData.additionalComments || null,
         would_recommend: formData.wouldRecommend,
         recommendation_comments: formData.recommendationComments || null,
