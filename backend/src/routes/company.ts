@@ -49,6 +49,32 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     const companyUser = companyUsers[0]
 
+    // Check if company name needs to be initialized from user metadata
+    if (companyUser.companies && !(companyUser.companies as any).name_encrypted) {
+      // Get company name from user metadata
+      const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
+      const companyName = user?.user_metadata?.company_name || `${user?.email?.split('@')[0]}'s Company`
+
+      // Encrypt and save the company name
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update({ name_encrypted: encrypt(companyName), updated_at: new Date().toISOString() })
+        .eq('id', companyUser.company_id)
+
+      if (!updateError) {
+        // Refresh company data
+        const { data: updatedCompany } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', companyUser.company_id)
+          .single()
+
+        if (updatedCompany) {
+          ;(companyUser.companies as any) = updatedCompany
+        }
+      }
+    }
+
     // Decrypt company name
     const company = companyUser.companies ? {
       ...companyUser.companies,
@@ -75,15 +101,17 @@ router.post('/logo', authenticateToken, upload.single('logo'), async (req: AuthR
     }
 
     // Get user's company
-    const { data: companyUser } = await supabase
+    const { data: companyUsers } = await supabase
       .from('company_users')
       .select('company_id, role')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    if (!companyUser) {
+    if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const companyUser = companyUsers[0]
 
     // Check if user is owner or admin
     if (companyUser.role !== 'owner' && companyUser.role !== 'admin') {
@@ -138,15 +166,17 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     const { name, address, city, postcode, phone, website, logo_url, primary_color, button_color } = req.body
 
     // Get user's company
-    const { data: companyUser } = await supabase
+    const { data: companyUsers } = await supabase
       .from('company_users')
       .select('company_id, role')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
 
-    if (!companyUser) {
+    if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const companyUser = companyUsers[0]
 
     // Check if user is owner or admin
     if (companyUser.role !== 'owner' && companyUser.role !== 'admin') {
