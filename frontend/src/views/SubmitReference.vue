@@ -639,18 +639,18 @@
 
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Contract Type *</label>
+                  <label class="block text-sm font-medium text-gray-700">Employment Type *</label>
                   <select
                     v-model="formData.employment_contract_type"
                     :required="formData.income_regular_employment"
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   >
-                    <option value="">Select contract type</option>
-                    <option value="permanent">Permanent</option>
-                    <option value="fixed_term">Fixed Term</option>
-                    <option value="zero_hours">Zero Hours</option>
-                    <option value="agency">Agency</option>
-                    <option value="other">Other</option>
+                    <option value="">Select an option</option>
+                    <option value="full-time">Full-time</option>
+                    <option value="part-time">Part-time</option>
+                    <option value="contract">Contract</option>
+                    <option value="temporary">Temporary</option>
+                    <option value="zero-hours">Zero Hours</option>
                   </select>
                 </div>
 
@@ -699,6 +699,21 @@
                       </select>
                     </div>
                   </div>
+                </div>
+
+                <!-- Employment End Date (for previous employment) -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Employment End Date
+                  </label>
+                  <input
+                    v-model="formData.employment_end_date"
+                    type="date"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">
+                    Leave blank if current employment
+                  </p>
                 </div>
 
                 <div>
@@ -758,6 +773,24 @@
                     :required="formData.income_regular_employment && !formData.employment_is_hourly"
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
+                </div>
+
+                <!-- Salary Payment Frequency -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    How Often Are You Paid? *
+                  </label>
+                  <select
+                    v-model="formData.employment_salary_frequency"
+                    :required="formData.income_regular_employment"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  >
+                    <option value="">Select frequency...</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="bi-weekly">Bi-weekly (Every 2 weeks)</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="annually">Annually</option>
+                  </select>
                 </div>
 
                 <div>
@@ -1490,6 +1523,66 @@
               </div>
             </div>
 
+            <!-- Previous Monthly Rent -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Monthly Rent at Previous Address *
+              </label>
+              <div class="relative">
+                <span class="absolute left-3 top-3 text-gray-500">£</span>
+                <input
+                  v-model.number="formData.previous_monthly_rent"
+                  type="number"
+                  required
+                  class="pl-7 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="800"
+                />
+              </div>
+            </div>
+
+            <!-- Previous Tenancy Start Date -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Tenancy Start Date *
+              </label>
+              <input
+                v-model="formData.previous_tenancy_start_date"
+                type="date"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              />
+            </div>
+
+            <!-- Previous Tenancy End Date -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Tenancy End Date *
+              </label>
+              <input
+                v-model="formData.previous_tenancy_end_date"
+                type="date"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              />
+              <p class="mt-1 text-xs text-gray-500">
+                If still living there, use today's date
+              </p>
+            </div>
+
+            <!-- Agency Name (only show if reference_type is 'agent') -->
+            <div v-if="formData.reference_type === 'agent'">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Letting Agency Name *
+              </label>
+              <input
+                v-model="formData.previous_agency_name"
+                type="text"
+                :required="formData.reference_type === 'agent'"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="e.g., Foxtons, Rightmove Lettings"
+              />
+            </div>
+
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div class="flex">
                 <div class="flex-shrink-0">
@@ -2182,9 +2275,11 @@ const formData = ref({
   // Employment Details
   employment_contract_type: '',
   employment_start_date: '',
+  employment_end_date: '',
   employment_is_hourly: false,
   employment_hours_per_month: null,
   employment_salary_amount: null,
+  employment_salary_frequency: '',
   employment_company_name: '',
   employment_company_address_line1: '',
   employment_company_address_line2: '',
@@ -2244,7 +2339,11 @@ const formData = ref({
   previous_rental_postcode: '',
   previous_rental_country: '',
   tenancy_years: 0,
-  tenancy_months: 0
+  tenancy_months: 0,
+  previous_monthly_rent: null,
+  previous_tenancy_start_date: '',
+  previous_tenancy_end_date: '',
+  previous_agency_name: ''
 })
 
 onMounted(() => {

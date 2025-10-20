@@ -298,8 +298,8 @@
                       <h6 class="text-sm font-semibold text-gray-900 mb-4">Employment Details</h6>
                       <div class="grid grid-cols-2 gap-4">
                         <div>
-                          <label class="block text-sm font-medium text-gray-500">Contract Type</label>
-                          <p class="mt-1 text-gray-900 capitalize">{{ childReferenceDetails[child.id].reference.employment_contract_type?.replace('_', ' ') || 'Not provided' }}</p>
+                          <label class="block text-sm font-medium text-gray-500">Employment Type</label>
+                          <p class="mt-1 text-gray-900 capitalize">{{ childReferenceDetails[child.id].reference.employment_contract_type?.replace(/-/g, ' ') || 'Not provided' }}</p>
                         </div>
                         <div>
                           <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
@@ -1125,8 +1125,8 @@
             <h4 class="text-md font-semibold text-gray-900 mb-4">Employment Details</h4>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-500">Contract Type</label>
-                <p class="mt-1 text-gray-900 capitalize">{{ reference.employment_contract_type?.replace('_', ' ') || 'Not provided' }}</p>
+                <label class="block text-sm font-medium text-gray-500">Employment Type</label>
+                <p class="mt-1 text-gray-900 capitalize">{{ reference.employment_contract_type?.replace(/-/g, ' ') || 'Not provided' }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
@@ -1337,6 +1337,17 @@
             </div>
           </div>
 
+          <!-- Employment Verification Comparison -->
+          <div v-if="reference.income_regular_employment && employerReference" class="bg-white rounded-lg shadow p-6 mt-6">
+            <h4 class="text-lg font-semibold text-gray-900 mb-2">Employment Data Verification</h4>
+            <p class="text-sm text-gray-600 mb-4">Comparison of tenant-provided information with employer-confirmed details</p>
+            <ComparisonTable
+              :rows="employmentComparisonRows"
+              tenant-column-label="Tenant Provided"
+              reference-column-label="Employer Confirmed"
+            />
+          </div>
+
           <!-- Self-Employed & Accountant Details -->
           <div v-if="reference.income_self_employed" class="border-t pt-6">
             <h4 class="text-md font-semibold text-gray-900 mb-4">Self-Employed Details</h4>
@@ -1458,6 +1469,17 @@
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- Self-Employment Verification Comparison -->
+          <div v-if="reference.income_self_employed && accountantReference && accountantReference.submitted_at" class="bg-white rounded-lg shadow p-6 mt-6">
+            <h4 class="text-lg font-semibold text-gray-900 mb-2">Business Data Verification</h4>
+            <p class="text-sm text-gray-600 mb-4">Comparison of tenant-provided information with accountant-confirmed details</p>
+            <ComparisonTable
+              :rows="accountantComparisonRows"
+              tenant-column-label="Tenant Provided"
+              reference-column-label="Accountant Confirmed"
+            />
           </div>
 
           <!-- Savings, Pensions or Investments Details -->
@@ -1925,6 +1947,26 @@
           </div>
         </div>
 
+        <!-- Rental History Comparison -->
+        <div v-if="landlordReference || agentReference" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            {{ reference.reference_type === 'agent' ? 'Agent' : 'Landlord' }} Reference Data Verification
+          </h3>
+          <p class="text-sm text-gray-600 mb-4">Comparison of tenant-provided information with reference details</p>
+          <ComparisonTable
+            v-if="landlordReference"
+            :rows="landlordComparisonRows"
+            tenant-column-label="Tenant Provided"
+            reference-column-label="Landlord Confirmed"
+          />
+          <ComparisonTable
+            v-else-if="agentReference"
+            :rows="agentComparisonRows"
+            tenant-column-label="Tenant Provided"
+            reference-column-label="Agent Confirmed"
+          />
+        </div>
+
         <!-- Verification Status (Show if verification notes exist) -->
         <div v-if="reference.verification_notes" class="bg-white rounded-lg shadow p-6 border-l-4" :class="{
           'border-red-500 bg-red-50': reference.status === 'in_progress' && reference.verified_at,
@@ -2053,12 +2095,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 import { getCountryName } from '../utils/countries'
+import ComparisonTable from '../components/ComparisonTable.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -2074,6 +2117,7 @@ const childReferences = ref<any[]>([])
 const parentReference = ref<any>(null)
 const siblingReferences = ref<any[]>([])
 const previousAddresses = ref<any[]>([])
+const documents = ref<any[]>([])
 const loading = ref(true)
 const error = ref('')
 const expandedTenant = ref<string | null>(null)
@@ -2120,6 +2164,7 @@ const fetchReference = async () => {
     parentReference.value = data.parentReference
     siblingReferences.value = data.siblingReferences || []
     previousAddresses.value = data.previousAddresses || []
+    documents.value = data.documents || []
   } catch (err: any) {
     error.value = err.message || 'Failed to load reference'
   } finally {
@@ -2253,4 +2298,294 @@ const closeDocumentViewer = () => {
   viewingDocumentPath.value = ''
   viewingDocumentType.value = ''
 }
+
+// Helper functions
+const calculateTotalAddressHistory = () => {
+  if (!reference.value && (!previousAddresses.value || previousAddresses.value.length === 0)) {
+    return 'Not provided'
+  }
+
+  let totalYears = reference.value?.time_at_address_years || 0
+  let totalMonths = reference.value?.time_at_address_months || 0
+
+  previousAddresses.value.forEach((addr: any) => {
+    totalYears += addr.time_at_address_years || 0
+    totalMonths += addr.time_at_address_months || 0
+  })
+
+  // Convert excess months to years
+  totalYears += Math.floor(totalMonths / 12)
+  totalMonths = totalMonths % 12
+
+  const parts = []
+  if (totalYears > 0) parts.push(`${totalYears} year${totalYears !== 1 ? 's' : ''}`)
+  if (totalMonths > 0) parts.push(`${totalMonths} month${totalMonths !== 1 ? 's' : ''}`)
+
+  return parts.length > 0 ? parts.join(', ') : 'Not provided'
+}
+
+const formatFileSize = (bytes: number) => {
+  if (!bytes) return 'Unknown size'
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+// Computed properties for comparison rows
+const employmentComparisonRows = computed(() => {
+  if (!reference.value || !employerReference.value) return []
+
+  return [
+    {
+      field: 'company_name',
+      label: 'Company Name',
+      tenantValue: reference.value.employment_company_name,
+      referenceValue: employerReference.value.company_name
+    },
+    {
+      field: 'position',
+      label: 'Employee Position',
+      tenantValue: reference.value.employment_job_title,
+      referenceValue: employerReference.value.employee_position
+    },
+    {
+      field: 'employment_start_date',
+      label: 'Employment Start Date',
+      tenantValue: reference.value.employment_start_date,
+      referenceValue: employerReference.value.employment_start_date
+    },
+    {
+      field: 'employment_end_date',
+      label: 'Employment End Date',
+      tenantValue: reference.value.employment_end_date,
+      referenceValue: employerReference.value.employment_end_date
+    },
+    {
+      field: 'employment_type',
+      label: 'Employment Type',
+      tenantValue: reference.value.employment_contract_type,
+      referenceValue: employerReference.value.employment_type
+    },
+    {
+      field: 'annual_salary',
+      label: 'Annual Salary',
+      tenantValue: reference.value.employment_salary_amount ? parseFloat(reference.value.employment_salary_amount) : null,
+      referenceValue: employerReference.value.annual_salary ? parseFloat(employerReference.value.annual_salary) : null
+    },
+    {
+      field: 'salary_frequency',
+      label: 'Payment Frequency',
+      tenantValue: reference.value.employment_salary_frequency,
+      referenceValue: employerReference.value.salary_frequency
+    },
+    {
+      field: 'employer_contact_name',
+      label: 'Reference Contact Name',
+      tenantValue: reference.value.employer_ref_name,
+      referenceValue: employerReference.value.employer_name
+    },
+    {
+      field: 'employer_contact_email',
+      label: 'Reference Contact Email',
+      tenantValue: reference.value.employer_ref_email,
+      referenceValue: employerReference.value.employer_email
+    },
+    {
+      field: 'employer_contact_phone',
+      label: 'Reference Contact Phone',
+      tenantValue: reference.value.employer_ref_phone,
+      referenceValue: employerReference.value.employer_phone
+    }
+  ]
+})
+
+const landlordComparisonRows = computed(() => {
+  if (!reference.value || !landlordReference.value) return []
+
+  return [
+    {
+      field: 'property_address',
+      label: 'Property Address',
+      tenantValue: reference.value.previous_rental_address_line1,
+      referenceValue: landlordReference.value.property_address
+    },
+    {
+      field: 'property_city',
+      label: 'Property City',
+      tenantValue: reference.value.previous_rental_city,
+      referenceValue: landlordReference.value.property_city
+    },
+    {
+      field: 'property_postcode',
+      label: 'Property Postcode',
+      tenantValue: reference.value.previous_rental_postcode,
+      referenceValue: landlordReference.value.property_postcode
+    },
+    {
+      field: 'landlord_name',
+      label: 'Landlord Name',
+      tenantValue: reference.value.previous_landlord_name,
+      referenceValue: landlordReference.value.landlord_name
+    },
+    {
+      field: 'landlord_email',
+      label: 'Landlord Email',
+      tenantValue: reference.value.previous_landlord_email,
+      referenceValue: landlordReference.value.landlord_email
+    },
+    {
+      field: 'landlord_phone',
+      label: 'Landlord Phone',
+      tenantValue: reference.value.previous_landlord_phone,
+      referenceValue: landlordReference.value.landlord_phone
+    },
+    {
+      field: 'tenancy_start',
+      label: 'Tenancy Start Date',
+      tenantValue: reference.value.previous_tenancy_start_date,
+      referenceValue: landlordReference.value.tenancy_start_date,
+      isNotApplicable: false
+    },
+    {
+      field: 'tenancy_end',
+      label: 'Tenancy End Date',
+      tenantValue: reference.value.previous_tenancy_end_date,
+      referenceValue: landlordReference.value.tenancy_end_date,
+      isNotApplicable: false
+    },
+    {
+      field: 'monthly_rent',
+      label: 'Monthly Rent',
+      tenantValue: reference.value.previous_monthly_rent ? `£${reference.value.previous_monthly_rent}` : null,
+      referenceValue: landlordReference.value.monthly_rent ? `£${landlordReference.value.monthly_rent}` : null,
+      isNotApplicable: false
+    }
+  ]
+})
+
+const agentComparisonRows = computed(() => {
+  if (!reference.value || !agentReference.value) return []
+
+  return [
+    {
+      field: 'property_address',
+      label: 'Property Address',
+      tenantValue: reference.value.previous_rental_address_line1,
+      referenceValue: agentReference.value.property_address
+    },
+    {
+      field: 'property_city',
+      label: 'Property City',
+      tenantValue: reference.value.previous_rental_city,
+      referenceValue: agentReference.value.property_city
+    },
+    {
+      field: 'property_postcode',
+      label: 'Property Postcode',
+      tenantValue: reference.value.previous_rental_postcode,
+      referenceValue: agentReference.value.property_postcode
+    },
+    {
+      field: 'agent_name',
+      label: 'Agent Name',
+      tenantValue: reference.value.previous_landlord_name,
+      referenceValue: agentReference.value.agent_name
+    },
+    {
+      field: 'agency_name',
+      label: 'Agency Name',
+      tenantValue: reference.value.previous_agency_name,
+      referenceValue: agentReference.value.agency_name,
+      isNotApplicable: false
+    },
+    {
+      field: 'agent_email',
+      label: 'Agent Email',
+      tenantValue: reference.value.previous_landlord_email,
+      referenceValue: agentReference.value.agent_email
+    },
+    {
+      field: 'agent_phone',
+      label: 'Agent Phone',
+      tenantValue: reference.value.previous_landlord_phone,
+      referenceValue: agentReference.value.agent_phone
+    },
+    {
+      field: 'tenancy_start',
+      label: 'Tenancy Start Date',
+      tenantValue: reference.value.previous_tenancy_start_date,
+      referenceValue: agentReference.value.tenancy_start_date,
+      isNotApplicable: false
+    },
+    {
+      field: 'tenancy_end',
+      label: 'Tenancy End Date',
+      tenantValue: reference.value.previous_tenancy_end_date,
+      referenceValue: agentReference.value.tenancy_end_date,
+      isNotApplicable: false
+    },
+    {
+      field: 'monthly_rent',
+      label: 'Monthly Rent',
+      tenantValue: reference.value.previous_monthly_rent ? `£${reference.value.previous_monthly_rent}` : null,
+      referenceValue: agentReference.value.monthly_rent ? `£${agentReference.value.monthly_rent}` : null,
+      isNotApplicable: false
+    }
+  ]
+})
+
+const accountantComparisonRows = computed(() => {
+  if (!reference.value || !accountantReference.value) return []
+
+  return [
+    {
+      field: 'business_name',
+      label: 'Business Name',
+      tenantValue: reference.value.self_employed_business_name,
+      referenceValue: accountantReference.value.business_name
+    },
+    {
+      field: 'nature_of_business',
+      label: 'Nature of Business',
+      tenantValue: reference.value.self_employed_nature_of_business,
+      referenceValue: accountantReference.value.nature_of_business
+    },
+    {
+      field: 'business_start_date',
+      label: 'Business Start Date',
+      tenantValue: reference.value.self_employed_start_date,
+      referenceValue: accountantReference.value.business_start_date
+    },
+    {
+      field: 'annual_income',
+      label: 'Annual Income (Stated)',
+      tenantValue: reference.value.self_employed_annual_income ? parseFloat(reference.value.self_employed_annual_income) : null,
+      referenceValue: accountantReference.value.estimated_monthly_income ? parseFloat(accountantReference.value.estimated_monthly_income) * 12 : null
+    },
+    {
+      field: 'accountant_firm',
+      label: 'Accountant Firm',
+      tenantValue: reference.value.accountant_name,
+      referenceValue: accountantReference.value.accountant_firm
+    },
+    {
+      field: 'accountant_name',
+      label: 'Accountant Contact Name',
+      tenantValue: reference.value.accountant_contact_name,
+      referenceValue: accountantReference.value.accountant_name
+    },
+    {
+      field: 'accountant_email',
+      label: 'Accountant Email',
+      tenantValue: reference.value.accountant_email,
+      referenceValue: accountantReference.value.accountant_email
+    },
+    {
+      field: 'accountant_phone',
+      label: 'Accountant Phone',
+      tenantValue: reference.value.accountant_phone,
+      referenceValue: accountantReference.value.accountant_phone
+    }
+  ]
+})
 </script>
