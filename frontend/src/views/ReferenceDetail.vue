@@ -2299,38 +2299,6 @@ const closeDocumentViewer = () => {
   viewingDocumentType.value = ''
 }
 
-// Helper functions
-const calculateTotalAddressHistory = () => {
-  if (!reference.value && (!previousAddresses.value || previousAddresses.value.length === 0)) {
-    return 'Not provided'
-  }
-
-  let totalYears = reference.value?.time_at_address_years || 0
-  let totalMonths = reference.value?.time_at_address_months || 0
-
-  previousAddresses.value.forEach((addr: any) => {
-    totalYears += addr.time_at_address_years || 0
-    totalMonths += addr.time_at_address_months || 0
-  })
-
-  // Convert excess months to years
-  totalYears += Math.floor(totalMonths / 12)
-  totalMonths = totalMonths % 12
-
-  const parts = []
-  if (totalYears > 0) parts.push(`${totalYears} year${totalYears !== 1 ? 's' : ''}`)
-  if (totalMonths > 0) parts.push(`${totalMonths} month${totalMonths !== 1 ? 's' : ''}`)
-
-  return parts.length > 0 ? parts.join(', ') : 'Not provided'
-}
-
-const formatFileSize = (bytes: number) => {
-  if (!bytes) return 'Unknown size'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
-
 // Computed properties for comparison rows
 const employmentComparisonRows = computed(() => {
   if (!reference.value || !employerReference.value) return []

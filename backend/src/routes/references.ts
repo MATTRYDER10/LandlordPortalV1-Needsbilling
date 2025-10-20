@@ -362,6 +362,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         previous_rental_city: decrypt(ref.previous_rental_city_encrypted),
         previous_rental_postcode: decrypt(ref.previous_rental_postcode_encrypted),
         previous_rental_country: decrypt(ref.previous_rental_country_encrypted),
+        previous_monthly_rent: decrypt(ref.previous_monthly_rent_encrypted),
+        previous_agency_name: decrypt(ref.previous_agency_name_encrypted),
         accountant_name: decrypt(ref.accountant_firm_encrypted),
         accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
@@ -931,9 +933,11 @@ router.post('/submit/:token', async (req, res) => {
       // Employment Details (Page 6)
       employment_contract_type: data.employment_contract_type || null,
       employment_start_date: data.employment_start_date || null,
+      employment_end_date: data.employment_end_date || null,
       employment_is_hourly: data.employment_is_hourly || false,
       employment_hours_per_month: data.employment_hours_per_month || null,
       employment_salary_amount_encrypted: encrypt(data.employment_salary_amount ? String(data.employment_salary_amount) : null),
+      employment_salary_frequency: data.employment_salary_frequency || null,
       employment_company_name_encrypted: encrypt(data.employment_company_name),
       employment_company_address_line1_encrypted: encrypt(data.employment_company_address_line1 || ''),
       employment_company_address_line2_encrypted: encrypt(data.employment_company_address_line2 || ''),
@@ -991,6 +995,10 @@ router.post('/submit/:token', async (req, res) => {
       previous_rental_country_encrypted: encrypt(data.previous_rental_country || ''),
       tenancy_years: data.tenancy_years || 0,
       tenancy_months: data.tenancy_months || 0,
+      previous_monthly_rent_encrypted: encrypt(data.previous_monthly_rent ? String(data.previous_monthly_rent) : null),
+      previous_tenancy_start_date: data.previous_tenancy_start_date || null,
+      previous_tenancy_end_date: data.previous_tenancy_end_date || null,
+      previous_agency_name_encrypted: encrypt(data.previous_agency_name || ''),
 
       // Submission tracking
       submitted_at: new Date().toISOString(),
