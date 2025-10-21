@@ -176,7 +176,7 @@
               </div>
 
               <div>
-                <label for="frequency" class="block text-sm font-medium text-gray-700">Frequency *</label>
+                <label for="frequency" class="block text-sm font-medium text-gray-700">Pay Frequency *</label>
                 <select
                   id="frequency"
                   v-model="formData.salaryFrequency"
@@ -218,10 +218,10 @@
 
         <!-- Reference Questions -->
         <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Reference Questions</h2>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Employment Confirmation</h2>
           <div class="space-y-4">
             <div>
-              <label for="employment-status" class="block text-sm font-medium text-gray-700">Can you confirm the employment details are accurate? *</label>
+              <label for="employment-status" class="block text-sm font-medium text-gray-700">Can you confirm the employment details above are accurate? *</label>
               <select
                 id="employment-status"
                 v-model="formData.employmentStatus"
@@ -235,108 +235,85 @@
               </select>
             </div>
 
-            <div>
-              <label for="performance" class="block text-sm font-medium text-gray-700">How would you rate the employee's performance? *</label>
-              <select
-                id="performance"
-                v-model="formData.performanceRating"
+            <div v-if="formData.employmentStatus === 'partial' || formData.employmentStatus === 'cannot-confirm'">
+              <label for="clarification-details" class="block text-sm font-medium text-gray-700">Please provide clarification *</label>
+              <textarea
+                id="clarification-details"
+                v-model="formData.clarificationDetails"
+                rows="3"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select an option</option>
-                <option value="excellent">Excellent</option>
-                <option value="good">Good</option>
-                <option value="satisfactory">Satisfactory</option>
-                <option value="needs-improvement">Needs Improvement</option>
-                <option value="poor">Poor</option>
-              </select>
-            </div>
-
-            <div v-if="formData.performanceRating">
-              <label for="performance-details" class="block text-sm font-medium text-gray-700">Please provide details about their performance</label>
-              <textarea
-                id="performance-details"
-                v-model="formData.performanceDetails"
-                rows="3"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Please explain which details need clarification or cannot be confirmed"
               ></textarea>
             </div>
 
             <div>
-              <label for="disciplinary" class="block text-sm font-medium text-gray-700">Have there been any disciplinary issues? *</label>
+              <label for="contract-type-confirmation" class="block text-sm font-medium text-gray-700">Can you confirm the contract type? *</label>
               <select
-                id="disciplinary"
-                v-model="formData.disciplinaryIssues"
+                id="contract-type-confirmation"
+                v-model="formData.contractTypeConfirmation"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select an option</option>
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
+                <option value="permanent">Permanent</option>
+                <option value="fixed-term">Fixed-term contract</option>
+                <option value="temporary">Temporary</option>
+                <option value="zero-hours">Zero hours</option>
               </select>
             </div>
 
-            <div v-if="formData.disciplinaryIssues === 'yes'">
-              <label for="disciplinary-details" class="block text-sm font-medium text-gray-700">Please provide details *</label>
-              <textarea
-                id="disciplinary-details"
-                v-model="formData.disciplinaryDetails"
-                rows="3"
+            <div>
+              <label for="income-expectation" class="block text-sm font-medium text-gray-700">Do you expect the employee's income to change in the near future? *</label>
+              <select
+                id="income-expectation"
+                v-model="formData.incomeExpectation"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select an option</option>
+                <option value="improve">Likely to improve</option>
+                <option value="stay-same">Expected to stay the same</option>
+                <option value="worsen">May worsen or reduce</option>
+                <option value="uncertain">Uncertain</option>
+              </select>
+            </div>
+
+            <div v-if="formData.incomeExpectation && formData.incomeExpectation !== 'stay-same'">
+              <label for="income-expectation-details" class="block text-sm font-medium text-gray-700">Please provide details</label>
+              <textarea
+                id="income-expectation-details"
+                v-model="formData.incomeExpectationDetails"
+                rows="3"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Please explain why you expect their income to change"
               ></textarea>
             </div>
 
             <div>
-              <label for="absence" class="block text-sm font-medium text-gray-700">How would you describe the employee's attendance record? *</label>
+              <label for="employment-stable" class="block text-sm font-medium text-gray-700">Is the employee's position secure? *</label>
               <select
-                id="absence"
-                v-model="formData.absenceRecord"
+                id="employment-stable"
+                v-model="formData.employmentStable"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select an option</option>
-                <option value="excellent">Excellent - rarely absent</option>
-                <option value="good">Good - occasional absence</option>
-                <option value="satisfactory">Satisfactory</option>
-                <option value="poor">Poor - frequent absence</option>
+                <option value="yes">Yes, position is secure</option>
+                <option value="at-risk">Position may be at risk</option>
+                <option value="ending">Employment ending soon</option>
               </select>
             </div>
 
-            <div v-if="formData.absenceRecord && formData.absenceRecord !== 'excellent'">
-              <label for="absence-details" class="block text-sm font-medium text-gray-700">Please provide details</label>
+            <div v-if="formData.employmentStable !== 'yes'">
+              <label for="employment-stable-details" class="block text-sm font-medium text-gray-700">Please provide details *</label>
               <textarea
-                id="absence-details"
-                v-model="formData.absenceDetails"
+                id="employment-stable-details"
+                v-model="formData.employmentStableDetails"
                 rows="3"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              ></textarea>
-            </div>
-
-            <div>
-              <label for="reemploy" class="block text-sm font-medium text-gray-700">Would you re-employ this person? *</label>
-              <select
-                id="reemploy"
-                v-model="formData.wouldReemploy"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select an option</option>
-                <option value="yes">Yes, definitely</option>
-                <option value="probably">Probably</option>
-                <option value="unsure">Unsure</option>
-                <option value="probably-not">Probably not</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-
-            <div v-if="formData.wouldReemploy">
-              <label for="reemploy-details" class="block text-sm font-medium text-gray-700">Please explain your answer</label>
-              <textarea
-                id="reemploy-details"
-                v-model="formData.wouldReemployDetails"
-                rows="3"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Please explain the employment situation"
               ></textarea>
             </div>
 
@@ -448,14 +425,12 @@ const formData = ref({
   isProbation: '',
   probationEndDate: '',
   employmentStatus: '',
-  performanceRating: '',
-  performanceDetails: '',
-  disciplinaryIssues: '',
-  disciplinaryDetails: '',
-  absenceRecord: '',
-  absenceDetails: '',
-  wouldReemploy: '',
-  wouldReemployDetails: '',
+  clarificationDetails: '',
+  contractTypeConfirmation: '',
+  incomeExpectation: '',
+  incomeExpectationDetails: '',
+  employmentStable: '',
+  employmentStableDetails: '',
   additionalComments: '',
   signatureName: '',
   signature: '',
@@ -512,7 +487,7 @@ onMounted(async () => {
       }
     }
 
-    // Load branding
+    // Load branding and tenant info
     const response = await fetch(`${API_URL}/api/references/branding/${referenceId}`)
 
     if (response.ok) {
@@ -521,6 +496,20 @@ onMounted(async () => {
         companyLogo.value = data.branding.logo_url || ''
         primaryColor.value = data.branding.primary_color || '#FF8C41'
         buttonColor.value = data.branding.button_color || '#FF8C41'
+      }
+
+      // Pre-populate form with tenant-provided information
+      if (data.tenantInfo) {
+        formData.value.companyName = data.tenantInfo.companyName || ''
+        formData.value.employerName = data.tenantInfo.employerName || ''
+        formData.value.employerEmail = data.tenantInfo.employerEmail || ''
+        formData.value.employerPhone = data.tenantInfo.employerPhone || ''
+        formData.value.employerPosition = data.tenantInfo.employerPosition || ''
+        formData.value.employeePosition = data.tenantInfo.employeePosition || ''
+        formData.value.employmentType = data.tenantInfo.employmentType || ''
+        formData.value.employmentStartDate = data.tenantInfo.employmentStartDate || ''
+        formData.value.annualSalary = data.tenantInfo.annualSalary || ''
+        formData.value.salaryFrequency = data.tenantInfo.salaryFrequency || 'annual'
       }
     }
   } catch (err) {

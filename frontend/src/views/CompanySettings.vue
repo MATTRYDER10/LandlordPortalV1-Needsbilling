@@ -63,6 +63,17 @@
             </div>
 
             <div>
+              <label for="email" class="block text-sm font-medium text-gray-700">Company Email</label>
+              <input
+                id="email"
+                v-model="companyData.email"
+                type="email"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="contact@company.com"
+              />
+            </div>
+
+            <div>
               <label for="website" class="block text-sm font-medium text-gray-700">Website</label>
               <input
                 id="website"
@@ -102,12 +113,15 @@ import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const companyData = ref({
   name: '',
   address: '',
   city: '',
   postcode: '',
   phone: '',
+  email: '',
   website: ''
 })
 
@@ -115,11 +129,33 @@ const loading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 
-onMounted(() => {
-  // TODO: Load company data from Supabase
-  const companyName = authStore.user?.user_metadata?.company_name
-  if (companyName) {
-    companyData.value.name = companyName
+onMounted(async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/company`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      if (data.company) {
+        companyData.value = {
+          name: data.company.name || '',
+          address: data.company.address || '',
+          city: data.company.city || '',
+          postcode: data.company.postcode || '',
+          phone: data.company.phone || '',
+          email: data.company.email || '',
+          website: data.company.website || ''
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load company data:', error)
   }
 })
 
@@ -129,7 +165,26 @@ const handleUpdate = async () => {
   errorMessage.value = ''
 
   try {
-    // TODO: Update company in Supabase
+    const token = authStore.session?.access_token
+    if (!token) {
+      errorMessage.value = 'Not authenticated'
+      loading.value = false
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/company`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(companyData.value)
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update company settings')
+    }
+
     successMessage.value = 'Company settings updated successfully'
   } catch (error: any) {
     errorMessage.value = error.message || 'Failed to update company settings'

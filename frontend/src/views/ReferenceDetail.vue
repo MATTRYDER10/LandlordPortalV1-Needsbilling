@@ -392,35 +392,29 @@
                               </div>
                             </div>
 
-                            <!-- Performance Assessment -->
+                            <!-- Employment Confirmation -->
                             <div>
-                              <h6 class="text-xs font-semibold text-green-800 mb-2">Performance Assessment</h6>
+                              <h6 class="text-xs font-semibold text-green-800 mb-2">Employment Confirmation</h6>
                               <div class="grid grid-cols-2 gap-3 text-sm">
-                                <div><span class="text-green-700 font-medium">Employment Verified:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].employerReference.employment_status }}</span></div>
-                                <div><span class="text-green-700 font-medium">Performance:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].employerReference.performance_rating }}</span></div>
-                                <div><span class="text-green-700 font-medium">Attendance:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].employerReference.absence_record }}</span></div>
-                                <div><span class="text-green-700 font-medium">Disciplinary Issues:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].employerReference.disciplinary_issues }}</span></div>
-                                <div class="col-span-2"><span class="text-green-700 font-medium">Would Re-employ:</span> <span class="text-green-900 font-semibold capitalize">{{ childReferenceDetails[child.id].employerReference.would_reemploy }}</span></div>
+                                <div><span class="text-green-700 font-medium">Details Verified:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].employerReference.employment_status }}</span></div>
+                                <div><span class="text-green-700 font-medium">Contract Type:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].employerReference.contract_type_confirmation || 'Not provided' }}</span></div>
+                                <div><span class="text-green-700 font-medium">Income Expectation:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].employerReference.income_expectation || 'Not provided' }}</span></div>
+                                <div><span class="text-green-700 font-medium">Position Security:</span> <span class="text-green-900 capitalize">{{ childReferenceDetails[child.id].employerReference.employment_stable || 'Not provided' }}</span></div>
                               </div>
 
-                              <div v-if="childReferenceDetails[child.id].employerReference.performance_details" class="mt-3 p-3 bg-white rounded border border-green-200">
-                                <span class="text-green-700 font-medium text-xs">Performance Notes:</span>
-                                <p class="text-green-900 text-xs mt-1">{{ childReferenceDetails[child.id].employerReference.performance_details }}</p>
+                              <div v-if="childReferenceDetails[child.id].employerReference.clarification_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                                <span class="text-green-700 font-medium text-xs">Clarification Notes:</span>
+                                <p class="text-green-900 text-xs mt-1">{{ childReferenceDetails[child.id].employerReference.clarification_details }}</p>
                               </div>
 
-                              <div v-if="childReferenceDetails[child.id].employerReference.absence_details" class="mt-3 p-3 bg-white rounded border border-green-200">
-                                <span class="text-green-700 font-medium text-xs">Absence Details:</span>
-                                <p class="text-green-900 text-xs mt-1">{{ childReferenceDetails[child.id].employerReference.absence_details }}</p>
+                              <div v-if="childReferenceDetails[child.id].employerReference.income_expectation_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                                <span class="text-green-700 font-medium text-xs">Income Change Details:</span>
+                                <p class="text-green-900 text-xs mt-1">{{ childReferenceDetails[child.id].employerReference.income_expectation_details }}</p>
                               </div>
 
-                              <div v-if="childReferenceDetails[child.id].employerReference.disciplinary_details" class="mt-3 p-3 bg-white rounded border border-green-200">
-                                <span class="text-green-700 font-medium text-xs">Disciplinary Details:</span>
-                                <p class="text-green-900 text-xs mt-1">{{ childReferenceDetails[child.id].employerReference.disciplinary_details }}</p>
-                              </div>
-
-                              <div v-if="childReferenceDetails[child.id].employerReference.would_reemploy_details" class="mt-3 p-3 bg-white rounded border border-green-200">
-                                <span class="text-green-700 font-medium text-xs">Re-employment Details:</span>
-                                <p class="text-green-900 text-xs mt-1">{{ childReferenceDetails[child.id].employerReference.would_reemploy_details }}</p>
+                              <div v-if="childReferenceDetails[child.id].employerReference.employment_stable_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                                <span class="text-green-700 font-medium text-xs">Position Security Details:</span>
+                                <p class="text-green-900 text-xs mt-1">{{ childReferenceDetails[child.id].employerReference.employment_stable_details }}</p>
                               </div>
 
                               <div v-if="childReferenceDetails[child.id].employerReference.additional_comments" class="mt-3 p-3 bg-white rounded border border-green-200">
@@ -713,54 +707,34 @@
                           <div>
                             <h6 class="text-xs font-semibold text-green-800 mb-2">Reference Assessment</h6>
                             <div class="space-y-3">
-                              <div>
-                                <div class="mb-1">
-                                  <span class="text-green-700 font-medium text-sm">Rent Paid On Time:</span>
-                                  <span class="ml-2 text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.rent_paid_on_time }}</span>
-                                </div>
-                                <div v-if="childReferenceDetails[child.id].landlordReference.rent_paid_on_time_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 text-xs italic">
-                                  {{ childReferenceDetails[child.id].landlordReference.rent_paid_on_time_details }}
-                                </div>
+                              <div v-if="childReferenceDetails[child.id].landlordReference.address_correct">
+                                <span class="text-green-700 font-medium text-sm">Address Correct:</span>
+                                <span class="ml-2 text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.address_correct }}</span>
+                              </div>
+
+                              <div v-if="childReferenceDetails[child.id].landlordReference.tenancy_length_months">
+                                <span class="text-green-700 font-medium text-sm">Tenancy Length:</span>
+                                <span class="ml-2 text-green-900">{{ childReferenceDetails[child.id].landlordReference.tenancy_length_months }} months</span>
+                              </div>
+
+                              <div v-if="childReferenceDetails[child.id].landlordReference.monthly_rent_confirm">
+                                <span class="text-green-700 font-medium text-sm">Monthly Rent (Confirmed):</span>
+                                <span class="ml-2 text-green-900">£{{ childReferenceDetails[child.id].landlordReference.monthly_rent_confirm }}</span>
                               </div>
 
                               <div>
-                                <div class="mb-1">
-                                  <span class="text-green-700 font-medium text-sm">Property Condition:</span>
-                                  <span class="ml-2 text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.property_condition }}</span>
-                                </div>
-                                <div v-if="childReferenceDetails[child.id].landlordReference.property_condition_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 text-xs italic">
-                                  {{ childReferenceDetails[child.id].landlordReference.property_condition_details }}
-                                </div>
+                                <span class="text-green-700 font-medium text-sm">Rent Paid On Time:</span>
+                                <span class="ml-2 text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.rent_paid_on_time }}</span>
+                              </div>
+
+                              <div v-if="childReferenceDetails[child.id].landlordReference.good_tenant">
+                                <span class="text-green-700 font-medium text-sm">Good Tenant:</span>
+                                <span class="ml-2 text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.good_tenant }}</span>
                               </div>
 
                               <div>
-                                <div class="mb-1">
-                                  <span class="text-green-700 font-medium text-sm">Neighbour Complaints:</span>
-                                  <span class="ml-2 text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.neighbour_complaints }}</span>
-                                </div>
-                                <div v-if="childReferenceDetails[child.id].landlordReference.neighbour_complaints_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 text-xs italic">
-                                  {{ childReferenceDetails[child.id].landlordReference.neighbour_complaints_details }}
-                                </div>
-                              </div>
-
-                              <div>
-                                <div class="mb-1">
-                                  <span class="text-green-700 font-medium text-sm">Breach of Tenancy:</span>
-                                  <span class="ml-2 text-green-900 capitalize">{{ childReferenceDetails[child.id].landlordReference.breach_of_tenancy }}</span>
-                                </div>
-                                <div v-if="childReferenceDetails[child.id].landlordReference.breach_of_tenancy_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 text-xs italic">
-                                  {{ childReferenceDetails[child.id].landlordReference.breach_of_tenancy_details }}
-                                </div>
-                              </div>
-
-                              <div>
-                                <div class="mb-1">
-                                  <span class="text-green-700 font-medium text-sm">Would Rent Again:</span>
-                                  <span class="ml-2 text-green-900 capitalize font-semibold">{{ childReferenceDetails[child.id].landlordReference.would_rent_again }}</span>
-                                </div>
-                                <div v-if="childReferenceDetails[child.id].landlordReference.would_rent_again_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 text-xs italic">
-                                  {{ childReferenceDetails[child.id].landlordReference.would_rent_again_details }}
-                                </div>
+                                <span class="text-green-700 font-medium text-sm">Would Rent Again:</span>
+                                <span class="ml-2 text-green-900 capitalize font-semibold">{{ childReferenceDetails[child.id].landlordReference.would_rent_again }}</span>
                               </div>
                             </div>
 
@@ -1276,35 +1250,29 @@
                       </div>
                     </div>
 
-                    <!-- Reference Assessment -->
+                    <!-- Employment Confirmation -->
                     <div>
-                      <h5 class="text-sm font-semibold text-green-800 mb-2">Performance Assessment</h5>
+                      <h5 class="text-sm font-semibold text-green-800 mb-2">Employment Confirmation</h5>
                       <div class="grid grid-cols-2 gap-3 text-sm">
-                        <div><span class="text-green-700 font-medium">Employment Verified:</span> <span class="text-green-900">{{ employerReference.employment_status }}</span></div>
-                        <div><span class="text-green-700 font-medium">Performance Rating:</span> <span class="text-green-900 capitalize">{{ employerReference.performance_rating }}</span></div>
-                        <div><span class="text-green-700 font-medium">Attendance:</span> <span class="text-green-900 capitalize">{{ employerReference.absence_record }}</span></div>
-                        <div><span class="text-green-700 font-medium">Disciplinary Issues:</span> <span class="text-green-900 capitalize">{{ employerReference.disciplinary_issues }}</span></div>
-                        <div class="col-span-2"><span class="text-green-700 font-medium">Would Re-employ:</span> <span class="text-green-900 font-semibold capitalize">{{ employerReference.would_reemploy }}</span></div>
+                        <div><span class="text-green-700 font-medium">Details Verified:</span> <span class="text-green-900">{{ employerReference.employment_status }}</span></div>
+                        <div><span class="text-green-700 font-medium">Contract Type:</span> <span class="text-green-900 capitalize">{{ employerReference.contract_type_confirmation || 'Not provided' }}</span></div>
+                        <div><span class="text-green-700 font-medium">Income Expectation:</span> <span class="text-green-900 capitalize">{{ employerReference.income_expectation || 'Not provided' }}</span></div>
+                        <div><span class="text-green-700 font-medium">Position Security:</span> <span class="text-green-900 capitalize">{{ employerReference.employment_stable || 'Not provided' }}</span></div>
                       </div>
 
-                      <div v-if="employerReference.performance_details" class="mt-3 p-3 bg-white rounded border border-green-200">
-                        <span class="text-green-700 font-medium text-sm">Performance Notes:</span>
-                        <p class="text-green-900 text-sm mt-1">{{ employerReference.performance_details }}</p>
+                      <div v-if="employerReference.clarification_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Clarification Notes:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ employerReference.clarification_details }}</p>
                       </div>
 
-                      <div v-if="employerReference.absence_details" class="mt-3 p-3 bg-white rounded border border-green-200">
-                        <span class="text-green-700 font-medium text-sm">Absence Details:</span>
-                        <p class="text-green-900 text-sm mt-1">{{ employerReference.absence_details }}</p>
+                      <div v-if="employerReference.income_expectation_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Income Change Details:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ employerReference.income_expectation_details }}</p>
                       </div>
 
-                      <div v-if="employerReference.disciplinary_details" class="mt-3 p-3 bg-white rounded border border-green-200">
-                        <span class="text-green-700 font-medium text-sm">Disciplinary Details:</span>
-                        <p class="text-green-900 text-sm mt-1">{{ employerReference.disciplinary_details }}</p>
-                      </div>
-
-                      <div v-if="employerReference.would_reemploy_details" class="mt-3 p-3 bg-white rounded border border-green-200">
-                        <span class="text-green-700 font-medium text-sm">Re-employment Details:</span>
-                        <p class="text-green-900 text-sm mt-1">{{ employerReference.would_reemploy_details }}</p>
+                      <div v-if="employerReference.employment_stable_details" class="mt-3 p-3 bg-white rounded border border-green-200">
+                        <span class="text-green-700 font-medium text-sm">Position Security Details:</span>
+                        <p class="text-green-900 text-sm mt-1">{{ employerReference.employment_stable_details }}</p>
                       </div>
 
                       <div v-if="employerReference.additional_comments" class="mt-3 p-3 bg-white rounded border border-green-200">
@@ -1716,54 +1684,34 @@
               <div>
                 <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Reference Assessment</h5>
                 <div class="space-y-3">
-                  <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Rent Paid On Time:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.rent_paid_on_time }}</span>
-                    </div>
-                    <div v-if="landlordReference.rent_paid_on_time_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ landlordReference.rent_paid_on_time_details }}
-                    </div>
+                  <div v-if="landlordReference.address_correct">
+                    <span class="text-green-700 font-medium">Address Correct:</span>
+                    <span class="ml-2 text-green-900 capitalize">{{ landlordReference.address_correct }}</span>
+                  </div>
+
+                  <div v-if="landlordReference.tenancy_length_months">
+                    <span class="text-green-700 font-medium">Tenancy Length:</span>
+                    <span class="ml-2 text-green-900">{{ landlordReference.tenancy_length_months }} months</span>
+                  </div>
+
+                  <div v-if="landlordReference.monthly_rent_confirm">
+                    <span class="text-green-700 font-medium">Monthly Rent (Confirmed):</span>
+                    <span class="ml-2 text-green-900">£{{ landlordReference.monthly_rent_confirm }}</span>
                   </div>
 
                   <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Property Condition:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.property_condition }}</span>
-                    </div>
-                    <div v-if="landlordReference.property_condition_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ landlordReference.property_condition_details }}
-                    </div>
+                    <span class="text-green-700 font-medium">Rent Paid On Time:</span>
+                    <span class="ml-2 text-green-900 capitalize">{{ landlordReference.rent_paid_on_time }}</span>
+                  </div>
+
+                  <div v-if="landlordReference.good_tenant">
+                    <span class="text-green-700 font-medium">Good Tenant:</span>
+                    <span class="ml-2 text-green-900 capitalize">{{ landlordReference.good_tenant }}</span>
                   </div>
 
                   <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Neighbour Complaints:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.neighbour_complaints }}</span>
-                    </div>
-                    <div v-if="landlordReference.neighbour_complaints_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ landlordReference.neighbour_complaints_details }}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Breach of Tenancy:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.breach_of_tenancy }}</span>
-                    </div>
-                    <div v-if="landlordReference.breach_of_tenancy_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ landlordReference.breach_of_tenancy_details }}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Would Rent Again:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ landlordReference.would_rent_again }}</span>
-                    </div>
-                    <div v-if="landlordReference.would_rent_again_details" class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ landlordReference.would_rent_again_details }}
-                    </div>
+                    <span class="text-green-700 font-medium">Would Rent Again:</span>
+                    <span class="ml-2 text-green-900 capitalize">{{ landlordReference.would_rent_again }}</span>
                   </div>
                 </div>
               </div>

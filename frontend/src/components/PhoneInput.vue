@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 interface Props {
   modelValue?: string
@@ -56,15 +56,6 @@ const emit = defineEmits<{
 // Separate independent fields
 const countryCode = ref('+44')
 const number = ref('')
-
-// Initialize from modelValue only once
-if (props.modelValue) {
-  const match = props.modelValue.match(/^(\+\d+)(.*)$/)
-  if (match && match[1] && match[2]) {
-    countryCode.value = match[1]
-    number.value = match[2]
-  }
-}
 
 // Comprehensive country codes list
 const countryCodes = [
@@ -106,6 +97,29 @@ const countryCodes = [
   { code: '+56', country: 'Chile', flag: '🇨🇱' },
   { code: '+57', country: 'Colombia', flag: '🇨🇴' },
 ]
+
+// Parse phone number from modelValue
+const parsePhoneNumber = (value: string) => {
+  if (value) {
+    // Try to match against known country codes (sort by length descending to match longer codes first)
+    const sortedCodes = [...countryCodes].sort((a, b) => b.code.length - a.code.length)
+    for (const code of sortedCodes) {
+      if (value.startsWith(code.code)) {
+        countryCode.value = code.code
+        number.value = value.substring(code.code.length)
+        return
+      }
+    }
+  }
+}
+
+// Initialize from modelValue
+parsePhoneNumber(props.modelValue)
+
+// Watch for external changes to modelValue
+watch(() => props.modelValue, (newValue) => {
+  parsePhoneNumber(newValue)
+})
 
 // Phone number placeholder based on country
 const phonePlaceholder = computed(() => {

@@ -75,10 +75,16 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
-    // Decrypt company name
+    // Decrypt company fields
     const company = companyUser.companies ? {
       ...companyUser.companies,
-      name: decrypt((companyUser.companies as any).name_encrypted)
+      name: decrypt((companyUser.companies as any).name_encrypted),
+      phone: decrypt((companyUser.companies as any).phone_encrypted),
+      email: decrypt((companyUser.companies as any).email_encrypted),
+      address: decrypt((companyUser.companies as any).address_encrypted),
+      city: decrypt((companyUser.companies as any).city_encrypted),
+      postcode: decrypt((companyUser.companies as any).postcode_encrypted),
+      website: decrypt((companyUser.companies as any).website_encrypted)
     } : null
 
     res.json({
@@ -163,7 +169,7 @@ router.post('/logo', authenticateToken, upload.single('logo'), async (req: AuthR
 router.put('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
-    const { name, address, city, postcode, phone, website, logo_url, primary_color, button_color } = req.body
+    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color } = req.body
 
     // Get user's company
     const { data: companyUsers } = await supabase
@@ -194,12 +200,13 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     const { data, error } = await supabase
       .from('companies')
       .update({
-        name_encrypted: encrypt(name),
-        address,
-        city,
-        postcode,
-        phone,
-        website,
+        name_encrypted: name ? encrypt(name) : null,
+        address_encrypted: address ? encrypt(address) : null,
+        city_encrypted: city ? encrypt(city) : null,
+        postcode_encrypted: postcode ? encrypt(postcode) : null,
+        phone_encrypted: phone ? encrypt(phone) : null,
+        email_encrypted: email ? encrypt(email) : null,
+        website_encrypted: website ? encrypt(website) : null,
         logo_url,
         primary_color,
         button_color,
@@ -215,20 +222,21 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // Track what changed for audit log
     const changes: Record<string, any> = {}
-    const fields = ['address', 'city', 'postcode', 'phone', 'website', 'logo_url', 'primary_color', 'button_color']
-    fields.forEach(field => {
+    const encryptedFields = ['name', 'address', 'city', 'postcode', 'phone', 'email', 'website']
+    encryptedFields.forEach(field => {
+      const oldValue = oldCompany && oldCompany[`${field}_encrypted`] ? decrypt(oldCompany[`${field}_encrypted`]) : null
+      const newValue = data[`${field}_encrypted`] ? decrypt(data[`${field}_encrypted`]) : null
+      if (oldValue !== newValue) {
+        changes[field] = { old: oldValue, new: newValue }
+      }
+    })
+
+    const nonEncryptedFields = ['logo_url', 'primary_color', 'button_color']
+    nonEncryptedFields.forEach(field => {
       if (oldCompany && data[field] !== oldCompany[field]) {
         changes[field] = { old: oldCompany[field], new: data[field] }
       }
     })
-
-    // Handle encrypted name field separately
-    if (oldCompany && data.name_encrypted !== oldCompany.name_encrypted) {
-      changes['name'] = {
-        old: oldCompany.name_encrypted ? decrypt(oldCompany.name_encrypted) : null,
-        new: data.name_encrypted ? decrypt(data.name_encrypted) : null
-      }
-    }
 
     // Audit log
     if (Object.keys(changes).length > 0) {
@@ -247,10 +255,16 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
       )
     }
 
-    // Decrypt company name for response
+    // Decrypt company fields for response
     const decryptedCompany = {
       ...data,
-      name: decrypt(data.name_encrypted)
+      name: decrypt(data.name_encrypted),
+      address: decrypt(data.address_encrypted),
+      city: decrypt(data.city_encrypted),
+      postcode: decrypt(data.postcode_encrypted),
+      phone: decrypt(data.phone_encrypted),
+      email: decrypt(data.email_encrypted),
+      website: decrypt(data.website_encrypted)
     }
 
     res.json({ company: decryptedCompany })

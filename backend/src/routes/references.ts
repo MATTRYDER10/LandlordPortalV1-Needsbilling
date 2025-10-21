@@ -1048,13 +1048,23 @@ router.post('/submit/:token', async (req, res) => {
     // Send email to employer if employer reference details are provided
     if (data.employer_ref_email && data.employer_ref_name) {
       try {
+        // Get company info for contact details
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('name_encrypted, phone_encrypted, email_encrypted')
+          .eq('id', reference.company_id)
+          .single()
+
         const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${updatedReference.id}`
 
         await sendEmployerReferenceRequest(
           data.employer_ref_email,
           data.employer_ref_name,
           `${data.first_name} ${data.last_name}`,
-          employerReferenceUrl
+          employerReferenceUrl,
+          companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+          companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+          companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
         )
         console.log('Employer reference email sent successfully to:', data.employer_ref_email)
       } catch (emailError: any) {
@@ -1066,6 +1076,13 @@ router.post('/submit/:token', async (req, res) => {
     // Send email to landlord/agent if rental reference details are provided
     if (data.previous_landlord_email && data.previous_landlord_name) {
       try {
+        // Get company info for contact details
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('name_encrypted, phone_encrypted, email_encrypted')
+          .eq('id', reference.company_id)
+          .single()
+
         const referenceType = data.reference_type || 'landlord'
 
         if (referenceType === 'agent') {
@@ -1075,7 +1092,10 @@ router.post('/submit/:token', async (req, res) => {
             data.previous_landlord_email,
             data.previous_landlord_name,
             `${data.first_name} ${data.last_name}`,
-            agentReferenceUrl
+            agentReferenceUrl,
+            companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+            companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
           )
           console.log('Agent reference email sent successfully to:', data.previous_landlord_email)
         } else {
@@ -1085,7 +1105,10 @@ router.post('/submit/:token', async (req, res) => {
             data.previous_landlord_email,
             data.previous_landlord_name,
             `${data.first_name} ${data.last_name}`,
-            landlordReferenceUrl
+            landlordReferenceUrl,
+            companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+            companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
           )
           console.log('Landlord reference email sent successfully to:', data.previous_landlord_email)
         }
@@ -1098,6 +1121,13 @@ router.post('/submit/:token', async (req, res) => {
     // Send email to accountant if self-employed and accountant details are provided
     if (data.income_self_employed && data.accountant_email && data.accountant_contact_name) {
       try {
+        // Get company info for contact details
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('name_encrypted, phone_encrypted, email_encrypted')
+          .eq('id', reference.company_id)
+          .single()
+
         // Create accountant reference record with unique token and hash
         const accountantToken = generateToken()
         const accountantTokenHash = hash(accountantToken)
@@ -1124,7 +1154,10 @@ router.post('/submit/:token', async (req, res) => {
             data.accountant_email,
             data.accountant_contact_name,
             `${data.first_name} ${data.last_name}`,
-            accountantReferenceUrl
+            accountantReferenceUrl,
+            companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+            companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
           )
           console.log('Accountant reference email sent successfully to:', data.accountant_email)
         }
@@ -1413,6 +1446,29 @@ router.get('/branding/:referenceId', async (req, res) => {
       .from('tenant_references')
       .select(`
         company_id,
+        employment_company_name_encrypted,
+        employment_position_encrypted,
+        employment_start_date,
+        employment_contract_type,
+        employment_salary_amount_encrypted,
+        employment_salary_frequency,
+        employer_ref_name_encrypted,
+        employer_ref_email_encrypted,
+        employer_ref_phone_encrypted,
+        employer_ref_position,
+        previous_landlord_name_encrypted,
+        previous_landlord_email_encrypted,
+        previous_landlord_phone_encrypted,
+        previous_rental_address_line1_encrypted,
+        previous_rental_address_line2_encrypted,
+        previous_rental_city_encrypted,
+        previous_rental_postcode_encrypted,
+        previous_rental_country_encrypted,
+        previous_tenancy_start_date,
+        previous_tenancy_end_date,
+        previous_monthly_rent_encrypted,
+        previous_agency_name_encrypted,
+        reference_type,
         companies:company_id (
           logo_url,
           primary_color,
@@ -1426,7 +1482,40 @@ router.get('/branding/:referenceId', async (req, res) => {
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    res.json({ branding: reference.companies })
+    // Decrypt tenant-provided information
+    const tenantInfo = {
+      // Employer information
+      companyName: reference.employment_company_name_encrypted ? decrypt(reference.employment_company_name_encrypted) : '',
+      employeePosition: reference.employment_position_encrypted ? decrypt(reference.employment_position_encrypted) : '',
+      employmentStartDate: reference.employment_start_date || '',
+      employmentType: reference.employment_contract_type || '',
+      annualSalary: reference.employment_salary_amount_encrypted ? decrypt(reference.employment_salary_amount_encrypted) : '',
+      salaryFrequency: reference.employment_salary_frequency || 'annual',
+      employerName: reference.employer_ref_name_encrypted ? decrypt(reference.employer_ref_name_encrypted) : '',
+      employerEmail: reference.employer_ref_email_encrypted ? decrypt(reference.employer_ref_email_encrypted) : '',
+      employerPhone: reference.employer_ref_phone_encrypted ? decrypt(reference.employer_ref_phone_encrypted) : '',
+      employerPosition: reference.employer_ref_position || '',
+
+      // Landlord/Agent information
+      landlordName: reference.previous_landlord_name_encrypted ? decrypt(reference.previous_landlord_name_encrypted) : '',
+      landlordEmail: reference.previous_landlord_email_encrypted ? decrypt(reference.previous_landlord_email_encrypted) : '',
+      landlordPhone: reference.previous_landlord_phone_encrypted ? decrypt(reference.previous_landlord_phone_encrypted) : '',
+      propertyAddress: reference.previous_rental_address_line1_encrypted ? decrypt(reference.previous_rental_address_line1_encrypted) : '',
+      propertyAddress2: reference.previous_rental_address_line2_encrypted ? decrypt(reference.previous_rental_address_line2_encrypted) : '',
+      propertyCity: reference.previous_rental_city_encrypted ? decrypt(reference.previous_rental_city_encrypted) : '',
+      propertyPostcode: reference.previous_rental_postcode_encrypted ? decrypt(reference.previous_rental_postcode_encrypted) : '',
+      propertyCountry: reference.previous_rental_country_encrypted ? decrypt(reference.previous_rental_country_encrypted) : '',
+      tenancyStartDate: reference.previous_tenancy_start_date || '',
+      tenancyEndDate: reference.previous_tenancy_end_date || '',
+      monthlyRent: reference.previous_monthly_rent_encrypted ? decrypt(reference.previous_monthly_rent_encrypted) : '',
+      agencyName: reference.previous_agency_name_encrypted ? decrypt(reference.previous_agency_name_encrypted) : '',
+      referenceType: reference.reference_type || 'landlord'
+    }
+
+    res.json({
+      branding: reference.companies,
+      tenantInfo
+    })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -1438,10 +1527,10 @@ router.get('/accountant/branding/:token', async (req, res) => {
     const { token } = req.params
     const tokenHash = hash(token)
 
-    // Get the tenant_reference_id using token hash
+    // Get the tenant_reference_id and accountant info using token hash
     const { data: accountantRef, error: accountantError } = await supabase
       .from('accountant_references')
-      .select('tenant_reference_id')
+      .select('tenant_reference_id, accountant_firm_encrypted, accountant_name_encrypted, accountant_email_encrypted, accountant_phone_encrypted')
       .eq('token_hash', tokenHash)
       .single()
 
@@ -1449,11 +1538,15 @@ router.get('/accountant/branding/:token', async (req, res) => {
       return res.status(404).json({ error: 'Accountant reference not found' })
     }
 
-    // Now fetch the branding using the tenant_reference_id
+    // Now fetch the branding and tenant info using the tenant_reference_id
     const { data: reference, error } = await supabase
       .from('tenant_references')
       .select(`
         company_id,
+        self_employed_business_name_encrypted,
+        self_employed_start_date,
+        self_employed_nature_of_business_encrypted,
+        self_employed_annual_income_encrypted,
         companies:company_id (
           logo_url,
           primary_color,
@@ -1467,7 +1560,22 @@ router.get('/accountant/branding/:token', async (req, res) => {
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    res.json({ branding: reference.companies })
+    // Decrypt tenant-provided accountant and business information
+    const tenantInfo = {
+      accountantName: accountantRef.accountant_firm_encrypted ? decrypt(accountantRef.accountant_firm_encrypted) : '',
+      accountantContactName: accountantRef.accountant_name_encrypted ? decrypt(accountantRef.accountant_name_encrypted) : '',
+      accountantEmail: accountantRef.accountant_email_encrypted ? decrypt(accountantRef.accountant_email_encrypted) : '',
+      accountantPhone: accountantRef.accountant_phone_encrypted ? decrypt(accountantRef.accountant_phone_encrypted) : '',
+      businessName: reference.self_employed_business_name_encrypted ? decrypt(reference.self_employed_business_name_encrypted) : '',
+      businessStartDate: reference.self_employed_start_date || '',
+      natureOfBusiness: reference.self_employed_nature_of_business_encrypted ? decrypt(reference.self_employed_nature_of_business_encrypted) : '',
+      estimatedIncome: reference.self_employed_annual_income_encrypted ? decrypt(reference.self_employed_annual_income_encrypted) : ''
+    }
+
+    res.json({
+      branding: reference.companies,
+      tenantInfo
+    })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

@@ -471,7 +471,7 @@ const formData = ref({
   taxLiabilitiesDetails: '',
   businessFinanciallyStable: null,
   accountantConfirmsIncome: null,
-  estimatedMonthlyIncome: null,
+  estimatedMonthlyIncome: 0,
   additionalComments: '',
   wouldRecommend: null,
   recommendationComments: '',
@@ -506,7 +506,7 @@ onMounted(async () => {
     console.error('Failed to check submission status:', err)
   }
 
-  // Fetch company branding
+  // Fetch company branding and tenant info
   try {
     const response = await fetch(`${API_URL}/api/references/accountant/branding/${token}`)
     if (response.ok) {
@@ -515,6 +515,22 @@ onMounted(async () => {
         companyLogo.value = data.branding.logo_url || ''
         primaryColor.value = data.branding.primary_color || '#FF8C41'
         buttonColor.value = data.branding.button_color || '#FF8C41'
+      }
+
+      // Pre-populate form with tenant-provided information
+      if (data.tenantInfo) {
+        formData.value.businessName = data.tenantInfo.businessName || ''
+        formData.value.natureOfBusiness = data.tenantInfo.natureOfBusiness || ''
+        formData.value.businessStartDate = data.tenantInfo.businessStartDate || ''
+
+        // Use estimatedIncome for estimated monthly income if available
+        if (data.tenantInfo.estimatedIncome) {
+          // The tenant provides annual income, convert to monthly estimate
+          const annualIncome = parseFloat(data.tenantInfo.estimatedIncome)
+          if (!isNaN(annualIncome)) {
+            formData.value.estimatedMonthlyIncome = Math.round(annualIncome / 12)
+          }
+        }
       }
     }
   } catch (err) {

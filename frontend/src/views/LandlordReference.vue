@@ -77,54 +77,6 @@
         <div class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Property & Tenancy Information</h2>
           <div class="space-y-4">
-            <div>
-              <label for="property-address-line1" class="block text-sm font-medium text-gray-700">Address Line 1 *</label>
-              <input
-                id="property-address-line1"
-                v-model="formData.propertyAddressLine1"
-                type="text"
-                required
-                placeholder="e.g. 123 Main Street"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label for="property-address-line2" class="block text-sm font-medium text-gray-700">Address Line 2</label>
-              <input
-                id="property-address-line2"
-                v-model="formData.propertyAddressLine2"
-                type="text"
-                placeholder="e.g. Apartment 4B"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="property-city" class="block text-sm font-medium text-gray-700">City *</label>
-                <input
-                  id="property-city"
-                  v-model="formData.propertyCity"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label for="property-postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
-                <input
-                  id="property-postcode"
-                  v-model="formData.propertyPostcode"
-                  type="text"
-                  required
-                  placeholder="e.g. SW1A 1AA"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
             <DatePicker
               v-model="formData.tenancyStartDate"
               label="Tenancy Start Date"
@@ -145,9 +97,9 @@
               <label for="monthly-rent" class="block text-sm font-medium text-gray-700">Monthly Rent (£) *</label>
               <input
                 id="monthly-rent"
-                v-model="formData.monthlyRent"
+                v-model.number="formData.monthlyRent"
                 type="number"
-                step="0.01"
+                step="1"
                 required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               />
@@ -155,147 +107,213 @@
           </div>
         </div>
 
+        <!-- Address Confirmation -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Address Confirmation</h2>
+
+          <!-- Display pre-populated address -->
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+            <p class="text-sm font-medium text-gray-700 mb-2">Property Address:</p>
+            <p class="text-gray-900">{{ formData.propertyAddressLine1 }}</p>
+            <p v-if="formData.propertyAddressLine2" class="text-gray-900">{{ formData.propertyAddressLine2 }}</p>
+            <p class="text-gray-900">{{ formData.propertyCity }}, {{ formData.propertyPostcode }}</p>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">(If the address is not correct please answer "No", proceed with the reference and supply the correct address in the comments section below)</p>
+
+          <div class="space-y-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-3">The address is correct *</label>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  @click="formData.addressCorrect = 'yes'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.addressCorrect === 'yes'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.addressCorrect === 'yes' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  @click="formData.addressCorrect = 'correct'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.addressCorrect === 'correct'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.addressCorrect === 'correct' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  The address is correct
+                </button>
+                <button
+                  type="button"
+                  @click="formData.addressCorrect = 'no'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.addressCorrect === 'no'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.addressCorrect === 'no' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Reference Questions -->
         <div class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Reference Questions</h2>
-          <div class="space-y-4">
+          <div class="space-y-6">
             <div>
-              <label for="rent-paid-on-time" class="block text-sm font-medium text-gray-700">Was rent paid on time? *</label>
-              <select
-                id="rent-paid-on-time"
-                v-model="formData.rentPaidOnTime"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select an option</option>
-                <option value="always">Always</option>
-                <option value="usually">Usually</option>
-                <option value="sometimes">Sometimes</option>
-                <option value="rarely">Rarely</option>
-                <option value="never">Never</option>
-              </select>
-            </div>
-
-            <div v-if="formData.rentPaidOnTime && formData.rentPaidOnTime !== 'always'">
-              <label for="rent-details" class="block text-sm font-medium text-gray-700">Please provide details</label>
-              <textarea
-                id="rent-details"
-                v-model="formData.rentPaidOnTimeDetails"
-                rows="3"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              ></textarea>
-            </div>
-
-            <div>
-              <label for="property-condition" class="block text-sm font-medium text-gray-700">How was the property maintained? *</label>
-              <select
-                id="property-condition"
-                v-model="formData.propertyCondition"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select an option</option>
-                <option value="excellent">Excellent</option>
-                <option value="good">Good</option>
-                <option value="satisfactory">Satisfactory</option>
-                <option value="poor">Poor</option>
-              </select>
-            </div>
-
-            <div v-if="formData.propertyCondition">
-              <label for="condition-details" class="block text-sm font-medium text-gray-700">Please provide details</label>
-              <textarea
-                id="condition-details"
-                v-model="formData.propertyConditionDetails"
-                rows="3"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              ></textarea>
+              <label class="block text-sm font-medium text-gray-700 mb-3">Rent paid on time *</label>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  @click="formData.rentPaidOnTime = 'yes'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.rentPaidOnTime === 'yes'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.rentPaidOnTime === 'yes' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  @click="formData.rentPaidOnTime = 'on-time'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.rentPaidOnTime === 'on-time'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.rentPaidOnTime === 'on-time' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Rent paid on time
+                </button>
+                <button
+                  type="button"
+                  @click="formData.rentPaidOnTime = 'no'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.rentPaidOnTime === 'no'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.rentPaidOnTime === 'no' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  No
+                </button>
+              </div>
             </div>
 
             <div>
-              <label for="neighbour-complaints" class="block text-sm font-medium text-gray-700">Were there any complaints from neighbours? *</label>
-              <select
-                id="neighbour-complaints"
-                v-model="formData.neighbourComplaints"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select an option</option>
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
-            </div>
-
-            <div v-if="formData.neighbourComplaints === 'yes'">
-              <label for="complaint-details" class="block text-sm font-medium text-gray-700">Please provide details *</label>
-              <textarea
-                id="complaint-details"
-                v-model="formData.neighbourComplaintsDetails"
-                rows="3"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              ></textarea>
-            </div>
-
-            <div>
-              <label for="breach-tenancy" class="block text-sm font-medium text-gray-700">Were there any breaches of the tenancy agreement? *</label>
-              <select
-                id="breach-tenancy"
-                v-model="formData.breachOfTenancy"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select an option</option>
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
-            </div>
-
-            <div v-if="formData.breachOfTenancy === 'yes'">
-              <label for="breach-details" class="block text-sm font-medium text-gray-700">Please provide details *</label>
-              <textarea
-                id="breach-details"
-                v-model="formData.breachOfTenancyDetails"
-                rows="3"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              ></textarea>
+              <label class="block text-sm font-medium text-gray-700 mb-3">Have they been a good tenant *</label>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  @click="formData.goodTenant = 'yes'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.goodTenant === 'yes'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.goodTenant === 'yes' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  @click="formData.goodTenant = 'good-tenant'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.goodTenant === 'good-tenant'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.goodTenant === 'good-tenant' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Have they been a good tenant
+                </button>
+                <button
+                  type="button"
+                  @click="formData.goodTenant = 'no'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.goodTenant === 'no'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.goodTenant === 'no' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  No
+                </button>
+              </div>
             </div>
 
             <div>
-              <label for="would-rent-again" class="block text-sm font-medium text-gray-700">Would you rent to this tenant again? *</label>
-              <select
-                id="would-rent-again"
-                v-model="formData.wouldRentAgain"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select an option</option>
-                <option value="yes">Yes, definitely</option>
-                <option value="probably">Probably</option>
-                <option value="unsure">Unsure</option>
-                <option value="probably-not">Probably not</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-
-            <div v-if="formData.wouldRentAgain">
-              <label for="rent-again-details" class="block text-sm font-medium text-gray-700">Please explain your answer</label>
-              <textarea
-                id="rent-again-details"
-                v-model="formData.wouldRentAgainDetails"
-                rows="3"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              ></textarea>
+              <label class="block text-sm font-medium text-gray-700 mb-3">Would you rent to them again *</label>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  @click="formData.wouldRentAgain = 'yes'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.wouldRentAgain === 'yes'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.wouldRentAgain === 'yes' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  @click="formData.wouldRentAgain = 'rent-again'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.wouldRentAgain === 'rent-again'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.wouldRentAgain === 'rent-again' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Would you rent to them again
+                </button>
+                <button
+                  type="button"
+                  @click="formData.wouldRentAgain = 'no'"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.wouldRentAgain === 'no'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.wouldRentAgain === 'no' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  No
+                </button>
+              </div>
             </div>
 
             <div>
-              <label for="additional-comments" class="block text-sm font-medium text-gray-700">Additional Comments</label>
+              <label for="additional-comments" class="block text-sm font-medium text-gray-700">If you have any further comments that you feel will support their application please add them here</label>
               <textarea
                 id="additional-comments"
                 v-model="formData.additionalComments"
                 rows="4"
-                placeholder="Please provide any additional information that may be relevant to this reference"
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               ></textarea>
             </div>
@@ -392,16 +410,10 @@ const formData = ref({
   tenancyStartDate: '',
   tenancyEndDate: '',
   monthlyRent: '',
+  addressCorrect: '',
   rentPaidOnTime: '',
-  rentPaidOnTimeDetails: '',
-  propertyCondition: '',
-  propertyConditionDetails: '',
-  neighbourComplaints: '',
-  neighbourComplaintsDetails: '',
-  breachOfTenancy: '',
-  breachOfTenancyDetails: '',
+  goodTenant: '',
   wouldRentAgain: '',
-  wouldRentAgainDetails: '',
   additionalComments: '',
   signatureName: '',
   signature: '',
@@ -458,7 +470,7 @@ onMounted(async () => {
       }
     }
 
-    // Load branding
+    // Load branding and tenant info
     const response = await fetch(`${API_URL}/api/references/branding/${referenceId}`)
 
     if (response.ok) {
@@ -467,6 +479,22 @@ onMounted(async () => {
         companyLogo.value = data.branding.logo_url || ''
         primaryColor.value = data.branding.primary_color || '#FF8C41'
         buttonColor.value = data.branding.button_color || '#FF8C41'
+      }
+
+      // Pre-populate form with tenant-provided information
+      if (data.tenantInfo) {
+        formData.value.landlordName = data.tenantInfo.landlordName || ''
+        formData.value.landlordEmail = data.tenantInfo.landlordEmail || ''
+        formData.value.landlordPhone = data.tenantInfo.landlordPhone || ''
+
+        formData.value.propertyAddressLine1 = data.tenantInfo.propertyAddress || ''
+        formData.value.propertyAddressLine2 = data.tenantInfo.propertyAddress2 || ''
+        formData.value.propertyCity = data.tenantInfo.propertyCity || ''
+        formData.value.propertyPostcode = data.tenantInfo.propertyPostcode || ''
+
+        formData.value.tenancyStartDate = data.tenantInfo.tenancyStartDate || ''
+        formData.value.tenancyEndDate = data.tenantInfo.tenancyEndDate || ''
+        formData.value.monthlyRent = data.tenantInfo.monthlyRent || ''
       }
     }
   } catch (err) {

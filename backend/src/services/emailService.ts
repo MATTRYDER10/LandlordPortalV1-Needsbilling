@@ -78,12 +78,18 @@ export async function sendEmployerReferenceRequest(
   employerEmail: string,
   employerName: string,
   tenantName: string,
-  referenceLink: string
+  referenceLink: string,
+  agentCompanyName?: string | null,
+  agentPhone?: string | null,
+  agentEmail?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('employer-reference-request', {
     EmployerName: employerName,
     TenantName: tenantName,
     ReferenceLink: referenceLink,
+    AgentCompanyName: agentCompanyName || '',
+    AgentPhone: agentPhone || '',
+    AgentEmail: agentEmail || '',
   });
 
   await sendEmail({
@@ -100,12 +106,18 @@ export async function sendLandlordReferenceRequest(
   landlordEmail: string,
   landlordName: string,
   tenantName: string,
-  referenceLink: string
+  referenceLink: string,
+  agentCompanyName?: string | null,
+  agentPhone?: string | null,
+  agentEmail?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('landlord-reference-request', {
     LandlordName: landlordName,
     TenantName: tenantName,
     ReferenceLink: referenceLink,
+    AgentCompanyName: agentCompanyName || '',
+    AgentPhone: agentPhone || '',
+    AgentEmail: agentEmail || '',
   });
 
   await sendEmail({
@@ -122,13 +134,19 @@ export async function sendAccountantReferenceRequest(
   accountantEmail: string,
   accountantName: string,
   tenantName: string,
-  referenceLink: string
+  referenceLink: string,
+  agentCompanyName?: string | null,
+  agentPhone?: string | null,
+  agentEmail?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('accountant-reference-request', {
     AccountantName: accountantName,
     TenantName: tenantName,
     ReferenceLink: referenceLink,
     Year: new Date().getFullYear().toString(),
+    AgentCompanyName: agentCompanyName || '',
+    AgentPhone: agentPhone || '',
+    AgentEmail: agentEmail || '',
   });
 
   await sendEmail({
@@ -145,12 +163,18 @@ export async function sendAgentReferenceRequest(
   agentEmail: string,
   agentName: string,
   tenantName: string,
-  referenceLink: string
+  referenceLink: string,
+  agentCompanyName?: string | null,
+  agentPhone?: string | null,
+  agentEmailContact?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('agent-reference-request', {
     AgentName: agentName,
     TenantName: tenantName,
     ReferenceLink: referenceLink,
+    AgentCompanyName: agentCompanyName || '',
+    AgentPhone: agentPhone || '',
+    AgentEmail: agentEmailContact || '',
   });
 
   await sendEmail({

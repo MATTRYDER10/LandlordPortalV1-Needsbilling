@@ -253,9 +253,9 @@
                 <label for="rent" class="block text-sm font-medium text-gray-700">Total Monthly Rent (£) *</label>
                 <input
                   id="rent"
-                  v-model="formData.monthly_rent"
+                  v-model.number="formData.monthly_rent"
                   type="number"
-                  step="0.01"
+                  step="1"
                   required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
