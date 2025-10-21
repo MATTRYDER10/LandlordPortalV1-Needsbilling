@@ -18,7 +18,7 @@ interface EmailOptions {
 export async function sendEmail(options: EmailOptions): Promise<void> {
   try {
     const { data, error } = await resend.emails.send({
-      from: options.from || 'hello@notifications.propertygoose.co.uk',
+      from: options.from || 'PropertyGoose <hello@notifications.propertygoose.co.uk>',
       to: options.to,
       subject: options.subject,
       html: options.html,
