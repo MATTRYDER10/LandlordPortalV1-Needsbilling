@@ -970,9 +970,9 @@
               </div>
             </div>
 
-            <!-- Accountant Details (shown if Self Employed is selected) -->
+            <!-- Business Details (shown if Self Employed is selected) -->
             <div v-if="formData.income_self_employed" class="pt-6 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Accountant Details</h3>
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Business Details</h3>
 
               <div class="space-y-4">
                 <div>
