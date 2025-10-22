@@ -1642,9 +1642,9 @@
               </label>
               <input
                 v-model="formData.consent_agreed_date"
-                type="date"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                type="text"
+                readonly
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
               />
             </div>
 
@@ -2359,7 +2359,7 @@ const formData = ref({
   // Page 11: Referencing Consent
   consent_signature: '',
   consent_printed_name: '',
-  consent_agreed_date: ''
+  consent_agreed_date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
 })
 
 onMounted(() => {
