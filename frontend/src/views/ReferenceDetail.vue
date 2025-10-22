@@ -977,6 +977,41 @@
           </div>
         </div>
 
+        <!-- Consent Declaration -->
+        <div v-if="!reference.is_group_parent && reference.consent_pdf_path" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Consent Declaration</h3>
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Agreed On</label>
+                <p class="mt-1 text-gray-900">{{ reference.consent_agreed_date ? new Date(reference.consent_agreed_date).toLocaleDateString('en-GB') : 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Printed Name</label>
+                <p class="mt-1 text-gray-900">{{ reference.consent_printed_name || 'Not provided' }}</p>
+              </div>
+            </div>
+
+            <!-- Consent PDF -->
+            <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+              <div class="flex items-center">
+                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm text-gray-900">Signed Consent Declaration</span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="viewFile(reference.consent_pdf_path)"
+                  class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+                >
+                  View PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Current Address -->
         <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Address</h3>
@@ -2221,11 +2256,14 @@ const viewFile = async (filePath: string) => {
     let docType = 'image'
     if (pdfExtensions.includes(extension || '')) {
       docType = 'pdf'
+      // For PDFs, open in new window instead of modal to avoid CORS issues
+      window.open(blobUrl, '_blank')
+      return
     } else if (imageExtensions.includes(extension || '')) {
       docType = 'image'
     }
 
-    // Set modal state
+    // Set modal state for images
     viewingDocumentUrl.value = blobUrl
     viewingDocumentName.value = filename
     viewingDocumentPath.value = filePath

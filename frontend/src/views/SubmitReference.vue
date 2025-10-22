@@ -1602,62 +1602,64 @@
 
         <!-- PAGE 11: Review and Submit -->
         <div v-if="currentPage === 11" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Review & Submit</h2>
-          <p class="text-sm text-gray-600 mb-6">Please review your information before submitting</p>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Referencing Consent</h2>
+          <p class="text-sm text-gray-600 mb-6">Please read and sign the declaration below</p>
 
           <div class="space-y-6">
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div class="flex">
-                <div class="flex-shrink-0">
-                  <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-                <div class="ml-3">
-                  <h3 class="text-sm font-medium text-blue-800">Before you submit</h3>
-                  <div class="mt-2 text-sm text-blue-700">
-                    <ul class="list-disc list-inside space-y-1">
-                      <li>Ensure all information is accurate and complete</li>
-                      <li>All uploaded documents are clear and legible</li>
-                      <li>You can use the "Back" button to review any section</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
+            <!-- Declaration Text -->
+            <div class="bg-gray-50 border border-gray-300 rounded-lg p-4 text-sm text-gray-700 space-y-3 max-h-96 overflow-y-auto">
+              <p>I confirm that all of the information I have provided in this application form is accurate, and to the best of my knowledge true. I consent to all of the information provided being checked and confirmed by fair and lawful means, I understand this will involve Propertygoose Ltd contacting the referees supplied.</p>
+
+              <p>I agree that Propertygoose Ltd will use the information I provide on this application form and any information acquired from relevant sources to process my application for tenancy/to become a Guarantor for a tenancy. I understand that this application and the results of the findings will be forwarded to the instructing letting agent and/or landlord and that this information may be accessed again in the future should I default on my rental payments or payments due as a Guarantor, apply for a new tenancy or if there is a complaint or legal challenge with significance to this process.</p>
+
+              <p>I understand that Propertygoose Ltd will use the services of a credit referencing agency for the purposes of Tenant vetting, identity and anti-money laundering. I understand they will check the details held with this company, and that they will in turn keep a record of that search.</p>
+
+              <p>I understand that the information I am providing in this application form is information as described in ground 17 of the Housing Act 1996, and if any information is found to be untrue then this will be grounds for termination of the tenancy.</p>
+
+              <p>Propertygoose Ltd may also use or forward information to the Police or other law enforcement agencies to prevent or detect crime, such as fraud, or in other circumstances as permitted by law. All information will be treated as confidential and processed in accordance with The Data Protection Act (2018).</p>
+
+              <p>I hereby give authorisation for my EMPLOYER/ACCOUNTANT/PENSION ADMINISTRATOR to provide details of my earnings and dates of employment to Propertygoose Ltd for the benefit of completing this application. It is an offence to misrepresent any information provided in this form.</p>
+
+              <p>I hereby give authorisation for my LANDLORD/LETTING AGENT to provide details of my tenancy, including payment information to Propertygoose Ltd for the benefit of completing this application. It is an offence to misrepresent any information provided in this form.</p>
+
+              <p>By entering/signing your name on this form and submitting the details you confirm you are in agreement to the above terms and conditions and the processing of sensitive personal information. We process and hold all information in accordance with the GDPR (General Data Protection Regulations) 2018.</p>
+
+              <p>If you've been asked to upload any supporting documentation you can do so above. You will need to upload a copy of your photo ID (Passport, Driving licence, European ID card), proof of residency (in the form or a recent bank statement or utility bill dated within the last 3 months) and copies of your last 3 months' payslips (if applicable). This will help us to process your application promptly.</p>
+
+              <p>For further information on how we process your data and our privacy policies please visit: <a href="https://propertygoose.co.uk/privacy-policy" target="_blank" class="text-blue-600 hover:underline">https://propertygoose.co.uk/privacy-policy</a></p>
             </div>
 
-            <!-- Summary Sections -->
-            <div class="space-y-3">
-              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span class="text-sm font-medium text-gray-700">✓ Personal Details</span>
-                <button type="button" @click="currentPage = 2" class="text-xs hover:opacity-80" :style="{ color: primaryColor }">Edit</button>
-              </div>
-              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span class="text-sm font-medium text-gray-700">✓ Address Information</span>
-                <button type="button" @click="currentPage = 4" class="text-xs hover:opacity-80" :style="{ color: primaryColor }">Edit</button>
-              </div>
-              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span class="text-sm font-medium text-gray-700">✓ Financial Information</span>
-                <button type="button" @click="currentPage = 6" class="text-xs hover:opacity-80" :style="{ color: primaryColor }">Edit</button>
-              </div>
-              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span class="text-sm font-medium text-gray-700">✓ Personal Details</span>
-                <button type="button" @click="currentPage = 9" class="text-xs hover:opacity-80" :style="{ color: primaryColor }">Edit</button>
-              </div>
-            </div>
+            <!-- Signature -->
+            <SignaturePad
+              v-model="formData.consent_signature"
+              label="Signature"
+            />
 
-            <div class="pt-4">
-              <label class="flex items-start">
-                <input
-                  v-model="consentGiven"
-                  type="checkbox"
-                  required
-                  class="h-4 w-4 mt-0.5 text-primary focus:ring-primary border-gray-300 rounded"
-                />
-                <span class="ml-2 text-sm text-gray-700">
-                  I confirm that all information provided is accurate and complete. I consent to this information being used for reference purposes and understand that false information may result in my application being rejected. *
-                </span>
+            <!-- Agreed On Date -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Agreed On *
               </label>
+              <input
+                v-model="formData.consent_agreed_date"
+                type="date"
+                required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              />
+            </div>
+
+            <!-- Printed Name -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Printed Name *
+              </label>
+              <input
+                v-model="formData.consent_printed_name"
+                type="text"
+                required
+                placeholder="Print your full name"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              />
             </div>
           </div>
         </div>
@@ -1720,6 +1722,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PhoneInput from '../components/PhoneInput.vue'
+import SignaturePad from '../components/SignaturePad.vue'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 
 const route = useRoute()
@@ -1737,7 +1740,6 @@ const submitError = ref('')
 const justSubmitted = ref(false)
 const uploadProgress = ref(0)
 const currentPage = ref(1)
-const consentGiven = ref(false)
 
 // Email validation errors
 const employerEmailError = ref('')
@@ -2128,6 +2130,15 @@ const cityPlaceholder = computed(() => {
   return CAPITAL_CITIES[countryCode] || 'City'
 })
 
+// Consent validation - checks if all required consent fields are filled
+const consentGiven = computed(() => {
+  return !!(
+    formData.value.consent_signature &&
+    formData.value.consent_agreed_date &&
+    formData.value.consent_printed_name
+  )
+})
+
 // Previous address country dropdowns
 const filteredPreviousAddressCountries = (index: number) => {
   const search = previousAddressCountrySearches.value[index] || ''
@@ -2343,7 +2354,12 @@ const formData = ref({
   previous_monthly_rent: null,
   previous_tenancy_start_date: '',
   previous_tenancy_end_date: '',
-  previous_agency_name: ''
+  previous_agency_name: '',
+
+  // Page 11: Referencing Consent
+  consent_signature: '',
+  consent_printed_name: '',
+  consent_agreed_date: ''
 })
 
 onMounted(() => {
@@ -2410,7 +2426,6 @@ const saveToLocalStorage = () => {
     nationalitySearch: nationalitySearch.value,
     countrySearch: countrySearch.value,
     companyCountrySearch: companyCountrySearch.value,
-    consentGiven: consentGiven.value,
     previousAddresses: previousAddresses.value,
     previousAddressCountrySearches: previousAddressCountrySearches.value
   }
@@ -2439,7 +2454,6 @@ const loadFromLocalStorage = () => {
       if (data.nationalitySearch) nationalitySearch.value = data.nationalitySearch
       if (data.countrySearch) countrySearch.value = data.countrySearch
       if (data.companyCountrySearch) companyCountrySearch.value = data.companyCountrySearch
-      if (data.consentGiven !== undefined) consentGiven.value = data.consentGiven
       if (data.previousAddresses) {
         previousAddresses.value = data.previousAddresses
         // Initialize dropdown visibility for loaded addresses
@@ -2457,7 +2471,7 @@ const clearLocalStorage = () => {
 }
 
 // Watch for changes and save to localStorage
-watch([formData, currentPage, dobDay, dobMonth, dobYear, employmentStartDay, employmentStartMonth, employmentStartYear, nationalitySearch, countrySearch, companyCountrySearch, consentGiven, previousAddresses, previousAddressCountrySearches], () => {
+watch([formData, currentPage, dobDay, dobMonth, dobYear, employmentStartDay, employmentStartMonth, employmentStartYear, nationalitySearch, countrySearch, companyCountrySearch, previousAddresses, previousAddressCountrySearches], () => {
   saveToLocalStorage()
 }, { deep: true })
 

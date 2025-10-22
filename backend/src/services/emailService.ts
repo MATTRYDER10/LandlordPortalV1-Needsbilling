@@ -213,3 +213,42 @@ export async function sendUserInvitation(
     html,
   });
 }
+
+/**
+ * Send consent PDF to tenant
+ */
+export async function sendConsentPDFToTenant(
+  tenantEmail: string,
+  tenantName: string,
+  pdfBuffer: Buffer,
+  pdfFilename: string
+): Promise<void> {
+  const html = loadEmailTemplate('consent-pdf', {
+    TenantName: tenantName,
+  });
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'PropertyGoose <hello@notifications.propertygoose.co.uk>',
+      to: tenantEmail,
+      subject: 'Your Referencing Consent Declaration - PropertyGoose',
+      html,
+      attachments: [
+        {
+          filename: pdfFilename,
+          content: pdfBuffer,
+        }
+      ],
+    });
+
+    if (error) {
+      console.error('Error sending consent PDF email:', error);
+      throw error;
+    }
+
+    console.log(`Consent PDF sent successfully to ${tenantEmail}`);
+  } catch (error) {
+    console.error('Error sending consent PDF email:', error);
+    throw error;
+  }
+}

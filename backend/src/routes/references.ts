@@ -3,9 +3,12 @@ import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
-import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest } from '../services/emailService'
+import path from 'path'
+import fs from 'fs'
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant } from '../services/emailService'
 import { auditReferenceAction } from '../services/auditLog'
 import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
+import pdfService from '../services/pdfService'
 
 const router = Router()
 
@@ -1000,6 +1003,11 @@ router.post('/submit/:token', async (req, res) => {
       previous_tenancy_end_date: data.previous_tenancy_end_date || null,
       previous_agency_name_encrypted: encrypt(data.previous_agency_name || ''),
 
+      // Consent Declaration (Page 11)
+      consent_signature: data.consent_signature || null,
+      consent_printed_name_encrypted: encrypt(data.consent_printed_name || ''),
+      consent_agreed_date: data.consent_agreed_date || null,
+
       // Submission tracking
       submitted_at: new Date().toISOString(),
       status: 'in_progress'
@@ -1164,6 +1172,81 @@ router.post('/submit/:token', async (req, res) => {
       } catch (emailError: any) {
         console.error('Failed to send accountant reference email:', emailError)
         // Don't fail the request if email fails, just log it
+      }
+    }
+
+    // Generate consent PDF
+    if (data.consent_signature && data.consent_printed_name && data.consent_agreed_date) {
+      try {
+        // Create uploads directory if it doesn't exist
+        const uploadsDir = path.join(__dirname, '../../uploads/consent-pdfs')
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true })
+        }
+
+        // Generate unique filename
+        const pdfFilename = `consent_${updatedReference.id}_${Date.now()}.pdf`
+        const pdfPath = path.join(uploadsDir, pdfFilename)
+
+        // Generate PDF
+        await pdfService.generateConsentPDF({
+          firstName: data.first_name,
+          middleName: data.middle_name,
+          lastName: data.last_name,
+          consentPrintedName: data.consent_printed_name,
+          consentAgreedDate: data.consent_agreed_date,
+          consentSignature: data.consent_signature
+        }, pdfPath)
+
+        // Upload PDF to Supabase Storage
+        const pdfBuffer = fs.readFileSync(pdfPath)
+        const storagePath = `consent-pdfs/${updatedReference.id}/${pdfFilename}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('reference-documents')
+          .upload(storagePath, pdfBuffer, {
+            contentType: 'application/pdf',
+            upsert: false
+          })
+
+        if (uploadError) {
+          console.error('Failed to upload consent PDF to storage:', uploadError)
+        } else {
+          // Update reference with PDF path
+          await supabase
+            .from('tenant_references')
+            .update({ consent_pdf_path: storagePath })
+            .eq('id', updatedReference.id)
+
+          console.log('Consent PDF generated and uploaded successfully')
+
+          // Send PDF to tenant via email
+          try {
+            // Get tenant email
+            const tenantEmail = reference.tenant_email_encrypted ? decrypt(reference.tenant_email_encrypted) : null
+
+            if (tenantEmail) {
+              await sendConsentPDFToTenant(
+                tenantEmail,
+                `${data.first_name} ${data.last_name}`,
+                pdfBuffer,
+                pdfFilename
+              )
+              console.log('Consent PDF sent to tenant email successfully')
+            } else {
+              console.warn('Tenant email not found, skipping PDF email')
+            }
+          } catch (emailError: any) {
+            console.error('Failed to send consent PDF email to tenant:', emailError)
+            // Don't fail the request if email fails
+          }
+        }
+
+        // Clean up local file
+        fs.unlinkSync(pdfPath)
+      } catch (pdfError: any) {
+        console.error('Failed to generate consent PDF:', pdfError)
+        // Don't fail the request if PDF generation fails
       }
     }
 
@@ -2109,6 +2192,58 @@ router.post('/accountant/:token', async (req, res) => {
 })
 
 // Download file from reference (authenticated route)
+// Download consent PDF from reference-documents bucket
+router.get('/download/consent-pdfs/:referenceId/:filename', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const { referenceId, filename } = req.params
+    const filePath = `consent-pdfs/${referenceId}/${filename}`
+
+    // Get user's company (use limit(1) to handle duplicates)
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyUser = companyUsers[0]
+
+    // Verify reference belongs to user's company
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('company_id')
+      .eq('id', referenceId)
+      .eq('company_id', companyUser.company_id)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Download file from reference-documents storage bucket
+    const { data, error: downloadError } = await supabase.storage
+      .from('reference-documents')
+      .download(filePath)
+
+    if (downloadError) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+
+    // Set content type for PDF
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+
+    const buffer = Buffer.from(await data.arrayBuffer())
+    res.send(buffer)
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 router.get('/download/:referenceId/:folder/:filename', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
