@@ -73,13 +73,17 @@ export async function sendTenantReferenceRequest(
   tenantName: string,
   referenceLink: string,
   companyName: string,
-  propertyAddress?: string
+  propertyAddress?: string,
+  companyPhone?: string
 ): Promise<void> {
+  const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
+
   const html = loadEmailTemplate('tenant-reference-request', {
     TenantName: capitalizeWords(tenantName),
     CompanyName: companyName,
     ReferenceLink: referenceLink,
     PropertyAddress: capitalizeWords(propertyAddress || ''),
+    ContactInfo: contactInfo,
   });
 
   await sendEmail({

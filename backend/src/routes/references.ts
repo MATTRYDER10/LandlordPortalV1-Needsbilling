@@ -513,7 +513,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     console.log('Looking up company for user:', userId)
     const { data: companyUsers, error: companyError } = await supabase
       .from('company_users')
-      .select('company_id, companies:company_id(name_encrypted)')
+      .select('company_id, companies:company_id(name_encrypted, phone_encrypted)')
       .eq('user_id', userId)
       .limit(1)
 
@@ -527,6 +527,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     const companyName = (companyUser as any).companies?.name_encrypted
       ? (decrypt((companyUser as any).companies.name_encrypted) || 'Your agent')
       : 'Your agent'
+    const companyPhone = (companyUser as any).companies?.phone_encrypted
+      ? decrypt((companyUser as any).companies.phone_encrypted)
+      : ''
 
     // Check if this is a multi-tenant reference
     if (tenants && Array.isArray(tenants) && tenants.length > 1) {
@@ -636,7 +639,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             `${tenant.first_name} ${tenant.last_name}`,
             tenantUrl,
             companyName,
-            property_address
+            property_address,
+            companyPhone || undefined
           )
           console.log('Email sent successfully to tenant:', tenant.email)
         } catch (emailError: any) {
@@ -718,7 +722,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           `${tenant_first_name} ${tenant_last_name}`,
           tenantUrl,
           companyName,
-          property_address
+          property_address,
+          companyPhone || undefined
         )
         console.log('Email sent successfully to tenant:', tenant_email)
       } catch (emailError: any) {
