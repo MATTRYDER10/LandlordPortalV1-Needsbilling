@@ -883,7 +883,7 @@
 
                 <!-- Payslips Upload -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Payslips (Last 3 months) (Optional)</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Payslips (Last 3 months) (Optional) - but will speed your reference up drastically</label>
                   <input
                     ref="payslipInput"
                     type="file"
