@@ -37,6 +37,18 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
 }
 
 /**
+ * Capitalize the first letter of each word in a string
+ */
+function capitalizeWords(str: string): string {
+  if (!str) return str;
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
  * Load and process an email template
  */
 export function loadEmailTemplate(templateName: string, variables: Record<string, string>): string {
@@ -64,10 +76,10 @@ export async function sendTenantReferenceRequest(
   propertyAddress?: string
 ): Promise<void> {
   const html = loadEmailTemplate('tenant-reference-request', {
-    TenantName: tenantName,
+    TenantName: capitalizeWords(tenantName),
     CompanyName: companyName,
     ReferenceLink: referenceLink,
-    PropertyAddress: propertyAddress || '',
+    PropertyAddress: capitalizeWords(propertyAddress || ''),
   });
 
   await sendEmail({
