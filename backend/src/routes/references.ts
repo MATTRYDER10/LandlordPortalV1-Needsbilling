@@ -1554,7 +1554,13 @@ router.get('/view/:token', async (req, res) => {
       .gte('token_expires_at', new Date().toISOString())
       .single()
 
-    if (error || !reference) {
+    if (error) {
+      console.error('Error fetching reference:', error)
+      return res.status(404).json({ error: 'Invalid or expired reference link' })
+    }
+
+    if (!reference) {
+      console.error('Reference not found for token hash')
       return res.status(404).json({ error: 'Invalid or expired reference link' })
     }
 
@@ -1573,6 +1579,7 @@ router.get('/view/:token', async (req, res) => {
 
     res.json({ reference: decryptedReference })
   } catch (error: any) {
+    console.error('Exception in /view/:token:', error)
     res.status(500).json({ error: error.message })
   }
 })
