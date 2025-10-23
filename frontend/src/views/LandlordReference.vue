@@ -36,7 +36,7 @@
       <form v-else @submit.prevent="handleSubmit" class="space-y-6">
         <!-- Landlord Information -->
         <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Landlord Information</h2>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Landlord Information - Your information</h2>
           <div class="space-y-4">
             <div>
               <label for="landlord-name" class="block text-sm font-medium text-gray-700">Full Name *</label>
@@ -75,7 +75,7 @@
 
         <!-- Property & Tenancy Information -->
         <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Property & Tenancy Information</h2>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Information about your tenant<span v-if="tenantName"> - {{ tenantName }}</span></h2>
           <div class="space-y-4">
             <DatePicker
               v-model="formData.tenancyStartDate"
@@ -398,6 +398,7 @@ const companyLogo = ref('')
 const primaryColor = ref('#FF8C41')
 const buttonColor = ref('#FF8C41')
 const brandingLoaded = ref(false)
+const tenantName = ref('')
 
 const formData = ref({
   landlordName: '',
@@ -483,6 +484,11 @@ onMounted(async () => {
 
       // Pre-populate form with tenant-provided information
       if (data.tenantInfo) {
+        // Store tenant name
+        if (data.tenantInfo.tenantFirstName && data.tenantInfo.tenantLastName) {
+          tenantName.value = `${data.tenantInfo.tenantFirstName} ${data.tenantInfo.tenantLastName}`
+        }
+
         formData.value.landlordName = data.tenantInfo.landlordName || ''
         formData.value.landlordEmail = data.tenantInfo.landlordEmail || ''
         formData.value.landlordPhone = data.tenantInfo.landlordPhone || ''

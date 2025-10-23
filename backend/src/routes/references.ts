@@ -1593,6 +1593,8 @@ router.get('/branding/:referenceId', async (req, res) => {
       .from('tenant_references')
       .select(`
         company_id,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
         employment_company_name_encrypted,
         employment_position_encrypted,
         employment_start_date,
@@ -1631,6 +1633,10 @@ router.get('/branding/:referenceId', async (req, res) => {
 
     // Decrypt tenant-provided information
     const tenantInfo = {
+      // Tenant name
+      tenantFirstName: reference.tenant_first_name_encrypted ? decrypt(reference.tenant_first_name_encrypted) : '',
+      tenantLastName: reference.tenant_last_name_encrypted ? decrypt(reference.tenant_last_name_encrypted) : '',
+
       // Employer information
       companyName: reference.employment_company_name_encrypted ? decrypt(reference.employment_company_name_encrypted) : '',
       employeePosition: reference.employment_position_encrypted ? decrypt(reference.employment_position_encrypted) : '',
