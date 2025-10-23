@@ -1,21 +1,38 @@
 <template>
   <Sidebar>
     <div class="p-8">
-      <div class="mb-8 flex justify-between items-center">
-        <div>
-          <h2 class="text-3xl font-bold text-gray-900">References</h2>
-          <p class="mt-2 text-gray-600">Manage all tenant references</p>
+      <div class="mb-8">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h2 class="text-3xl font-bold text-gray-900">References</h2>
+            <p class="mt-2 text-gray-600">Manage all tenant references</p>
+          </div>
+          <button
+            @click="showCreateModal = true"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+          >
+            Create New Reference
+          </button>
         </div>
-        <button
-          @click="showCreateModal = true"
-          class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
-        >
-          Create New Reference
-        </button>
+
+        <!-- Search Box -->
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search by tenant name, email, or property address..."
+            class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+          />
+        </div>
       </div>
 
       <!-- References List -->
-      <div v-if="loading || references.length > 0" class="bg-white rounded-lg shadow overflow-hidden">
+      <div v-if="loading || filteredReferences.length > 0" class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -59,7 +76,7 @@
             </tr>
           </tbody>
           <tbody v-else class="bg-white divide-y divide-gray-200">
-            <template v-for="reference in references" :key="reference.id">
+            <template v-for="reference in filteredReferences" :key="reference.id">
               <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
@@ -172,12 +189,15 @@
       <!-- Empty State -->
       <div v-else class="bg-white rounded-lg shadow p-6">
         <div class="text-center py-12">
-          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-if="!searchQuery" class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">No references yet</h3>
-          <p class="mt-1 text-sm text-gray-500">Get started by creating a new tenant reference.</p>
-          <div class="mt-6">
+          <svg v-else class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">{{ searchQuery ? 'No references found' : 'No references yet' }}</h3>
+          <p class="mt-1 text-sm text-gray-500">{{ searchQuery ? 'Try adjusting your search terms.' : 'Get started by creating a new tenant reference.' }}</p>
+          <div v-if="!searchQuery" class="mt-6">
             <button
               @click="showCreateModal = true"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
@@ -493,6 +513,7 @@ const createLoading = ref(false)
 const createError = ref('')
 const createSuccess = ref('')
 const expandedReference = ref<string | null>(null)
+const searchQuery = ref('')
 
 const tenantCount = ref(1)
 const tenants = ref<Array<{
@@ -533,6 +554,28 @@ const rentSharesValid = computed(() => {
   const total = totalRentShare.value
   const monthlyRent = Number(formData.value.monthly_rent) || 0
   return Math.abs(total - monthlyRent) < 0.01 && monthlyRent > 0
+})
+
+const filteredReferences = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return references.value
+  }
+
+  const query = searchQuery.value.toLowerCase().trim()
+
+  return references.value.filter(ref => {
+    const tenantName = `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.toLowerCase()
+    const tenantEmail = (ref.tenant_email || '').toLowerCase()
+    const propertyAddress = (ref.property_address || '').toLowerCase()
+    const propertyCity = (ref.property_city || '').toLowerCase()
+    const propertyPostcode = (ref.property_postcode || '').toLowerCase()
+
+    return tenantName.includes(query) ||
+           tenantEmail.includes(query) ||
+           propertyAddress.includes(query) ||
+           propertyCity.includes(query) ||
+           propertyPostcode.includes(query)
+  })
 })
 
 const updateTenantCount = (count: number) => {
