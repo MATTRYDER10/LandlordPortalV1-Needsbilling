@@ -60,12 +60,14 @@ export async function sendTenantReferenceRequest(
   tenantEmail: string,
   tenantName: string,
   referenceLink: string,
-  companyName: string
+  companyName: string,
+  propertyAddress?: string
 ): Promise<void> {
   const html = loadEmailTemplate('tenant-reference-request', {
     TenantName: tenantName,
     CompanyName: companyName,
     ReferenceLink: referenceLink,
+    PropertyAddress: propertyAddress || '',
   });
 
   await sendEmail({

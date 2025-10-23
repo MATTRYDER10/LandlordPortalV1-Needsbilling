@@ -635,7 +635,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             tenant.email,
             `${tenant.first_name} ${tenant.last_name}`,
             tenantUrl,
-            companyName
+            companyName,
+            property_address
           )
           console.log('Email sent successfully to tenant:', tenant.email)
         } catch (emailError: any) {
@@ -716,7 +717,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           tenant_email,
           `${tenant_first_name} ${tenant_last_name}`,
           tenantUrl,
-          companyName
+          companyName,
+          property_address
         )
         console.log('Email sent successfully to tenant:', tenant_email)
       } catch (emailError: any) {
