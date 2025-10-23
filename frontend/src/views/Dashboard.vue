@@ -8,7 +8,10 @@
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-5 gap-0 mb-8">
-        <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
+        <router-link
+          to="/references"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
+        >
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Total References</p>
@@ -20,9 +23,12 @@
               </svg>
             </div>
           </div>
-        </div>
+        </router-link>
 
-        <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
+        <router-link
+          :to="{ path: '/references', query: { status: 'in_progress' } }"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
+        >
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">In Progress</p>
@@ -34,9 +40,12 @@
               </svg>
             </div>
           </div>
-        </div>
+        </router-link>
 
-        <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
+        <router-link
+          :to="{ path: '/references', query: { status: 'pending_verification' } }"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
+        >
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Pending Verification</p>
@@ -48,9 +57,12 @@
               </svg>
             </div>
           </div>
-        </div>
+        </router-link>
 
-        <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
+        <router-link
+          :to="{ path: '/references', query: { status: 'rejected' } }"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
+        >
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Rejected</p>
@@ -62,9 +74,12 @@
               </svg>
             </div>
           </div>
-        </div>
+        </router-link>
 
-        <div class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0">
+        <router-link
+          :to="{ path: '/references', query: { status: 'completed' } }"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
+        >
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Completed</p>
@@ -76,7 +91,7 @@
               </svg>
             </div>
           </div>
-        </div>
+        </router-link>
       </div>
 
       <!-- Recent References -->

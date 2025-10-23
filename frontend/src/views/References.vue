@@ -684,6 +684,11 @@ onMounted(() => {
     // Remove the query parameter from the URL
     router.replace('/references')
   }
+
+  // Check if we should apply a status filter from query params
+  if (route.query.status && typeof route.query.status === 'string') {
+    statusFilter.value = route.query.status
+  }
 })
 
 const fetchReferences = async () => {
