@@ -1544,6 +1544,7 @@ router.get('/view/:token', async (req, res) => {
         status,
         company_id,
         companies:company_id (
+          name,
           logo_url,
           primary_color,
           button_color
@@ -1558,6 +1559,7 @@ router.get('/view/:token', async (req, res) => {
     }
 
     // Decrypt fields for display
+    const company = Array.isArray(reference.companies) ? reference.companies[0] : reference.companies
     const decryptedReference = {
       ...reference,
       tenant_first_name: decrypt((reference as any).tenant_first_name_encrypted),
@@ -1565,7 +1567,8 @@ router.get('/view/:token', async (req, res) => {
       tenant_email: decrypt((reference as any).tenant_email_encrypted),
       property_address: decrypt((reference as any).property_address_encrypted),
       property_city: decrypt((reference as any).property_city_encrypted),
-      property_postcode: decrypt((reference as any).property_postcode_encrypted)
+      property_postcode: decrypt((reference as any).property_postcode_encrypted),
+      company_name: company?.name || ''
     }
 
     res.json({ reference: decryptedReference })

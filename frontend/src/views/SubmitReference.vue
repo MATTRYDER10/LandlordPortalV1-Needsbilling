@@ -54,6 +54,14 @@
         <!-- PAGE 1: ID Document Upload -->
         <div v-if="currentPage === 1" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Identification Document</h2>
+
+          <!-- Reference Details Notice -->
+          <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p class="text-sm text-gray-700">
+              Your agent <strong>{{ reference.company_name || 'from the lettings agency' }}</strong> has requested this reference for you to begin your new tenancy at <strong>{{ reference.property_address }}</strong>. They have proposed <strong>{{ formatDate(reference.move_in_date) }}</strong> as your move-in date. Please confirm these details are correct before proceeding.
+            </p>
+          </div>
+
           <p class="text-sm text-gray-600 mb-6">Please upload a clear photo of your Driving Licence or Passport</p>
 
           <div class="space-y-4">
@@ -2633,6 +2641,15 @@ const formatFileSize = (bytes: number) => {
   const sizes = ['Bytes', 'KB', 'MB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+const formatDate = (date: string) => {
+  if (!date) return 'Not specified'
+  return new Date(date).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
 }
 
 const goToPreviousPage = () => {
