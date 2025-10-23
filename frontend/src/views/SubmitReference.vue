@@ -530,6 +530,25 @@
               >
                 Add Another Previous Address
               </button>
+
+              <!-- Address History Requirement Counter - Fixed at Bottom -->
+              <div class="mt-6 p-4 rounded-lg" :class="totalAddressHistoryInMonths >= 36 ? 'bg-green-50 border-2 border-green-500' : 'bg-orange-50 border-2 border-orange-500'">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-semibold" :class="totalAddressHistoryInMonths >= 36 ? 'text-green-900' : 'text-orange-900'">
+                      3 Year Address History Requirement
+                    </p>
+                    <p class="text-sm mt-1" :class="totalAddressHistoryInMonths >= 36 ? 'text-green-700' : 'text-orange-700'">
+                      Total: {{ Math.floor(totalAddressHistoryInMonths / 12) }} years {{ totalAddressHistoryInMonths % 12 }} months
+                      ({{ totalAddressHistoryInMonths }} of 36 months required)
+                    </p>
+                  </div>
+                  <div class="text-3xl">
+                    <span v-if="totalAddressHistoryInMonths >= 36" class="text-green-600">✓</span>
+                    <span v-else class="text-orange-600">⚠</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
