@@ -230,7 +230,7 @@ const fetchReferences = async () => {
 
     totalReferences.value = references.length
     inProgressReferences.value = references.filter((ref: any) =>
-      ref.status === 'pending' || ref.status === 'in_progress'
+      ref.status === 'in_progress'
     ).length
     pendingVerificationReferences.value = references.filter((ref: any) =>
       ref.status === 'pending_verification'
