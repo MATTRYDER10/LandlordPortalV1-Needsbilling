@@ -414,7 +414,7 @@
                     v-model="tenant.phone"
                     :label="`Phone`"
                     :id="`tenant-${index}-phone`"
-                    :required="false"
+                    :required="true"
                   />
                 </div>
                 <div class="col-span-2">
