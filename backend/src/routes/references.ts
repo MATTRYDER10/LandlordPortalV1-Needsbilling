@@ -751,7 +751,59 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 // Update reference
+// Update reference (PUT - full update)
 router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+    const updates = req.body
+
+    // Get user's company (use limit(1) to handle duplicates)
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyUser = companyUsers[0]
+
+    // Update reference
+    const { data: reference, error } = await supabase
+      .from('tenant_references')
+      .update(updates)
+      .eq('id', referenceId)
+      .eq('company_id', companyUser.company_id)
+      .select()
+      .single()
+
+    if (error) {
+      return res.status(400).json({ error: error.message })
+    }
+
+    // Audit log
+    const updatedFields = Object.keys(updates).join(', ')
+    await auditReferenceAction(
+      companyUser.company_id,
+      userId!,
+      referenceId,
+      'reference.updated',
+      `Updated reference: ${updatedFields}`,
+      req,
+      { updates }
+    )
+
+    res.json({ reference, message: 'Reference updated successfully' })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Update reference (PATCH - partial update)
+router.patch('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     const referenceId = req.params.id
