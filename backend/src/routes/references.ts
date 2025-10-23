@@ -1544,7 +1544,7 @@ router.get('/view/:token', async (req, res) => {
         status,
         company_id,
         companies:company_id (
-          name,
+          name_encrypted,
           logo_url,
           primary_color,
           button_color
@@ -1574,7 +1574,7 @@ router.get('/view/:token', async (req, res) => {
       property_address: decrypt((reference as any).property_address_encrypted),
       property_city: decrypt((reference as any).property_city_encrypted),
       property_postcode: decrypt((reference as any).property_postcode_encrypted),
-      company_name: company?.name || ''
+      company_name: company?.name_encrypted ? decrypt(company.name_encrypted) : ''
     }
 
     res.json({ reference: decryptedReference })
