@@ -19,8 +19,8 @@
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -28,6 +28,14 @@
           </thead>
           <tbody v-if="loading" class="bg-white">
             <tr>
+              <td class="px-6 py-4" style="width: 300px;">
+                <div class="text-sm text-gray-900">
+                  <div class="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
+                </div>
+                <div class="text-sm text-gray-500 mt-1">
+                  <div class="h-4 bg-gray-100 rounded w-40 animate-pulse"></div>
+                </div>
+              </td>
               <td class="px-6 py-4 whitespace-nowrap" style="width: 250px;">
                 <div class="text-sm font-medium text-gray-900 flex items-center gap-2">
                   <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
@@ -35,14 +43,6 @@
                 </div>
                 <div class="text-sm text-gray-500 mt-1">
                   <div class="h-4 bg-gray-100 rounded w-48 animate-pulse"></div>
-                </div>
-              </td>
-              <td class="px-6 py-4" style="width: 300px;">
-                <div class="text-sm text-gray-900">
-                  <div class="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
-                </div>
-                <div class="text-sm text-gray-500 mt-1">
-                  <div class="h-4 bg-gray-100 rounded w-40 animate-pulse"></div>
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap" style="width: 120px;">
@@ -61,6 +61,12 @@
           <tbody v-else class="bg-white divide-y divide-gray-200">
             <template v-for="reference in references" :key="reference.id">
               <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
+                  <div class="text-sm text-gray-500">
+                    {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode : '' }}
+                  </div>
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center gap-2">
                     <button
@@ -85,12 +91,6 @@
                     </div>
                   </div>
                 </td>
-              <td class="px-6 py-4">
-                <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
-                <div class="text-sm text-gray-500">
-                  {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode : '' }}
-                </div>
-              </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
