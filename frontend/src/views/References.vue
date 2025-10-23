@@ -456,7 +456,7 @@
             <div>
               <DatePicker
                 v-model="formData.move_in_date"
-                label="Move-in Date *"
+                label="Move-in Date"
                 :required="true"
                 year-range-type="move-in"
               />
