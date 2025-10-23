@@ -456,8 +456,8 @@
             <div>
               <DatePicker
                 v-model="formData.move_in_date"
-                label="Move-in Date (Optional)"
-                :required="false"
+                label="Move-in Date *"
+                :required="true"
                 year-range-type="move-in"
               />
             </div>
@@ -742,11 +742,17 @@ const handleCreate = async () => {
 
     let payload: any
 
+    // Validate move-in date is provided
+    if (!formData.value.move_in_date) {
+      createError.value = 'Move-in date is required'
+      createLoading.value = false
+      return
+    }
+
     if (tenantCount.value === 1) {
       // Single tenant flow
       payload = {
-        ...formData.value,
-        move_in_date: formData.value.move_in_date || null
+        ...formData.value
       }
     } else {
       // Multi-tenant flow
@@ -762,7 +768,7 @@ const handleCreate = async () => {
         property_city: formData.value.property_city,
         property_postcode: formData.value.property_postcode,
         monthly_rent: formData.value.monthly_rent,
-        move_in_date: formData.value.move_in_date || null,
+        move_in_date: formData.value.move_in_date,
         term_years: formData.value.term_years,
         term_months: formData.value.term_months,
         notes: formData.value.notes

@@ -869,7 +869,16 @@
 
         <!-- Property Information (from initial reference creation) -->
         <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Property Information</h3>
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Property Information</h3>
+            <button
+              v-if="!editingMoveInDate"
+              @click="startEditingMoveInDate"
+              class="text-sm text-primary hover:text-primary/80 font-medium"
+            >
+              Edit Move-in Date
+            </button>
+          </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-500">Property Address</label>
@@ -889,7 +898,30 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Move-in Date</label>
-              <p class="mt-1 text-gray-900">{{ reference.move_in_date ? formatDate(reference.move_in_date) : 'Not provided' }}</p>
+              <div v-if="editingMoveInDate" class="mt-1">
+                <DatePicker
+                  v-model="editedMoveInDate"
+                  label=""
+                  :required="true"
+                  year-range-type="move-in"
+                />
+                <div class="flex gap-2 mt-2">
+                  <button
+                    @click="saveMoveInDate"
+                    :disabled="savingMoveInDate"
+                    class="px-3 py-1.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+                  >
+                    {{ savingMoveInDate ? 'Saving...' : 'Save' }}
+                  </button>
+                  <button
+                    @click="cancelEditingMoveInDate"
+                    class="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+              <p v-else class="mt-1 text-gray-900">{{ reference.move_in_date ? formatDate(reference.move_in_date) : 'Not provided' }}</p>
             </div>
           </div>
         </div>
@@ -2085,9 +2117,11 @@ import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 import { getCountryName } from '../utils/countries'
 import ComparisonTable from '../components/ComparisonTable.vue'
+import DatePicker from '../components/DatePicker.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const toast = useToast()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -2105,6 +2139,11 @@ const loading = ref(true)
 const error = ref('')
 const expandedTenant = ref<string | null>(null)
 const childReferenceDetails = ref<Record<string, any>>({})
+
+// Move-in date editing
+const editingMoveInDate = ref(false)
+const editedMoveInDate = ref('')
+const savingMoveInDate = ref(false)
 
 // Document viewer modal state
 const viewingDocument = ref(false)
@@ -2283,6 +2322,58 @@ const closeDocumentViewer = () => {
   viewingDocumentName.value = ''
   viewingDocumentPath.value = ''
   viewingDocumentType.value = ''
+}
+
+// Move-in date editing functions
+const startEditingMoveInDate = () => {
+  editedMoveInDate.value = reference.value.move_in_date || ''
+  editingMoveInDate.value = true
+}
+
+const cancelEditingMoveInDate = () => {
+  editingMoveInDate.value = false
+  editedMoveInDate.value = ''
+}
+
+const saveMoveInDate = async () => {
+  if (!editedMoveInDate.value) {
+    toast.error('Move-in date is required')
+    return
+  }
+
+  savingMoveInDate.value = true
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('No auth token available')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/references/${reference.value.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        move_in_date: editedMoveInDate.value
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update move-in date')
+    }
+
+    reference.value.move_in_date = editedMoveInDate.value
+    editingMoveInDate.value = false
+    toast.success('Move-in date updated successfully')
+  } catch (error: any) {
+    console.error('Error updating move-in date:', error)
+    toast.error(error.message || 'Failed to update move-in date')
+  } finally {
+    savingMoveInDate.value = false
+  }
 }
 
 // Computed properties for comparison rows
