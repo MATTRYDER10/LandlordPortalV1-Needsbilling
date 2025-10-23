@@ -15,19 +15,64 @@
           </button>
         </div>
 
-        <!-- Search Box -->
-        <div class="relative">
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+        <!-- Search and Filters -->
+        <div class="space-y-3">
+          <!-- Search Box -->
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search by tenant name, email, or property address..."
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+            />
           </div>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search by tenant name, email, or property address..."
-            class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
-          />
+
+          <!-- Filters -->
+          <div class="flex gap-3">
+            <div class="flex-1">
+              <label for="status-filter" class="sr-only">Filter by Status</label>
+              <select
+                id="status-filter"
+                v-model="statusFilter"
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="pending_verification">Pending Verification</option>
+                <option value="completed">Completed</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div class="flex-1">
+              <label for="date-filter" class="sr-only">Filter by Date</label>
+              <select
+                id="date-filter"
+                v-model="dateFilter"
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm"
+              >
+                <option value="">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">Last 7 Days</option>
+                <option value="month">Last 30 Days</option>
+                <option value="quarter">Last 3 Months</option>
+                <option value="year">Last Year</option>
+              </select>
+            </div>
+            <button
+              v-if="statusFilter || dateFilter"
+              @click="clearFilters"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Clear Filters
+            </button>
+          </div>
         </div>
       </div>
 
@@ -514,6 +559,8 @@ const createError = ref('')
 const createSuccess = ref('')
 const expandedReference = ref<string | null>(null)
 const searchQuery = ref('')
+const statusFilter = ref('')
+const dateFilter = ref('')
 
 const tenantCount = ref(1)
 const tenants = ref<Array<{
@@ -557,25 +604,58 @@ const rentSharesValid = computed(() => {
 })
 
 const filteredReferences = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return references.value
+  let filtered = references.value
+
+  // Apply search filter
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim()
+    filtered = filtered.filter(ref => {
+      const tenantName = `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.toLowerCase()
+      const tenantEmail = (ref.tenant_email || '').toLowerCase()
+      const propertyAddress = (ref.property_address || '').toLowerCase()
+      const propertyCity = (ref.property_city || '').toLowerCase()
+      const propertyPostcode = (ref.property_postcode || '').toLowerCase()
+
+      return tenantName.includes(query) ||
+             tenantEmail.includes(query) ||
+             propertyAddress.includes(query) ||
+             propertyCity.includes(query) ||
+             propertyPostcode.includes(query)
+    })
   }
 
-  const query = searchQuery.value.toLowerCase().trim()
+  // Apply status filter
+  if (statusFilter.value) {
+    filtered = filtered.filter(ref => ref.status === statusFilter.value)
+  }
 
-  return references.value.filter(ref => {
-    const tenantName = `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.toLowerCase()
-    const tenantEmail = (ref.tenant_email || '').toLowerCase()
-    const propertyAddress = (ref.property_address || '').toLowerCase()
-    const propertyCity = (ref.property_city || '').toLowerCase()
-    const propertyPostcode = (ref.property_postcode || '').toLowerCase()
+  // Apply date filter
+  if (dateFilter.value) {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-    return tenantName.includes(query) ||
-           tenantEmail.includes(query) ||
-           propertyAddress.includes(query) ||
-           propertyCity.includes(query) ||
-           propertyPostcode.includes(query)
-  })
+    filtered = filtered.filter(ref => {
+      const createdDate = new Date(ref.created_at)
+      const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+
+      switch (dateFilter.value) {
+        case 'today':
+          return createdDate >= today
+        case 'week':
+          return daysDiff <= 7
+        case 'month':
+          return daysDiff <= 30
+        case 'quarter':
+          return daysDiff <= 90
+        case 'year':
+          return daysDiff <= 365
+        default:
+          return true
+      }
+    })
+  }
+
+  return filtered
 })
 
 const updateTenantCount = (count: number) => {
@@ -740,6 +820,11 @@ const closeCreateModal = () => {
   }
   createError.value = ''
   createSuccess.value = ''
+}
+
+const clearFilters = () => {
+  statusFilter.value = ''
+  dateFilter.value = ''
 }
 
 const formatStatus = (status: string) => {
