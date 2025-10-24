@@ -18,6 +18,7 @@ import StaffLogin from '../views/StaffLogin.vue'
 import StaffDashboard from '../views/StaffDashboard.vue'
 import StaffReferenceDetail from '../views/StaffReferenceDetail.vue'
 import StaffVerification from '../views/StaffVerification.vue'
+import StaffReferenceView from '../views/StaffReferenceView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -165,6 +166,12 @@ const router = createRouter({
       path: '/staff/verification/:id',
       name: 'StaffVerification',
       component: StaffVerification,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/view/:id',
+      name: 'StaffReferenceView',
+      component: StaffReferenceView,
       meta: { requiresAuth: true }
     }
   ]

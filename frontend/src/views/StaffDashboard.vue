@@ -168,10 +168,10 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button
-                  @click="viewReference(reference.id)"
+                  @click="viewReference(reference.id, reference.status)"
                   class="text-primary hover:text-primary/80"
                 >
-                  View & Verify
+                  {{ reference.status === 'completed' ? 'View' : 'View & Verify' }}
                 </button>
               </td>
             </tr>
@@ -275,8 +275,12 @@ const resetFilters = () => {
   fetchReferences()
 }
 
-const viewReference = (id: string) => {
-  router.push(`/staff/verification/${id}`)
+const viewReference = (id: string, status: string) => {
+  if (status === 'completed') {
+    router.push(`/staff/view/${id}`)
+  } else {
+    router.push(`/staff/verification/${id}`)
+  }
 }
 
 const handleSignOut = async () => {
