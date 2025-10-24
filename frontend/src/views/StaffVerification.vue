@@ -707,27 +707,32 @@ const fullName = computed(() => {
 })
 
 const canProceedFromStep1 = computed(() => {
-  return verificationCheck.value.id_name_match === true &&
-         verificationCheck.value.id_dob_match === true &&
-         verificationCheck.value.id_valid === true &&
-         verificationCheck.value.id_photo_clear === true &&
-         verificationCheck.value.id_authentic === true
+  // Can proceed if all checks have been made (true or false, not null)
+  return verificationCheck.value.id_name_match !== null &&
+         verificationCheck.value.id_dob_match !== null &&
+         verificationCheck.value.id_valid !== null &&
+         verificationCheck.value.id_photo_clear !== null &&
+         verificationCheck.value.id_authentic !== null
 })
 
 const canProceedFromStep2 = computed(() => {
-  return verificationCheck.value.selfie_matches_id === true
+  // Can proceed if selfie check has been made (true or false, not null)
+  return verificationCheck.value.selfie_matches_id !== null
 })
 
 const canProceedFromStep3 = computed(() => {
-  return verificationCheck.value.employment_verified === true
+  // Can proceed if employment check has been made (true or false, not null)
+  return verificationCheck.value.employment_verified !== null
 })
 
 const canProceedFromStep4 = computed(() => {
-  return verificationCheck.value.tenancy_verified === true
+  // Can proceed if tenancy check has been made (true or false, not null)
+  return verificationCheck.value.tenancy_verified !== null
 })
 
 const canProceedFromStep5 = computed(() => {
-  return verificationCheck.value.address_history_complete === true
+  // Can proceed if address history check has been made (true or false, not null)
+  return verificationCheck.value.address_history_complete !== null
 })
 
 const addressHistoryMeetsRequirement = computed(() => {
