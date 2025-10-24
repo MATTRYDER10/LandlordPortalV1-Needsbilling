@@ -574,6 +574,16 @@
               </div>
             </div>
           </div>
+
+          <!-- Creditsafe Verification -->
+          <CreditsafeVerificationCard
+            v-if="reference.submitted_at"
+            :verification="creditsafeVerification"
+            :loading="loadingCreditsafe"
+            :show-retry-button="true"
+            :retrying="retryingCreditsafe"
+            @retry="retryCreditsafeVerification"
+          />
         </div>
       </VerificationStep>
     </div>
@@ -631,6 +641,7 @@ import { useAuthStore } from '../stores/auth'
 import VerificationStep from '../components/VerificationStep.vue'
 import SideBySideViewer from '../components/SideBySideViewer.vue'
 import InteractiveComparisonTable from '../components/InteractiveComparisonTable.vue'
+import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -684,6 +695,11 @@ const finalNotes = ref('')
 // Image blob URLs
 const idDocumentBlobUrl = ref('')
 const selfieBlobUrl = ref('')
+
+// Creditsafe verification
+const creditsafeVerification = ref<any>(null)
+const loadingCreditsafe = ref(false)
+const retryingCreditsafe = ref(false)
 
 // Helper function to capitalize first letter of each word
 const capitalizeWords = (str: string | null | undefined): string => {
@@ -936,6 +952,66 @@ const fetchVerificationCheck = async () => {
   }
 }
 
+const fetchCreditsafeVerification = async () => {
+  try {
+    loadingCreditsafe.value = true
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/staff/references/${referenceId}/creditsafe`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      creditsafeVerification.value = data.verification
+    } else if (response.status !== 404) {
+      console.error('Failed to fetch Creditsafe verification')
+    }
+  } catch (error: any) {
+    console.error('Error fetching Creditsafe verification:', error)
+  } finally {
+    loadingCreditsafe.value = false
+  }
+}
+
+const retryCreditsafeVerification = async () => {
+  try {
+    retryingCreditsafe.value = true
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/staff/references/${referenceId}/creditsafe/retry`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to retry verification')
+    }
+
+    await response.json()
+    toast.success('Creditsafe verification completed successfully')
+
+    // Refresh the verification data
+    await fetchCreditsafeVerification()
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to retry verification')
+  } finally {
+    retryingCreditsafe.value = false
+  }
+}
+
 const saveProgress = async () => {
   try {
     saving.value = true
@@ -1039,5 +1115,6 @@ const handleSignOut = async () => {
 onMounted(async () => {
   await fetchReference()
   await fetchVerificationCheck()
+  await fetchCreditsafeVerification()
 })
 </script>
