@@ -65,7 +65,7 @@ const props = withDefaults(defineProps<Props>(), {
   modelValue: '',
   label: '',
   required: false,
-  selectClass: 'block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary',
+  selectClass: 'block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary',
   yearRangeType: 'past',
   gap: 'gap-3'
 })

@@ -70,7 +70,7 @@
               <select
                 v-model="formData.id_document_type"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               >
                 <option value="">Select document type</option>
                 <option value="driving_licence">Driving Licence</option>
@@ -131,7 +131,7 @@
                   v-model="formData.first_name"
                   type="text"
                   required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
@@ -139,7 +139,7 @@
                 <input
                   v-model="formData.middle_name"
                   type="text"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
@@ -150,7 +150,7 @@
                 v-model="formData.last_name"
                 type="text"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
 
@@ -161,7 +161,7 @@
                   <select
                     v-model="dobDay"
                     required
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Day</option>
                     <option v-for="day in 31" :key="day" :value="day">{{ day }}</option>
@@ -171,7 +171,7 @@
                   <select
                     v-model="dobMonth"
                     required
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Month</option>
                     <option value="01">January</option>
@@ -192,7 +192,7 @@
                   <select
                     v-model="dobYear"
                     required
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Year</option>
                     <option v-for="year in yearRange" :key="year" :value="year">{{ year }}</option>
@@ -219,7 +219,7 @@
                 required
                 placeholder="Search and select nationality..."
                 autocomplete="off"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
               <div
                 v-if="showNationalityDropdown && filteredNationalities.length > 0"
@@ -300,7 +300,7 @@
                 required
                 placeholder="Search and select country..."
                 autocomplete="off"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
               <div
                 v-if="showCountryDropdown && filteredCountries.length > 0"
@@ -324,7 +324,7 @@
                 type="text"
                 required
                 placeholder="Street address"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
 
@@ -334,7 +334,7 @@
                 v-model="formData.current_address_line2"
                 type="text"
                 placeholder="Apartment, suite, building, floor, etc."
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
 
@@ -346,7 +346,7 @@
                   type="text"
                   required
                   :placeholder="cityPlaceholder"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
@@ -356,7 +356,7 @@
                   type="text"
                   required
                   :placeholder="postcodePlaceholder"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
@@ -373,7 +373,7 @@
                     max="100"
                     required
                     placeholder="0"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
@@ -385,7 +385,7 @@
                     max="11"
                     required
                     placeholder="0"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
               </div>
@@ -427,7 +427,7 @@
                       required
                       placeholder="Search and select country..."
                       autocomplete="off"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     />
                     <div
                       v-if="showPreviousAddressCountryDropdowns[index] && filteredPreviousAddressCountries(index).length > 0"
@@ -451,7 +451,7 @@
                       type="text"
                       required
                       placeholder="Street address"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
 
@@ -461,7 +461,7 @@
                       v-model="address.address_line2"
                       type="text"
                       placeholder="Apartment, suite, building, floor, etc."
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
 
@@ -473,7 +473,7 @@
                         type="text"
                         required
                         :placeholder="getPreviousAddressCityPlaceholder(index)"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       />
                     </div>
                     <div>
@@ -483,7 +483,7 @@
                         type="text"
                         required
                         :placeholder="getPreviousAddressPostcodePlaceholder(index)"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       />
                     </div>
                   </div>
@@ -500,7 +500,7 @@
                           max="100"
                           required
                           placeholder="0"
-                          class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                           @input="updateAddressHistory"
                         />
                       </div>
@@ -513,7 +513,7 @@
                           max="11"
                           required
                           placeholder="0"
-                          class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                           @input="updateAddressHistory"
                         />
                       </div>
@@ -670,7 +670,7 @@
                   <select
                     v-model="formData.employment_contract_type"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Select an option</option>
                     <option value="full-time">Full-time</option>
@@ -688,7 +688,7 @@
                       <select
                         v-model="employmentStartDay"
                         :required="formData.income_regular_employment"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       >
                         <option value="">Day</option>
                         <option v-for="day in 31" :key="day" :value="day">{{ day }}</option>
@@ -698,7 +698,7 @@
                       <select
                         v-model="employmentStartMonth"
                         :required="formData.income_regular_employment"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       >
                         <option value="">Month</option>
                         <option value="01">January</option>
@@ -719,7 +719,7 @@
                       <select
                         v-model="employmentStartYear"
                         :required="formData.income_regular_employment"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       >
                         <option value="">Year</option>
                         <option v-for="year in employmentYearRange" :key="year" :value="year">{{ year }}</option>
@@ -736,7 +736,7 @@
                   <input
                     v-model="formData.employment_end_date"
                     type="date"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                   <p class="mt-1 text-xs text-gray-500">
                     Leave blank if current employment
@@ -777,7 +777,7 @@
                       type="number"
                       step="0.01"
                       :required="formData.income_regular_employment && formData.employment_is_hourly"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
                   <div>
@@ -786,7 +786,7 @@
                       v-model="formData.employment_hours_per_month"
                       type="number"
                       :required="formData.income_regular_employment && formData.employment_is_hourly"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
                 </div>
@@ -798,7 +798,7 @@
                     type="number"
                     step="0.01"
                     :required="formData.income_regular_employment && !formData.employment_is_hourly"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
@@ -810,7 +810,7 @@
                   <select
                     v-model="formData.employment_salary_frequency"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Select frequency...</option>
                     <option value="weekly">Weekly</option>
@@ -826,7 +826,7 @@
                     v-model="formData.employment_company_name"
                     type="text"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
@@ -836,7 +836,7 @@
                     v-model="formData.employment_job_title"
                     type="text"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
@@ -846,7 +846,7 @@
                     v-model="formData.employment_company_address_line1"
                     type="text"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
@@ -855,7 +855,7 @@
                   <input
                     v-model="formData.employment_company_address_line2"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
@@ -866,7 +866,7 @@
                       v-model="formData.employment_company_city"
                       type="text"
                       :required="formData.income_regular_employment"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
                   <div>
@@ -875,7 +875,7 @@
                       v-model="formData.employment_company_postcode"
                       type="text"
                       :required="formData.income_regular_employment"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
                 </div>
@@ -891,7 +891,7 @@
                     :required="formData.income_regular_employment"
                     placeholder="Search and select country..."
                     autocomplete="off"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                   <div
                     v-if="showCompanyCountryDropdown && filteredCompanyCountries.length > 0"
@@ -960,7 +960,7 @@
                           type="text"
                           :required="formData.income_regular_employment"
                           placeholder="e.g. HR Manager"
-                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                         />
                       </div>
                       <div>
@@ -969,7 +969,7 @@
                           v-model="formData.employer_ref_name"
                           type="text"
                           :required="formData.income_regular_employment"
-                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                         />
                       </div>
                     </div>
@@ -980,7 +980,7 @@
                           v-model="formData.employer_ref_email"
                           type="email"
                           :required="formData.income_regular_employment"
-                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                           :class="{ 'border-red-500': employerEmailError }"
                         />
                         <p v-if="employerEmailError" class="mt-1 text-sm text-red-600">{{ employerEmailError }}</p>
@@ -1008,7 +1008,7 @@
                     v-model="formData.self_employed_business_name"
                     type="text"
                     :required="formData.income_self_employed"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
@@ -1028,7 +1028,7 @@
                     type="text"
                     :required="formData.income_self_employed"
                     placeholder="e.g. Freelance Graphic Design"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
@@ -1039,7 +1039,7 @@
                     type="number"
                     step="0.01"
                     :required="formData.income_self_employed"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
@@ -1053,7 +1053,7 @@
                         v-model="formData.accountant_name"
                         type="text"
                         :required="formData.income_self_employed"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       />
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1063,7 +1063,7 @@
                           v-model="formData.accountant_contact_name"
                           type="text"
                           :required="formData.income_self_employed"
-                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                         />
                       </div>
                       <div>
@@ -1072,7 +1072,7 @@
                           v-model="formData.accountant_email"
                           type="email"
                           :required="formData.income_self_employed"
-                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                           :class="{ 'border-red-500': accountantEmailError }"
                         />
                         <p v-if="accountantEmailError" class="mt-1 text-sm text-red-600">{{ accountantEmailError }}</p>
@@ -1103,7 +1103,7 @@
                     min="0"
                     :required="formData.income_savings_pension_investments"
                     placeholder="Enter total amount in savings"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                   <p class="mt-1 text-xs text-gray-500">Include savings, pensions, and investment values</p>
                 </div>
@@ -1178,7 +1178,7 @@
                   type="text"
                   :required="formData.has_additional_income"
                   placeholder="e.g. Freelance work, rental income, etc."
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
 
@@ -1190,7 +1190,7 @@
                     type="number"
                     step="0.01"
                     :required="formData.has_additional_income"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
@@ -1198,7 +1198,7 @@
                   <select
                     v-model="formData.additional_income_frequency"
                     :required="formData.has_additional_income"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Select frequency</option>
                     <option value="weekly">Weekly</option>
@@ -1276,7 +1276,7 @@
                 :required="formData.has_adverse_credit"
                 rows="4"
                 placeholder="Please explain any CCJs, defaults, bankruptcies, or other adverse credit events..."
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               ></textarea>
             </div>
           </div>
@@ -1335,7 +1335,7 @@
                   :required="formData.has_pets"
                   rows="3"
                   placeholder="Please describe your pets (type, breed, size, etc.)"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 ></textarea>
               </div>
             </div>
@@ -1345,7 +1345,7 @@
               <select
                 v-model="formData.marital_status"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               >
                 <option value="">Select marital status</option>
                 <option value="single">Single</option>
@@ -1364,7 +1364,7 @@
                 type="number"
                 min="0"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
 
@@ -1375,7 +1375,7 @@
                 :required="formData.number_of_dependants > 0"
                 rows="3"
                 placeholder="Please provide ages and relationship (e.g. 2 children aged 5 and 7)"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               ></textarea>
             </div>
           </div>
@@ -1420,7 +1420,7 @@
                 v-model="formData.previous_landlord_name"
                 type="text"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 :placeholder="formData.reference_type === 'agent' ? 'Enter agent\'s full name' : 'Enter landlord\'s full name'"
               />
             </div>
@@ -1431,7 +1431,7 @@
                 v-model="formData.previous_landlord_email"
                 type="email"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 :class="{ 'border-red-500': landlordEmailError }"
                 :placeholder="formData.reference_type === 'agent' ? 'agent@example.com' : 'landlord@example.com'"
               />
@@ -1456,7 +1456,7 @@
                 v-model="formData.previous_rental_address_line1"
                 type="text"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Street address"
               />
             </div>
@@ -1466,7 +1466,7 @@
               <input
                 v-model="formData.previous_rental_address_line2"
                 type="text"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Apartment, suite, etc. (optional)"
               />
             </div>
@@ -1478,7 +1478,7 @@
                   v-model="formData.previous_rental_city"
                   type="text"
                   required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   placeholder="City"
                 />
               </div>
@@ -1488,7 +1488,7 @@
                   v-model="formData.previous_rental_postcode"
                   type="text"
                   required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   placeholder="Postcode"
                 />
               </div>
@@ -1505,7 +1505,7 @@
                 required
                 placeholder="Search and select country..."
                 autocomplete="off"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
               <div
                 v-if="showPreviousRentalCountryDropdown && filteredPreviousRentalCountries.length > 0"
@@ -1533,7 +1533,7 @@
                   v-model.number="formData.tenancy_years"
                   type="number"
                   min="0"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   placeholder="0"
                 />
               </div>
@@ -1544,7 +1544,7 @@
                   type="number"
                   min="0"
                   max="11"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   placeholder="0"
                 />
               </div>
@@ -1561,7 +1561,7 @@
                   v-model.number="formData.previous_monthly_rent"
                   type="number"
                   required
-                  class="pl-7 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="pl-7 mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   placeholder="800"
                 />
               </div>
@@ -1576,7 +1576,7 @@
                 v-model="formData.previous_tenancy_start_date"
                 type="date"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
 
@@ -1601,7 +1601,7 @@
                 v-model="formData.previous_tenancy_end_date"
                 type="date"
                 :required="!formData.previous_tenancy_still_in_progress"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
 
@@ -1614,7 +1614,7 @@
                 v-model="formData.previous_agency_name"
                 type="text"
                 :required="formData.reference_type === 'agent'"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 placeholder="e.g., Foxtons, Rightmove Lettings"
               />
             </div>
@@ -1680,7 +1680,7 @@
                 v-model="formData.consent_agreed_date"
                 type="text"
                 readonly
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md bg-gray-50 text-gray-700"
               />
             </div>
 
@@ -1694,7 +1694,7 @@
                 type="text"
                 required
                 placeholder="Print your full name"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
           </div>
