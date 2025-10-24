@@ -2386,7 +2386,7 @@ const formData = ref({
   // Page 11: Referencing Consent
   consent_signature: '',
   consent_printed_name: '',
-  consent_agreed_date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  consent_agreed_date: new Date().toISOString().split('T')[0] // YYYY-MM-DD format
 })
 
 onMounted(() => {
