@@ -166,6 +166,13 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       .select('*')
       .eq('reference_id', id)
 
+    // Get previous addresses for 3-year history
+    const { data: previousAddresses } = await supabase
+      .from('tenant_reference_previous_addresses')
+      .select('*')
+      .eq('tenant_reference_id', id)
+      .order('address_order', { ascending: true })
+
     // Helper function to decrypt tenant reference fields
     const decryptTenantReference = (ref: any) => {
       if (!ref) return ref
@@ -234,8 +241,22 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       }
     }
 
+    // Helper function to decrypt previous addresses
+    const decryptPreviousAddress = (addr: any) => {
+      if (!addr) return addr
+      return {
+        ...addr,
+        address_line1: decrypt(addr.address_line1_encrypted),
+        address_line2: decrypt(addr.address_line2_encrypted),
+        city: decrypt(addr.city_encrypted),
+        postcode: decrypt(addr.postcode_encrypted),
+        country: decrypt(addr.country_encrypted)
+      }
+    }
+
     // Decrypt all reference data
     const decryptedReference = decryptTenantReference(reference)
+    const decryptedPreviousAddresses = previousAddresses?.map(decryptPreviousAddress)
 
     const decryptedLandlordReference = landlordReference ? {
       ...landlordReference,
@@ -316,6 +337,7 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       agentReference: decryptedAgentReference,
       employerReference: decryptedEmployerReference,
       accountantReference: decryptedAccountantReference,
+      previousAddresses: decryptedPreviousAddresses || [],
       documents
     })
   } catch (error: any) {
