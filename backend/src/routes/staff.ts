@@ -221,8 +221,9 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
         previous_rental_postcode: decrypt(ref.previous_rental_postcode_encrypted),
         previous_rental_country: decrypt(ref.previous_rental_country_encrypted),
         previous_monthly_rent: decrypt(ref.previous_monthly_rent_encrypted),
-        previous_tenancy_start_date: decrypt(ref.previous_tenancy_start_date_encrypted),
-        previous_tenancy_end_date: decrypt(ref.previous_tenancy_end_date_encrypted),
+        previous_tenancy_start_date: ref.previous_tenancy_start_date, // Not encrypted
+        previous_tenancy_end_date: ref.previous_tenancy_end_date, // Not encrypted
+        previous_tenancy_still_in_progress: ref.previous_tenancy_still_in_progress, // Not encrypted
         accountant_name: decrypt(ref.accountant_firm_encrypted),
         accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
