@@ -82,6 +82,7 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const showDropdown = ref(false)
 const highlightedIndex = ref(0)
 const placesService = ref<google.maps.places.PlacesService | null>(null)
+const justSelected = ref(false)
 
 // Initialize Google Maps API
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
@@ -115,9 +116,11 @@ onMounted(async () => {
 // Watch query changes and emit to parent
 watch(query, (newValue) => {
   emit('update:modelValue', newValue)
-  if (newValue.length >= 3) {
+  if (newValue.length >= 3 && !justSelected.value) {
     showDropdown.value = true
     highlightedIndex.value = 0
+  } else if (justSelected.value) {
+    justSelected.value = false
   }
 })
 
@@ -158,6 +161,7 @@ const selectHighlighted = () => {
 }
 
 const selectSuggestion = async (suggestion: any) => {
+  justSelected.value = true
   showDropdown.value = false
 
   // Get place details using Places API
