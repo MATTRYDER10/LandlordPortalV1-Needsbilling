@@ -1827,27 +1827,28 @@ router.post('/landlord/:referenceId', async (req, res) => {
     }
 
     // Convert camelCase to snake_case for database
+    // Combine address lines if provided separately (frontend sends line1 and line2)
+    const propertyAddress = formData.propertyAddress ||
+      (formData.propertyAddressLine2
+        ? `${formData.propertyAddressLine1}, ${formData.propertyAddressLine2}`
+        : formData.propertyAddressLine1)
+
     const dbData = {
       reference_id: referenceId,
       landlord_name_encrypted: encrypt(formData.landlordName),
       landlord_email_encrypted: encrypt(formData.landlordEmail),
       landlord_phone_encrypted: encrypt(formData.landlordPhone),
-      property_address_encrypted: encrypt(formData.propertyAddress),
+      property_address_encrypted: encrypt(propertyAddress),
       property_city_encrypted: encrypt(formData.propertyCity || ''),
       property_postcode_encrypted: encrypt(formData.propertyPostcode || ''),
       tenancy_start_date: formData.tenancyStartDate,
-      tenancy_end_date: formData.tenancyEndDate,
+      tenancy_end_date: formData.tenancyStillInProgress ? null : formData.tenancyEndDate,
+      tenancy_still_in_progress: formData.tenancyStillInProgress || false,
       monthly_rent_encrypted: encrypt(formData.monthlyRent ? String(formData.monthlyRent) : null),
+      address_correct: formData.addressCorrect,
       rent_paid_on_time: formData.rentPaidOnTime,
-      rent_paid_on_time_details_encrypted: encrypt(formData.rentPaidOnTimeDetails || ''),
-      property_condition: formData.propertyCondition,
-      property_condition_details_encrypted: encrypt(formData.propertyConditionDetails || ''),
-      neighbour_complaints: formData.neighbourComplaints,
-      neighbour_complaints_details_encrypted: encrypt(formData.neighbourComplaintsDetails || ''),
-      breach_of_tenancy: formData.breachOfTenancy,
-      breach_of_tenancy_details_encrypted: encrypt(formData.breachOfTenancyDetails || ''),
+      good_tenant: formData.goodTenant,
       would_rent_again: formData.wouldRentAgain,
-      would_rent_again_details_encrypted: encrypt(formData.wouldRentAgainDetails || ''),
       additional_comments_encrypted: encrypt(formData.additionalComments || ''),
       signature_name_encrypted: encrypt(formData.signatureName),
       signature_encrypted: encrypt(formData.signature),

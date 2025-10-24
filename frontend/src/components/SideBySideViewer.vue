@@ -30,8 +30,8 @@
     <!-- Right Panel -->
     <div class="bg-white rounded-lg shadow-lg p-6">
       <h4 class="text-sm font-semibold text-gray-700 mb-3">{{ rightTitle }}</h4>
-      <div class="border rounded-lg overflow-hidden bg-gray-50">
-        <div v-if="rightImageUrl" class="relative group">
+      <div v-if="rightImageUrl" class="border rounded-lg overflow-hidden bg-gray-50">
+        <div class="relative group">
           <img
             :src="rightImageUrl"
             :alt="rightTitle"
@@ -43,12 +43,6 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
             </svg>
           </div>
-        </div>
-        <div v-else class="p-8 text-center text-gray-400">
-          <svg class="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <p class="text-sm">No document provided</p>
         </div>
       </div>
       <slot name="right-content"></slot>
