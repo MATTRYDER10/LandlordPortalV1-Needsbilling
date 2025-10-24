@@ -2494,8 +2494,8 @@ const landlordComparisonRows = computed(() => {
     {
       field: 'tenancy_end',
       label: 'Tenancy End Date',
-      tenantValue: reference.value.previous_tenancy_end_date,
-      referenceValue: landlordReference.value.tenancy_end_date,
+      tenantValue: reference.value.previous_tenancy_still_in_progress ? 'Still in tenancy' : reference.value.previous_tenancy_end_date,
+      referenceValue: landlordReference.value.tenancy_still_in_progress ? 'Still in tenancy' : landlordReference.value.tenancy_end_date,
       isNotApplicable: false
     },
     {
@@ -2565,8 +2565,8 @@ const agentComparisonRows = computed(() => {
     {
       field: 'tenancy_end',
       label: 'Tenancy End Date',
-      tenantValue: reference.value.previous_tenancy_end_date,
-      referenceValue: agentReference.value.tenancy_end_date,
+      tenantValue: reference.value.previous_tenancy_still_in_progress ? 'Still in tenancy' : reference.value.previous_tenancy_end_date,
+      referenceValue: agentReference.value.tenancy_still_in_progress ? 'Still in tenancy' : agentReference.value.tenancy_end_date,
       isNotApplicable: false
     },
     {
