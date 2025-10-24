@@ -2121,7 +2121,8 @@ import Sidebar from '../components/Sidebar.vue'
 import { getCountryName } from '../utils/countries'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import DatePicker from '../components/DatePicker.vue'
-import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
+// Creditsafe verification is only shown in Staff portal
+// import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -2143,10 +2144,6 @@ const loading = ref(true)
 const error = ref('')
 const expandedTenant = ref<string | null>(null)
 const childReferenceDetails = ref<Record<string, any>>({})
-
-// Creditsafe verification
-const creditsafeVerification = ref<any>(null)
-const loadingCreditsafe = ref(false)
 
 // Move-in date editing
 const editingMoveInDate = ref(false)

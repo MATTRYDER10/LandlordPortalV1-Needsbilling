@@ -420,23 +420,6 @@ const formatDate = (dateString: string): string => {
   }
 }
 
-const formatAddress = (address: any): string => {
-  if (typeof address === 'string') return address
-  if (typeof address === 'object') {
-    // Handle address object with various possible fields
-    const parts = [
-      address.line1,
-      address.line2,
-      address.line3,
-      address.city,
-      address.county,
-      address.postcode
-    ].filter(Boolean)
-    return parts.join(', ')
-  }
-  return 'N/A'
-}
-
 const formatCurrency = (amount: any): string => {
   if (!amount) return 'N/A'
 

@@ -1676,7 +1676,7 @@ const retryCreditsafeVerification = async () => {
       throw new Error(error.error || 'Failed to retry verification')
     }
 
-    const data = await response.json()
+    await response.json()
     toast.success('Creditsafe verification completed successfully')
 
     // Refresh the verification data
