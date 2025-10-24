@@ -566,8 +566,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         .insert({
           company_id: companyUser.company_id,
           created_by: userId,
-          tenant_first_name_encrypted: encrypt('Multi-Tenant'),
-          tenant_last_name_encrypted: encrypt('Property'),
+          tenant_first_name_encrypted: encrypt(tenants[0].first_name),
+          tenant_last_name_encrypted: encrypt(tenants[0].last_name),
           tenant_email_encrypted: encrypt(tenants[0].email),
           tenant_phone_encrypted: encrypt(tenants[0].phone),
           property_address_encrypted: encrypt(property_address),
