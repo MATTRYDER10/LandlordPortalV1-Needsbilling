@@ -78,15 +78,14 @@
         <SideBySideViewer
           :left-image-url="idDocumentBlobUrl"
           left-title="ID Document"
+          right-title="Verify Information Matches"
         >
           <template #right-content>
             <div class="mt-4 space-y-4">
-              <h5 class="font-semibold text-gray-900 mb-3">Verify Information Matches:</h5>
-
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
                 <div>
                   <p class="text-sm font-medium text-gray-700">Full Name</p>
-                  <p class="text-sm text-gray-900">{{ reference.first_name }} {{ reference.middle_name || '' }} {{ reference.last_name }}</p>
+                  <p class="text-sm text-gray-900">{{ fullName }}</p>
                 </div>
                 <div class="flex gap-2">
                   <button
@@ -673,7 +672,27 @@ const finalNotes = ref('')
 const idDocumentBlobUrl = ref('')
 const selfieBlobUrl = ref('')
 
+// Helper function to capitalize first letter of each word
+const capitalizeWords = (str: string | null | undefined): string => {
+  if (!str) return ''
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 // Computed
+const fullName = computed(() => {
+  const parts = [
+    reference.value?.tenant_first_name,
+    reference.value?.middle_name,
+    reference.value?.tenant_last_name
+  ].filter(Boolean)
+
+  return parts.map(part => capitalizeWords(part)).join(' ')
+})
+
 const canProceedFromStep1 = computed(() => {
   return verificationCheck.value.id_name_match === true &&
          verificationCheck.value.id_dob_match === true &&
