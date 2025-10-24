@@ -85,10 +85,22 @@
               select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
 
+            <div>
+              <label class="flex items-center mb-3">
+                <input
+                  v-model="formData.tenancyStillInProgress"
+                  type="checkbox"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span class="ml-2 text-sm font-medium text-gray-700">Tenant is still in tenancy (no end date yet)</span>
+              </label>
+            </div>
+
             <DatePicker
+              v-if="!formData.tenancyStillInProgress"
               v-model="formData.tenancyEndDate"
               label="Tenancy End Date"
-              :required="true"
+              :required="!formData.tenancyStillInProgress"
               year-range-type="tenancy"
               select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
@@ -410,6 +422,7 @@ const formData = ref({
   propertyPostcode: '',
   tenancyStartDate: '',
   tenancyEndDate: '',
+  tenancyStillInProgress: false,
   monthlyRent: '',
   addressCorrect: '',
   rentPaidOnTime: '',
