@@ -1580,20 +1580,29 @@
               />
             </div>
 
-            <!-- Previous Tenancy End Date -->
+            <!-- Still in Tenancy Checkbox -->
             <div>
+              <label class="flex items-center">
+                <input
+                  v-model="formData.previous_tenancy_still_in_progress"
+                  type="checkbox"
+                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <span class="ml-2 text-sm text-gray-700">Still in tenancy (no end date yet)</span>
+              </label>
+            </div>
+
+            <!-- Previous Tenancy End Date -->
+            <div v-if="!formData.previous_tenancy_still_in_progress">
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Tenancy End Date *
               </label>
               <input
                 v-model="formData.previous_tenancy_end_date"
                 type="date"
-                required
+                :required="!formData.previous_tenancy_still_in_progress"
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
-              <p class="mt-1 text-xs text-gray-500">
-                If still living there, use today's date
-              </p>
             </div>
 
             <!-- Agency Name (only show if reference_type is 'agent') -->
@@ -2381,6 +2390,7 @@ const formData = ref({
   previous_monthly_rent: null,
   previous_tenancy_start_date: '',
   previous_tenancy_end_date: '',
+  previous_tenancy_still_in_progress: false,
   previous_agency_name: '',
 
   // Page 11: Referencing Consent
