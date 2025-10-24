@@ -76,7 +76,7 @@
         :saving="saving"
       >
         <SideBySideViewer
-          :left-image-url="reference.id_document_path"
+          :left-image-url="idDocumentBlobUrl"
           left-title="ID Document"
         >
           <template #right-content>
@@ -248,8 +248,8 @@
         :saving="saving"
       >
         <SideBySideViewer
-          :left-image-url="reference.id_document_path"
-          :right-image-url="reference.selfie_path"
+          :left-image-url="idDocumentBlobUrl"
+          :right-image-url="selfieBlobUrl"
           left-title="ID Document Photo"
           right-title="Selfie"
         >
@@ -669,6 +669,10 @@ const tenancyVerifications = ref<Record<string, boolean>>({})
 const showFinalDecisionModal = ref(false)
 const finalNotes = ref('')
 
+// Image blob URLs
+const idDocumentBlobUrl = ref('')
+const selfieBlobUrl = ref('')
+
 // Computed
 const canProceedFromStep1 = computed(() => {
   return verificationCheck.value.id_name_match === true &&
@@ -777,7 +781,40 @@ const redFlags = computed(() => {
   return flags
 })
 
+// Helper function to convert file path to viewable URL
+const getFileUrl = (filePath: string): string => {
+  if (!filePath) return ''
+
+  // Parse file path: referenceId/folder/filename
+  const parts = filePath.split('/')
+  if (parts.length < 3) return ''
+
+  return `${API_URL}/api/staff/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
+}
+
 // Methods
+const loadImageAsBlob = async (filePath: string): Promise<string> => {
+  const token = authStore.session?.access_token
+  if (!token || !filePath) return ''
+
+  try {
+    const url = getFileUrl(filePath)
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) return ''
+
+    const blob = await response.blob()
+    return URL.createObjectURL(blob)
+  } catch (error) {
+    console.error('Error loading image:', error)
+    return ''
+  }
+}
+
 const fetchReference = async () => {
   try {
     loading.value = true
@@ -803,6 +840,14 @@ const fetchReference = async () => {
     landlordReference.value = data.landlordReference
     agentReference.value = data.agentReference
     previousAddresses.value = data.previousAddresses || []
+
+    // Load images as blobs
+    if (reference.value.id_document_path) {
+      idDocumentBlobUrl.value = await loadImageAsBlob(reference.value.id_document_path)
+    }
+    if (reference.value.selfie_path) {
+      selfieBlobUrl.value = await loadImageAsBlob(reference.value.selfie_path)
+    }
   } catch (error: any) {
     toast.error(error.message || 'Failed to load reference')
   } finally {
