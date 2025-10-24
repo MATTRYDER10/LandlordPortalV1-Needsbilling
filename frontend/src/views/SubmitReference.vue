@@ -1317,7 +1317,7 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Do you have any pets? *</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Do you have any pets?</label>
               <div class="space-y-2">
                 <label class="flex items-center">
                   <input
