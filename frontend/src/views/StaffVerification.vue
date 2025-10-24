@@ -615,6 +615,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
+import { useAuthStore } from '../stores/auth'
 import VerificationStep from '../components/VerificationStep.vue'
 import SideBySideViewer from '../components/SideBySideViewer.vue'
 import InteractiveComparisonTable from '../components/InteractiveComparisonTable.vue'
@@ -622,6 +623,7 @@ import InteractiveComparisonTable from '../components/InteractiveComparisonTable
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
 
 const API_URL = import.meta.env.VITE_API_URL
 const referenceId = route.params.id as string
@@ -779,11 +781,16 @@ const redFlags = computed(() => {
 const fetchReference = async () => {
   try {
     loading.value = true
-    const staffToken = localStorage.getItem('staff_token')
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      router.push('/staff/login')
+      return
+    }
 
     const response = await fetch(`${API_URL}/api/staff/references/${referenceId}`, {
       headers: {
-        'Authorization': `Bearer ${staffToken}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -805,11 +812,12 @@ const fetchReference = async () => {
 
 const fetchVerificationCheck = async () => {
   try {
-    const staffToken = localStorage.getItem('staff_token')
+    const token = authStore.session?.access_token
+    if (!token) return
 
     const response = await fetch(`${API_URL}/api/verification/${referenceId}`, {
       headers: {
-        'Authorization': `Bearer ${staffToken}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -829,12 +837,16 @@ const fetchVerificationCheck = async () => {
 const saveProgress = async () => {
   try {
     saving.value = true
-    const staffToken = localStorage.getItem('staff_token')
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
 
     const response = await fetch(`${API_URL}/api/verification/${referenceId}`, {
       method: 'PATCH',
       headers: {
-        'Authorization': `Bearer ${staffToken}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -887,12 +899,16 @@ const completeStep5 = async () => {
 const completeVerification = async (passed: boolean) => {
   try {
     completing.value = true
-    const staffToken = localStorage.getItem('staff_token')
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
 
     const response = await fetch(`${API_URL}/api/verification/${referenceId}/complete`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${staffToken}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -913,8 +929,8 @@ const completeVerification = async (passed: boolean) => {
   }
 }
 
-const handleSignOut = () => {
-  localStorage.removeItem('staff_token')
+const handleSignOut = async () => {
+  await authStore.signOut()
   router.push('/staff/login')
 }
 
