@@ -1323,6 +1323,42 @@
         <!-- Verification Actions (only show if status is pending_verification) -->
         <div v-if="reference.status === 'pending_verification'" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Verification</h3>
+
+          <!-- New Step-by-Step Verification -->
+          <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="flex items-start">
+              <svg class="w-6 h-6 text-blue-600 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div class="flex-1">
+                <h4 class="text-sm font-semibold text-blue-900 mb-1">New: Step-by-Step Verification Process</h4>
+                <p class="text-sm text-blue-800 mb-3">
+                  Use our new systematic verification workflow to verify ID, selfie, employment, tenancy, and address history step-by-step with Match/No Match buttons for each check.
+                </p>
+                <button
+                  @click="$router.push(`/staff/verification/${reference.id}`)"
+                  class="px-6 py-3 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md flex items-center"
+                >
+                  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                  Start Step-by-Step Verification
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="relative my-6">
+            <div class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-gray-300"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+              <span class="px-2 bg-white text-gray-500">Or use quick verification</span>
+            </div>
+          </div>
+
+          <!-- Original Quick Verification Buttons -->
           <div class="flex space-x-4">
             <button
               @click="showVerifyModal = true"
@@ -1331,7 +1367,7 @@
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Verify & Complete
+              Quick Verify & Complete
             </button>
             <button
               @click="showRejectModal = true"
