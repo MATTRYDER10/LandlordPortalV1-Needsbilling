@@ -285,13 +285,13 @@
             <h4 class="text-md font-semibold text-gray-700 mb-3">Property Information</h4>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label for="address" class="block text-sm font-medium text-gray-700">Property Address *</label>
-                <input
-                  id="address"
+                <AddressAutocomplete
                   v-model="formData.property_address"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  label="Property Address"
+                  :required="true"
+                  id="address"
+                  placeholder="Start typing address..."
+                  @addressSelected="handlePropertyAddressSelected"
                 />
               </div>
               <div>
@@ -544,6 +544,7 @@ import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 import PhoneInput from '../components/PhoneInput.vue'
 import DatePicker from '../components/DatePicker.vue'
+import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -889,5 +890,12 @@ const fetchChildren = async (parentId: string) => {
   } catch (error) {
     console.error('Failed to fetch children:', error)
   }
+}
+
+const handlePropertyAddressSelected = (addressData: any) => {
+  console.log('Property address selected:', addressData)
+  formData.value.property_address = addressData.addressLine1
+  formData.value.property_city = addressData.city
+  formData.value.property_postcode = addressData.postcode
 }
 </script>

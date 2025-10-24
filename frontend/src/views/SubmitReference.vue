@@ -318,13 +318,12 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Address Line 1 *</label>
-              <input
+              <AddressAutocomplete
                 v-model="formData.current_address_line1"
-                type="text"
-                required
-                placeholder="Street address"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                label="Address Line 1"
+                :required="true"
+                placeholder="Start typing address..."
+                @addressSelected="handleCurrentAddressSelected"
               />
             </div>
 
@@ -445,13 +444,12 @@
                   </div>
 
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Address Line 1 *</label>
-                    <input
+                    <AddressAutocomplete
                       v-model="address.address_line1"
-                      type="text"
-                      required
-                      placeholder="Street address"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      label="Address Line 1"
+                      :required="true"
+                      placeholder="Start typing address..."
+                      @addressSelected="(data) => handlePreviousAddressSelected(index, data)"
                     />
                   </div>
 
@@ -841,12 +839,12 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Company Address Line 1 *</label>
-                  <input
+                  <AddressAutocomplete
                     v-model="formData.employment_company_address_line1"
-                    type="text"
+                    label="Company Address Line 1"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="Start typing address..."
+                    @addressSelected="handleCompanyAddressSelected"
                   />
                 </div>
 
@@ -1451,13 +1449,12 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Address Line 1 *</label>
-              <input
+              <AddressAutocomplete
                 v-model="formData.previous_rental_address_line1"
-                type="text"
-                required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Street address"
+                label="Address Line 1"
+                :required="true"
+                placeholder="Start typing address..."
+                @addressSelected="handlePreviousRentalAddressSelected"
               />
             </div>
 
@@ -1759,6 +1756,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PhoneInput from '../components/PhoneInput.vue'
 import SignaturePad from '../components/SignaturePad.vue'
+import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 
 const route = useRoute()
@@ -2950,6 +2948,57 @@ const handleFinalSubmit = async () => {
     uploadProgress.value = 0
   } finally {
     submitting.value = false
+  }
+}
+
+// Address autocomplete handlers
+const handleCurrentAddressSelected = (addressData: any) => {
+  formData.value.current_address_line1 = addressData.addressLine1
+  formData.value.current_city = addressData.city
+  formData.value.current_postcode = addressData.postcode
+
+  // Update country if available
+  if (addressData.country.name) {
+    countrySearch.value = addressData.country.name
+    formData.value.current_country = addressData.country.code
+  }
+}
+
+const handlePreviousAddressSelected = (index: number, addressData: any) => {
+  if (previousAddresses.value[index]) {
+    previousAddresses.value[index].address_line1 = addressData.addressLine1
+    previousAddresses.value[index].city = addressData.city
+    previousAddresses.value[index].postcode = addressData.postcode
+
+    // Update country if available
+    if (addressData.country.name) {
+      previousAddressCountrySearches.value[index] = addressData.country.name
+      previousAddresses.value[index].country = addressData.country.code
+    }
+  }
+}
+
+const handleCompanyAddressSelected = (addressData: any) => {
+  formData.value.employment_company_address_line1 = addressData.addressLine1
+  formData.value.employment_company_city = addressData.city
+  formData.value.employment_company_postcode = addressData.postcode
+
+  // Update company country if available
+  if (addressData.country.name) {
+    companyCountrySearch.value = addressData.country.name
+    formData.value.employment_company_country = addressData.country.code
+  }
+}
+
+const handlePreviousRentalAddressSelected = (addressData: any) => {
+  formData.value.previous_rental_address_line1 = addressData.addressLine1
+  formData.value.previous_rental_city = addressData.city
+  formData.value.previous_rental_postcode = addressData.postcode
+
+  // Update country if available
+  if (addressData.country.name) {
+    previousRentalCountrySearch.value = addressData.country.name
+    formData.value.previous_rental_country = addressData.country.code
   }
 }
 
