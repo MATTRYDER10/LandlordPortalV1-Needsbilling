@@ -220,6 +220,16 @@
           </div>
         </div>
 
+        <!-- Creditsafe Identity Verification -->
+        <CreditsafeVerificationCard
+          v-if="reference.submitted_at"
+          :verification="creditsafeVerification"
+          :loading="loadingCreditsafe"
+          :show-retry-button="true"
+          :retrying="retryingCreditsafe"
+          @retry="retryCreditsafeVerification"
+        />
+
         <!-- Additional Supporting Documents -->
         <div v-if="documents && documents.length > 0" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Additional Supporting Documents</h3>
@@ -1532,6 +1542,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import ComparisonTable from '../components/ComparisonTable.vue'
+import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -1567,8 +1578,17 @@ const rejectionNotes = ref('')
 const verifying = ref(false)
 const rejecting = ref(false)
 
-onMounted(() => {
-  fetchReference()
+// Creditsafe verification
+const creditsafeVerification = ref<any>(null)
+const loadingCreditsafe = ref(false)
+const retryingCreditsafe = ref(false)
+
+onMounted(async () => {
+  await fetchReference()
+  // Fetch Creditsafe verification if reference is submitted
+  if (reference.value?.submitted_at) {
+    fetchCreditsafeVerification()
+  }
 })
 
 const fetchReference = async () => {
@@ -1607,6 +1627,64 @@ const fetchReference = async () => {
     toast.error(error.message || 'Failed to load reference')
   } finally {
     loading.value = false
+  }
+}
+
+const fetchCreditsafeVerification = async () => {
+  try {
+    loadingCreditsafe.value = true
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/staff/references/${route.params.id}/creditsafe`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      creditsafeVerification.value = data.verification
+    } else if (response.status !== 404) {
+      // 404 is expected if no verification exists yet
+      console.error('Failed to fetch Creditsafe verification')
+    }
+  } catch (err: any) {
+    console.error('Error fetching Creditsafe verification:', err)
+  } finally {
+    loadingCreditsafe.value = false
+  }
+}
+
+const retryCreditsafeVerification = async () => {
+  try {
+    retryingCreditsafe.value = true
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/staff/references/${route.params.id}/creditsafe/retry`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to retry verification')
+    }
+
+    const data = await response.json()
+    toast.success('Creditsafe verification completed successfully')
+
+    // Refresh the verification data
+    await fetchCreditsafeVerification()
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to retry verification')
+  } finally {
+    retryingCreditsafe.value = false
   }
 }
 

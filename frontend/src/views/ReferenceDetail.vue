@@ -1009,6 +1009,9 @@
           </div>
         </div>
 
+        <!-- NOTE: Creditsafe verification results are only shown in the Staff portal -->
+        <!-- Landlords can see that verification happened but not the detailed results -->
+
         <!-- Consent Declaration -->
         <div v-if="!reference.is_group_parent && reference.consent_pdf_path" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Consent Declaration</h3>
@@ -2118,6 +2121,7 @@ import Sidebar from '../components/Sidebar.vue'
 import { getCountryName } from '../utils/countries'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import DatePicker from '../components/DatePicker.vue'
+import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -2140,6 +2144,10 @@ const error = ref('')
 const expandedTenant = ref<string | null>(null)
 const childReferenceDetails = ref<Record<string, any>>({})
 
+// Creditsafe verification
+const creditsafeVerification = ref<any>(null)
+const loadingCreditsafe = ref(false)
+
 // Move-in date editing
 const editingMoveInDate = ref(false)
 const editedMoveInDate = ref('')
@@ -2152,8 +2160,12 @@ const viewingDocumentName = ref('')
 const viewingDocumentPath = ref('')
 const viewingDocumentType = ref('') // 'image' or 'pdf'
 
-onMounted(() => {
-  fetchReference()
+onMounted(async () => {
+  await fetchReference()
+  // Fetch Creditsafe verification if reference is submitted
+  if (reference.value?.submitted_at) {
+    fetchCreditsafeVerification()
+  }
 })
 
 const fetchReference = async () => {
@@ -2192,6 +2204,14 @@ const fetchReference = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const fetchCreditsafeVerification = async () => {
+  // NOTE: Creditsafe verification is only shown in the Staff portal
+  // Landlords don't have access to the staff endpoints
+  // The verification happens automatically but results are for staff review only
+  console.log('Creditsafe verification is only available in the Staff portal')
+  return
 }
 
 const formatStatus = (status: string) => {

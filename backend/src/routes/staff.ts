@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { authenticateStaff, StaffAuthRequest } from '../middleware/staffAuth'
 import { supabase } from '../config/supabase'
 import { decrypt, encrypt } from '../services/encryption'
+import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
 
 const router = Router()
 
@@ -496,6 +497,126 @@ router.get('/download/:referenceId/:folder/:filename', authenticateStaff, async 
     // Convert blob to buffer and send
     const buffer = Buffer.from(await data.arrayBuffer())
     res.send(buffer)
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Get Creditsafe verification results for a reference
+router.get('/references/:id/creditsafe', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+
+    // Verify reference exists
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, company_id')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get Creditsafe verification result
+    const verification = await creditsafeService.getVerificationResult(referenceId)
+
+    if (!verification) {
+      return res.status(404).json({ error: 'No Creditsafe verification found for this reference' })
+    }
+
+    res.json({ verification })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Manually trigger Creditsafe verification for a reference (retry)
+router.post('/references/:id/creditsafe/retry', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const staffUserId = req.staffUser?.id
+
+    if (!creditsafeService.isEnabled()) {
+      return res.status(400).json({ error: 'Creditsafe verification is not enabled' })
+    }
+
+    // Get reference data
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify that tenant has submitted the reference
+    if (!reference.submitted_at) {
+      return res.status(400).json({ error: 'Cannot verify - tenant has not yet submitted the reference' })
+    }
+
+    // Prepare verification request for Creditsafe Verify API
+    const addressLine1 = reference.current_address_line1_encrypted ? decrypt(reference.current_address_line1_encrypted) || '' : ''
+    const addressLine2 = reference.current_address_line2_encrypted ? decrypt(reference.current_address_line2_encrypted) || '' : ''
+    const city = reference.current_city_encrypted ? decrypt(reference.current_city_encrypted) || '' : ''
+
+    // Build full address string
+    const fullAddress = [addressLine1, addressLine2, city].filter(Boolean).join(', ')
+
+    const verificationRequest: VerificationRequest = {
+      firstName: (decrypt(reference.tenant_first_name_encrypted) || '') as string,
+      lastName: (decrypt(reference.tenant_last_name_encrypted) || '') as string,
+      middleName: reference.middle_name_encrypted ? (decrypt(reference.middle_name_encrypted) || undefined) : undefined,
+      dateOfBirth: (reference.date_of_birth_encrypted ? decrypt(reference.date_of_birth_encrypted) || '' : '') as string,
+      address: fullAddress,
+      postcode: (reference.current_postcode_encrypted ? decrypt(reference.current_postcode_encrypted) || '' : '') as string
+    }
+
+    // Run verification using Creditsafe Verify API
+    const verificationResult = await creditsafeService.verifyIndividual(verificationRequest)
+
+    // Check if verification already exists, delete if so (to allow retry)
+    const { data: existingVerification } = await supabase
+      .from('creditsafe_verifications')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .single()
+
+    if (existingVerification) {
+      await supabase
+        .from('creditsafe_verifications')
+        .delete()
+        .eq('id', existingVerification.id)
+    }
+
+    // Store new verification result
+    const verificationId = await creditsafeService.storeVerificationResult(
+      referenceId,
+      verificationRequest,
+      verificationResult,
+      staffUserId
+    )
+
+    if (!verificationId) {
+      return res.status(500).json({ error: 'Failed to store verification result' })
+    }
+
+    res.json({
+      message: 'Creditsafe verification completed',
+      verification: {
+        id: verificationId,
+        status: verificationResult.status,
+        riskScore: verificationResult.riskScore,
+        riskLevel: verificationResult.riskLevel,
+        verifyMatch: verificationResult.verifyMatch,
+        ccjMatch: verificationResult.ccjMatch,
+        electoralRegisterMatch: verificationResult.electoralRegisterMatch,
+        insolvencyMatch: verificationResult.insolvencyMatch,
+        deceasedRegisterMatch: verificationResult.deceasedRegisterMatch
+      }
+    })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

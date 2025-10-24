@@ -26,6 +26,9 @@ export type AuditAction =
   | 'staff.added'
   | 'staff.updated'
   | 'staff.removed'
+  // Verification actions
+  | 'verification.creditsafe_completed'
+  | 'verification.creditsafe_failed'
 
 export type ResourceType =
   | 'user'
