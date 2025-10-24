@@ -276,7 +276,7 @@ const resetFilters = () => {
 }
 
 const viewReference = (id: string) => {
-  router.push(`/staff/references/${id}`)
+  router.push(`/staff/verification/${id}`)
 }
 
 const handleSignOut = async () => {

@@ -6,10 +6,10 @@
         <div class="flex justify-between items-center py-6">
           <div class="flex items-center space-x-4">
             <button
-              @click="$router.push(`/staff/references/${referenceId}`)"
+              @click="$router.push('/staff/dashboard')"
               class="text-gray-600 hover:text-gray-900"
             >
-              ← Back to Reference
+              ← Back to Dashboard
             </button>
             <h1 class="text-2xl font-bold text-gray-900">Step-by-Step Verification</h1>
           </div>
