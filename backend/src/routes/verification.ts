@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticateStaff, StaffAuthRequest } from '../middleware/staffAuth'
 import { supabase } from '../config/supabase'
+import { encrypt } from '../services/encryption'
 
 const router = Router()
 
@@ -127,7 +128,7 @@ router.post('/:referenceId/complete', authenticateStaff, async (req: StaffAuthRe
       .update({
         status: newStatus,
         verified_at: passed ? new Date().toISOString() : null,
-        verification_notes: finalNotes
+        verification_notes_encrypted: encrypt(finalNotes || '')
       })
       .eq('id', referenceId)
 
