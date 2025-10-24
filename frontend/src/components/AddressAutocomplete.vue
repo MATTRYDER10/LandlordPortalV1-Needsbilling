@@ -40,6 +40,7 @@
 </template>
 
 <script setup lang="ts">
+/// <reference types="@types/google.maps" />
 import { ref, watch, onMounted } from 'vue'
 import { usePlacesAutocomplete } from 'vue-use-places-autocomplete'
 
@@ -88,16 +89,13 @@ const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 const { suggestions } = usePlacesAutocomplete(query, {
   apiKey,
   debounce: 500,
-  minLengthAutocomplete: 3,
-  apiOptions: {
-    libraries: ['places']
-  }
+  minLengthAutocomplete: 3
 })
 
 // Initialize Places Service when component mounts
 onMounted(async () => {
   // Load Google Maps API
-  if (!window.google) {
+  if (!(window as any).google) {
     const script = document.createElement('script')
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
     script.async = true
@@ -173,7 +171,7 @@ const selectSuggestion = async (suggestion: any) => {
       placeId: suggestion.place_id,
       fields: ['address_components', 'formatted_address']
     },
-    (place, status) => {
+    (place: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
       if (status === google.maps.places.PlacesServiceStatus.OK && place) {
         const addressComponents = parseAddressComponents(place.address_components || [])
         console.log('Parsed address components:', addressComponents)
