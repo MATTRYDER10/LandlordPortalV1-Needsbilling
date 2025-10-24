@@ -434,7 +434,7 @@
       >
         <div class="space-y-6">
           <div class="bg-white border rounded-lg p-4">
-            <h4 class="text-md font-semibold text-gray-900 mb-4">Address History Timeline</h4>
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Address History Timeline (3-Year History)</h4>
             <div class="space-y-3">
               <!-- Current Address -->
               <div class="bg-green-50 border-l-4 border-green-500 p-3">
@@ -446,25 +446,19 @@
                 </p>
               </div>
 
-              <!-- Previous Rental Address (with landlord/agent reference) -->
-              <div v-if="reference.previous_rental_address_line1" class="bg-blue-50 border-l-4 border-blue-500 p-3">
-                <p class="text-sm font-medium text-blue-900">Previous Address</p>
-                <p class="text-sm text-blue-800">{{ reference.previous_rental_address_line1 }}</p>
-                <p class="text-sm text-blue-700">{{ reference.previous_rental_city }}, {{ reference.previous_rental_postcode }}</p>
-                <p v-if="reference.previous_tenancy_start_date" class="text-xs text-blue-600 mt-1">
-                  {{ new Date(reference.previous_tenancy_start_date).toLocaleDateString('en-GB') }} -
-                  {{ reference.previous_tenancy_still_in_progress ? 'Present' : reference.previous_tenancy_end_date ? new Date(reference.previous_tenancy_end_date).toLocaleDateString('en-GB') : 'Unknown' }}
+              <!-- Previous Addresses from 3-year history form -->
+              <div v-for="(addr, index) in previousAddresses" :key="index" class="bg-blue-50 border-l-4 border-blue-500 p-3">
+                <p class="text-sm font-medium text-blue-900">Previous Address {{ index + 1 }}</p>
+                <p class="text-sm text-blue-800">{{ addr.address_line1 }}</p>
+                <p class="text-sm text-blue-700">{{ addr.city }}, {{ addr.postcode }}</p>
+                <p class="text-xs text-blue-600 mt-1">
+                  Time at address: {{ addr.time_at_address_years || 0 }} year(s), {{ addr.time_at_address_months || 0 }} month(s)
                 </p>
               </div>
 
-              <!-- Additional Previous Addresses (from 3-year history) -->
-              <div v-for="(addr, index) in previousAddresses" :key="index" class="bg-gray-50 border-l-4 border-gray-300 p-3">
-                <p class="text-sm font-medium text-gray-900">Previous Address {{ index + 2 }}</p>
-                <p class="text-sm text-gray-800">{{ addr.address_line1 }}</p>
-                <p class="text-sm text-gray-700">{{ addr.city }}, {{ addr.postcode }}</p>
-                <p class="text-xs text-gray-600 mt-1">
-                  Time at address: {{ addr.time_at_address_years || 0 }} year(s), {{ addr.time_at_address_months || 0 }} month(s)
-                </p>
+              <!-- Show message if no previous addresses provided -->
+              <div v-if="!previousAddresses || previousAddresses.length === 0" class="bg-gray-50 border-l-4 border-gray-300 p-3">
+                <p class="text-sm text-gray-600 italic">No additional previous addresses provided</p>
               </div>
             </div>
 
@@ -739,7 +733,7 @@ const canProceedFromStep5 = computed(() => {
 const addressHistoryMeetsRequirement = computed(() => {
   if (!reference.value) return false
 
-  // Calculate total time at addresses
+  // Calculate total time at addresses (from 3-year address history)
   let totalMonths = 0
 
   // Add time at CURRENT address
@@ -747,21 +741,7 @@ const addressHistoryMeetsRequirement = computed(() => {
   const currentMonths = reference.value.time_at_address_months || 0
   totalMonths += (currentYears * 12) + currentMonths
 
-  // Add time from previous rental address (the one with landlord/agent reference)
-  if (reference.value.previous_tenancy_start_date) {
-    const startDate = new Date(reference.value.previous_tenancy_start_date)
-    const endDate = reference.value.previous_tenancy_still_in_progress
-      ? new Date()
-      : reference.value.previous_tenancy_end_date
-        ? new Date(reference.value.previous_tenancy_end_date)
-        : new Date()
-
-    const months = (endDate.getFullYear() - startDate.getFullYear()) * 12 +
-                   (endDate.getMonth() - startDate.getMonth())
-    totalMonths += months
-  }
-
-  // Add time from additional previous addresses (3-year history section)
+  // Add time from previous addresses (from 3-year history form)
   if (previousAddresses.value && previousAddresses.value.length > 0) {
     previousAddresses.value.forEach((addr: any) => {
       const years = addr.time_at_address_years || 0
