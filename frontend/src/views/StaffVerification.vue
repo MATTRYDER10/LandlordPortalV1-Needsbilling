@@ -436,8 +436,19 @@
           <div class="bg-white border rounded-lg p-4">
             <h4 class="text-md font-semibold text-gray-900 mb-4">Address History Timeline</h4>
             <div class="space-y-3">
-              <div class="bg-blue-50 border-l-4 border-blue-500 p-3">
-                <p class="text-sm font-medium text-blue-900">Current/Previous Address</p>
+              <!-- Current Address -->
+              <div class="bg-green-50 border-l-4 border-green-500 p-3">
+                <p class="text-sm font-medium text-green-900">Current Address</p>
+                <p class="text-sm text-green-800">{{ reference.current_address_line1 }}</p>
+                <p class="text-sm text-green-700">{{ reference.current_city }}, {{ reference.current_postcode }}</p>
+                <p class="text-xs text-green-600 mt-1">
+                  Time at address: {{ reference.time_at_address_years || 0 }} year(s), {{ reference.time_at_address_months || 0 }} month(s)
+                </p>
+              </div>
+
+              <!-- Previous Rental Address (with landlord/agent reference) -->
+              <div v-if="reference.previous_rental_address_line1" class="bg-blue-50 border-l-4 border-blue-500 p-3">
+                <p class="text-sm font-medium text-blue-900">Previous Address</p>
                 <p class="text-sm text-blue-800">{{ reference.previous_rental_address_line1 }}</p>
                 <p class="text-sm text-blue-700">{{ reference.previous_rental_city }}, {{ reference.previous_rental_postcode }}</p>
                 <p v-if="reference.previous_tenancy_start_date" class="text-xs text-blue-600 mt-1">
@@ -446,6 +457,7 @@
                 </p>
               </div>
 
+              <!-- Additional Previous Addresses (from 3-year history) -->
               <div v-for="(addr, index) in previousAddresses" :key="index" class="bg-gray-50 border-l-4 border-gray-300 p-3">
                 <p class="text-sm font-medium text-gray-900">Previous Address {{ index + 2 }}</p>
                 <p class="text-sm text-gray-800">{{ addr.address_line1 }}</p>
@@ -730,7 +742,12 @@ const addressHistoryMeetsRequirement = computed(() => {
   // Calculate total time at addresses
   let totalMonths = 0
 
-  // Calculate time at current/previous address (the one with landlord/agent reference)
+  // Add time at CURRENT address
+  const currentYears = reference.value.time_at_address_years || 0
+  const currentMonths = reference.value.time_at_address_months || 0
+  totalMonths += (currentYears * 12) + currentMonths
+
+  // Add time from previous rental address (the one with landlord/agent reference)
   if (reference.value.previous_tenancy_start_date) {
     const startDate = new Date(reference.value.previous_tenancy_start_date)
     const endDate = reference.value.previous_tenancy_still_in_progress
