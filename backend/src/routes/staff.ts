@@ -418,6 +418,20 @@ router.put('/references/:id/reject', authenticateStaff, async (req: StaffAuthReq
       return res.status(404).json({ error: 'Reference not found or already processed' })
     }
 
+    // If this is a parent reference, also reject all children
+    if (reference.is_group_parent) {
+      await supabase
+        .from('tenant_references')
+        .update({
+          status: 'rejected',
+          verified_by: staffUserId,
+          verified_at: new Date().toISOString(),
+          verification_notes_encrypted: encrypt(notes || '')
+        })
+        .eq('parent_reference_id', id)
+        .eq('status', 'pending_verification')
+    }
+
     res.json({
       message: 'Reference rejected and sent back for corrections',
       reference
