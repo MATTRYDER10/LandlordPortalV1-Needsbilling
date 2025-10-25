@@ -397,6 +397,7 @@ router.put('/references/:id/reject', authenticateStaff, async (req: StaffAuthReq
     }
 
     // Update reference status to rejected
+    // Allow rejection from pending_verification, in_progress, or pending statuses
     const { data: reference, error } = await supabase
       .from('tenant_references')
       .update({
@@ -406,7 +407,7 @@ router.put('/references/:id/reject', authenticateStaff, async (req: StaffAuthReq
         verification_notes_encrypted: encrypt(notes || '')
       })
       .eq('id', id)
-      .eq('status', 'pending_verification')
+      .in('status', ['pending_verification', 'in_progress', 'pending'])
       .select()
       .single()
 
@@ -429,7 +430,7 @@ router.put('/references/:id/reject', authenticateStaff, async (req: StaffAuthReq
           verification_notes_encrypted: encrypt(notes || '')
         })
         .eq('parent_reference_id', id)
-        .eq('status', 'pending_verification')
+        .in('status', ['pending_verification', 'in_progress', 'pending'])
     }
 
     res.json({
