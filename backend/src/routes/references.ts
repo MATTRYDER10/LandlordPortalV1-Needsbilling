@@ -94,7 +94,12 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           let parentStatus = ref.status
 
           // Determine parent status based on children
-          if (statuses.every(s => s === 'completed')) {
+          // Priority order: rejected > cancelled > completed > pending_verification > in_progress > pending
+          if (statuses.some(s => s === 'rejected')) {
+            parentStatus = 'rejected'
+          } else if (statuses.some(s => s === 'cancelled')) {
+            parentStatus = 'cancelled'
+          } else if (statuses.every(s => s === 'completed')) {
             parentStatus = 'completed'
           } else if (statuses.every(s => s === 'pending_verification' || s === 'completed')) {
             parentStatus = 'pending_verification'
