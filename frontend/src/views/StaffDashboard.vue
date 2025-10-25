@@ -27,13 +27,13 @@
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Stats -->
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-8">
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-5 mb-8">
         <div class="bg-white overflow-hidden shadow rounded-lg">
           <div class="p-5">
             <div class="flex items-center">
               <div class="flex-1">
-                <div class="text-sm font-medium text-gray-500">Pending Verification</div>
-                <div class="mt-1 text-3xl font-semibold text-primary">{{ stats.pending_verification || 0 }}</div>
+                <div class="text-sm font-medium text-gray-500">Pending</div>
+                <div class="mt-1 text-3xl font-semibold text-gray-500">{{ stats.pending || 0 }}</div>
               </div>
             </div>
           </div>
@@ -44,6 +44,16 @@
               <div class="flex-1">
                 <div class="text-sm font-medium text-gray-500">In Progress</div>
                 <div class="mt-1 text-3xl font-semibold text-blue-600">{{ stats.in_progress || 0 }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="p-5">
+            <div class="flex items-center">
+              <div class="flex-1">
+                <div class="text-sm font-medium text-gray-500">Pending Verification</div>
+                <div class="mt-1 text-3xl font-semibold text-primary">{{ stats.pending_verification || 0 }}</div>
               </div>
             </div>
           </div>
@@ -81,8 +91,9 @@
               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
             >
               <option value="">All Statuses</option>
-              <option value="pending_verification">Pending Verification</option>
+              <option value="pending">Pending (Not Started)</option>
               <option value="in_progress">In Progress</option>
+              <option value="pending_verification">Pending Verification</option>
               <option value="completed">Completed</option>
               <option value="rejected">Rejected</option>
               <option value="cancelled">Cancelled</option>
