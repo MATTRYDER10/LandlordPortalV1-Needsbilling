@@ -122,12 +122,14 @@ router.post('/:referenceId/complete', authenticateStaff, async (req: StaffAuthRe
     }
 
     // Update reference status
-    const newStatus = passed ? 'completed' : 'in_progress' // If failed, send back to in_progress
+    const newStatus = passed ? 'completed' : 'rejected' // If failed, mark as rejected
+    const staffUserId = req.staffUser?.id
     const { error: refError } = await supabase
       .from('tenant_references')
       .update({
         status: newStatus,
-        verified_at: passed ? new Date().toISOString() : null,
+        verified_at: new Date().toISOString(),
+        verified_by: staffUserId,
         verification_notes_encrypted: encrypt(finalNotes || '')
       })
       .eq('id', referenceId)
