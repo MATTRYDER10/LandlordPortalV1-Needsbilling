@@ -679,7 +679,7 @@
             <div v-if="reference.tax_return_path" class="mt-6 pt-6 border-t">
               <h5 class="text-sm font-semibold text-gray-700 mb-3">Tax Return Statement</h5>
               <button
-                @click="viewDocument(reference.tax_return_path)"
+                @click="viewFile(reference.tax_return_path)"
                 class="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
               >
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -847,7 +847,7 @@
               <div v-if="reference.proof_of_funds_path">
                 <label class="block text-sm font-medium text-gray-500">Proof of Funds</label>
                 <button
-                  @click="viewDocument(reference.proof_of_funds_path)"
+                  @click="viewFile(reference.proof_of_funds_path)"
                   class="mt-1 inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm"
                 >
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -887,7 +887,7 @@
               <div v-if="reference.proof_of_additional_income_path">
                 <label class="block text-sm font-medium text-gray-500">Proof Document</label>
                 <button
-                  @click="viewDocument(reference.proof_of_additional_income_path)"
+                  @click="viewFile(reference.proof_of_additional_income_path)"
                   class="mt-1 inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm"
                 >
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

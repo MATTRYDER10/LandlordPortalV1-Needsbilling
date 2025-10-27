@@ -2705,7 +2705,7 @@ watch(() => formData.value.previous_landlord_email, () => {
 // Auto-calculate annual benefits when monthly amount changes
 watch(() => formData.value.benefits_monthly_amount, (newValue) => {
   if (newValue !== null && newValue !== undefined) {
-    formData.value.benefits_annual_amount = Number(newValue) * 12
+    formData.value.benefits_annual_amount = (Number(newValue) * 12) as number | null
   } else {
     formData.value.benefits_annual_amount = null
   }
