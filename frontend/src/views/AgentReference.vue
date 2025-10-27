@@ -171,6 +171,55 @@
                 </button>
               </div>
             </div>
+
+            <!-- Corrected Address (shown if address is incorrect) -->
+            <div v-if="formData.addressCorrect === 'no'" class="mt-6 pt-6 border-t border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Correct Property Address</h3>
+              <p class="text-sm text-gray-600 mb-4">Please provide the correct property address</p>
+              <div class="space-y-4">
+                <div>
+                  <label for="corrected-address-line1" class="block text-sm font-medium text-gray-700">Address Line 1 *</label>
+                  <input
+                    id="corrected-address-line1"
+                    v-model="formData.correctedAddressLine1"
+                    type="text"
+                    :required="formData.addressCorrect === 'no'"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label for="corrected-address-line2" class="block text-sm font-medium text-gray-700">Address Line 2</label>
+                  <input
+                    id="corrected-address-line2"
+                    v-model="formData.correctedAddressLine2"
+                    type="text"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label for="corrected-city" class="block text-sm font-medium text-gray-700">City *</label>
+                    <input
+                      id="corrected-city"
+                      v-model="formData.correctedCity"
+                      type="text"
+                      :required="formData.addressCorrect === 'no'"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label for="corrected-postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
+                    <input
+                      id="corrected-postcode"
+                      v-model="formData.correctedPostcode"
+                      type="text"
+                      :required="formData.addressCorrect === 'no'"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -414,6 +463,10 @@ const formData = ref({
   propertyCity: '',
   propertyPostcode: '',
   addressCorrect: '',
+  correctedAddressLine1: '',
+  correctedAddressLine2: '',
+  correctedCity: '',
+  correctedPostcode: '',
   tenancyStartDate: '',
   tenancyEndDate: '',
   monthlyRent: '',
