@@ -37,7 +37,7 @@
         <!-- Instruction Banner -->
         <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
           <p class="text-sm text-blue-900">
-            The tenant has claimed the below, please review and fill in the form below.
+            The tenant has input the below information, please check the information and correct where required, please ensure the form is filled out honestly and factually.
           </p>
         </div>
 
