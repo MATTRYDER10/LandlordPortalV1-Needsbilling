@@ -810,6 +810,158 @@
             </div>
           </div>
 
+          <!-- Guarantor Reference Section -->
+          <div v-if="reference.requires_guarantor" class="mt-6 pt-6 border-t">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Guarantor Information</h3>
+
+            <!-- Guarantor Reference Pending -->
+            <div v-if="!guarantorReference || !guarantorReference.submitted_at" class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p class="text-sm text-yellow-800">
+                <strong>Status:</strong> Pending guarantor response
+              </p>
+              <p class="text-xs text-yellow-700 mt-1">
+                A guarantor has been requested for this tenant.
+              </p>
+            </div>
+
+            <!-- Guarantor Reference Submitted -->
+            <div v-if="guarantorReference && guarantorReference.submitted_at" class="bg-blue-50 border border-blue-200 rounded-lg">
+              <div class="p-4">
+                <div class="flex items-center justify-between mb-4">
+                  <h4 class="text-lg font-semibold text-blue-900">✓ Guarantor Reference Completed</h4>
+                  <span class="text-xs text-blue-700">Submitted {{ formatDateTime(guarantorReference.submitted_at) }}</span>
+                </div>
+
+                <div class="space-y-6">
+                  <!-- Personal Information -->
+                  <div>
+                    <h5 class="text-sm font-semibold text-blue-800 mb-2">Personal Information</h5>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                      <div><span class="text-blue-700 font-medium">Name:</span> <span class="text-blue-900">{{ guarantorReference.guarantor_first_name }} {{ guarantorReference.guarantor_last_name }}</span></div>
+                      <div><span class="text-blue-700 font-medium">Relationship:</span> <span class="text-blue-900">{{ guarantorReference.relationship_to_tenant }}</span></div>
+                      <div><span class="text-blue-700 font-medium">Email:</span> <span class="text-blue-900">{{ guarantorReference.email }}</span></div>
+                      <div><span class="text-blue-700 font-medium">Phone:</span> <span class="text-blue-900">{{ guarantorReference.contact_number }}</span></div>
+                      <div><span class="text-blue-700 font-medium">Date of Birth:</span> <span class="text-blue-900">{{ formatDate(guarantorReference.date_of_birth) }}</span></div>
+                      <div v-if="guarantorReference.nationality"><span class="text-blue-700 font-medium">Nationality:</span> <span class="text-blue-900">{{ guarantorReference.nationality }}</span></div>
+                    </div>
+                  </div>
+
+                  <!-- Address -->
+                  <div>
+                    <h5 class="text-sm font-semibold text-blue-800 mb-2">Current Address</h5>
+                    <div class="text-sm text-blue-900">
+                      <p>{{ guarantorReference.current_address_line1 }}</p>
+                      <p v-if="guarantorReference.current_address_line2">{{ guarantorReference.current_address_line2 }}</p>
+                      <p>{{ guarantorReference.current_city }}, {{ guarantorReference.current_postcode }}</p>
+                      <p v-if="guarantorReference.current_country">{{ guarantorReference.current_country }}</p>
+                    </div>
+                    <div v-if="guarantorReference.time_at_address_years || guarantorReference.time_at_address_months" class="mt-2 text-sm">
+                      <span class="text-blue-700 font-medium">Time at address:</span>
+                      <span class="text-blue-900">{{ guarantorReference.time_at_address_years || 0 }} years, {{ guarantorReference.time_at_address_months || 0 }} months</span>
+                    </div>
+                  </div>
+
+                  <!-- Home Ownership -->
+                  <div v-if="guarantorReference.home_ownership_status">
+                    <h5 class="text-sm font-semibold text-blue-800 mb-2">Home Ownership</h5>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                      <div><span class="text-blue-700 font-medium">Status:</span> <span class="text-blue-900 capitalize">{{ guarantorReference.home_ownership_status }}</span></div>
+                      <div v-if="guarantorReference.property_value"><span class="text-blue-700 font-medium">Property Value:</span> <span class="text-blue-900">£{{ guarantorReference.property_value?.toLocaleString() }}</span></div>
+                    </div>
+                  </div>
+
+                  <!-- Employment & Income -->
+                  <div>
+                    <h5 class="text-sm font-semibold text-blue-800 mb-2">Employment & Income</h5>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                      <div><span class="text-blue-700 font-medium">Status:</span> <span class="text-blue-900 capitalize">{{ guarantorReference.employment_status }}</span></div>
+                      <div v-if="guarantorReference.employer_name"><span class="text-blue-700 font-medium">Employer:</span> <span class="text-blue-900">{{ guarantorReference.employer_name }}</span></div>
+                      <div v-if="guarantorReference.job_title"><span class="text-blue-700 font-medium">Job Title:</span> <span class="text-blue-900">{{ guarantorReference.job_title }}</span></div>
+                      <div v-if="guarantorReference.annual_income"><span class="text-blue-700 font-medium">Annual Income:</span> <span class="text-blue-900">£{{ guarantorReference.annual_income?.toLocaleString() }}</span></div>
+                      <div v-if="guarantorReference.business_name"><span class="text-blue-700 font-medium">Business Name:</span> <span class="text-blue-900">{{ guarantorReference.business_name }}</span></div>
+                      <div v-if="guarantorReference.pension_amount"><span class="text-blue-700 font-medium">Pension Amount:</span> <span class="text-blue-900">£{{ guarantorReference.pension_amount }}</span></div>
+                    </div>
+                  </div>
+
+                  <!-- Financial Position -->
+                  <div>
+                    <h5 class="text-sm font-semibold text-blue-800 mb-2">Financial Position</h5>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                      <div v-if="guarantorReference.savings_amount"><span class="text-blue-700 font-medium">Savings:</span> <span class="text-blue-900">£{{ guarantorReference.savings_amount?.toLocaleString() }}</span></div>
+                      <div v-if="guarantorReference.monthly_mortgage_rent"><span class="text-blue-700 font-medium">Monthly Housing Cost:</span> <span class="text-blue-900">£{{ guarantorReference.monthly_mortgage_rent?.toLocaleString() }}</span></div>
+                      <div v-if="guarantorReference.other_monthly_commitments"><span class="text-blue-700 font-medium">Other Commitments:</span> <span class="text-blue-900">£{{ guarantorReference.other_monthly_commitments?.toLocaleString() }}</span></div>
+                      <div v-if="guarantorReference.total_monthly_expenditure"><span class="text-blue-700 font-medium">Total Monthly Expenditure:</span> <span class="text-blue-900">£{{ guarantorReference.total_monthly_expenditure?.toLocaleString() }}</span></div>
+                    </div>
+                    <div v-if="guarantorReference.other_assets" class="mt-2 p-3 bg-white rounded border border-blue-200">
+                      <span class="text-blue-700 font-medium text-sm">Other Assets:</span>
+                      <p class="text-blue-900 text-sm mt-1">{{ guarantorReference.other_assets }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Legal Consent -->
+                  <div>
+                    <h5 class="text-sm font-semibold text-blue-800 mb-2">Legal Obligations Accepted</h5>
+                    <div class="space-y-2 text-sm">
+                      <div class="flex items-center">
+                        <span v-if="guarantorReference.understands_obligations" class="text-green-600 mr-2">✓</span>
+                        <span v-else class="text-red-600 mr-2">✗</span>
+                        <span class="text-blue-900">Understands legal obligations</span>
+                      </div>
+                      <div class="flex items-center">
+                        <span v-if="guarantorReference.willing_to_pay_rent" class="text-green-600 mr-2">✓</span>
+                        <span v-else class="text-red-600 mr-2">✗</span>
+                        <span class="text-blue-900">Willing to pay rent if tenant defaults</span>
+                      </div>
+                      <div class="flex items-center">
+                        <span v-if="guarantorReference.willing_to_pay_damages" class="text-green-600 mr-2">✓</span>
+                        <span v-else class="text-red-600 mr-2">✗</span>
+                        <span class="text-blue-900">Willing to pay damages if tenant defaults</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Credit History -->
+                  <div v-if="guarantorReference.adverse_credit !== null">
+                    <h5 class="text-sm font-semibold text-blue-800 mb-2">Credit History</h5>
+                    <div class="text-sm">
+                      <span class="text-blue-700 font-medium">Adverse Credit:</span>
+                      <span class="text-blue-900 ml-2">{{ guarantorReference.adverse_credit ? 'Yes' : 'No' }}</span>
+                    </div>
+                    <div v-if="guarantorReference.adverse_credit && guarantorReference.adverse_credit_details" class="mt-2 p-3 bg-white rounded border border-blue-200">
+                      <p class="text-blue-900 text-sm">{{ guarantorReference.adverse_credit_details }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Previous Guarantor Experience -->
+                  <div v-if="guarantorReference.previously_acted_as_guarantor !== null">
+                    <h5 class="text-sm font-semibold text-blue-800 mb-2">Previous Guarantor Experience</h5>
+                    <div class="text-sm">
+                      <span class="text-blue-700 font-medium">Previously acted as guarantor:</span>
+                      <span class="text-blue-900 ml-2">{{ guarantorReference.previously_acted_as_guarantor ? 'Yes' : 'No' }}</span>
+                    </div>
+                    <div v-if="guarantorReference.previously_acted_as_guarantor && guarantorReference.previous_guarantor_details" class="mt-2 p-3 bg-white rounded border border-blue-200">
+                      <p class="text-blue-900 text-sm">{{ guarantorReference.previous_guarantor_details }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Consent Signature -->
+                  <div class="pt-3 border-t border-blue-300">
+                    <div class="space-y-2 text-sm">
+                      <div>
+                        <span class="text-blue-700 font-medium">Signed by:</span>
+                        <span class="ml-2 text-blue-900">{{ guarantorReference.consent_signature_name }}</span>
+                      </div>
+                      <div>
+                        <span class="text-blue-700 font-medium">Date:</span>
+                        <span class="ml-2 text-blue-900">{{ formatDate(guarantorReference.consent_date) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Self-Employment Verification Comparison -->
           <div v-if="reference.income_self_employed && accountantReference && accountantReference.submitted_at" class="border-t pt-6">
             <h4 class="text-md font-semibold text-gray-900 mb-2">Business Data Verification</h4>
@@ -1637,6 +1789,7 @@ const landlordReference = ref<any>(null)
 const agentReference = ref<any>(null)
 const employerReference = ref<any>(null)
 const accountantReference = ref<any>(null)
+const guarantorReference = ref<any>(null)
 const previousAddresses = ref<any[]>([])
 const documents = ref<any[]>([])
 const childReferences = ref<any[]>([])
@@ -1699,6 +1852,7 @@ const fetchReference = async () => {
     agentReference.value = data.agentReference
     employerReference.value = data.employerReference
     accountantReference.value = data.accountantReference
+    guarantorReference.value = data.guarantorReference
     previousAddresses.value = data.previousAddresses || []
     documents.value = data.documents || []
     childReferences.value = data.childReferences || []
