@@ -786,8 +786,11 @@
                 </div>
 
                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                  <p class="text-sm text-yellow-800 mb-2">
+                    <strong>Note:</strong> Your agent will be notified that a guarantor reference is required.
+                  </p>
                   <p class="text-sm text-yellow-800">
-                    <strong>Note:</strong> Your agent will be notified that a guarantor reference is required. They will contact your guarantor to complete the reference process.
+                    Your guarantor will receive an email to complete the same tenant reference form that you're completing now, providing their income and rental history information.
                   </p>
                 </div>
               </div>

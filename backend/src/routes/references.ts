@@ -5,7 +5,7 @@ import crypto from 'crypto'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
-import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant } from '../services/emailService'
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant, sendGuarantorRequestNotification } from '../services/emailService'
 import { auditReferenceAction } from '../services/auditLog'
 import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
 import pdfService from '../services/pdfService'
@@ -1293,33 +1293,36 @@ router.post('/submit/:token', async (req, res) => {
 
         const { data: createdByUser } = await supabase
           .from('users')
-          .select('email')
+          .select('email, first_name, last_name')
           .eq('id', reference.created_by)
           .single()
 
         if (createdByUser?.email) {
           // Send email notification to the agent who created the reference
-          const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? 'Your Company' : 'Your Company'
           const tenantName = `${data.first_name} ${data.last_name}`
           const guarantorName = `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`
+          const agentName = createdByUser.first_name
+            ? `${createdByUser.first_name}${createdByUser.last_name ? ' ' + createdByUser.last_name : ''}`
+            : 'Agent'
+          const propertyAddress = decrypt(reference.property_address_encrypted) || 'the property'
 
-          // TODO: Create a dedicated email template for guarantor notifications
-          // For now, log that a guarantor is required
-          console.log(`GUARANTOR REQUIRED: Tenant ${tenantName} (${data.tenant_email}) has requested a guarantor: ${guarantorName} (${data.guarantor_email})`)
+          console.log(`GUARANTOR REQUIRED: Tenant ${tenantName} has requested a guarantor: ${guarantorName} (${data.guarantor_email})`)
           console.log(`Relationship: ${data.guarantor_relationship}`)
-          console.log(`Agent to contact: ${createdByUser.email}`)
+          console.log(`Sending notification to agent: ${createdByUser.email}`)
           console.log(`NOTE: When credit system is implemented, this will consume an additional credit`)
 
-          // TODO: Implement email notification to agent about guarantor request
-          // await sendGuarantorRequestNotification(
-          //   createdByUser.email,
-          //   tenantName,
-          //   guarantorName,
-          //   data.guarantor_email,
-          //   data.guarantor_phone,
-          //   data.guarantor_relationship,
-          //   companyName
-          // )
+          await sendGuarantorRequestNotification(
+            createdByUser.email,
+            agentName,
+            tenantName,
+            guarantorName,
+            data.guarantor_email,
+            data.guarantor_phone || 'Not provided',
+            data.guarantor_relationship || 'Not specified',
+            propertyAddress
+          )
+
+          console.log('Guarantor notification email sent successfully to:', createdByUser.email)
         }
       } catch (error: any) {
         console.error('Failed to notify agent about guarantor request:', error)

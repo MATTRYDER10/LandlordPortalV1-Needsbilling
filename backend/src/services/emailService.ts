@@ -233,6 +233,36 @@ export async function sendUserInvitation(
 }
 
 /**
+ * Send guarantor request notification to agent
+ */
+export async function sendGuarantorRequestNotification(
+  agentEmail: string,
+  agentName: string,
+  tenantName: string,
+  guarantorName: string,
+  guarantorEmail: string,
+  guarantorPhone: string,
+  relationship: string,
+  propertyAddress: string
+): Promise<void> {
+  const html = loadEmailTemplate('guarantor-request-notification', {
+    AgentName: agentName,
+    TenantName: tenantName,
+    PropertyAddress: propertyAddress,
+    GuarantorName: guarantorName,
+    GuarantorEmail: guarantorEmail,
+    GuarantorPhone: guarantorPhone,
+    Relationship: relationship
+  });
+
+  await sendEmail({
+    to: agentEmail,
+    subject: `Guarantor Required - ${tenantName} - PropertyGoose`,
+    html,
+  });
+}
+
+/**
  * Send consent PDF to tenant
  */
 export async function sendConsentPDFToTenant(
