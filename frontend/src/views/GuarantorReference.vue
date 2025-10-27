@@ -685,116 +685,42 @@
                 </label>
                 <label class="flex items-center">
                   <input
-                    v-model="formData.income_student"
+                    v-model="formData.income_retired"
                     type="checkbox"
                     class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Student</span>
-                </label>
-                <label class="flex items-center">
-                  <input
-                    v-model="formData.income_unemployed"
-                    type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <span class="ml-2 text-sm text-gray-700">Unemployed</span>
+                  <span class="ml-2 text-sm text-gray-700">Retired (Pension)</span>
                 </label>
               </div>
             </div>
 
-            <!-- Guarantor Option (shown if Student or Unemployed is selected) -->
-            <div v-if="formData.income_student || formData.income_unemployed" class="pt-6 border-t border-gray-200">
-              <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
-                <p class="text-sm text-blue-900">
-                  As a {{ formData.income_student ? 'student' : 'unemployed person' }}, you may wish to provide a guarantor to support your application.
-                </p>
-              </div>
+            <!-- Pension Details (shown if Retired is selected) -->
+            <div v-if="formData.income_retired" class="pt-6 border-t border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Pension Details</h3>
 
-              <div class="mb-4">
-                <label class="flex items-center">
-                  <input
-                    v-model="formData.requires_guarantor"
-                    type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <span class="ml-2 text-sm font-medium text-gray-700">I would like to use a guarantor</span>
-                </label>
-              </div>
-
-              <!-- Guarantor Details (shown if guarantor is selected) -->
-              <div v-if="formData.requires_guarantor" class="space-y-4 pl-6 border-l-2 border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Guarantor Details</h3>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label for="guarantor-first-name" class="block text-sm font-medium text-gray-700">Guarantor First Name *</label>
-                    <input
-                      id="guarantor-first-name"
-                      v-model="formData.guarantor_first_name"
-                      type="text"
-                      :required="formData.requires_guarantor"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label for="guarantor-last-name" class="block text-sm font-medium text-gray-700">Guarantor Last Name *</label>
-                    <input
-                      id="guarantor-last-name"
-                      v-model="formData.guarantor_last_name"
-                      type="text"
-                      :required="formData.requires_guarantor"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    />
-                  </div>
-                </div>
-
+              <div class="space-y-4">
                 <div>
-                  <label for="guarantor-email" class="block text-sm font-medium text-gray-700">Guarantor Email Address *</label>
+                  <label for="pension-monthly-amount" class="block text-sm font-medium text-gray-700">Monthly Pension Amount (£) *</label>
                   <input
-                    id="guarantor-email"
-                    v-model="formData.guarantor_email"
-                    type="email"
-                    :required="formData.requires_guarantor"
+                    id="pension-monthly-amount"
+                    v-model.number="formData.pension_monthly_amount"
+                    type="number"
+                    step="0.01"
+                    :required="formData.income_retired"
                     class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
-                <PhoneInput
-                  v-model="formData.guarantor_phone"
-                  label="Guarantor Phone Number"
-                  id="guarantor-phone"
-                  :required="formData.requires_guarantor"
-                  select-class="px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  input-class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-
                 <div>
-                  <label for="guarantor-relationship" class="block text-sm font-medium text-gray-700">Relationship to You *</label>
-                  <select
-                    id="guarantor-relationship"
-                    v-model="formData.guarantor_relationship"
-                    :required="formData.requires_guarantor"
+                  <label for="pension-provider" class="block text-sm font-medium text-gray-700">Pension Provider/Source *</label>
+                  <input
+                    id="pension-provider"
+                    v-model="formData.pension_provider"
+                    type="text"
+                    :required="formData.income_retired"
+                    placeholder="e.g., State Pension, Private Pension Provider"
                     class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  >
-                    <option value="">Select relationship</option>
-                    <option value="parent">Parent</option>
-                    <option value="guardian">Guardian</option>
-                    <option value="spouse">Spouse/Partner</option>
-                    <option value="sibling">Sibling</option>
-                    <option value="relative">Other Relative</option>
-                    <option value="friend">Friend</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-
-                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                  <p class="text-sm text-yellow-800 mb-2">
-                    <strong>Note:</strong> Your agent will be notified that a guarantor reference is required.
-                  </p>
-                  <p class="text-sm text-yellow-800">
-                    Your guarantor will receive an email to complete the same tenant reference form that you're completing now, providing their income and rental history information.
-                  </p>
+                  />
                 </div>
               </div>
             </div>
