@@ -399,6 +399,10 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
         accountant_phone: decrypt(ref.accountant_phone_encrypted),
+        guarantor_first_name: decrypt(ref.guarantor_first_name_encrypted),
+        guarantor_last_name: decrypt(ref.guarantor_last_name_encrypted),
+        guarantor_email: decrypt(ref.guarantor_email_encrypted),
+        guarantor_phone: decrypt(ref.guarantor_phone_encrypted),
         notes: decrypt(ref.notes_encrypted),
         internal_notes: decrypt(ref.internal_notes_encrypted),
         verification_notes: decrypt(ref.verification_notes_encrypted)
@@ -1013,6 +1017,14 @@ router.post('/submit/:token', async (req, res) => {
       income_student: data.income_student || false,
       income_unemployed: data.income_unemployed || false,
 
+      // Guarantor Details (for students/unemployed)
+      requires_guarantor: data.requires_guarantor || false,
+      guarantor_first_name_encrypted: encrypt(data.guarantor_first_name || ''),
+      guarantor_last_name_encrypted: encrypt(data.guarantor_last_name || ''),
+      guarantor_email_encrypted: encrypt(data.guarantor_email || ''),
+      guarantor_phone_encrypted: encrypt(data.guarantor_phone || ''),
+      guarantor_relationship: data.guarantor_relationship || null,
+
       // Benefits Details
       benefits_monthly_amount_encrypted: encrypt(data.benefits_monthly_amount ? String(data.benefits_monthly_amount) : null),
       benefits_annual_amount_encrypted: encrypt(data.benefits_annual_amount ? String(data.benefits_annual_amount) : null),
@@ -1265,6 +1277,53 @@ router.post('/submit/:token', async (req, res) => {
       } catch (emailError: any) {
         console.error('Failed to send accountant reference email:', emailError)
         // Don't fail the request if email fails, just log it
+      }
+    }
+
+    // TODO: CREDIT SYSTEM - When implemented, requesting a guarantor should consume an additional credit
+    // Send notification to agent/company if guarantor is requested
+    if (data.requires_guarantor && data.guarantor_first_name && data.guarantor_email) {
+      try {
+        // Get company and created_by user info for notification
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('name_encrypted, email_encrypted')
+          .eq('id', reference.company_id)
+          .single()
+
+        const { data: createdByUser } = await supabase
+          .from('users')
+          .select('email')
+          .eq('id', reference.created_by)
+          .single()
+
+        if (createdByUser?.email) {
+          // Send email notification to the agent who created the reference
+          const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? 'Your Company' : 'Your Company'
+          const tenantName = `${data.first_name} ${data.last_name}`
+          const guarantorName = `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`
+
+          // TODO: Create a dedicated email template for guarantor notifications
+          // For now, log that a guarantor is required
+          console.log(`GUARANTOR REQUIRED: Tenant ${tenantName} (${data.tenant_email}) has requested a guarantor: ${guarantorName} (${data.guarantor_email})`)
+          console.log(`Relationship: ${data.guarantor_relationship}`)
+          console.log(`Agent to contact: ${createdByUser.email}`)
+          console.log(`NOTE: When credit system is implemented, this will consume an additional credit`)
+
+          // TODO: Implement email notification to agent about guarantor request
+          // await sendGuarantorRequestNotification(
+          //   createdByUser.email,
+          //   tenantName,
+          //   guarantorName,
+          //   data.guarantor_email,
+          //   data.guarantor_phone,
+          //   data.guarantor_relationship,
+          //   companyName
+          // )
+        }
+      } catch (error: any) {
+        console.error('Failed to notify agent about guarantor request:', error)
+        // Don't fail the request if notification fails
       }
     }
 
