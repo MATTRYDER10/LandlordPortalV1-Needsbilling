@@ -103,8 +103,6 @@ const { suggestions } = usePlacesAutocomplete(query, {
 
 // Initialize Places Service when component mounts
 onMounted(async () => {
-  console.log('AddressAutocomplete mounted, API key present:', !!apiKey)
-
   try {
     // Wait for vue-use-places-autocomplete to load the API
     // Poll until google.maps.places is available
@@ -113,7 +111,6 @@ onMounted(async () => {
 
     while (attempts < maxAttempts) {
       if ((window as any).google?.maps?.places?.PlacesService) {
-        console.log('Google Maps API ready, initializing Places Service')
         break
       }
       await new Promise(resolve => setTimeout(resolve, 100))
@@ -128,7 +125,6 @@ onMounted(async () => {
     const div = document.createElement('div')
     placesService.value = new google.maps.places.PlacesService(div)
     apiLoaded.value = true
-    console.log('Places Service initialized successfully')
   } catch (error) {
     console.error('Failed to initialize Google Maps:', error)
     apiError.value = 'Failed to initialize Google Maps'
@@ -199,10 +195,7 @@ const selectSuggestion = async (suggestion: any) => {
     },
     (place: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
       if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-        console.log('Raw address components from Google:', place.address_components)
-
         const addressComponents = parseAddressComponents(place.address_components || [])
-        console.log('Parsed address components:', addressComponents)
 
         // Update the input field with just the street address
         query.value = addressComponents.addressLine1
