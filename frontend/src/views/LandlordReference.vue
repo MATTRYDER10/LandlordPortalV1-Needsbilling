@@ -152,19 +152,6 @@
                 </button>
                 <button
                   type="button"
-                  @click="formData.addressCorrect = 'correct'"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
-                    formData.addressCorrect === 'correct'
-                      ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                  ]"
-                  :style="formData.addressCorrect === 'correct' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
-                >
-                  The address is correct
-                </button>
-                <button
-                  type="button"
                   @click="formData.addressCorrect = 'no'"
                   :class="[
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
