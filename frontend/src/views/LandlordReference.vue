@@ -260,19 +260,6 @@
                 </button>
                 <button
                   type="button"
-                  @click="formData.rentPaidOnTime = 'on-time'"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
-                    formData.rentPaidOnTime === 'on-time'
-                      ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                  ]"
-                  :style="formData.rentPaidOnTime === 'on-time' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
-                >
-                  Rent paid on time
-                </button>
-                <button
-                  type="button"
                   @click="formData.rentPaidOnTime = 'no'"
                   :class="[
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
@@ -305,19 +292,6 @@
                 </button>
                 <button
                   type="button"
-                  @click="formData.goodTenant = 'good-tenant'"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
-                    formData.goodTenant === 'good-tenant'
-                      ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                  ]"
-                  :style="formData.goodTenant === 'good-tenant' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
-                >
-                  Have they been a good tenant
-                </button>
-                <button
-                  type="button"
                   @click="formData.goodTenant = 'no'"
                   :class="[
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
@@ -347,19 +321,6 @@
                   :style="formData.wouldRentAgain === 'yes' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
                   Yes
-                </button>
-                <button
-                  type="button"
-                  @click="formData.wouldRentAgain = 'rent-again'"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
-                    formData.wouldRentAgain === 'rent-again'
-                      ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                  ]"
-                  :style="formData.wouldRentAgain === 'rent-again' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
-                >
-                  Would you rent to them again
                 </button>
                 <button
                   type="button"
