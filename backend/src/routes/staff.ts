@@ -111,6 +111,7 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
         if ((!landlordRef || !landlordRef.submitted_at) && (!agentRef || !agentRef.submitted_at)) {
           missingResponses.push('Residential Reference (Landlord/Agent)')
 
+          // If landlordRef exists (email sent), use that
           if (landlordRef) {
             contactsToChase.push({
               type: 'Landlord',
@@ -120,7 +121,18 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
               sentDate: landlordRef.created_at
             })
           }
+          // Otherwise, check if tenant provided landlord details (but email not sent yet)
+          else if (ref.previous_landlord_name_encrypted && ref.previous_landlord_email_encrypted) {
+            contactsToChase.push({
+              type: 'Landlord',
+              name: (decrypt(ref.previous_landlord_name_encrypted) || '') as string,
+              email: (decrypt(ref.previous_landlord_email_encrypted) || '') as string,
+              phone: (decrypt(ref.previous_landlord_phone_encrypted) || undefined) as string | undefined,
+              sentDate: undefined
+            })
+          }
 
+          // If agentRef exists (email sent), use that
           if (agentRef) {
             contactsToChase.push({
               type: 'Agent',
@@ -128,6 +140,16 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
               email: (decrypt(agentRef.agent_email_encrypted) || '') as string,
               phone: (decrypt(agentRef.agent_phone_encrypted) || undefined) as string | undefined,
               sentDate: agentRef.created_at
+            })
+          }
+          // Otherwise, check if tenant provided agent details (but email not sent yet)
+          else if (ref.previous_agency_name && ref.previous_landlord_email_encrypted && ref.reference_type === 'agent') {
+            contactsToChase.push({
+              type: 'Agent',
+              name: ref.previous_agency_name,
+              email: (decrypt(ref.previous_landlord_email_encrypted) || '') as string,
+              phone: (decrypt(ref.previous_landlord_phone_encrypted) || undefined) as string | undefined,
+              sentDate: undefined
             })
           }
         }
@@ -144,6 +166,7 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
         if (!employerRef || !employerRef.submitted_at) {
           missingResponses.push('Employment Reference')
 
+          // If employerRef exists (email sent), use that
           if (employerRef) {
             contactsToChase.push({
               type: 'Employer',
@@ -151,6 +174,16 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
               email: (decrypt(employerRef.employer_email_encrypted) || '') as string,
               phone: (decrypt(employerRef.employer_phone_encrypted) || undefined) as string | undefined,
               sentDate: employerRef.created_at
+            })
+          }
+          // Otherwise, check if tenant provided employer details (but email not sent yet)
+          else if (ref.employer_ref_name_encrypted && ref.employer_ref_email_encrypted) {
+            contactsToChase.push({
+              type: 'Employer',
+              name: (decrypt(ref.employer_ref_name_encrypted) || '') as string,
+              email: (decrypt(ref.employer_ref_email_encrypted) || '') as string,
+              phone: (decrypt(ref.employer_ref_phone_encrypted) || undefined) as string | undefined,
+              sentDate: undefined
             })
           }
         }
@@ -167,6 +200,7 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
         if (!accountantRef || !accountantRef.submitted_at) {
           missingResponses.push('Accountant Reference')
 
+          // If accountantRef exists (email sent), use that
           if (accountantRef) {
             contactsToChase.push({
               type: 'Accountant',
@@ -174,6 +208,16 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
               email: (decrypt(accountantRef.accountant_email_encrypted) || '') as string,
               phone: (decrypt(accountantRef.accountant_phone_encrypted) || undefined) as string | undefined,
               sentDate: accountantRef.created_at
+            })
+          }
+          // Otherwise, check if tenant provided accountant details (but email not sent yet)
+          else if (ref.accountant_name_encrypted && ref.accountant_email_encrypted) {
+            contactsToChase.push({
+              type: 'Accountant',
+              name: (decrypt(ref.accountant_name_encrypted) || '') as string,
+              email: (decrypt(ref.accountant_email_encrypted) || '') as string,
+              phone: (decrypt(ref.accountant_phone_encrypted) || undefined) as string | undefined,
+              sentDate: undefined
             })
           }
         }
@@ -190,6 +234,7 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
         if (!guarantorRef || !guarantorRef.submitted_at) {
           missingResponses.push('Guarantor Reference')
 
+          // If guarantorRef exists (email sent), use that
           if (guarantorRef) {
             contactsToChase.push({
               type: 'Guarantor',
@@ -197,6 +242,16 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
               email: (decrypt(guarantorRef.email_encrypted) || '') as string,
               phone: (decrypt(guarantorRef.contact_number_encrypted) || undefined) as string | undefined,
               sentDate: guarantorRef.created_at
+            })
+          }
+          // Otherwise, check if tenant provided guarantor details (but email not sent yet)
+          else if (ref.guarantor_first_name_encrypted && ref.guarantor_email_encrypted) {
+            contactsToChase.push({
+              type: 'Guarantor',
+              name: (`${decrypt(ref.guarantor_first_name_encrypted) || ''} ${decrypt(ref.guarantor_last_name_encrypted) || ''}`.trim()) as string,
+              email: (decrypt(ref.guarantor_email_encrypted) || '') as string,
+              phone: (decrypt(ref.guarantor_phone_encrypted) || undefined) as string | undefined,
+              sentDate: undefined
             })
           }
         }
