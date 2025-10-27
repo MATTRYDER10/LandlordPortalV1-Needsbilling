@@ -34,6 +34,13 @@
 
       <!-- Form -->
       <form v-else @submit.prevent="handleSubmit" class="space-y-6">
+        <!-- Instruction Banner -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+          <p class="text-sm text-blue-900">
+            The tenant has made the below statement about their tenancy, please confirm and amend if required the details below.
+          </p>
+        </div>
+
         <!-- Agent Information -->
         <div class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Agent Information</h2>
