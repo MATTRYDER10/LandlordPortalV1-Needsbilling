@@ -5,7 +5,9 @@ import path from 'path'
 async function runMigrations() {
   const migrationsToRun = [
     '017_update_landlord_reference_fields.sql',
-    '019_add_tenancy_still_in_progress_field.sql'
+    '019_add_tenancy_still_in_progress_field.sql',
+    '034_add_guarantor_fields.sql',
+    '035_create_guarantor_references_table.sql'
   ]
 
   for (const migration of migrationsToRun) {
