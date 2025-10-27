@@ -15,6 +15,85 @@
           </button>
         </div>
 
+        <!-- Stats -->
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-5 mb-6">
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = ''">
+            <div class="p-5">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-500">Total References</div>
+                  <div class="mt-1 text-3xl font-semibold text-gray-900">{{ references.length }}</div>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = 'in_progress'">
+            <div class="p-5">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-500">In Progress</div>
+                  <div class="mt-1 text-3xl font-semibold text-blue-600">{{ statusCounts.in_progress }}</div>
+                </div>
+                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = 'pending_verification'">
+            <div class="p-5">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-500">Pending Verification</div>
+                  <div class="mt-1 text-3xl font-semibold text-primary">{{ statusCounts.pending_verification }}</div>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = 'rejected'">
+            <div class="p-5">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-500">Rejected</div>
+                  <div class="mt-1 text-3xl font-semibold text-red-600">{{ statusCounts.rejected }}</div>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = 'completed'">
+            <div class="p-5">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-500">Completed</div>
+                  <div class="mt-1 text-3xl font-semibold text-green-600">{{ statusCounts.completed }}</div>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Search and Filters -->
         <div class="space-y-3">
           <!-- Search Box -->
@@ -602,6 +681,25 @@ const rentSharesValid = computed(() => {
   const total = totalRentShare.value
   const monthlyRent = Number(formData.value.monthly_rent) || 0
   return Math.abs(total - monthlyRent) < 0.01 && monthlyRent > 0
+})
+
+const statusCounts = computed(() => {
+  const counts = {
+    pending: 0,
+    in_progress: 0,
+    pending_verification: 0,
+    rejected: 0,
+    completed: 0,
+    cancelled: 0
+  }
+
+  references.value.forEach(ref => {
+    if (counts.hasOwnProperty(ref.status)) {
+      counts[ref.status as keyof typeof counts]++
+    }
+  })
+
+  return counts
 })
 
 const filteredReferences = computed(() => {
