@@ -103,10 +103,43 @@
               select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
 
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-3">Tenancy Status *</label>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  @click="handleTenancyStatus('ended')"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.tenancyStatus === 'ended'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.tenancyStatus === 'ended' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Tenancy Ended
+                </button>
+                <button
+                  type="button"
+                  @click="handleTenancyStatus('still-in-contract')"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    formData.tenancyStatus === 'still-in-contract'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.tenancyStatus === 'still-in-contract' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Still in Contract
+                </button>
+              </div>
+            </div>
+
             <DatePicker
+              v-if="formData.tenancyStatus === 'ended'"
               v-model="formData.tenancyEndDate"
               label="Tenancy End Date"
-              :required="true"
+              :required="formData.tenancyStatus === 'ended'"
               year-range-type="tenancy"
               select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
@@ -469,6 +502,8 @@ const formData = ref({
   correctedPostcode: '',
   tenancyStartDate: '',
   tenancyEndDate: '',
+  tenancyStatus: '',
+  tenancyStillInProgress: false,
   monthlyRent: '',
   goodTenant: '',
   rentPaidOnTime: '',
@@ -478,6 +513,14 @@ const formData = ref({
   signature: '',
   date: new Date().toISOString().split('T')[0]
 })
+
+const handleTenancyStatus = (status: string) => {
+  formData.value.tenancyStatus = status
+  formData.value.tenancyStillInProgress = status === 'still-in-contract'
+  if (status === 'still-in-contract') {
+    formData.value.tenancyEndDate = ''
+  }
+}
 
 const handleSubmit = async () => {
   submitting.value = true

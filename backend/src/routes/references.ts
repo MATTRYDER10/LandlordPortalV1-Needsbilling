@@ -2022,13 +2022,19 @@ router.post('/agent/:referenceId', async (req, res) => {
     }
 
     // Convert camelCase to snake_case for database
+    // Combine address lines if provided separately (frontend sends line1 and line2)
+    const propertyAddress = formData.propertyAddress ||
+      (formData.propertyAddressLine2
+        ? `${formData.propertyAddressLine1}, ${formData.propertyAddressLine2}`
+        : formData.propertyAddressLine1)
+
     const dbData = {
       reference_id: referenceId,
       agent_name_encrypted: encrypt(formData.agentName),
       agent_email_encrypted: encrypt(formData.agentEmail),
       agent_phone_encrypted: encrypt(formData.agentPhone),
       agency_name_encrypted: encrypt(formData.agencyName || ''),
-      property_address_encrypted: encrypt(formData.propertyAddress),
+      property_address_encrypted: encrypt(propertyAddress),
       property_city_encrypted: encrypt(formData.propertyCity || ''),
       property_postcode_encrypted: encrypt(formData.propertyPostcode || ''),
       address_correct: formData.addressCorrect,
@@ -2037,7 +2043,8 @@ router.post('/agent/:referenceId', async (req, res) => {
       corrected_city_encrypted: encrypt(formData.correctedCity || ''),
       corrected_postcode_encrypted: encrypt(formData.correctedPostcode || ''),
       tenancy_start_date: formData.tenancyStartDate,
-      tenancy_end_date: formData.tenancyEndDate,
+      tenancy_end_date: formData.tenancyStillInProgress ? null : formData.tenancyEndDate,
+      tenancy_still_in_progress: formData.tenancyStillInProgress || false,
       monthly_rent_encrypted: encrypt(formData.monthlyRent ? String(formData.monthlyRent) : null),
       rent_paid_on_time: formData.rentPaidOnTime,
       good_tenant: formData.goodTenant, // "Have they been a good tenant" question

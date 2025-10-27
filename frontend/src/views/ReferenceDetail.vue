@@ -698,7 +698,11 @@
                               <div><span class="text-green-700 font-medium">City:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].landlordReference.property_city }}</span></div>
                               <div><span class="text-green-700 font-medium">Postcode:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].landlordReference.property_postcode }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy Start:</span> <span class="text-green-900">{{ formatDate(childReferenceDetails[child.id].landlordReference.tenancy_start_date) }}</span></div>
-                              <div><span class="text-green-700 font-medium">Tenancy End:</span> <span class="text-green-900">{{ formatDate(childReferenceDetails[child.id].landlordReference.tenancy_end_date) }}</span></div>
+                              <div>
+                                <span class="text-green-700 font-medium">Tenancy End:</span>
+                                <span v-if="childReferenceDetails[child.id].landlordReference.tenancy_still_in_progress" class="text-red-600 font-semibold"> 🚩 STILL IN CONTRACT - No end date</span>
+                                <span v-else class="text-green-900"> {{ formatDate(childReferenceDetails[child.id].landlordReference.tenancy_end_date) }}</span>
+                              </div>
                               <div><span class="text-green-700 font-medium">Monthly Rent:</span> <span class="text-green-900">£{{ childReferenceDetails[child.id].landlordReference.monthly_rent }}</span></div>
                             </div>
                           </div>
@@ -780,7 +784,11 @@
                               <div><span class="text-green-700 font-medium">City:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].agentReference.property_city }}</span></div>
                               <div><span class="text-green-700 font-medium">Postcode:</span> <span class="text-green-900">{{ childReferenceDetails[child.id].agentReference.property_postcode }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy Start:</span> <span class="text-green-900">{{ formatDate(childReferenceDetails[child.id].agentReference.tenancy_start_date) }}</span></div>
-                              <div><span class="text-green-700 font-medium">Tenancy End:</span> <span class="text-green-900">{{ formatDate(childReferenceDetails[child.id].agentReference.tenancy_end_date) }}</span></div>
+                              <div>
+                                <span class="text-green-700 font-medium">Tenancy End:</span>
+                                <span v-if="childReferenceDetails[child.id].agentReference.tenancy_still_in_progress" class="text-red-600 font-semibold"> 🚩 STILL IN CONTRACT - No end date</span>
+                                <span v-else class="text-green-900"> {{ formatDate(childReferenceDetails[child.id].agentReference.tenancy_end_date) }}</span>
+                              </div>
                               <div><span class="text-green-700 font-medium">Monthly Rent:</span> <span class="text-green-900">£{{ childReferenceDetails[child.id].agentReference.monthly_rent }}</span></div>
                             </div>
                           </div>
@@ -1741,7 +1749,10 @@
                   </div>
                   <div>
                     <span class="text-green-700 font-medium">Tenancy End:</span>
-                    <span class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_end_date) }}</span>
+                    <span v-if="landlordReference.tenancy_still_in_progress" class="ml-2 text-red-600 font-semibold">
+                      🚩 STILL IN CONTRACT - No end date
+                    </span>
+                    <span v-else class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_end_date) }}</span>
                   </div>
                   <div>
                     <span class="text-green-700 font-medium">Monthly Rent:</span>
@@ -1870,7 +1881,10 @@
                   </div>
                   <div>
                     <span class="text-green-700 font-medium">Tenancy End:</span>
-                    <span class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_end_date) }}</span>
+                    <span v-if="agentReference.tenancy_still_in_progress" class="ml-2 text-red-600 font-semibold">
+                      🚩 STILL IN CONTRACT - No end date
+                    </span>
+                    <span v-else class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_end_date) }}</span>
                   </div>
                   <div>
                     <span class="text-green-700 font-medium">Monthly Rent:</span>
@@ -2512,7 +2526,7 @@ const landlordComparisonRows = computed(() => {
       field: 'tenancy_end',
       label: 'Tenancy End Date',
       tenantValue: reference.value.previous_tenancy_still_in_progress ? 'Still in tenancy' : reference.value.previous_tenancy_end_date,
-      referenceValue: landlordReference.value.tenancy_still_in_progress ? 'Still in tenancy' : landlordReference.value.tenancy_end_date,
+      referenceValue: landlordReference.value.tenancy_still_in_progress ? '🚩 STILL IN CONTRACT - No end date' : landlordReference.value.tenancy_end_date,
       isNotApplicable: false
     },
     {
@@ -2583,7 +2597,7 @@ const agentComparisonRows = computed(() => {
       field: 'tenancy_end',
       label: 'Tenancy End Date',
       tenantValue: reference.value.previous_tenancy_still_in_progress ? 'Still in tenancy' : reference.value.previous_tenancy_end_date,
-      referenceValue: agentReference.value.tenancy_still_in_progress ? 'Still in tenancy' : agentReference.value.tenancy_end_date,
+      referenceValue: agentReference.value.tenancy_still_in_progress ? '🚩 STILL IN CONTRACT - No end date' : agentReference.value.tenancy_end_date,
       isNotApplicable: false
     },
     {
