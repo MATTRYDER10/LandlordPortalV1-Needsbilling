@@ -82,19 +82,19 @@
                     v-if="item.days_pending >= 7"
                     class="ml-3 px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800"
                   >
-                    {{ item.days_pending }} days pending
+                    {{ item.days_pending }} days since requested
                   </span>
                   <span
                     v-else-if="item.days_pending >= 3"
                     class="ml-3 px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800"
                   >
-                    {{ item.days_pending }} days pending
+                    {{ item.days_pending }} days since requested
                   </span>
                   <span
                     v-else
                     class="ml-3 px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800"
                   >
-                    {{ item.days_pending }} days pending
+                    {{ item.days_pending }} days since requested
                   </span>
                 </div>
                 <div class="mt-1 text-sm text-gray-600">
