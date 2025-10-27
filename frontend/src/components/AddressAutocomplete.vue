@@ -106,33 +106,22 @@ onMounted(async () => {
   console.log('AddressAutocomplete mounted, API key present:', !!apiKey)
 
   try {
-    // Load Google Maps API
-    if (!(window as any).google) {
-      console.log('Loading Google Maps API...')
-      const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
-      script.async = true
-      script.defer = true
+    // Wait for vue-use-places-autocomplete to load the API
+    // Poll until google.maps.places is available
+    let attempts = 0
+    const maxAttempts = 50 // 5 seconds max wait
 
-      script.onerror = (error) => {
-        console.error('Failed to load Google Maps API:', error)
-        apiError.value = 'Failed to load Google Maps API'
+    while (attempts < maxAttempts) {
+      if ((window as any).google?.maps?.places?.PlacesService) {
+        console.log('Google Maps API ready, initializing Places Service')
+        break
       }
+      await new Promise(resolve => setTimeout(resolve, 100))
+      attempts++
+    }
 
-      document.head.appendChild(script)
-
-      await new Promise((resolve, reject) => {
-        script.onload = () => {
-          console.log('Google Maps API loaded successfully')
-          resolve(true)
-        }
-        script.onerror = (error) => {
-          console.error('Script error:', error)
-          reject(error)
-        }
-      })
-    } else {
-      console.log('Google Maps API already loaded')
+    if (!(window as any).google?.maps?.places?.PlacesService) {
+      throw new Error('Google Maps API failed to load after 5 seconds')
     }
 
     // Initialize Places Service
