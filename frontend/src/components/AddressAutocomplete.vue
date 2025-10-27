@@ -262,7 +262,7 @@ const selectSuggestion = async (suggestion: any) => {
 }
 
 const parseAddressComponents = (
-  components: google.maps.places.PlaceAddressComponent[],
+  components: any[],
   formattedAddress: string = '',
   suggestionText: string = ''
 ): AddressComponents => {
@@ -275,7 +275,7 @@ const parseAddressComponents = (
   let countryCode = ''
   let countryName = ''
 
-  components.forEach((component: google.maps.places.PlaceAddressComponent) => {
+  components.forEach((component: any) => {
     const types = component.types
 
     if (types.includes('street_number')) {
@@ -317,7 +317,7 @@ const parseAddressComponents = (
   // Fallback: If no street number from components, try to extract from suggestion text
   if (!streetNumber && suggestionText) {
     // Extract the first part before the first comma
-    const firstPart = suggestionText.split(',')[0].trim()
+    const firstPart = suggestionText.split(',')[0]?.trim()
     if (firstPart) {
       addressLine1 = firstPart
     }
@@ -325,7 +325,7 @@ const parseAddressComponents = (
 
   // Fallback: If still no address, use formatted address first line
   if (!addressLine1 && formattedAddress) {
-    const firstLine = formattedAddress.split(',')[0].trim()
+    const firstLine = formattedAddress.split(',')[0]?.trim()
     if (firstLine) {
       addressLine1 = firstLine
     }
