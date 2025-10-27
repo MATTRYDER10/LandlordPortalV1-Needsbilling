@@ -17,6 +17,7 @@ import AccountantReference from '../views/AccountantReference.vue'
 import Settings from '../views/Settings.vue'
 import StaffLogin from '../views/StaffLogin.vue'
 import StaffDashboard from '../views/StaffDashboard.vue'
+import StaffChaseList from '../views/StaffChaseList.vue'
 import StaffReferenceDetail from '../views/StaffReferenceDetail.vue'
 import StaffVerification from '../views/StaffVerification.vue'
 import StaffReferenceView from '../views/StaffReferenceView.vue'
@@ -160,6 +161,12 @@ const router = createRouter({
       path: '/staff/dashboard',
       name: 'StaffDashboard',
       component: StaffDashboard,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/chase-list',
+      name: 'StaffChaseList',
+      component: StaffChaseList,
       meta: { requiresAuth: true }
     },
     {

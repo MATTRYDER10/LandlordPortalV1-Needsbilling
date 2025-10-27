@@ -109,13 +109,22 @@
               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
             />
           </div>
-          <div class="flex items-end">
+          <div class="flex items-end gap-2">
             <button
               @click="resetFilters"
               class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md border border-gray-300"
             >
               Reset Filters
             </button>
+            <router-link
+              to="/staff/chase-list"
+              class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 rounded-md"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Chase List
+            </router-link>
           </div>
         </div>
       </div>

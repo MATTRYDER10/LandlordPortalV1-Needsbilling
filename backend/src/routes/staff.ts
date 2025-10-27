@@ -66,6 +66,178 @@ router.get('/references', authenticateStaff, async (req: StaffAuthRequest, res) 
   }
 })
 
+// Get chase list - references with missing responses that need follow-up
+router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    // Get all submitted references that aren't completed or verified
+    const { data: references, error } = await supabase
+      .from('tenant_references')
+      .select(`
+        *,
+        companies:company_id (
+          id,
+          name_encrypted
+        )
+      `)
+      .not('submitted_at', 'is', null) // Only submitted references
+      .neq('is_group_parent', true) // Exclude parent multi-tenant references
+      .in('status', ['in_progress', 'pending_verification']) // Not completed yet
+      .order('created_at', { ascending: true }) // Oldest first for chasing
+
+    if (error) {
+      return res.status(400).json({ error: error.message })
+    }
+
+    // For each reference, check which responses are missing
+    const chaseItems = await Promise.all(references.map(async (ref) => {
+      const missingResponses: string[] = []
+      const contactsToChase: Array<{type: string, name: string, email: string, phone?: string, sentDate?: string}> = []
+
+      // Check for landlord reference
+      if (!ref.income_self_employed) { // Only if not self-employed, as they need residential reference
+        const { data: landlordRef } = await supabase
+          .from('landlord_references')
+          .select('submitted_at, landlord_name_encrypted, landlord_email_encrypted, landlord_phone_encrypted, created_at')
+          .eq('reference_id', ref.id)
+          .maybeSingle()
+
+        const { data: agentRef } = await supabase
+          .from('agent_references')
+          .select('submitted_at, agent_name_encrypted, agent_email_encrypted, agent_phone_encrypted, created_at')
+          .eq('reference_id', ref.id)
+          .maybeSingle()
+
+        // If neither landlord nor agent has responded
+        if ((!landlordRef || !landlordRef.submitted_at) && (!agentRef || !agentRef.submitted_at)) {
+          missingResponses.push('Residential Reference (Landlord/Agent)')
+
+          if (landlordRef) {
+            contactsToChase.push({
+              type: 'Landlord',
+              name: decrypt(landlordRef.landlord_name_encrypted),
+              email: decrypt(landlordRef.landlord_email_encrypted),
+              phone: decrypt(landlordRef.landlord_phone_encrypted),
+              sentDate: landlordRef.created_at
+            })
+          }
+
+          if (agentRef) {
+            contactsToChase.push({
+              type: 'Agent',
+              name: decrypt(agentRef.agent_name_encrypted),
+              email: decrypt(agentRef.agent_email_encrypted),
+              phone: decrypt(agentRef.agent_phone_encrypted),
+              sentDate: agentRef.created_at
+            })
+          }
+        }
+      }
+
+      // Check for employer reference (if employed)
+      if (ref.income_employment && !ref.income_self_employed) {
+        const { data: employerRef } = await supabase
+          .from('employer_references')
+          .select('submitted_at, employer_name_encrypted, employer_email_encrypted, employer_phone_encrypted, created_at')
+          .eq('reference_id', ref.id)
+          .maybeSingle()
+
+        if (!employerRef || !employerRef.submitted_at) {
+          missingResponses.push('Employment Reference')
+
+          if (employerRef) {
+            contactsToChase.push({
+              type: 'Employer',
+              name: decrypt(employerRef.employer_name_encrypted),
+              email: decrypt(employerRef.employer_email_encrypted),
+              phone: decrypt(employerRef.employer_phone_encrypted),
+              sentDate: employerRef.created_at
+            })
+          }
+        }
+      }
+
+      // Check for accountant reference (if self-employed)
+      if (ref.income_self_employed) {
+        const { data: accountantRef } = await supabase
+          .from('accountant_references')
+          .select('submitted_at, accountant_name_encrypted, accountant_email_encrypted, accountant_phone_encrypted, created_at')
+          .eq('tenant_reference_id', ref.id)
+          .maybeSingle()
+
+        if (!accountantRef || !accountantRef.submitted_at) {
+          missingResponses.push('Accountant Reference')
+
+          if (accountantRef) {
+            contactsToChase.push({
+              type: 'Accountant',
+              name: decrypt(accountantRef.accountant_name_encrypted),
+              email: decrypt(accountantRef.accountant_email_encrypted),
+              phone: decrypt(accountantRef.accountant_phone_encrypted),
+              sentDate: accountantRef.created_at
+            })
+          }
+        }
+      }
+
+      // Check for guarantor reference (if required)
+      if (ref.requires_guarantor) {
+        const { data: guarantorRef } = await supabase
+          .from('guarantor_references')
+          .select('submitted_at, guarantor_first_name_encrypted, guarantor_last_name_encrypted, email_encrypted, contact_number_encrypted, created_at')
+          .eq('reference_id', ref.id)
+          .maybeSingle()
+
+        if (!guarantorRef || !guarantorRef.submitted_at) {
+          missingResponses.push('Guarantor Reference')
+
+          if (guarantorRef) {
+            contactsToChase.push({
+              type: 'Guarantor',
+              name: `${decrypt(guarantorRef.guarantor_first_name_encrypted)} ${decrypt(guarantorRef.guarantor_last_name_encrypted)}`,
+              email: decrypt(guarantorRef.email_encrypted),
+              phone: decrypt(guarantorRef.contact_number_encrypted),
+              sentDate: guarantorRef.created_at
+            })
+          }
+        }
+      }
+
+      // Only return references that have missing responses
+      if (missingResponses.length > 0) {
+        return {
+          id: ref.id,
+          tenant_name: `${decrypt(ref.tenant_first_name_encrypted)} ${decrypt(ref.tenant_last_name_encrypted)}`,
+          tenant_email: decrypt(ref.tenant_email_encrypted),
+          property_address: decrypt(ref.property_address_encrypted),
+          submitted_at: ref.submitted_at,
+          created_at: ref.created_at,
+          status: ref.status,
+          company: ref.companies ? {
+            id: ref.companies.id,
+            name: decrypt(ref.companies.name_encrypted)
+          } : null,
+          missing_responses: missingResponses,
+          contacts_to_chase: contactsToChase,
+          days_pending: Math.floor((new Date().getTime() - new Date(ref.submitted_at).getTime()) / (1000 * 60 * 60 * 24))
+        }
+      }
+      return null
+    }))
+
+    // Filter out null entries and sort by days pending (oldest first)
+    const filteredChaseItems = chaseItems
+      .filter(item => item !== null)
+      .sort((a, b) => (b?.days_pending || 0) - (a?.days_pending || 0))
+
+    res.json({
+      chase_items: filteredChaseItems,
+      total_count: filteredChaseItems.length
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Get single reference with full details
 router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
   try {
