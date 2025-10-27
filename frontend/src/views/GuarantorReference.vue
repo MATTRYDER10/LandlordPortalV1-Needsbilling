@@ -2939,8 +2939,7 @@ const formData = ref({
   pension_monthly_amount: null as number | null,
   pension_provider: '',
 
-  // Savings & Assets
-  savings_amount: null as number | null,
+  // Savings & Assets (note: savings_amount already defined above at line 2847)
   other_assets: '',
   bank_statement_path: '',
 
@@ -3333,15 +3332,6 @@ const formatFileSize = (bytes: number) => {
   const sizes = ['Bytes', 'KB', 'MB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
-}
-
-const formatDate = (date: string) => {
-  if (!date) return 'Not specified'
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
 }
 
 const goToPreviousPage = () => {
