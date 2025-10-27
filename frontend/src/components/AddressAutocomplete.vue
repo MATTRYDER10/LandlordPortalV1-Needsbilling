@@ -15,6 +15,7 @@
         'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
         apiError ? 'border-red-300' : 'border-gray-300'
       ]"
+      @input="handleInput"
       @focus="showDropdown = true"
       @blur="handleBlur"
       @keydown.down.prevent="navigateDown"
@@ -31,7 +32,7 @@
     >
       <div
         v-for="(suggestion, index) in suggestions"
-        :key="suggestion.place_id"
+        :key="index"
         :class="[
           'px-3 py-2 cursor-pointer text-sm',
           highlightedIndex === index ? 'bg-primary/10' : 'hover:bg-gray-100'
@@ -39,7 +40,7 @@
         @mousedown.prevent="selectSuggestion(suggestion)"
         @mouseenter="highlightedIndex = index"
       >
-        {{ suggestion.description }}
+        {{ suggestion.text }}
       </div>
     </div>
   </div>
@@ -48,7 +49,6 @@
 <script setup lang="ts">
 /// <reference types="@types/google.maps" />
 import { ref, watch, onMounted } from 'vue'
-import { usePlacesAutocomplete } from 'vue-use-places-autocomplete'
 
 interface AddressComponents {
   addressLine1: string
@@ -87,43 +87,50 @@ const query = ref(props.modelValue)
 const inputRef = ref<HTMLInputElement | null>(null)
 const showDropdown = ref(false)
 const highlightedIndex = ref(0)
-const placesService = ref<google.maps.places.PlacesService | null>(null)
 const justSelected = ref(false)
 const apiLoaded = ref(false)
 const apiError = ref('')
+const suggestions = ref<any[]>([])
+const sessionToken = ref<google.maps.places.AutocompleteSessionToken | null>(null)
+let fetchTimeout: number | null = null
 
 // Initialize Google Maps API
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 
-const { suggestions } = usePlacesAutocomplete(query, {
-  apiKey,
-  debounce: 500,
-  minLengthAutocomplete: 3
-})
+// Load Google Maps API script
+const loadGoogleMapsAPI = async () => {
+  if ((window as any).google?.maps?.places) {
+    return true
+  }
 
-// Initialize Places Service when component mounts
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`
+    script.async = true
+    script.defer = true
+    script.onload = () => resolve(true)
+    script.onerror = () => reject(new Error('Failed to load Google Maps API'))
+    document.head.appendChild(script)
+  })
+}
+
+// Initialize on mount
 onMounted(async () => {
   try {
-    // Wait for vue-use-places-autocomplete to load the API
-    // Poll until google.maps.places is available
-    let attempts = 0
-    const maxAttempts = 50 // 5 seconds max wait
+    await loadGoogleMapsAPI()
 
-    while (attempts < maxAttempts) {
-      if ((window as any).google?.maps?.places?.PlacesService) {
-        break
-      }
+    // Wait for Places API to be ready
+    let attempts = 0
+    while (attempts < 50 && !(window as any).google?.maps?.places?.AutocompleteSuggestion) {
       await new Promise(resolve => setTimeout(resolve, 100))
       attempts++
     }
 
-    if (!(window as any).google?.maps?.places?.PlacesService) {
-      throw new Error('Google Maps API failed to load after 5 seconds')
+    if (!(window as any).google?.maps?.places?.AutocompleteSuggestion) {
+      throw new Error('Google Maps Places API failed to load')
     }
 
-    // Initialize Places Service
-    const div = document.createElement('div')
-    placesService.value = new google.maps.places.PlacesService(div)
+    sessionToken.value = new google.maps.places.AutocompleteSessionToken()
     apiLoaded.value = true
   } catch (error) {
     console.error('Failed to initialize Google Maps:', error)
@@ -131,15 +138,58 @@ onMounted(async () => {
   }
 })
 
+// Fetch autocomplete suggestions
+const fetchSuggestions = async (input: string) => {
+  if (!apiLoaded.value || input.length < 3) {
+    suggestions.value = []
+    return
+  }
+
+  try {
+    const request = {
+      input,
+      sessionToken: sessionToken.value!,
+    }
+
+    const { suggestions: fetchedSuggestions } =
+      await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(request)
+
+    suggestions.value = fetchedSuggestions.map((suggestion: any) => ({
+      text: suggestion.placePrediction.text.text,
+      placePrediction: suggestion.placePrediction
+    }))
+
+    showDropdown.value = suggestions.value.length > 0
+  } catch (error) {
+    console.error('Failed to fetch suggestions:', error)
+    suggestions.value = []
+  }
+}
+
+// Handle input with debounce
+const handleInput = () => {
+  if (fetchTimeout) {
+    clearTimeout(fetchTimeout)
+  }
+
+  if (justSelected.value) {
+    justSelected.value = false
+    return
+  }
+
+  fetchTimeout = setTimeout(() => {
+    if (query.value.length >= 3) {
+      fetchSuggestions(query.value)
+    } else {
+      suggestions.value = []
+      showDropdown.value = false
+    }
+  }, 500) as unknown as number
+}
+
 // Watch query changes and emit to parent
 watch(query, (newValue) => {
   emit('update:modelValue', newValue)
-  if (newValue.length >= 3 && !justSelected.value) {
-    showDropdown.value = true
-    highlightedIndex.value = 0
-  } else if (justSelected.value) {
-    justSelected.value = false
-  }
 })
 
 // Watch modelValue changes from parent
@@ -150,7 +200,6 @@ watch(() => props.modelValue, (newValue) => {
 })
 
 const handleBlur = () => {
-  // Delay to allow click events to fire
   setTimeout(() => {
     showDropdown.value = false
   }, 200)
@@ -182,46 +231,45 @@ const selectSuggestion = async (suggestion: any) => {
   justSelected.value = true
   showDropdown.value = false
 
-  // Get place details using Places API
-  if (!placesService.value) {
-    console.error('Places service not initialized')
-    return
+  try {
+    // Convert to Place and fetch details
+    const place = suggestion.placePrediction.toPlace()
+
+    await place.fetchFields({
+      fields: ['displayName', 'formattedAddress', 'addressComponents']
+    })
+
+    console.log('Place displayName:', place.displayName)
+    console.log('Place formattedAddress:', place.formattedAddress)
+    console.log('Place addressComponents:', place.addressComponents)
+
+    const addressComponents = parseAddressComponents(
+      place.addressComponents || [],
+      place.formattedAddress || '',
+      suggestion.text
+    )
+    console.log('Parsed components:', addressComponents)
+
+    // Update the input field with just the street address
+    query.value = addressComponents.addressLine1
+
+    // Also emit the update:modelValue to ensure parent component is updated
+    emit('update:modelValue', addressComponents.addressLine1)
+
+    // Emit the full address details
+    emit('addressSelected', addressComponents)
+
+    // Create new session token for next search
+    sessionToken.value = new google.maps.places.AutocompleteSessionToken()
+  } catch (error) {
+    console.error('Failed to get place details:', error)
   }
-
-  placesService.value.getDetails(
-    {
-      placeId: suggestion.place_id,
-      fields: ['address_components', 'formatted_address']
-    },
-    (place: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
-      if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-        // Log the raw components to debug
-        console.log('Raw address components:', place.address_components)
-        console.log('Formatted address:', place.formatted_address)
-        console.log('Suggestion description:', suggestion.description)
-
-        const addressComponents = parseAddressComponents(place.address_components || [], place.formatted_address || '', suggestion.description)
-        console.log('Parsed components:', addressComponents)
-
-        // Update the input field with just the street address
-        query.value = addressComponents.addressLine1
-
-        // Also emit the update:modelValue to ensure parent component is updated
-        emit('update:modelValue', addressComponents.addressLine1)
-
-        // Emit the full address details
-        emit('addressSelected', addressComponents)
-      } else {
-        console.error('Places service failed with status:', status)
-      }
-    }
-  )
 }
 
 const parseAddressComponents = (
-  components: google.maps.GeocoderAddressComponent[],
+  components: google.maps.places.PlaceAddressComponent[],
   formattedAddress: string = '',
-  suggestionDescription: string = ''
+  suggestionText: string = ''
 ): AddressComponents => {
   let streetNumber = ''
   let route = ''
@@ -232,35 +280,35 @@ const parseAddressComponents = (
   let countryCode = ''
   let countryName = ''
 
-  components.forEach(component => {
+  components.forEach((component: google.maps.places.PlaceAddressComponent) => {
     const types = component.types
 
     if (types.includes('street_number')) {
-      streetNumber = component.long_name
+      streetNumber = component.longText || ''
     }
     if (types.includes('route')) {
-      route = component.long_name
+      route = component.longText || ''
     }
     if (types.includes('locality')) {
-      city = component.long_name
+      city = component.longText || ''
     }
     if (types.includes('postal_town') && !city) {
-      city = component.long_name
+      city = component.longText || ''
     }
     // Handle full postcode
     if (types.includes('postal_code')) {
-      postcode = component.long_name
+      postcode = component.longText || ''
     }
     // Handle partial postcodes (UK specific)
     if (types.includes('postal_code_prefix')) {
-      postcodePrefix = component.long_name
+      postcodePrefix = component.longText || ''
     }
     if (types.includes('postal_code_suffix')) {
-      postcodeSuffix = component.long_name
+      postcodeSuffix = component.longText || ''
     }
     if (types.includes('country')) {
-      countryCode = component.short_name
-      countryName = component.long_name
+      countryCode = component.shortText || ''
+      countryName = component.longText || ''
     }
   })
 
@@ -271,10 +319,10 @@ const parseAddressComponents = (
 
   let addressLine1 = [streetNumber, route].filter(Boolean).join(' ')
 
-  // Fallback: If no street number from components, try to extract from suggestion description
-  if (!streetNumber && suggestionDescription) {
-    // Extract the first part before the first comma (e.g., "26 Old Forge Mews" from "26 Old Forge Mews, Yatton, Bristol, UK")
-    const firstPart = suggestionDescription.split(',')[0].trim()
+  // Fallback: If no street number from components, try to extract from suggestion text
+  if (!streetNumber && suggestionText) {
+    // Extract the first part before the first comma
+    const firstPart = suggestionText.split(',')[0].trim()
     if (firstPart) {
       addressLine1 = firstPart
     }
