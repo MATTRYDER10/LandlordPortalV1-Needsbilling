@@ -2487,8 +2487,8 @@ const formData = ref({
   income_unemployed: false,
 
   // Benefits Details
-  benefits_monthly_amount: null,
-  benefits_annual_amount: null,
+  benefits_monthly_amount: null as number | null,
+  benefits_annual_amount: null as number | null,
 
   // Savings, Pensions or Investments Details
   savings_amount: null,
@@ -2705,7 +2705,7 @@ watch(() => formData.value.previous_landlord_email, () => {
 // Auto-calculate annual benefits when monthly amount changes
 watch(() => formData.value.benefits_monthly_amount, (newValue) => {
   if (newValue !== null && newValue !== undefined) {
-    formData.value.benefits_annual_amount = (Number(newValue) * 12) as number | null
+    formData.value.benefits_annual_amount = Number(newValue) * 12
   } else {
     formData.value.benefits_annual_amount = null
   }
