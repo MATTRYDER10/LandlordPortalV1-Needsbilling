@@ -236,9 +236,9 @@
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select an option</option>
-                <option value="confirmed">Yes, all details are accurate</option>
-                <option value="partial">Some details need clarification</option>
-                <option value="cannot-confirm">Cannot confirm</option>
+                <option value="confirmed">All details were correct</option>
+                <option value="partial">I've had to change a few details</option>
+                <option value="cannot-confirm">I cannot confirm / I am the incorrect person</option>
               </select>
             </div>
 
