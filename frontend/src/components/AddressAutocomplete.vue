@@ -95,22 +95,41 @@ const { suggestions } = usePlacesAutocomplete(query, {
 
 // Initialize Places Service when component mounts
 onMounted(async () => {
+  console.log('AddressAutocomplete mounted, API key present:', !!apiKey)
+
   // Load Google Maps API
   if (!(window as any).google) {
+    console.log('Loading Google Maps API...')
     const script = document.createElement('script')
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
     script.async = true
     script.defer = true
+
+    script.onerror = (error) => {
+      console.error('Failed to load Google Maps API:', error)
+    }
+
     document.head.appendChild(script)
 
-    await new Promise((resolve) => {
-      script.onload = resolve
+    await new Promise((resolve, reject) => {
+      script.onload = () => {
+        console.log('Google Maps API loaded successfully')
+        resolve(true)
+      }
+      script.onerror = reject
     })
+  } else {
+    console.log('Google Maps API already loaded')
   }
 
   // Initialize Places Service
-  const div = document.createElement('div')
-  placesService.value = new google.maps.places.PlacesService(div)
+  try {
+    const div = document.createElement('div')
+    placesService.value = new google.maps.places.PlacesService(div)
+    console.log('Places Service initialized')
+  } catch (error) {
+    console.error('Failed to initialize Places Service:', error)
+  }
 })
 
 // Watch query changes and emit to parent
