@@ -239,16 +239,11 @@ const selectSuggestion = async (suggestion: any) => {
       fields: ['displayName', 'formattedAddress', 'addressComponents']
     })
 
-    console.log('Place displayName:', place.displayName)
-    console.log('Place formattedAddress:', place.formattedAddress)
-    console.log('Place addressComponents:', place.addressComponents)
-
     const addressComponents = parseAddressComponents(
       place.addressComponents || [],
       place.formattedAddress || '',
       suggestion.text
     )
-    console.log('Parsed components:', addressComponents)
 
     // Update the input field with just the street address
     query.value = addressComponents.addressLine1
