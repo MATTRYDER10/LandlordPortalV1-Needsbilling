@@ -143,8 +143,8 @@
                     <div v-if="contact.sentDate" class="mt-1 text-xs text-gray-500">
                       Request sent: {{ formatDate(contact.sentDate) }}
                     </div>
-                    <div v-else class="mt-1 text-xs text-red-600 font-medium">
-                      ⚠️ Email not sent yet - contact details provided by tenant
+                    <div v-else class="mt-1 text-xs text-orange-600 font-medium">
+                      ⚠️ Awaiting response - contact if needed
                     </div>
                   </div>
                   <div class="flex gap-2 ml-4">
