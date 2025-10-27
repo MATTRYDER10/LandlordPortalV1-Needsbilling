@@ -1128,6 +1128,33 @@
               </div>
             </div>
 
+            <!-- Benefits Details (shown if selected) -->
+            <div v-if="formData.income_benefits" class="pt-6 border-t border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Benefits Details</h3>
+
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Monthly Benefits Amount (£) *</label>
+                  <input
+                    v-model.number="formData.benefits_monthly_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    :required="formData.income_benefits"
+                    placeholder="Enter monthly benefits amount"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Enter the total amount you receive in benefits each month</p>
+                </div>
+
+                <div v-if="benefitsAnnualAmount > 0" class="p-3 bg-blue-50 rounded border border-blue-200">
+                  <p class="text-sm text-gray-700">
+                    <span class="font-semibold">Annual Benefits:</span> £{{ benefitsAnnualAmount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <!-- Savings, Pensions or Investments Details (shown if selected) -->
             <div v-if="formData.income_savings_pension_investments" class="pt-6 border-t border-gray-200">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Savings, Pensions or Investments Details</h3>
@@ -2295,6 +2322,12 @@ const needsMoreAddressHistory = computed(() => {
   return totalAddressHistoryInMonths.value < 36
 })
 
+// Benefits annual calculation
+const benefitsAnnualAmount = computed(() => {
+  const monthly = formData.value.benefits_monthly_amount || 0
+  return monthly * 12
+})
+
 // File uploads
 const idDocument = ref<File | null>(null)
 const selfie = ref<File | null>(null)
@@ -2360,6 +2393,10 @@ const formData = ref({
   income_savings_pension_investments: false,
   income_student: false,
   income_unemployed: false,
+
+  // Benefits Details
+  benefits_monthly_amount: null,
+  benefits_annual_amount: null,
 
   // Savings, Pensions or Investments Details
   savings_amount: null,
@@ -2569,6 +2606,15 @@ watch(() => formData.value.accountant_email, () => {
 
 watch(() => formData.value.previous_landlord_email, () => {
   landlordEmailError.value = ''
+})
+
+// Auto-calculate annual benefits when monthly amount changes
+watch(() => formData.value.benefits_monthly_amount, (newValue) => {
+  if (newValue !== null && newValue !== undefined) {
+    formData.value.benefits_annual_amount = newValue * 12
+  } else {
+    formData.value.benefits_annual_amount = null
+  }
 })
 
 // File upload handlers

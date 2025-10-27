@@ -991,6 +991,10 @@ router.post('/submit/:token', async (req, res) => {
       income_student: data.income_student || false,
       income_unemployed: data.income_unemployed || false,
 
+      // Benefits Details
+      benefits_monthly_amount_encrypted: encrypt(data.benefits_monthly_amount ? String(data.benefits_monthly_amount) : null),
+      benefits_annual_amount_encrypted: encrypt(data.benefits_annual_amount ? String(data.benefits_annual_amount) : null),
+
       // Savings, Pensions or Investments Details
       savings_amount_encrypted: encrypt(data.savings_amount ? String(data.savings_amount) : null),
       proof_of_funds_path: data.proof_of_funds_path || null,
