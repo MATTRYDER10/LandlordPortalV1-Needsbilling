@@ -213,7 +213,10 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
         self_employed_business_name: decrypt(ref.self_employed_business_name_encrypted),
         self_employed_nature_of_business: decrypt(ref.self_employed_nature_of_business_encrypted),
         self_employed_annual_income: decrypt(ref.self_employed_annual_income_encrypted),
+        benefits_monthly_amount: decrypt(ref.benefits_monthly_amount_encrypted),
+        benefits_annual_amount: decrypt(ref.benefits_annual_amount_encrypted),
         savings_amount: decrypt(ref.savings_amount_encrypted),
+        additional_income_type: ref.additional_income_type, // Not encrypted - 'income' or 'savings'
         additional_income_source: decrypt(ref.additional_income_source_encrypted),
         additional_income_amount: decrypt(ref.additional_income_amount_encrypted),
         adverse_credit_details: decrypt(ref.adverse_credit_details_encrypted),
@@ -236,6 +239,7 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
         accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
         accountant_phone: decrypt(ref.accountant_phone_encrypted),
+        tax_return_path: ref.tax_return_path, // Not encrypted - file path
         notes: decrypt(ref.notes_encrypted),
         internal_notes: decrypt(ref.internal_notes_encrypted),
         verification_notes: decrypt(ref.verification_notes_encrypted)

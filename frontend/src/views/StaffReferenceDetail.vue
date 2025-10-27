@@ -675,6 +675,21 @@
               </div>
             </div>
 
+            <!-- Tax Return Document -->
+            <div v-if="reference.tax_return_path" class="mt-6 pt-6 border-t">
+              <h5 class="text-sm font-semibold text-gray-700 mb-3">Tax Return Statement</h5>
+              <button
+                @click="viewDocument(reference.tax_return_path)"
+                class="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                View Tax Return
+              </button>
+            </div>
+
             <!-- Accountant Contact -->
             <div class="mt-6 pt-6 border-t">
               <h5 class="text-sm font-semibold text-gray-700 mb-3">Accountant Contact</h5>
@@ -806,21 +821,81 @@
             />
           </div>
 
-          <!-- Additional Income -->
-          <div v-if="reference.has_additional_income" class="mt-6 pt-6 border-t">
-            <h4 class="text-md font-semibold text-gray-900 mb-4">Additional Income</h4>
+          <!-- Benefits Details -->
+          <div v-if="reference.income_benefits" class="mt-6 pt-6 border-t">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Benefits Details</h4>
             <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Monthly Benefits Amount</label>
+                <p class="mt-1 text-gray-900">{{ reference.benefits_monthly_amount ? `£${parseFloat(reference.benefits_monthly_amount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Annual Benefits Amount</label>
+                <p class="mt-1 text-gray-900">{{ reference.benefits_annual_amount ? `£${parseFloat(reference.benefits_annual_amount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not provided' }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Savings, Pensions or Investments Details -->
+          <div v-if="reference.income_savings_pension_investments" class="mt-6 pt-6 border-t">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">Savings, Pensions or Investments Details</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Total Savings Amount</label>
+                <p class="mt-1 text-gray-900">{{ reference.savings_amount ? `£${parseFloat(reference.savings_amount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not provided' }}</p>
+              </div>
+              <div v-if="reference.proof_of_funds_path">
+                <label class="block text-sm font-medium text-gray-500">Proof of Funds</label>
+                <button
+                  @click="viewDocument(reference.proof_of_funds_path)"
+                  class="mt-1 inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm"
+                >
+                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  View Document
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Additional Income or Savings -->
+          <div v-if="reference.has_additional_income" class="mt-6 pt-6 border-t">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">
+              {{ reference.additional_income_type === 'savings' ? 'Additional Savings' : 'Additional Income' }}
+            </h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Type</label>
+                <p class="mt-1 text-gray-900 capitalize">{{ reference.additional_income_type || 'Not provided' }}</p>
+              </div>
               <div>
                 <label class="block text-sm font-medium text-gray-500">Source</label>
                 <p class="mt-1 text-gray-900">{{ reference.additional_income_source || 'Not provided' }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">Amount</label>
+                <label class="block text-sm font-medium text-gray-500">
+                  {{ reference.additional_income_type === 'savings' ? 'Total Amount' : 'Amount' }}
+                </label>
                 <p class="mt-1 text-gray-900">{{ reference.additional_income_amount ? `£${reference.additional_income_amount}` : 'Not provided' }}</p>
               </div>
-              <div>
+              <div v-if="reference.additional_income_type === 'income'">
                 <label class="block text-sm font-medium text-gray-500">Frequency</label>
                 <p class="mt-1 text-gray-900 capitalize">{{ reference.additional_income_frequency || 'Not provided' }}</p>
+              </div>
+              <div v-if="reference.proof_of_additional_income_path">
+                <label class="block text-sm font-medium text-gray-500">Proof Document</label>
+                <button
+                  @click="viewDocument(reference.proof_of_additional_income_path)"
+                  class="mt-1 inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm"
+                >
+                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  View Document
+                </button>
               </div>
             </div>
           </div>

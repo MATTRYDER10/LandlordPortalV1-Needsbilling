@@ -1262,10 +1262,10 @@
           </div>
         </div>
 
-        <!-- PAGE 7: Additional Income -->
+        <!-- PAGE 7: Additional Income or Savings -->
         <div v-if="currentPage === 7" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Additional Income</h2>
-          <p class="text-sm text-gray-600 mb-6">Do you have any additional sources of income?</p>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Additional Income or Savings</h2>
+          <p class="text-sm text-gray-600 mb-6">Do you have any additional sources of income or savings to supplement your application?</p>
 
           <div class="space-y-4">
             <div>
@@ -1275,25 +1275,56 @@
                   type="checkbox"
                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                 />
-                <span class="ml-2 text-sm text-gray-700">Yes, I have additional income</span>
+                <span class="ml-2 text-sm text-gray-700">Yes, I have additional income or savings</span>
               </label>
             </div>
 
             <div v-if="formData.has_additional_income" class="space-y-4 pt-4">
+              <!-- Type Selection: Income or Savings -->
               <div>
-                <label class="block text-sm font-medium text-gray-700">Source of Additional Income *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-3">Type *</label>
+                <div class="flex gap-4">
+                  <label class="flex items-center">
+                    <input
+                      v-model="formData.additional_income_type"
+                      type="radio"
+                      value="income"
+                      :required="formData.has_additional_income"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">Additional Income</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input
+                      v-model="formData.additional_income_type"
+                      type="radio"
+                      value="savings"
+                      :required="formData.has_additional_income"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">Savings</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">
+                  {{ formData.additional_income_type === 'savings' ? 'Source of Savings' : 'Source of Additional Income' }} *
+                </label>
                 <input
                   v-model="formData.additional_income_source"
                   type="text"
                   :required="formData.has_additional_income"
-                  placeholder="e.g. Freelance work, rental income, etc."
+                  :placeholder="formData.additional_income_type === 'savings' ? 'e.g. Savings account, investments, ISA, etc.' : 'e.g. Freelance work, rental income, dividends, etc.'"
                   class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Amount (£) *</label>
+                  <label class="block text-sm font-medium text-gray-700">
+                    {{ formData.additional_income_type === 'savings' ? 'Total Amount (£)' : 'Amount (£)' }} *
+                  </label>
                   <input
                     v-model="formData.additional_income_amount"
                     type="number"
@@ -1302,11 +1333,11 @@
                     class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
-                <div>
+                <div v-if="formData.additional_income_type === 'income'">
                   <label class="block text-sm font-medium text-gray-700">Frequency *</label>
                   <select
                     v-model="formData.additional_income_frequency"
-                    :required="formData.has_additional_income"
+                    :required="formData.additional_income_type === 'income'"
                     class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Select frequency</option>
@@ -1318,7 +1349,7 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Additional Income *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Additional Income or Savings *</label>
                 <input
                   ref="proofOfAdditionalIncomeInput"
                   type="file"
@@ -1334,7 +1365,7 @@
                 >
                   {{ proofOfAdditionalIncome ? 'Change Document' : 'Upload Document' }}
                 </button>
-                <p class="mt-1 text-xs text-gray-500">Upload proof of additional income such as invoices, contracts, or bank statements (max 10MB, PDF/JPG/PNG)</p>
+                <p class="mt-1 text-xs text-gray-500">Upload proof such as bank statements, savings account statements, investment portfolios, invoices, contracts, etc. (max 10MB, PDF/JPG/PNG)</p>
                 <div v-if="proofOfAdditionalIncome" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center">
@@ -2501,8 +2532,9 @@ const formData = ref({
   accountant_phone: '',
   tax_return_path: '', // Tax return document path
 
-  // Page 7: Additional Income
+  // Page 7: Additional Income or Savings
   has_additional_income: false,
+  additional_income_type: '', // 'income' or 'savings'
   additional_income_source: '',
   additional_income_amount: null,
   additional_income_frequency: '',
@@ -2673,7 +2705,7 @@ watch(() => formData.value.previous_landlord_email, () => {
 // Auto-calculate annual benefits when monthly amount changes
 watch(() => formData.value.benefits_monthly_amount, (newValue) => {
   if (newValue !== null && newValue !== undefined) {
-    formData.value.benefits_annual_amount = newValue * 12
+    formData.value.benefits_annual_amount = Number(newValue) * 12
   } else {
     formData.value.benefits_annual_amount = null
   }
@@ -3080,10 +3112,10 @@ const handlePageSubmit = async () => {
       }
     }
   } else if (currentPage.value === 7) {
-    // Validate proof of additional income if additional income is declared
+    // Validate proof of additional income/savings if declared
     if (formData.value.has_additional_income) {
       if (!proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {
-        submitError.value = 'Please upload proof of additional income'
+        submitError.value = 'Please upload proof of additional income or savings'
         return
       }
     }

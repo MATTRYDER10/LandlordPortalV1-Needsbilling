@@ -1038,8 +1038,9 @@ router.post('/submit/:token', async (req, res) => {
       accountant_phone_encrypted: encrypt(data.accountant_phone),
       tax_return_path: data.tax_return_path || null,
 
-      // Additional Income (Page 7)
+      // Additional Income or Savings (Page 7)
       has_additional_income: data.has_additional_income || false,
+      additional_income_type: data.additional_income_type || null,
       additional_income_source_encrypted: encrypt(data.additional_income_source || ''),
       additional_income_amount_encrypted: encrypt(data.additional_income_amount ? String(data.additional_income_amount) : ''),
       additional_income_frequency: data.additional_income_frequency || null,
