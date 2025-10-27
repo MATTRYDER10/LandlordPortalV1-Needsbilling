@@ -177,15 +177,21 @@ const selectSuggestion = async (suggestion: any) => {
     },
     (place: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
       if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+        console.log('Raw address components from Google:', place.address_components)
+
         const addressComponents = parseAddressComponents(place.address_components || [])
         console.log('Parsed address components:', addressComponents)
 
         // Update the input field with just the street address
         query.value = addressComponents.addressLine1
 
+        // Also emit the update:modelValue to ensure parent component is updated
+        emit('update:modelValue', addressComponents.addressLine1)
+
+        // Emit the full address details
         emit('addressSelected', addressComponents)
       } else {
-        console.error('Places service status:', status)
+        console.error('Places service failed with status:', status)
       }
     }
   )
@@ -196,6 +202,8 @@ const parseAddressComponents = (components: google.maps.GeocoderAddressComponent
   let route = ''
   let city = ''
   let postcode = ''
+  let postcodePrefix = ''
+  let postcodeSuffix = ''
   let countryCode = ''
   let countryName = ''
 
@@ -214,14 +222,27 @@ const parseAddressComponents = (components: google.maps.GeocoderAddressComponent
     if (types.includes('postal_town') && !city) {
       city = component.long_name
     }
+    // Handle full postcode
     if (types.includes('postal_code')) {
       postcode = component.long_name
+    }
+    // Handle partial postcodes (UK specific)
+    if (types.includes('postal_code_prefix')) {
+      postcodePrefix = component.long_name
+    }
+    if (types.includes('postal_code_suffix')) {
+      postcodeSuffix = component.long_name
     }
     if (types.includes('country')) {
       countryCode = component.short_name
       countryName = component.long_name
     }
   })
+
+  // Construct full postcode from parts if needed
+  if (!postcode && (postcodePrefix || postcodeSuffix)) {
+    postcode = [postcodePrefix, postcodeSuffix].filter(Boolean).join(' ')
+  }
 
   const addressLine1 = [streetNumber, route].filter(Boolean).join(' ')
 
