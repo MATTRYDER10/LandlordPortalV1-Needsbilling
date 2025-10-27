@@ -21,11 +21,11 @@
       <!-- Progress Bar -->
       <div v-if="!initialLoading && !tokenError && reference && !reference.submitted_at" class="mb-8">
         <div class="flex justify-between items-center mb-2">
-          <span class="text-sm font-medium text-gray-700">Page {{ currentPage }} of 11</span>
-          <span class="text-sm text-gray-500">{{ Math.round((currentPage / 11) * 100) }}% Complete</span>
+          <span class="text-sm font-medium text-gray-700">Page {{ currentPage }} of 15</span>
+          <span class="text-sm text-gray-500">{{ Math.round((currentPage / 15) * 100) }}% Complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
-          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 11 * 100) + '%', backgroundColor: primaryColor }"></div>
+          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 15 * 100) + '%', backgroundColor: primaryColor }"></div>
         </div>
       </div>
 
@@ -595,8 +595,67 @@
           </div>
         </div>
 
-        <!-- PAGE 5: Proof of Address -->
+        <!-- PAGE 5: Home Ownership Status -->
         <div v-if="currentPage === 5" class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Home Ownership Status</h2>
+          <p class="text-sm text-gray-600 mb-6">Help us understand your property ownership status</p>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Do you own or rent your current home? *</label>
+              <select
+                v-model="formData.home_ownership_status"
+                required
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              >
+                <option value="">Select an option</option>
+                <option value="owner">I own my home (outright)</option>
+                <option value="owner_with_mortgage">I own my home (with mortgage)</option>
+                <option value="renting">I am renting</option>
+                <option value="living_with_family">Living with family/friends</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <!-- If owner, ask for property value -->
+            <div v-if="formData.home_ownership_status === 'owner' || formData.home_ownership_status === 'owner_with_mortgage'" class="pt-4 border-t border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Property Details</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Estimated Property Value (£) *</label>
+                  <input
+                    v-model.number="formData.property_value"
+                    type="number"
+                    step="1000"
+                    min="0"
+                    :required="formData.home_ownership_status === 'owner' || formData.home_ownership_status === 'owner_with_mortgage'"
+                    placeholder="e.g., 250000"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Approximate market value of your property</p>
+                </div>
+
+                <!-- If owner with mortgage, ask for outstanding balance -->
+                <div v-if="formData.home_ownership_status === 'owner_with_mortgage'">
+                  <label class="block text-sm font-medium text-gray-700">Outstanding Mortgage Balance (£) *</label>
+                  <input
+                    v-model.number="formData.mortgage_balance"
+                    type="number"
+                    step="1000"
+                    min="0"
+                    :required="formData.home_ownership_status === 'owner_with_mortgage'"
+                    placeholder="e.g., 150000"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Remaining balance on your mortgage</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE 6: Proof of Address -->
+        <div v-if="currentPage === 6" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Proof of Address</h2>
           <p class="text-sm text-gray-600 mb-6">Bank Statement, Utility bill or UK Driving License</p>
 
@@ -641,8 +700,8 @@
           </div>
         </div>
 
-        <!-- PAGE 6: Financial Information -->
-        <div v-if="currentPage === 6" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 7: Financial Information -->
+        <div v-if="currentPage === 7" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Financial Information</h2>
           <p class="text-sm text-gray-600 mb-6">Please select all sources of income that apply to you</p>
 
@@ -1288,8 +1347,8 @@
           </div>
         </div>
 
-        <!-- PAGE 7: Additional Income or Savings -->
-        <div v-if="currentPage === 7" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 8: Additional Income or Savings -->
+        <div v-if="currentPage === 8" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Additional Income or Savings</h2>
           <p class="text-sm text-gray-600 mb-6">Do you have any additional sources of income or savings to supplement your application?</p>
 
@@ -1418,8 +1477,133 @@
           </div>
         </div>
 
-        <!-- PAGE 8: Adverse Credit -->
-        <div v-if="currentPage === 8" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 9: Savings, Assets & Financial Obligations -->
+        <div v-if="currentPage === 9" class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Savings, Assets & Financial Obligations</h2>
+          <p class="text-sm text-gray-600 mb-6">Please provide details about your financial position to demonstrate your ability to act as guarantor</p>
+
+          <div class="space-y-6">
+            <!-- Savings Section -->
+            <div class="pb-6 border-b border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Savings & Assets</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Total Savings (£)</label>
+                  <input
+                    v-model.number="formData.savings_amount"
+                    type="number"
+                    step="100"
+                    min="0"
+                    placeholder="e.g., 10000"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Include all bank accounts, ISAs, and liquid savings</p>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Do you have any other significant assets?</label>
+                  <textarea
+                    v-model="formData.other_assets"
+                    rows="3"
+                    placeholder="e.g., investments, stocks, shares, vehicles, property equity"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  ></textarea>
+                  <p class="mt-1 text-xs text-gray-500">Describe any other assets that demonstrate financial stability</p>
+                </div>
+
+                <!-- Bank Statement Upload -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statement (Last 3 months) *</label>
+                  <input
+                    ref="bankStatementInput"
+                    type="file"
+                    @change="handleBankStatementUpload"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    class="hidden"
+                    required
+                  />
+                  <button
+                    type="button"
+                    @click="($refs.bankStatementInput as any).click()"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    :style="{ color: buttonColor }"
+                  >
+                    {{ bankStatement ? 'Change File' : 'Choose File' }}
+                  </button>
+                  <p class="mt-1 text-xs text-gray-500">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
+                  <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 rounded">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-gray-700">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
+                      <button type="button" @click="removeBankStatement" class="text-red-600 hover:text-red-800">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else-if="formData.bank_statement_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Financial Obligations Section -->
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Financial Obligations</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Monthly Mortgage/Rent Payment (£) *</label>
+                  <input
+                    v-model.number="formData.monthly_mortgage_rent"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    placeholder="e.g., 1200"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Your monthly housing cost</p>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Other Monthly Financial Commitments (£)</label>
+                  <input
+                    v-model.number="formData.other_monthly_commitments"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="e.g., 500"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Loans, credit cards, car payments, etc.</p>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Estimated Total Monthly Expenditure (£) *</label>
+                  <input
+                    v-model.number="formData.total_monthly_expenditure"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    placeholder="e.g., 2500"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Including all bills, food, transport, etc.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE 10: Adverse Credit -->
+        <div v-if="currentPage === 10" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Adverse Credit</h2>
           <p class="text-sm text-gray-600 mb-6">Do you have any personal adverse credit history?</p>
 
@@ -1448,8 +1632,8 @@
           </div>
         </div>
 
-        <!-- PAGE 9: Tenant Details -->
-        <div v-if="currentPage === 9" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 11: Tenant Details -->
+        <div v-if="currentPage === 11" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">About You</h2>
           <p class="text-sm text-gray-600 mb-6">Please provide some additional information about yourself</p>
 
@@ -1547,8 +1731,8 @@
           </div>
         </div>
 
-        <!-- PAGE 10: Previous Landlord/Agent Reference -->
-        <div v-if="currentPage === 10" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 12: Previous Landlord/Agent Reference -->
+        <div v-if="currentPage === 12" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Previous Rental Reference</h2>
           <p class="text-sm text-gray-600 mb-6">Please provide details so we can request a reference from your previous landlord or letting agent</p>
 
@@ -1801,8 +1985,142 @@
           </div>
         </div>
 
-        <!-- PAGE 11: Review and Submit -->
-        <div v-if="currentPage === 11" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 13: Previous Guarantor Experience -->
+        <div v-if="currentPage === 13" class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Previous Guarantor Experience</h2>
+          <p class="text-sm text-gray-600 mb-6">Have you previously acted as a guarantor for a tenancy?</p>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-3">Have you acted as a guarantor before? *</label>
+              <div class="flex gap-3">
+                <button
+                  type="button"
+                  @click="formData.previously_acted_as_guarantor = true"
+                  class="flex-1 px-4 py-3 border-2 rounded-md transition-all"
+                  :class="formData.previously_acted_as_guarantor === true
+                    ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
+                  :style="formData.previously_acted_as_guarantor === true ? { borderColor: buttonColor, color: buttonColor } : {}"
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  @click="formData.previously_acted_as_guarantor = false"
+                  class="flex-1 px-4 py-3 border-2 rounded-md transition-all"
+                  :class="formData.previously_acted_as_guarantor === false
+                    ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
+                  :style="formData.previously_acted_as_guarantor === false ? { borderColor: buttonColor, color: buttonColor } : {}"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+
+            <div v-if="formData.previously_acted_as_guarantor" class="pt-4 border-t border-gray-200">
+              <label class="block text-sm font-medium text-gray-700">Please provide details *</label>
+              <textarea
+                v-model="formData.previous_guarantor_details"
+                rows="4"
+                :required="formData.previously_acted_as_guarantor"
+                placeholder="When did you act as guarantor? For whom? What was the outcome? Were there any issues?"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              ></textarea>
+              <p class="mt-1 text-xs text-gray-500">Please include when, for whom, and any relevant outcomes</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE 14: Legal Consent & Understanding -->
+        <div v-if="currentPage === 14" class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Legal Obligations & Consent</h2>
+          <p class="text-sm text-gray-600 mb-6">Please read carefully and confirm your understanding of your legal obligations as a guarantor</p>
+
+          <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+            <h3 class="font-semibold text-red-900 mb-2">⚠️ Important Legal Information</h3>
+            <p class="text-sm text-red-800">As a guarantor, you are entering into a legally binding agreement. You must confirm your understanding and willingness to accept these obligations.</p>
+          </div>
+
+          <div class="space-y-4">
+            <label class="flex items-start p-4 border-2 border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-all" :class="formData.understands_obligations ? 'border-green-500 bg-green-50' : ''">
+              <input
+                v-model="formData.understands_obligations"
+                type="checkbox"
+                required
+                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
+              />
+              <span class="ml-3 text-sm">
+                <strong class="text-gray-900">I understand</strong> that I am legally responsible for ensuring the rent is paid for the duration of the tenancy agreement. This obligation continues even if the tenant defaults on payments. *
+              </span>
+            </label>
+
+            <label class="flex items-start p-4 border-2 border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-all" :class="formData.willing_to_pay_rent ? 'border-green-500 bg-green-50' : ''">
+              <input
+                v-model="formData.willing_to_pay_rent"
+                type="checkbox"
+                required
+                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
+              />
+              <span class="ml-3 text-sm">
+                <strong class="text-gray-900">I confirm</strong> that I am willing and financially able to pay the full monthly rent if {{ reference.tenant_first_name || 'the tenant' }} {{ reference.tenant_last_name || '' }} is unable to do so. *
+              </span>
+            </label>
+
+            <label class="flex items-start p-4 border-2 border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-all" :class="formData.willing_to_pay_damages ? 'border-green-500 bg-green-50' : ''">
+              <input
+                v-model="formData.willing_to_pay_damages"
+                type="checkbox"
+                required
+                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
+              />
+              <span class="ml-3 text-sm">
+                <strong class="text-gray-900">I confirm</strong> that I am willing and financially able to cover any damages to the property caused by the tenant if they fail to do so. This includes repairs, cleaning costs, and any other property damage. *
+              </span>
+            </label>
+
+            <label class="flex items-start p-4 border-2 border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-all" :class="formData.consent_legal_checks ? 'border-green-500 bg-green-50' : ''">
+              <input
+                v-model="formData.consent_legal_checks"
+                type="checkbox"
+                required
+                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
+              />
+              <span class="ml-3 text-sm">
+                <strong class="text-gray-900">I consent</strong> to credit and background checks being performed to verify my financial capability and identity. I understand this information will be shared with the landlord/agent. *
+              </span>
+            </label>
+          </div>
+
+          <!-- Signature Section -->
+          <div class="mt-8 pt-6 border-t border-gray-200 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Full Name (Signature) *</label>
+              <input
+                v-model="formData.consent_signature_name"
+                type="text"
+                required
+                placeholder="Type your full legal name"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+              <input
+                v-model="formData.consent_date"
+                type="date"
+                required
+                :max="new Date().toISOString().split('T')[0]"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE 15: Review and Submit -->
+        <div v-if="currentPage === 15" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Referencing Consent</h2>
           <p class="text-sm text-gray-600 mb-6">Please read and sign the declaration below</p>
 
@@ -1895,7 +2213,7 @@
             <div v-else></div>
 
             <button
-              v-if="currentPage < 11"
+              v-if="currentPage < 15"
               type="submit"
               :disabled="submitting"
               class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 hover:opacity-90"
@@ -2450,6 +2768,7 @@ const idDocument = ref<File | null>(null)
 const selfie = ref<File | null>(null)
 const selfiePreview = ref<string | null>(null)
 const proofOfAddress = ref<File | null>(null)
+const bankStatement = ref<File | null>(null)
 
 // Camera capture for selfie
 const showCameraStream = ref(false)
@@ -2607,7 +2926,40 @@ const formData = ref({
   // Page 11: Referencing Consent
   consent_signature: '',
   consent_printed_name: '',
-  consent_agreed_date: new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+  consent_agreed_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+
+  // GUARANTOR-SPECIFIC FIELDS
+  // Home Ownership
+  home_ownership_status: '',
+  property_value: null as number | null,
+  mortgage_balance: null as number | null,
+
+  // Income - Retired option
+  income_retired: false,
+  pension_monthly_amount: null as number | null,
+  pension_provider: '',
+
+  // Savings & Assets
+  savings_amount: null as number | null,
+  other_assets: '',
+  bank_statement_path: '',
+
+  // Financial Obligations
+  monthly_mortgage_rent: null as number | null,
+  other_monthly_commitments: null as number | null,
+  total_monthly_expenditure: null as number | null,
+
+  // Previous Guarantor Experience
+  previously_acted_as_guarantor: false,
+  previous_guarantor_details: '',
+
+  // Legal Consent
+  understands_obligations: false,
+  willing_to_pay_rent: false,
+  willing_to_pay_damages: false,
+  consent_legal_checks: false,
+  consent_signature_name: '',
+  consent_date: ''
 })
 
 onMounted(() => {
@@ -2860,6 +3212,23 @@ const handleProofOfAddressUpload = (event: Event) => {
 
 const removeProofOfAddress = () => {
   proofOfAddress.value = null
+}
+
+const handleBankStatementUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    const file = target.files[0]
+    if (file.size > 10 * 1024 * 1024) {
+      submitError.value = 'File is too large. Max size is 10MB.'
+      return
+    }
+    bankStatement.value = file
+    submitError.value = ''
+  }
+}
+
+const removeBankStatement = () => {
+  bankStatement.value = null
 }
 
 const handlePayslipUpload = (event: Event) => {
