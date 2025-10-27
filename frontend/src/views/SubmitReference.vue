@@ -58,7 +58,7 @@
           <!-- Reference Details Notice -->
           <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p class="text-sm text-gray-700">
-              Your agent <strong>{{ reference.company_name || 'from the lettings agency' }}</strong> has requested this reference for you to begin your new tenancy at <strong>{{ reference.property_address }}</strong>. They have proposed <strong>{{ formatDate(reference.move_in_date) }}</strong> as your move-in date. Please confirm these details are correct before proceeding.
+              Your agent <strong>{{ reference.company_name || 'from the lettings agency' }}</strong> has requested this reference for you to begin your new tenancy at <strong>{{ reference.property_address }}</strong>. They have proposed <strong>{{ formatDate(reference.move_in_date) }}</strong> as your move-in date.
             </p>
           </div>
 
@@ -241,44 +241,85 @@
         <!-- PAGE 3: Selfie -->
         <div v-if="currentPage === 3" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Selfie Verification</h2>
-          <p class="text-sm text-gray-600 mb-6">Please upload a clear selfie for identity verification</p>
+          <p class="text-sm text-gray-600 mb-6">Please take a clear selfie for identity verification using your camera</p>
 
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Upload Selfie *</label>
-              <input
-                ref="selfieInput"
-                type="file"
-                @change="handleSelfieUpload"
-                accept=".jpg,.jpeg,.png"
-                class="hidden"
-              />
-              <button
-                type="button"
-                @click="($refs.selfieInput as any).click()"
-                class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
-                :style="{ color: buttonColor }"
-              >
-                {{ selfie ? 'Change Photo' : 'Take/Upload Photo' }}
-              </button>
-              <p class="mt-1 text-xs text-gray-500">Upload a clear photo of yourself (max 10MB)</p>
-              <div v-if="selfie" class="mt-4">
-                <img v-if="selfiePreview" :src="selfiePreview" alt="Selfie preview" class="w-48 h-48 object-cover rounded-lg border-2 border-gray-300" />
-                <div class="mt-2 flex items-center justify-between">
-                  <span class="text-sm text-gray-700">{{ selfie.name }} ({{ formatFileSize(selfie.size) }})</span>
-                  <button type="button" @click="removeSelfie" class="text-red-600 hover:text-red-800 text-sm">
-                    Remove
+              <label class="block text-sm font-medium text-gray-700 mb-2">Take Selfie *</label>
+
+              <!-- Camera stream view -->
+              <div v-if="showCameraStream" class="space-y-4">
+                <div class="relative bg-black rounded-lg overflow-hidden" style="max-width: 640px;">
+                  <video
+                    ref="videoElement"
+                    autoplay
+                    playsinline
+                    class="w-full h-auto"
+                    style="transform: scaleX(-1);"
+                  ></video>
+                  <canvas ref="canvasElement" class="hidden"></canvas>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    @click="capturePhoto"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    :style="{ color: buttonColor }"
+                  >
+                    📸 Capture Photo
+                  </button>
+                  <button
+                    type="button"
+                    @click="stopCamera"
+                    class="px-4 py-2 text-sm font-semibold bg-gray-100 rounded-md hover:bg-gray-200 text-gray-700"
+                  >
+                    Cancel
                   </button>
                 </div>
               </div>
-              <div v-else-if="formData.selfie_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                <div class="flex items-center">
-                  <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span class="text-sm text-green-700">Selfie uploaded successfully</span>
+
+              <!-- Camera start button or preview -->
+              <div v-else>
+                <div v-if="selfie" class="space-y-4">
+                  <img v-if="selfiePreview" :src="selfiePreview" alt="Selfie preview" class="w-48 h-48 object-cover rounded-lg border-2 border-gray-300" />
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-700">Photo captured ({{ formatFileSize(selfie.size) }})</span>
+                    <button type="button" @click="removeSelfie" class="text-red-600 hover:text-red-800 text-sm">
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                <div v-else-if="formData.selfie_path" class="space-y-4">
+                  <div class="p-3 bg-green-50 rounded border border-green-200">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center">
+                        <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span class="text-sm text-green-700">Selfie uploaded successfully</span>
+                      </div>
+                      <button type="button" @click="removeSelfie" class="text-red-600 hover:text-red-800 text-sm ml-4">
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else>
+                  <button
+                    type="button"
+                    @click="startCamera"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    :style="{ color: buttonColor }"
+                  >
+                    📷 Take Photo
+                  </button>
                 </div>
               </div>
+
+              <p v-if="cameraError" class="mt-2 text-sm text-red-600">{{ cameraError }}</p>
+              <p v-else class="mt-1 text-xs text-gray-500">Please open this reference on your mobile phone. A photo must be taken using your device's camera for AML compliance.</p>
             </div>
           </div>
         </div>
@@ -554,7 +595,7 @@
         <!-- PAGE 5: Proof of Address -->
         <div v-if="currentPage === 5" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Proof of Address</h2>
-          <p class="text-sm text-gray-600 mb-6">Upload a bank statement or utility bill from the last 3 months</p>
+          <p class="text-sm text-gray-600 mb-6">Bank Statement, Utility bill or UK Driving License</p>
 
           <div class="space-y-4">
             <div>
@@ -2259,6 +2300,13 @@ const idDocument = ref<File | null>(null)
 const selfie = ref<File | null>(null)
 const selfiePreview = ref<string | null>(null)
 const proofOfAddress = ref<File | null>(null)
+
+// Camera capture for selfie
+const showCameraStream = ref(false)
+const videoElement = ref<HTMLVideoElement | null>(null)
+const canvasElement = ref<HTMLCanvasElement | null>(null)
+const cameraStream = ref<MediaStream | null>(null)
+const cameraError = ref<string>('')
 const payslips = ref<File[]>([])
 const proofOfFunds = ref<File | null>(null)
 const proofOfAdditionalIncome = ref<File | null>(null)
@@ -2541,29 +2589,86 @@ const removeIdDocument = () => {
   idDocument.value = null
 }
 
-const handleSelfieUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (target.files && target.files[0]) {
-    const file = target.files[0]
-    if (file.size > 10 * 1024 * 1024) {
-      submitError.value = 'File is too large. Max size is 10MB.'
-      return
-    }
-    selfie.value = file
+// Camera capture functions for selfie
+const startCamera = async () => {
+  cameraError.value = ''
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' }, // Front-facing camera
+      audio: false
+    })
+    cameraStream.value = stream
+    showCameraStream.value = true
 
-    // Create preview
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      selfiePreview.value = e.target?.result as string
+    // Wait for next tick to ensure video element is rendered
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    if (videoElement.value) {
+      videoElement.value.srcObject = stream
     }
-    reader.readAsDataURL(file)
-    submitError.value = ''
+  } catch (error) {
+    console.error('Camera access error:', error)
+    if (error instanceof Error) {
+      if (error.name === 'NotAllowedError') {
+        cameraError.value = 'Camera access denied. Please allow camera access to take a selfie.'
+      } else if (error.name === 'NotFoundError') {
+        cameraError.value = 'No camera found on this device.'
+      } else {
+        cameraError.value = 'Unable to access camera. Please try again.'
+      }
+    }
   }
+}
+
+const stopCamera = () => {
+  if (cameraStream.value) {
+    cameraStream.value.getTracks().forEach(track => track.stop())
+    cameraStream.value = null
+  }
+  showCameraStream.value = false
+  if (videoElement.value) {
+    videoElement.value.srcObject = null
+  }
+}
+
+const capturePhoto = () => {
+  if (!videoElement.value || !canvasElement.value) return
+
+  const video = videoElement.value
+  const canvas = canvasElement.value
+
+  // Set canvas dimensions to match video
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+
+  // Draw the video frame to canvas (flip horizontally to match preview)
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.translate(canvas.width, 0)
+    ctx.scale(-1, 1)
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+  }
+
+  // Convert canvas to blob then to file
+  canvas.toBlob((blob) => {
+    if (blob) {
+      const timestamp = new Date().getTime()
+      const file = new File([blob], `selfie-${timestamp}.jpg`, { type: 'image/jpeg' })
+      selfie.value = file
+      selfiePreview.value = canvas.toDataURL('image/jpeg')
+
+      // Stop camera and hide stream
+      stopCamera()
+      submitError.value = ''
+    }
+  }, 'image/jpeg', 0.9)
 }
 
 const removeSelfie = () => {
   selfie.value = null
   selfiePreview.value = null
+  formData.value.selfie_path = ''
+  stopCamera()
 }
 
 const handleProofOfAddressUpload = (event: Event) => {
