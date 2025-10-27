@@ -244,7 +244,7 @@
                     'bg-gray-100 text-gray-800': reference.status === 'cancelled'
                   }"
                 >
-                  {{ formatStatus(reference.status) }}
+                  {{ formatStatus(reference.status, reference) }}
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -279,7 +279,7 @@
                               'bg-green-100 text-green-800': child.status === 'completed'
                             }"
                           >
-                            {{ formatStatus(child.status) }}
+                            {{ formatStatus(child.status, child) }}
                           </span>
                         </div>
                         <p class="text-sm font-medium text-gray-900 mt-1">
@@ -937,7 +937,27 @@ const clearFilters = () => {
   dateFilter.value = ''
 }
 
-const formatStatus = (status: string) => {
+const formatStatus = (status: string, reference?: any) => {
+  // If status is 'in_progress' or 'pending_verification', provide more detail
+  if ((status === 'in_progress' || status === 'pending_verification') && reference) {
+    const missing: string[] = []
+
+    // Check for residential reference (landlord or agent)
+    if (!reference.has_landlord_reference && !reference.has_agent_reference) {
+      missing.push('Residential')
+    }
+
+    // Check for income reference (employer)
+    if (!reference.has_employer_reference && !reference.income_self_employed) {
+      missing.push('Income')
+    }
+
+    // If references are missing, show "Awaiting X Reference"
+    if (missing.length > 0 && status === 'in_progress') {
+      return `Awaiting ${missing.join(' & ')} Reference${missing.length > 1 ? 's' : ''}`
+    }
+  }
+
   return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 

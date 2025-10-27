@@ -82,6 +82,17 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // For each parent reference, count the children and sync status
     const referencesWithCount = await Promise.all(references.map(async (ref) => {
+      // Check which references have been submitted
+      const [landlordRefCheck, agentRefCheck, employerRefCheck] = await Promise.all([
+        supabase.from('landlord_references').select('id').eq('reference_id', ref.id).maybeSingle(),
+        supabase.from('agent_references').select('id').eq('reference_id', ref.id).maybeSingle(),
+        supabase.from('employer_references').select('id').eq('reference_id', ref.id).maybeSingle()
+      ])
+
+      const has_landlord_reference = !!landlordRefCheck.data
+      const has_agent_reference = !!agentRefCheck.data
+      const has_employer_reference = !!employerRefCheck.data
+
       if (ref.is_group_parent) {
         const { data: children, count } = await supabase
           .from('tenant_references')
@@ -120,9 +131,20 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           }
         }
 
-        return { ...ref, tenant_count: count || 0 }
+        return {
+          ...ref,
+          tenant_count: count || 0,
+          has_landlord_reference,
+          has_agent_reference,
+          has_employer_reference
+        }
       }
-      return ref
+      return {
+        ...ref,
+        has_landlord_reference,
+        has_agent_reference,
+        has_employer_reference
+      }
     }))
 
     // Decrypt tenant reference fields for list view
