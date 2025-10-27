@@ -9,9 +9,12 @@
       v-model="query"
       type="text"
       :required="required"
-      :placeholder="placeholder"
+      :placeholder="apiError ? 'Address lookup unavailable - please type manually' : placeholder"
       autocomplete="off"
-      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+      :class="[
+        'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+        apiError ? 'border-red-300' : 'border-gray-300'
+      ]"
       @focus="showDropdown = true"
       @blur="handleBlur"
       @keydown.down.prevent="navigateDown"
@@ -19,6 +22,9 @@
       @keydown.enter.prevent="selectHighlighted"
       @keydown.escape="hideDropdown"
     />
+    <p v-if="apiError" class="mt-1 text-xs text-red-600">
+      {{ apiError }}. Please type the address manually.
+    </p>
     <div
       v-if="showDropdown && suggestions.length > 0"
       class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
@@ -83,6 +89,8 @@ const showDropdown = ref(false)
 const highlightedIndex = ref(0)
 const placesService = ref<google.maps.places.PlacesService | null>(null)
 const justSelected = ref(false)
+const apiLoaded = ref(false)
+const apiError = ref('')
 
 // Initialize Google Maps API
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
@@ -97,38 +105,44 @@ const { suggestions } = usePlacesAutocomplete(query, {
 onMounted(async () => {
   console.log('AddressAutocomplete mounted, API key present:', !!apiKey)
 
-  // Load Google Maps API
-  if (!(window as any).google) {
-    console.log('Loading Google Maps API...')
-    const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
-    script.async = true
-    script.defer = true
+  try {
+    // Load Google Maps API
+    if (!(window as any).google) {
+      console.log('Loading Google Maps API...')
+      const script = document.createElement('script')
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
+      script.async = true
+      script.defer = true
 
-    script.onerror = (error) => {
-      console.error('Failed to load Google Maps API:', error)
+      script.onerror = (error) => {
+        console.error('Failed to load Google Maps API:', error)
+        apiError.value = 'Failed to load Google Maps API'
+      }
+
+      document.head.appendChild(script)
+
+      await new Promise((resolve, reject) => {
+        script.onload = () => {
+          console.log('Google Maps API loaded successfully')
+          resolve(true)
+        }
+        script.onerror = (error) => {
+          console.error('Script error:', error)
+          reject(error)
+        }
+      })
+    } else {
+      console.log('Google Maps API already loaded')
     }
 
-    document.head.appendChild(script)
-
-    await new Promise((resolve, reject) => {
-      script.onload = () => {
-        console.log('Google Maps API loaded successfully')
-        resolve(true)
-      }
-      script.onerror = reject
-    })
-  } else {
-    console.log('Google Maps API already loaded')
-  }
-
-  // Initialize Places Service
-  try {
+    // Initialize Places Service
     const div = document.createElement('div')
     placesService.value = new google.maps.places.PlacesService(div)
-    console.log('Places Service initialized')
+    apiLoaded.value = true
+    console.log('Places Service initialized successfully')
   } catch (error) {
-    console.error('Failed to initialize Places Service:', error)
+    console.error('Failed to initialize Google Maps:', error)
+    apiError.value = 'Failed to initialize Google Maps'
   }
 })
 
