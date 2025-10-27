@@ -1125,6 +1125,49 @@
                     />
                   </div>
                 </div>
+
+                <!-- Tax Return Upload -->
+                <div class="pt-4 border-t border-gray-200">
+                  <h4 class="text-md font-semibold text-gray-900 mb-3">Tax Return Statement</h4>
+                  <div class="space-y-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Upload Most Recent Tax Return ({{ currentTaxYear }}) *</label>
+                      <input
+                        ref="taxReturnInput"
+                        type="file"
+                        @change="handleTaxReturnUpload"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        class="hidden"
+                      />
+                      <button
+                        type="button"
+                        @click="($refs.taxReturnInput as any).click()"
+                        class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                        :style="{ color: buttonColor }"
+                      >
+                        {{ taxReturn ? 'Change File' : 'Upload Tax Return' }}
+                      </button>
+                      <p class="mt-1 text-xs text-gray-500">Upload your most recent tax return statement (max 10MB, PDF or image)</p>
+
+                      <div v-if="taxReturn" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                        <div class="flex items-center justify-between">
+                          <span class="text-sm text-gray-700">{{ taxReturn.name }} ({{ formatFileSize(taxReturn.size) }})</span>
+                          <button type="button" @click="removeTaxReturn" class="text-red-600 hover:text-red-800 text-sm">
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                      <div v-else-if="formData.tax_return_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                        <div class="flex items-center">
+                          <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span class="text-sm text-green-700">Tax return uploaded successfully</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -2328,6 +2371,23 @@ const benefitsAnnualAmount = computed(() => {
   return monthly * 12
 })
 
+// Last completed tax year calculation (e.g., "2024/25")
+const currentTaxYear = computed(() => {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1 // 0-indexed
+
+  // UK tax year runs from April 6 to April 5
+  // We need the LAST COMPLETED tax year, not the current one
+  if (currentMonth >= 4) {
+    // After April, we're in the new tax year, so last completed is previous year
+    return `${currentYear - 1}/${String(currentYear).slice(-2)}`
+  } else {
+    // Before April, we're still in last year's tax year, so completed one is 2 years back
+    return `${currentYear - 2}/${String(currentYear - 1).slice(-2)}`
+  }
+})
+
 // File uploads
 const idDocument = ref<File | null>(null)
 const selfie = ref<File | null>(null)
@@ -2343,6 +2403,7 @@ const cameraError = ref<string>('')
 const payslips = ref<File[]>([])
 const proofOfFunds = ref<File | null>(null)
 const proofOfAdditionalIncome = ref<File | null>(null)
+const taxReturn = ref<File | null>(null)
 
 // Previous addresses for 3-year history
 interface PreviousAddress {
@@ -2438,6 +2499,7 @@ const formData = ref({
   accountant_contact_name: '',
   accountant_email: '',
   accountant_phone: '',
+  tax_return_path: '', // Tax return document path
 
   // Page 7: Additional Income
   has_additional_income: false,
@@ -2770,6 +2832,23 @@ const removeProofOfFunds = () => {
   proofOfFunds.value = null
 }
 
+const handleTaxReturnUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    const file = target.files[0]
+    if (file.size > 10 * 1024 * 1024) {
+      submitError.value = 'File is too large. Max size is 10MB.'
+      return
+    }
+    taxReturn.value = file
+    submitError.value = ''
+  }
+}
+
+const removeTaxReturn = () => {
+  taxReturn.value = null
+}
+
 const handleProofOfAdditionalIncomeUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files[0]) {
@@ -2871,6 +2950,11 @@ const uploadCurrentPageFiles = async () => {
     hasFilesToUpload = true
   }
 
+  if (currentPage.value === 6 && taxReturn.value && !formData.value.tax_return_path) {
+    formDataFiles.append('tax_return', taxReturn.value)
+    hasFilesToUpload = true
+  }
+
   if (currentPage.value === 7 && proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {
     formDataFiles.append('proof_of_additional_income', proofOfAdditionalIncome.value)
     hasFilesToUpload = true
@@ -2906,6 +2990,9 @@ const uploadCurrentPageFiles = async () => {
   }
   if (uploadedFiles.proof_of_funds) {
     formData.value.proof_of_funds_path = uploadedFiles.proof_of_funds
+  }
+  if (uploadedFiles.tax_return) {
+    formData.value.tax_return_path = uploadedFiles.tax_return
   }
   if (uploadedFiles.proof_of_additional_income) {
     formData.value.proof_of_additional_income_path = uploadedFiles.proof_of_additional_income

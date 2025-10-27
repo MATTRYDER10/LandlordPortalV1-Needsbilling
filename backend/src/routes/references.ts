@@ -1036,6 +1036,7 @@ router.post('/submit/:token', async (req, res) => {
       accountant_name_encrypted: encrypt(data.accountant_contact_name),
       accountant_email_encrypted: encrypt(data.accountant_email),
       accountant_phone_encrypted: encrypt(data.accountant_phone),
+      tax_return_path: data.tax_return_path || null,
 
       // Additional Income (Page 7)
       has_additional_income: data.has_additional_income || false,
