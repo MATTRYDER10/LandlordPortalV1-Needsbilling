@@ -114,9 +114,9 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
           if (landlordRef) {
             contactsToChase.push({
               type: 'Landlord',
-              name: decrypt(landlordRef.landlord_name_encrypted),
-              email: decrypt(landlordRef.landlord_email_encrypted),
-              phone: decrypt(landlordRef.landlord_phone_encrypted),
+              name: (decrypt(landlordRef.landlord_name_encrypted) || '') as string,
+              email: (decrypt(landlordRef.landlord_email_encrypted) || '') as string,
+              phone: (decrypt(landlordRef.landlord_phone_encrypted) || undefined) as string | undefined,
               sentDate: landlordRef.created_at
             })
           }
@@ -124,9 +124,9 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
           if (agentRef) {
             contactsToChase.push({
               type: 'Agent',
-              name: decrypt(agentRef.agent_name_encrypted),
-              email: decrypt(agentRef.agent_email_encrypted),
-              phone: decrypt(agentRef.agent_phone_encrypted),
+              name: (decrypt(agentRef.agent_name_encrypted) || '') as string,
+              email: (decrypt(agentRef.agent_email_encrypted) || '') as string,
+              phone: (decrypt(agentRef.agent_phone_encrypted) || undefined) as string | undefined,
               sentDate: agentRef.created_at
             })
           }
@@ -147,9 +147,9 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
           if (employerRef) {
             contactsToChase.push({
               type: 'Employer',
-              name: decrypt(employerRef.employer_name_encrypted),
-              email: decrypt(employerRef.employer_email_encrypted),
-              phone: decrypt(employerRef.employer_phone_encrypted),
+              name: (decrypt(employerRef.employer_name_encrypted) || '') as string,
+              email: (decrypt(employerRef.employer_email_encrypted) || '') as string,
+              phone: (decrypt(employerRef.employer_phone_encrypted) || undefined) as string | undefined,
               sentDate: employerRef.created_at
             })
           }
@@ -170,9 +170,9 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
           if (accountantRef) {
             contactsToChase.push({
               type: 'Accountant',
-              name: decrypt(accountantRef.accountant_name_encrypted),
-              email: decrypt(accountantRef.accountant_email_encrypted),
-              phone: decrypt(accountantRef.accountant_phone_encrypted),
+              name: (decrypt(accountantRef.accountant_name_encrypted) || '') as string,
+              email: (decrypt(accountantRef.accountant_email_encrypted) || '') as string,
+              phone: (decrypt(accountantRef.accountant_phone_encrypted) || undefined) as string | undefined,
               sentDate: accountantRef.created_at
             })
           }
@@ -193,9 +193,9 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
           if (guarantorRef) {
             contactsToChase.push({
               type: 'Guarantor',
-              name: `${decrypt(guarantorRef.guarantor_first_name_encrypted)} ${decrypt(guarantorRef.guarantor_last_name_encrypted)}`,
-              email: decrypt(guarantorRef.email_encrypted),
-              phone: decrypt(guarantorRef.contact_number_encrypted),
+              name: (`${decrypt(guarantorRef.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRef.guarantor_last_name_encrypted) || ''}`.trim()) as string,
+              email: (decrypt(guarantorRef.email_encrypted) || '') as string,
+              phone: (decrypt(guarantorRef.contact_number_encrypted) || undefined) as string | undefined,
               sentDate: guarantorRef.created_at
             })
           }
