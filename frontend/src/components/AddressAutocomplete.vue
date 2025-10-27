@@ -195,7 +195,13 @@ const selectSuggestion = async (suggestion: any) => {
     },
     (place: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
       if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-        const addressComponents = parseAddressComponents(place.address_components || [])
+        // Log the raw components to debug
+        console.log('Raw address components:', place.address_components)
+        console.log('Formatted address:', place.formatted_address)
+        console.log('Suggestion description:', suggestion.description)
+
+        const addressComponents = parseAddressComponents(place.address_components || [], place.formatted_address || '', suggestion.description)
+        console.log('Parsed components:', addressComponents)
 
         // Update the input field with just the street address
         query.value = addressComponents.addressLine1
@@ -212,7 +218,11 @@ const selectSuggestion = async (suggestion: any) => {
   )
 }
 
-const parseAddressComponents = (components: google.maps.GeocoderAddressComponent[]): AddressComponents => {
+const parseAddressComponents = (
+  components: google.maps.GeocoderAddressComponent[],
+  formattedAddress: string = '',
+  suggestionDescription: string = ''
+): AddressComponents => {
   let streetNumber = ''
   let route = ''
   let city = ''
@@ -259,7 +269,24 @@ const parseAddressComponents = (components: google.maps.GeocoderAddressComponent
     postcode = [postcodePrefix, postcodeSuffix].filter(Boolean).join(' ')
   }
 
-  const addressLine1 = [streetNumber, route].filter(Boolean).join(' ')
+  let addressLine1 = [streetNumber, route].filter(Boolean).join(' ')
+
+  // Fallback: If no street number from components, try to extract from suggestion description
+  if (!streetNumber && suggestionDescription) {
+    // Extract the first part before the first comma (e.g., "26 Old Forge Mews" from "26 Old Forge Mews, Yatton, Bristol, UK")
+    const firstPart = suggestionDescription.split(',')[0].trim()
+    if (firstPart) {
+      addressLine1 = firstPart
+    }
+  }
+
+  // Fallback: If still no address, use formatted address first line
+  if (!addressLine1 && formattedAddress) {
+    const firstLine = formattedAddress.split(',')[0].trim()
+    if (firstLine) {
+      addressLine1 = firstLine
+    }
+  }
 
   return {
     addressLine1,
