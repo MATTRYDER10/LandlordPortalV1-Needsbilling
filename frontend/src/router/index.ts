@@ -9,6 +9,7 @@ import Dashboard from '../views/Dashboard.vue'
 import References from '../views/References.vue'
 import ReferenceDetail from '../views/ReferenceDetail.vue'
 import SubmitReference from '../views/SubmitReference.vue'
+import GuarantorReference from '../views/GuarantorReference.vue'
 import LandlordReference from '../views/LandlordReference.vue'
 import AgentReference from '../views/AgentReference.vue'
 import EmployerReference from '../views/EmployerReference.vue'
@@ -78,6 +79,11 @@ const router = createRouter({
       path: '/submit-reference/:token',
       name: 'SubmitReference',
       component: SubmitReference
+    },
+    {
+      path: '/guarantor-reference/:token',
+      name: 'GuarantorReference',
+      component: GuarantorReference
     },
     {
       path: '/landlord-reference/:referenceId',

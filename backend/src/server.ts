@@ -6,6 +6,7 @@ import companyRoutes from './routes/company'
 import invitationRoutes from './routes/invitations'
 import profileRoutes from './routes/profile'
 import referencesRoutes from './routes/references'
+import guarantorReferencesRoutes from './routes/guarantor-references'
 import staffRoutes from './routes/staff'
 import debugRoutes from './routes/debug'
 import auditLogRoutes from './routes/auditLogs'
@@ -93,6 +94,7 @@ app.use('/api/company', companyRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/profile', profileRoutes)
 app.use('/api/references', referencesRoutes)
+app.use('/api/guarantor-references', guarantorReferencesRoutes)
 app.use('/api/staff', staffRoutes)
 app.use('/api/debug', debugRoutes)
 app.use('/api/audit-logs', auditLogRoutes)

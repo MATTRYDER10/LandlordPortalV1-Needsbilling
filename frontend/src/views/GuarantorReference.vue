@@ -3593,7 +3593,7 @@ const handleFinalSubmit = async () => {
       previous_addresses: previousAddresses.value
     }
 
-    const response = await fetch(`${API_URL}/api/references/submit/${token}`, {
+    const response = await fetch(`${API_URL}/api/guarantor-references/submit/${token}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
