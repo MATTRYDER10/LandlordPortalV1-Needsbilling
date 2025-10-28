@@ -5,7 +5,7 @@ import crypto from 'crypto'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
-import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant, sendGuarantorRequestNotification } from '../services/emailService'
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant, sendGuarantorRequestNotification, sendGuarantorReferenceRequest } from '../services/emailService'
 import { auditReferenceAction } from '../services/auditLog'
 import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
 import pdfService from '../services/pdfService'
@@ -1334,6 +1334,73 @@ router.post('/submit/:token', async (req, res) => {
       } catch (error: any) {
         console.error('Failed to notify agent about guarantor request:', error)
         // Don't fail the request if notification fails
+      }
+
+      // Automatically create guarantor reference and send email to guarantor
+      try {
+        // Generate unique token for guarantor
+        const guarantorToken = generateToken()
+        const guarantorTokenHash = hash(guarantorToken)
+        const guarantorExpiresAt = new Date()
+        guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 30)
+
+        // Insert guarantor reference placeholder
+        const { data: guarantorRef, error: guarantorError } = await supabase
+          .from('guarantor_references')
+          .insert({
+            reference_id: updatedReference.id,
+            company_id: reference.company_id,
+            reference_token_hash: guarantorTokenHash,
+            token_expires_at: guarantorExpiresAt.toISOString(),
+            guarantor_first_name_encrypted: encrypt(data.guarantor_first_name),
+            guarantor_last_name_encrypted: encrypt(data.guarantor_last_name || ''),
+            guarantor_email_encrypted: encrypt(data.guarantor_email),
+            guarantor_phone_encrypted: data.guarantor_phone ? encrypt(data.guarantor_phone) : null,
+            relationship_to_tenant: data.guarantor_relationship || 'Not specified',
+            status: 'pending'
+          })
+          .select()
+          .single()
+
+        if (guarantorError) {
+          console.error('Failed to create guarantor reference:', guarantorError)
+        } else {
+          console.log('Guarantor reference created:', guarantorRef.id)
+
+          // Send email directly to guarantor
+          const tenantName = `${data.first_name} ${data.last_name}`
+          const guarantorName = `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`
+          const propertyAddress = (reference.property_address_encrypted
+            ? decrypt(reference.property_address_encrypted)
+            : null) || 'the property'
+
+          // Get company name for email
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('name_encrypted')
+            .eq('id', reference.company_id)
+            .single()
+
+          const companyName = (companyData?.name_encrypted
+            ? decrypt(companyData.name_encrypted)
+            : null) || 'Your agent'
+
+          const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+
+          await sendGuarantorReferenceRequest(
+            data.guarantor_email,
+            guarantorName,
+            tenantName,
+            propertyAddress,
+            companyName,
+            formLink
+          )
+
+          console.log('Guarantor reference request email sent to:', data.guarantor_email)
+        }
+      } catch (error: any) {
+        console.error('Failed to create/send guarantor reference:', error)
+        // Don't fail the tenant submission if guarantor creation fails
       }
     }
 

@@ -263,6 +263,32 @@ export async function sendGuarantorRequestNotification(
 }
 
 /**
+ * Send guarantor reference request directly to guarantor
+ */
+export async function sendGuarantorReferenceRequest(
+  guarantorEmail: string,
+  guarantorName: string,
+  tenantName: string,
+  propertyAddress: string,
+  agentName: string,
+  formLink: string
+): Promise<void> {
+  const html = loadEmailTemplate('guarantor-reference-request', {
+    GuarantorName: guarantorName,
+    TenantName: tenantName,
+    PropertyAddress: propertyAddress,
+    AgentName: agentName,
+    FormLink: formLink
+  });
+
+  await sendEmail({
+    to: guarantorEmail,
+    subject: `Guarantor Reference Request - ${tenantName} - PropertyGoose`,
+    html,
+  });
+}
+
+/**
  * Send consent PDF to tenant
  */
 export async function sendConsentPDFToTenant(

@@ -59,20 +59,6 @@
           </div>
         </router-link>
 
-        <div class="bg-white shadow p-6 border-r border-gray-200">
-          <div class="flex items-center">
-            <div class="flex-1">
-              <p class="text-sm font-medium text-gray-600">RTR Verification Pending</p>
-              <p class="text-3xl font-bold text-blue-600">{{ rtrPendingReferences }}</p>
-            </div>
-            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
         <router-link
           :to="{ path: '/references', query: { status: 'rejected' } }"
           class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
@@ -213,7 +199,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const totalReferences = ref(0)
 const inProgressReferences = ref(0)
 const pendingVerificationReferences = ref(0)
-const rtrPendingReferences = ref(0)
 const rejectedReferences = ref(0)
 const completedReferences = ref(0)
 const recentReferences = ref<any[]>([])
@@ -249,9 +234,6 @@ const fetchReferences = async () => {
     ).length
     pendingVerificationReferences.value = references.filter((ref: any) =>
       ref.status === 'pending_verification'
-    ).length
-    rtrPendingReferences.value = references.filter((ref: any) =>
-      ref.submitted_at && ref.is_british_citizen === false && !ref.rtr_verified
     ).length
     rejectedReferences.value = references.filter((ref: any) =>
       ref.status === 'rejected'
