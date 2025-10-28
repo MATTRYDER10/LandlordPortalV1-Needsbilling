@@ -2243,6 +2243,7 @@ import { useRoute } from 'vue-router'
 import PhoneInput from '../components/PhoneInput.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
+import DatePicker from '../components/DatePicker.vue'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 
 const route = useRoute()
@@ -2968,7 +2969,7 @@ onMounted(() => {
 const fetchReferenceByToken = async () => {
   try {
     const token = route.params.token
-    const response = await fetch(`${API_URL}/api/references/view/${token}`, {
+    const response = await fetch(`${API_URL}/api/guarantor-references/view/${token}`, {
       headers: {
         'Content-Type': 'application/json'
       }
@@ -2984,7 +2985,7 @@ const fetchReferenceByToken = async () => {
     }
 
     const data = await response.json()
-    reference.value = data.reference
+    reference.value = data
 
     // Extract company branding
     if (reference.value.companies) {

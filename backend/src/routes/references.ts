@@ -1349,7 +1349,6 @@ router.post('/submit/:token', async (req, res) => {
           .from('guarantor_references')
           .insert({
             reference_id: updatedReference.id,
-            company_id: reference.company_id,
             reference_token_hash: guarantorTokenHash,
             token_expires_at: guarantorExpiresAt.toISOString(),
             guarantor_first_name_encrypted: encrypt(data.guarantor_first_name),

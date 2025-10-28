@@ -6,6 +6,60 @@ import { hash, encrypt } from '../services/encryption'
 
 const router = Router()
 
+// GET /api/guarantor-references/view/:token
+// View guarantor reference details by token
+router.get('/view/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+    const tokenHash = hash(token)
+    const { decrypt } = await import('../services/encryption')
+
+    // Get guarantor reference by token hash with tenant reference details
+    const { data: guarantorRef, error: refError } = await supabase
+      .from('guarantor_references')
+      .select(`
+        *,
+        tenant_references!inner(
+          tenant_first_name_encrypted,
+          tenant_last_name_encrypted,
+          property_address_encrypted,
+          company_id,
+          companies!inner(name_encrypted, logo_url, primary_color, button_color)
+        )
+      `)
+      .eq('reference_token_hash', tokenHash)
+      .gte('token_expires_at', new Date().toISOString())
+      .single()
+
+    if (refError || !guarantorRef) {
+      console.error('Guarantor reference fetch error:', refError)
+      return res.status(404).json({ error: 'Invalid or expired reference link' })
+    }
+
+    // Return guarantor reference data with tenant and property info
+    res.json({
+      id: guarantorRef.id,
+      reference_id: guarantorRef.reference_id,
+      status: guarantorRef.status,
+      submitted_at: guarantorRef.submitted_at,
+      relationship_to_tenant: guarantorRef.relationship_to_tenant,
+      tenant_first_name: guarantorRef.tenant_references?.tenant_first_name_encrypted
+        ? decrypt(guarantorRef.tenant_references.tenant_first_name_encrypted)
+        : '',
+      tenant_last_name: guarantorRef.tenant_references?.tenant_last_name_encrypted
+        ? decrypt(guarantorRef.tenant_references.tenant_last_name_encrypted)
+        : '',
+      property_address: guarantorRef.tenant_references?.property_address_encrypted
+        ? decrypt(guarantorRef.tenant_references.property_address_encrypted)
+        : '',
+      companies: guarantorRef.tenant_references?.companies || null
+    })
+  } catch (error: any) {
+    console.error('Error fetching guarantor reference:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Configure multer for file uploads (store in memory)
 const upload = multer({
   storage: multer.memoryStorage(),
