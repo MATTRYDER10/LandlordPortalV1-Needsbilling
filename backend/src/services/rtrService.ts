@@ -1,5 +1,5 @@
 const RTR_API_KEY = process.env.RTR_API_KEY || 'c500f661b585b0ecb96e92c913ea37f92a6ec3a35d62581765708ebdfa30fcff'
-const RTR_API_BASE_URL = 'https://ukrtwchecker.co.uk/api'
+const RTR_API_BASE_URL = 'https://app.ukrtwchecker.co.uk'
 
 export interface RTRVerificationResult {
   verified: boolean
@@ -14,26 +14,38 @@ export interface RTRVerificationResult {
   errorMessage?: string
 }
 
+export interface RTRVerificationRequest {
+  shareCode: string
+  dateOfBirth: string // DD-MM-YYYY format
+  firstName: string
+  lastName: string
+  checkerType: 'landlord' | 'agent'
+  checkerName: string
+}
+
 /**
  * Verify a Right to Rent share code with the UK RTW Checker API
- * @param shareCode The Home Office share code to verify
- * @param dateOfBirth Optional date of birth in YYYY-MM-DD format
+ * @param request The RTR verification request with all required fields
  */
 export async function verifyRTRShareCode(
-  shareCode: string,
-  dateOfBirth?: string
+  request: RTRVerificationRequest
 ): Promise<RTRVerificationResult> {
   try {
-    const response = await fetch(`${RTR_API_BASE_URL}/rtr/check`, {
-      method: 'POST',
+    // Build query parameters
+    const params = new URLSearchParams({
+      code: request.shareCode,
+      dob: request.dateOfBirth,
+      forename: request.firstName,
+      surname: request.lastName,
+      checker_type: request.checkerType,
+      checker_name: request.checkerName
+    })
+
+    const response = await fetch(`${RTR_API_BASE_URL}/rtr?${params.toString()}`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RTR_API_KEY}`
-      },
-      body: JSON.stringify({
-        share_code: shareCode,
-        date_of_birth: dateOfBirth
-      })
+        'X-UKRTWAPI-SECRET': RTR_API_KEY
+      }
     })
 
     if (!response.ok) {
@@ -47,22 +59,27 @@ export async function verifyRTRShareCode(
     const data = await response.json() as any
 
     // Parse the API response based on UK RTW Checker API format
-    if (data.status === 'success' && data.data) {
+    // Response format: { code: 200, status: { outcome: "ACCEPTED", details: "...", expiry_date: "...", ... } }
+    if (data.code === 200 && data.status) {
+      const status = data.status
+      const isAccepted = status.outcome === 'ACCEPTED'
+
       return {
-        verified: true,
-        firstName: data.data.first_name,
-        lastName: data.data.last_name,
-        dateOfBirth: data.data.date_of_birth,
-        nationality: data.data.nationality,
-        immigrationStatus: data.data.immigration_status,
-        workRestrictions: data.data.work_restrictions,
-        expiryDate: data.data.expiry_date,
-        shareCode: shareCode
+        verified: isAccepted,
+        firstName: request.firstName,
+        lastName: request.lastName,
+        dateOfBirth: request.dateOfBirth,
+        nationality: status.nationality,
+        immigrationStatus: status.details || status.conditions,
+        workRestrictions: status.conditions,
+        expiryDate: status.expiry_date,
+        shareCode: request.shareCode,
+        errorMessage: !isAccepted ? `Verification outcome: ${status.outcome}` : undefined
       }
     } else {
       return {
         verified: false,
-        errorMessage: data.message || 'Share code verification failed'
+        errorMessage: data.message || data.error || 'Share code verification failed'
       }
     }
   } catch (error) {

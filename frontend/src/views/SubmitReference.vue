@@ -116,85 +116,6 @@
               </div>
             </div>
 
-            <!-- British Citizenship & Right to Rent Check -->
-            <div class="mt-6 pt-6 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Right to Rent Verification</h3>
-
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-3">Are you a British citizen? *</label>
-                  <div class="flex gap-3">
-                    <button
-                      type="button"
-                      @click="formData.is_british_citizen = true; formData.rtr_share_code = ''"
-                      class="flex-1 px-4 py-3 border-2 rounded-md transition-all"
-                      :class="formData.is_british_citizen === true
-                        ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
-                      :style="formData.is_british_citizen === true ? { borderColor: buttonColor, color: buttonColor } : {}"
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      @click="formData.is_british_citizen = false"
-                      class="flex-1 px-4 py-3 border-2 rounded-md transition-all"
-                      :class="formData.is_british_citizen === false
-                        ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
-                      :style="formData.is_british_citizen === false ? { borderColor: buttonColor, color: buttonColor } : {}"
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Share Code Input (only if not British citizen) -->
-                <div v-if="formData.is_british_citizen === false" class="pt-4">
-                  <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
-                    <p class="text-sm text-yellow-800">
-                      <strong>Right to Rent Check Required:</strong> As a non-British citizen, you need to provide your Home Office Right to Rent share code. You can get this from:
-                      <a href="https://www.gov.uk/prove-right-to-rent" target="_blank" class="underline">www.gov.uk/prove-right-to-rent</a>
-                    </p>
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Right to Rent Share Code *</label>
-                    <input
-                      v-model="formData.rtr_share_code"
-                      type="text"
-                      :required="formData.is_british_citizen === false"
-                      placeholder="e.g., ABC123DEF4567890"
-                      maxlength="20"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary uppercase"
-                      @input="formData.rtr_share_code = formData.rtr_share_code.toUpperCase()"
-                    />
-                    <p class="mt-1 text-xs text-gray-500">Enter your 9 or 12 character share code from the Home Office</p>
-                  </div>
-
-                  <div v-if="rtrVerificationStatus" class="mt-3 p-3 rounded border" :class="{
-                    'bg-green-50 border-green-200': rtrVerificationStatus === 'verified',
-                    'bg-red-50 border-red-200': rtrVerificationStatus === 'failed',
-                    'bg-blue-50 border-blue-200': rtrVerificationStatus === 'checking'
-                  }">
-                    <div class="flex items-center" :class="{
-                      'text-green-700': rtrVerificationStatus === 'verified',
-                      'text-red-700': rtrVerificationStatus === 'failed',
-                      'text-blue-700': rtrVerificationStatus === 'checking'
-                    }">
-                      <svg v-if="rtrVerificationStatus === 'verified'" class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      </svg>
-                      <svg v-else-if="rtrVerificationStatus === 'failed'" class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                      </svg>
-                      <div v-else class="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                      <span class="text-sm font-medium">{{ rtrVerificationMessage }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -312,6 +233,98 @@
                   class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                 >
                   {{ nationality }}
+                </div>
+              </div>
+            </div>
+
+            <!-- British Citizenship & Right to Rent Check -->
+            <div class="mt-6 pt-6 border-t border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Right to Rent Verification</h3>
+
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-3">Are you a British citizen? *</label>
+                  <div class="flex gap-3">
+                    <button
+                      type="button"
+                      @click="formData.is_british_citizen = true; formData.rtr_share_code = ''; rtrVerificationStatus = null"
+                      class="flex-1 px-4 py-3 border-2 rounded-md transition-all"
+                      :class="formData.is_british_citizen === true
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
+                      :style="formData.is_british_citizen === true ? { borderColor: buttonColor, color: buttonColor } : {}"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      @click="formData.is_british_citizen = false; rtrVerificationStatus = null"
+                      class="flex-1 px-4 py-3 border-2 rounded-md transition-all"
+                      :class="formData.is_british_citizen === false
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
+                      :style="formData.is_british_citizen === false ? { borderColor: buttonColor, color: buttonColor } : {}"
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Share Code Input (only if not British citizen) -->
+                <div v-if="formData.is_british_citizen === false" class="pt-4">
+                  <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+                    <p class="text-sm text-yellow-800">
+                      <strong>Right to Rent Check Required:</strong> As a non-British citizen, you need to provide your Home Office Right to Rent share code. You can get this from:
+                      <a href="https://www.gov.uk/prove-right-to-rent" target="_blank" class="underline">www.gov.uk/prove-right-to-rent</a>
+                    </p>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Right to Rent Share Code *</label>
+                    <div class="flex gap-2">
+                      <input
+                        v-model="formData.rtr_share_code"
+                        type="text"
+                        :required="formData.is_british_citizen === false"
+                        placeholder="e.g., RABC1234DEF"
+                        maxlength="20"
+                        class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary uppercase"
+                        @input="formData.rtr_share_code = formData.rtr_share_code.toUpperCase(); rtrVerificationStatus = null"
+                      />
+                      <button
+                        type="button"
+                        @click="verifyRTRShareCode"
+                        :disabled="!formData.rtr_share_code || rtrVerificationStatus === 'checking'"
+                        class="px-4 py-2 text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        :class="rtrVerificationStatus === 'verified' ? 'bg-green-100 text-green-700' : 'bg-blue-50 hover:bg-blue-100'"
+                        :style="rtrVerificationStatus === 'verified' ? {} : { color: buttonColor }"
+                      >
+                        {{ rtrVerificationStatus === 'verified' ? 'Verified ✓' : 'Verify' }}
+                      </button>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">Enter your 8-11 character share code from the Home Office (starts with 'R')</p>
+                  </div>
+
+                  <div v-if="rtrVerificationStatus" class="mt-3 p-3 rounded border" :class="{
+                    'bg-green-50 border-green-200': rtrVerificationStatus === 'verified',
+                    'bg-red-50 border-red-200': rtrVerificationStatus === 'failed',
+                    'bg-blue-50 border-blue-200': rtrVerificationStatus === 'checking'
+                  }">
+                    <div class="flex items-center" :class="{
+                      'text-green-700': rtrVerificationStatus === 'verified',
+                      'text-red-700': rtrVerificationStatus === 'failed',
+                      'text-blue-700': rtrVerificationStatus === 'checking'
+                    }">
+                      <svg v-if="rtrVerificationStatus === 'verified'" class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>
+                      <svg v-else-if="rtrVerificationStatus === 'failed'" class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                      </svg>
+                      <div v-else class="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                      <span class="text-sm font-medium">{{ rtrVerificationMessage }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2076,6 +2089,7 @@ import { useRoute } from 'vue-router'
 import PhoneInput from '../components/PhoneInput.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
+import DatePicker from '../components/DatePicker.vue'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 
 const route = useRoute()
@@ -3233,10 +3247,25 @@ const uploadCurrentPageFiles = async () => {
 const verifyRTRShareCode = async () => {
   if (!formData.value.rtr_share_code) return
 
+  // Validate required fields
+  if (!formData.value.first_name || !formData.value.last_name) {
+    rtrVerificationStatus.value = 'failed'
+    rtrVerificationMessage.value = 'Please enter your name before verifying Right to Rent'
+    return
+  }
+  if (!dobDay.value || !dobMonth.value || !dobYear.value) {
+    rtrVerificationStatus.value = 'failed'
+    rtrVerificationMessage.value = 'Please enter your date of birth before verifying Right to Rent'
+    return
+  }
+
   rtrVerificationStatus.value = 'checking'
   rtrVerificationMessage.value = 'Verifying your Right to Rent share code...'
 
   try {
+    // Format date of birth as DD-MM-YYYY
+    const formattedDob = `${dobDay.value.toString().padStart(2, '0')}-${dobMonth.value}-${dobYear.value}`
+
     // Call backend API which will proxy to UK RTR Checker API
     const token = route.params.token
     const response = await fetch(`${API_URL}/api/rtr/verify`, {
@@ -3246,6 +3275,9 @@ const verifyRTRShareCode = async () => {
       },
       body: JSON.stringify({
         shareCode: formData.value.rtr_share_code,
+        firstName: formData.value.first_name,
+        lastName: formData.value.last_name,
+        dateOfBirth: formattedDob,
         referenceToken: token
       })
     })
@@ -3259,9 +3291,9 @@ const verifyRTRShareCode = async () => {
       formData.value.rtr_verification_data = data
     } else {
       rtrVerificationStatus.value = 'failed'
-      rtrVerificationMessage.value = data.message || 'Unable to verify Right to Rent. Please check your share code.'
+      rtrVerificationMessage.value = data.message || 'Unable to verify Right to Rent. Please check your details and share code.'
       formData.value.rtr_verified = false
-      submitError.value = 'Right to Rent verification failed. Please check your share code and try again.'
+      submitError.value = 'Right to Rent verification failed. Please check your details and share code and try again.'
     }
   } catch (error) {
     console.error('RTR verification error:', error)
@@ -3281,6 +3313,15 @@ const handlePageSubmit = async () => {
       submitError.value = 'Please select document type and upload your ID document'
       return
     }
+  } else if (currentPage.value === 2) {
+    if (!dobDay.value || !dobMonth.value || !dobYear.value) {
+      submitError.value = 'Please select your complete date of birth'
+      return
+    }
+    if (!formData.value.contact_number) {
+      submitError.value = 'Please enter your contact number'
+      return
+    }
     if (formData.value.is_british_citizen === null) {
       submitError.value = 'Please indicate whether you are a British citizen'
       return
@@ -3295,15 +3336,6 @@ const handlePageSubmit = async () => {
       if (!formData.value.rtr_verified) {
         return // Verification failed, don't proceed
       }
-    }
-  } else if (currentPage.value === 2) {
-    if (!dobDay.value || !dobMonth.value || !dobYear.value) {
-      submitError.value = 'Please select your complete date of birth'
-      return
-    }
-    if (!formData.value.contact_number) {
-      submitError.value = 'Please enter your contact number'
-      return
     }
   } else if (currentPage.value === 3) {
     if (!selfie.value && !formData.value.selfie_path) {

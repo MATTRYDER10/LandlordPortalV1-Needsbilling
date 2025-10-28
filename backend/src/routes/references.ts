@@ -1113,6 +1113,13 @@ router.post('/submit/:token', async (req, res) => {
       consent_printed_name_encrypted: encrypt(data.consent_printed_name || ''),
       consent_agreed_date: data.consent_agreed_date || null,
 
+      // Right to Rent Verification (Page 2)
+      is_british_citizen: data.is_british_citizen !== undefined ? data.is_british_citizen : null,
+      rtr_share_code: data.rtr_share_code || null,
+      rtr_verified: data.rtr_verified || false,
+      rtr_verification_date: data.rtr_verification_date || null,
+      rtr_verification_data: data.rtr_verification_data || null,
+
       // Submission tracking
       submitted_at: new Date().toISOString(),
       status: 'in_progress'

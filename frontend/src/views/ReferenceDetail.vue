@@ -166,6 +166,63 @@
                     </div>
                   </div>
 
+                  <!-- Right to Rent Verification -->
+                  <div class="bg-white rounded-lg shadow p-6">
+                    <h5 class="text-md font-semibold text-gray-900 mb-4">Right to Rent Verification</h5>
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm font-medium text-gray-500">British Citizen</label>
+                        <p class="mt-1 text-gray-900">
+                          <span v-if="childReferenceDetails[child.id].reference.is_british_citizen === true" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Yes
+                          </span>
+                          <span v-else-if="childReferenceDetails[child.id].reference.is_british_citizen === false" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            No - RTR Check Required
+                          </span>
+                          <span v-else class="text-gray-500">Not provided</span>
+                        </p>
+                      </div>
+                      <div v-if="childReferenceDetails[child.id].reference.is_british_citizen === false">
+                        <label class="block text-sm font-medium text-gray-500">RTR Verification Status</label>
+                        <p class="mt-1">
+                          <span v-if="childReferenceDetails[child.id].reference.rtr_verified" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            ✓ Verified
+                          </span>
+                          <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Not Verified
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- RTR Verification Details -->
+                    <div v-if="childReferenceDetails[child.id].reference.rtr_verified && childReferenceDetails[child.id].reference.rtr_verification_data" class="mt-4 border-t pt-4">
+                      <h6 class="text-sm font-semibold text-gray-900 mb-3">Verification Details</h6>
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Share Code</label>
+                          <p class="mt-1 text-gray-900 font-mono text-sm">{{ childReferenceDetails[child.id].reference.rtr_share_code || 'Not provided' }}</p>
+                        </div>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-500">Verification Date</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.rtr_verification_date ? formatDate(childReferenceDetails[child.id].reference.rtr_verification_date) : 'Not provided' }}</p>
+                        </div>
+                        <div v-if="childReferenceDetails[child.id].reference.rtr_verification_data.immigrationStatus" class="col-span-2">
+                          <label class="block text-sm font-medium text-gray-500">Immigration Status</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.rtr_verification_data.immigrationStatus }}</p>
+                        </div>
+                        <div v-if="childReferenceDetails[child.id].reference.rtr_verification_data.workRestrictions">
+                          <label class="block text-sm font-medium text-gray-500">Rental Restrictions</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.rtr_verification_data.workRestrictions }}</p>
+                        </div>
+                        <div v-if="childReferenceDetails[child.id].reference.rtr_verification_data.expiryDate">
+                          <label class="block text-sm font-medium text-gray-500">Expiry Date</label>
+                          <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.rtr_verification_data.expiryDate }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Identification Documents -->
                   <div class="bg-white rounded-lg shadow p-6">
                     <h5 class="text-md font-semibold text-gray-900 mb-4">Identification Documents</h5>
@@ -1013,6 +1070,63 @@
             </div>
             <div v-if="!reference.id_document_path && !reference.selfie_path" class="text-gray-500 text-center py-4">
               No identification documents uploaded yet
+            </div>
+          </div>
+        </div>
+
+        <!-- Right to Rent Verification -->
+        <div v-if="!reference.is_group_parent" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Right to Rent Verification</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-500">British Citizen</label>
+              <p class="mt-1 text-gray-900">
+                <span v-if="reference.is_british_citizen === true" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Yes
+                </span>
+                <span v-else-if="reference.is_british_citizen === false" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  No - RTR Check Required
+                </span>
+                <span v-else class="text-gray-500">Not provided</span>
+              </p>
+            </div>
+            <div v-if="reference.is_british_citizen === false">
+              <label class="block text-sm font-medium text-gray-500">RTR Verification Status</label>
+              <p class="mt-1">
+                <span v-if="reference.rtr_verified" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  ✓ Verified
+                </span>
+                <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  Not Verified
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <!-- RTR Verification Details -->
+          <div v-if="reference.rtr_verified && reference.rtr_verification_data" class="mt-4 border-t pt-4">
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">Verification Details</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Share Code</label>
+                <p class="mt-1 text-gray-900 font-mono text-sm">{{ reference.rtr_share_code || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Verification Date</label>
+                <p class="mt-1 text-gray-900">{{ reference.rtr_verification_date ? formatDate(reference.rtr_verification_date) : 'Not provided' }}</p>
+              </div>
+              <div v-if="reference.rtr_verification_data.immigrationStatus" class="col-span-2">
+                <label class="block text-sm font-medium text-gray-500">Immigration Status</label>
+                <p class="mt-1 text-gray-900">{{ reference.rtr_verification_data.immigrationStatus }}</p>
+              </div>
+              <div v-if="reference.rtr_verification_data.workRestrictions">
+                <label class="block text-sm font-medium text-gray-500">Rental Restrictions</label>
+                <p class="mt-1 text-gray-900">{{ reference.rtr_verification_data.workRestrictions }}</p>
+              </div>
+              <div v-if="reference.rtr_verification_data.expiryDate">
+                <label class="block text-sm font-medium text-gray-500">Expiry Date</label>
+                <p class="mt-1 text-gray-900">{{ reference.rtr_verification_data.expiryDate }}</p>
+              </div>
             </div>
           </div>
         </div>

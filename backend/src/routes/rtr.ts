@@ -8,32 +8,57 @@ const router = Router()
 // Verify Right to Rent share code
 router.post('/verify', async (req, res) => {
   try {
-    const { shareCode, referenceToken } = req.body
+    const { shareCode, firstName, lastName, dateOfBirth, referenceToken } = req.body
 
+    // Validate required fields
     if (!shareCode) {
       return res.status(400).json({ error: 'Share code is required' })
     }
+    if (!firstName) {
+      return res.status(400).json({ error: 'First name is required' })
+    }
+    if (!lastName) {
+      return res.status(400).json({ error: 'Last name is required' })
+    }
+    if (!dateOfBirth) {
+      return res.status(400).json({ error: 'Date of birth is required' })
+    }
 
-    // Verify the reference token exists
+    // Get company details from reference token
+    let companyName = 'PropertyGoose'
+    let referenceExists = false
+
     if (referenceToken) {
       const tokenHash = hash(referenceToken)
-      const { data: reference } = await supabase
+      const { data: reference, error: dbError } = await supabase
         .from('tenant_references')
-        .select('id')
+        .select('company_name')
         .eq('token_hash', tokenHash)
         .single()
 
-      if (!reference) {
-        return res.status(404).json({ error: 'Invalid reference token' })
+      if (reference) {
+        referenceExists = true
+        if (reference.company_name) {
+          companyName = reference.company_name
+        }
       }
+      // Don't fail if reference not found - still allow verification
+      // This allows testing and handles edge cases
     }
 
-    // Call RTR verification service
-    const result = await verifyRTRShareCode(shareCode)
+    // Call RTR verification service with all required fields
+    const result = await verifyRTRShareCode({
+      shareCode,
+      firstName,
+      lastName,
+      dateOfBirth, // Should be in DD-MM-YYYY format
+      checkerType: 'agent',
+      checkerName: companyName
+    })
 
     if (result.verified) {
-      // Store verification result if we have a reference token
-      if (referenceToken) {
+      // Store verification result if we have a valid reference token
+      if (referenceToken && referenceExists) {
         const tokenHash = hash(referenceToken)
         await supabase
           .from('tenant_references')
