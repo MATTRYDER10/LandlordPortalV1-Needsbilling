@@ -47,7 +47,6 @@ router.post('/verify', async (req, res) => {
       }
 
       return res.json({
-        verified: true,
         message: 'Right to Rent verified successfully',
         ...result
       })
