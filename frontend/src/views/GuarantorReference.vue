@@ -21,7 +21,7 @@
       <!-- Progress Bar -->
       <div v-if="!initialLoading && !tokenError && reference && !reference.submitted_at" class="mb-8">
         <div class="flex justify-between items-center mb-2">
-          <span class="text-sm font-medium text-gray-700">Page {{ currentPage }} of 15</span>
+          <span class="text-sm font-medium text-gray-700">Page {{ currentPage }} of 12</span>
           <span class="text-sm text-gray-500">{{ Math.round((currentPage / 15) * 100) }}% Complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
@@ -1632,409 +1632,11 @@
           </div>
         </div>
 
-        <!-- PAGE 11: Tenant Details -->
-        <div v-if="currentPage === 11" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">About You</h2>
-          <p class="text-sm text-gray-600 mb-6">Please provide some additional information about yourself</p>
+        <!-- PAGE 11: Previous Landlord/Agent Reference - REMOVED "About You" page as not relevant for guarantors -->
 
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Are you a smoker? *</label>
-              <div class="space-y-2">
-                <label class="flex items-center">
-                  <input
-                    v-model="formData.is_smoker"
-                    type="radio"
-                    :value="true"
-                    name="smoker"
-                    required
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                  />
-                  <span class="ml-2 text-sm text-gray-700">Yes</span>
-                </label>
-                <label class="flex items-center">
-                  <input
-                    v-model="formData.is_smoker"
-                    type="radio"
-                    :value="false"
-                    name="smoker"
-                    required
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                  />
-                  <span class="ml-2 text-sm text-gray-700">No</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Do you have any pets?</label>
-              <div class="space-y-2">
-                <label class="flex items-center">
-                  <input
-                    v-model="formData.has_pets"
-                    type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <span class="ml-2 text-sm text-gray-700">Yes, I have pets</span>
-                </label>
-              </div>
-              <div v-if="formData.has_pets" class="mt-3">
-                <label class="block text-sm font-medium text-gray-700">Pet Details *</label>
-                <textarea
-                  v-model="formData.pet_details"
-                  :required="formData.has_pets"
-                  rows="3"
-                  placeholder="Please describe your pets (type, breed, size, etc.)"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                ></textarea>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Marital Status *</label>
-              <select
-                v-model="formData.marital_status"
-                required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              >
-                <option value="">Select marital status</option>
-                <option value="single">Single</option>
-                <option value="married">Married</option>
-                <option value="divorced">Divorced</option>
-                <option value="widowed">Widowed</option>
-                <option value="civil_partnership">Civil Partnership</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Number of Dependants *</label>
-              <input
-                v-model="formData.number_of_dependants"
-                type="number"
-                min="0"
-                required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
-            </div>
-
-            <div v-if="formData.number_of_dependants > 0">
-              <label class="block text-sm font-medium text-gray-700">Dependants Details *</label>
-              <textarea
-                v-model="formData.dependants_details"
-                :required="formData.number_of_dependants > 0"
-                rows="3"
-                placeholder="Please provide ages and relationship (e.g. 2 children aged 5 and 7)"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              ></textarea>
-            </div>
-          </div>
-        </div>
-
-        <!-- PAGE 12: Previous Landlord/Agent Reference -->
-        <div v-if="currentPage === 12" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Previous Rental Reference</h2>
-          <p class="text-sm text-gray-600 mb-6">Please provide details so we can request a reference from your previous landlord or letting agent</p>
-
-          <div class="space-y-4">
-            <!-- Reference Type Selector -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">Reference Type *</label>
-              <div class="flex gap-4">
-                <label class="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    v-model="formData.reference_type"
-                    value="landlord"
-                    class="mr-2"
-                    :style="{ accentColor: primaryColor }"
-                  />
-                  <span class="text-sm text-gray-700">Landlord</span>
-                </label>
-                <label class="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    v-model="formData.reference_type"
-                    value="agent"
-                    class="mr-2"
-                    :style="{ accentColor: primaryColor }"
-                  />
-                  <span class="text-sm text-gray-700">Letting Agent</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">{{ formData.reference_type === 'agent' ? "Agent's Full Name" : "Landlord's Full Name" }} *</label>
-              <input
-                v-model="formData.previous_landlord_name"
-                type="text"
-                required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                :placeholder="formData.reference_type === 'agent' ? 'Enter agent\'s full name' : 'Enter landlord\'s full name'"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">{{ formData.reference_type === 'agent' ? "Agent's Email" : "Landlord's Email" }} *</label>
-              <input
-                v-model="formData.previous_landlord_email"
-                type="email"
-                required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                :class="{ 'border-red-500': landlordEmailError }"
-                :placeholder="formData.reference_type === 'agent' ? 'agent@example.com' : 'landlord@example.com'"
-              />
-              <p v-if="landlordEmailError" class="mt-1 text-sm text-red-600">{{ landlordEmailError }}</p>
-              <p v-else class="mt-1 text-xs text-gray-500">We will send an email to this address to request a reference</p>
-            </div>
-
-            <PhoneInput
-              v-model="formData.previous_landlord_phone"
-              :label="formData.reference_type === 'agent' ? 'Agent\'s Phone Number' : 'Landlord\'s Phone Number'"
-              id="previous-landlord-phone"
-              :required="true"
-            />
-
-            <div>
-              <h3 class="text-md font-semibold text-gray-700 mb-3 mt-6">Previous Rental Address</h3>
-            </div>
-
-            <div>
-              <AddressAutocomplete
-                v-model="formData.previous_rental_address_line1"
-                label="Address Line 1"
-                :required="true"
-                placeholder="Start typing address..."
-                @addressSelected="handlePreviousRentalAddressSelected"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Address Line 2</label>
-              <input
-                v-model="formData.previous_rental_address_line2"
-                type="text"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Apartment, suite, etc. (optional)"
-              />
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">City *</label>
-                <input
-                  v-model="formData.previous_rental_city"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="City"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Postcode *</label>
-                <input
-                  v-model="formData.previous_rental_postcode"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="Postcode"
-                />
-              </div>
-            </div>
-
-            <div class="relative">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Country *</label>
-              <input
-                v-model="previousRentalCountrySearch"
-                @focus="showPreviousRentalCountryDropdown = true"
-                @input="showPreviousRentalCountryDropdown = true"
-                @blur="hidePreviousRentalCountryDropdown"
-                type="text"
-                required
-                placeholder="Search and select country..."
-                autocomplete="off"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
-              <div
-                v-if="showPreviousRentalCountryDropdown && filteredPreviousRentalCountries.length > 0"
-                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
-              >
-                <div
-                  v-for="country in filteredPreviousRentalCountries"
-                  :key="country?.code || ''"
-                  @mousedown.prevent="country && selectPreviousRentalCountry(country)"
-                  class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                >
-                  {{ country?.name }}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 class="text-md font-semibold text-gray-700 mb-3 mt-6">Tenancy Duration</h3>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Tenancy Duration (Years)</label>
-                <input
-                  v-model.number="formData.tenancy_years"
-                  type="number"
-                  min="0"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Tenancy Duration (Months)</label>
-                <input
-                  v-model.number="formData.tenancy_months"
-                  type="number"
-                  min="0"
-                  max="11"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-
-            <!-- Previous Monthly Rent -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Monthly Rent at Previous Address *
-              </label>
-              <div class="relative">
-                <span class="absolute left-3 top-3 text-gray-500">£</span>
-                <input
-                  v-model.number="formData.previous_monthly_rent"
-                  type="number"
-                  required
-                  class="pl-7 mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="800"
-                />
-              </div>
-            </div>
-
-            <!-- Previous Tenancy Start Date -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Tenancy Start Date *
-              </label>
-              <input
-                v-model="formData.previous_tenancy_start_date"
-                type="date"
-                required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
-            </div>
-
-            <!-- Still in Tenancy Checkbox -->
-            <div>
-              <label class="flex items-center">
-                <input
-                  v-model="formData.previous_tenancy_still_in_progress"
-                  type="checkbox"
-                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                />
-                <span class="ml-2 text-sm text-gray-700">Still in tenancy (no end date yet)</span>
-              </label>
-            </div>
-
-            <!-- Previous Tenancy End Date -->
-            <div v-if="!formData.previous_tenancy_still_in_progress">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Tenancy End Date *
-              </label>
-              <input
-                v-model="formData.previous_tenancy_end_date"
-                type="date"
-                :required="!formData.previous_tenancy_still_in_progress"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
-            </div>
-
-            <!-- Agency Name (only show if reference_type is 'agent') -->
-            <div v-if="formData.reference_type === 'agent'">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Letting Agency Name *
-              </label>
-              <input
-                v-model="formData.previous_agency_name"
-                type="text"
-                :required="formData.reference_type === 'agent'"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="e.g., Foxtons, Rightmove Lettings"
-              />
-            </div>
-
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div class="flex">
-                <div class="flex-shrink-0">
-                  <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-                <div class="ml-3">
-                  <p class="text-sm text-blue-700">
-                    Your previous {{ formData.reference_type === 'agent' ? 'letting agent' : 'landlord' }} will receive an email asking them to provide a reference about your tenancy.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- PAGE 13: Previous Guarantor Experience -->
-        <div v-if="currentPage === 13" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Previous Guarantor Experience</h2>
-          <p class="text-sm text-gray-600 mb-6">Have you previously acted as a guarantor for a tenancy?</p>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">Have you acted as a guarantor before? *</label>
-              <div class="flex gap-3">
-                <button
-                  type="button"
-                  @click="formData.previously_acted_as_guarantor = true"
-                  class="flex-1 px-4 py-3 border-2 rounded-md transition-all"
-                  :class="formData.previously_acted_as_guarantor === true
-                    ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
-                  :style="formData.previously_acted_as_guarantor === true ? { borderColor: buttonColor, color: buttonColor } : {}"
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  @click="formData.previously_acted_as_guarantor = false"
-                  class="flex-1 px-4 py-3 border-2 rounded-md transition-all"
-                  :class="formData.previously_acted_as_guarantor === false
-                    ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
-                  :style="formData.previously_acted_as_guarantor === false ? { borderColor: buttonColor, color: buttonColor } : {}"
-                >
-                  No
-                </button>
-              </div>
-            </div>
-
-            <div v-if="formData.previously_acted_as_guarantor" class="pt-4 border-t border-gray-200">
-              <label class="block text-sm font-medium text-gray-700">Please provide details *</label>
-              <textarea
-                v-model="formData.previous_guarantor_details"
-                rows="4"
-                :required="formData.previously_acted_as_guarantor"
-                placeholder="When did you act as guarantor? For whom? What was the outcome? Were there any issues?"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              ></textarea>
-              <p class="mt-1 text-xs text-gray-500">Please include when, for whom, and any relevant outcomes</p>
-            </div>
-          </div>
-        </div>
 
         <!-- PAGE 14: Legal Consent & Understanding -->
-        <div v-if="currentPage === 14" class="bg-white rounded-lg shadow p-6">
+        <div v-if="currentPage === 11" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Legal Obligations & Consent</h2>
           <p class="text-sm text-gray-600 mb-6">Please read carefully and confirm your understanding of your legal obligations as a guarantor</p>
 
@@ -2120,7 +1722,7 @@
         </div>
 
         <!-- PAGE 15: Review and Submit -->
-        <div v-if="currentPage === 15" class="bg-white rounded-lg shadow p-6">
+        <div v-if="currentPage === 12" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Referencing Consent</h2>
           <p class="text-sm text-gray-600 mb-6">Please read and sign the declaration below</p>
 
@@ -2994,9 +2596,8 @@ const fetchReferenceByToken = async () => {
       buttonColor.value = reference.value.companies.button_color || '#FF8C41'
     }
 
-    // Pre-fill name from reference
-    formData.value.first_name = reference.value.tenant_first_name || ''
-    formData.value.last_name = reference.value.tenant_last_name || ''
+    // Don't pre-fill form - guarantor enters their own details
+    // (Tenant details are shown at the top for context only)
 
     // Load current page if saved
     if (reference.value.current_page) {
@@ -3359,7 +2960,7 @@ const uploadCurrentPageFiles = async () => {
     hasFilesToUpload = true
   }
 
-  if (currentPage.value === 5 && proofOfAddress.value && !formData.value.proof_of_address_path) {
+  if (currentPage.value === 6 && proofOfAddress.value && !formData.value.proof_of_address_path) {
     formDataFiles.append('proof_of_address', proofOfAddress.value)
     hasFilesToUpload = true
   }
@@ -3392,7 +2993,7 @@ const uploadCurrentPageFiles = async () => {
   }
 
   // Upload the files
-  const response = await fetch(`${API_URL}/api/references/upload/${token}`, {
+  const response = await fetch(`${API_URL}/api/guarantor-references/upload/${token}`, {
     method: 'POST',
     body: formDataFiles
   })
@@ -3475,11 +3076,14 @@ const handlePageSubmit = async () => {
       return
     }
   } else if (currentPage.value === 5) {
+    // Home ownership validation - no proof of address yet on this page
+  } else if (currentPage.value === 6) {
+    // Validate proof of address upload
     if (!proofOfAddress.value && !formData.value.proof_of_address_path) {
       submitError.value = 'Please upload proof of address'
       return
     }
-  } else if (currentPage.value === 6) {
+  } else if (currentPage.value === 7) {
     // Validate employer email if regular employment income is selected
     if (formData.value.income_regular_employment && formData.value.employer_ref_email) {
       if (!isWorkEmail(formData.value.employer_ref_email)) {

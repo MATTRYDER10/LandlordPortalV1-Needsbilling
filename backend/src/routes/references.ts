@@ -230,6 +230,13 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .eq('tenant_reference_id', referenceId)
       .single()
 
+    // Get guarantor reference if exists
+    const { data: guarantorReference } = await supabase
+      .from('guarantor_references')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single()
+
     // If this is a child reference and no landlord/agent/accountant ref found, check siblings
     if (reference.parent_reference_id && (!landlordReference && !agentReference && !accountantReference)) {
       // Get all sibling references
@@ -502,6 +509,42 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       signature: decrypt(accountantReference.signature_encrypted)
     } : null
 
+    const decryptedGuarantorReference = guarantorReference ? {
+      ...guarantorReference,
+      guarantor_first_name: decrypt(guarantorReference.guarantor_first_name_encrypted),
+      guarantor_last_name: decrypt(guarantorReference.guarantor_last_name_encrypted),
+      middle_name: guarantorReference.middle_name_encrypted ? decrypt(guarantorReference.middle_name_encrypted) : null,
+      date_of_birth: guarantorReference.date_of_birth_encrypted ? decrypt(guarantorReference.date_of_birth_encrypted) : null,
+      contact_number: guarantorReference.contact_number_encrypted ? decrypt(guarantorReference.contact_number_encrypted) : null,
+      email: guarantorReference.email_encrypted ? decrypt(guarantorReference.email_encrypted) : null,
+      nationality: guarantorReference.nationality_encrypted ? decrypt(guarantorReference.nationality_encrypted) : null,
+      current_address_line1: guarantorReference.current_address_line1_encrypted ? decrypt(guarantorReference.current_address_line1_encrypted) : null,
+      current_address_line2: guarantorReference.current_address_line2_encrypted ? decrypt(guarantorReference.current_address_line2_encrypted) : null,
+      current_city: guarantorReference.current_city_encrypted ? decrypt(guarantorReference.current_city_encrypted) : null,
+      current_postcode: guarantorReference.current_postcode_encrypted ? decrypt(guarantorReference.current_postcode_encrypted) : null,
+      current_country: guarantorReference.current_country_encrypted ? decrypt(guarantorReference.current_country_encrypted) : null,
+      employer_name: guarantorReference.employer_name_encrypted ? decrypt(guarantorReference.employer_name_encrypted) : null,
+      job_title: guarantorReference.job_title_encrypted ? decrypt(guarantorReference.job_title_encrypted) : null,
+      annual_income: guarantorReference.annual_income_encrypted ? decrypt(guarantorReference.annual_income_encrypted) : null,
+      business_name: guarantorReference.business_name_encrypted ? decrypt(guarantorReference.business_name_encrypted) : null,
+      nature_of_business: guarantorReference.nature_of_business_encrypted ? decrypt(guarantorReference.nature_of_business_encrypted) : null,
+      annual_turnover: guarantorReference.annual_turnover_encrypted ? decrypt(guarantorReference.annual_turnover_encrypted) : null,
+      pension_amount: guarantorReference.pension_amount_encrypted ? decrypt(guarantorReference.pension_amount_encrypted) : null,
+      other_income_source: guarantorReference.other_income_source_encrypted ? decrypt(guarantorReference.other_income_source_encrypted) : null,
+      other_income_amount: guarantorReference.other_income_amount_encrypted ? decrypt(guarantorReference.other_income_amount_encrypted) : null,
+      savings_amount: guarantorReference.savings_amount_encrypted ? decrypt(guarantorReference.savings_amount_encrypted) : null,
+      property_value: guarantorReference.property_value_encrypted ? decrypt(guarantorReference.property_value_encrypted) : null,
+      other_assets: guarantorReference.other_assets_encrypted ? decrypt(guarantorReference.other_assets_encrypted) : null,
+      monthly_mortgage_rent: guarantorReference.monthly_mortgage_rent_encrypted ? decrypt(guarantorReference.monthly_mortgage_rent_encrypted) : null,
+      other_monthly_commitments: guarantorReference.other_monthly_commitments_encrypted ? decrypt(guarantorReference.other_monthly_commitments_encrypted) : null,
+      total_monthly_expenditure: guarantorReference.total_monthly_expenditure_encrypted ? decrypt(guarantorReference.total_monthly_expenditure_encrypted) : null,
+      adverse_credit_details: guarantorReference.adverse_credit_details_encrypted ? decrypt(guarantorReference.adverse_credit_details_encrypted) : null,
+      previous_guarantor_details: guarantorReference.previous_guarantor_details_encrypted ? decrypt(guarantorReference.previous_guarantor_details_encrypted) : null,
+      additional_comments: guarantorReference.additional_comments_encrypted ? decrypt(guarantorReference.additional_comments_encrypted) : null,
+      guarantor_email: guarantorReference.guarantor_email_encrypted ? decrypt(guarantorReference.guarantor_email_encrypted) : null,
+      guarantor_phone: guarantorReference.guarantor_phone_encrypted ? decrypt(guarantorReference.guarantor_phone_encrypted) : null
+    } : null
+
     res.json({
       reference: decryptedReference,
       documents,
@@ -509,6 +552,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       agentReference: decryptedAgentReference,
       employerReference: decryptedEmployerReference,
       accountantReference: decryptedAccountantReference,
+      guarantorReference: decryptedGuarantorReference,
       childReferences: decryptedChildReferences,
       parentReference: decryptedParentReference,
       siblingReferences: decryptedSiblingReferences,

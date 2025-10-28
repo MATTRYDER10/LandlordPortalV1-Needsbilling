@@ -76,9 +76,9 @@ const upload = multer({
   }
 })
 
-// POST /api/guarantor-references/submit/:token
-// Submit guarantor form with file uploads
-router.post('/submit/:token', (req, res, next) => {
+// POST /api/guarantor-references/upload/:token
+// Upload files incrementally as guarantor progresses through form
+router.post('/upload/:token', (req, res, next) => {
   const uploadMiddleware = upload.fields([
     { name: 'id_document', maxCount: 1 },
     { name: 'selfie', maxCount: 1 },
@@ -96,175 +96,146 @@ router.post('/submit/:token', (req, res, next) => {
 }, async (req, res) => {
   try {
     const { token } = req.params
-    const data = req.body
+    const tokenHash = hash(token)
     const files = req.files as { [fieldname: string]: Express.Multer.File[] }
 
-    console.log('=== GUARANTOR SUBMISSION ===')
-    console.log('Token:', token)
-    console.log('Form data keys:', Object.keys(data))
-    console.log('Files:', files ? Object.keys(files) : 'none')
-
-    // Hash the token to look up the reference securely
-    const tokenHash = hash(token)
-
-    // Get tenant reference by token hash
-    const { data: reference, error: refError } = await supabase
-      .from('tenant_references')
-      .select('id, company_id, requires_guarantor, submitted_at')
+    // Verify guarantor reference exists
+    const { data: guarantorRef, error: refError } = await supabase
+      .from('guarantor_references')
+      .select('id')
       .eq('reference_token_hash', tokenHash)
       .gte('token_expires_at', new Date().toISOString())
       .single()
 
-    if (refError || !reference) {
-      console.error('Reference lookup error:', refError)
+    if (refError || !guarantorRef) {
       return res.status(404).json({ error: 'Invalid or expired reference link' })
     }
 
-    console.log('Found reference:', reference.id)
-    console.log('Requires guarantor:', reference.requires_guarantor)
+    const uploadedPaths: any = {}
 
-    // Verify the tenant reference actually requires a guarantor
-    if (!reference.requires_guarantor) {
-      return res.status(400).json({ error: 'This reference does not require a guarantor' })
-    }
-
-    // Verify tenant has submitted their form
-    if (!reference.submitted_at) {
-      return res.status(400).json({ error: 'Tenant must submit their reference before guarantor can submit' })
-    }
-
-    // Check if guarantor has already been submitted for this reference
-    const { data: existingGuarantor } = await supabase
-      .from('guarantor_references')
-      .select('id')
-      .eq('reference_id', reference.id)
-      .single()
-
-    if (existingGuarantor) {
-      return res.status(400).json({ error: 'Guarantor reference has already been submitted for this tenant' })
-    }
-
-    // Upload files to storage
-    let idDocumentPath: string | null = null
-    let selfiePath: string | null = null
-    let proofOfAddressPath: string | null = null
-    let bankStatementPath: string | null = null
-    const payslipPaths: string[] = []
-
-    // Upload ID document
+    // Upload files to Supabase Storage
     if (files.id_document && files.id_document[0]) {
       const file = files.id_document[0]
-      const fileExt = file.originalname.split('.').pop()
-      const fileName = `${reference.id}/guarantor/id_document/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
-
+      const filename = `${guarantorRef.id}_id_${Date.now()}.${file.mimetype.split('/')[1]}`
       const { error: uploadError } = await supabase.storage
-        .from('tenant-documents')
-        .upload(fileName, file.buffer, {
-          contentType: file.mimetype,
-          upsert: false
+        .from('reference-documents')
+        .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+          contentType: file.mimetype
         })
-
-      if (uploadError) {
-        console.error('ID document upload error:', uploadError)
-        throw new Error(`Failed to upload ID document: ${uploadError.message}`)
+      if (!uploadError) {
+        uploadedPaths.id_document = `guarantor-documents/${guarantorRef.id}/${filename}`
       }
-
-      idDocumentPath = fileName
-      console.log('Uploaded ID document:', idDocumentPath)
     }
 
-    // Upload selfie
     if (files.selfie && files.selfie[0]) {
       const file = files.selfie[0]
-      const fileExt = file.originalname.split('.').pop()
-      const fileName = `${reference.id}/guarantor/selfie/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
-
+      const filename = `${guarantorRef.id}_selfie_${Date.now()}.${file.mimetype.split('/')[1]}`
       const { error: uploadError } = await supabase.storage
-        .from('tenant-documents')
-        .upload(fileName, file.buffer, {
-          contentType: file.mimetype,
-          upsert: false
+        .from('reference-documents')
+        .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+          contentType: file.mimetype
         })
-
-      if (uploadError) {
-        console.error('Selfie upload error:', uploadError)
-        throw new Error(`Failed to upload selfie: ${uploadError.message}`)
+      if (!uploadError) {
+        uploadedPaths.selfie = `guarantor-documents/${guarantorRef.id}/${filename}`
       }
-
-      selfiePath = fileName
-      console.log('Uploaded selfie:', selfiePath)
     }
 
-    // Upload proof of address
     if (files.proof_of_address && files.proof_of_address[0]) {
       const file = files.proof_of_address[0]
-      const fileExt = file.originalname.split('.').pop()
-      const fileName = `${reference.id}/guarantor/proof_of_address/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
-
+      const filename = `${guarantorRef.id}_proof_of_address_${Date.now()}.${file.mimetype.split('/')[1]}`
       const { error: uploadError } = await supabase.storage
-        .from('tenant-documents')
-        .upload(fileName, file.buffer, {
-          contentType: file.mimetype,
-          upsert: false
+        .from('reference-documents')
+        .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+          contentType: file.mimetype
         })
-
-      if (uploadError) {
-        console.error('Proof of address upload error:', uploadError)
-        throw new Error(`Failed to upload proof of address: ${uploadError.message}`)
+      if (!uploadError) {
+        uploadedPaths.proof_of_address = `guarantor-documents/${guarantorRef.id}/${filename}`
       }
-
-      proofOfAddressPath = fileName
-      console.log('Uploaded proof of address:', proofOfAddressPath)
     }
 
-    // Upload bank statement
     if (files.bank_statement && files.bank_statement[0]) {
       const file = files.bank_statement[0]
-      const fileExt = file.originalname.split('.').pop()
-      const fileName = `${reference.id}/guarantor/bank_statement/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
-
+      const filename = `${guarantorRef.id}_bank_statement_${Date.now()}.${file.mimetype.split('/')[1]}`
       const { error: uploadError } = await supabase.storage
-        .from('tenant-documents')
-        .upload(fileName, file.buffer, {
-          contentType: file.mimetype,
-          upsert: false
+        .from('reference-documents')
+        .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+          contentType: file.mimetype
         })
-
-      if (uploadError) {
-        console.error('Bank statement upload error:', uploadError)
-        throw new Error(`Failed to upload bank statement: ${uploadError.message}`)
+      if (!uploadError) {
+        uploadedPaths.bank_statement = `guarantor-documents/${guarantorRef.id}/${filename}`
       }
-
-      bankStatementPath = fileName
-      console.log('Uploaded bank statement:', bankStatementPath)
     }
 
-    // Upload payslips
-    if (files.payslips) {
-      for (const file of files.payslips) {
-        const fileExt = file.originalname.split('.').pop()
-        const fileName = `${reference.id}/guarantor/payslips/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
-
+    if (files.payslips && files.payslips.length > 0) {
+      const payslipPaths = []
+      for (const [index, file] of files.payslips.entries()) {
+        const filename = `${guarantorRef.id}_payslip_${index}_${Date.now()}.${file.mimetype.split('/')[1]}`
         const { error: uploadError } = await supabase.storage
-          .from('tenant-documents')
-          .upload(fileName, file.buffer, {
-            contentType: file.mimetype,
-            upsert: false
+          .from('reference-documents')
+          .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+            contentType: file.mimetype
           })
-
-        if (uploadError) {
-          console.error('Payslip upload error:', uploadError)
-          throw new Error(`Failed to upload ${file.originalname}: ${uploadError.message}`)
+        if (!uploadError) {
+          payslipPaths.push(`guarantor-documents/${guarantorRef.id}/${filename}`)
         }
-
-        payslipPaths.push(fileName)
-        console.log('Uploaded payslip:', fileName)
+      }
+      if (payslipPaths.length > 0) {
+        uploadedPaths.payslips = payslipPaths
       }
     }
 
-    // Build guarantor reference insert object with ALL fields from schema
+    res.json(uploadedPaths)
+  } catch (error: any) {
+    console.error('Guarantor file upload error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// POST /api/guarantor-references/submit/:token
+// Submit guarantor form (files already uploaded via upload endpoint)
+router.post('/submit/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+    const data = req.body
+
+    console.log('=== GUARANTOR SUBMISSION ===')
+    console.log('Token:', token)
+    console.log('Form data keys:', Object.keys(data))
+
+    // Hash the token to look up the reference securely
+    const tokenHash = hash(token)
+
+    // Get guarantor reference by token hash, with tenant reference details
+    const { data: guarantorRef, error: refError } = await supabase
+      .from('guarantor_references')
+      .select(`
+        id,
+        reference_id,
+        submitted_at,
+        tenant_references!inner(id, company_id, requires_guarantor, submitted_at)
+      `)
+      .eq('reference_token_hash', tokenHash)
+      .gte('token_expires_at', new Date().toISOString())
+      .single()
+
+    if (refError || !guarantorRef) {
+      console.error('Guarantor reference lookup error:', refError)
+      return res.status(404).json({ error: 'Invalid or expired reference link' })
+    }
+
+    console.log('Found guarantor reference:', guarantorRef.id)
+    console.log('Tenant reference:', guarantorRef.reference_id)
+
+    // Check if guarantor has already been submitted
+    if (guarantorRef.submitted_at) {
+      return res.status(400).json({ error: 'Guarantor reference has already been submitted' })
+    }
+
+    // Files have already been uploaded via the incremental upload endpoint
+    // We just need to use the paths from the form data
+
+    // Build guarantor reference update object with ALL fields from schema
     const guarantorData: any = {
-      reference_id: reference.id,
 
       // Personal Information (encrypted)
       guarantor_first_name_encrypted: encrypt(data.first_name),
@@ -280,8 +251,8 @@ router.post('/submit/:token', (req, res, next) => {
 
       // ID Verification
       id_document_type: data.id_document_type || null,
-      id_document_path: idDocumentPath,
-      selfie_path: selfiePath,
+      id_document_path: data.id_document_path || null,
+      selfie_path: data.selfie_path || null,
 
       // Current Address (encrypted)
       current_address_line1_encrypted: encrypt(data.current_address_line1),
@@ -291,7 +262,7 @@ router.post('/submit/:token', (req, res, next) => {
       current_country_encrypted: encrypt(data.current_country || ''),
       time_at_address_years: data.time_at_address_years || null,
       time_at_address_months: data.time_at_address_months || null,
-      proof_of_address_path: proofOfAddressPath,
+      proof_of_address_path: data.proof_of_address_path || null,
 
       // Home Ownership Status
       home_ownership_status: data.home_ownership_status || null,
@@ -335,7 +306,7 @@ router.post('/submit/:token', (req, res, next) => {
       adverse_credit_details_encrypted: encrypt(data.adverse_credit_details || ''),
 
       // Bank Details
-      bank_statement_path: bankStatementPath,
+      bank_statement_path: data.bank_statement_path || null,
 
       // Previous Guarantor Experience
       previously_acted_as_guarantor: data.previously_acted_as_guarantor || false,
@@ -356,30 +327,26 @@ router.post('/submit/:token', (req, res, next) => {
       submitted_at: new Date().toISOString()
     }
 
-    console.log('Inserting guarantor reference...')
+    console.log('Updating guarantor reference...')
 
-    // Insert guarantor reference into database
-    const { data: guarantorReference, error: insertError } = await supabase
+    // Update guarantor reference in database
+    const { data: guarantorReference, error: updateError } = await supabase
       .from('guarantor_references')
-      .insert(guarantorData)
+      .update(guarantorData)
+      .eq('id', guarantorRef.id)
       .select()
       .single()
 
-    if (insertError) {
-      console.error('Insert error:', insertError)
-      return res.status(400).json({ error: insertError.message })
+    if (updateError) {
+      console.error('Update error:', updateError)
+      return res.status(400).json({ error: updateError.message })
     }
 
-    console.log('Guarantor reference created successfully:', guarantorReference.id)
+    console.log('Guarantor reference submitted successfully:', guarantorReference.id)
 
     res.json({
       message: 'Guarantor reference submitted successfully',
-      guarantor_reference_id: guarantorReference.id,
-      id_document_path: idDocumentPath,
-      selfie_path: selfiePath,
-      proof_of_address_path: proofOfAddressPath,
-      bank_statement_path: bankStatementPath,
-      payslip_paths: payslipPaths
+      guarantor_reference_id: guarantorReference.id
     })
   } catch (error: any) {
     console.error('Guarantor submission error:', error)
