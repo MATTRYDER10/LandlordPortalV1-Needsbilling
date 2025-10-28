@@ -1,4 +1,4 @@
-const RTR_API_KEY = 'c500f661b585b0ecb96e92c913ea37f92a6ec3a35d62581765708ebdfa30fcff'
+const RTR_API_KEY = process.env.RTR_API_KEY || 'c500f661b585b0ecb96e92c913ea37f92a6ec3a35d62581765708ebdfa30fcff'
 const RTR_API_BASE_URL = 'https://ukrtwchecker.co.uk/api'
 
 export interface RTRVerificationResult {
