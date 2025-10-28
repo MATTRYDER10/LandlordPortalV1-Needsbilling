@@ -1886,10 +1886,6 @@ const showCountryDropdown = ref(false)
 const companyCountrySearch = ref('')
 const showCompanyCountryDropdown = ref(false)
 
-// Previous Rental Country search
-const previousRentalCountrySearch = ref('')
-const showPreviousRentalCountryDropdown = ref(false)
-
 // Date of Birth fields
 const dobDay = ref('')
 const dobMonth = ref('')
@@ -2157,26 +2153,6 @@ const filteredCompanyCountries = computed(() => {
   return filtered
 })
 
-// Filtered previous rental countries based on search
-const filteredPreviousRentalCountries = computed(() => {
-  if (!previousRentalCountrySearch.value) {
-    // Show United Kingdom first, then all other countries
-    const ukIndex = COUNTRIES.findIndex(c => c.code === 'GB')
-    if (ukIndex !== -1) {
-      return [COUNTRIES[ukIndex], ...COUNTRIES.filter(c => c.code !== 'GB')]
-    }
-    return COUNTRIES
-  }
-  const search = previousRentalCountrySearch.value.toLowerCase()
-  const filtered = COUNTRIES.filter(c => c.name.toLowerCase().includes(search))
-
-  // If UK matches the search, show it first
-  const ukIndex = filtered.findIndex(c => c.code === 'GB')
-  if (ukIndex !== -1) {
-    return [filtered[ukIndex], ...filtered.filter(c => c.code !== 'GB')]
-  }
-  return filtered
-})
 
 
 // Select nationality from dropdown
@@ -2221,19 +2197,6 @@ const hideCompanyCountryDropdown = () => {
   }, 200)
 }
 
-// Select previous rental country from dropdown
-const selectPreviousRentalCountry = (country: { code: string, name: string }) => {
-  previousRentalCountrySearch.value = country.name
-  formData.value.previous_rental_country = country.code
-  showPreviousRentalCountryDropdown.value = false
-}
-
-// Hide previous rental country dropdown with delay to allow click
-const hidePreviousRentalCountryDropdown = () => {
-  setTimeout(() => {
-    showPreviousRentalCountryDropdown.value = false
-  }, 200)
-}
 
 // Dynamic postcode label based on country
 const postcodeLabel = computed(() => {
@@ -3258,17 +3221,6 @@ const handleCompanyAddressSelected = (addressData: any) => {
   }
 }
 
-const handlePreviousRentalAddressSelected = (addressData: any) => {
-  formData.value.previous_rental_address_line1 = addressData.addressLine1
-  formData.value.previous_rental_city = addressData.city
-  formData.value.previous_rental_postcode = addressData.postcode
-
-  // Update country if available
-  if (addressData.country.name) {
-    previousRentalCountrySearch.value = addressData.country.name
-    formData.value.previous_rental_country = addressData.country.code
-  }
-}
 
 </script>
 
