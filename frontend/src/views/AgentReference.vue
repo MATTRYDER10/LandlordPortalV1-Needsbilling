@@ -117,7 +117,7 @@
                   ]"
                   :style="formData.tenancyStatus === 'ended' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
-                  Tenancy Ended
+                  Tenancy Ending/Ended
                 </button>
                 <button
                   type="button"
