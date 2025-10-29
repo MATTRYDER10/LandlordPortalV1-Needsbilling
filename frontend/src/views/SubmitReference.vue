@@ -1467,6 +1467,7 @@
                 />
                 <span class="ml-2 text-sm text-gray-700">Yes, I have additional income or savings</span>
               </label>
+              <p class="mt-2 text-xs text-gray-500 ml-6">Leave unchecked if you do not have additional income or savings</p>
             </div>
 
             <div v-if="formData.has_additional_income" class="space-y-4 pt-4">
@@ -1597,6 +1598,7 @@
                 />
                 <span class="ml-2 text-sm text-gray-700">Yes, I have adverse credit</span>
               </label>
+              <p class="mt-2 text-xs text-gray-500 ml-6">Leave unchecked if you do not have adverse credit history</p>
             </div>
 
             <div v-if="formData.has_adverse_credit" class="pt-4">
@@ -1657,6 +1659,7 @@
                   />
                   <span class="ml-2 text-sm text-gray-700">Yes, I have pets</span>
                 </label>
+                <p class="text-xs text-gray-500 ml-6">Leave unchecked if you do not have pets</p>
               </div>
               <div v-if="formData.has_pets" class="mt-3">
                 <label class="block text-sm font-medium text-gray-700">Pet Details *</label>
