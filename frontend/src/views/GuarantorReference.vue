@@ -333,34 +333,6 @@
           <p class="text-sm text-gray-600 mb-6">Please provide your current residential address</p>
 
           <div class="space-y-4">
-            <div class="relative">
-              <label class="block text-sm font-medium text-gray-700">Country *</label>
-              <input
-                v-model="countrySearch"
-                @focus="showCountryDropdown = true"
-                @input="showCountryDropdown = true"
-                @blur="hideCountryDropdown"
-                type="text"
-                required
-                placeholder="Search and select country..."
-                autocomplete="off"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
-              <div
-                v-if="showCountryDropdown && filteredCountries.length > 0"
-                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
-              >
-                <div
-                  v-for="country in filteredCountries"
-                  :key="country?.code || ''"
-                  @mousedown.prevent="country && selectCountry(country)"
-                  class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                >
-                  {{ country?.name }}
-                </div>
-              </div>
-            </div>
-
             <div>
               <AddressAutocomplete
                 v-model="formData.current_address_line1"
@@ -401,6 +373,34 @@
                   :placeholder="postcodePlaceholder"
                   class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
+              </div>
+            </div>
+
+            <div class="relative">
+              <label class="block text-sm font-medium text-gray-700">Country *</label>
+              <input
+                v-model="countrySearch"
+                @focus="showCountryDropdown = true"
+                @input="showCountryDropdown = true"
+                @blur="hideCountryDropdown"
+                type="text"
+                required
+                placeholder="Search and select country..."
+                autocomplete="off"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              />
+              <div
+                v-if="showCountryDropdown && filteredCountries.length > 0"
+                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+              >
+                <div
+                  v-for="country in filteredCountries"
+                  :key="country?.code || ''"
+                  @mousedown.prevent="country && selectCountry(country)"
+                  class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                >
+                  {{ country?.name }}
+                </div>
               </div>
             </div>
 
@@ -459,34 +459,6 @@
                 </div>
 
                 <div class="space-y-4">
-                  <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700">Country *</label>
-                    <input
-                      v-model="previousAddressCountrySearches[index]"
-                      @focus="showPreviousAddressCountryDropdowns[index] = true"
-                      @input="showPreviousAddressCountryDropdowns[index] = true"
-                      @blur="hidePreviousAddressCountryDropdown(index)"
-                      type="text"
-                      required
-                      placeholder="Search and select country..."
-                      autocomplete="off"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    />
-                    <div
-                      v-if="showPreviousAddressCountryDropdowns[index] && filteredPreviousAddressCountries(index).length > 0"
-                      class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
-                    >
-                      <div
-                        v-for="country in filteredPreviousAddressCountries(index)"
-                        :key="country?.code || ''"
-                        @mousedown.prevent="country && selectPreviousAddressCountry(index, country)"
-                        class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                      >
-                        {{ country?.name }}
-                      </div>
-                    </div>
-                  </div>
-
                   <div>
                     <AddressAutocomplete
                       v-model="address.address_line1"
@@ -527,6 +499,34 @@
                         :placeholder="getPreviousAddressPostcodePlaceholder(index)"
                         class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       />
+                    </div>
+                  </div>
+
+                  <div class="relative">
+                    <label class="block text-sm font-medium text-gray-700">Country *</label>
+                    <input
+                      v-model="previousAddressCountrySearches[index]"
+                      @focus="showPreviousAddressCountryDropdowns[index] = true"
+                      @input="showPreviousAddressCountryDropdowns[index] = true"
+                      @blur="hidePreviousAddressCountryDropdown(index)"
+                      type="text"
+                      required
+                      placeholder="Search and select country..."
+                      autocomplete="off"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    />
+                    <div
+                      v-if="showPreviousAddressCountryDropdowns[index] && filteredPreviousAddressCountries(index).length > 0"
+                      class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                    >
+                      <div
+                        v-for="country in filteredPreviousAddressCountries(index)"
+                        :key="country?.code || ''"
+                        @mousedown.prevent="country && selectPreviousAddressCountry(index, country)"
+                        class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      >
+                        {{ country?.name }}
+                      </div>
                     </div>
                   </div>
 

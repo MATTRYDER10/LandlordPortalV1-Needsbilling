@@ -34,6 +34,7 @@ export interface ApplicantInput {
   };
   landlord_ref: {
     received: boolean;
+    living_with_family?: boolean;
     arrears: "none" | "minor_cleared" | "severe" | "unknown";
     property_care: "good" | "fair" | "bad" | "unknown";
     notes: string;
@@ -115,7 +116,10 @@ export function scorePropertyGoose(a: ApplicantInput): ScoredDecision {
 
   // D) Residential
   let res_pts = 0;
-  if (!a.landlord_ref.received) {
+  if (a.landlord_ref.living_with_family) {
+    // Living with family - full points, no reference required
+    res_pts = 15;
+  } else if (!a.landlord_ref.received) {
     res_pts = 6;
     review_flags.push("missing_landlord_ref");
   } else {

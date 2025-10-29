@@ -423,34 +423,6 @@
           <p class="text-sm text-gray-600 mb-6">Please provide your current residential address</p>
 
           <div class="space-y-4">
-            <div class="relative">
-              <label class="block text-sm font-medium text-gray-700">Country *</label>
-              <input
-                v-model="countrySearch"
-                @focus="showCountryDropdown = true"
-                @input="showCountryDropdown = true"
-                @blur="hideCountryDropdown"
-                type="text"
-                required
-                placeholder="Search and select country..."
-                autocomplete="off"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
-              <div
-                v-if="showCountryDropdown && filteredCountries.length > 0"
-                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
-              >
-                <div
-                  v-for="country in filteredCountries"
-                  :key="country?.code || ''"
-                  @mousedown.prevent="country && selectCountry(country)"
-                  class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                >
-                  {{ country?.name }}
-                </div>
-              </div>
-            </div>
-
             <div>
               <AddressAutocomplete
                 v-model="formData.current_address_line1"
@@ -491,6 +463,34 @@
                   :placeholder="postcodePlaceholder"
                   class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 />
+              </div>
+            </div>
+
+            <div class="relative">
+              <label class="block text-sm font-medium text-gray-700">Country *</label>
+              <input
+                v-model="countrySearch"
+                @focus="showCountryDropdown = true"
+                @input="showCountryDropdown = true"
+                @blur="hideCountryDropdown"
+                type="text"
+                required
+                placeholder="Search and select country..."
+                autocomplete="off"
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              />
+              <div
+                v-if="showCountryDropdown && filteredCountries.length > 0"
+                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+              >
+                <div
+                  v-for="country in filteredCountries"
+                  :key="country?.code || ''"
+                  @mousedown.prevent="country && selectCountry(country)"
+                  class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                >
+                  {{ country?.name }}
+                </div>
               </div>
             </div>
 
@@ -549,34 +549,6 @@
                 </div>
 
                 <div class="space-y-4">
-                  <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700">Country *</label>
-                    <input
-                      v-model="previousAddressCountrySearches[index]"
-                      @focus="showPreviousAddressCountryDropdowns[index] = true"
-                      @input="showPreviousAddressCountryDropdowns[index] = true"
-                      @blur="hidePreviousAddressCountryDropdown(index)"
-                      type="text"
-                      required
-                      placeholder="Search and select country..."
-                      autocomplete="off"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    />
-                    <div
-                      v-if="showPreviousAddressCountryDropdowns[index] && filteredPreviousAddressCountries(index).length > 0"
-                      class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
-                    >
-                      <div
-                        v-for="country in filteredPreviousAddressCountries(index)"
-                        :key="country?.code || ''"
-                        @mousedown.prevent="country && selectPreviousAddressCountry(index, country)"
-                        class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                      >
-                        {{ country?.name }}
-                      </div>
-                    </div>
-                  </div>
-
                   <div>
                     <AddressAutocomplete
                       v-model="address.address_line1"
@@ -617,6 +589,34 @@
                         :placeholder="getPreviousAddressPostcodePlaceholder(index)"
                         class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       />
+                    </div>
+                  </div>
+
+                  <div class="relative">
+                    <label class="block text-sm font-medium text-gray-700">Country *</label>
+                    <input
+                      v-model="previousAddressCountrySearches[index]"
+                      @focus="showPreviousAddressCountryDropdowns[index] = true"
+                      @input="showPreviousAddressCountryDropdowns[index] = true"
+                      @blur="hidePreviousAddressCountryDropdown(index)"
+                      type="text"
+                      required
+                      placeholder="Search and select country..."
+                      autocomplete="off"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    />
+                    <div
+                      v-if="showPreviousAddressCountryDropdowns[index] && filteredPreviousAddressCountries(index).length > 0"
+                      class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                    >
+                      <div
+                        v-for="country in filteredPreviousAddressCountries(index)"
+                        :key="country?.code || ''"
+                        @mousedown.prevent="country && selectPreviousAddressCountry(index, country)"
+                        class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      >
+                        {{ country?.name }}
+                      </div>
                     </div>
                   </div>
 
@@ -1741,10 +1741,20 @@
                   />
                   <span class="text-sm text-gray-700">Letting Agent</span>
                 </label>
+                <label class="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    v-model="formData.reference_type"
+                    value="living_with_family"
+                    class="mr-2"
+                    :style="{ accentColor: primaryColor }"
+                  />
+                  <span class="text-sm text-gray-700">Living with Family</span>
+                </label>
               </div>
             </div>
 
-            <div>
+            <div v-if="formData.reference_type !== 'living_with_family'">
               <label class="block text-sm font-medium text-gray-700 mb-2">{{ formData.reference_type === 'agent' ? "Agent's Full Name" : "Landlord's Full Name" }} *</label>
               <input
                 v-model="formData.previous_landlord_name"
@@ -1755,200 +1765,217 @@
               />
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">{{ formData.reference_type === 'agent' ? "Agent's Email" : "Landlord's Email" }} *</label>
-              <input
-                v-model="formData.previous_landlord_email"
-                type="email"
-                required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                :class="{ 'border-red-500': landlordEmailError }"
-                :placeholder="formData.reference_type === 'agent' ? 'agent@example.com' : 'landlord@example.com'"
-              />
-              <p v-if="landlordEmailError" class="mt-1 text-sm text-red-600">{{ landlordEmailError }}</p>
-              <p v-else class="mt-1 text-xs text-gray-500">We will send an email to this address to request a reference</p>
-            </div>
-
-            <PhoneInput
-              v-model="formData.previous_landlord_phone"
-              :label="formData.reference_type === 'agent' ? 'Agent\'s Phone Number' : 'Landlord\'s Phone Number'"
-              id="previous-landlord-phone"
-              :required="true"
-            />
-
-            <div>
-              <h3 class="text-md font-semibold text-gray-700 mb-3 mt-6">Previous Rental Address</h3>
-            </div>
-
-            <div>
-              <AddressAutocomplete
-                v-model="formData.previous_rental_address_line1"
-                label="Address Line 1"
-                :required="true"
-                placeholder="Start typing address..."
-                @addressSelected="handlePreviousRentalAddressSelected"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Address Line 2</label>
-              <input
-                v-model="formData.previous_rental_address_line2"
-                type="text"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Apartment, suite, etc. (optional)"
-              />
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
+            <template v-if="formData.reference_type !== 'living_with_family'">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">City *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ formData.reference_type === 'agent' ? "Agent's Email" : "Landlord's Email" }} *</label>
                 <input
-                  v-model="formData.previous_rental_city"
-                  type="text"
-                  required
+                  v-model="formData.previous_landlord_email"
+                  type="email"
+                  :required="formData.reference_type !== 'living_with_family'"
                   class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="City"
+                  :class="{ 'border-red-500': landlordEmailError }"
+                  :placeholder="formData.reference_type === 'agent' ? 'agent@example.com' : 'landlord@example.com'"
+                />
+                <p v-if="landlordEmailError" class="mt-1 text-sm text-red-600">{{ landlordEmailError }}</p>
+                <p v-else class="mt-1 text-xs text-gray-500">We will send an email to this address to request a reference</p>
+              </div>
+
+              <PhoneInput
+                v-model="formData.previous_landlord_phone"
+                :label="formData.reference_type === 'agent' ? 'Agent\'s Phone Number' : 'Landlord\'s Phone Number'"
+                id="previous-landlord-phone"
+                :required="formData.reference_type !== 'living_with_family'"
+              />
+
+              <div>
+                <h3 class="text-md font-semibold text-gray-700 mb-3 mt-6">Previous Rental Address</h3>
+              </div>
+
+              <div>
+                <AddressAutocomplete
+                  v-model="formData.previous_rental_address_line1"
+                  label="Address Line 1"
+                  :required="formData.reference_type !== 'living_with_family'"
+                  placeholder="Start typing address..."
+                  @addressSelected="handlePreviousRentalAddressSelected"
                 />
               </div>
+
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Postcode *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Address Line 2</label>
                 <input
-                  v-model="formData.previous_rental_postcode"
+                  v-model="formData.previous_rental_address_line2"
                   type="text"
-                  required
                   class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="Postcode"
+                  placeholder="Apartment, suite, etc. (optional)"
                 />
               </div>
-            </div>
 
-            <div class="relative">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Country *</label>
-              <input
-                v-model="previousRentalCountrySearch"
-                @focus="showPreviousRentalCountryDropdown = true"
-                @input="showPreviousRentalCountryDropdown = true"
-                @blur="hidePreviousRentalCountryDropdown"
-                type="text"
-                required
-                placeholder="Search and select country..."
-                autocomplete="off"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
-              <div
-                v-if="showPreviousRentalCountryDropdown && filteredPreviousRentalCountries.length > 0"
-                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
-              >
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">City *</label>
+                  <input
+                    v-model="formData.previous_rental_city"
+                    type="text"
+                    :required="formData.reference_type !== 'living_with_family'"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="City"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Postcode *</label>
+                  <input
+                    v-model="formData.previous_rental_postcode"
+                    type="text"
+                    :required="formData.reference_type !== 'living_with_family'"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="Postcode"
+                  />
+                </div>
+              </div>
+
+              <div class="relative">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Country *</label>
+                <input
+                  v-model="previousRentalCountrySearch"
+                  @focus="showPreviousRentalCountryDropdown = true"
+                  @input="showPreviousRentalCountryDropdown = true"
+                  @blur="hidePreviousRentalCountryDropdown"
+                  type="text"
+                  :required="formData.reference_type !== 'living_with_family'"
+                  placeholder="Search and select country..."
+                  autocomplete="off"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
                 <div
-                  v-for="country in filteredPreviousRentalCountries"
-                  :key="country?.code || ''"
-                  @mousedown.prevent="country && selectPreviousRentalCountry(country)"
-                  class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  v-if="showPreviousRentalCountryDropdown && filteredPreviousRentalCountries.length > 0"
+                  class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
                 >
-                  {{ country?.name }}
+                  <div
+                    v-for="country in filteredPreviousRentalCountries"
+                    :key="country?.code || ''"
+                    @mousedown.prevent="country && selectPreviousRentalCountry(country)"
+                    class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  >
+                    {{ country?.name }}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="text-md font-semibold text-gray-700 mb-3 mt-6">Tenancy Duration</h3>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Tenancy Duration (Years)</label>
+                  <input
+                    v-model.number="formData.tenancy_years"
+                    type="number"
+                    min="0"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Tenancy Duration (Months)</label>
+                  <input
+                    v-model.number="formData.tenancy_months"
+                    type="number"
+                    min="0"
+                    max="11"
+                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <!-- Previous Monthly Rent -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Monthly Rent at Previous Address *
+                </label>
+                <div class="relative">
+                  <span class="absolute left-3 top-3 text-gray-500">£</span>
+                  <input
+                    v-model.number="formData.previous_monthly_rent"
+                    type="number"
+                    :required="formData.reference_type !== 'living_with_family'"
+                    class="pl-7 mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="800"
+                  />
+                </div>
+              </div>
+
+              <!-- Previous Tenancy Start Date -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Tenancy Start Date *
+                </label>
+                <input
+                  v-model="formData.previous_tenancy_start_date"
+                  type="date"
+                  :required="formData.reference_type !== 'living_with_family'"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+
+              <!-- Still in Tenancy Checkbox -->
+              <div>
+                <label class="flex items-center">
+                  <input
+                    v-model="formData.previous_tenancy_still_in_progress"
+                    type="checkbox"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                  <span class="ml-2 text-sm text-gray-700">Still in tenancy (no end date yet)</span>
+                </label>
+              </div>
+
+              <!-- Previous Tenancy End Date -->
+              <div v-if="!formData.previous_tenancy_still_in_progress">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Tenancy End Date *
+                </label>
+                <input
+                  v-model="formData.previous_tenancy_end_date"
+                  type="date"
+                  :required="formData.reference_type !== 'living_with_family' && !formData.previous_tenancy_still_in_progress"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+
+              <!-- Agency Name (only show if reference_type is 'agent') -->
+              <div v-if="formData.reference_type === 'agent'">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Letting Agency Name *
+                </label>
+                <input
+                  v-model="formData.previous_agency_name"
+                  type="text"
+                  :required="formData.reference_type === 'agent'"
+                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="e.g., Foxtons, Rightmove Lettings"
+                />
+              </div>
+            </template>
+
+            <div v-if="formData.reference_type === 'living_with_family'" class="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-green-700">
+                    Living with family - no landlord reference required. You can proceed to the next section.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div>
-              <h3 class="text-md font-semibold text-gray-700 mb-3 mt-6">Tenancy Duration</h3>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Tenancy Duration (Years)</label>
-                <input
-                  v-model.number="formData.tenancy_years"
-                  type="number"
-                  min="0"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Tenancy Duration (Months)</label>
-                <input
-                  v-model.number="formData.tenancy_months"
-                  type="number"
-                  min="0"
-                  max="11"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-
-            <!-- Previous Monthly Rent -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Monthly Rent at Previous Address *
-              </label>
-              <div class="relative">
-                <span class="absolute left-3 top-3 text-gray-500">£</span>
-                <input
-                  v-model.number="formData.previous_monthly_rent"
-                  type="number"
-                  required
-                  class="pl-7 mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="800"
-                />
-              </div>
-            </div>
-
-            <!-- Previous Tenancy Start Date -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Tenancy Start Date *
-              </label>
-              <input
-                v-model="formData.previous_tenancy_start_date"
-                type="date"
-                required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
-            </div>
-
-            <!-- Still in Tenancy Checkbox -->
-            <div>
-              <label class="flex items-center">
-                <input
-                  v-model="formData.previous_tenancy_still_in_progress"
-                  type="checkbox"
-                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                />
-                <span class="ml-2 text-sm text-gray-700">Still in tenancy (no end date yet)</span>
-              </label>
-            </div>
-
-            <!-- Previous Tenancy End Date -->
-            <div v-if="!formData.previous_tenancy_still_in_progress">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Tenancy End Date *
-              </label>
-              <input
-                v-model="formData.previous_tenancy_end_date"
-                type="date"
-                :required="!formData.previous_tenancy_still_in_progress"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
-            </div>
-
-            <!-- Agency Name (only show if reference_type is 'agent') -->
-            <div v-if="formData.reference_type === 'agent'">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Letting Agency Name *
-              </label>
-              <input
-                v-model="formData.previous_agency_name"
-                type="text"
-                :required="formData.reference_type === 'agent'"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="e.g., Foxtons, Rightmove Lettings"
-              />
-            </div>
-
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div v-if="formData.reference_type !== 'living_with_family'" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div class="flex">
                 <div class="flex-shrink-0">
                   <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
