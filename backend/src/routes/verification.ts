@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { authenticateStaff, StaffAuthRequest } from '../middleware/staffAuth'
 import { supabase } from '../config/supabase'
 import { encrypt } from '../services/encryption'
+import { scorePropertyGoose } from '../services/scoringService'
+import { mapReferenceToScoringInput } from '../services/scoringMapper'
 
 const router = Router()
 
@@ -138,8 +140,129 @@ router.post('/:referenceId/complete', authenticateStaff, async (req: StaffAuthRe
       return res.status(400).json({ error: refError.message })
     }
 
-    res.json({ success: true, status: newStatus })
+    // Automatically score the reference if verification passed
+    let scoreResult = null
+    if (passed) {
+      try {
+        console.log(`Auto-scoring reference ${referenceId} after verification complete...`)
+
+        // Map database data to scoring input format
+        const scoringInput = await mapReferenceToScoringInput(referenceId)
+
+        if (scoringInput) {
+          // Run the scoring engine
+          const score = scorePropertyGoose(scoringInput)
+
+          console.log(`Scoring result for ${referenceId}:`, {
+            decision: score.decision,
+            score_total: score.score_total,
+            ratio: score.ratio
+          })
+
+          // Store the score in the database
+          const { data: savedScore, error: scoreError } = await supabase
+            .from('reference_scores')
+            .upsert({
+              reference_id: referenceId,
+              decision: score.decision,
+              score_total: score.score_total,
+              domain_scores: score.domain_scores,
+              ratio: score.ratio,
+              caps: score.caps,
+              review_flags: score.review_flags,
+              decline_reasons: score.decline_reasons,
+              guarantor_required: score.decision === 'PASS_WITH_GUARANTOR',
+              guarantor_min_ratio: score.guarantor_requirements.min_ratio,
+              guarantor_min_tas: score.guarantor_requirements.min_tas,
+              scored_by: staffUserId,
+              scored_at: new Date().toISOString()
+            }, {
+              onConflict: 'reference_id'
+            })
+            .select()
+            .single()
+
+          if (scoreError) {
+            console.error('Error saving score:', scoreError)
+          } else {
+            scoreResult = savedScore
+            console.log(`Score saved successfully for reference ${referenceId}`)
+          }
+        } else {
+          console.error('Failed to map reference data to scoring input')
+        }
+      } catch (scoringError: any) {
+        // Log error but don't fail the verification complete request
+        console.error('Error during auto-scoring:', scoringError)
+      }
+    }
+
+    res.json({ success: true, status: newStatus, score: scoreResult })
   } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// TEST ENDPOINT: Manually trigger scoring for a reference (for development/testing)
+router.post('/:referenceId/score', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { referenceId } = req.params
+    const staffUserId = req.staffUser?.id
+
+    console.log(`[TEST] Manually scoring reference ${referenceId}...`)
+
+    // Map database data to scoring input format
+    const scoringInput = await mapReferenceToScoringInput(referenceId)
+
+    if (!scoringInput) {
+      return res.status(400).json({ error: 'Failed to map reference data for scoring' })
+    }
+
+    // Run the scoring engine
+    const score = scorePropertyGoose(scoringInput)
+
+    console.log(`[TEST] Scoring result:`, {
+      decision: score.decision,
+      score_total: score.score_total,
+      ratio: score.ratio,
+      decline_reasons: score.decline_reasons
+    })
+
+    // Store the score in the database
+    const { data: savedScore, error: scoreError } = await supabase
+      .from('reference_scores')
+      .upsert({
+        reference_id: referenceId,
+        decision: score.decision,
+        score_total: score.score_total,
+        domain_scores: score.domain_scores,
+        ratio: score.ratio,
+        caps: score.caps,
+        review_flags: score.review_flags,
+        decline_reasons: score.decline_reasons,
+        guarantor_required: score.decision === 'PASS_WITH_GUARANTOR',
+        guarantor_min_ratio: score.guarantor_requirements.min_ratio,
+        guarantor_min_tas: score.guarantor_requirements.min_tas,
+        scored_by: staffUserId,
+        scored_at: new Date().toISOString()
+      }, {
+        onConflict: 'reference_id'
+      })
+      .select()
+      .single()
+
+    if (scoreError) {
+      console.error('[TEST] Error saving score:', scoreError)
+      return res.status(400).json({ error: scoreError.message })
+    }
+
+    res.json({
+      success: true,
+      score: savedScore,
+      input: scoringInput // Include input for debugging
+    })
+  } catch (error: any) {
+    console.error('[TEST] Error during manual scoring:', error)
     res.status(500).json({ error: error.message })
   }
 })

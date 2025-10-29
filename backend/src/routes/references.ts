@@ -563,6 +563,58 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+// Get score for a reference
+router.get('/:id/score', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyUser = companyUsers[0]
+
+    // Verify reference belongs to user's company
+    const { data: reference } = await supabase
+      .from('tenant_references')
+      .select('id, company_id')
+      .eq('id', referenceId)
+      .eq('company_id', companyUser.company_id)
+      .single()
+
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get score
+    const { data: score, error: scoreError } = await supabase
+      .from('reference_scores')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .maybeSingle()
+
+    if (scoreError) {
+      return res.status(400).json({ error: scoreError.message })
+    }
+
+    if (!score) {
+      return res.status(404).json({ error: 'Score not found. Reference may not be scored yet.' })
+    }
+
+    res.json({ score })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Create new reference
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {

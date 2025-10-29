@@ -65,6 +65,32 @@
         </div>
       </div>
 
+      <!-- Reference Score & Testing -->
+      <div class="mb-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-gray-900">Reference Score</h3>
+          <button
+            @click="triggerManualScore"
+            :disabled="scoringManually"
+            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ scoringManually ? 'Scoring...' : '🔄 Re-Score (Test)' }}
+          </button>
+        </div>
+        <div v-if="reference.status !== 'completed'" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p class="text-sm text-blue-800">
+            ℹ️ Reference status is <strong>{{ reference.status }}</strong>. Scoring is typically done when status is "completed", but you can test it now.
+          </p>
+        </div>
+        <ScoreCard v-if="score" :score="score" />
+        <div v-else-if="loadingScore" class="bg-white rounded-lg shadow-md p-6">
+          <div class="text-center text-gray-600">Loading score...</div>
+        </div>
+        <div v-else class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p class="text-sm text-yellow-800">No score available yet. Click "Re-Score (Test)" to generate one.</p>
+        </div>
+      </div>
+
       <div class="space-y-6">
         <!-- Group Application Info -->
         <div v-if="reference.is_group_parent || reference.parent_reference_id" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1776,6 +1802,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
+import ScoreCard from '../components/ScoreCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -1817,11 +1844,20 @@ const creditsafeVerification = ref<any>(null)
 const loadingCreditsafe = ref(false)
 const retryingCreditsafe = ref(false)
 
+// Score
+const score = ref<any>(null)
+const loadingScore = ref(false)
+const scoringManually = ref(false)
+
 onMounted(async () => {
   await fetchReference()
   // Fetch Creditsafe verification if reference is submitted
   if (reference.value?.submitted_at) {
     fetchCreditsafeVerification()
+  }
+  // Fetch score if reference is completed
+  if (reference.value?.status === 'completed') {
+    await fetchScore()
   }
 })
 
@@ -1889,6 +1925,69 @@ const fetchCreditsafeVerification = async () => {
     console.error('Error fetching Creditsafe verification:', err)
   } finally {
     loadingCreditsafe.value = false
+  }
+}
+
+const fetchScore = async () => {
+  try {
+    loadingScore.value = true
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/score`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      score.value = data.score
+    } else if (response.status === 404) {
+      // Score not yet available
+      console.log('Score not available yet')
+    }
+  } catch (err: any) {
+    console.error('Failed to fetch score:', err)
+  } finally {
+    loadingScore.value = false
+  }
+}
+
+const triggerManualScore = async () => {
+  try {
+    scoringManually.value = true
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/verification/${route.params.id}/score`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to score reference')
+    }
+
+    const data = await response.json()
+    score.value = data.score
+    toast.success('Reference scored successfully!')
+
+    // Log the input for debugging
+    console.log('Scoring input:', data.input)
+  } catch (err: any) {
+    console.error('Failed to score reference:', err)
+    toast.error(err.message || 'Failed to score reference')
+  } finally {
+    scoringManually.value = false
   }
 }
 

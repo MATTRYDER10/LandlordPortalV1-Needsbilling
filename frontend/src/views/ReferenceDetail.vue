@@ -42,6 +42,12 @@
           </span>
         </div>
 
+        <!-- Reference Score (shown when completed) -->
+        <ScoreCard v-if="score && reference.status === 'completed'" :score="score" />
+        <div v-else-if="loadingScore" class="bg-white rounded-lg shadow-md p-6">
+          <div class="text-center text-gray-600">Loading score...</div>
+        </div>
+
         <!-- Child Reference Context Banner -->
         <div v-if="parentReference" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div class="flex items-start">
@@ -2459,6 +2465,7 @@ import Sidebar from '../components/Sidebar.vue'
 import { getCountryName } from '../utils/countries'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import DatePicker from '../components/DatePicker.vue'
+import ScoreCard from '../components/ScoreCard.vue'
 // Creditsafe verification is only shown in Staff portal
 // import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 
@@ -2483,6 +2490,8 @@ const loading = ref(true)
 const error = ref('')
 const expandedTenant = ref<string | null>(null)
 const childReferenceDetails = ref<Record<string, any>>({})
+const score = ref<any>(null)
+const loadingScore = ref(false)
 
 // Move-in date editing
 const editingMoveInDate = ref(false)
@@ -2508,6 +2517,10 @@ onMounted(async () => {
   // Fetch Creditsafe verification if reference is submitted
   if (reference.value?.submitted_at) {
     fetchCreditsafeVerification()
+  }
+  // Fetch score if reference is completed
+  if (reference.value?.status === 'completed') {
+    await fetchScore()
   }
 })
 
@@ -2556,6 +2569,33 @@ const fetchCreditsafeVerification = async () => {
   // The verification happens automatically but results are for staff review only
   console.log('Creditsafe verification is only available in the Staff portal')
   return
+}
+
+const fetchScore = async () => {
+  try {
+    loadingScore.value = true
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/score`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      score.value = data.score
+    } else if (response.status === 404) {
+      // Score not yet available
+      console.log('Score not available yet')
+    }
+  } catch (err: any) {
+    console.error('Failed to fetch score:', err)
+  } finally {
+    loadingScore.value = false
+  }
 }
 
 const formatStatus = (status: string) => {
