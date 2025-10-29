@@ -498,6 +498,62 @@
                 />
               </div>
             </div>
+
+            <!-- Guarantor for single tenant -->
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <div class="flex items-center justify-between mb-3">
+                <h5 class="text-sm font-semibold text-gray-700">Add Guarantor (Optional)</h5>
+                <button
+                  type="button"
+                  @click="showGuarantorFields = !showGuarantorFields"
+                  class="text-sm text-primary hover:underline"
+                >
+                  {{ showGuarantorFields ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+
+              <div v-if="showGuarantorFields" class="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p class="text-sm text-gray-600">Add guarantor details. They will receive an email to complete the reference form.</p>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label for="guarantor-first-name" class="block text-sm font-medium text-gray-700">First Name</label>
+                    <input
+                      id="guarantor-first-name"
+                      v-model="formData.guarantor_first_name"
+                      type="text"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label for="guarantor-last-name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                    <input
+                      id="guarantor-last-name"
+                      v-model="formData.guarantor_last_name"
+                      type="text"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label for="guarantor-email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input
+                      id="guarantor-email"
+                      v-model="formData.guarantor_email"
+                      type="email"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <PhoneInput
+                      v-model="formData.guarantor_phone"
+                      label="Phone"
+                      id="guarantor-phone"
+                      :required="false"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Multiple Tenants (v-if tenantCount > 1) -->
@@ -557,6 +613,67 @@
                   />
                 </div>
               </div>
+
+              <!-- Guarantor for this tenant -->
+              <div class="mt-3 pt-3 border-t border-gray-300">
+                <div class="flex items-center justify-between mb-2">
+                  <h6 class="text-sm font-medium text-gray-700">Add Guarantor (Optional)</h6>
+                  <button
+                    type="button"
+                    @click="tenant.showGuarantorFields = !tenant.showGuarantorFields"
+                    class="text-xs text-primary hover:underline"
+                  >
+                    {{ tenant.showGuarantorFields ? 'Hide' : 'Show' }}
+                  </button>
+                </div>
+
+                <div v-if="tenant.showGuarantorFields" class="space-y-3 p-3 bg-white rounded-lg border border-gray-200">
+                  <p class="text-xs text-gray-600">Add guarantor details for this tenant. They will receive an email to complete the reference form.</p>
+
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label :for="`tenant-${index}-guarantor-first-name`" class="block text-xs font-medium text-gray-700">First Name</label>
+                      <input
+                        :id="`tenant-${index}-guarantor-first-name`"
+                        :value="tenant.guarantor?.first_name || ''"
+                        @input="(e) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.first_name = (e.target as HTMLInputElement).value }"
+                        type="text"
+                        class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label :for="`tenant-${index}-guarantor-last-name`" class="block text-xs font-medium text-gray-700">Last Name</label>
+                      <input
+                        :id="`tenant-${index}-guarantor-last-name`"
+                        :value="tenant.guarantor?.last_name || ''"
+                        @input="(e) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.last_name = (e.target as HTMLInputElement).value }"
+                        type="text"
+                        class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label :for="`tenant-${index}-guarantor-email`" class="block text-xs font-medium text-gray-700">Email</label>
+                      <input
+                        :id="`tenant-${index}-guarantor-email`"
+                        :value="tenant.guarantor?.email || ''"
+                        @input="(e) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.email = (e.target as HTMLInputElement).value }"
+                        type="email"
+                        class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label :for="`tenant-${index}-guarantor-phone`" class="block text-xs font-medium text-gray-700">Phone</label>
+                      <PhoneInput
+                        :modelValue="tenant.guarantor?.phone || ''"
+                        @update:modelValue="(val) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.phone = val }"
+                        :id="`tenant-${index}-guarantor-phone`"
+                        :required="false"
+                        input-class="px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Rent Calculator -->
@@ -612,65 +729,6 @@
                     max="11"
                     class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     placeholder="0"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Guarantor Section -->
-          <div class="border-t pt-4">
-            <div class="flex items-center justify-between mb-3">
-              <h4 class="text-md font-semibold text-gray-700">Add Guarantor (Optional)</h4>
-              <button
-                type="button"
-                @click="showGuarantorFields = !showGuarantorFields"
-                class="text-sm text-primary hover:underline"
-              >
-                {{ showGuarantorFields ? 'Hide' : 'Show' }}
-              </button>
-            </div>
-
-            <div v-if="showGuarantorFields" class="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p class="text-sm text-gray-600">If this tenant requires a guarantor, you can add their details here. The guarantor will receive an email to complete the tenant reference form.</p>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label for="guarantor-first-name" class="block text-sm font-medium text-gray-700">Guarantor First Name</label>
-                  <input
-                    id="guarantor-first-name"
-                    v-model="formData.guarantor_first_name"
-                    type="text"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label for="guarantor-last-name" class="block text-sm font-medium text-gray-700">Guarantor Last Name</label>
-                  <input
-                    id="guarantor-last-name"
-                    v-model="formData.guarantor_last_name"
-                    type="text"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label for="guarantor-email" class="block text-sm font-medium text-gray-700">Guarantor Email</label>
-                  <input
-                    id="guarantor-email"
-                    v-model="formData.guarantor_email"
-                    type="email"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <PhoneInput
-                    v-model="formData.guarantor_phone"
-                    label="Guarantor Phone"
-                    id="guarantor-phone"
-                    :required="false"
                   />
                 </div>
               </div>
@@ -757,12 +815,21 @@ const tenants = ref<Array<{
   email: string
   phone: string
   rent_share: number | null
+  guarantor?: {
+    first_name: string
+    last_name: string
+    email: string
+    phone: string
+  } | null
+  showGuarantorFields?: boolean
 }>>([{
   first_name: '',
   last_name: '',
   email: '',
   phone: '',
-  rent_share: null
+  rent_share: null,
+  guarantor: null,
+  showGuarantorFields: false
 }])
 
 const formData = ref({
@@ -879,7 +946,9 @@ const updateTenantCount = (count: number) => {
       last_name: '',
       email: '',
       phone: '',
-      rent_share: null
+      rent_share: null,
+      guarantor: null,
+      showGuarantorFields: false
     })
   }
   while (tenants.value.length > count) {
@@ -1060,7 +1129,9 @@ const closeCreateModal = () => {
     last_name: '',
     email: '',
     phone: '',
-    rent_share: null
+    rent_share: null,
+    guarantor: null,
+    showGuarantorFields: false
   }]
   formData.value = {
     tenant_first_name: '',
