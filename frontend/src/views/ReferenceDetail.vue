@@ -2412,6 +2412,12 @@
           </div>
         </div>
 
+        <!-- Notes and Audit Log Section -->
+        <div class="mt-8">
+          <ReferenceNotes :referenceId="reference.id" />
+          <ReferenceAuditLog :referenceId="reference.id" />
+        </div>
+
       </div>
     </div>
 
@@ -2466,6 +2472,8 @@ import { getCountryName } from '../utils/countries'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import DatePicker from '../components/DatePicker.vue'
 import ScoreCard from '../components/ScoreCard.vue'
+import ReferenceNotes from '../components/ReferenceNotes.vue'
+import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
 // Creditsafe verification is only shown in Staff portal
 // import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 

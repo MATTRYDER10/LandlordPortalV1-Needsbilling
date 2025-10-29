@@ -1748,6 +1748,12 @@
       </div>
     </div>
 
+    <!-- Notes and Audit Log Section -->
+    <div class="mt-8">
+      <ReferenceNotes :referenceId="referenceId" />
+      <ReferenceAuditLog :referenceId="referenceId" />
+    </div>
+
     <!-- Document Viewer Modal -->
     <div v-if="viewingDocument" class="fixed inset-0 z-50 overflow-y-auto" @click="closeDocumentViewer">
       <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -1797,6 +1803,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import ReferenceNotes from '../components/ReferenceNotes.vue'
+import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
@@ -1810,6 +1818,9 @@ const authStore = useAuthStore()
 const toast = useToast()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+// Get reference ID from route params
+const referenceId = computed(() => route.params.id as string)
 
 const reference = ref<any>(null)
 const landlordReference = ref<any>(null)

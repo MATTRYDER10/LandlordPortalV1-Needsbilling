@@ -7,6 +7,7 @@ import path from 'path'
 import fs from 'fs'
 import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant, sendGuarantorRequestNotification, sendGuarantorReferenceRequest } from '../services/emailService'
 import { auditReferenceAction } from '../services/auditLog'
+import { logAuditAction } from '../services/auditService'
 import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
 import pdfService from '../services/pdfService'
 import { creditsafeService } from '../services/creditsafeService'
@@ -2778,6 +2779,15 @@ router.post('/:id/resend-landlord-email', authenticateToken, async (req: AuthReq
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
     )
 
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'EMAIL_RESENT',
+      description: `Landlord reference email resent to ${landlordEmail}`,
+      metadata: { emailType: 'landlord', recipient: landlordEmail },
+      userId
+    })
+
     res.json({ message: 'Landlord reference email resent successfully' })
   } catch (error: any) {
     console.error('Failed to resend landlord email:', error)
@@ -2836,6 +2846,15 @@ router.post('/:id/resend-agent-email', authenticateToken, async (req: AuthReques
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
     )
 
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'EMAIL_RESENT',
+      description: `Agent reference email resent to ${agentEmail}`,
+      metadata: { emailType: 'agent', recipient: agentEmail },
+      userId
+    })
+
     res.json({ message: 'Agent reference email resent successfully' })
   } catch (error: any) {
     console.error('Failed to resend agent email:', error)
@@ -2893,6 +2912,15 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
     )
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'EMAIL_RESENT',
+      description: `Employer reference email resent to ${employerEmail}`,
+      metadata: { emailType: 'employer', recipient: employerEmail },
+      userId
+    })
 
     res.json({ message: 'Employer reference email resent successfully' })
   } catch (error: any) {
@@ -2973,6 +3001,15 @@ router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthR
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
     )
 
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'EMAIL_RESENT',
+      description: `Accountant reference email resent to ${accountantEmail}`,
+      metadata: { emailType: 'accountant', recipient: accountantEmail },
+      userId
+    })
+
     res.json({ message: 'Accountant reference email resent successfully' })
   } catch (error: any) {
     console.error('Failed to resend accountant email:', error)
@@ -3052,6 +3089,15 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
       companyName,
       formLink
     )
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'EMAIL_RESENT',
+      description: `Guarantor reference email resent to ${guarantorEmail}`,
+      metadata: { emailType: 'guarantor', recipient: guarantorEmail },
+      userId
+    })
 
     res.json({ message: 'Guarantor reference email resent successfully' })
   } catch (error: any) {

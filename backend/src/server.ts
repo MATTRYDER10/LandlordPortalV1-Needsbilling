@@ -12,6 +12,8 @@ import staffRoutes from './routes/staff'
 import debugRoutes from './routes/debug'
 import auditLogRoutes from './routes/auditLogs'
 import verificationRoutes from './routes/verification'
+import referenceNotesRoutes from './routes/reference-notes'
+import referenceAuditLogRoutes from './routes/reference-audit-log'
 
 dotenv.config()
 
@@ -101,6 +103,8 @@ app.use('/api/staff', staffRoutes)
 app.use('/api/debug', debugRoutes)
 app.use('/api/audit-logs', auditLogRoutes)
 app.use('/api/verification', verificationRoutes)
+app.use('/api/reference-notes', referenceNotesRoutes)
+app.use('/api/reference-audit-log', referenceAuditLogRoutes)
 
 // Start server
 app.listen(PORT, () => {
