@@ -617,7 +617,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
@@ -774,6 +774,11 @@ const updateTenantCount = (count: number) => {
   }
 }
 
+// Handler for custom event from sidebar
+const handleOpenCreateModal = () => {
+  showCreateModal.value = true
+}
+
 onMounted(() => {
   fetchReferences()
 
@@ -788,6 +793,14 @@ onMounted(() => {
   if (route.query.status && typeof route.query.status === 'string') {
     statusFilter.value = route.query.status
   }
+
+  // Listen for custom event from sidebar
+  window.addEventListener('open-create-reference-modal', handleOpenCreateModal)
+})
+
+onUnmounted(() => {
+  // Clean up event listener
+  window.removeEventListener('open-create-reference-modal', handleOpenCreateModal)
 })
 
 const fetchReferences = async () => {

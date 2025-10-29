@@ -13,6 +13,19 @@
 
         <!-- Navigation -->
         <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          <!-- Create Reference Button -->
+          <button
+            @click="handleCreateReference"
+            class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-primary text-white hover:bg-primary/90 shadow-sm"
+          >
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Create Reference
+          </button>
+
+          <div class="border-t border-gray-200 my-2"></div>
+
           <router-link
             v-for="item in navigation"
             :key="item.name"
@@ -110,5 +123,16 @@ const isActive = (path: string) => {
 const handleSignOut = async () => {
   await authStore.signOut()
   router.push('/login')
+}
+
+const handleCreateReference = () => {
+  // If already on references page, emit event to open modal directly
+  if (route.path === '/references') {
+    // Use a custom event to trigger the modal
+    window.dispatchEvent(new CustomEvent('open-create-reference-modal'))
+  } else {
+    // Navigate to references page with create query param
+    router.push('/references?create=true')
+  }
 }
 </script>
