@@ -570,32 +570,41 @@ router.get('/:id/score', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id
     const referenceId = req.params.id
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
+    // Check if user is staff (staff can view all scores)
+    const { data: staffUser } = await supabase
+      .from('staff_users')
+      .select('id')
       .eq('user_id', userId)
-      .limit(1)
+      .maybeSingle()
 
-    if (!companyUsers || companyUsers.length === 0) {
-      return res.status(404).json({ error: 'Company not found' })
+    if (!staffUser) {
+      // Not staff, must be company user - verify they own this reference
+      const { data: companyUsers } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (!companyUsers || companyUsers.length === 0) {
+        return res.status(404).json({ error: 'Company not found' })
+      }
+
+      const companyUser = companyUsers[0]
+
+      // Verify reference belongs to user's company
+      const { data: reference } = await supabase
+        .from('tenant_references')
+        .select('id, company_id')
+        .eq('id', referenceId)
+        .eq('company_id', companyUser.company_id)
+        .single()
+
+      if (!reference) {
+        return res.status(404).json({ error: 'Reference not found' })
+      }
     }
 
-    const companyUser = companyUsers[0]
-
-    // Verify reference belongs to user's company
-    const { data: reference } = await supabase
-      .from('tenant_references')
-      .select('id, company_id')
-      .eq('id', referenceId)
-      .eq('company_id', companyUser.company_id)
-      .single()
-
-    if (!reference) {
-      return res.status(404).json({ error: 'Reference not found' })
-    }
-
-    // Get score
+    // Get score (RLS will handle permissions)
     const { data: score, error: scoreError } = await supabase
       .from('reference_scores')
       .select('*')

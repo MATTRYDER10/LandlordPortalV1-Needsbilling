@@ -3080,6 +3080,12 @@ const handlePageSubmit = async () => {
         return
       }
     }
+  } else if (currentPage.value === 9) {
+    // Validate bank statement (mandatory for all guarantors)
+    if (!bankStatement.value && !formData.value.bank_statement_path) {
+      submitError.value = 'Please upload your bank statement (last 3 months). This is required to verify your financial capability.'
+      return
+    }
   } else if (currentPage.value === 10) {
     // Validate landlord/agent email
     if (formData.value.previous_landlord_email && !isWorkEmail(formData.value.previous_landlord_email)) {

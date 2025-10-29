@@ -229,6 +229,9 @@ router.post('/:referenceId/score', authenticateStaff, async (req: StaffAuthReque
     })
 
     // Store the score in the database
+    console.log(`[TEST] Attempting to save score for reference ${referenceId}...`)
+    console.log(`[TEST] Staff user ID: ${staffUserId}`)
+
     const { data: savedScore, error: scoreError } = await supabase
       .from('reference_scores')
       .upsert({
@@ -253,8 +256,11 @@ router.post('/:referenceId/score', authenticateStaff, async (req: StaffAuthReque
 
     if (scoreError) {
       console.error('[TEST] Error saving score:', scoreError)
+      console.error('[TEST] Full error details:', JSON.stringify(scoreError, null, 2))
       return res.status(400).json({ error: scoreError.message })
     }
+
+    console.log('[TEST] Score saved successfully:', savedScore?.id)
 
     res.json({
       success: true,

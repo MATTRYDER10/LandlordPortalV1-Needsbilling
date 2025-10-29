@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PropertyGooseReferencingOutput",
+  "type": "object",
+  "required": [
+    "decision",
+    "score_total",
+    "domain_scores",
+    "ratio",
+    "caps",
+    "review_flags",
+    "decline_reasons",
+    "guarantor_requirements"
+  ],
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "PASS_WITH_GUARANTOR",
+        "MANUAL_REVIEW",
+        "DECLINE"
+      ]
+    },
+    "score_total": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "domain_scores": {
+      "type": "object",
+      "required": [
+        "credit_tas",
+        "affordability",
+        "employment",
+        "residential",
+        "id_data"
+      ],
+      "properties": {
+        "credit_tas": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 35
+        },
+        "affordability": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30
+        },
+        "employment": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "residential": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "id_data": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        }
+      }
+    },
+    "ratio": {
+      "type": "number",
+      "minimum": 0
+    },
+    "caps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "review_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decline_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "guarantor_requirements": {
+      "type": "object",
+      "required": [
+        "min_ratio",
+        "min_tas",
+        "min_tas_if_rent_protection"
+      ],
+      "properties": {
+        "min_ratio": {
+          "type": "number"
+        },
+        "min_tas": {
+          "type": "integer"
+        },
+        "min_tas_if_rent_protection": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
