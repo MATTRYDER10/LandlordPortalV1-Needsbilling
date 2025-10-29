@@ -44,26 +44,6 @@ interface ScoreData {
   scored_at: string
 }
 
-function addFooter(doc: any, pageNum: number, totalPages: number) {
-  const lightGray = '#6b7280'
-  doc.fontSize(8)
-    .fillColor(lightGray)
-    .font('Helvetica')
-    .text(
-      `Generated on ${formatDate(new Date().toISOString())} | PropertyGoose Tenant Referencing`,
-      50,
-      750,
-      { align: 'center', width: 495 }
-    )
-
-  doc.text(
-    `Page ${pageNum} of ${totalPages}`,
-    50,
-    760,
-    { align: 'center', width: 495 }
-  )
-}
-
 export async function generateReferenceReportPDF(referenceId: string): Promise<Buffer> {
   // Fetch reference data
   console.log(`[PDF] Fetching reference ${referenceId}...`)
@@ -132,6 +112,26 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
 
       let currentPage = 1
       let totalPages = 1
+
+      // Helper function to add footer
+      const addFooter = (pageNum: number, pages: number) => {
+        doc.fontSize(8)
+          .fillColor(lightGray)
+          .font('Helvetica')
+          .text(
+            `Generated on ${formatDate(new Date().toISOString())} | PropertyGoose Tenant Referencing`,
+            50,
+            750,
+            { align: 'center', width: 495 }
+          )
+
+        doc.text(
+          `Page ${pageNum} of ${pages}`,
+          50,
+          760,
+          { align: 'center', width: 495 }
+        )
+      }
 
       // Colors
       const primaryColor = '#f97316' // Orange
@@ -245,7 +245,7 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
         // Add new page if needed (check if we have enough space for the score section)
         if (yPosition > 500) {
           // Add footer to current page before moving to next
-          addFooter(doc, currentPage, totalPages + 1)
+          addFooter(currentPage, totalPages + 1)
           doc.addPage()
           currentPage++
           totalPages++
@@ -422,7 +422,7 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
       }
 
       // Add footer to final page
-      addFooter(doc, currentPage, totalPages)
+      addFooter(currentPage, totalPages)
 
       doc.end()
     } catch (error) {
