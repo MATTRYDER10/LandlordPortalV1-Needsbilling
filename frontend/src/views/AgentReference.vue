@@ -105,32 +105,45 @@
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-3">Tenancy Status *</label>
-              <div class="flex gap-2">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button
                   type="button"
                   @click="handleTenancyStatus('ended')"
                   :class="[
-                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
+                    'py-3 px-4 rounded-lg border-2 font-medium transition-colors text-sm',
                     formData.tenancyStatus === 'ended'
                       ? 'text-white'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                   ]"
                   :style="formData.tenancyStatus === 'ended' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
-                  Tenancy Ending/Ended
+                  Tenancy Ended
                 </button>
                 <button
                   type="button"
-                  @click="handleTenancyStatus('still-in-contract')"
+                  @click="handleTenancyStatus('notice-served')"
                   :class="[
-                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
-                    formData.tenancyStatus === 'still-in-contract'
+                    'py-3 px-4 rounded-lg border-2 font-medium transition-colors text-sm',
+                    formData.tenancyStatus === 'notice-served'
                       ? 'text-white'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                   ]"
-                  :style="formData.tenancyStatus === 'still-in-contract' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                  :style="formData.tenancyStatus === 'notice-served' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
-                  Still in Contract
+                  Tenant has served notice
+                </button>
+                <button
+                  type="button"
+                  @click="handleTenancyStatus('in-situ')"
+                  :class="[
+                    'py-3 px-4 rounded-lg border-2 font-medium transition-colors text-sm',
+                    formData.tenancyStatus === 'in-situ'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                  ]"
+                  :style="formData.tenancyStatus === 'in-situ' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
+                >
+                  Tenant in situ
                 </button>
               </div>
             </div>
