@@ -3166,6 +3166,8 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
       .eq('id', referenceId)
       .single()
 
+    console.log('[PDF] Reference data for filename:', refData)
+
     let firstName = 'Reference'
     let lastName = 'Report'
     if (refData) {
@@ -3173,7 +3175,9 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
       lastName = refData.last_name || (refData.tenant_last_name_encrypted ? decrypt(refData.tenant_last_name_encrypted) : 'Report')
     }
 
-    const filename = `PropertyGoose_Reference_Report_${firstName}_${lastName}.pdf`
+    console.log('[PDF] Filename will be:', firstName, lastName)
+
+    const filename = `PropertyGoose_Reference_Report_${firstName.replace(/\s+/g, '_')}_${lastName.replace(/\s+/g, '_')}.pdf`
 
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf')
