@@ -29,6 +29,16 @@
           </div>
           <div class="flex items-center gap-3">
             <button
+              v-if="!hasGuarantor && reference.status !== 'cancelled'"
+              @click="showAddGuarantorModal = true"
+              class="flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Add Guarantor
+            </button>
+            <button
               v-if="score || reference.status === 'completed' || reference.status === 'rejected'"
               @click="downloadPDFReport"
               :disabled="downloadingPDF"
@@ -2476,6 +2486,79 @@
         </div>
       </div>
     </div>
+
+    <!-- Add Guarantor Modal -->
+    <div v-if="showAddGuarantorModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg max-w-md w-full p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Guarantor</h3>
+
+        <form @submit.prevent="addGuarantor" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">First Name *</label>
+            <input
+              v-model="guarantorForm.first_name"
+              type="text"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Last Name *</label>
+            <input
+              v-model="guarantorForm.last_name"
+              type="text"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Email *</label>
+            <input
+              v-model="guarantorForm.email"
+              type="email"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Phone</label>
+            <input
+              v-model="guarantorForm.phone"
+              type="tel"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          <div v-if="guarantorError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm">
+            {{ guarantorError }}
+          </div>
+
+          <div v-if="guarantorSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded text-sm">
+            {{ guarantorSuccess }}
+          </div>
+
+          <div class="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              @click="closeGuarantorModal"
+              class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              :disabled="addingGuarantor"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+            >
+              {{ addingGuarantor ? 'Adding...' : 'Add Guarantor' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </Sidebar>
 </template>
 
@@ -2518,6 +2601,22 @@ const childReferenceDetails = ref<Record<string, any>>({})
 const score = ref<any>(null)
 const loadingScore = ref(false)
 const downloadingPDF = ref(false)
+
+// Add Guarantor modal state
+const showAddGuarantorModal = ref(false)
+const addingGuarantor = ref(false)
+const guarantorError = ref('')
+const guarantorSuccess = ref('')
+const guarantorForm = ref({
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone: ''
+})
+
+const hasGuarantor = computed(() => {
+  return guarantorReference.value !== null
+})
 
 // Move-in date editing
 const editingMoveInDate = ref(false)
@@ -2675,6 +2774,66 @@ const downloadPDFReport = async () => {
   } finally {
     downloadingPDF.value = false
   }
+}
+
+const addGuarantor = async () => {
+  try {
+    addingGuarantor.value = true
+    guarantorError.value = ''
+    guarantorSuccess.value = ''
+
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/add-guarantor`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        guarantor_first_name: guarantorForm.value.first_name,
+        guarantor_last_name: guarantorForm.value.last_name,
+        guarantor_email: guarantorForm.value.email,
+        guarantor_phone: guarantorForm.value.phone
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to add guarantor')
+    }
+
+    guarantorSuccess.value = 'Guarantor added successfully! They will receive an email with the reference form.'
+    toast.success('Guarantor added successfully')
+
+    // Refresh reference data
+    setTimeout(async () => {
+      await fetchReference()
+      closeGuarantorModal()
+    }, 2000)
+  } catch (err: any) {
+    guarantorError.value = err.message || 'Failed to add guarantor'
+    toast.error(err.message || 'Failed to add guarantor')
+  } finally {
+    addingGuarantor.value = false
+  }
+}
+
+const closeGuarantorModal = () => {
+  showAddGuarantorModal.value = false
+  guarantorForm.value = {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: ''
+  }
+  guarantorError.value = ''
+  guarantorSuccess.value = ''
 }
 
 const formatStatus = (status: string) => {
