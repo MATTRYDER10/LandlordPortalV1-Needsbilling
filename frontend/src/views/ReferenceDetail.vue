@@ -27,19 +27,36 @@
             </h2>
             <p class="mt-2 text-gray-600">Complete Reference Details</p>
           </div>
-          <span
-            class="px-3 py-1 text-sm font-semibold rounded-full"
-            :class="{
-              'bg-yellow-100 text-yellow-800': reference.status === 'pending',
-              'bg-blue-100 text-blue-800': reference.status === 'in_progress',
-              'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
-              'bg-green-100 text-green-800': reference.status === 'completed',
-              'bg-red-100 text-red-800': reference.status === 'rejected',
-              'bg-gray-100 text-gray-800': reference.status === 'cancelled'
-            }"
-          >
-            {{ formatStatus(reference.status) }}
-          </span>
+          <div class="flex items-center gap-3">
+            <button
+              v-if="score || reference.status === 'completed' || reference.status === 'rejected'"
+              @click="downloadPDFReport"
+              :disabled="downloadingPDF"
+              class="flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg v-if="!downloadingPDF" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <svg v-else class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ downloadingPDF ? 'Generating...' : 'Download PDF Report' }}
+            </button>
+            <span
+              class="px-3 py-1 text-sm font-semibold rounded-full"
+              :class="{
+                'bg-yellow-100 text-yellow-800': reference.status === 'pending',
+                'bg-blue-100 text-blue-800': reference.status === 'in_progress',
+                'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
+                'bg-green-100 text-green-800': reference.status === 'completed',
+                'bg-red-100 text-red-800': reference.status === 'rejected',
+                'bg-gray-100 text-gray-800': reference.status === 'cancelled'
+              }"
+            >
+              {{ formatStatus(reference.status) }}
+            </span>
+          </div>
         </div>
 
         <!-- Reference Score (shown when completed) -->
@@ -2500,6 +2517,7 @@ const expandedTenant = ref<string | null>(null)
 const childReferenceDetails = ref<Record<string, any>>({})
 const score = ref<any>(null)
 const loadingScore = ref(false)
+const downloadingPDF = ref(false)
 
 // Move-in date editing
 const editingMoveInDate = ref(false)
@@ -2603,6 +2621,59 @@ const fetchScore = async () => {
     console.error('Failed to fetch score:', err)
   } finally {
     loadingScore.value = false
+  }
+}
+
+const downloadPDFReport = async () => {
+  try {
+    downloadingPDF.value = true
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/report`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to generate PDF report')
+    }
+
+    // Get the PDF blob
+    const blob = await response.blob()
+
+    // Extract filename from Content-Disposition header
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let filename = 'PropertyGoose_Reference_Report.pdf'
+
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1]
+      }
+    }
+
+    // Create a download link
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+
+    toast.success('PDF report downloaded successfully')
+  } catch (err: any) {
+    console.error('Failed to download PDF report:', err)
+    toast.error(err.message || 'Failed to download PDF report')
+  } finally {
+    downloadingPDF.value = false
   }
 }
 
