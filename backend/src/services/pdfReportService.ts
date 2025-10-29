@@ -3,47 +3,6 @@ import { supabase } from '../config/supabase'
 import { decrypt } from './encryption'
 import path from 'path'
 
-interface ReferenceData {
-  id: string
-  first_name: string
-  middle_name?: string
-  last_name: string
-  email: string
-  phone?: string
-  date_of_birth?: string
-  property_address: string
-  property_city?: string
-  property_postcode?: string
-  monthly_rent: number
-  move_in_date?: string
-  status: string
-  created_at: string
-  verified_at?: string
-  companies?: {
-    name: string
-  }
-}
-
-interface ScoreData {
-  decision: string
-  score_total: number
-  domain_scores: {
-    credit_tas: number
-    affordability: number
-    employment: number
-    residential: number
-    id_data: number
-  }
-  ratio: number
-  caps?: Array<string>
-  review_flags?: Array<string>
-  decline_reasons?: Array<string>
-  guarantor_required: boolean
-  guarantor_min_ratio?: number
-  guarantor_min_tas?: number
-  scored_at: string
-}
-
 export async function generateReferenceReportPDF(referenceId: string): Promise<Buffer> {
   // Fetch reference data
   console.log(`[PDF] Fetching reference ${referenceId}...`)
@@ -53,13 +12,8 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
     .eq('id', referenceId)
     .single()
 
-  if (refError) {
+  if (refError || !reference) {
     console.error('[PDF] Error fetching reference:', refError)
-    throw new Error(`Reference not found: ${refError.message}`)
-  }
-
-  if (!reference) {
-    console.error('[PDF] No reference data returned')
     throw new Error('Reference not found')
   }
 
@@ -76,7 +30,7 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
 
   console.log(`[PDF] Reference found: ${firstName} ${lastName}`)
 
-  // Fetch company name separately
+  // Fetch company name
   let companyName = 'N/A'
   if (reference.company_id) {
     const { data: company } = await supabase
@@ -84,14 +38,11 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
       .select('name')
       .eq('id', reference.company_id)
       .single()
-
-    if (company) {
-      companyName = company.name
-    }
+    if (company) companyName = company.name
   }
 
-  // Fetch score data
-  const { data: score, error: scoreError } = await supabase
+  // Fetch score
+  const { data: score } = await supabase
     .from('reference_scores')
     .select('*')
     .eq('reference_id', referenceId)
@@ -99,330 +50,130 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
 
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: 50,
-        bufferPages: false
-      })
-
+      const doc = new PDFDocument({ size: 'A4', margin: 50 })
       const chunks: Buffer[] = []
       doc.on('data', (chunk) => chunks.push(chunk))
       doc.on('end', () => resolve(Buffer.concat(chunks)))
       doc.on('error', reject)
 
-      let currentPage = 1
-      let totalPages = 1
-
-      // Helper function to add footer
-      const addFooter = (pageNum: number, pages: number) => {
-        doc.fontSize(8)
-          .fillColor(lightGray)
-          .font('Helvetica')
-          .text(
-            `Generated on ${formatDate(new Date().toISOString())} | PropertyGoose Tenant Referencing`,
-            50,
-            750,
-            { align: 'center', width: 495 }
-          )
-
-        doc.text(
-          `Page ${pageNum} of ${pages}`,
-          50,
-          760,
-          { align: 'center', width: 495 }
-        )
-      }
-
-      // Colors
-      const primaryColor = '#f97316' // Orange
+      const primaryColor = '#f97316'
       const darkGray = '#1f2937'
       const lightGray = '#6b7280'
-      const successGreen = '#10b981'
-      const warningOrange = '#f59e0b'
-      const errorRed = '#ef4444'
 
-      // Header with logo and branding
+      // Header
       const logoPath = path.join(__dirname, '../../assets/PropertyGooseIcon.png')
       try {
         doc.image(logoPath, 50, 45, { width: 50 })
       } catch (err) {
-        console.error('Failed to load logo:', err)
+        console.error('Logo load failed:', err)
       }
 
-      doc.fontSize(24)
-        .fillColor(darkGray)
-        .font('Helvetica-Bold')
-        .text('PropertyGoose', 110, 50)
+      doc.fontSize(24).fillColor(darkGray).font('Helvetica-Bold').text('PropertyGoose', 110, 50)
+      doc.fontSize(10).fillColor(lightGray).font('Helvetica').text('Tenant Reference Report', 110, 75)
+      doc.moveTo(50, 100).lineTo(545, 100).strokeColor(primaryColor).lineWidth(2).stroke()
 
-      doc.fontSize(10)
-        .fillColor(lightGray)
-        .font('Helvetica')
-        .text('Tenant Reference Report', 110, 75)
+      let y = 120
 
-      // Horizontal line
-      doc.moveTo(50, 110)
-        .lineTo(545, 110)
-        .strokeColor(primaryColor)
-        .lineWidth(2)
-        .stroke()
-
-      let yPosition = 130
-
-      // Reference Status Badge
-      const statusBg = reference.status === 'completed' ? successGreen :
-                       reference.status === 'rejected' ? errorRed : lightGray
-
-      doc.fontSize(12)
-        .fillColor('#ffffff')
-        .rect(50, yPosition, 150, 25)
-        .fill(statusBg)
-        .fillColor('#ffffff')
-        .font('Helvetica-Bold')
-        .text(formatStatus(reference.status).toUpperCase(), 55, yPosition + 7)
-
-      yPosition += 45
-
-      // Applicant Information Section
-      doc.fontSize(16)
-        .fillColor(darkGray)
-        .font('Helvetica-Bold')
-        .text('Applicant Information', 50, yPosition)
-
-      yPosition += 25
-
-      const applicantData = [
+      // Applicant Info
+      doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Applicant Information', 50, y)
+      y += 20
+      doc.fontSize(9).fillColor(lightGray).font('Helvetica')
+      const appInfo = [
         ['Name', `${firstName}${middleName ? ' ' + middleName : ''} ${lastName}`],
         ['Email', email || 'Not provided'],
         ['Phone', phone || 'Not provided'],
-        ['Date of Birth', dateOfBirth ? formatDate(dateOfBirth) : 'Not provided'],
+        ['DOB', dateOfBirth ? formatDate(dateOfBirth) : 'Not provided'],
         ['Company', companyName]
       ]
-
-      applicantData.forEach(([label, value]) => {
-        doc.fontSize(10)
-          .fillColor(lightGray)
-          .font('Helvetica')
-          .text(label, 50, yPosition)
-          .fillColor(darkGray)
-          .font('Helvetica-Bold')
-          .text(value, 200, yPosition)
-        yPosition += 20
+      appInfo.forEach(([label, value]) => {
+        doc.text(`${label}:`, 50, y).fillColor(darkGray).font('Helvetica-Bold').text(value, 150, y)
+        doc.fillColor(lightGray).font('Helvetica')
+        y += 15
       })
 
-      yPosition += 10
+      y += 5
 
-      // Property Information Section
-      doc.fontSize(16)
-        .fillColor(darkGray)
-        .font('Helvetica-Bold')
-        .text('Property Information', 50, yPosition)
-
-      yPosition += 25
-
-      const propertyData = [
+      // Property Info
+      doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Property Information', 50, y)
+      y += 20
+      doc.fontSize(9).fillColor(lightGray).font('Helvetica')
+      const propInfo = [
         ['Address', propertyAddress || 'Not provided'],
         ['City', propertyCity || 'Not provided'],
         ['Postcode', propertyPostcode || 'Not provided'],
-        ['Monthly Rent', `£${reference.monthly_rent}`],
-        ['Move-in Date', reference.move_in_date ? formatDate(reference.move_in_date) : 'Not provided']
+        ['Rent', `£${reference.monthly_rent}`],
+        ['Move-in', reference.move_in_date ? formatDate(reference.move_in_date) : 'Not provided']
       ]
-
-      propertyData.forEach(([label, value]) => {
-        doc.fontSize(10)
-          .fillColor(lightGray)
-          .font('Helvetica')
-          .text(label, 50, yPosition)
-          .fillColor(darkGray)
-          .font('Helvetica-Bold')
-          .text(value, 200, yPosition)
-        yPosition += 20
+      propInfo.forEach(([label, value]) => {
+        doc.text(`${label}:`, 50, y).fillColor(darkGray).font('Helvetica-Bold').text(value, 150, y)
+        doc.fillColor(lightGray).font('Helvetica')
+        y += 15
       })
 
-      yPosition += 20
+      y += 10
 
-      // Score Section (if available)
+      // Score Section
       if (score) {
-        // Add new page if needed (check if we have enough space for the score section)
-        if (yPosition > 500) {
-          // Add footer to current page before moving to next
-          addFooter(currentPage, totalPages + 1)
-          doc.addPage()
-          currentPage++
-          totalPages++
-          yPosition = 50
-        }
+        doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Reference Score', 50, y)
+        y += 25
 
-        doc.fontSize(16)
-          .fillColor(darkGray)
-          .font('Helvetica-Bold')
-          .text('Reference Score', 50, yPosition)
+        const decisionColor = score.decision === 'PASS' ? '#10b981' :
+                             score.decision === 'PASS_WITH_GUARANTOR' ? '#f59e0b' :
+                             score.decision === 'DECLINE' ? '#ef4444' : lightGray
 
-        yPosition += 30
+        doc.fontSize(12).fillColor('#ffffff').rect(50, y, 150, 25).fill(decisionColor)
+          .fillColor('#ffffff').font('Helvetica-Bold').text(formatDecision(score.decision), 55, y + 6)
+        doc.fontSize(28).fillColor(decisionColor).text(`${score.score_total}/100`, 220, y - 3)
 
-        // Decision Badge
-        const decisionColor = score.decision === 'PASS' ? successGreen :
-                             score.decision === 'PASS_WITH_GUARANTOR' ? warningOrange :
-                             score.decision === 'DECLINE' ? errorRed : lightGray
+        y += 35
 
-        doc.fontSize(14)
-          .fillColor('#ffffff')
-          .rect(50, yPosition, 180, 30)
-          .fill(decisionColor)
-          .fillColor('#ffffff')
-          .font('Helvetica-Bold')
-          .text(formatDecision(score.decision), 55, yPosition + 8)
+        doc.fontSize(10).fillColor(lightGray).font('Helvetica')
+          .text(`Income Ratio: ${score.ratio.toFixed(2)}×`, 50, y)
+        y += 25
 
-        // Total Score
-        doc.fontSize(32)
-          .fillColor(decisionColor)
-          .font('Helvetica-Bold')
-          .text(`${score.score_total}/100`, 250, yPosition - 5)
-
-        yPosition += 50
-
-        // Income to Rent Ratio
-        doc.fontSize(12)
-          .fillColor(lightGray)
-          .font('Helvetica')
-          .text('Income to Rent Ratio', 50, yPosition)
-          .fontSize(20)
-          .fillColor(darkGray)
-          .font('Helvetica-Bold')
-          .text(`${score.ratio.toFixed(2)}×`, 200, yPosition - 3)
-
-        yPosition += 35
-
-        // Score Breakdown
-        doc.fontSize(14)
-          .fillColor(darkGray)
-          .font('Helvetica-Bold')
-          .text('Score Breakdown', 50, yPosition)
-
-        yPosition += 25
-
-        const domainData = [
+        // Score breakdown
+        doc.fontSize(11).fillColor(darkGray).font('Helvetica-Bold').text('Score Breakdown', 50, y)
+        y += 18
+        const domains = [
           ['Credit & TAS', score.domain_scores.credit_tas, 35],
           ['Affordability', score.domain_scores.affordability, 30],
           ['Employment', score.domain_scores.employment, 15],
-          ['Residential History', score.domain_scores.residential, 15],
-          ['ID & Data Quality', score.domain_scores.id_data, 5]
+          ['Residential', score.domain_scores.residential, 15],
+          ['ID & Data', score.domain_scores.id_data, 5]
         ]
-
-        domainData.forEach(([label, value, max]) => {
-          doc.fontSize(10)
-            .fillColor(lightGray)
-            .font('Helvetica')
-            .text(label as string, 50, yPosition)
-            .fillColor(darkGray)
-            .font('Helvetica-Bold')
-            .text(`${value}/${max}`, 250, yPosition)
-
-          // Progress bar
-          const barWidth = 200
-          const fillWidth = (barWidth * (value as number)) / (max as number)
-
-          doc.rect(300, yPosition, barWidth, 10)
-            .fillAndStroke('#e5e7eb', '#d1d5db')
-
-          if (fillWidth > 0) {
-            doc.rect(300, yPosition, fillWidth, 10)
-              .fill(primaryColor)
-          }
-
-          yPosition += 25
+        domains.forEach(([label, value, max]) => {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica').text(label as string, 50, y)
+            .fillColor(darkGray).font('Helvetica-Bold').text(`${value}/${max}`, 200, y)
+          const barWidth = (150 * (value as number)) / (max as number)
+          doc.rect(260, y, 150, 8).fillAndStroke('#e5e7eb', '#d1d5db')
+          if (barWidth > 0) doc.rect(260, y, barWidth, 8).fill(primaryColor)
+          y += 15
         })
 
-        yPosition += 10
-
-        // Conditions and Flags
-        if (score.caps && score.caps.length > 0) {
-          doc.fontSize(12)
-            .fillColor(darkGray)
-            .font('Helvetica-Bold')
-            .text('Conditions', 50, yPosition)
-
-          yPosition += 20
-
-          score.caps.forEach((cap: string) => {
-            doc.fontSize(9)
-              .fillColor(warningOrange)
-              .font('Helvetica')
-              .text(`• ${formatCap(cap)}`, 60, yPosition)
-            yPosition += 15
-          })
-
-          yPosition += 5
-        }
-
-        if (score.review_flags && score.review_flags.length > 0) {
-          doc.fontSize(12)
-            .fillColor(darkGray)
-            .font('Helvetica-Bold')
-            .text('Review Flags', 50, yPosition)
-
-          yPosition += 20
-
-          score.review_flags.forEach((flag: string) => {
-            doc.fontSize(9)
-              .fillColor(lightGray)
-              .font('Helvetica')
-              .text(`• ${formatFlag(flag)}`, 60, yPosition)
-            yPosition += 15
-          })
-
-          yPosition += 5
-        }
-
+        // Decline reasons
         if (score.decline_reasons && score.decline_reasons.length > 0) {
-          doc.fontSize(12)
-            .fillColor(darkGray)
-            .font('Helvetica-Bold')
-            .text('Decline Reasons', 50, yPosition)
-
-          yPosition += 20
-
+          y += 5
+          doc.fontSize(10).fillColor('#ef4444').font('Helvetica-Bold').text('Decline Reasons:', 50, y)
+          y += 15
           score.decline_reasons.forEach((reason: string) => {
-            doc.fontSize(9)
-              .fillColor(errorRed)
-              .font('Helvetica')
-              .text(`• ${reason}`, 60, yPosition)
-            yPosition += 15
+            doc.fontSize(8).fillColor('#ef4444').font('Helvetica').text(`• ${reason}`, 60, y)
+            y += 12
           })
-
-          yPosition += 5
         }
 
-        // Guarantor Requirements
+        // Guarantor required
         if (score.guarantor_required) {
-          doc.fontSize(12)
-            .fillColor(darkGray)
-            .font('Helvetica-Bold')
-            .text('Guarantor Required', 50, yPosition)
-
-          yPosition += 20
-
-          doc.fontSize(10)
-            .fillColor(lightGray)
-            .font('Helvetica')
-            .text(`Minimum Income Ratio: ${score.guarantor_min_ratio}×`, 60, yPosition)
-
-          yPosition += 15
-
-          doc.text(`Minimum TAS Score: ${score.guarantor_min_tas}`, 60, yPosition)
-
-          yPosition += 20
+          y += 5
+          doc.fontSize(10).fillColor('#f59e0b').font('Helvetica-Bold').text('Guarantor Required', 50, y)
+          y += 15
+          doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+            .text(`Min Ratio: ${score.guarantor_min_ratio}× | Min TAS: ${score.guarantor_min_tas}`, 60, y)
         }
-
-        // Scored At
-        yPosition += 10
-        doc.fontSize(9)
-          .fillColor(lightGray)
-          .font('Helvetica-Oblique')
-          .text(`Scored on ${formatDate(score.scored_at)}`, 50, yPosition)
       }
 
-      // Add footer to final page
-      addFooter(currentPage, totalPages)
+      // Footer
+      doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+        .text(`Generated on ${formatDate(new Date().toISOString())} | PropertyGoose Tenant Referencing`, 50, 750, { align: 'center', width: 495 })
 
       doc.end()
     } catch (error) {
@@ -431,52 +182,21 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
   })
 }
 
-function formatStatus(status: string): string {
-  const statusMap: { [key: string]: string } = {
-    'pending': 'Pending',
-    'in_progress': 'In Progress',
-    'pending_verification': 'Pending Verification',
-    'completed': 'Completed',
-    'rejected': 'Rejected'
-  }
-  return statusMap[status] || status
-}
-
 function formatDecision(decision: string): string {
-  const decisionMap: { [key: string]: string } = {
+  const map: { [key: string]: string } = {
     'PASS': 'PASS',
     'PASS_WITH_GUARANTOR': 'PASS WITH GUARANTOR',
     'MANUAL_REVIEW': 'MANUAL REVIEW',
     'DECLINE': 'DECLINE'
   }
-  return decisionMap[decision] || decision
-}
-
-function formatCap(cap: string): string {
-  return cap
-    .replace(/_/g, ' ')
-    .replace(/</g, '< ')
-    .replace(/>/g, '> ')
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
-function formatFlag(flag: string): string {
-  return flag
-    .replace(/_/g, ' ')
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
+  return map[decision] || decision
 }
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString)
   return date.toLocaleDateString('en-GB', {
     day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    month: 'short',
+    year: 'numeric'
   })
 }
