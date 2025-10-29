@@ -44,6 +44,26 @@ interface ScoreData {
   scored_at: string
 }
 
+function addFooter(doc: any, pageNum: number, totalPages: number) {
+  const lightGray = '#6b7280'
+  doc.fontSize(8)
+    .fillColor(lightGray)
+    .font('Helvetica')
+    .text(
+      `Generated on ${formatDate(new Date().toISOString())} | PropertyGoose Tenant Referencing`,
+      50,
+      750,
+      { align: 'center', width: 495 }
+    )
+
+  doc.text(
+    `Page ${pageNum} of ${totalPages}`,
+    50,
+    760,
+    { align: 'center', width: 495 }
+  )
+}
+
 export async function generateReferenceReportPDF(referenceId: string): Promise<Buffer> {
   // Fetch reference data
   console.log(`[PDF] Fetching reference ${referenceId}...`)
@@ -102,13 +122,16 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
       const doc = new PDFDocument({
         size: 'A4',
         margin: 50,
-        bufferPages: true
+        bufferPages: false
       })
 
       const chunks: Buffer[] = []
       doc.on('data', (chunk) => chunks.push(chunk))
       doc.on('end', () => resolve(Buffer.concat(chunks)))
       doc.on('error', reject)
+
+      let currentPage = 1
+      let totalPages = 1
 
       // Colors
       const primaryColor = '#f97316' // Orange
@@ -221,7 +244,11 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
       if (score) {
         // Add new page if needed (check if we have enough space for the score section)
         if (yPosition > 500) {
+          // Add footer to current page before moving to next
+          addFooter(doc, currentPage, totalPages + 1)
           doc.addPage()
+          currentPage++
+          totalPages++
           yPosition = 50
         }
 
@@ -394,28 +421,8 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
           .text(`Scored on ${formatDate(score.scored_at)}`, 50, yPosition)
       }
 
-      // Footer
-      const pageCount = doc.bufferedPageRange().count
-      for (let i = 0; i < pageCount; i++) {
-        doc.switchToPage(i)
-
-        doc.fontSize(8)
-          .fillColor(lightGray)
-          .font('Helvetica')
-          .text(
-            `Generated on ${formatDate(new Date().toISOString())} | PropertyGoose Tenant Referencing`,
-            50,
-            750,
-            { align: 'center', width: 495 }
-          )
-
-        doc.text(
-          `Page ${i + 1} of ${pageCount}`,
-          50,
-          760,
-          { align: 'center', width: 495 }
-        )
-      }
+      // Add footer to final page
+      addFooter(doc, currentPage, totalPages)
 
       doc.end()
     } catch (error) {
