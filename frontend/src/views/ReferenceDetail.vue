@@ -483,9 +483,18 @@
                         </div>
                       </div>
                       <div v-else-if="childReferenceDetails[child.id].reference.employer_ref_email" class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p class="text-sm text-blue-800">
-                          Waiting for employer reference from {{ childReferenceDetails[child.id].reference.employer_ref_email }}
-                        </p>
+                        <div class="flex items-center justify-between">
+                          <p class="text-sm text-blue-800">
+                            Waiting for employer reference from {{ childReferenceDetails[child.id].reference.employer_ref_email }}
+                          </p>
+                          <button
+                            @click="resendEmployerEmail(child.id)"
+                            :disabled="resendingEmployer[child.id]"
+                            class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                          >
+                            {{ resendingEmployer[child.id] ? 'Sending...' : 'Resend Email' }}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -571,9 +580,18 @@
                         </div>
                       </div>
                       <div v-else-if="childReferenceDetails[child.id].reference.accountant_email" class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p class="text-sm text-blue-800">
-                          Waiting for accountant reference from {{ childReferenceDetails[child.id].reference.accountant_email }}
-                        </p>
+                        <div class="flex items-center justify-between">
+                          <p class="text-sm text-blue-800">
+                            Waiting for accountant reference from {{ childReferenceDetails[child.id].reference.accountant_email }}
+                          </p>
+                          <button
+                            @click="resendAccountantEmail(child.id)"
+                            :disabled="resendingAccountant[child.id]"
+                            class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                          >
+                            {{ resendingAccountant[child.id] ? 'Sending...' : 'Resend Email' }}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -1514,7 +1532,16 @@
 
             <!-- Guarantor Pending -->
             <div v-if="!guarantorReference" class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h5 class="text-sm font-semibold text-blue-900 mb-2">Guarantor Reference Pending</h5>
+              <div class="flex items-center justify-between mb-3">
+                <h5 class="text-sm font-semibold text-blue-900">Guarantor Reference Pending</h5>
+                <button
+                  @click="resendGuarantorEmail"
+                  :disabled="resendingGuarantor"
+                  class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {{ resendingGuarantor ? 'Sending...' : 'Resend Email' }}
+                </button>
+              </div>
               <p class="text-sm text-blue-800">
                 An email has been sent to the guarantor to complete their reference.
               </p>
@@ -1959,18 +1986,40 @@
 
           <!-- Landlord Reference Status -->
           <div v-if="reference.previous_landlord_email && reference.reference_type === 'landlord' && !landlordReference" class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-            <h4 class="text-sm font-semibold text-purple-900 mb-2">Landlord Reference</h4>
-            <p class="text-sm text-purple-800">
-              Waiting for landlord reference to be submitted.
-            </p>
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-sm font-semibold text-purple-900 mb-1">Landlord Reference</h4>
+                <p class="text-sm text-purple-800">
+                  Waiting for landlord reference to be submitted.
+                </p>
+              </div>
+              <button
+                @click="resendLandlordEmail"
+                :disabled="resendingLandlord"
+                class="px-3 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ resendingLandlord ? 'Sending...' : 'Resend Email' }}
+              </button>
+            </div>
           </div>
 
           <!-- Agent Reference Status -->
           <div v-if="reference.previous_landlord_email && reference.reference_type === 'agent' && !agentReference" class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-            <h4 class="text-sm font-semibold text-purple-900 mb-2">Letting Agent Reference</h4>
-            <p class="text-sm text-purple-800">
-              Waiting for letting agent reference to be submitted.
-            </p>
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-sm font-semibold text-purple-900 mb-1">Letting Agent Reference</h4>
+                <p class="text-sm text-purple-800">
+                  Waiting for letting agent reference to be submitted.
+                </p>
+              </div>
+              <button
+                @click="resendAgentEmail"
+                :disabled="resendingAgent"
+                class="px-3 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ resendingAgent ? 'Sending...' : 'Resend Email' }}
+              </button>
+            </div>
           </div>
 
           <!-- Landlord Reference Submitted -->
@@ -2446,6 +2495,13 @@ const viewingDocumentUrl = ref('')
 const viewingDocumentName = ref('')
 const viewingDocumentPath = ref('')
 const viewingDocumentType = ref('') // 'image' or 'pdf'
+
+// Resend email loading states
+const resendingLandlord = ref(false)
+const resendingAgent = ref(false)
+const resendingEmployer = ref<Record<string, boolean>>({})
+const resendingAccountant = ref<Record<string, boolean>>({})
+const resendingGuarantor = ref(false)
 
 onMounted(async () => {
   await fetchReference()
@@ -2941,4 +2997,105 @@ const accountantComparisonRows = computed(() => {
     }
   ]
 })
+
+// Resend email functions
+const resendLandlordEmail = async () => {
+  resendingLandlord.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/resend-landlord-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!response.ok) throw new Error('Failed to resend email')
+    alert('Landlord reference email resent successfully')
+  } catch (err: any) {
+    console.error('Error resending landlord email:', err)
+    alert('Failed to resend email: ' + err.message)
+  } finally {
+    resendingLandlord.value = false
+  }
+}
+
+const resendAgentEmail = async () => {
+  resendingAgent.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/resend-agent-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!response.ok) throw new Error('Failed to resend email')
+    alert('Agent reference email resent successfully')
+  } catch (err: any) {
+    console.error('Error resending agent email:', err)
+    alert('Failed to resend email: ' + err.message)
+  } finally {
+    resendingAgent.value = false
+  }
+}
+
+const resendEmployerEmail = async (childId: string) => {
+  resendingEmployer.value[childId] = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/${childId}/resend-employer-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!response.ok) throw new Error('Failed to resend email')
+    alert('Employer reference email resent successfully')
+  } catch (err: any) {
+    console.error('Error resending employer email:', err)
+    alert('Failed to resend email: ' + err.message)
+  } finally {
+    resendingEmployer.value[childId] = false
+  }
+}
+
+const resendAccountantEmail = async (childId: string) => {
+  resendingAccountant.value[childId] = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/${childId}/resend-accountant-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!response.ok) throw new Error('Failed to resend email')
+    alert('Accountant reference email resent successfully')
+  } catch (err: any) {
+    console.error('Error resending accountant email:', err)
+    alert('Failed to resend email: ' + err.message)
+  } finally {
+    resendingAccountant.value[childId] = false
+  }
+}
+
+const resendGuarantorEmail = async () => {
+  resendingGuarantor.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/resend-guarantor-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!response.ok) throw new Error('Failed to resend email')
+    alert('Guarantor reference email resent successfully')
+  } catch (err: any) {
+    console.error('Error resending guarantor email:', err)
+    alert('Failed to resend email: ' + err.message)
+  } finally {
+    resendingGuarantor.value = false
+  }
+}
 </script>

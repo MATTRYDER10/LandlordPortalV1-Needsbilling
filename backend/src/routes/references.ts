@@ -2675,4 +2675,339 @@ router.get('/download/:referenceId/:folder/:filename', authenticateToken, async 
   }
 })
 
+// Resend landlord reference email
+router.post('/:id/resend-landlord-email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const userId = req.user?.id
+
+    // Get the reference
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*, companies!inner(id)')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify user has access to this reference's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', reference.company_id)
+      .single()
+
+    if (!companyUser) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get company info
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .eq('id', reference.company_id)
+      .single()
+
+    const landlordEmail = decrypt(reference.previous_landlord_email_encrypted)
+    const landlordName = decrypt(reference.previous_landlord_name_encrypted)
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
+    const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${reference.id}`
+
+    await sendLandlordReferenceRequest(
+      landlordEmail,
+      landlordName,
+      tenantName,
+      landlordReferenceUrl,
+      companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+      companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+    )
+
+    res.json({ message: 'Landlord reference email resent successfully' })
+  } catch (error: any) {
+    console.error('Failed to resend landlord email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Resend agent reference email
+router.post('/:id/resend-agent-email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const userId = req.user?.id
+
+    // Get the reference
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*, companies!inner(id)')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify user has access to this reference's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', reference.company_id)
+      .single()
+
+    if (!companyUser) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get company info
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .eq('id', reference.company_id)
+      .single()
+
+    const agentEmail = decrypt(reference.previous_landlord_email_encrypted)
+    const agentName = decrypt(reference.previous_landlord_name_encrypted)
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
+    const agentReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${reference.id}`
+
+    await sendAgentReferenceRequest(
+      agentEmail,
+      agentName,
+      tenantName,
+      agentReferenceUrl,
+      companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+      companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+    )
+
+    res.json({ message: 'Agent reference email resent successfully' })
+  } catch (error: any) {
+    console.error('Failed to resend agent email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Resend employer reference email
+router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const userId = req.user?.id
+
+    // Get the reference
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*, companies!inner(id)')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify user has access to this reference's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', reference.company_id)
+      .single()
+
+    if (!companyUser) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get company info
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .eq('id', reference.company_id)
+      .single()
+
+    const employerEmail = decrypt(reference.employer_ref_email_encrypted)
+    const employerName = decrypt(reference.employer_ref_name_encrypted)
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
+    const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${reference.id}`
+
+    await sendEmployerReferenceRequest(
+      employerEmail,
+      employerName,
+      tenantName,
+      employerReferenceUrl,
+      companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+      companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+    )
+
+    res.json({ message: 'Employer reference email resent successfully' })
+  } catch (error: any) {
+    console.error('Failed to resend employer email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Resend accountant reference email
+router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const userId = req.user?.id
+
+    // Get the reference and accountant reference
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*, companies!inner(id)')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify user has access to this reference's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', reference.company_id)
+      .single()
+
+    if (!companyUser) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get accountant reference to get the token
+    const { data: accountantRef } = await supabase
+      .from('accountant_references')
+      .select('id, reference_token_hash')
+      .eq('tenant_reference_id', referenceId)
+      .single()
+
+    if (!accountantRef) {
+      return res.status(404).json({ error: 'Accountant reference not found' })
+    }
+
+    // Generate new token for the form link
+    const accountantToken = generateToken()
+    const accountantTokenHash = hash(accountantToken)
+
+    // Update the token hash
+    await supabase
+      .from('accountant_references')
+      .update({ reference_token_hash: accountantTokenHash })
+      .eq('id', accountantRef.id)
+
+    // Get company info
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .eq('id', reference.company_id)
+      .single()
+
+    const accountantEmail = decrypt(reference.accountant_email_encrypted)
+    const accountantName = decrypt(reference.accountant_name_encrypted)
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
+    const businessName = decrypt(reference.self_employed_business_name_encrypted) || 'their business'
+    const formLink = `${process.env.FRONTEND_URL}/accountant-reference/${accountantToken}`
+
+    await sendAccountantReferenceRequest(
+      accountantEmail,
+      accountantName,
+      tenantName,
+      businessName,
+      formLink,
+      companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+      companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+    )
+
+    res.json({ message: 'Accountant reference email resent successfully' })
+  } catch (error: any) {
+    console.error('Failed to resend accountant email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Resend guarantor reference email
+router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const userId = req.user?.id
+
+    // Get the reference
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*, companies!inner(id)')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify user has access to this reference's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', reference.company_id)
+      .single()
+
+    if (!companyUser) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get guarantor reference to get the token
+    const { data: guarantorRef } = await supabase
+      .from('guarantor_references')
+      .select('id, reference_token_hash, guarantor_first_name_encrypted, guarantor_last_name_encrypted, guarantor_email_encrypted')
+      .eq('reference_id', referenceId)
+      .single()
+
+    if (!guarantorRef) {
+      return res.status(404).json({ error: 'Guarantor reference not found' })
+    }
+
+    // Generate new token for the form link
+    const guarantorToken = generateToken()
+    const guarantorTokenHash = hash(guarantorToken)
+
+    // Update the token hash
+    await supabase
+      .from('guarantor_references')
+      .update({ reference_token_hash: guarantorTokenHash })
+      .eq('id', guarantorRef.id)
+
+    // Get company info
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted')
+      .eq('id', reference.company_id)
+      .single()
+
+    const guarantorEmail = decrypt(guarantorRef.guarantor_email_encrypted)
+    const guarantorName = `${decrypt(guarantorRef.guarantor_first_name_encrypted)} ${decrypt(guarantorRef.guarantor_last_name_encrypted || '')}`
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
+    const propertyAddress = decrypt(reference.property_address_encrypted) || 'the property'
+    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : 'Your agent'
+    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+
+    await sendGuarantorReferenceRequest(
+      guarantorEmail,
+      guarantorName,
+      tenantName,
+      propertyAddress,
+      companyName,
+      formLink
+    )
+
+    res.json({ message: 'Guarantor reference email resent successfully' })
+  } catch (error: any) {
+    console.error('Failed to resend guarantor email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router
