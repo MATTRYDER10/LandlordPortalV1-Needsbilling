@@ -259,6 +259,54 @@
                 </button>
               </td>
             </tr>
+            <!-- Guarantor Row (if exists) -->
+            <tr v-if="reference.guarantors && reference.guarantors.length > 0" v-for="guarantor in reference.guarantors" :key="`guarantor-${guarantor.id}`" class="bg-purple-50 border-l-4 border-l-purple-500">
+              <td class="px-6 py-3 pl-12">
+                <div class="text-xs text-purple-700 font-medium mb-1">↳ Guarantor for above tenant</div>
+                <div class="text-sm text-gray-900">{{ guarantor.property_address }}</div>
+              </td>
+              <td class="px-6 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <div class="text-sm font-medium text-gray-900">
+                        {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
+                      </div>
+                      <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                        Guarantor
+                      </span>
+                    </div>
+                    <div class="text-sm text-gray-500">{{ guarantor.tenant_email }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-3">
+                <span
+                  class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                  :class="{
+                    'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
+                    'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
+                    'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
+                    'bg-green-100 text-green-800': guarantor.status === 'completed',
+                    'bg-red-100 text-red-800': guarantor.status === 'rejected',
+                    'bg-gray-100 text-gray-800': guarantor.status === 'cancelled'
+                  }"
+                >
+                  {{ formatStatus(guarantor.status, guarantor) }}
+                </span>
+              </td>
+              <td class="px-6 py-3 text-sm text-gray-500">
+                {{ formatDate(guarantor.created_at) }}
+              </td>
+              <td class="px-6 py-3 text-right text-sm font-medium">
+                <button
+                  @click="viewReference(guarantor)"
+                  class="text-purple-600 hover:text-purple-800 font-medium"
+                >
+                  View
+                </button>
+              </td>
+            </tr>
             <!-- Expanded Tenant List -->
             <tr v-if="reference.is_group_parent && expandedReference === reference.id" class="bg-gray-50">
               <td colspan="5" class="px-6 py-4">
@@ -570,6 +618,65 @@
             </div>
           </div>
 
+          <!-- Guarantor Section -->
+          <div class="border-t pt-4">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-md font-semibold text-gray-700">Add Guarantor (Optional)</h4>
+              <button
+                type="button"
+                @click="showGuarantorFields = !showGuarantorFields"
+                class="text-sm text-primary hover:underline"
+              >
+                {{ showGuarantorFields ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+
+            <div v-if="showGuarantorFields" class="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <p class="text-sm text-gray-600">If this tenant requires a guarantor, you can add their details here. The guarantor will receive an email to complete the tenant reference form.</p>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label for="guarantor-first-name" class="block text-sm font-medium text-gray-700">Guarantor First Name</label>
+                  <input
+                    id="guarantor-first-name"
+                    v-model="formData.guarantor_first_name"
+                    type="text"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label for="guarantor-last-name" class="block text-sm font-medium text-gray-700">Guarantor Last Name</label>
+                  <input
+                    id="guarantor-last-name"
+                    v-model="formData.guarantor_last_name"
+                    type="text"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label for="guarantor-email" class="block text-sm font-medium text-gray-700">Guarantor Email</label>
+                  <input
+                    id="guarantor-email"
+                    v-model="formData.guarantor_email"
+                    type="email"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <PhoneInput
+                    v-model="formData.guarantor_phone"
+                    label="Guarantor Phone"
+                    id="guarantor-phone"
+                    :required="false"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Notes -->
           <div>
             <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
@@ -632,6 +739,7 @@ const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const showCreateModal = ref(false)
+const showGuarantorFields = ref(false)
 const references = ref<any[]>([])
 const loading = ref(true)
 const createLoading = ref(false)
@@ -669,7 +777,11 @@ const formData = ref({
   move_in_date: '',
   term_years: 0,
   term_months: 0,
-  notes: ''
+  notes: '',
+  guarantor_first_name: '',
+  guarantor_last_name: '',
+  guarantor_email: '',
+  guarantor_phone: ''
 })
 
 const totalRentShare = computed(() => {
@@ -703,7 +815,8 @@ const statusCounts = computed(() => {
 })
 
 const filteredReferences = computed(() => {
-  let filtered = references.value
+  // Filter out guarantor references - they should only appear nested under their parent
+  let filtered = references.value.filter(ref => !ref.is_guarantor)
 
   // Apply search filter
   if (searchQuery.value.trim()) {
@@ -832,7 +945,29 @@ const fetchReferences = async () => {
     }
 
     const data = await response.json()
-    references.value = data.references
+    const allReferences = data.references
+
+    // Attach guarantors to their parent references
+    const guarantorMap = new Map()
+    allReferences.forEach((ref: any) => {
+      if (ref.is_guarantor && ref.guarantor_for_reference_id) {
+        if (!guarantorMap.has(ref.guarantor_for_reference_id)) {
+          guarantorMap.set(ref.guarantor_for_reference_id, [])
+        }
+        guarantorMap.get(ref.guarantor_for_reference_id).push(ref)
+      }
+    })
+
+    // Attach guarantors array to parent references
+    allReferences.forEach((ref: any) => {
+      if (guarantorMap.has(ref.id)) {
+        ref.guarantors = guarantorMap.get(ref.id)
+      } else {
+        ref.guarantors = []
+      }
+    })
+
+    references.value = allReferences
   } catch (error) {
     console.error('Failed to fetch references:', error)
   } finally {
@@ -939,8 +1074,13 @@ const closeCreateModal = () => {
     move_in_date: '',
     term_years: 0,
     term_months: 0,
-    notes: ''
+    notes: '',
+    guarantor_first_name: '',
+    guarantor_last_name: '',
+    guarantor_email: '',
+    guarantor_phone: ''
   }
+  showGuarantorFields.value = false
   createError.value = ''
   createSuccess.value = ''
 }

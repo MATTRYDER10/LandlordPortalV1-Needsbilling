@@ -69,21 +69,33 @@
       <div class="mb-6 space-y-4">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-semibold text-gray-900">Reference Score</h3>
-          <button
-            v-if="score || reference.status === 'completed' || reference.status === 'rejected'"
-            @click="downloadPDFReport"
-            :disabled="downloadingPDF"
-            class="flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <svg v-if="!downloadingPDF" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <svg v-else class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            {{ downloadingPDF ? 'Generating...' : 'Download PDF Report' }}
-          </button>
+          <div class="flex gap-2">
+            <button
+              v-if="!reference.is_guarantor && !hasGuarantor && reference.status !== 'cancelled' && reference.status !== 'rejected'"
+              @click="showAddGuarantorModal = true"
+              class="flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Add Guarantor
+            </button>
+            <button
+              v-if="score || reference.status === 'completed' || reference.status === 'rejected'"
+              @click="downloadPDFReport"
+              :disabled="downloadingPDF"
+              class="flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg v-if="!downloadingPDF" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <svg v-else class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ downloadingPDF ? 'Generating...' : 'Download PDF Report' }}
+            </button>
+          </div>
         </div>
         <ScoreCard v-if="score" :score="score" />
         <div v-else-if="loadingScore" class="bg-white rounded-lg shadow-md p-6">
@@ -95,6 +107,23 @@
       </div>
 
       <div class="space-y-6">
+        <!-- Guarantor Badge -->
+        <div v-if="reference.is_guarantor" class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <h3 class="text-sm font-semibold text-purple-900 mb-2">Guarantor Reference</h3>
+          <div class="text-sm text-purple-800">
+            <p><strong>Type:</strong> Guarantor (not primary tenant)</p>
+            <p v-if="reference.guarantor_for_reference_id">
+              <strong>For Tenant:</strong>
+              <button
+                @click="$router.push(`/staff/references/${reference.guarantor_for_reference_id}`)"
+                class="text-purple-600 hover:text-purple-800 underline ml-1"
+              >
+                View Parent Reference
+              </button>
+            </p>
+          </div>
+        </div>
+
         <!-- Group Application Info -->
         <div v-if="reference.is_group_parent || reference.parent_reference_id" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 class="text-sm font-semibold text-blue-900 mb-2">Group Application</h3>
@@ -839,12 +868,33 @@
             </div>
           </div>
 
-          <!-- Guarantor Reference Section -->
-          <div v-if="reference.requires_guarantor" class="mt-6 pt-6 border-t">
+          <!-- Guarantor Reference Section (NEW SYSTEM) -->
+          <div v-if="guarantorReferences.length > 0 || reference.requires_guarantor" class="mt-6 pt-6 border-t">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Guarantor Information</h3>
 
-            <!-- Guarantor Reference Pending -->
-            <div v-if="!guarantorReference || !guarantorReference.submitted_at" class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <!-- Guarantor References (as nested tenant references) -->
+            <div v-if="guarantorReferences.length > 0" class="space-y-3">
+              <div v-for="guarantor in guarantorReferences" :key="guarantor.id" class="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <button
+                      @click="$router.push(`/staff/references/${guarantor.id}`)"
+                      class="text-purple-600 hover:text-purple-800 hover:underline font-semibold"
+                    >
+                      {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }} - Guarantor Reference
+                    </button>
+                    <div class="flex items-center gap-3 mt-1">
+                      <span class="text-sm text-purple-700">Status: {{ formatStatus(guarantor.status) }}</span>
+                      <span v-if="guarantor.submitted_at" class="text-xs text-purple-600">Submitted {{ formatDate(guarantor.submitted_at) }}</span>
+                    </div>
+                  </div>
+                  <span class="px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">Guarantor</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pending Guarantor -->
+            <div v-else-if="reference.requires_guarantor" class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p class="text-sm text-yellow-800">
                 <strong>Status:</strong> Pending guarantor response
               </p>
@@ -853,8 +903,8 @@
               </p>
             </div>
 
-            <!-- Guarantor Reference Submitted -->
-            <div v-if="guarantorReference && guarantorReference.submitted_at" class="bg-blue-50 border border-blue-200 rounded-lg">
+            <!-- Old System Guarantor Reference (kept for backwards compatibility) -->
+            <div v-if="guarantorReference && guarantorReference.submitted_at && guarantorReferences.length === 0" class="bg-blue-50 border border-blue-200 rounded-lg">
               <div class="p-4">
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-lg font-semibold text-blue-900">✓ Guarantor Reference Completed</h4>
@@ -1801,6 +1851,79 @@
         </div>
       </div>
     </div>
+
+    <!-- Add Guarantor Modal -->
+    <div v-if="showAddGuarantorModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg max-w-md w-full p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Guarantor</h3>
+
+        <form @submit.prevent="addGuarantor" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">First Name *</label>
+            <input
+              v-model="guarantorForm.first_name"
+              type="text"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Last Name *</label>
+            <input
+              v-model="guarantorForm.last_name"
+              type="text"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Email *</label>
+            <input
+              v-model="guarantorForm.email"
+              type="email"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Phone</label>
+            <input
+              v-model="guarantorForm.phone"
+              type="tel"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          <div v-if="guarantorError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm">
+            {{ guarantorError }}
+          </div>
+
+          <div v-if="guarantorSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded text-sm">
+            {{ guarantorSuccess }}
+          </div>
+
+          <div class="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              @click="closeGuarantorModal"
+              class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              :disabled="addingGuarantor"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+            >
+              {{ addingGuarantor ? 'Adding...' : 'Add Guarantor' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1831,12 +1954,29 @@ const agentReference = ref<any>(null)
 const employerReference = ref<any>(null)
 const accountantReference = ref<any>(null)
 const guarantorReference = ref<any>(null)
+const guarantorReferences = ref<any[]>([])
 const previousAddresses = ref<any[]>([])
 const documents = ref<any[]>([])
 const childReferences = ref<any[]>([])
 const parentReference = ref<any>(null)
 const siblingReferences = ref<any[]>([])
 const loading = ref(true)
+
+// Add Guarantor modal state
+const showAddGuarantorModal = ref(false)
+const addingGuarantor = ref(false)
+const guarantorError = ref('')
+const guarantorSuccess = ref('')
+const guarantorForm = ref({
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone: ''
+})
+
+const hasGuarantor = computed(() => {
+  return guarantorReferences.value.length > 0 || guarantorReference.value !== null
+})
 
 // Document viewer modal state
 const viewingDocument = ref(false)
@@ -1903,6 +2043,7 @@ const fetchReference = async () => {
     employerReference.value = data.employerReference
     accountantReference.value = data.accountantReference
     guarantorReference.value = data.guarantorReference
+    guarantorReferences.value = data.guarantorReferences || []
     previousAddresses.value = data.previousAddresses || []
     documents.value = data.documents || []
     childReferences.value = data.childReferences || []
@@ -2051,6 +2192,66 @@ const retryCreditsafeVerification = async () => {
   } finally {
     retryingCreditsafe.value = false
   }
+}
+
+const addGuarantor = async () => {
+  try {
+    addingGuarantor.value = true
+    guarantorError.value = ''
+    guarantorSuccess.value = ''
+
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/references/${referenceId.value}/add-guarantor`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        guarantor_first_name: guarantorForm.value.first_name,
+        guarantor_last_name: guarantorForm.value.last_name,
+        guarantor_email: guarantorForm.value.email,
+        guarantor_phone: guarantorForm.value.phone
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to add guarantor')
+    }
+
+    guarantorSuccess.value = 'Guarantor added successfully! They will receive an email with the reference form.'
+    toast.success('Guarantor added successfully')
+
+    // Refresh reference data
+    setTimeout(async () => {
+      await fetchReference()
+      closeGuarantorModal()
+    }, 2000)
+  } catch (err: any) {
+    guarantorError.value = err.message || 'Failed to add guarantor'
+    toast.error(err.message || 'Failed to add guarantor')
+  } finally {
+    addingGuarantor.value = false
+  }
+}
+
+const closeGuarantorModal = () => {
+  showAddGuarantorModal.value = false
+  guarantorForm.value = {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: ''
+  }
+  guarantorError.value = ''
+  guarantorSuccess.value = ''
 }
 
 const formatStatus = (status: string) => {
