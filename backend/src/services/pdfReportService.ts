@@ -219,8 +219,8 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
 
       // Score Section (if available)
       if (score) {
-        // Add new page if needed
-        if (yPosition > 650) {
+        // Add new page if needed (check if we have enough space for the score section)
+        if (yPosition > 500) {
           doc.addPage()
           yPosition = 50
         }
