@@ -1992,11 +1992,22 @@ const downloadPDFReport = async () => {
     // Get the PDF blob
     const blob = await response.blob()
 
+    // Extract filename from Content-Disposition header
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let filename = 'PropertyGoose_Reference_Report.pdf'
+
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1]
+      }
+    }
+
     // Create a download link
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `PropertyGoose_Reference_Report_${reference.value?.first_name}_${reference.value?.last_name}.pdf`
+    a.download = filename
     document.body.appendChild(a)
     a.click()
     window.URL.revokeObjectURL(url)
