@@ -35,9 +35,9 @@ interface ScoreData {
     id_data: number
   }
   ratio: number
-  caps?: string[]
-  review_flags?: string[]
-  decline_reasons?: string[]
+  caps?: Array<string>
+  review_flags?: Array<string>
+  decline_reasons?: Array<string>
   guarantor_required: boolean
   guarantor_min_ratio?: number
   guarantor_min_tas?: number
@@ -46,14 +46,48 @@ interface ScoreData {
 
 export async function generateReferenceReportPDF(referenceId: string): Promise<Buffer> {
   // Fetch reference data
+  console.log(`[PDF] Fetching reference ${referenceId}...`)
   const { data: reference, error: refError } = await supabase
     .from('tenant_references')
-    .select('*, companies(name)')
+    .select('*')
     .eq('id', referenceId)
     .single()
 
-  if (refError || !reference) {
+  if (refError) {
+    console.error('[PDF] Error fetching reference:', refError)
+    throw new Error(`Reference not found: ${refError.message}`)
+  }
+
+  if (!reference) {
+    console.error('[PDF] No reference data returned')
     throw new Error('Reference not found')
+  }
+
+  // Decrypt sensitive fields
+  const firstName = reference.first_name || (reference.tenant_first_name_encrypted ? decrypt(reference.tenant_first_name_encrypted) : '')
+  const middleName = reference.middle_name || ''
+  const lastName = reference.last_name || (reference.tenant_last_name_encrypted ? decrypt(reference.tenant_last_name_encrypted) : '')
+  const email = reference.email || (reference.tenant_email_encrypted ? decrypt(reference.tenant_email_encrypted) : '')
+  const phone = reference.phone || (reference.tenant_phone_encrypted ? decrypt(reference.tenant_phone_encrypted) : '')
+  const dateOfBirth = reference.date_of_birth || (reference.date_of_birth_encrypted ? decrypt(reference.date_of_birth_encrypted) : '')
+  const propertyAddress = reference.property_address || (reference.property_address_encrypted ? decrypt(reference.property_address_encrypted) : '')
+  const propertyCity = reference.property_city || (reference.property_city_encrypted ? decrypt(reference.property_city_encrypted) : '')
+  const propertyPostcode = reference.property_postcode || (reference.property_postcode_encrypted ? decrypt(reference.property_postcode_encrypted) : '')
+
+  console.log(`[PDF] Reference found: ${firstName} ${lastName}`)
+
+  // Fetch company name separately
+  let companyName = 'N/A'
+  if (reference.company_id) {
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name')
+      .eq('id', reference.company_id)
+      .single()
+
+    if (company) {
+      companyName = company.name
+    }
   }
 
   // Fetch score data
@@ -134,11 +168,11 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
       yPosition += 25
 
       const applicantData = [
-        ['Name', `${reference.first_name}${reference.middle_name ? ' ' + reference.middle_name : ''} ${reference.last_name}`],
-        ['Email', reference.email],
-        ['Phone', reference.phone || 'Not provided'],
-        ['Date of Birth', reference.date_of_birth ? formatDate(reference.date_of_birth) : 'Not provided'],
-        ['Company', reference.companies?.name || 'N/A']
+        ['Name', `${firstName}${middleName ? ' ' + middleName : ''} ${lastName}`],
+        ['Email', email || 'Not provided'],
+        ['Phone', phone || 'Not provided'],
+        ['Date of Birth', dateOfBirth ? formatDate(dateOfBirth) : 'Not provided'],
+        ['Company', companyName]
       ]
 
       applicantData.forEach(([label, value]) => {
@@ -163,9 +197,9 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
       yPosition += 25
 
       const propertyData = [
-        ['Address', reference.property_address],
-        ['City', reference.property_city || 'Not provided'],
-        ['Postcode', reference.property_postcode || 'Not provided'],
+        ['Address', propertyAddress || 'Not provided'],
+        ['City', propertyCity || 'Not provided'],
+        ['Postcode', propertyPostcode || 'Not provided'],
         ['Monthly Rent', `£${reference.monthly_rent}`],
         ['Move-in Date', reference.move_in_date ? formatDate(reference.move_in_date) : 'Not provided']
       ]

@@ -3160,15 +3160,20 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
     const pdfBuffer = await generateReferenceReportPDF(referenceId)
 
     // Get reference name for filename
-    const { data: reference } = await supabase
+    const { data: refData } = await supabase
       .from('tenant_references')
-      .select('first_name, last_name')
+      .select('first_name, last_name, tenant_first_name_encrypted, tenant_last_name_encrypted')
       .eq('id', referenceId)
       .single()
 
-    const filename = reference
-      ? `PropertyGoose_Reference_Report_${reference.first_name}_${reference.last_name}.pdf`
-      : `PropertyGoose_Reference_Report_${referenceId}.pdf`
+    let firstName = 'Reference'
+    let lastName = 'Report'
+    if (refData) {
+      firstName = refData.first_name || (refData.tenant_first_name_encrypted ? decrypt(refData.tenant_first_name_encrypted) : 'Reference')
+      lastName = refData.last_name || (refData.tenant_last_name_encrypted ? decrypt(refData.tenant_last_name_encrypted) : 'Report')
+    }
+
+    const filename = `PropertyGoose_Reference_Report_${firstName}_${lastName}.pdf`
 
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf')
