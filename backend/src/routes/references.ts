@@ -3159,7 +3159,11 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
     // Generate the PDF (returns buffer and name)
     const pdfResult = await generateReferenceReportPDF(referenceId)
 
+    console.log('[PDF] Generated PDF with names:', pdfResult.firstName, pdfResult.lastName)
+
     const filename = `PropertyGoose_Reference_Report_${pdfResult.firstName.replace(/\s+/g, '_')}_${pdfResult.lastName.replace(/\s+/g, '_')}.pdf`
+
+    console.log('[PDF] Sending filename:', filename)
 
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf')
