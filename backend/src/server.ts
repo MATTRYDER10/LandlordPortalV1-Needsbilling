@@ -81,7 +81,8 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'))
     }
   },
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['Content-Disposition'] // Allow frontend to read this header
 }))
 
 // Middleware
