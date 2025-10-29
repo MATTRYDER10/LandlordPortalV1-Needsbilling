@@ -1486,8 +1486,21 @@ router.post('/submit/:token', async (req, res) => {
       console.log(`Parent reference ID: ${updatedReference?.id}`)
       console.log(`NOTE: When credit system is implemented, this will consume an additional credit`)
 
-      // Automatically create guarantor reference as a tenant_reference and send email to guarantor
-      try {
+      // Check if a guarantor already exists (added by agent during creation)
+      const { data: existingGuarantor } = await supabase
+        .from('tenant_references')
+        .select('*')
+        .eq('guarantor_for_reference_id', updatedReference.id)
+        .eq('is_guarantor', true)
+        .maybeSingle()
+
+      if (existingGuarantor) {
+        console.log('✅ Guarantor already exists (added by agent). Skipping creation.')
+        console.log('Existing guarantor ID:', existingGuarantor.id)
+        // Guarantor already exists, no need to create a new one
+      } else {
+        // Automatically create guarantor reference as a tenant_reference and send email to guarantor
+        try {
         // Generate unique token for guarantor
         const guarantorToken = generateToken()
         const guarantorTokenHash = hash(guarantorToken)
@@ -1575,10 +1588,11 @@ router.post('/submit/:token', async (req, res) => {
 
           console.log('✅ Guarantor reference email sent to:', data.guarantor_email)
         }
-      } catch (error: any) {
-        console.error('❌ Failed to create/send guarantor reference:', error)
-        console.error('Error stack:', error.stack)
-        // Don't fail the tenant submission if guarantor creation fails
+        } catch (error: any) {
+          console.error('❌ Failed to create/send guarantor reference:', error)
+          console.error('Error stack:', error.stack)
+          // Don't fail the tenant submission if guarantor creation fails
+        }
       }
       console.log(`=== GUARANTOR CREATION END ===`)
     }
@@ -1735,6 +1749,56 @@ router.post('/submit/:token', async (req, res) => {
       message: 'Reference submitted successfully',
       reference: updatedReference
     })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Check if guarantor already exists for a reference (public route)
+router.get('/check-guarantor/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+
+    // Hash the token to look up the reference securely
+    const tokenHash = hash(token)
+
+    // Get reference by token hash
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id')
+      .eq('reference_token_hash', tokenHash)
+      .gte('token_expires_at', new Date().toISOString())
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Invalid or expired reference link' })
+    }
+
+    // Check if a guarantor already exists for this reference
+    const { data: existingGuarantor } = await supabase
+      .from('tenant_references')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, tenant_email_encrypted, status')
+      .eq('guarantor_for_reference_id', reference.id)
+      .eq('is_guarantor', true)
+      .maybeSingle()
+
+    if (existingGuarantor) {
+      // Decrypt guarantor info to send to frontend
+      res.json({
+        hasGuarantor: true,
+        guarantor: {
+          id: existingGuarantor.id,
+          firstName: existingGuarantor.tenant_first_name_encrypted ? decrypt(existingGuarantor.tenant_first_name_encrypted) : '',
+          lastName: existingGuarantor.tenant_last_name_encrypted ? decrypt(existingGuarantor.tenant_last_name_encrypted) : '',
+          email: existingGuarantor.tenant_email_encrypted ? decrypt(existingGuarantor.tenant_email_encrypted) : '',
+          status: existingGuarantor.status
+        }
+      })
+    } else {
+      res.json({
+        hasGuarantor: false
+      })
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

@@ -794,25 +794,46 @@
 
             <!-- Guarantor Option (shown if Student or Unemployed is selected) -->
             <div v-if="formData.income_student || formData.income_unemployed" class="pt-6 border-t border-gray-200">
-              <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
-                <p class="text-sm text-blue-900">
-                  As a {{ formData.income_student ? 'student' : 'unemployed person' }}, you may wish to provide a guarantor to support your application.
-                </p>
+              <!-- Show existing guarantor message if one exists -->
+              <div v-if="hasExistingGuarantor" class="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
+                <div class="flex items-start">
+                  <svg class="w-5 h-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                  </svg>
+                  <div>
+                    <p class="text-sm font-medium text-green-900 mb-1">Guarantor Already Added</p>
+                    <p class="text-sm text-green-800">
+                      A guarantor has already been added for your reference: <strong>{{ existingGuarantor.firstName }} {{ existingGuarantor.lastName }}</strong> ({{ existingGuarantor.email }})
+                    </p>
+                    <p class="text-xs text-green-700 mt-2">
+                      They will receive an email to complete their guarantor reference form.
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div class="mb-4">
-                <label class="flex items-center">
-                  <input
-                    v-model="formData.requires_guarantor"
-                    type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <span class="ml-2 text-sm font-medium text-gray-700">I would like to use a guarantor</span>
-                </label>
-              </div>
+              <!-- Show guarantor option if no existing guarantor -->
+              <template v-else>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                  <p class="text-sm text-blue-900">
+                    As a {{ formData.income_student ? 'student' : 'unemployed person' }}, you may wish to provide a guarantor to support your application.
+                  </p>
+                </div>
 
-              <!-- Guarantor Details (shown if guarantor is selected) -->
-              <div v-if="formData.requires_guarantor" class="space-y-4 pl-6 border-l-2 border-gray-200">
+                <div class="mb-4">
+                  <label class="flex items-center">
+                    <input
+                      v-model="formData.requires_guarantor"
+                      type="checkbox"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <span class="ml-2 text-sm font-medium text-gray-700">I would like to use a guarantor</span>
+                  </label>
+                </div>
+              </template>
+
+              <!-- Guarantor Details (shown if guarantor is selected AND no existing guarantor) -->
+              <div v-if="formData.requires_guarantor && !hasExistingGuarantor" class="space-y-4 pl-6 border-l-2 border-gray-200">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Guarantor Details</h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2143,6 +2164,10 @@ const employerEmailError = ref('')
 const accountantEmailError = ref('')
 const landlordEmailError = ref('')
 
+// Existing guarantor (added by agent)
+const existingGuarantor = ref<any>(null)
+const hasExistingGuarantor = ref(false)
+
 // Right to Rent verification
 const rtrVerificationStatus = ref<'checking' | 'verified' | 'failed' | null>(null)
 const rtrVerificationMessage = ref('')
@@ -2817,7 +2842,27 @@ const formData = ref({
 
 onMounted(() => {
   fetchReferenceByToken()
+  checkExistingGuarantor()
 })
+
+const checkExistingGuarantor = async () => {
+  try {
+    const token = route.params.token
+    const response = await fetch(`${API_URL}/api/references/check-guarantor/${token}`)
+
+    if (response.ok) {
+      const data = await response.json()
+      if (data.hasGuarantor) {
+        hasExistingGuarantor.value = true
+        existingGuarantor.value = data.guarantor
+        console.log('Existing guarantor found:', data.guarantor)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to check for existing guarantor:', error)
+    // Don't show error to user, just proceed
+  }
+}
 
 const fetchReferenceByToken = async () => {
   try {
