@@ -668,7 +668,8 @@
                         @update:modelValue="(val) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.phone = val }"
                         :id="`tenant-${index}-guarantor-phone`"
                         :required="false"
-                        input-class="px-2 py-1.5 text-sm"
+                        input-class="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        select-class="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                       />
                     </div>
                   </div>
