@@ -2711,9 +2711,9 @@ router.post('/:id/resend-landlord-email', authenticateToken, async (req: AuthReq
       .eq('id', reference.company_id)
       .single()
 
-    const landlordEmail = decrypt(reference.previous_landlord_email_encrypted)
-    const landlordName = decrypt(reference.previous_landlord_name_encrypted)
-    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
+    const landlordEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+    const landlordName = decrypt(reference.previous_landlord_name_encrypted) || ''
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${reference.id}`
 
     await sendLandlordReferenceRequest(
@@ -2769,9 +2769,9 @@ router.post('/:id/resend-agent-email', authenticateToken, async (req: AuthReques
       .eq('id', reference.company_id)
       .single()
 
-    const agentEmail = decrypt(reference.previous_landlord_email_encrypted)
-    const agentName = decrypt(reference.previous_landlord_name_encrypted)
-    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
+    const agentEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+    const agentName = decrypt(reference.previous_landlord_name_encrypted) || ''
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     const agentReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${reference.id}`
 
     await sendAgentReferenceRequest(
@@ -2827,9 +2827,9 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
       .eq('id', reference.company_id)
       .single()
 
-    const employerEmail = decrypt(reference.employer_ref_email_encrypted)
-    const employerName = decrypt(reference.employer_ref_name_encrypted)
-    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
+    const employerEmail = decrypt(reference.employer_ref_email_encrypted) || ''
+    const employerName = decrypt(reference.employer_ref_name_encrypted) || ''
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${reference.id}`
 
     await sendEmployerReferenceRequest(
@@ -2906,17 +2906,15 @@ router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthR
       .eq('id', reference.company_id)
       .single()
 
-    const accountantEmail = decrypt(reference.accountant_email_encrypted)
-    const accountantName = decrypt(reference.accountant_name_encrypted)
-    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
-    const businessName = decrypt(reference.self_employed_business_name_encrypted) || 'their business'
+    const accountantEmail = decrypt(reference.accountant_email_encrypted) || ''
+    const accountantName = decrypt(reference.accountant_name_encrypted) || ''
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     const formLink = `${process.env.FRONTEND_URL}/accountant-reference/${accountantToken}`
 
     await sendAccountantReferenceRequest(
       accountantEmail,
       accountantName,
       tenantName,
-      businessName,
       formLink,
       companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
@@ -2987,11 +2985,11 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
       .eq('id', reference.company_id)
       .single()
 
-    const guarantorEmail = decrypt(guarantorRef.guarantor_email_encrypted)
-    const guarantorName = `${decrypt(guarantorRef.guarantor_first_name_encrypted)} ${decrypt(guarantorRef.guarantor_last_name_encrypted || '')}`
-    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`
+    const guarantorEmail = decrypt(guarantorRef.guarantor_email_encrypted) || ''
+    const guarantorName = `${decrypt(guarantorRef.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRef.guarantor_last_name_encrypted || '') || ''}`
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     const propertyAddress = decrypt(reference.property_address_encrypted) || 'the property'
-    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : 'Your agent'
+    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) || 'Your agent' : 'Your agent'
     const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
 
     await sendGuarantorReferenceRequest(
