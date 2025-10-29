@@ -3,7 +3,7 @@ import { supabase } from '../config/supabase'
 import { decrypt } from './encryption'
 import path from 'path'
 
-export async function generateReferenceReportPDF(referenceId: string): Promise<Buffer> {
+export async function generateReferenceReportPDF(referenceId: string): Promise<{ buffer: Buffer; firstName: string; lastName: string }> {
   // Fetch reference data
   console.log(`[PDF] Fetching reference ${referenceId}...`)
   const { data: reference, error: refError } = await supabase
@@ -53,7 +53,11 @@ export async function generateReferenceReportPDF(referenceId: string): Promise<B
       const doc = new PDFDocument({ size: 'A4', margin: 50 })
       const chunks: Buffer[] = []
       doc.on('data', (chunk) => chunks.push(chunk))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
+      doc.on('end', () => resolve({
+        buffer: Buffer.concat(chunks),
+        firstName,
+        lastName
+      }))
       doc.on('error', reject)
 
       const primaryColor = '#f97316'

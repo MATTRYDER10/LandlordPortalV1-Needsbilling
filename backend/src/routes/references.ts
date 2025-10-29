@@ -3156,36 +3156,18 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
-    // Generate the PDF
-    const pdfBuffer = await generateReferenceReportPDF(referenceId)
+    // Generate the PDF (returns buffer and name)
+    const pdfResult = await generateReferenceReportPDF(referenceId)
 
-    // Get reference name for filename
-    const { data: refData } = await supabase
-      .from('tenant_references')
-      .select('first_name, last_name, tenant_first_name_encrypted, tenant_last_name_encrypted')
-      .eq('id', referenceId)
-      .single()
-
-    console.log('[PDF] Reference data for filename:', refData)
-
-    let firstName = 'Reference'
-    let lastName = 'Report'
-    if (refData) {
-      firstName = refData.first_name || (refData.tenant_first_name_encrypted ? decrypt(refData.tenant_first_name_encrypted) : 'Reference')
-      lastName = refData.last_name || (refData.tenant_last_name_encrypted ? decrypt(refData.tenant_last_name_encrypted) : 'Report')
-    }
-
-    console.log('[PDF] Filename will be:', firstName, lastName)
-
-    const filename = `PropertyGoose_Reference_Report_${firstName.replace(/\s+/g, '_')}_${lastName.replace(/\s+/g, '_')}.pdf`
+    const filename = `PropertyGoose_Reference_Report_${pdfResult.firstName.replace(/\s+/g, '_')}_${pdfResult.lastName.replace(/\s+/g, '_')}.pdf`
 
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
-    res.setHeader('Content-Length', pdfBuffer.length)
+    res.setHeader('Content-Length', pdfResult.buffer.length)
 
     // Send the PDF
-    res.send(pdfBuffer)
+    res.send(pdfResult.buffer)
   } catch (error: any) {
     console.error('Failed to generate PDF report:', error)
     res.status(500).json({ error: error.message })
