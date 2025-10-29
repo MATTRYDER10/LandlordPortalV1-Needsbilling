@@ -3010,10 +3010,10 @@ const resendLandlordEmail = async () => {
       }
     })
     if (!response.ok) throw new Error('Failed to resend email')
-    alert('Landlord reference email resent successfully')
+    toast.success('Landlord reference email resent successfully')
   } catch (err: any) {
     console.error('Error resending landlord email:', err)
-    alert('Failed to resend email: ' + err.message)
+    toast.error('Failed to resend email: ' + err.message)
   } finally {
     resendingLandlord.value = false
   }
@@ -3030,10 +3030,10 @@ const resendAgentEmail = async () => {
       }
     })
     if (!response.ok) throw new Error('Failed to resend email')
-    alert('Agent reference email resent successfully')
+    toast.success('Agent reference email resent successfully')
   } catch (err: any) {
     console.error('Error resending agent email:', err)
-    alert('Failed to resend email: ' + err.message)
+    toast.error('Failed to resend email: ' + err.message)
   } finally {
     resendingAgent.value = false
   }
@@ -3050,10 +3050,10 @@ const resendEmployerEmail = async (childId: string) => {
       }
     })
     if (!response.ok) throw new Error('Failed to resend email')
-    alert('Employer reference email resent successfully')
+    toast.success('Employer reference email resent successfully')
   } catch (err: any) {
     console.error('Error resending employer email:', err)
-    alert('Failed to resend email: ' + err.message)
+    toast.error('Failed to resend email: ' + err.message)
   } finally {
     resendingEmployer.value[childId] = false
   }
@@ -3070,10 +3070,10 @@ const resendAccountantEmail = async (childId: string) => {
       }
     })
     if (!response.ok) throw new Error('Failed to resend email')
-    alert('Accountant reference email resent successfully')
+    toast.success('Accountant reference email resent successfully')
   } catch (err: any) {
     console.error('Error resending accountant email:', err)
-    alert('Failed to resend email: ' + err.message)
+    toast.error('Failed to resend email: ' + err.message)
   } finally {
     resendingAccountant.value[childId] = false
   }
@@ -3090,10 +3090,10 @@ const resendGuarantorEmail = async () => {
       }
     })
     if (!response.ok) throw new Error('Failed to resend email')
-    alert('Guarantor reference email resent successfully')
+    toast.success('Guarantor reference email resent successfully')
   } catch (err: any) {
     console.error('Error resending guarantor email:', err)
-    alert('Failed to resend email: ' + err.message)
+    toast.error('Failed to resend email: ' + err.message)
   } finally {
     resendingGuarantor.value = false
   }
