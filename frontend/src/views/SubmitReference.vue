@@ -3432,14 +3432,10 @@ const handlePageSubmit = async () => {
       }
     }
   } else if (currentPage.value === 10) {
-    // Validate landlord/agent email
-    if (formData.value.previous_landlord_email && !isWorkEmail(formData.value.previous_landlord_email)) {
-      landlordEmailError.value = formData.value.reference_type === 'agent'
-        ? 'Please use the letting agency email address (not a personal Gmail, Hotmail, etc.)'
-        : 'Please use the landlord\'s professional email address (not a personal Gmail, Hotmail, etc.)'
-      submitError.value = formData.value.reference_type === 'agent'
-        ? 'Please use the letting agency email address'
-        : 'Please use a professional email address for your landlord'
+    // Validate agent email only (landlords can use personal email)
+    if (formData.value.reference_type === 'agent' && formData.value.previous_landlord_email && !isWorkEmail(formData.value.previous_landlord_email)) {
+      landlordEmailError.value = 'Please use the letting agency email address (not a personal Gmail, Hotmail, etc.)'
+      submitError.value = 'Please use the letting agency email address'
       return
     }
   }
