@@ -11,6 +11,7 @@ import { logAuditAction } from '../services/auditService'
 import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
 import pdfService from '../services/pdfService'
 import { creditsafeService } from '../services/creditsafeService'
+import { generateReferenceReportPDF } from '../services/pdfReportService'
 
 const router = Router()
 
@@ -3111,6 +3112,73 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     res.json({ message: 'Guarantor reference email resent successfully' })
   } catch (error: any) {
     console.error('Failed to resend guarantor email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Generate and download PDF report for a reference
+router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+
+    // Check if user is staff (staff can view all reports)
+    const { data: staffUser } = await supabase
+      .from('staff_users')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (!staffUser) {
+      // Not staff, must be company user - verify they own this reference
+      const { data: companyUsers } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (!companyUsers || companyUsers.length === 0) {
+        return res.status(404).json({ error: 'Company not found' })
+      }
+
+      const companyUser = companyUsers[0]
+
+      // Verify reference belongs to user's company
+      const { data: reference } = await supabase
+        .from('tenant_references')
+        .select('id, company_id')
+        .eq('id', referenceId)
+        .eq('company_id', companyUser.company_id)
+        .single()
+
+      if (!reference) {
+        return res.status(404).json({ error: 'Reference not found' })
+      }
+    }
+
+    // Generate the PDF
+    const pdfBuffer = await generateReferenceReportPDF(referenceId)
+
+    // Get reference name for filename
+    const { data: reference } = await supabase
+      .from('tenant_references')
+      .select('first_name, last_name')
+      .eq('id', referenceId)
+      .single()
+
+    const filename = reference
+      ? `PropertyGoose_Reference_Report_${reference.first_name}_${reference.last_name}.pdf`
+      : `PropertyGoose_Reference_Report_${referenceId}.pdf`
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.setHeader('Content-Length', pdfBuffer.length)
+
+    // Send the PDF
+    res.send(pdfBuffer)
+  } catch (error: any) {
+    console.error('Failed to generate PDF report:', error)
     res.status(500).json({ error: error.message })
   }
 })
