@@ -3,6 +3,7 @@ import { authenticateStaff, StaffAuthRequest } from '../middleware/staffAuth'
 import { supabase } from '../config/supabase'
 import { decrypt, encrypt } from '../services/encryption'
 import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
+import { sanctionsService } from '../services/sanctionsService'
 
 const router = Router()
 
@@ -913,6 +914,35 @@ router.post('/references/:id/creditsafe/retry', authenticateStaff, async (req: S
         deceasedRegisterMatch: verificationResult.deceasedRegisterMatch
       }
     })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Get sanctions screening result for a reference
+router.get('/references/:id/sanctions', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+
+    // Verify reference exists
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, company_id')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get sanctions screening result
+    const screening = await sanctionsService.getScreeningResult(referenceId)
+
+    if (!screening) {
+      return res.status(404).json({ error: 'No sanctions screening found for this reference' })
+    }
+
+    res.json({ screening })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

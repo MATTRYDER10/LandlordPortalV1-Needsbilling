@@ -29,6 +29,9 @@ export type AuditAction =
   // Verification actions
   | 'verification.creditsafe_completed'
   | 'verification.creditsafe_failed'
+  | 'verification.sanctions_screening_completed'
+  | 'verification.sanctions_screening_failed'
+  | 'verification.sanctions_alert_sent'
 
 export type ResourceType =
   | 'user'

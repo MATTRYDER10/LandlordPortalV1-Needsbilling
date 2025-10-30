@@ -584,6 +584,13 @@
             :retrying="retryingCreditsafe"
             @retry="retryCreditsafeVerification"
           />
+
+          <!-- UK Sanctions & PEP Screening -->
+          <SanctionsScreeningCard
+            v-if="reference.submitted_at"
+            :screening="sanctionsScreening"
+            :loading="loadingSanctions"
+          />
         </div>
       </VerificationStep>
     </div>
@@ -642,6 +649,7 @@ import VerificationStep from '../components/VerificationStep.vue'
 import SideBySideViewer from '../components/SideBySideViewer.vue'
 import InteractiveComparisonTable from '../components/InteractiveComparisonTable.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
+import SanctionsScreeningCard from '../components/SanctionsScreeningCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -700,6 +708,10 @@ const selfieBlobUrl = ref('')
 const creditsafeVerification = ref<any>(null)
 const loadingCreditsafe = ref(false)
 const retryingCreditsafe = ref(false)
+
+// Sanctions screening
+const sanctionsScreening = ref<any>(null)
+const loadingSanctions = ref(false)
 
 // Helper function to capitalize first letter of each word
 const capitalizeWords = (str: string | null | undefined): string => {
@@ -978,6 +990,32 @@ const fetchCreditsafeVerification = async () => {
   }
 }
 
+const fetchSanctionsScreening = async () => {
+  try {
+    loadingSanctions.value = true
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/staff/references/${referenceId}/sanctions`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      sanctionsScreening.value = data.screening
+    } else if (response.status !== 404) {
+      console.error('Failed to fetch sanctions screening')
+    }
+  } catch (error: any) {
+    console.error('Error fetching sanctions screening:', error)
+  } finally {
+    loadingSanctions.value = false
+  }
+}
+
 const retryCreditsafeVerification = async () => {
   try {
     retryingCreditsafe.value = true
@@ -1116,5 +1154,6 @@ onMounted(async () => {
   await fetchReference()
   await fetchVerificationCheck()
   await fetchCreditsafeVerification()
+  await fetchSanctionsScreening()
 })
 </script>

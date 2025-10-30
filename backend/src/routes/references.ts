@@ -5,12 +5,13 @@ import crypto from 'crypto'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
-import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant, sendGuarantorRequestNotification, sendGuarantorReferenceRequest } from '../services/emailService'
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant, sendGuarantorRequestNotification, sendGuarantorReferenceRequest, sendSanctionsAlert } from '../services/emailService'
 import { auditReferenceAction } from '../services/auditLog'
 import { logAuditAction } from '../services/auditService'
 import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
 import pdfService from '../services/pdfService'
 import { creditsafeService } from '../services/creditsafeService'
+import { sanctionsService } from '../services/sanctionsService'
 import { generateReferenceReportPDF } from '../services/pdfReportService'
 
 const router = Router()
@@ -1843,6 +1844,122 @@ router.post('/submit/:token', async (req, res) => {
       })
     } else {
       console.log('Creditsafe verification is disabled, skipping')
+    }
+
+    // Trigger UK Sanctions & Electoral Commission (PEP) screening (non-blocking)
+    // Screens against UK Sanctions List (5,656 entities) and Electoral Commission donations (89,358 records)
+    if (sanctionsService.isEnabled()) {
+      console.log('Triggering UK Sanctions & PEP screening for reference:', updatedReference.id)
+
+      // Run screening in background - don't block the response
+      sanctionsService.screenTenant({
+        name: `${data.first_name} ${data.last_name}`,
+        dateOfBirth: data.date_of_birth,
+        postcode: data.current_postcode
+      }).then(async (screeningResult) => {
+        console.log('Sanctions screening completed:', screeningResult.risk_level,
+                    'Total matches:', screeningResult.total_matches)
+
+        // Store the screening result
+        await sanctionsService.storeScreeningResult(
+          updatedReference.id,
+          {
+            name: `${data.first_name} ${data.last_name}`,
+            dateOfBirth: data.date_of_birth,
+            postcode: data.current_postcode
+          },
+          screeningResult
+        )
+
+        // Audit log for screening
+        await auditReferenceAction(
+          reference.company_id,
+          'system', // System-initiated, not by specific user
+          updatedReference.id,
+          'verification.sanctions_screening_completed',
+          `UK Sanctions & PEP screening completed - Risk: ${screeningResult.risk_level}, Matches: ${screeningResult.total_matches}`,
+          {} as any,
+          {
+            risk_level: screeningResult.risk_level,
+            total_matches: screeningResult.total_matches,
+            sanctions_matches: screeningResult.sanctions_matches.length,
+            donation_matches: screeningResult.donation_matches.length,
+            summary: screeningResult.summary
+          }
+        )
+
+        // Send email alert if high risk (sanctions match)
+        if (screeningResult.risk_level === 'high') {
+          try {
+            // Get company email for alert
+            const { data: companyData } = await supabase
+              .from('companies')
+              .select('name_encrypted, email_encrypted')
+              .eq('id', reference.company_id)
+              .single()
+
+            const companyEmail = companyData?.email_encrypted
+              ? decrypt(companyData.email_encrypted)
+              : null
+
+            if (companyEmail) {
+              const propertyAddress = reference.property_address_encrypted
+                ? decrypt(reference.property_address_encrypted)
+                : 'Unknown Property'
+
+              const recommendedAction = screeningResult.sanctions_matches.length > 0
+                ? 'REJECT TENANT APPLICATION - Tenant appears on UK Sanctions List. This is a legal requirement and tenant must not be accepted.'
+                : 'MANUAL REVIEW REQUIRED - Multiple political donation records found. Review matches and make informed decision.'
+
+              const referenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard/references/${updatedReference.id}`
+
+              await sendSanctionsAlert(
+                companyEmail,
+                `${data.first_name} ${data.last_name}`,
+                propertyAddress || '',
+                screeningResult.risk_level,
+                screeningResult.total_matches,
+                screeningResult.summary,
+                recommendedAction,
+                referenceUrl,
+                screeningResult.screening_date
+              )
+
+              console.log('✅ Sanctions alert email sent to:', companyEmail)
+
+              // Log alert sent
+              await auditReferenceAction(
+                reference.company_id,
+                'system',
+                updatedReference.id,
+                'verification.sanctions_alert_sent',
+                `High-risk sanctions screening alert sent to company`,
+                {} as any,
+                { company_email: companyEmail }
+              )
+            } else {
+              console.warn('⚠️ Company email not found, skipping sanctions alert email')
+            }
+          } catch (emailError: any) {
+            console.error('❌ Failed to send sanctions alert email:', emailError)
+            // Don't fail the submission if email fails
+          }
+        }
+      }).catch((error) => {
+        console.error('Sanctions screening failed:', error)
+        // Log the error but don't fail the submission
+        auditReferenceAction(
+          reference.company_id,
+          'system',
+          updatedReference.id,
+          'verification.sanctions_screening_failed',
+          `Sanctions screening failed: ${error.message}`,
+          {} as any,
+          { error: error.message }
+        ).catch(console.error)
+      })
+    } else {
+      console.log('Sanctions screening is disabled, skipping')
     }
 
     res.json({

@@ -288,6 +288,13 @@
           @retry="retryCreditsafeVerification"
         />
 
+        <!-- UK Sanctions & PEP Screening -->
+        <SanctionsScreeningCard
+          v-if="reference.submitted_at"
+          :screening="sanctionsScreening"
+          :loading="loadingSanctions"
+        />
+
         <!-- Additional Supporting Documents -->
         <div v-if="documents && documents.length > 0" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Additional Supporting Documents</h3>
@@ -1936,6 +1943,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
+import SanctionsScreeningCard from '../components/SanctionsScreeningCard.vue'
 import ScoreCard from '../components/ScoreCard.vue'
 
 const route = useRoute()
@@ -1998,6 +2006,10 @@ const creditsafeVerification = ref<any>(null)
 const loadingCreditsafe = ref(false)
 const retryingCreditsafe = ref(false)
 
+// Sanctions screening
+const sanctionsScreening = ref<any>(null)
+const loadingSanctions = ref(false)
+
 // Score
 const score = ref<any>(null)
 const loadingScore = ref(false)
@@ -2008,6 +2020,7 @@ onMounted(async () => {
   // Fetch Creditsafe verification if reference is submitted
   if (reference.value?.submitted_at) {
     fetchCreditsafeVerification()
+    fetchSanctionsScreening()
   }
   // Fetch score if reference is completed
   if (reference.value?.status === 'completed') {
@@ -2080,6 +2093,33 @@ const fetchCreditsafeVerification = async () => {
     console.error('Error fetching Creditsafe verification:', err)
   } finally {
     loadingCreditsafe.value = false
+  }
+}
+
+const fetchSanctionsScreening = async () => {
+  try {
+    loadingSanctions.value = true
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/staff/references/${route.params.id}/sanctions`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      sanctionsScreening.value = data.screening
+    } else if (response.status !== 404) {
+      // 404 is expected if no screening exists yet
+      console.error('Failed to fetch sanctions screening')
+    }
+  } catch (err: any) {
+    console.error('Error fetching sanctions screening:', err)
+  } finally {
+    loadingSanctions.value = false
   }
 }
 

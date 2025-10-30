@@ -326,3 +326,41 @@ export async function sendConsentPDFToTenant(
     throw error;
   }
 }
+
+/**
+ * Send sanctions screening alert to company/agent
+ */
+export async function sendSanctionsAlert(
+  companyEmail: string,
+  tenantName: string,
+  propertyAddress: string,
+  riskLevel: string,
+  totalMatches: number,
+  summary: string,
+  recommendedAction: string,
+  referenceLink: string,
+  screeningDate: string
+): Promise<void> {
+  const html = loadEmailTemplate('sanctions-alert', {
+    TenantName: capitalizeWords(tenantName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    RiskLevel: riskLevel.toUpperCase(),
+    TotalMatches: String(totalMatches),
+    Summary: summary,
+    RecommendedAction: recommendedAction,
+    ReferenceLink: referenceLink,
+    ScreeningDate: new Date(screeningDate).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  });
+
+  await sendEmail({
+    to: companyEmail,
+    subject: `⚠️ URGENT: Sanctions Screening Alert - ${tenantName}`,
+    html,
+  });
+}
