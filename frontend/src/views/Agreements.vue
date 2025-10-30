@@ -737,18 +737,6 @@ import { useAuthStore } from '../stores/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-// Fetch company settings on mount
-onMounted(() => {
-  fetchCompanySettings()
-})
-
-// Re-fetch when management type changes
-watch(() => formData.value.managementType, () => {
-  if (formData.value.managementType === 'managed') {
-    fetchCompanySettings()
-  }
-})
-
 const steps = ['Template', 'Property', 'Details', 'Landlords', 'Tenants', 'Guarantors', 'Review']
 const currentStep = ref(0)
 const loading = ref(false)
@@ -851,6 +839,18 @@ const formData = ref<{
     }
   ],
   guarantors: []
+})
+
+// Fetch company settings on mount
+onMounted(() => {
+  fetchCompanySettings()
+})
+
+// Re-fetch when management type changes
+watch(() => formData.value.managementType, () => {
+  if (formData.value.managementType === 'managed') {
+    fetchCompanySettings()
+  }
 })
 
 // Computed property to calculate end date from start date + term
