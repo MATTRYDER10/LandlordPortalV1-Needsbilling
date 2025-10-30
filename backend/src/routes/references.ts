@@ -936,15 +936,14 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
             // Send email to guarantor with guarantor-specific form link
             const guarantorUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
+            const tenantFullName = `${tenant_first_name} ${tenant_last_name}`
             await sendGuarantorReferenceRequest(
               guarantor_email,
               `${guarantor_first_name} ${guarantor_last_name}`,
-              guarantorUrl,
-              companyName,
+              tenantFullName,
               property_address,
-              tenant_first_name,
-              tenant_last_name,
-              companyPhone || undefined
+              companyName,
+              guarantorUrl
             )
             console.log('✅ Guarantor email sent to:', guarantor_email)
           }
@@ -1582,12 +1581,10 @@ router.post('/submit/:token', async (req, res) => {
           await sendGuarantorReferenceRequest(
             data.guarantor_email,
             `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`,
-            formLink,
-            companyName,
+            tenantName,
             propertyAddress,
-            data.first_name,
-            data.last_name,
-            undefined
+            companyName,
+            formLink
           )
 
           console.log('✅ Guarantor reference email sent to:', data.guarantor_email)
@@ -3281,8 +3278,6 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
 
     // Send email to guarantor with guarantor-specific form link
     const tenantName = `${decrypt(parentReference.tenant_first_name_encrypted)} ${decrypt(parentReference.tenant_last_name_encrypted)}`
-    const tenantFirstName = decrypt(parentReference.tenant_first_name_encrypted)
-    const tenantLastName = decrypt(parentReference.tenant_last_name_encrypted)
     const propertyAddress = decrypt(parentReference.property_address_encrypted) || 'the property'
     const companyName = parentReference.companies?.name_encrypted
       ? decrypt(parentReference.companies.name_encrypted) || 'Your agent'
@@ -3292,12 +3287,10 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     await sendGuarantorReferenceRequest(
       guarantor_email,
       `${guarantor_first_name} ${guarantor_last_name}`,
-      formLink,
-      companyName,
+      tenantName,
       propertyAddress,
-      tenantFirstName,
-      tenantLastName,
-      undefined
+      companyName,
+      formLink
     )
 
     console.log('Guarantor reference email sent to:', guarantor_email)
