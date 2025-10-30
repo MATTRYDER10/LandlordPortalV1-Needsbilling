@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { supabase } from '../config/supabase'
 
-export type TemplateType = 'dps' | 'mydeposits' | 'tds' | 'no_deposit'
+export type TemplateType = 'dps' | 'mydeposits' | 'tds' | 'no_deposit' | 'reposit'
 
 export interface Party {
   name: string
@@ -57,23 +57,23 @@ export interface AgreementData {
 }
 
 export class AgreementService {
-  private readonly TEMPLATES_DIR = path.join(__dirname, '../../../Forms & ASTs/ASTs')
-  private readonly TEMPLATES_ROOT = path.join(__dirname, '../../../Forms & ASTs')
+  private readonly TEMPLATES_DIR = path.join(__dirname, '../../templates')
 
   /**
-   * Get the template file path based on deposit type
+   * Get the template file path based on deposit type and guarantor presence
    */
-  private getTemplatePath(templateType: TemplateType): string {
+  private getTemplatePath(templateType: TemplateType, hasGuarantor: boolean): string {
     // Map template type to specific template file
     const templateFileMap: Record<TemplateType, string> = {
-      mydeposits: 'PGAST-MyDeposits.docx',
-      dps: 'PGAST-DPS.docx',
-      tds: 'PGAST-TDS.docx',
-      no_deposit: 'PGAST-NoDeposit.docx'
+      mydeposits: hasGuarantor ? 'PGAST-MyDeposits G.docx' : 'PGAST-MyDeposits.docx',
+      dps: hasGuarantor ? 'PGAST-DPS G.docx' : 'PGAST-DPS.docx',
+      tds: hasGuarantor ? 'PGAST-TDS G.docx' : 'PGAST-TDS.docx',
+      no_deposit: hasGuarantor ? 'PGAST-NoDeposit G.docx' : 'PGAST-NoDeposit.docx',
+      reposit: hasGuarantor ? 'PGAST-REPOSIT G.docx' : 'PGAST-REPOSIT.docx'
     }
 
     const templateFile = templateFileMap[templateType]
-    const templatePath = path.join(this.TEMPLATES_ROOT, templateFile)
+    const templatePath = path.join(this.TEMPLATES_DIR, templateFile)
 
     if (!fs.existsSync(templatePath)) {
       throw new Error(`Template file not found: ${templatePath}`)
@@ -84,10 +84,10 @@ export class AgreementService {
   }
 
   /**
-   * Get Clause 7 text based on deposit scheme type
+   * Get Clause 7 text based on deposit scheme type (DEPRECATED - Clause 7 is now baked into templates)
    */
   private getClause7Text(templateType: TemplateType, depositAmount: number, depositSchemeType: string): string {
-    const clauseFilePath = path.join(this.TEMPLATES_ROOT, 'CLAUSE 7.docx')
+    const clauseFilePath = path.join(this.TEMPLATES_DIR, 'CLAUSE 7.docx')
 
     if (!fs.existsSync(clauseFilePath)) {
       console.warn('CLAUSE 7.docx not found, using default clause')
@@ -111,7 +111,8 @@ export class AgreementService {
         mydeposits: 'MyDeposits:',
         dps: 'DPS',
         tds: 'TDS',
-        no_deposit: 'No deposit'
+        no_deposit: 'No deposit',
+        reposit: 'Reposit'
       }
 
       const searchTerm = schemeMap[templateType]
@@ -192,10 +193,12 @@ export class AgreementService {
       mydeposits: 'MyDeposits',
       dps: 'DPS',
       tds: 'TDS',
-      no_deposit: 'No Deposit'
+      no_deposit: 'No Deposit',
+      reposit: 'Reposit'
     }
     const schemeName = schemeNameMap[data.templateType]
     const fullDepositScheme = `${schemeName} ${data.depositSchemeType || 'Custodial'}`
+
     // Parse names (assuming "First Last" format)
     const parseName = (fullName: string) => {
       const parts = fullName.trim().split(' ')
@@ -307,7 +310,24 @@ export class AgreementService {
       // Permitted Occupiers
       'PERMITTED OCCUPIER NAMES': data.permittedOccupiers || 'None',
 
-      // Tenant signatures (up to 6 tenants)
+      // Deposit scheme type (Insured or Custodial)
+      'Insured_Custodial': data.depositSchemeType || 'Custodial',
+
+      // Landlord signatures (up to 4 landlords)
+      'LANDLORD1NAME': data.landlords[0]?.name || '',
+      'LANDLORD1SIGN': '',
+      'LANDLORD1SIGNDATE': '',
+      'LANDLORD2NAME': data.landlords[1]?.name || '',
+      'LANDLORD2SIGN': '',
+      'LANDLORD2SIGNDATE': '',
+      'LANDLORD3NAME': data.landlords[2]?.name || '',
+      'LANDLORD3SIGN': '',
+      'LANDLORD3SIGNDATE': '',
+      'LANDLORD4NAME': data.landlords[3]?.name || '',
+      'LANDLORD4SIGN': '',
+      'LANDLORD4SIGNDATE': '',
+
+      // Tenant signatures (up to 10 tenants)
       'TENANT1NAME': data.tenants[0]?.name || '',
       'TENANT1SIGN': '',
       'TENANT1SIGNDATE': '',
@@ -326,24 +346,32 @@ export class AgreementService {
       'TENANT6NAME': data.tenants[5]?.name || '',
       'TENANT6SIGN': '',
       'TENANT6SIGNDATE': '',
+      'TENANT7NAME': data.tenants[6]?.name || '',
+      'TENANT7SIGN': '',
+      'TENANT7SIGNDATE': '',
+      'TENANT8NAME': data.tenants[7]?.name || '',
+      'TENANT8SIGN': '',
+      'TENANT8SIGNDATE': '',
+      'TENANT9NAME': data.tenants[8]?.name || '',
+      'TENANT9SIGN': '',
+      'TENANT9SIGNDATE': '',
+      'TENANT10NAME': data.tenants[9]?.name || '',
+      'TENANT10SIGN': '',
+      'TENANT10SIGNDATE': '',
+
+      // Guarantor signatures (up to 8 guarantors - only for G templates)
+      'GUARANTOR1NAME': data.guarantors[0]?.name || '',
+      'GUARANTOR2NAME': data.guarantors[1]?.name || '',
+      'GUARANTOR3NAME': data.guarantors[2]?.name || '',
+      'GUARANTOR4NAME': data.guarantors[3]?.name || '',
+      'GUARANTOR5NAME': data.guarantors[4]?.name || '',
+      'GUARANTOR6NAME': data.guarantors[5]?.name || '',
+      'GUARANTOR7NAME': data.guarantors[6]?.name || '',
+      'GUARANTOR8NAME': data.guarantors[7]?.name || '',
 
       // Clauses
       'tenancy_break_clause': data.breakClause || '',
-      'tenancy_special_clause': data.specialClauses || '',
-
-      // Landlord signatures (up to 4 signers)
-      'signer_signature_1': '',
-      'signer_name_1': data.landlords[0]?.name || '',
-      'signer_date_1': '',
-      'signer_signature_2': '',
-      'signer_name_2': data.landlords[1]?.name || '',
-      'signer_date_2': '',
-      'signer_signature_3': '',
-      'signer_name_3': data.landlords[2]?.name || '',
-      'signer_date_3': '',
-      'signer_signature_4': '',
-      'signer_name_4': data.landlords[3]?.name || '',
-      'signer_date_4': ''
+      'tenancy_special_clause': data.specialClauses || ''
     }
   }
 
@@ -352,8 +380,11 @@ export class AgreementService {
    */
   async generateAgreementDocx(data: AgreementData): Promise<Buffer> {
     try {
+      // Determine if guarantor template is needed
+      const hasGuarantor = data.guarantors && data.guarantors.length > 0
+
       // Load the template
-      const templatePath = this.getTemplatePath(data.templateType)
+      const templatePath = this.getTemplatePath(data.templateType, hasGuarantor)
       const content = fs.readFileSync(templatePath, 'binary')
 
       // Create a PizZip instance with the content

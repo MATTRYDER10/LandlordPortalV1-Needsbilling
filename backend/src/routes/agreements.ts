@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { agreementService, AgreementData } from '../services/agreementService'
 import { supabase } from '../config/supabase'
+import { decrypt } from '../services/encryption'
 
 const router = Router()
 
@@ -177,13 +178,13 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
         .single()
 
       if (companyData) {
-        companyName = companyData.name_encrypted || ''
+        companyName = decrypt(companyData.name_encrypted) || ''
         companyAddress = {
-          line1: companyData.address_encrypted || '',
+          line1: decrypt(companyData.address_encrypted) || '',
           line2: '',
-          city: companyData.city_encrypted || '',
+          city: decrypt(companyData.city_encrypted) || '',
           county: '',
-          postcode: companyData.postcode_encrypted || ''
+          postcode: decrypt(companyData.postcode_encrypted) || ''
         }
       }
     }

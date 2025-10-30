@@ -758,6 +758,11 @@ const templateOptions = [
     description: 'For tenancies using the Tenancy Deposit Scheme operated by The Dispute Service Ltd'
   },
   {
+    value: 'reposit',
+    label: 'Reposit',
+    description: 'For tenancies using the Reposit deposit alternative scheme'
+  },
+  {
     value: 'no_deposit',
     label: 'No Deposit',
     description: 'For tenancies where no monetary deposit is taken'
