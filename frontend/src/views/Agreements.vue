@@ -230,6 +230,105 @@
               />
               <p class="text-xs text-gray-500 mt-1">People allowed to live at the property but not named as tenants</p>
             </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Management Type *</label>
+              <select
+                v-model="formData.managementType"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              >
+                <option value="managed">Fully Managed (Agent manages property)</option>
+                <option value="let_only">Let Only (Landlord manages property)</option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1">Managed: Agent details used. Let Only: Landlord details used.</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tenant Email *</label>
+              <input
+                v-model="formData.tenantEmail"
+                type="email"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="tenant@example.com"
+              />
+              <p class="text-xs text-gray-500 mt-1">Primary tenant's email address</p>
+            </div>
+
+            <div v-if="formData.managementType === 'let_only'">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Landlord Email *</label>
+              <input
+                v-model="formData.landlordEmail"
+                type="email"
+                :required="formData.managementType === 'let_only'"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="landlord@example.com"
+              />
+              <p class="text-xs text-gray-500 mt-1">First landlord's email address</p>
+            </div>
+
+            <div v-if="formData.managementType === 'let_only'">
+              <h4 class="font-semibold text-gray-900 mt-6 mb-3">Landlord Bank Details</h4>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Account Name *</label>
+                  <input
+                    v-model="formData.bankAccountName"
+                    type="text"
+                    :required="formData.managementType === 'let_only'"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="Account holder name"
+                  />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Account Number *</label>
+                    <input
+                      v-model="formData.bankAccountNumber"
+                      type="text"
+                      :required="formData.managementType === 'let_only'"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="12345678"
+                      maxlength="8"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Sort Code *</label>
+                    <input
+                      v-model="formData.bankSortCode"
+                      type="text"
+                      :required="formData.managementType === 'let_only'"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="12-34-56"
+                      maxlength="8"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Break Clause</label>
+              <textarea
+                v-model="formData.breakClause"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="e.g., Either party may terminate this tenancy with 2 months notice after the first 6 months"
+              ></textarea>
+              <p class="text-xs text-gray-500 mt-1">Optional break clause text (leave empty if not applicable)</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Special Clauses</label>
+              <textarea
+                v-model="formData.specialClauses"
+                rows="4"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="Any special terms or conditions for this tenancy"
+              ></textarea>
+              <p class="text-xs text-gray-500 mt-1">Optional additional clauses (leave empty if not applicable)</p>
+            </div>
           </div>
         </div>
 
@@ -629,7 +728,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
@@ -637,6 +736,18 @@ import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+// Fetch company settings on mount
+onMounted(() => {
+  fetchCompanySettings()
+})
+
+// Re-fetch when management type changes
+watch(() => formData.value.managementType, () => {
+  if (formData.value.managementType === 'managed') {
+    fetchCompanySettings()
+  }
+})
 
 const steps = ['Template', 'Property', 'Details', 'Landlords', 'Tenants', 'Guarantors', 'Review']
 const currentStep = ref(0)
@@ -690,6 +801,15 @@ const formData = ref<{
   rentDueDay: string
   depositSchemeType: string
   permittedOccupiers?: string
+  managementType: 'managed' | 'let_only'
+  tenantEmail?: string
+  landlordEmail?: string
+  agentEmail?: string
+  bankAccountName?: string
+  bankAccountNumber?: string
+  bankSortCode?: string
+  breakClause?: string
+  specialClauses?: string
   landlords: Party[]
   tenants: Party[]
   guarantors: Party[]
@@ -709,6 +829,15 @@ const formData = ref<{
   rentDueDay: '1st',
   depositSchemeType: 'Custodial',
   permittedOccupiers: '',
+  managementType: 'let_only',
+  tenantEmail: '',
+  landlordEmail: '',
+  agentEmail: '',
+  bankAccountName: '',
+  bankAccountNumber: '',
+  bankSortCode: '',
+  breakClause: '',
+  specialClauses: '',
   landlords: [
     {
       name: '',
@@ -764,14 +893,27 @@ const canProceed = computed(() => {
         formData.value.propertyAddress.postcode !== ''
       )
     case 2: // Agreement details
-      return (
+      const baseValid = (
         formData.value.rentAmount !== undefined && formData.value.rentAmount > 0 &&
         formData.value.depositAmount !== undefined && formData.value.depositAmount >= 0 &&
         formData.value.tenancyStartDate !== '' &&
         formData.value.tenancyTerm !== '' &&
         formData.value.rentDueDay !== '' &&
-        formData.value.depositSchemeType !== ''
+        formData.value.depositSchemeType !== '' &&
+        formData.value.managementType !== '' &&
+        formData.value.tenantEmail !== ''
       )
+
+      // If let_only, also require landlord email and bank details
+      if (formData.value.managementType === 'let_only') {
+        return baseValid &&
+          formData.value.landlordEmail !== '' &&
+          formData.value.bankAccountName !== '' &&
+          formData.value.bankAccountNumber !== '' &&
+          formData.value.bankSortCode !== ''
+      }
+
+      return baseValid
     case 3: // Landlords
       return formData.value.landlords.every(
         (l) => l.name !== '' && l.address.line1 !== '' && l.address.city !== '' && l.address.postcode !== ''
@@ -880,6 +1022,33 @@ function handleGuarantorAddressSelected(index: number, addr: any) {
   formData.value.guarantors[index].address.line1 = addr.addressLine1
   formData.value.guarantors[index].address.city = addr.city
   formData.value.guarantors[index].address.postcode = addr.postcode
+}
+
+// Fetch company settings for managed properties
+async function fetchCompanySettings() {
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const token = authStore.session?.access_token
+
+    const response = await fetch(`${API_URL}/api/companies/settings`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const { company } = await response.json()
+      // Populate agent email and bank details if managed
+      if (formData.value.managementType === 'managed' && company) {
+        formData.value.agentEmail = company.email_encrypted || ''
+        formData.value.bankAccountName = company.bank_account_name || ''
+        formData.value.bankAccountNumber = company.bank_account_number || ''
+        formData.value.bankSortCode = company.bank_sort_code || ''
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching company settings:', err)
+  }
 }
 
 async function generateAgreement() {

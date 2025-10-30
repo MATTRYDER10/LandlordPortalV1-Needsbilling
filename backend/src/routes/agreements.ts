@@ -165,6 +165,29 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    // Fetch company details for managed properties
+    let companyName: string | undefined
+    let companyAddress: any | undefined
+
+    if (agreement.management_type === 'managed') {
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('name_encrypted, address_encrypted, city_encrypted, postcode_encrypted')
+        .eq('id', companyId)
+        .single()
+
+      if (companyData) {
+        companyName = companyData.name_encrypted || ''
+        companyAddress = {
+          line1: companyData.address_encrypted || '',
+          line2: '',
+          city: companyData.city_encrypted || '',
+          county: '',
+          postcode: companyData.postcode_encrypted || ''
+        }
+      }
+    }
+
     // Prepare agreement data
     const agreementData: AgreementData = {
       templateType: agreement.template_type,
@@ -187,7 +210,9 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       agentEmail: agreement.agent_email,
       managementType: agreement.management_type,
       breakClause: agreement.break_clause,
-      specialClauses: agreement.special_clauses
+      specialClauses: agreement.special_clauses,
+      companyName,
+      companyAddress
     }
 
     // Generate DOCX

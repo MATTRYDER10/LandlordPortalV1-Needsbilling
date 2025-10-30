@@ -51,6 +51,9 @@ export interface AgreementData {
   // Clauses
   breakClause?: string
   specialClauses?: string
+  // Company details (for managed properties)
+  companyName?: string
+  companyAddress?: PropertyAddress
 }
 
 export class AgreementService {
@@ -240,7 +243,24 @@ export class AgreementService {
     const allGuarantorNames = data.guarantors.length > 0 ? formatPartyNames(data.guarantors) : 'None'
 
     // For definitions section - use the proper formatting with AND
-    const landlordDefinitions = formatPartyNamesWithAddresses(data.landlords)
+    // For managed properties, use C/O company address instead of landlord addresses
+    let landlordDefinitions: string
+    if (data.managementType === 'managed' && data.companyName && data.companyAddress) {
+      const coAddress = `C/O ${data.companyName}, ${this.formatFullAddress(data.companyAddress)}`
+      if (data.landlords.length === 0) {
+        landlordDefinitions = ''
+      } else if (data.landlords.length === 1) {
+        landlordDefinitions = `${data.landlords[0].name} of ${coAddress}`
+      } else if (data.landlords.length === 2) {
+        landlordDefinitions = `${data.landlords[0].name} of ${coAddress} AND ${data.landlords[1].name} of ${coAddress}`
+      } else {
+        const allButLast = data.landlords.slice(0, -1).map(l => `${l.name} of ${coAddress}`).join(', ')
+        const last = data.landlords[data.landlords.length - 1]
+        landlordDefinitions = `${allButLast} AND ${last.name} of ${coAddress}`
+      }
+    } else {
+      landlordDefinitions = formatPartyNamesWithAddresses(data.landlords)
+    }
     const tenantDefinitions = formatPartyNamesWithAddresses(data.tenants)
 
     return {
@@ -268,8 +288,8 @@ export class AgreementService {
       'date': new Date().toLocaleDateString('en-GB'),
 
       // Landlord/Agent details - use agent if managed, landlord if let only
-      'LANDLORD/AGENT_ADDRESS': data.managementType === 'managed' && data.agentEmail
-        ? '' // Agent address would be provided separately
+      'LANDLORD/AGENT_ADDRESS': data.managementType === 'managed' && data.companyAddress
+        ? this.formatFullAddress(data.companyAddress)
         : (data.landlords.length > 0 ? this.formatFullAddress(data.landlords[0].address) : ''),
       'LANDLORD/AGENT_EMAIL': data.managementType === 'managed'
         ? (data.agentEmail || '')
@@ -351,7 +371,9 @@ export class AgreementService {
         delimiters: {
           start: '[',
           end: ']'
-        }
+        },
+        // Remove empty variables (including the brackets)
+        nullGetter: () => ''
       })
 
       // Render the document with data
