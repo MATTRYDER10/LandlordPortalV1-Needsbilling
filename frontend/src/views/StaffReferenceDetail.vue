@@ -2117,9 +2117,9 @@ const fetchSanctionsScreening = async () => {
       const data = await response.json()
       sanctionsScreening.value = data.screening
     } else if (response.status === 404) {
-      // No screening found - automatically run it
+      // No screening found - automatically run it (silently, no toast)
       console.log('No sanctions screening found, running automatically...')
-      await runSanctionsScreening()
+      await runSanctionsScreening(false)
     } else {
       console.error('Failed to fetch sanctions screening')
     }
@@ -2130,12 +2130,12 @@ const fetchSanctionsScreening = async () => {
   }
 }
 
-const runSanctionsScreening = async () => {
+const runSanctionsScreening = async (showToast = true) => {
   try {
     runningSanctions.value = true
     const token = authStore.session?.access_token
     if (!token) {
-      toast.error('Authentication required')
+      if (showToast) toast.error('Authentication required')
       return
     }
 
@@ -2153,12 +2153,13 @@ const runSanctionsScreening = async () => {
     }
 
     await response.json()
-    toast.success('Sanctions screening completed successfully')
+    if (showToast) toast.success('Sanctions screening completed successfully')
 
     // Refresh the screening data
     await fetchSanctionsScreening()
   } catch (err: any) {
-    toast.error(err.message || 'Failed to run screening')
+    if (showToast) toast.error(err.message || 'Failed to run screening')
+    else console.error('Sanctions screening failed:', err)
   } finally {
     runningSanctions.value = false
   }
