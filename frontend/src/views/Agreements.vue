@@ -729,12 +729,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import { useAuthStore } from '../stores/auth'
 
-const router = useRouter()
 const authStore = useAuthStore()
 
 const steps = ['Template', 'Property', 'Details', 'Landlords', 'Tenants', 'Guarantors', 'Review']
@@ -900,7 +898,7 @@ const canProceed = computed(() => {
         formData.value.tenancyTerm !== '' &&
         formData.value.rentDueDay !== '' &&
         formData.value.depositSchemeType !== '' &&
-        formData.value.managementType !== '' &&
+        (formData.value.managementType === 'managed' || formData.value.managementType === 'let_only') &&
         formData.value.tenantEmail !== ''
       )
 
@@ -1007,21 +1005,27 @@ function handlePropertyAddressSelected(addr: any) {
 }
 
 function handleLandlordAddressSelected(index: number, addr: any) {
-  formData.value.landlords[index].address.line1 = addr.addressLine1
-  formData.value.landlords[index].address.city = addr.city
-  formData.value.landlords[index].address.postcode = addr.postcode
+  if (formData.value.landlords[index]) {
+    formData.value.landlords[index].address.line1 = addr.addressLine1
+    formData.value.landlords[index].address.city = addr.city
+    formData.value.landlords[index].address.postcode = addr.postcode
+  }
 }
 
 function handleTenantAddressSelected(index: number, addr: any) {
-  formData.value.tenants[index].address.line1 = addr.addressLine1
-  formData.value.tenants[index].address.city = addr.city
-  formData.value.tenants[index].address.postcode = addr.postcode
+  if (formData.value.tenants[index]) {
+    formData.value.tenants[index].address.line1 = addr.addressLine1
+    formData.value.tenants[index].address.city = addr.city
+    formData.value.tenants[index].address.postcode = addr.postcode
+  }
 }
 
 function handleGuarantorAddressSelected(index: number, addr: any) {
-  formData.value.guarantors[index].address.line1 = addr.addressLine1
-  formData.value.guarantors[index].address.city = addr.city
-  formData.value.guarantors[index].address.postcode = addr.postcode
+  if (formData.value.guarantors[index]) {
+    formData.value.guarantors[index].address.line1 = addr.addressLine1
+    formData.value.guarantors[index].address.city = addr.city
+    formData.value.guarantors[index].address.postcode = addr.postcode
+  }
 }
 
 // Fetch company settings for managed properties
