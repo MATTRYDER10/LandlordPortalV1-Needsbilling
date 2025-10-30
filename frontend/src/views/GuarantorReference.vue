@@ -58,7 +58,7 @@
           <!-- Reference Details Notice -->
           <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p class="text-sm text-gray-700 mb-2">
-              <strong>{{ reference.tenant_first_name }} {{ reference.tenant_last_name }}</strong> has requested you to act as their guarantor for the tenancy at <strong>{{ reference.property_address }}</strong>.
+              <strong>{{ reference.parent_tenant_first_name || reference.tenant_first_name }} {{ reference.parent_tenant_last_name || reference.tenant_last_name }}</strong> has requested you to act as their guarantor for the tenancy at <strong>{{ reference.property_address }}</strong>.
             </p>
             <p class="text-sm text-gray-700">
               <strong>Important:</strong> As a guarantor, you will be legally responsible for paying rent and covering damages if the tenant is unable to do so. Please ensure you understand these obligations before proceeding.

@@ -2035,6 +2035,8 @@ router.get('/view/:token', async (req, res) => {
         submitted_at,
         status,
         company_id,
+        is_guarantor,
+        guarantor_for_reference_id,
         companies:company_id (
           name_encrypted,
           logo_url,
@@ -2058,7 +2060,7 @@ router.get('/view/:token', async (req, res) => {
 
     // Decrypt fields for display
     const company = Array.isArray(reference.companies) ? reference.companies[0] : reference.companies
-    const decryptedReference = {
+    const decryptedReference: any = {
       ...reference,
       tenant_first_name: decrypt((reference as any).tenant_first_name_encrypted),
       tenant_last_name: decrypt((reference as any).tenant_last_name_encrypted),
@@ -2067,6 +2069,20 @@ router.get('/view/:token', async (req, res) => {
       property_city: decrypt((reference as any).property_city_encrypted),
       property_postcode: decrypt((reference as any).property_postcode_encrypted),
       company_name: company?.name_encrypted ? decrypt(company.name_encrypted) : ''
+    }
+
+    // If this is a guarantor reference, fetch the parent tenant's info
+    if (reference.is_guarantor && reference.guarantor_for_reference_id) {
+      const { data: parentReference } = await supabase
+        .from('tenant_references')
+        .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
+        .eq('id', reference.guarantor_for_reference_id)
+        .single()
+
+      if (parentReference) {
+        decryptedReference.parent_tenant_first_name = decrypt(parentReference.tenant_first_name_encrypted)
+        decryptedReference.parent_tenant_last_name = decrypt(parentReference.tenant_last_name_encrypted)
+      }
     }
 
     res.json({ reference: decryptedReference })
