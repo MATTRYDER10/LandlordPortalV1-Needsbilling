@@ -1010,7 +1010,11 @@ const fetchSanctionsScreening = async () => {
     if (response.ok) {
       const data = await response.json()
       sanctionsScreening.value = data.screening
-    } else if (response.status !== 404) {
+    } else if (response.status === 404) {
+      // No screening found - automatically run it
+      console.log('No sanctions screening found, running automatically...')
+      await runSanctionsScreening()
+    } else {
       console.error('Failed to fetch sanctions screening')
     }
   } catch (error: any) {
