@@ -293,6 +293,9 @@
           v-if="reference.submitted_at"
           :screening="sanctionsScreening"
           :loading="loadingSanctions"
+          :show-run-button="true"
+          :running="runningSanctions"
+          @run="runSanctionsScreening"
         />
 
         <!-- Additional Supporting Documents -->
@@ -2009,6 +2012,7 @@ const retryingCreditsafe = ref(false)
 // Sanctions screening
 const sanctionsScreening = ref<any>(null)
 const loadingSanctions = ref(false)
+const runningSanctions = ref(false)
 
 // Score
 const score = ref<any>(null)
@@ -2120,6 +2124,40 @@ const fetchSanctionsScreening = async () => {
     console.error('Error fetching sanctions screening:', err)
   } finally {
     loadingSanctions.value = false
+  }
+}
+
+const runSanctionsScreening = async () => {
+  try {
+    runningSanctions.value = true
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/staff/references/${route.params.id}/sanctions/run`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to run screening')
+    }
+
+    await response.json()
+    toast.success('Sanctions screening completed successfully')
+
+    // Refresh the screening data
+    await fetchSanctionsScreening()
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to run screening')
+  } finally {
+    runningSanctions.value = false
   }
 }
 

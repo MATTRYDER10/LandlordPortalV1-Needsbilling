@@ -948,4 +948,83 @@ router.get('/references/:id/sanctions', authenticateStaff, async (req: StaffAuth
   }
 })
 
+// Manually trigger sanctions screening for a reference
+router.post('/references/:id/sanctions/run', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const staffUserId = req.staffUser?.id
+
+    if (!sanctionsService.isEnabled()) {
+      return res.status(400).json({ error: 'Sanctions screening is not enabled' })
+    }
+
+    // Get reference data
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify that tenant has submitted the reference
+    if (!reference.submitted_at) {
+      return res.status(400).json({ error: 'Cannot screen - tenant has not yet submitted the reference' })
+    }
+
+    // Prepare screening request
+    const firstName = reference.tenant_first_name_encrypted ? decrypt(reference.tenant_first_name_encrypted) || '' : ''
+    const lastName = reference.tenant_last_name_encrypted ? decrypt(reference.tenant_last_name_encrypted) || '' : ''
+    const dateOfBirth = reference.date_of_birth_encrypted ? decrypt(reference.date_of_birth_encrypted) || '' : ''
+    const postcode = reference.current_postcode_encrypted ? decrypt(reference.current_postcode_encrypted) || '' : ''
+
+    // Run screening
+    const screeningResult = await sanctionsService.screenTenant({
+      name: `${firstName} ${lastName}`,
+      dateOfBirth: dateOfBirth,
+      postcode: postcode
+    })
+
+    // Check if screening already exists, delete if so (to allow re-run)
+    const { data: existingScreening } = await supabase
+      .from('sanctions_screenings')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .single()
+
+    if (existingScreening) {
+      await supabase
+        .from('sanctions_screenings')
+        .delete()
+        .eq('id', existingScreening.id)
+    }
+
+    // Store new screening result
+    await sanctionsService.storeScreeningResult(
+      referenceId,
+      {
+        name: `${firstName} ${lastName}`,
+        dateOfBirth: dateOfBirth,
+        postcode: postcode
+      },
+      screeningResult
+    )
+
+    res.json({
+      message: 'Sanctions screening completed',
+      screening: {
+        risk_level: screeningResult.risk_level,
+        total_matches: screeningResult.total_matches,
+        sanctions_matches: screeningResult.sanctions_matches.length,
+        donation_matches: screeningResult.donation_matches.length,
+        summary: screeningResult.summary
+      }
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router

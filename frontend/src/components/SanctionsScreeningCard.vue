@@ -2,6 +2,14 @@
   <div class="bg-white rounded-lg shadow p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-gray-900">UK Sanctions & PEP Screening</h3>
+      <button
+        v-if="showRunButton"
+        @click="$emit('run')"
+        :disabled="running"
+        class="px-3 py-1 text-sm font-medium text-primary border border-primary rounded hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
+      >
+        {{ running ? 'Running...' : 'Run Screening' }}
+      </button>
     </div>
 
     <!-- Loading State -->
@@ -197,11 +205,19 @@ const InfoCircleIcon = () => h('svg', { fill: 'currentColor', viewBox: '0 0 20 2
 interface Props {
   screening: any
   loading?: boolean
+  showRunButton?: boolean
+  running?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  loading: false
+  loading: false,
+  showRunButton: false,
+  running: false
 })
+
+defineEmits<{
+  run: []
+}>()
 
 const statusLabel = computed(() => {
   if (!props.screening) return 'No Screening'
