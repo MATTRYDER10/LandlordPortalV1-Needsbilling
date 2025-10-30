@@ -15,6 +15,7 @@ import AgentReference from '../views/AgentReference.vue'
 import EmployerReference from '../views/EmployerReference.vue'
 import AccountantReference from '../views/AccountantReference.vue'
 import Settings from '../views/Settings.vue'
+import Agreements from '../views/Agreements.vue'
 import StaffLogin from '../views/StaffLogin.vue'
 import StaffDashboard from '../views/StaffDashboard.vue'
 import StaffChaseList from '../views/StaffChaseList.vue'
@@ -105,6 +106,12 @@ const router = createRouter({
       path: '/accountant-reference/:token',
       name: 'AccountantReference',
       component: AccountantReference
+    },
+    {
+      path: '/agreements',
+      name: 'Agreements',
+      component: Agreements,
+      meta: { requiresAuth: true }
     },
     {
       path: '/settings',

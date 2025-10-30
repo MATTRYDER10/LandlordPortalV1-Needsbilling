@@ -14,6 +14,7 @@ import auditLogRoutes from './routes/auditLogs'
 import verificationRoutes from './routes/verification'
 import referenceNotesRoutes from './routes/reference-notes'
 import referenceAuditLogRoutes from './routes/reference-audit-log'
+import agreementsRoutes from './routes/agreements'
 
 dotenv.config()
 
@@ -106,6 +107,7 @@ app.use('/api/audit-logs', auditLogRoutes)
 app.use('/api/verification', verificationRoutes)
 app.use('/api/reference-notes', referenceNotesRoutes)
 app.use('/api/reference-audit-log', referenceAuditLogRoutes)
+app.use('/api/agreements', agreementsRoutes)
 
 // Start server
 app.listen(PORT, () => {
