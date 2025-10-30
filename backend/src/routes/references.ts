@@ -934,14 +934,16 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
               .update({ requires_guarantor: true })
               .eq('id', reference.id)
 
-            // Send email to guarantor
-            const guarantorUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${guarantorToken}`
-            await sendTenantReferenceRequest(
+            // Send email to guarantor with guarantor-specific form link
+            const guarantorUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
+            await sendGuarantorReferenceRequest(
               guarantor_email,
               `${guarantor_first_name} ${guarantor_last_name}`,
               guarantorUrl,
               companyName,
               property_address,
+              tenant_first_name,
+              tenant_last_name,
               companyPhone || undefined
             )
             console.log('✅ Guarantor email sent to:', guarantor_email)
@@ -1573,16 +1575,18 @@ router.post('/submit/:token', async (req, res) => {
             ? decrypt(companyData.name_encrypted)
             : null) || 'Your agent'
 
-          // Use standard tenant reference form link
-          const formLink = `${process.env.FRONTEND_URL}/submit-reference/${guarantorToken}`
+          // Use guarantor-specific form link
+          const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
 
-          // Send standard tenant reference email
-          await sendTenantReferenceRequest(
+          // Send guarantor reference email
+          await sendGuarantorReferenceRequest(
             data.guarantor_email,
             `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`,
             formLink,
             companyName,
             propertyAddress,
+            data.first_name,
+            data.last_name,
             undefined
           )
 
@@ -3275,21 +3279,25 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
       .update({ requires_guarantor: true })
       .eq('id', referenceId)
 
-    // Send email to guarantor with form link
+    // Send email to guarantor with guarantor-specific form link
     const tenantName = `${decrypt(parentReference.tenant_first_name_encrypted)} ${decrypt(parentReference.tenant_last_name_encrypted)}`
+    const tenantFirstName = decrypt(parentReference.tenant_first_name_encrypted)
+    const tenantLastName = decrypt(parentReference.tenant_last_name_encrypted)
     const propertyAddress = decrypt(parentReference.property_address_encrypted) || 'the property'
     const companyName = parentReference.companies?.name_encrypted
       ? decrypt(parentReference.companies.name_encrypted) || 'Your agent'
       : 'Your agent'
-    const formLink = `${process.env.FRONTEND_URL}/submit-reference/${guarantorToken}`
+    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
 
-    await sendTenantReferenceRequest(
+    await sendGuarantorReferenceRequest(
       guarantor_email,
-      guarantor_first_name,
-      guarantor_last_name,
-      propertyAddress,
+      `${guarantor_first_name} ${guarantor_last_name}`,
+      formLink,
       companyName,
-      formLink
+      propertyAddress,
+      tenantFirstName,
+      tenantLastName,
+      undefined
     )
 
     console.log('Guarantor reference email sent to:', guarantor_email)
