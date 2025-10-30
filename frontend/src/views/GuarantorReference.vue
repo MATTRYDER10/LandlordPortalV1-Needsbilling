@@ -2551,7 +2551,13 @@ const fetchReferenceByToken = async () => {
     }
 
     const data = await response.json()
-    reference.value = data
+    reference.value = data.reference
+
+    console.log('=== GUARANTOR FORM: Fetched Reference ===')
+    console.log('Parent Tenant First Name:', reference.value.parent_tenant_first_name)
+    console.log('Parent Tenant Last Name:', reference.value.parent_tenant_last_name)
+    console.log('Tenant First Name (guarantor):', reference.value.tenant_first_name)
+    console.log('Property Address:', reference.value.property_address)
 
     // Extract company branding
     if (reference.value.companies) {

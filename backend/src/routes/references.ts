@@ -888,15 +888,15 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       // Create guarantor reference if guarantor details provided
       let guarantorReference = null
       if (guarantor_first_name && guarantor_last_name && guarantor_email) {
-        console.log('=== CREATING GUARANTOR FROM CREATE MODAL ===')
-        console.log(`Guarantor: ${guarantor_first_name} ${guarantor_last_name} (${guarantor_email})`)
-        console.log(`Parent reference: ${reference.id}`)
-
         try {
           const guarantorToken = generateToken()
           const guarantorTokenHash = hash(guarantorToken)
           const guarantorExpiresAt = new Date()
           guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 30)
+
+          // Encrypt parent tenant name for storage
+          const parentFirstNameEncrypted = encrypt(tenant_first_name)
+          const parentLastNameEncrypted = encrypt(tenant_last_name)
 
           const { data: guarantorRef, error: guarantorError} = await supabase
             .from('tenant_references')
@@ -916,8 +916,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
               tenant_email_encrypted: encrypt(guarantor_email),
               tenant_phone_encrypted: guarantor_phone ? encrypt(guarantor_phone) : null,
               // Store parent tenant info for display in guarantor form
-              guarantor_first_name_encrypted: encrypt(tenant_first_name),
-              guarantor_last_name_encrypted: encrypt(tenant_last_name),
+              guarantor_first_name_encrypted: parentFirstNameEncrypted,
+              guarantor_last_name_encrypted: parentLastNameEncrypted,
               reference_token_hash: guarantorTokenHash,
               token_expires_at: guarantorExpiresAt.toISOString(),
               status: 'pending',
@@ -930,7 +930,6 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             console.error('❌ Failed to create guarantor:', guarantorError)
           } else {
             guarantorReference = guarantorRef
-            console.log('✅ Guarantor reference created:', guarantorRef.id)
 
             // Mark parent as requiring guarantor
             await supabase
