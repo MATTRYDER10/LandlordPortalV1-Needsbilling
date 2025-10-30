@@ -312,38 +312,77 @@
               <td colspan="5" class="px-6 py-4">
                 <div class="ml-8">
                   <h4 class="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Individual Tenants</h4>
-                  <div v-if="reference.children" class="space-y-2">
+                  <div v-if="reference.children" class="space-y-3">
                     <div v-for="(child, index) in reference.children" :key="child.id"
-                         class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-primary transition-colors">
-                      <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                          <span class="text-xs font-medium text-gray-500">Tenant {{ index + 1 }}</span>
-                          <span
-                            class="px-2 py-0.5 text-xs font-semibold rounded-full"
-                            :class="{
-                              'bg-yellow-100 text-yellow-800': child.status === 'pending',
-                              'bg-blue-100 text-blue-800': child.status === 'in_progress',
-                              'bg-orange-100 text-orange-800': child.status === 'pending_verification',
-                              'bg-green-100 text-green-800': child.status === 'completed'
-                            }"
-                          >
-                            {{ formatStatus(child.status, child) }}
-                          </span>
+                         class="bg-white rounded-lg border border-gray-200">
+                      <!-- Tenant Info -->
+                      <div class="flex items-center justify-between p-3 hover:border-primary transition-colors">
+                        <div class="flex-1">
+                          <div class="flex items-center gap-2">
+                            <span class="text-xs font-medium text-gray-500">Tenant {{ index + 1 }}</span>
+                            <span
+                              class="px-2 py-0.5 text-xs font-semibold rounded-full"
+                              :class="{
+                                'bg-yellow-100 text-yellow-800': child.status === 'pending',
+                                'bg-blue-100 text-blue-800': child.status === 'in_progress',
+                                'bg-orange-100 text-orange-800': child.status === 'pending_verification',
+                                'bg-green-100 text-green-800': child.status === 'completed'
+                              }"
+                            >
+                              {{ formatStatus(child.status, child) }}
+                            </span>
+                          </div>
+                          <p class="text-sm font-medium text-gray-900 mt-1">
+                            {{ child.tenant_first_name }} {{ child.tenant_last_name }}
+                          </p>
+                          <p class="text-xs text-gray-600">{{ child.tenant_email }}</p>
+                          <p class="text-xs text-gray-900 mt-1">
+                            Rent Share: <span class="font-semibold text-primary">£{{ child.rent_share }}</span>
+                          </p>
                         </div>
-                        <p class="text-sm font-medium text-gray-900 mt-1">
-                          {{ child.tenant_first_name }} {{ child.tenant_last_name }}
-                        </p>
-                        <p class="text-xs text-gray-600">{{ child.tenant_email }}</p>
-                        <p class="text-xs text-gray-900 mt-1">
-                          Rent Share: <span class="font-semibold text-primary">£{{ child.rent_share }}</span>
-                        </p>
+                        <button
+                          @click="viewReference(child)"
+                          class="ml-4 px-3 py-1.5 text-xs bg-primary text-white rounded-md hover:bg-primary/90"
+                        >
+                          View
+                        </button>
                       </div>
-                      <button
-                        @click="viewReference(child)"
-                        class="ml-4 px-3 py-1.5 text-xs bg-primary text-white rounded-md hover:bg-primary/90"
-                      >
-                        View
-                      </button>
+
+                      <!-- Guarantors for this tenant -->
+                      <div v-if="child.guarantors && child.guarantors.length > 0" class="px-3 pb-3 pt-0 border-t border-gray-100">
+                        <div class="pl-4 space-y-2">
+                          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Guarantor</p>
+                          <div v-for="guarantor in child.guarantors" :key="guarantor.id"
+                               class="flex items-center justify-between p-2 bg-purple-50 rounded border border-purple-200">
+                            <div class="flex-1">
+                              <div class="flex items-center gap-2">
+                                <span class="text-xs font-medium text-purple-700">🛡️ Guarantor</span>
+                                <span
+                                  class="px-2 py-0.5 text-xs font-semibold rounded-full"
+                                  :class="{
+                                    'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
+                                    'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
+                                    'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
+                                    'bg-green-100 text-green-800': guarantor.status === 'completed'
+                                  }"
+                                >
+                                  {{ formatStatus(guarantor.status, guarantor) }}
+                                </span>
+                              </div>
+                              <p class="text-xs font-medium text-gray-900 mt-1">
+                                {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
+                              </p>
+                              <p class="text-xs text-gray-600">{{ guarantor.tenant_email }}</p>
+                            </div>
+                            <button
+                              @click="viewReference(guarantor)"
+                              class="ml-2 px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div v-else class="flex items-center justify-center py-4">

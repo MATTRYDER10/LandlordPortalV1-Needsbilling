@@ -301,7 +301,25 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         .eq('parent_reference_id', referenceId)
         .order('tenant_position', { ascending: true })
 
-      childReferences = children
+      // Fetch guarantors for each child
+      if (children && children.length > 0) {
+        const childrenWithGuarantors = await Promise.all(children.map(async (child) => {
+          const { data: childGuarantors } = await supabase
+            .from('tenant_references')
+            .select('*')
+            .eq('guarantor_for_reference_id', child.id)
+            .eq('is_guarantor', true)
+            .order('created_at', { ascending: true })
+
+          return {
+            ...child,
+            guarantors: childGuarantors || []
+          }
+        }))
+        childReferences = childrenWithGuarantors
+      } else {
+        childReferences = children
+      }
 
       // Sync parent status with children's statuses
       if (children && children.length > 0) {
@@ -441,7 +459,14 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     // Decrypt all reference data
     const decryptedReference = decryptTenantReference(reference)
-    const decryptedChildReferences = childReferences?.map(decryptTenantReference)
+    const decryptedChildReferences = childReferences?.map(child => {
+      const decryptedChild = decryptTenantReference(child)
+      // Decrypt guarantors for this child if they exist
+      if (child.guarantors && child.guarantors.length > 0) {
+        decryptedChild.guarantors = child.guarantors.map(decryptTenantReference)
+      }
+      return decryptedChild
+    })
     const decryptedGuarantorReferences = guarantorReferences?.map(decryptTenantReference)
     const decryptedParentReference = decryptTenantReference(parentReference)
     const decryptedSiblingReferences = siblingReferences?.map(decryptTenantReference)
@@ -799,6 +824,73 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           console.log('Email sent successfully to tenant:', tenant.email)
         } catch (emailError: any) {
           console.error('Failed to send email to', tenant.email, emailError)
+        }
+
+        // Create guarantor reference if guarantor details provided for this tenant
+        if (tenant.guarantor?.first_name && tenant.guarantor?.last_name && tenant.guarantor?.email) {
+          try {
+            const guarantorToken = generateToken()
+            const guarantorTokenHash = hash(guarantorToken)
+            const guarantorExpiresAt = new Date()
+            guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 30)
+
+            // Encrypt parent tenant name for storage
+            const parentFirstNameEncrypted = encrypt(tenant.first_name)
+            const parentLastNameEncrypted = encrypt(tenant.last_name)
+
+            const { data: guarantorRef, error: guarantorError } = await supabase
+              .from('tenant_references')
+              .insert({
+                company_id: companyUser.company_id,
+                created_by: userId,
+                is_guarantor: true,
+                guarantor_for_reference_id: childReference.id,
+                property_address_encrypted: encrypt(property_address),
+                property_city_encrypted: encrypt(property_city || ''),
+                property_postcode_encrypted: encrypt(property_postcode || ''),
+                monthly_rent,
+                move_in_date,
+                // Store guarantor's own info in tenant fields
+                tenant_first_name_encrypted: encrypt(tenant.guarantor.first_name),
+                tenant_last_name_encrypted: encrypt(tenant.guarantor.last_name),
+                tenant_email_encrypted: encrypt(tenant.guarantor.email),
+                tenant_phone_encrypted: tenant.guarantor.phone ? encrypt(tenant.guarantor.phone) : null,
+                // Store parent tenant info for display in guarantor form
+                guarantor_first_name_encrypted: parentFirstNameEncrypted,
+                guarantor_last_name_encrypted: parentLastNameEncrypted,
+                reference_token_hash: guarantorTokenHash,
+                token_expires_at: guarantorExpiresAt.toISOString(),
+                status: 'pending',
+                reference_type: 'landlord'
+              })
+              .select()
+              .single()
+
+            if (guarantorError) {
+              console.error('❌ Failed to create guarantor for tenant', tenant.email, ':', guarantorError)
+            } else {
+              // Mark child reference as requiring guarantor
+              await supabase
+                .from('tenant_references')
+                .update({ requires_guarantor: true })
+                .eq('id', childReference.id)
+
+              // Send email to guarantor with guarantor-specific form link
+              const guarantorUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
+              const tenantFullName = `${tenant.first_name} ${tenant.last_name}`
+              await sendGuarantorReferenceRequest(
+                tenant.guarantor.email,
+                `${tenant.guarantor.first_name} ${tenant.guarantor.last_name}`,
+                tenantFullName,
+                property_address,
+                companyName,
+                guarantorUrl
+              )
+              console.log('✅ Guarantor email sent to:', tenant.guarantor.email)
+            }
+          } catch (guarantorError: any) {
+            console.error('❌ Failed to send guarantor email for tenant', tenant.email, ':', guarantorError)
+          }
         }
       }
 
