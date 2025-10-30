@@ -24,6 +24,49 @@ const upload = multer({
   }
 })
 
+// Get company settings for agreements (includes bank details)
+router.get('/settings', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+
+    // Get company via company_users table
+    const { data: companyUsers, error: companyUserError } = await supabase
+      .from('company_users')
+      .select('company_id, role, companies(*)')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (companyUserError || !companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyUser = companyUsers[0]
+    const companyData = companyUser.companies as any
+
+    // Decrypt company fields including bank details
+    const company = {
+      id: companyData.id,
+      name: decrypt(companyData.name_encrypted),
+      email: decrypt(companyData.email_encrypted),
+      phone: decrypt(companyData.phone_encrypted),
+      address: decrypt(companyData.address_encrypted),
+      city: decrypt(companyData.city_encrypted),
+      postcode: decrypt(companyData.postcode_encrypted),
+      website: decrypt(companyData.website_encrypted),
+      bank_account_name: companyData.bank_account_name || '',
+      bank_account_number: companyData.bank_account_number || '',
+      bank_sort_code: companyData.bank_sort_code || '',
+      logo_url: companyData.logo_url,
+      primary_color: companyData.primary_color,
+      button_color: companyData.button_color
+    }
+
+    res.json({ company })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Get user's company
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -169,7 +212,7 @@ router.post('/logo', authenticateToken, upload.single('logo'), async (req: AuthR
 router.put('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
-    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color } = req.body
+    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code } = req.body
 
     // Get user's company
     const { data: companyUsers } = await supabase
@@ -210,6 +253,9 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
         logo_url,
         primary_color,
         button_color,
+        bank_account_name: bank_account_name || null,
+        bank_account_number: bank_account_number || null,
+        bank_sort_code: bank_sort_code || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', companyUser.company_id)
@@ -231,7 +277,7 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
       }
     })
 
-    const nonEncryptedFields = ['logo_url', 'primary_color', 'button_color']
+    const nonEncryptedFields = ['logo_url', 'primary_color', 'button_color', 'bank_account_name', 'bank_account_number', 'bank_sort_code']
     nonEncryptedFields.forEach(field => {
       if (oldCompany && data[field] !== oldCompany[field]) {
         changes[field] = { old: oldCompany[field], new: data[field] }
