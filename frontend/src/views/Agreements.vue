@@ -1040,7 +1040,7 @@ async function fetchCompanySettings() {
       const { company } = await response.json()
       // Populate agent email and bank details if managed
       if (formData.value.managementType === 'managed' && company) {
-        formData.value.agentEmail = company.email_encrypted || ''
+        formData.value.agentEmail = company.email || ''
         formData.value.bankAccountName = company.bank_account_name || ''
         formData.value.bankAccountNumber = company.bank_account_number || ''
         formData.value.bankSortCode = company.bank_sort_code || ''
