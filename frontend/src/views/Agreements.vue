@@ -1030,7 +1030,7 @@ async function fetchCompanySettings() {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
-    const response = await fetch(`${API_URL}/api/companies/settings`, {
+    const response = await fetch(`${API_URL}/api/company/settings`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
