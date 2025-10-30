@@ -13,16 +13,46 @@
 
         <!-- Navigation -->
         <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          <!-- Create Reference Button -->
-          <button
-            @click="handleCreateReference"
-            class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-primary text-white hover:bg-primary/90 shadow-sm"
-          >
-            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Create Reference
-          </button>
+          <!-- Create Button -->
+          <div class="relative">
+            <button
+              @click="showCreateMenu = !showCreateMenu"
+              class="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-primary text-white hover:bg-primary/90 shadow-sm"
+            >
+              <div class="flex items-center">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create...
+              </div>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <div v-if="showCreateMenu" class="absolute left-0 right-0 mt-2 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+              <div class="py-1">
+                <button
+                  @click="handleCreateReference"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Create Reference
+                </button>
+                <button
+                  @click="handleCreateAgreement"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Create Tenancy Agreement
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div class="border-t border-gray-200 my-2"></div>
 
@@ -79,13 +109,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+
+const showCreateMenu = ref(false)
 
 const navigation = [
   {
@@ -131,6 +163,7 @@ const handleSignOut = async () => {
 }
 
 const handleCreateReference = () => {
+  showCreateMenu.value = false
   // If already on references page, emit event to open modal directly
   if (route.path === '/references') {
     // Use a custom event to trigger the modal
@@ -139,5 +172,10 @@ const handleCreateReference = () => {
     // Navigate to references page with create query param
     router.push('/references?create=true')
   }
+}
+
+const handleCreateAgreement = () => {
+  showCreateMenu.value = false
+  router.push('/agreements?create=true')
 }
 </script>
