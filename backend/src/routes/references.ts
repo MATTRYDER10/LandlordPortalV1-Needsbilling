@@ -898,7 +898,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           const guarantorExpiresAt = new Date()
           guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 30)
 
-          const { data: guarantorRef, error: guarantorError } = await supabase
+          const { data: guarantorRef, error: guarantorError} = await supabase
             .from('tenant_references')
             .insert({
               company_id: companyUser.company_id,
@@ -910,10 +910,14 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
               property_postcode_encrypted: encrypt(property_postcode || ''),
               monthly_rent,
               move_in_date,
+              // Store guarantor's own info in tenant fields
               tenant_first_name_encrypted: encrypt(guarantor_first_name),
               tenant_last_name_encrypted: encrypt(guarantor_last_name),
               tenant_email_encrypted: encrypt(guarantor_email),
               tenant_phone_encrypted: guarantor_phone ? encrypt(guarantor_phone) : null,
+              // Store parent tenant info for display in guarantor form
+              guarantor_first_name_encrypted: encrypt(tenant_first_name),
+              guarantor_last_name_encrypted: encrypt(tenant_last_name),
               reference_token_hash: guarantorTokenHash,
               token_expires_at: guarantorExpiresAt.toISOString(),
               status: 'pending',
@@ -1526,11 +1530,15 @@ router.post('/submit/:token', async (req, res) => {
             monthly_rent: reference.monthly_rent,
             move_in_date: reference.move_in_date,
 
-            // Guarantor contact info (encrypted)
+            // Store guarantor's own info in tenant fields
             tenant_first_name_encrypted: encrypt(data.guarantor_first_name),
             tenant_last_name_encrypted: encrypt(data.guarantor_last_name || ''),
             tenant_email_encrypted: encrypt(data.guarantor_email),
             tenant_phone_encrypted: data.guarantor_phone ? encrypt(data.guarantor_phone) : null,
+
+            // Store parent tenant info for display in guarantor form
+            guarantor_first_name_encrypted: encrypt(data.first_name),
+            guarantor_last_name_encrypted: encrypt(data.last_name),
 
             // Token for form access
             reference_token_hash: guarantorTokenHash,
@@ -2037,6 +2045,8 @@ router.get('/view/:token', async (req, res) => {
         company_id,
         is_guarantor,
         guarantor_for_reference_id,
+        guarantor_first_name_encrypted,
+        guarantor_last_name_encrypted,
         companies:company_id (
           name_encrypted,
           logo_url,
@@ -2071,17 +2081,16 @@ router.get('/view/:token', async (req, res) => {
       company_name: company?.name_encrypted ? decrypt(company.name_encrypted) : ''
     }
 
-    // If this is a guarantor reference, fetch the parent tenant's info
-    if (reference.is_guarantor && reference.guarantor_for_reference_id) {
-      const { data: parentReference } = await supabase
-        .from('tenant_references')
-        .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
-        .eq('id', reference.guarantor_for_reference_id)
-        .single()
+    // If this is a guarantor reference, the parent tenant's name is stored in guarantor fields
+    if (reference.is_guarantor) {
+      // For guarantor references, guarantor_first_name actually contains the PARENT tenant's name
+      // (yes, it's confusing - we reuse the guarantor fields to store parent tenant info)
+      const guarantorFirstEncrypted = (reference as any).guarantor_first_name_encrypted
+      const guarantorLastEncrypted = (reference as any).guarantor_last_name_encrypted
 
-      if (parentReference) {
-        decryptedReference.parent_tenant_first_name = decrypt(parentReference.tenant_first_name_encrypted)
-        decryptedReference.parent_tenant_last_name = decrypt(parentReference.tenant_last_name_encrypted)
+      if (guarantorFirstEncrypted && guarantorLastEncrypted) {
+        decryptedReference.parent_tenant_first_name = decrypt(guarantorFirstEncrypted)
+        decryptedReference.parent_tenant_last_name = decrypt(guarantorLastEncrypted)
       }
     }
 
@@ -3261,11 +3270,15 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
         monthly_rent: parentReference.monthly_rent,
         move_in_date: parentReference.move_in_date,
 
-        // Guarantor contact info (encrypted)
+        // Store guarantor's own info in tenant fields
         tenant_first_name_encrypted: encrypt(guarantor_first_name),
         tenant_last_name_encrypted: encrypt(guarantor_last_name),
         tenant_email_encrypted: encrypt(guarantor_email),
         tenant_phone_encrypted: guarantor_phone ? encrypt(guarantor_phone) : null,
+
+        // Store parent tenant info for display in guarantor form
+        guarantor_first_name_encrypted: parentReference.tenant_first_name_encrypted,
+        guarantor_last_name_encrypted: parentReference.tenant_last_name_encrypted,
 
         // Token for form access
         reference_token_hash: guarantorTokenHash,
