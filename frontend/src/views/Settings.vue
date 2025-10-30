@@ -219,6 +219,50 @@
                 />
               </div>
 
+              <!-- Bank Details Section -->
+              <div class="border-t pt-6">
+                <h4 class="text-md font-semibold text-gray-900 mb-4">Bank Details (for Agreements)</h4>
+                <p class="text-sm text-gray-600 mb-4">These details will be used when generating tenancy agreements for fully managed properties.</p>
+
+                <div class="space-y-4">
+                  <div>
+                    <label for="bank-account-name" class="block text-sm font-medium text-gray-700">Account Name</label>
+                    <input
+                      id="bank-account-name"
+                      v-model="companyData.bankAccountName"
+                      type="text"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="Company Name Ltd"
+                    />
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label for="bank-account-number" class="block text-sm font-medium text-gray-700">Account Number</label>
+                      <input
+                        id="bank-account-number"
+                        v-model="companyData.bankAccountNumber"
+                        type="text"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        placeholder="12345678"
+                        maxlength="8"
+                      />
+                    </div>
+                    <div>
+                      <label for="bank-sort-code" class="block text-sm font-medium text-gray-700">Sort Code</label>
+                      <input
+                        id="bank-sort-code"
+                        v-model="companyData.bankSortCode"
+                        type="text"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        placeholder="12-34-56"
+                        maxlength="8"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div v-if="companySuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
                 {{ companySuccess }}
               </div>
@@ -818,7 +862,10 @@ const companyData = ref({
   city: '',
   postcode: '',
   phone: '',
-  website: ''
+  website: '',
+  bankAccountName: '',
+  bankAccountNumber: '',
+  bankSortCode: ''
 })
 
 const companyLoading = ref(false)
@@ -996,6 +1043,9 @@ const fetchCompanyData = async () => {
         companyData.value.postcode = data.company.postcode || ''
         companyData.value.phone = data.company.phone || ''
         companyData.value.website = data.company.website || ''
+        companyData.value.bankAccountName = data.company.bank_account_name || ''
+        companyData.value.bankAccountNumber = data.company.bank_account_number || ''
+        companyData.value.bankSortCode = data.company.bank_sort_code || ''
 
         // Load branding data
         brandingData.value.logo_url = data.company.logo_url || ''
@@ -1111,7 +1161,17 @@ const handleUpdateCompany = async () => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(companyData.value)
+      body: JSON.stringify({
+        name: companyData.value.name,
+        address: companyData.value.address,
+        city: companyData.value.city,
+        postcode: companyData.value.postcode,
+        phone: companyData.value.phone,
+        website: companyData.value.website,
+        bank_account_name: companyData.value.bankAccountName,
+        bank_account_number: companyData.value.bankAccountNumber,
+        bank_sort_code: companyData.value.bankSortCode
+      })
     })
 
     if (!response.ok) {
