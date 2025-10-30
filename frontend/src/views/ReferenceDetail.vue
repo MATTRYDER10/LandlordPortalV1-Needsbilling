@@ -66,6 +66,27 @@
             >
               {{ formatStatus(reference.status) }}
             </span>
+
+            <!-- Sanctions Screening Status -->
+            <span
+              v-if="sanctionsScreening"
+              class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1"
+              :class="{
+                'bg-green-100 text-green-800': sanctionsScreening.risk_level === 'clear',
+                'bg-blue-100 text-blue-800': sanctionsScreening.risk_level === 'low',
+                'bg-yellow-100 text-yellow-800': sanctionsScreening.risk_level === 'medium',
+                'bg-red-100 text-red-800': sanctionsScreening.risk_level === 'high'
+              }"
+              :title="sanctionsScreening.summary_message"
+            >
+              <svg v-if="sanctionsScreening.risk_level === 'clear'" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+              </svg>
+              <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+              Sanctions: {{ sanctionsScreening.risk_level === 'clear' ? 'PASS' : sanctionsScreening.risk_level.toUpperCase() }}
+            </span>
           </div>
         </div>
 
@@ -2644,6 +2665,7 @@ const childReferenceDetails = ref<Record<string, any>>({})
 const score = ref<any>(null)
 const loadingScore = ref(false)
 const downloadingPDF = ref(false)
+const sanctionsScreening = ref<any>(null)
 
 // Add Guarantor modal state
 const showAddGuarantorModal = ref(false)
@@ -2685,6 +2707,7 @@ onMounted(async () => {
   // Fetch Creditsafe verification if reference is submitted
   if (reference.value?.submitted_at) {
     fetchCreditsafeVerification()
+    fetchSanctionsScreening()
   }
   // Fetch score if reference is completed
   if (reference.value?.status === 'completed') {
@@ -2737,6 +2760,30 @@ const fetchCreditsafeVerification = async () => {
   // The verification happens automatically but results are for staff review only
   console.log('Creditsafe verification is only available in the Staff portal')
   return
+}
+
+const fetchSanctionsScreening = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/sanctions`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      sanctionsScreening.value = data.screening
+    } else if (response.status !== 404) {
+      // 404 is expected if no screening exists yet
+      console.error('Failed to fetch sanctions screening')
+    }
+  } catch (err: any) {
+    console.error('Error fetching sanctions screening:', err)
+  }
 }
 
 const fetchScore = async () => {

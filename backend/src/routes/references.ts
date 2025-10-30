@@ -662,6 +662,59 @@ router.get('/:id/score', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+// Get sanctions screening for a reference (agents/company users)
+router.get('/:id/sanctions', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+
+    // Check if user is staff (staff can view all screenings)
+    const { data: staffUser } = await supabase
+      .from('staff_users')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (!staffUser) {
+      // Not staff, must be company user - verify they own this reference
+      const { data: companyUsers } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (!companyUsers || companyUsers.length === 0) {
+        return res.status(404).json({ error: 'Company not found' })
+      }
+
+      const companyUser = companyUsers[0]
+
+      // Verify reference belongs to user's company
+      const { data: reference } = await supabase
+        .from('tenant_references')
+        .select('id, company_id')
+        .eq('id', referenceId)
+        .eq('company_id', companyUser.company_id)
+        .single()
+
+      if (!reference) {
+        return res.status(404).json({ error: 'Reference not found' })
+      }
+    }
+
+    // Get sanctions screening
+    const screening = await sanctionsService.getScreeningResult(referenceId)
+
+    if (!screening) {
+      return res.status(404).json({ error: 'No sanctions screening found for this reference' })
+    }
+
+    res.json({ screening })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Create new reference
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
