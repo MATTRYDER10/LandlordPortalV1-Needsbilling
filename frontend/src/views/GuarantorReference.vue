@@ -2534,7 +2534,8 @@ onMounted(() => {
 const fetchReferenceByToken = async () => {
   try {
     const token = route.params.token
-    const response = await fetch(`${API_URL}/api/guarantor-references/view/${token}`, {
+    // Guarantors are now stored as tenant_references with is_guarantor=true
+    const response = await fetch(`${API_URL}/api/references/view/${token}`, {
       headers: {
         'Content-Type': 'application/json'
       }
@@ -2955,8 +2956,8 @@ const uploadCurrentPageFiles = async () => {
     return
   }
 
-  // Upload the files
-  const response = await fetch(`${API_URL}/api/guarantor-references/upload/${token}`, {
+  // Upload the files (guarantors use same upload endpoint as tenants)
+  const response = await fetch(`${API_URL}/api/references/upload/${token}`, {
     method: 'POST',
     body: formDataFiles
   })
@@ -3157,7 +3158,8 @@ const handleFinalSubmit = async () => {
       previous_addresses: previousAddresses.value
     }
 
-    const response = await fetch(`${API_URL}/api/guarantor-references/submit/${token}`, {
+    // Guarantors submit using the same endpoint as tenants
+    const response = await fetch(`${API_URL}/api/references/submit/${token}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
