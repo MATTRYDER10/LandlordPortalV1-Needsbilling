@@ -645,7 +645,7 @@
                   <p class="text-sm text-gray-600">Rent Due Day</p>
                   <p class="text-gray-700 font-medium">{{ formData.rentDueDay }}</p>
                 </div>
-                <div>
+                <div v-if="formData.templateType !== 'no_deposit' && formData.templateType !== 'reposit'">
                   <p class="text-sm text-gray-600">Deposit Scheme Type</p>
                   <p class="text-gray-700 font-medium">{{ formData.depositSchemeType }}</p>
                 </div>
