@@ -231,13 +231,40 @@ export async function createSubscription(
     throw new Error(`Failed to save subscription: ${dbError.message}`);
   }
 
-  // Extract client secret for frontend
+  // The subscription is created with payment_behavior: 'default_incomplete'
+  // When there's no default payment method, Stripe creates the invoice but NOT a payment_intent
+  // We need to manually create a PaymentIntent for the invoice amount
+
   const invoice: any = subscription.latest_invoice;
-  const clientSecret = invoice?.payment_intent?.client_secret;
+  console.log('[BillingService] Subscription created:', subscription.id);
+  console.log('[BillingService] Subscription status:', subscription.status);
+  console.log('[BillingService] Invoice:', invoice ? invoice.id : 'null');
+
+  if (!invoice || typeof invoice !== 'object') {
+    throw new Error('No invoice found on subscription');
+  }
+
+  // Create a PaymentIntent for the first invoice
+  const amount = invoice.amount_due as number;
+  console.log('[BillingService] Creating PaymentIntent for amount:', amount);
+
+  const paymentIntent = await stripeService.createPaymentIntent(
+    amount,
+    customerId,
+    `Subscription: ${pricing.product_name}`,
+    {
+      subscription_id: subscription.id,
+      invoice_id: invoice.id as string,
+      company_id: companyId,
+    }
+  );
+
+  console.log('[BillingService] PaymentIntent created:', paymentIntent.id);
+  console.log('[BillingService] Client secret extracted:', !!paymentIntent.client_secret);
 
   return {
     subscription,
-    client_secret: clientSecret,
+    client_secret: paymentIntent.client_secret || '',
   };
 }
 

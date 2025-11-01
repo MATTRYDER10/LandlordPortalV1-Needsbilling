@@ -174,14 +174,21 @@ router.post('/subscriptions', authenticateToken, async (req: AuthRequest, res) =
       return res.status(404).json({ error: 'Company not found' });
     }
 
+    console.log(`[Billing] Creating subscription: ${tier_product_key} for user: ${userId}`);
+    console.log(`[Billing] Company ID: ${companyUser.company_id}`);
+
     const result = await billingService.createSubscription(
       companyUser.company_id,
       tier_product_key,
       userId
     );
 
+    console.log('[Billing] Subscription created successfully');
+    console.log('[Billing] Client secret present:', !!result.client_secret);
+
     res.json(result);
   } catch (error: any) {
+    console.error('[Billing] Error creating subscription:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -130,7 +130,7 @@ export async function createSubscription(
   priceId: string,
   metadata?: Record<string, string>
 ): Promise<Stripe.Subscription> {
-  return await getStripe().subscriptions.create({
+  const subscription = await getStripe().subscriptions.create({
     customer: customerId,
     items: [{ price: priceId }],
     payment_behavior: 'default_incomplete',
@@ -144,6 +144,18 @@ export async function createSubscription(
       source: 'propertygoose',
     },
   });
+
+  // Log for debugging
+  console.log('[StripeService] Subscription created:', subscription.id);
+  console.log('[StripeService] Latest invoice type:', typeof subscription.latest_invoice);
+  const invoice: any = subscription.latest_invoice;
+  if (invoice && typeof invoice === 'object') {
+    console.log('[StripeService] Invoice ID:', invoice.id);
+    console.log('[StripeService] Invoice payment_intent field exists:', 'payment_intent' in invoice);
+    console.log('[StripeService] Invoice payment_intent value:', invoice.payment_intent);
+  }
+
+  return subscription;
 }
 
 /**
