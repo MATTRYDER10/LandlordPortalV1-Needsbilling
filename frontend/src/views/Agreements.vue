@@ -309,14 +309,53 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Break Clause</label>
-              <textarea
-                v-model="formData.breakClause"
-                rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="e.g., Either party may terminate this tenancy with 2 months notice after the first 6 months"
-              ></textarea>
-              <p class="text-xs text-gray-500 mt-1">Optional break clause text (leave empty if not applicable)</p>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Break Clause</label>
+
+              <div class="mb-3">
+                <label class="flex items-center">
+                  <input
+                    type="checkbox"
+                    v-model="formData.breakClauseEnabled"
+                    class="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span class="ml-2 text-sm text-gray-700">Include break clause in this tenancy</span>
+                </label>
+              </div>
+
+              <div v-if="formData.breakClauseEnabled" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Break clause applies after (months) *</label>
+                    <input
+                      v-model.number="formData.breakClauseMonths"
+                      type="number"
+                      min="1"
+                      :max="formData.tenancyTerm || 12"
+                      required
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="e.g., 6"
+                    />
+                    <p class="text-xs text-gray-500 mt-1">Must be less than tenancy term</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notice period required (months) *</label>
+                    <input
+                      v-model.number="formData.breakClauseNoticePeriod"
+                      type="number"
+                      min="1"
+                      max="6"
+                      required
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="e.g., 2"
+                    />
+                  </div>
+                </div>
+
+                <div v-if="generatedBreakClause" class="bg-gray-50 border border-gray-200 rounded-md p-3">
+                  <p class="text-xs font-medium text-gray-600 mb-1">Generated Legal Text:</p>
+                  <p class="text-sm text-gray-800">{{ generatedBreakClause }}</p>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -674,9 +713,19 @@
             <!-- Additional Details -->
             <div class="border-b pb-4">
               <h4 class="font-semibold text-gray-900 mb-2">Additional Details</h4>
-              <div>
-                <p class="text-sm text-gray-600">Permitted Occupier(s)</p>
-                <p class="text-gray-700 font-medium">{{ formData.permittedOccupiers || 'None' }}</p>
+              <div class="space-y-3">
+                <div>
+                  <p class="text-sm text-gray-600">Permitted Occupier(s)</p>
+                  <p class="text-gray-700 font-medium">{{ formData.permittedOccupiers || 'None' }}</p>
+                </div>
+                <div v-if="formData.breakClauseEnabled && generatedBreakClause">
+                  <p class="text-sm text-gray-600">Break Clause</p>
+                  <p class="text-gray-700 font-medium">{{ generatedBreakClause }}</p>
+                </div>
+                <div v-if="formData.specialClauses">
+                  <p class="text-sm text-gray-600">Special Clauses</p>
+                  <p class="text-gray-700 font-medium whitespace-pre-wrap">{{ formData.specialClauses }}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -799,6 +848,9 @@ const formData = ref<{
   bankAccountName?: string
   bankAccountNumber?: string
   bankSortCode?: string
+  breakClauseEnabled: boolean
+  breakClauseMonths?: number | null
+  breakClauseNoticePeriod?: number | null
   breakClause?: string
   specialClauses?: string
   landlords: Party[]
@@ -827,6 +879,9 @@ const formData = ref<{
   bankAccountName: '',
   bankAccountNumber: '',
   bankSortCode: '',
+  breakClauseEnabled: false,
+  breakClauseMonths: null,
+  breakClauseNoticePeriod: null,
   breakClause: '',
   specialClauses: '',
   landlords: [
@@ -887,6 +942,20 @@ const displayEndDate = computed(() => {
   return date.toLocaleDateString('en-GB')
 })
 
+// Generate formal legal text for break clause
+const generatedBreakClause = computed(() => {
+  if (!formData.value.breakClauseEnabled ||
+      !formData.value.breakClauseMonths ||
+      !formData.value.breakClauseNoticePeriod) {
+    return ''
+  }
+
+  const months = formData.value.breakClauseMonths
+  const notice = formData.value.breakClauseNoticePeriod
+
+  return `Either party may terminate this tenancy by providing ${notice} month${notice > 1 ? 's' : ''}' written notice to the other party, which notice may be given at any time after the expiry of ${months} month${months > 1 ? 's' : ''} from the commencement of this tenancy.`
+})
+
 const canProceed = computed(() => {
   switch (currentStep.value) {
     case 0: // Template selection
@@ -909,16 +978,27 @@ const canProceed = computed(() => {
         formData.value.tenantEmail !== ''
       )
 
+      // If break clause enabled, require both fields
+      const breakClauseValid = !formData.value.breakClauseEnabled || (
+        formData.value.breakClauseMonths !== null &&
+        formData.value.breakClauseMonths !== undefined &&
+        formData.value.breakClauseMonths > 0 &&
+        formData.value.breakClauseNoticePeriod !== null &&
+        formData.value.breakClauseNoticePeriod !== undefined &&
+        formData.value.breakClauseNoticePeriod > 0
+      )
+
       // If let_only, also require landlord email and bank details
       if (formData.value.managementType === 'let_only') {
         return baseValid &&
+          breakClauseValid &&
           formData.value.landlordEmail !== '' &&
           formData.value.bankAccountName !== '' &&
           formData.value.bankAccountNumber !== '' &&
           formData.value.bankSortCode !== ''
       }
 
-      return baseValid
+      return baseValid && breakClauseValid
     case 3: // Landlords
       return formData.value.landlords.every(
         (l) => l.name !== '' && l.address.line1 !== '' && l.address.city !== '' && l.address.postcode !== ''
@@ -1075,10 +1155,11 @@ async function generateAgreement() {
       throw new Error('You must be logged in to generate an agreement')
     }
 
-    // Create the agreement with calculated end date
+    // Create the agreement with calculated end date and generated break clause
     const agreementData = {
       ...formData.value,
-      tenancyEndDate: calculatedEndDate.value
+      tenancyEndDate: calculatedEndDate.value,
+      breakClause: formData.value.breakClauseEnabled ? generatedBreakClause.value : ''
     }
 
     const createResponse = await fetch(`${API_URL}/api/agreements`, {
