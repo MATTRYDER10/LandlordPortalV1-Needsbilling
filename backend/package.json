@@ -30,6 +30,7 @@
     "pdfkit": "^0.17.2",
     "pizzip": "^3.2.0",
     "resend": "^6.2.1",
+    "stripe": "^19.2.0",
     "tslib": "^2.8.1"
   },
   "devDependencies": {
