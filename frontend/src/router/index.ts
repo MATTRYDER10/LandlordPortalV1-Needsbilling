@@ -16,6 +16,7 @@ import EmployerReference from '../views/EmployerReference.vue'
 import AccountantReference from '../views/AccountantReference.vue'
 import Settings from '../views/Settings.vue'
 import Agreements from '../views/Agreements.vue'
+import Billing from '../views/Billing.vue'
 import StaffLogin from '../views/StaffLogin.vue'
 import StaffDashboard from '../views/StaffDashboard.vue'
 import StaffChaseList from '../views/StaffChaseList.vue'
@@ -111,6 +112,12 @@ const router = createRouter({
       path: '/agreements',
       name: 'Agreements',
       component: Agreements,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/billing',
+      name: 'Billing',
+      component: Billing,
       meta: { requiresAuth: true }
     },
     {
