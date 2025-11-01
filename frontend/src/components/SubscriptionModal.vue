@@ -7,86 +7,105 @@
       </div>
 
       <div class="modal-body">
-        <p class="subtitle">Subscribe and save up to 50% on reference credits. Credits roll over every month.</p>
+        <!-- Step 1: Choose Subscription Tier -->
+        <div v-if="!showPaymentForm">
+          <p class="subtitle">Subscribe and save up to 50% on reference credits. Credits roll over every month.</p>
 
-        <div v-if="billingStore.loading" class="loading-state">
-          <div class="spinner"></div>
-          <p>Loading subscription plans...</p>
-        </div>
+          <div v-if="billingStore.loading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading subscription plans...</p>
+          </div>
 
-        <div v-else class="subscription-tiers-grid">
-          <div
-            v-for="tier in billingStore.subscriptionTiers"
-            :key="tier.id"
-            class="tier-card"
-            :class="{
-              popular: tier.is_popular,
-              selected: selectedTier?.id === tier.id
-            }"
-            @click="selectTier(tier)"
-          >
-            <div v-if="tier.is_popular" class="popular-badge">
-              ⭐ Most Popular
-            </div>
-
-            <div class="tier-header">
-              <h3>{{ tier.product_name }}</h3>
-              <p class="tier-description">{{ tier.description }}</p>
-            </div>
-
-            <div class="tier-pricing">
-              <div class="price-main">
-                <span class="currency">£</span>
-                <span class="amount">{{ tier.price_gbp.toFixed(0) }}</span>
-                <span class="period">/month</span>
+          <div v-else class="subscription-tiers-grid">
+            <div
+              v-for="tier in billingStore.subscriptionTiers"
+              :key="tier.id"
+              class="tier-card"
+              :class="{
+                popular: tier.is_popular,
+                selected: selectedTier?.id === tier.id
+              }"
+              @click="selectTier(tier)"
+            >
+              <div v-if="tier.is_popular" class="popular-badge">
+                ⭐ Most Popular
               </div>
-              <p class="price-detail">£{{ tier.price_per_credit.toFixed(2) }} per credit</p>
-            </div>
 
-            <div class="tier-features">
-              <div class="feature-item">
-                <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                <span>{{ tier.credits_quantity }} credits per month</span>
+              <div class="tier-header">
+                <h3>{{ tier.product_name }}</h3>
+                <p class="tier-description">{{ tier.description }}</p>
               </div>
-              <div class="feature-item">
-                <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                <span>Credits roll over</span>
+
+              <div class="tier-pricing">
+                <div class="price-main">
+                  <span class="currency">£</span>
+                  <span class="amount">{{ tier.price_gbp.toFixed(0) }}</span>
+                  <span class="period">/month</span>
+                </div>
+                <p class="price-detail">£{{ tier.price_per_credit.toFixed(2) }} per credit</p>
               </div>
-              <div class="feature-item">
-                <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                <span>Cancel anytime</span>
-              </div>
-              <div class="feature-item">
-                <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                <span>Save {{ calculateSavings(tier) }}% vs pay-as-you-go</span>
+
+              <div class="tier-features">
+                <div class="feature-item">
+                  <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>{{ tier.credits_quantity }} credits per month</span>
+                </div>
+                <div class="feature-item">
+                  <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>Credits roll over</span>
+                </div>
+                <div class="feature-item">
+                  <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>Cancel anytime</span>
+                </div>
+                <div class="feature-item">
+                  <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>Save {{ calculateSavings(tier) }}% vs pay-as-you-go</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div v-if="selectedTier && !showPaymentForm" class="tier-actions">
-          <button @click="proceedToPayment" class="btn-primary">
-            Continue to Payment
-          </button>
-        </div>
-
-        <!-- Stripe Payment Form -->
-        <div v-if="showPaymentForm && selectedTier" class="payment-section">
-          <h3>Complete Your Subscription</h3>
-          <div class="subscription-summary">
-            <h4>{{ selectedTier.product_name }}</h4>
-            <p>{{ selectedTier.credits_quantity }} credits per month</p>
-            <p class="price-summary">£{{ selectedTier.price_gbp.toFixed(2) }}/month</p>
-            <p class="billing-info">Billed monthly • Cancel anytime</p>
+          <div v-if="selectedTier" class="tier-actions">
+            <button @click="proceedToPayment" class="btn-primary">
+              Continue to Payment
+            </button>
           </div>
+        </div>
+
+        <!-- Step 2: Payment Form -->
+        <div v-else-if="showPaymentForm && selectedTier" class="payment-section">
+          <!-- Order Summary -->
+          <div class="order-summary">
+            <h3>Subscription Summary</h3>
+            <div class="summary-row">
+              <span>{{ selectedTier.product_name }}</span>
+              <span class="summary-amount">£{{ selectedTier.price_gbp.toFixed(2) }}/month</span>
+            </div>
+            <div class="summary-detail">
+              {{ selectedTier.credits_quantity }} credits per month • £{{ selectedTier.price_per_credit.toFixed(2) }} per credit
+            </div>
+            <div class="summary-features">
+              <div class="feature-badge">✓ Credits roll over forever</div>
+              <div class="feature-badge">✓ Cancel anytime</div>
+              <div class="feature-badge">✓ Billed monthly</div>
+            </div>
+            <div class="summary-total">
+              <span>Monthly Total</span>
+              <span class="total-amount">£{{ selectedTier.price_gbp.toFixed(2) }}</span>
+            </div>
+          </div>
+
+          <!-- Payment Form -->
+          <h3 class="payment-title">Payment Information</h3>
 
           <div id="payment-element"></div>
 
@@ -95,7 +114,7 @@
           </div>
 
           <div class="payment-actions">
-            <button @click="showPaymentForm = false" class="btn-secondary">
+            <button @click="cancelPayment" class="btn-secondary">
               Back
             </button>
             <button
@@ -104,7 +123,7 @@
               class="btn-primary"
             >
               <span v-if="processing">Processing...</span>
-              <span v-else>Subscribe Now</span>
+              <span v-else>Subscribe for £{{ selectedTier.price_gbp.toFixed(2) }}/mo</span>
             </button>
           </div>
         </div>
@@ -177,8 +196,17 @@ async function proceedToPayment() {
       appearance,
     })
 
-    // Create and mount Payment Element
-    paymentElement = elements.create('payment')
+    // Create and mount Payment Element with billing details
+    paymentElement = elements.create('payment', {
+      fields: {
+        billingDetails: {
+          address: {
+            country: 'auto',
+            postalCode: 'auto',
+          },
+        },
+      },
+    })
 
     showPaymentForm.value = true
 
@@ -192,6 +220,15 @@ async function proceedToPayment() {
   } finally {
     processing.value = false
   }
+}
+
+function cancelPayment() {
+  showPaymentForm.value = false
+  if (paymentElement) {
+    paymentElement.unmount()
+    paymentElement = null
+  }
+  paymentError.value = null
 }
 
 async function handleSubscribe() {
@@ -438,47 +475,87 @@ async function handleSubscribe() {
 }
 
 .payment-section {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 2px solid #e5e7eb;
+  min-height: 400px;
 }
 
-.payment-section h3 {
-  font-size: 1.25rem;
+.order-summary {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.order-summary h3 {
+  font-size: 1rem;
   font-weight: 600;
   color: #111827;
+  margin: 0 0 1rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.summary-row span:first-child {
+  font-weight: 500;
+  color: #111827;
+}
+
+.summary-amount {
+  font-weight: 600;
+  color: #111827;
+}
+
+.summary-detail {
+  font-size: 0.875rem;
+  color: #6b7280;
   margin-bottom: 1rem;
 }
 
-.subscription-summary {
-  margin-bottom: 1.5rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 8px;
-  color: white;
+.summary-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
-.subscription-summary h4 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem;
+.feature-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  background: #e0e7ff;
+  color: #4338ca;
+  border-radius: 12px;
+  font-weight: 500;
 }
 
-.subscription-summary p {
-  margin: 0.25rem 0;
-  opacity: 0.9;
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 2px solid #e5e7eb;
+  font-weight: 600;
 }
 
-.price-summary {
+.total-amount {
   font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0.75rem 0 !important;
-  opacity: 1 !important;
+  color: #667eea;
 }
 
-.billing-info {
-  font-size: 0.875rem;
-  opacity: 0.8 !important;
+.payment-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 #payment-element {
