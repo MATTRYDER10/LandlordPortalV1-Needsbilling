@@ -200,10 +200,7 @@ async function proceedToPayment() {
     paymentElement = elements.create('payment', {
       fields: {
         billingDetails: {
-          address: {
-            country: 'auto',
-            postalCode: 'auto',
-          },
+          address: 'always',
         },
       },
     })
