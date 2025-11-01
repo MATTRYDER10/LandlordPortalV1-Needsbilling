@@ -237,11 +237,24 @@ async function handlePaymentSucceeded(paymentIntent: any) {
           console.log(`Successfully delivered ${creditsPerMonth} credits to company ${companyId} for subscription ${metadata.subscription_id}`);
         }
 
-        // Update subscription status in database (will be updated again by subscription.updated webhook)
+        // Update subscription status and period dates in database
+        // Fetch the latest subscription data from Stripe to get period dates
+        const subscription: any = await stripeService.getSubscription(metadata.subscription_id);
+
+        const updateData: any = { status: 'active' };
+        if (subscription.current_period_start) {
+          updateData.current_period_start = new Date(subscription.current_period_start * 1000).toISOString();
+        }
+        if (subscription.current_period_end) {
+          updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+        }
+
         await supabase
           .from('subscriptions')
-          .update({ status: 'active' })
+          .update(updateData)
           .eq('stripe_subscription_id', metadata.subscription_id);
+
+        console.log(`Updated subscription ${metadata.subscription_id} with period: ${updateData.current_period_start} to ${updateData.current_period_end}`);
       } else {
         console.error(`No database subscription found for ${metadata.subscription_id}`);
       }
