@@ -139,12 +139,14 @@ async function handleSubscriptionUpdate(subscription: any) {
       : null,
   };
 
-  // Only add period dates if they exist (they won't exist for incomplete subscriptions)
-  if (subscription.current_period_start) {
-    updateData.current_period_start = new Date(subscription.current_period_start * 1000).toISOString();
+  // Period dates are on the subscription items, not the top-level subscription object
+  // Get them from the first subscription item if available
+  const firstItem = subscription.items?.data?.[0];
+  if (firstItem?.current_period_start) {
+    updateData.current_period_start = new Date(firstItem.current_period_start * 1000).toISOString();
   }
-  if (subscription.current_period_end) {
-    updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+  if (firstItem?.current_period_end) {
+    updateData.current_period_end = new Date(firstItem.current_period_end * 1000).toISOString();
   }
 
   await supabase
@@ -242,11 +244,14 @@ async function handlePaymentSucceeded(paymentIntent: any) {
         const subscription: any = await stripeService.getSubscription(metadata.subscription_id);
 
         const updateData: any = { status: 'active' };
-        if (subscription.current_period_start) {
-          updateData.current_period_start = new Date(subscription.current_period_start * 1000).toISOString();
+
+        // Period dates are on the subscription items, not the top-level subscription object
+        const firstItem = subscription.items?.data?.[0];
+        if (firstItem?.current_period_start) {
+          updateData.current_period_start = new Date(firstItem.current_period_start * 1000).toISOString();
         }
-        if (subscription.current_period_end) {
-          updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+        if (firstItem?.current_period_end) {
+          updateData.current_period_end = new Date(firstItem.current_period_end * 1000).toISOString();
         }
 
         await supabase

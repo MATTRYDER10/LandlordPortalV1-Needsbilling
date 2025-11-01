@@ -207,7 +207,10 @@ export async function createSubscription(
   );
 
   // Save subscription to database
+  // Period dates are on the subscription items, not the top-level subscription object
   const sub: any = subscription; // Cast to any for period fields
+  const firstItem = sub.items?.data?.[0];
+
   const { error: dbError } = await supabase
     .from('subscriptions')
     .insert({
@@ -219,11 +222,11 @@ export async function createSubscription(
       price_per_credit: pricing.price_per_credit,
       monthly_total: pricing.price_gbp,
       status: subscription.status,
-      current_period_start: sub.current_period_start
-        ? new Date(sub.current_period_start * 1000).toISOString()
+      current_period_start: firstItem?.current_period_start
+        ? new Date(firstItem.current_period_start * 1000).toISOString()
         : null,
-      current_period_end: sub.current_period_end
-        ? new Date(sub.current_period_end * 1000).toISOString()
+      current_period_end: firstItem?.current_period_end
+        ? new Date(firstItem.current_period_end * 1000).toISOString()
         : null,
     });
 

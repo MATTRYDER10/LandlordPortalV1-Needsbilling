@@ -268,11 +268,13 @@ router.post('/subscriptions/sync', authenticateToken, async (req: AuthRequest, r
       status: stripeSubscription.status,
     };
 
-    if (stripeSubscription.current_period_start) {
-      updateData.current_period_start = new Date(stripeSubscription.current_period_start * 1000).toISOString();
+    // Period dates are on the subscription items, not the top-level subscription object
+    const firstItem = stripeSubscription.items?.data?.[0];
+    if (firstItem?.current_period_start) {
+      updateData.current_period_start = new Date(firstItem.current_period_start * 1000).toISOString();
     }
-    if (stripeSubscription.current_period_end) {
-      updateData.current_period_end = new Date(stripeSubscription.current_period_end * 1000).toISOString();
+    if (firstItem?.current_period_end) {
+      updateData.current_period_end = new Date(firstItem.current_period_end * 1000).toISOString();
     }
 
     await supabase
