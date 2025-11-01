@@ -872,6 +872,8 @@ const calculatedEndDate = computed(() => {
 
   const startDate = new Date(formData.value.tenancyStartDate)
   startDate.setMonth(startDate.getMonth() + months)
+  // Subtract 1 day to get the day before the anniversary (UK tenancy convention)
+  startDate.setDate(startDate.getDate() - 1)
   // Return ISO format for database (YYYY-MM-DD)
   return startDate.toISOString().split('T')[0]
 })
