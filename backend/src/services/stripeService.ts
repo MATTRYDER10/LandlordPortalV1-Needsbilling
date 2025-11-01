@@ -1,10 +1,18 @@
 import Stripe from 'stripe';
 
-// Initialize Stripe with secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+// Initialize Stripe with secret key (with fallback for development)
+const apiKey = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
+const stripe = new Stripe(apiKey, {
   apiVersion: '2025-10-29.clover',
   typescript: true,
 });
+
+function getStripe(): Stripe {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    console.warn('WARNING: STRIPE_SECRET_KEY not set. Stripe operations will fail.');
+  }
+  return stripe;
+}
 
 /**
  * Stripe Service
@@ -25,7 +33,7 @@ export async function createCustomer(
   companyName: string,
   metadata?: Record<string, string>
 ): Promise<Stripe.Customer> {
-  return await stripe.customers.create({
+  return await getStripe().customers.create({
     email,
     name: companyName,
     metadata: {
@@ -345,7 +353,7 @@ export async function createRefund(
   amount?: number, // Optional: partial refund amount in pence
   reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer'
 ): Promise<Stripe.Refund> {
-  return await stripe.refunds.create({
+  return await getStripe().refunds.create({
     payment_intent: paymentIntentId,
     amount,
     reason,
@@ -365,7 +373,7 @@ export function constructWebhookEvent(
   signature: string,
   webhookSecret: string
 ): Stripe.Event {
-  return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+  return getStripe().webhooks.constructEvent(payload, signature, webhookSecret);
 }
 
 /**
@@ -377,7 +385,7 @@ export function verifyWebhookSignature(
   webhookSecret: string
 ): boolean {
   try {
-    stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+    getStripe().webhooks.constructEvent(payload, signature, webhookSecret);
     return true;
   } catch (err) {
     return false;
@@ -457,5 +465,5 @@ export function formatCurrency(pence: number): string {
   }).format(penceToPounds(pence));
 }
 
-// Export the stripe instance for advanced use cases
-export { stripe };
+// Export the getStripe function for advanced use cases
+export { getStripe as stripe };
