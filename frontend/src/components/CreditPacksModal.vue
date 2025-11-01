@@ -2,15 +2,16 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Purchase Credit Pack</h2>
+        <div>
+          <h2>Purchase Credits</h2>
+          <p class="header-subtitle">Choose a pack that fits your needs. Credits never expire.</p>
+        </div>
         <button @click="$emit('close')" class="close-button">&times;</button>
       </div>
 
       <div class="modal-body">
         <!-- Step 1: Choose Credit Pack -->
         <div v-if="!showPaymentForm">
-          <p class="subtitle">Choose a credit pack to purchase. Credits never expire.</p>
-
           <div v-if="billingStore.loading" class="loading-state">
             <div class="spinner"></div>
             <p>Loading credit packs...</p>
@@ -25,42 +26,47 @@
               @click="selectPack(pack)"
             >
               <div v-if="pack.is_recommended" class="recommended-badge">
-                ⭐ Recommended
+                Recommended
               </div>
 
-              <div class="pack-header">
-                <h3>{{ pack.product_name }}</h3>
-                <p class="pack-description">{{ pack.description }}</p>
-              </div>
+              <div class="pack-content">
+                <div class="pack-credits">
+                  <div class="credits-number">{{ pack.credits_quantity }}</div>
+                  <div class="credits-label">Reference Credits</div>
+                </div>
 
-              <div class="pack-pricing">
-                <div class="price-main">
+                <div class="pack-price">
                   <span class="currency">£</span>
                   <span class="amount">{{ pack.price_gbp.toFixed(2) }}</span>
                 </div>
-                <div class="price-details">
-                  <div class="detail-item">
-                    <span class="label">Credits:</span>
-                    <span class="value">{{ pack.credits_quantity }}</span>
+
+                <div class="pack-details">
+                  <div class="detail-row">
+                    <span class="detail-label">Per credit</span>
+                    <span class="detail-value">£{{ pack.price_per_credit.toFixed(2) }}</span>
                   </div>
-                  <div class="detail-item">
-                    <span class="label">Per credit:</span>
-                    <span class="value">£{{ pack.price_per_credit.toFixed(2) }}</span>
+                  <div v-if="calculateSavings(pack) > 0" class="savings">
+                    Save £{{ calculateSavings(pack).toFixed(2) }}
                   </div>
+                </div>
+
+                <div class="pack-description">
+                  {{ pack.description }}
                 </div>
               </div>
 
-              <div class="pack-savings">
-                <span v-if="calculateSavings(pack) > 0" class="savings-badge">
-                  Save £{{ calculateSavings(pack).toFixed(2) }}
-                </span>
+              <div class="pack-footer">
+                <button class="select-button">
+                  <span v-if="selectedPack?.id === pack.id">✓ Selected</span>
+                  <span v-else>Select Pack</span>
+                </button>
               </div>
             </div>
           </div>
 
           <div v-if="selectedPack" class="pack-actions">
-            <button @click="proceedToPayment" class="btn-primary">
-              Continue to Payment
+            <button @click="proceedToPayment" class="btn-primary btn-large">
+              Continue to Payment →
             </button>
           </div>
         </div>
@@ -70,36 +76,39 @@
           <!-- Order Summary -->
           <div class="order-summary">
             <h3>Order Summary</h3>
-            <div class="summary-row">
-              <span>{{ selectedPack.product_name }}</span>
-              <span class="summary-amount">£{{ selectedPack.price_gbp.toFixed(2) }}</span>
-            </div>
-            <div class="summary-detail">
-              {{ selectedPack.credits_quantity }} credits • £{{ selectedPack.price_per_credit.toFixed(2) }} per credit
-            </div>
-            <div class="summary-total">
-              <span>Total</span>
-              <span class="total-amount">£{{ selectedPack.price_gbp.toFixed(2) }}</span>
+            <div class="summary-content">
+              <div class="summary-item">
+                <div class="summary-label">
+                  <div class="summary-pack-name">{{ selectedPack.product_name }}</div>
+                  <div class="summary-pack-detail">{{ selectedPack.credits_quantity }} credits</div>
+                </div>
+                <div class="summary-price">£{{ selectedPack.price_gbp.toFixed(2) }}</div>
+              </div>
+              <div class="summary-total">
+                <span class="total-label">Total</span>
+                <span class="total-amount">£{{ selectedPack.price_gbp.toFixed(2) }}</span>
+              </div>
             </div>
           </div>
 
           <!-- Payment Form -->
-          <h3 class="payment-title">Payment Information</h3>
+          <div class="payment-form-section">
+            <h3>Payment Details</h3>
+            <div id="payment-element"></div>
 
-          <div id="payment-element"></div>
-
-          <div v-if="paymentError" class="error-message">
-            {{ paymentError }}
+            <div v-if="paymentError" class="error-message">
+              {{ paymentError }}
+            </div>
           </div>
 
           <div class="payment-actions">
             <button @click="cancelPayment" class="btn-secondary">
-              Back
+              ← Back
             </button>
             <button
               @click="handlePayment"
               :disabled="processing"
-              class="btn-primary"
+              class="btn-primary btn-large"
             >
               <span v-if="processing">Processing...</span>
               <span v-else>Pay £{{ selectedPack.price_gbp.toFixed(2) }}</span>
@@ -176,7 +185,6 @@ async function proceedToPayment() {
     })
 
     // Create and mount Payment Element with billing details
-    // Note: Billing address is collected by default with the Payment Element
     paymentElement = elements.create('payment', {
       fields: {
         billingDetails: 'auto',
@@ -245,7 +253,8 @@ async function handlePayment() {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -255,26 +264,32 @@ async function handlePayment() {
 
 .modal-content {
   background: white;
-  border-radius: 12px;
-  max-width: 900px;
+  border-radius: 16px;
+  max-width: 1100px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid #e5e7eb;
+  align-items: flex-start;
+  padding: 2rem 2.5rem;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .modal-header h2 {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.header-subtitle {
+  font-size: 0.9375rem;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -282,38 +297,36 @@ async function handlePayment() {
   background: none;
   border: none;
   font-size: 2rem;
-  color: #6b7280;
+  color: #9ca3af;
   cursor: pointer;
   line-height: 1;
   padding: 0;
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
 
 .close-button:hover {
-  color: #111827;
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .modal-body {
-  padding: 2rem;
-}
-
-.subtitle {
-  color: #6b7280;
-  margin-bottom: 2rem;
+  padding: 2.5rem;
 }
 
 .loading-state {
   text-align: center;
-  padding: 3rem;
+  padding: 4rem 2rem;
 }
 
 .spinner {
   border: 3px solid #f3f4f6;
   border-top: 3px solid #667eea;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   animation: spin 1s linear infinite;
   margin: 0 auto 1rem;
 }
@@ -325,189 +338,277 @@ async function handlePayment() {
 
 .credit-packs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
 .credit-pack-card {
   position: relative;
   border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1.5rem;
+  border-radius: 12px;
+  overflow: hidden;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+  background: white;
+  display: flex;
+  flex-direction: column;
 }
 
 .credit-pack-card:hover {
   border-color: #667eea;
-  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -10px rgba(102, 126, 234, 0.3);
 }
 
 .credit-pack-card.selected {
   border-color: #667eea;
-  background: #f5f7ff;
+  background: linear-gradient(135deg, #f5f7ff 0%, #ffffff 100%);
+  box-shadow: 0 8px 16px -6px rgba(102, 126, 234, 0.2);
 }
 
 .credit-pack-card.recommended {
-  border-color: #f59e0b;
+  border-color: #f97316;
+}
+
+.credit-pack-card.recommended.selected {
+  border-color: #f97316;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
 }
 
 .recommended-badge {
   position: absolute;
-  top: -12px;
-  right: 1rem;
-  background: #f59e0b;
+  top: 0;
+  right: 0;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
   color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  border-bottom-left-radius: 12px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
 }
 
-.pack-header h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #111827;
-  margin: 0 0 0.5rem;
+.pack-content {
+  padding: 2rem 1.5rem 1.5rem;
+  flex: 1;
 }
 
-.pack-description {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin: 0 0 1rem;
+.pack-credits {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
 }
 
-.pack-pricing {
-  margin-bottom: 1rem;
-}
-
-.price-main {
-  display: flex;
-  align-items: baseline;
+.credits-number {
+  font-size: 3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1;
   margin-bottom: 0.5rem;
 }
 
-.currency {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #111827;
-}
-
-.amount {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.price-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.detail-item {
-  display: flex;
-  justify-content: space-between;
+.credits-label {
   font-size: 0.875rem;
-}
-
-.detail-item .label {
   color: #6b7280;
-}
-
-.detail-item .value {
-  color: #111827;
-  font-weight: 600;
-}
-
-.pack-savings {
-  min-height: 1.5rem;
-}
-
-.savings-badge {
-  display: inline-block;
-  background: #dcfce7;
-  color: #166534;
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.pack-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
-}
-
-.payment-section {
-  min-height: 400px;
-}
-
-.order-summary {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.order-summary h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
-  margin: 0 0 1rem 0;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.summary-row {
+.pack-price {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.currency {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #374151;
+  vertical-align: top;
+}
+
+.amount {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.pack-details {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.detail-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.5rem;
 }
 
-.summary-row span:first-child {
-  font-weight: 500;
-  color: #111827;
-}
-
-.summary-amount {
-  font-weight: 600;
-  color: #111827;
-}
-
-.summary-detail {
+.detail-label {
   font-size: 0.875rem;
   color: #6b7280;
-  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 0.9375rem;
+  color: #111827;
+  font-weight: 700;
+}
+
+.savings {
+  text-align: center;
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #166534;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+}
+
+.pack-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.pack-footer {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.select-button {
+  width: 100%;
+  padding: 0.875rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.select-button:hover {
+  background: #5568d3;
+  transform: scale(1.02);
+}
+
+.credit-pack-card.selected .select-button {
+  background: #10b981;
+}
+
+.credit-pack-card.selected .select-button:hover {
+  background: #059669;
+}
+
+.pack-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+/* Payment Section */
+.payment-section {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.order-summary {
+  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.order-summary h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #6b7280;
+  margin: 0 0 1.25rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary-pack-name {
+  font-weight: 600;
+  color: #111827;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.summary-pack-detail {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.summary-price {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
 }
 
 .summary-total {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 1rem;
-  margin-top: 1rem;
+  padding-top: 1.25rem;
   border-top: 2px solid #e5e7eb;
+}
+
+.total-label {
   font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
 }
 
 .total-amount {
-  font-size: 1.5rem;
-  color: #667eea;
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.payment-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 1rem;
+.payment-form-section {
+  margin-bottom: 2rem;
+}
+
+.payment-form-section h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #6b7280;
+  margin-bottom: 1.25rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
 }
 
 #payment-element {
@@ -516,49 +617,84 @@ async function handlePayment() {
 
 .error-message {
   background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 6px;
-  padding: 1rem;
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
   color: #991b1b;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9375rem;
 }
 
 .payment-actions {
   display: flex;
   gap: 1rem;
-  justify-content: flex-end;
+  justify-content: space-between;
 }
 
 .btn-primary,
 .btn-secondary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
+  padding: 0.875rem 1.75rem;
+  border-radius: 8px;
   font-weight: 600;
+  font-size: 0.9375rem;
   cursor: pointer;
   border: none;
   transition: all 0.2s;
 }
 
+.btn-large {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+}
+
 .btn-primary {
-  background: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
 .btn-primary:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-secondary {
-  background: #f3f4f6;
+  background: white;
   color: #374151;
+  border: 2px solid #e5e7eb;
 }
 
 .btn-secondary:hover {
-  background: #e5e7eb;
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+@media (max-width: 768px) {
+  .credit-packs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-header {
+    padding: 1.5rem;
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+  }
+
+  .payment-actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+  }
 }
 </style>
