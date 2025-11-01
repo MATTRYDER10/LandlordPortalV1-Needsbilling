@@ -697,6 +697,11 @@
             </div>
           </div>
         </div>
+
+        <!-- Billing Tab -->
+        <div v-else-if="activeTab === 'billing'">
+          <Billing />
+        </div>
         </div>
       </div>
     </div>
@@ -797,6 +802,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
+import Billing from './Billing.vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
@@ -809,6 +815,7 @@ const activeTab = computed(() => {
   if (path.includes('/settings/company')) return 'company'
   if (path.includes('/settings/branding')) return 'branding'
   if (path.includes('/settings/team')) return 'team'
+  if (path.includes('/settings/billing')) return 'billing'
   if (path.includes('/settings/audit-logs')) return 'audit-logs'
   return 'profile'
 })
@@ -820,14 +827,15 @@ const tabs = computed(() => {
     { id: 'company', name: 'Company' },
     { id: 'branding', name: 'Branding' },
     { id: 'team', name: 'Team' },
+    { id: 'billing', name: 'Billing' },
     { id: 'audit-logs', name: 'Audit Logs' }
   ]
 
   const userRole = authStore.company?.role || ''
 
-  // Members can only see Profile tab
+  // Members can see Profile and Billing tabs
   if (userRole === 'member') {
-    return allTabs.filter(tab => tab.id === 'profile')
+    return allTabs.filter(tab => tab.id === 'profile' || tab.id === 'billing')
   }
 
   // Admins and Owners see all tabs

@@ -116,8 +116,7 @@ const router = createRouter({
     },
     {
       path: '/billing',
-      name: 'Billing',
-      component: Billing,
+      redirect: '/settings/billing',
       meta: { requiresAuth: true }
     },
     {
@@ -147,6 +146,12 @@ const router = createRouter({
         {
           path: 'team',
           name: 'SettingsTeam',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'billing',
+          name: 'SettingsBilling',
           component: Settings,
           meta: { requiresAuth: true }
         },

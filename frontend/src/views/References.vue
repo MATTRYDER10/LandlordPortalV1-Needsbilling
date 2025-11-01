@@ -818,6 +818,13 @@
         </form>
       </div>
     </div>
+
+    <!-- Insufficient Credits Modal -->
+    <InsufficientCreditsModal
+      v-if="showInsufficientCreditsModal"
+      @close="showInsufficientCreditsModal = false"
+      @purchased="handleCreditsPurchased"
+    />
   </Sidebar>
 </template>
 
@@ -829,6 +836,7 @@ import Sidebar from '../components/Sidebar.vue'
 import PhoneInput from '../components/PhoneInput.vue'
 import DatePicker from '../components/DatePicker.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
+import InsufficientCreditsModal from '../components/InsufficientCreditsModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -838,6 +846,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const showCreateModal = ref(false)
 const showGuarantorFields = ref(false)
+const showInsufficientCreditsModal = ref(false)
 const references = ref<any[]>([])
 const loading = ref(true)
 const createLoading = ref(false)
@@ -1141,6 +1150,13 @@ const handleCreate = async () => {
     })
 
     if (!response.ok) {
+      // Check for insufficient credits (402 Payment Required)
+      if (response.status === 402) {
+        closeCreateModal()
+        showInsufficientCreditsModal.value = true
+        return
+      }
+
       const errorData = await response.json()
       throw new Error(errorData.error || 'Failed to create reference')
     }
@@ -1279,5 +1295,11 @@ const handlePropertyAddressSelected = (addressData: any) => {
   formData.value.property_address = addressData.addressLine1
   formData.value.property_city = addressData.city
   formData.value.property_postcode = addressData.postcode
+}
+
+const handleCreditsPurchased = () => {
+  showInsufficientCreditsModal.value = false
+  // Re-open the create modal so user can try again
+  showCreateModal.value = true
 }
 </script>

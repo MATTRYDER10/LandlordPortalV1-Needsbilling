@@ -69,6 +69,89 @@
       </div>
     </div>
 
+    <!-- Auto-Recharge Settings -->
+    <div class="subscription-card">
+      <h2>Auto-Recharge Settings</h2>
+      <p class="subtitle" style="margin-top: 0.5rem; color: #6b7280; font-size: 0.875rem;">Automatically purchase credits when your balance runs low</p>
+
+      <div class="auto-recharge-content" style="margin-top: 1.5rem;">
+        <div class="toggle-row" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f9fafb; border-radius: 8px;">
+          <div class="toggle-info">
+            <label for="auto-recharge-toggle" class="toggle-label" style="font-weight: 600; color: #111827; display: block; margin-bottom: 0.25rem;">
+              Enable Auto-Recharge
+            </label>
+            <p class="toggle-description" style="margin: 0; font-size: 0.875rem; color: #6b7280;">
+              Automatically purchase a credit pack when your balance falls below the threshold
+            </p>
+          </div>
+          <label class="toggle-switch" style="position: relative; display: inline-block; width: 60px; height: 34px; margin-left: 1rem;">
+            <input
+              id="auto-recharge-toggle"
+              type="checkbox"
+              v-model="autoRechargeEnabled"
+              @change="handleAutoRechargeToggle"
+              style="opacity: 0; width: 0; height: 0;"
+            />
+            <span class="toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px;"></span>
+          </label>
+        </div>
+
+        <div v-if="autoRechargeEnabled" class="auto-recharge-settings" style="margin-top: 1.5rem; padding: 1.5rem; background: #f9fafb; border-radius: 8px;">
+          <div class="setting-row" style="margin-bottom: 1.5rem;">
+            <label for="threshold" class="setting-label" style="display: block; font-weight: 600; color: #111827; margin-bottom: 0.5rem;">
+              Threshold (credits)
+              <span class="setting-help" style="display: block; font-size: 0.875rem; font-weight: 400; color: #6b7280; margin-top: 0.25rem;">Purchase credits when balance reaches this number</span>
+            </label>
+            <input
+              id="threshold"
+              type="number"
+              v-model.number="autoRechargeThreshold"
+              min="1"
+              max="50"
+              class="setting-input"
+              style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem;"
+            />
+          </div>
+
+          <div class="setting-row" style="margin-bottom: 1.5rem;">
+            <label for="pack-size" class="setting-label" style="display: block; font-weight: 600; color: #111827; margin-bottom: 0.5rem;">
+              Pack Size (credits)
+              <span class="setting-help" style="display: block; font-size: 0.875rem; font-weight: 400; color: #6b7280; margin-top: 0.25rem;">Number of credits to purchase each time</span>
+            </label>
+            <select
+              id="pack-size"
+              v-model.number="autoRechargePackSize"
+              class="setting-select"
+              style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; background: white;"
+            >
+              <option :value="10">10 credits (£210)</option>
+              <option :value="25">25 credits (£525)</option>
+              <option :value="50">50 credits (£1,050)</option>
+              <option :value="100">100 credits (£2,100)</option>
+            </select>
+          </div>
+
+          <div class="setting-actions">
+            <button
+              @click="saveAutoRechargeSettings"
+              :disabled="savingAutoRecharge"
+              class="btn-primary"
+              style="padding: 0.75rem 1.5rem; background: #f97316; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;"
+            >
+              {{ savingAutoRecharge ? 'Saving...' : 'Save Settings' }}
+            </button>
+          </div>
+
+          <div v-if="autoRechargeSaved" class="success-message" style="margin-top: 1rem; padding: 0.75rem; background: #dcfce7; color: #166534; border-radius: 6px; font-size: 0.875rem;">
+            ✓ Auto-recharge settings saved successfully
+          </div>
+          <div v-if="autoRechargeError" class="error-message" style="margin-top: 1rem; padding: 0.75rem; background: #fee2e2; color: #991b1b; border-radius: 6px; font-size: 0.875rem;">
+            {{ autoRechargeError }}
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Transaction History -->
     <div class="transactions-card">
       <h2>Transaction History</h2>
@@ -134,9 +217,24 @@ const billingStore = useBillingStore()
 const showPurchaseModal = ref(false)
 const showSubscriptionModal = ref(false)
 
+// Auto-recharge state
+const autoRechargeEnabled = ref(false)
+const autoRechargeThreshold = ref(5)
+const autoRechargePackSize = ref(25)
+const savingAutoRecharge = ref(false)
+const autoRechargeSaved = ref(false)
+const autoRechargeError = ref('')
+
 onMounted(async () => {
   await billingStore.initialize()
   await billingStore.fetchTransactions()
+
+  // Load auto-recharge settings from credit balance
+  if (billingStore.creditBalance) {
+    autoRechargeEnabled.value = billingStore.creditBalance.auto_recharge_enabled ?? false
+    autoRechargeThreshold.value = billingStore.creditBalance.auto_recharge_threshold ?? 5
+    autoRechargePackSize.value = billingStore.creditBalance.auto_recharge_pack_size ?? 25
+  }
 })
 
 function formatTierName(tier: string): string {
@@ -190,6 +288,41 @@ async function handleSubscribed() {
   await billingStore.fetchActiveSubscription()
   await billingStore.fetchCreditBalance()
   await billingStore.fetchTransactions()
+}
+
+async function handleAutoRechargeToggle() {
+  // If disabling, save immediately
+  if (!autoRechargeEnabled.value) {
+    await saveAutoRechargeSettings()
+  }
+}
+
+async function saveAutoRechargeSettings() {
+  try {
+    savingAutoRecharge.value = true
+    autoRechargeError.value = ''
+    autoRechargeSaved.value = false
+
+    await billingStore.updateAutoRecharge({
+      enabled: autoRechargeEnabled.value,
+      threshold: autoRechargeThreshold.value,
+      pack_size: autoRechargePackSize.value
+    })
+
+    // Refresh credit balance to get updated settings
+    await billingStore.fetchCreditBalance()
+
+    autoRechargeSaved.value = true
+
+    // Hide success message after 3 seconds
+    setTimeout(() => {
+      autoRechargeSaved.value = false
+    }, 3000)
+  } catch (err: any) {
+    autoRechargeError.value = err.response?.data?.error || 'Failed to save auto-recharge settings'
+  } finally {
+    savingAutoRecharge.value = false
+  }
 }
 </script>
 
@@ -407,5 +540,26 @@ async function handleSubscribed() {
 .cancel-notice {
   color: #6b7280;
   font-style: italic;
+}
+
+/* Toggle Switch */
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #f97316;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(26px);
 }
 </style>

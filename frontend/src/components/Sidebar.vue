@@ -72,6 +72,9 @@
           </router-link>
         </nav>
 
+        <!-- Credits Display -->
+        <CreditsDisplay />
+
         <!-- User Menu -->
         <div class="border-t border-gray-200">
           <div class="px-4 py-4">
@@ -112,6 +115,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import CreditsDisplay from './CreditsDisplay.vue'
 
 const route = useRoute()
 const router = useRouter()

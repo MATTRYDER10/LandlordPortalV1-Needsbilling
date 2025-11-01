@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import { useAuthStore } from './auth'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -8,6 +9,9 @@ export interface CreditBalance {
   company_id: string
   credits: number
   can_create_reference: boolean
+  auto_recharge_enabled?: boolean
+  auto_recharge_threshold?: number
+  auto_recharge_pack_size?: number
 }
 
 export interface SubscriptionTier {
@@ -70,6 +74,12 @@ export const useBillingStore = defineStore('billing', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  // Helper to get auth token
+  const getAuthToken = () => {
+    const authStore = useAuthStore()
+    return authStore.session?.access_token
+  }
+
   // Computed
   const hasCredits = computed(() => creditBalance.value?.credits ?? 0 > 0)
   const creditsCount = computed(() => creditBalance.value?.credits ?? 0)
@@ -85,7 +95,7 @@ export const useBillingStore = defineStore('billing', () => {
       error.value = null
       const response = await axios.get(`${API_URL}/api/billing/credits`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${getAuthToken()}`
         }
       })
       creditBalance.value = response.data
@@ -103,7 +113,7 @@ export const useBillingStore = defineStore('billing', () => {
     try {
       const response = await axios.get(`${API_URL}/api/billing/pricing/subscriptions`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${getAuthToken()}`
         }
       })
       subscriptionTiers.value = response.data
@@ -119,7 +129,7 @@ export const useBillingStore = defineStore('billing', () => {
     try {
       const response = await axios.get(`${API_URL}/api/billing/pricing/packs`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${getAuthToken()}`
         }
       })
       creditPacks.value = response.data
@@ -135,17 +145,23 @@ export const useBillingStore = defineStore('billing', () => {
     try {
       const response = await axios.get(`${API_URL}/api/billing/subscriptions/active`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${getAuthToken()}`
+        },
+        validateStatus: (status) => {
+          // Treat 404 as success since it's expected when no subscription exists
+          return (status >= 200 && status < 300) || status === 404
         }
       })
-      activeSubscription.value = response.data
-      return response.data
-    } catch (err: any) {
-      // 404 is expected if no active subscription
-      if (err.response?.status === 404) {
+
+      // If 404, no active subscription exists
+      if (response.status === 404) {
         activeSubscription.value = null
         return null
       }
+
+      activeSubscription.value = response.data
+      return response.data
+    } catch (err: any) {
       error.value = err.response?.data?.error || 'Failed to fetch subscription'
       console.error('Error fetching subscription:', err)
       throw err
@@ -157,7 +173,7 @@ export const useBillingStore = defineStore('billing', () => {
       const response = await axios.get(`${API_URL}/api/billing/transactions`, {
         params: { limit, offset },
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${getAuthToken()}`
         }
       })
       transactions.value = response.data.transactions
@@ -178,7 +194,7 @@ export const useBillingStore = defineStore('billing', () => {
         { pack_product_key: packProductKey },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            Authorization: `Bearer ${getAuthToken()}`
           }
         }
       )
@@ -201,7 +217,7 @@ export const useBillingStore = defineStore('billing', () => {
         { tier_product_key: tierProductKey },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            Authorization: `Bearer ${getAuthToken()}`
           }
         }
       )
@@ -222,7 +238,7 @@ export const useBillingStore = defineStore('billing', () => {
       const response = await axios.delete(`${API_URL}/api/billing/subscriptions`, {
         data: { cancel_at_period_end: cancelAtPeriodEnd },
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${getAuthToken()}`
         }
       })
       await fetchActiveSubscription()
@@ -245,7 +261,7 @@ export const useBillingStore = defineStore('billing', () => {
         { payment_method_id: paymentMethodId },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            Authorization: `Bearer ${getAuthToken()}`
           }
         }
       )
@@ -272,7 +288,7 @@ export const useBillingStore = defineStore('billing', () => {
         settings,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            Authorization: `Bearer ${getAuthToken()}`
           }
         }
       )

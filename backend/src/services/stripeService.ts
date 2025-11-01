@@ -47,7 +47,7 @@ export async function createCustomer(
  * Retrieve a Stripe customer by ID
  */
 export async function getCustomer(customerId: string): Promise<Stripe.Customer> {
-  return await stripe.customers.retrieve(customerId) as Stripe.Customer;
+  return await getStripe().customers.retrieve(customerId) as Stripe.Customer;
 }
 
 /**
@@ -57,14 +57,14 @@ export async function updateCustomer(
   customerId: string,
   data: Stripe.CustomerUpdateParams
 ): Promise<Stripe.Customer> {
-  return await stripe.customers.update(customerId, data);
+  return await getStripe().customers.update(customerId, data);
 }
 
 /**
  * Delete a Stripe customer
  */
 export async function deleteCustomer(customerId: string): Promise<Stripe.DeletedCustomer> {
-  return await stripe.customers.del(customerId);
+  return await getStripe().customers.del(customerId);
 }
 
 // ============================================================================
@@ -78,7 +78,7 @@ export async function attachPaymentMethod(
   paymentMethodId: string,
   customerId: string
 ): Promise<Stripe.PaymentMethod> {
-  return await stripe.paymentMethods.attach(paymentMethodId, {
+  return await getStripe().paymentMethods.attach(paymentMethodId, {
     customer: customerId,
   });
 }
@@ -90,7 +90,7 @@ export async function setDefaultPaymentMethod(
   customerId: string,
   paymentMethodId: string
 ): Promise<Stripe.Customer> {
-  return await stripe.customers.update(customerId, {
+  return await getStripe().customers.update(customerId, {
     invoice_settings: {
       default_payment_method: paymentMethodId,
     },
@@ -104,7 +104,7 @@ export async function listPaymentMethods(
   customerId: string,
   type: 'card' = 'card'
 ): Promise<Stripe.PaymentMethod[]> {
-  const paymentMethods = await stripe.paymentMethods.list({
+  const paymentMethods = await getStripe().paymentMethods.list({
     customer: customerId,
     type,
   });
@@ -115,7 +115,7 @@ export async function listPaymentMethods(
  * Detach a payment method from a customer
  */
 export async function detachPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
-  return await stripe.paymentMethods.detach(paymentMethodId);
+  return await getStripe().paymentMethods.detach(paymentMethodId);
 }
 
 // ============================================================================
@@ -130,7 +130,7 @@ export async function createSubscription(
   priceId: string,
   metadata?: Record<string, string>
 ): Promise<Stripe.Subscription> {
-  return await stripe.subscriptions.create({
+  return await getStripe().subscriptions.create({
     customer: customerId,
     items: [{ price: priceId }],
     payment_behavior: 'default_incomplete',
@@ -150,7 +150,7 @@ export async function createSubscription(
  * Retrieve a subscription by ID
  */
 export async function getSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
-  return await stripe.subscriptions.retrieve(subscriptionId);
+  return await getStripe().subscriptions.retrieve(subscriptionId);
 }
 
 /**
@@ -160,7 +160,7 @@ export async function updateSubscription(
   subscriptionId: string,
   data: Stripe.SubscriptionUpdateParams
 ): Promise<Stripe.Subscription> {
-  return await stripe.subscriptions.update(subscriptionId, data);
+  return await getStripe().subscriptions.update(subscriptionId, data);
 }
 
 /**
@@ -171,11 +171,11 @@ export async function cancelSubscription(
   cancelAtPeriodEnd: boolean = true
 ): Promise<Stripe.Subscription> {
   if (cancelAtPeriodEnd) {
-    return await stripe.subscriptions.update(subscriptionId, {
+    return await getStripe().subscriptions.update(subscriptionId, {
       cancel_at_period_end: true,
     });
   } else {
-    return await stripe.subscriptions.cancel(subscriptionId);
+    return await getStripe().subscriptions.cancel(subscriptionId);
   }
 }
 
@@ -185,7 +185,7 @@ export async function cancelSubscription(
 export async function reactivateSubscription(
   subscriptionId: string
 ): Promise<Stripe.Subscription> {
-  return await stripe.subscriptions.update(subscriptionId, {
+  return await getStripe().subscriptions.update(subscriptionId, {
     cancel_at_period_end: false,
   });
 }
@@ -204,7 +204,7 @@ export async function createPaymentIntent(
   description: string,
   metadata?: Record<string, string>
 ): Promise<Stripe.PaymentIntent> {
-  return await stripe.paymentIntents.create({
+  return await getStripe().paymentIntents.create({
     amount,
     currency: 'gbp',
     customer: customerId,
@@ -227,7 +227,7 @@ export async function confirmPaymentIntent(
   paymentIntentId: string,
   paymentMethodId: string
 ): Promise<Stripe.PaymentIntent> {
-  return await stripe.paymentIntents.confirm(paymentIntentId, {
+  return await getStripe().paymentIntents.confirm(paymentIntentId, {
     payment_method: paymentMethodId,
   });
 }
@@ -262,14 +262,14 @@ export async function chargeCustomer(
  * Retrieve a payment intent by ID
  */
 export async function getPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
-  return await stripe.paymentIntents.retrieve(paymentIntentId);
+  return await getStripe().paymentIntents.retrieve(paymentIntentId);
 }
 
 /**
  * Cancel a payment intent
  */
 export async function cancelPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
-  return await stripe.paymentIntents.cancel(paymentIntentId);
+  return await getStripe().paymentIntents.cancel(paymentIntentId);
 }
 
 // ============================================================================
@@ -286,7 +286,7 @@ export async function createCheckoutSession(
   cancelUrl: string,
   metadata?: Record<string, string>
 ): Promise<Stripe.Checkout.Session> {
-  return await stripe.checkout.sessions.create({
+  return await getStripe().checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
     line_items: [
@@ -315,7 +315,7 @@ export async function createCreditPackCheckoutSession(
   cancelUrl: string,
   metadata?: Record<string, string>
 ): Promise<Stripe.Checkout.Session> {
-  return await stripe.checkout.sessions.create({
+  return await getStripe().checkout.sessions.create({
     customer: customerId,
     mode: 'payment',
     line_items: [
@@ -405,7 +405,7 @@ export async function createSubscriptionPrice(
   metadata?: Record<string, string>
 ): Promise<Stripe.Price> {
   // First create the product
-  const product = await stripe.products.create({
+  const product = await getStripe().products.create({
     name: productName,
     description: `PropertyGoose ${productName} subscription`,
     metadata: {
@@ -415,7 +415,7 @@ export async function createSubscriptionPrice(
   });
 
   // Then create the recurring price
-  return await stripe.prices.create({
+  return await getStripe().prices.create({
     product: product.id,
     currency: 'gbp',
     unit_amount: amount,
@@ -430,7 +430,7 @@ export async function createSubscriptionPrice(
  * List all prices
  */
 export async function listPrices(active: boolean = true): Promise<Stripe.Price[]> {
-  const prices = await stripe.prices.list({
+  const prices = await getStripe().prices.list({
     active,
     expand: ['data.product'],
   });
