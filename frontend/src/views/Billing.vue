@@ -69,6 +69,72 @@
       </div>
     </div>
 
+    <!-- Payment Methods -->
+    <div class="subscription-card">
+      <h2>Payment Methods</h2>
+      <p class="subtitle" style="margin-top: 0.5rem; color: #6b7280; font-size: 0.875rem;">
+        Manage your saved payment methods for subscriptions and auto-recharge
+      </p>
+
+      <div v-if="loadingPaymentMethods" class="loading-state" style="padding: 2rem; text-align: center;">
+        <div class="spinner" style="border: 3px solid #f3f4f6; border-top: 3px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+      </div>
+
+      <div v-else-if="paymentMethods.length === 0" class="no-payment-methods" style="margin-top: 1.5rem; padding: 2rem; background: #f9fafb; border: 2px dashed #e5e7eb; border-radius: 8px; text-align: center;">
+        <svg style="width: 48px; height: 48px; margin: 0 auto 1rem; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+        </svg>
+        <p style="color: #6b7280; margin-bottom: 1rem;">No payment methods saved</p>
+        <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">Add a payment method to enable auto-recharge</p>
+        <button @click="showAddPaymentMethod = true" class="btn-primary">
+          Add Payment Method
+        </button>
+      </div>
+
+      <div v-else class="payment-methods-list" style="margin-top: 1.5rem;">
+        <div
+          v-for="method in paymentMethods"
+          :key="method.id"
+          class="payment-method-item"
+          style="padding: 1rem 1.25rem; background: white; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;"
+          :style="method.id === defaultPaymentMethodId ? 'border-color: #667eea; background: #f5f7ff;' : ''"
+        >
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+              <svg style="width: 24px; height: 24px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+              </svg>
+            </div>
+            <div>
+              <div style="font-weight: 600; color: #111827;">
+                {{ method.card.brand.toUpperCase() }} •••• {{ method.card.last4 }}
+              </div>
+              <div style="font-size: 0.875rem; color: #6b7280;">
+                Expires {{ method.card.exp_month }}/{{ method.card.exp_year }}
+              </div>
+            </div>
+            <div v-if="method.id === defaultPaymentMethodId" style="margin-left: 1rem;">
+              <span style="padding: 0.25rem 0.75rem; background: #667eea; color: white; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">DEFAULT</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button
+              v-if="method.id !== defaultPaymentMethodId"
+              @click="setDefaultPaymentMethod(method.id)"
+              class="btn-secondary"
+              style="padding: 0.5rem 1rem; font-size: 0.875rem;"
+            >
+              Set as Default
+            </button>
+          </div>
+        </div>
+
+        <button @click="showAddPaymentMethod = true" class="btn-secondary" style="margin-top: 1rem;">
+          + Add New Payment Method
+        </button>
+      </div>
+    </div>
+
     <!-- Auto-Recharge Settings -->
     <div class="subscription-card">
       <h2>Auto-Recharge Settings</h2>
@@ -212,6 +278,13 @@
       @close="showCancelModal = false"
       @confirm="confirmCancelSubscription"
     />
+
+    <!-- Add Payment Method Modal -->
+    <AddPaymentMethodModal
+      v-if="showAddPaymentMethod"
+      @close="showAddPaymentMethod = false"
+      @added="handlePaymentMethodAdded"
+    />
   </div>
 </template>
 
@@ -222,13 +295,22 @@ import { useBillingStore } from '../stores/billing'
 import CreditPacksModal from '../components/CreditPacksModal.vue'
 import SubscriptionModal from '../components/SubscriptionModal.vue'
 import CancelSubscriptionModal from '../components/CancelSubscriptionModal.vue'
+import AddPaymentMethodModal from '../components/AddPaymentMethodModal.vue'
+import axios from 'axios'
 
 const toast = useToast()
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const billingStore = useBillingStore()
 const showPurchaseModal = ref(false)
 const showSubscriptionModal = ref(false)
 const showCancelModal = ref(false)
+const showAddPaymentMethod = ref(false)
+
+// Payment methods state
+const paymentMethods = ref<any[]>([])
+const defaultPaymentMethodId = ref<string | null>(null)
+const loadingPaymentMethods = ref(false)
 
 // Auto-recharge state
 const autoRechargeEnabled = ref(false)
@@ -241,6 +323,7 @@ const autoRechargeError = ref('')
 onMounted(async () => {
   await billingStore.initialize()
   await billingStore.fetchTransactions()
+  await loadPaymentMethods()
 
   // Load auto-recharge settings from credit balance
   if (billingStore.creditBalance) {
@@ -394,6 +477,57 @@ async function saveAutoRechargeSettings() {
     autoRechargeError.value = err.response?.data?.error || 'Failed to save auto-recharge settings'
   } finally {
     savingAutoRecharge.value = false
+  }
+}
+
+async function loadPaymentMethods() {
+  try {
+    loadingPaymentMethods.value = true
+    const token = localStorage.getItem('token')
+    const response = await axios.get(`${API_URL}/api/billing/payment-methods`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    paymentMethods.value = response.data.payment_methods || []
+    defaultPaymentMethodId.value = response.data.default_payment_method || null
+  } catch (err) {
+    console.error('Failed to load payment methods:', err)
+  } finally {
+    loadingPaymentMethods.value = false
+  }
+}
+
+async function handlePaymentMethodAdded(paymentMethodId: string) {
+  showAddPaymentMethod.value = false
+
+  try {
+    const token = localStorage.getItem('token')
+    await axios.post(
+      `${API_URL}/api/billing/payment-methods`,
+      { payment_method_id: paymentMethodId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+
+    toast.success('Payment method added successfully')
+    await loadPaymentMethods()
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || 'Failed to save payment method')
+  }
+}
+
+async function setDefaultPaymentMethod(paymentMethodId: string) {
+  try {
+    const token = localStorage.getItem('token')
+    await axios.put(
+      `${API_URL}/api/billing/payment-methods/default`,
+      { payment_method_id: paymentMethodId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+
+    toast.success('Default payment method updated')
+    await loadPaymentMethods()
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || 'Failed to update default payment method')
   }
 }
 </script>

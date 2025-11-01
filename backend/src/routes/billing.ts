@@ -455,6 +455,43 @@ router.post('/payment-methods', authenticateToken, async (req: AuthRequest, res)
   }
 });
 
+/**
+ * Set default payment method
+ * PUT /api/billing/payment-methods/default
+ */
+router.put('/payment-methods/default', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { payment_method_id } = req.body;
+
+    if (!payment_method_id) {
+      return res.status(400).json({ error: 'payment_method_id is required' });
+    }
+
+    // Get user's company
+    const { data: companyUser, error: companyError } = await (await import('../config/supabase')).supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+      .single();
+
+    if (companyError || !companyUser) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    await billingService.savePaymentMethod(companyUser.company_id, payment_method_id);
+
+    res.json({ message: 'Default payment method updated successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================================================
 // AUTO-RECHARGE SETTINGS
 // ============================================================================
