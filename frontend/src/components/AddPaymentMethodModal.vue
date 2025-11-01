@@ -43,10 +43,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { loadStripe } from '@stripe/stripe-js'
+import axios from 'axios'
 
 const emit = defineEmits(['close', 'added'])
 const processing = ref(false)
 const error = ref<string | null>(null)
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 let stripe: any = null
 let elements: any = null
@@ -57,19 +60,13 @@ onMounted(async () => {
   try {
     // First, get the SetupIntent client secret from backend
     const token = localStorage.getItem('token')
-    const setupIntentResponse = await fetch('/api/billing/setup-intent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    })
+    const setupIntentResponse = await axios.post(
+      `${API_URL}/api/billing/setup-intent`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
 
-    if (!setupIntentResponse.ok) {
-      throw new Error('Failed to create setup intent')
-    }
-
-    const { client_secret } = await setupIntentResponse.json()
+    const { client_secret } = setupIntentResponse.data
     clientSecret = client_secret
 
     // Now initialize Stripe Elements with the client secret
