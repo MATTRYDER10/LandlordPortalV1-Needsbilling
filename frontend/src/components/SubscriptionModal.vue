@@ -79,7 +79,7 @@
         </div>
 
         <!-- Stripe Payment Form -->
-        <div v-if="showPaymentForm" class="payment-section">
+        <div v-if="showPaymentForm && selectedTier" class="payment-section">
           <h3>Complete Your Subscription</h3>
           <div class="subscription-summary">
             <h4>{{ selectedTier.product_name }}</h4>

@@ -63,7 +63,7 @@
         </div>
 
         <!-- Stripe Payment Form -->
-        <div v-if="showPaymentForm" class="payment-section">
+        <div v-if="showPaymentForm && selectedPack" class="payment-section">
           <h3>Payment Details</h3>
           <p class="payment-info">
             You're purchasing <strong>{{ selectedPack.credits_quantity }} credits</strong> for
