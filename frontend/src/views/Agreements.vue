@@ -207,11 +207,11 @@
               </select>
             </div>
 
-            <div>
+            <div v-if="formData.templateType !== 'no_deposit' && formData.templateType !== 'reposit'">
               <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Scheme Type *</label>
               <select
                 v-model="formData.depositSchemeType"
-                required
+                :required="formData.templateType !== 'no_deposit' && formData.templateType !== 'reposit'"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               >
                 <option value="Custodial">Custodial Scheme</option>
