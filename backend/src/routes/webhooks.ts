@@ -152,29 +152,8 @@ async function handleSubscriptionUpdate(subscription: any) {
     .update(updateData)
     .eq('stripe_subscription_id', id);
 
-  // If subscription just became active or is renewing, deliver credits
-  if (status === 'active') {
-    const companyId = metadata.company_id || dbSubscription.company_id;
-    const creditsPerMonth = dbSubscription.credits_per_month;
-    const monthlyTotal = dbSubscription.monthly_total;
-
-    // Add credits to company balance
-    await creditService.addCredits(
-      companyId,
-      creditsPerMonth,
-      'subscription_credit',
-      `Monthly subscription: ${creditsPerMonth} credits`,
-      undefined,
-      {
-        amount_gbp: monthlyTotal,
-        stripe_payment_intent_id: subscription.latest_invoice,
-      }
-    );
-
-    console.log(`Delivered ${creditsPerMonth} credits to company ${companyId}`);
-
-    // TODO: Send email notification
-  }
+  // Note: Credits are delivered in payment_intent.succeeded (first payment)
+  // and invoice.paid (renewals), not here, to avoid duplicates
 }
 
 /**
@@ -226,22 +205,37 @@ async function handlePaymentSucceeded(paymentIntent: any) {
         const creditsPerMonth = dbSubscription.credits_per_month;
         const monthlyTotal = dbSubscription.monthly_total;
 
-        console.log(`Delivering ${creditsPerMonth} credits to company ${companyId}`);
+        // Check if we already delivered credits for this invoice (prevents duplicates)
+        const invoiceId = metadata.invoice_id;
+        const { data: existingTransaction } = await supabase
+          .from('credit_transactions')
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('metadata->>stripe_invoice_id', invoiceId)
+          .single();
 
-        // Deliver credits immediately when payment succeeds
-        await creditService.addCredits(
-          companyId,
-          creditsPerMonth,
-          'subscription_credit',
-          `Monthly subscription: ${creditsPerMonth} credits`,
-          undefined,
-          {
-            amount_gbp: monthlyTotal,
-            stripe_payment_intent_id: id,
-          }
-        );
+        if (existingTransaction) {
+          console.log(`Credits already delivered for invoice ${invoiceId}, skipping`);
+        } else {
+          console.log(`Delivering ${creditsPerMonth} credits to company ${companyId} (first payment)`);
 
-        console.log(`Successfully delivered ${creditsPerMonth} credits to company ${companyId} for subscription ${metadata.subscription_id}`);
+          // Deliver credits immediately when payment succeeds
+          await creditService.addCredits(
+            companyId,
+            creditsPerMonth,
+            'subscription_credit',
+            `Monthly subscription: ${creditsPerMonth} credits`,
+            undefined,
+            {
+              amount_gbp: monthlyTotal,
+              stripe_payment_intent_id: id,
+              stripe_invoice_id: invoiceId,
+              stripe_subscription_id: metadata.subscription_id,
+            } as any
+          );
+
+          console.log(`Successfully delivered ${creditsPerMonth} credits to company ${companyId} for subscription ${metadata.subscription_id}`);
+        }
 
         // Update subscription status in database (will be updated again by subscription.updated webhook)
         await supabase
@@ -345,15 +339,70 @@ async function handlePaymentFailed(paymentIntent: any) {
 
 /**
  * Handle successful invoice payment (subscription)
+ * This handles monthly renewals
  */
 async function handleInvoicePaid(invoice: any) {
-  const { id, subscription, customer } = invoice;
+  const { id, subscription: subscriptionId, customer, amount_paid, billing_reason } = invoice;
 
-  console.log(`Invoice paid: ${id} for subscription ${subscription}`);
+  console.log(`Invoice paid: ${id} for subscription ${subscriptionId}, billing_reason: ${billing_reason}`);
 
-  // Credits are delivered in handleSubscriptionUpdate
-  // This is mainly for logging and email notifications
-  // TODO: Send invoice receipt email
+  // Only deliver credits for subscription cycle invoices, not for other billing reasons
+  if (!subscriptionId || billing_reason === 'manual') {
+    console.log('Skipping credit delivery - not a subscription cycle invoice');
+    return;
+  }
+
+  try {
+    // Get subscription details from database
+    const { data: dbSubscription, error: dbError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('stripe_subscription_id', subscriptionId)
+      .single();
+
+    if (dbError || !dbSubscription) {
+      console.error(`No database subscription found for ${subscriptionId}:`, dbError);
+      return;
+    }
+
+    const companyId = dbSubscription.company_id;
+    const creditsPerMonth = dbSubscription.credits_per_month;
+    const monthlyTotal = dbSubscription.monthly_total;
+
+    // Check if we already delivered credits for this invoice
+    const { data: existingTransaction } = await supabase
+      .from('credit_transactions')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('metadata->>stripe_invoice_id', id)
+      .single();
+
+    if (existingTransaction) {
+      console.log(`Credits already delivered for invoice ${id}, skipping`);
+      return;
+    }
+
+    console.log(`Delivering ${creditsPerMonth} credits for subscription renewal (invoice: ${id})`);
+
+    // Deliver credits for this billing period
+    await creditService.addCredits(
+      companyId,
+      creditsPerMonth,
+      'subscription_credit',
+      `Monthly subscription renewal: ${creditsPerMonth} credits`,
+      undefined,
+      {
+        amount_gbp: monthlyTotal,
+        stripe_invoice_id: id,
+        stripe_subscription_id: subscriptionId,
+      } as any
+    );
+
+    console.log(`Successfully delivered ${creditsPerMonth} credits to company ${companyId} for invoice ${id}`);
+    // TODO: Send invoice receipt email
+  } catch (error) {
+    console.error('Error handling invoice payment:', error);
+  }
 }
 
 /**
