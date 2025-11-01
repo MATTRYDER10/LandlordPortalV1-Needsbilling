@@ -212,42 +212,23 @@ async function handlePaymentSucceeded(paymentIntent: any) {
     console.log(`Subscription payment succeeded for: ${metadata.subscription_id}`);
 
     try {
-      // Fetch the subscription to check if it's now active
-      const subscription: any = await stripeService.getSubscription(metadata.subscription_id);
-
-    if (subscription.status === 'active') {
-      console.log(`Subscription ${subscription.id} is now active, delivering credits`);
-
       // Get subscription details from database
-      const { data: dbSubscription } = await supabase
+      const { data: dbSubscription, error: dbError } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('stripe_subscription_id', subscription.id)
+        .eq('stripe_subscription_id', metadata.subscription_id)
         .single();
+
+      console.log(`Database subscription found: ${!!dbSubscription}, error: ${dbError?.message || 'none'}`);
 
       if (dbSubscription) {
         const companyId = metadata.company_id || dbSubscription.company_id;
         const creditsPerMonth = dbSubscription.credits_per_month;
         const monthlyTotal = dbSubscription.monthly_total;
 
-        // Update subscription status in database
-        const updateData: any = {
-          status: 'active',
-        };
+        console.log(`Delivering ${creditsPerMonth} credits to company ${companyId}`);
 
-        if (subscription.current_period_start) {
-          updateData.current_period_start = new Date(subscription.current_period_start * 1000).toISOString();
-        }
-        if (subscription.current_period_end) {
-          updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
-        }
-
-        await supabase
-          .from('subscriptions')
-          .update(updateData)
-          .eq('stripe_subscription_id', subscription.id);
-
-        // Deliver credits
+        // Deliver credits immediately when payment succeeds
         await creditService.addCredits(
           companyId,
           creditsPerMonth,
@@ -260,9 +241,16 @@ async function handlePaymentSucceeded(paymentIntent: any) {
           }
         );
 
-        console.log(`Delivered ${creditsPerMonth} credits to company ${companyId} for subscription ${subscription.id}`);
+        console.log(`Successfully delivered ${creditsPerMonth} credits to company ${companyId} for subscription ${metadata.subscription_id}`);
+
+        // Update subscription status in database (will be updated again by subscription.updated webhook)
+        await supabase
+          .from('subscriptions')
+          .update({ status: 'active' })
+          .eq('stripe_subscription_id', metadata.subscription_id);
+      } else {
+        console.error(`No database subscription found for ${metadata.subscription_id}`);
       }
-    }
     } catch (error) {
       console.error('Error handling subscription payment:', error);
       // Don't throw - we don't want to fail the webhook
