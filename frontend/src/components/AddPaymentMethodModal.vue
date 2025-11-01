@@ -154,6 +154,9 @@ async function handleSubmit() {
   max-width: 600px;
   width: 100%;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
 
 .modal-header {
@@ -198,6 +201,8 @@ async function handleSubmit() {
 
 .modal-body {
   padding: 2.5rem;
+  overflow-y: auto;
+  flex: 1;
 }
 
 #payment-element {
@@ -241,7 +246,11 @@ async function handleSubmit() {
 .modal-actions {
   display: flex;
   gap: 0.75rem;
-  padding: 0 2.5rem 2.5rem;
+  padding: 1.5rem 2.5rem;
+  background: white;
+  border-top: 1px solid #f3f4f6;
+  border-radius: 0 0 16px 16px;
+  flex-shrink: 0;
 }
 
 .btn-primary,
