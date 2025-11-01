@@ -244,18 +244,44 @@ async function handlePaymentSucceeded(paymentIntent: any) {
     console.log(`Fulfilled credit pack purchase: ${credits} credits to company ${companyId}`);
     // TODO: Send receipt email
   } else if (metadata.agreement_id) {
-    // This is an agreement payment - update payment status
+    // This is an agreement payment - upsert payment record
     const agreementId = metadata.agreement_id;
+    const companyId = metadata.company_id;
+    const agreementType = metadata.agreement_type || 'standard';
     const amountGbp = amount / 100;
 
-    await supabase
+    // Try to update existing record, or insert if not exists
+    const { data: existingPayment } = await supabase
       .from('agreement_payments')
-      .update({
-        payment_status: 'succeeded',
-        stripe_charge_id: paymentIntent.latest_charge as string,
-        paid_at: new Date().toISOString(),
-      })
-      .eq('stripe_payment_intent_id', id);
+      .select('id')
+      .eq('stripe_payment_intent_id', id)
+      .single();
+
+    if (existingPayment) {
+      // Update existing record
+      await supabase
+        .from('agreement_payments')
+        .update({
+          payment_status: 'succeeded',
+          stripe_charge_id: paymentIntent.latest_charge as string,
+          paid_at: new Date().toISOString(),
+        })
+        .eq('stripe_payment_intent_id', id);
+    } else {
+      // Insert new record
+      await supabase
+        .from('agreement_payments')
+        .insert({
+          company_id: companyId,
+          agreement_id: agreementId,
+          amount_gbp: amountGbp,
+          agreement_type: agreementType,
+          stripe_payment_intent_id: id,
+          stripe_charge_id: paymentIntent.latest_charge as string,
+          payment_status: 'succeeded',
+          paid_at: new Date().toISOString(),
+        });
+    }
 
     console.log(`Agreement payment succeeded for agreement ${agreementId}`);
     // TODO: Send receipt email

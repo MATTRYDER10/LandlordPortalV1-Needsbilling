@@ -445,6 +445,22 @@ export async function chargeForAgreement(
   agreementType: string = 'standard',
   userId?: string
 ): Promise<{ success: boolean; payment_intent_id?: string; client_secret?: string; requires_payment_method?: boolean }> {
+  // Check if there's already a successful payment for this agreement
+  const { data: existingPayment } = await supabase
+    .from('agreement_payments')
+    .select('*')
+    .eq('agreement_id', agreementId)
+    .eq('payment_status', 'succeeded')
+    .single();
+
+  if (existingPayment) {
+    console.log(`Agreement ${agreementId} already has a successful payment: ${existingPayment.stripe_payment_intent_id}`);
+    return {
+      success: true,
+      payment_intent_id: existingPayment.stripe_payment_intent_id,
+    };
+  }
+
   // Get pricing
   const priceGbp = await getAgreementPricing(agreementType);
   const amount = stripeService.poundsToPence(priceGbp);
