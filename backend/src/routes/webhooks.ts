@@ -131,17 +131,25 @@ async function handleSubscriptionUpdate(subscription: any) {
   }
 
   // Update subscription status
+  const updateData: any = {
+    status,
+    cancel_at_period_end: subscription.cancel_at_period_end || false,
+    canceled_at: subscription.canceled_at
+      ? new Date(subscription.canceled_at * 1000).toISOString()
+      : null,
+  };
+
+  // Only add period dates if they exist (they won't exist for incomplete subscriptions)
+  if (subscription.current_period_start) {
+    updateData.current_period_start = new Date(subscription.current_period_start * 1000).toISOString();
+  }
+  if (subscription.current_period_end) {
+    updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+  }
+
   await supabase
     .from('subscriptions')
-    .update({
-      status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      cancel_at_period_end: subscription.cancel_at_period_end || false,
-      canceled_at: subscription.canceled_at
-        ? new Date(subscription.canceled_at * 1000).toISOString()
-        : null,
-    })
+    .update(updateData)
     .eq('stripe_subscription_id', id);
 
   // If subscription just became active or is renewing, deliver credits
@@ -198,6 +206,60 @@ async function handlePaymentSucceeded(paymentIntent: any) {
   const { id, metadata, amount, customer, payment_method } = paymentIntent;
 
   console.log(`Payment succeeded: ${id}, amount: ${amount}, metadata:`, metadata);
+
+  // Check if this is a subscription payment
+  if (metadata.subscription_id) {
+    console.log(`Subscription payment succeeded for: ${metadata.subscription_id}`);
+
+    // Fetch the subscription to check if it's now active
+    const { stripe: getStripeInstance } = await import('../services/stripeService');
+    const stripeInstance = getStripeInstance();
+    const subscription = await stripeInstance.subscriptions.retrieve(metadata.subscription_id);
+
+    if (subscription.status === 'active') {
+      console.log(`Subscription ${subscription.id} is now active, delivering credits`);
+
+      // Get subscription details from database
+      const { data: dbSubscription } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('stripe_subscription_id', subscription.id)
+        .single();
+
+      if (dbSubscription) {
+        const companyId = metadata.company_id || dbSubscription.company_id;
+        const creditsPerMonth = dbSubscription.credits_per_month;
+        const monthlyTotal = dbSubscription.monthly_total;
+
+        // Update subscription status in database
+        await supabase
+          .from('subscriptions')
+          .update({
+            status: 'active',
+            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          })
+          .eq('stripe_subscription_id', subscription.id);
+
+        // Deliver credits
+        await creditService.addCredits(
+          companyId,
+          creditsPerMonth,
+          'subscription_credit',
+          `Monthly subscription: ${creditsPerMonth} credits`,
+          undefined,
+          {
+            amount_gbp: monthlyTotal,
+            stripe_payment_intent_id: id,
+          }
+        );
+
+        console.log(`Delivered ${creditsPerMonth} credits to company ${companyId} for subscription ${subscription.id}`);
+      }
+    }
+
+    return; // Exit early for subscription payments
+  }
 
   // Determine payment type from metadata
   if (metadata.credits) {
