@@ -1422,12 +1422,7 @@ async function handleAgreementPaid() {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
-    toast.info('Payment successful! Processing...')
-
-    // Wait a moment for the webhook to process and save the payment method
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
-    toast.info('Generating your agreement...')
+    toast.info('Payment successful! Generating your agreement...')
 
     // Retry generating the agreement after payment
     const generateResponse = await fetch(`${API_URL}/api/agreements/${pendingAgreementId.value}/generate`, {

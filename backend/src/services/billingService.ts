@@ -438,6 +438,8 @@ export async function purchaseCreditPackAutoRecharge(
 /**
  * Charge for agreement generation
  * Called when user generates an agreement PDF
+ *
+ * SIMPLIFIED: Always prompts for payment per agreement
  */
 export async function chargeForAgreement(
   companyId: string,
@@ -468,85 +470,24 @@ export async function chargeForAgreement(
   // Get Stripe customer
   const customerId = await getOrCreateStripeCustomer(companyId);
 
-  // Check if customer has a default payment method
-  const customer = await stripeService.getCustomer(customerId);
-  const hasPaymentMethod = !!customer.invoice_settings?.default_payment_method;
-
-  // If no payment method, create a PaymentIntent and return client_secret
-  if (!hasPaymentMethod) {
-    const paymentIntent = await stripeService.createPaymentIntent(
-      amount,
-      customerId,
-      `Agreement generation: ${agreementType}`,
-      {
-        company_id: companyId,
-        agreement_id: agreementId,
-        agreement_type: agreementType,
-        save_payment_method: 'true', // Flag to save this payment method
-      }
-    );
-
-    return {
-      success: false,
-      requires_payment_method: true,
-      client_secret: paymentIntent.client_secret || '',
-      payment_intent_id: paymentIntent.id,
-    };
-  }
-
-  // Has payment method - charge immediately
-  try {
-    const paymentIntent = await stripeService.chargeCustomer(
-      customerId,
-      amount,
-      `Agreement generation: ${agreementType}`,
-      {
-        company_id: companyId,
-        agreement_id: agreementId,
-        agreement_type: agreementType,
-      }
-    );
-
-    // Log payment
-    await supabase
-      .from('agreement_payments')
-      .insert({
-        company_id: companyId,
-        agreement_id: agreementId,
-        amount_gbp: priceGbp,
-        agreement_type: agreementType,
-        stripe_payment_intent_id: paymentIntent.id,
-        stripe_charge_id: paymentIntent.latest_charge as string,
-        payment_status: paymentIntent.status,
-        paid_at: paymentIntent.status === 'succeeded' ? new Date().toISOString() : null,
-        created_by: userId,
-      });
-
-    if (paymentIntent.status === 'succeeded') {
-      // TODO: Send receipt email
-      return {
-        success: true,
-        payment_intent_id: paymentIntent.id,
-      };
-    } else {
-      throw new Error(`Payment failed: ${paymentIntent.status}`);
+  // SIMPLIFIED: Always create a PaymentIntent for fresh payment each time
+  const paymentIntent = await stripeService.createPaymentIntent(
+    amount,
+    customerId,
+    `Agreement generation: ${agreementType}`,
+    {
+      company_id: companyId,
+      agreement_id: agreementId,
+      agreement_type: agreementType,
     }
-  } catch (error: any) {
-    // Log failed payment
-    await supabase
-      .from('agreement_payments')
-      .insert({
-        company_id: companyId,
-        agreement_id: agreementId,
-        amount_gbp: priceGbp,
-        agreement_type: agreementType,
-        payment_status: 'failed',
-        failure_message: error.message,
-        created_by: userId,
-      });
+  );
 
-    throw error;
-  }
+  return {
+    success: false,
+    requires_payment_method: true,
+    client_secret: paymentIntent.client_secret || '',
+    payment_intent_id: paymentIntent.id,
+  };
 }
 
 // ============================================================================

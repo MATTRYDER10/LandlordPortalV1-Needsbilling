@@ -199,34 +199,6 @@ async function handlePaymentSucceeded(paymentIntent: any) {
 
   console.log(`Payment succeeded: ${id}, amount: ${amount}, metadata:`, metadata);
 
-  // If save_payment_method flag is set, set this as the customer's default payment method
-  if (metadata.save_payment_method === 'true' && payment_method && customer) {
-    try {
-      console.log(`Setting payment method ${payment_method} as default for customer ${customer}`);
-
-      // The payment method is already attached by setup_future_usage
-      // We just need to set it as the default
-      const { stripe: getStripeInstance } = await import('../services/stripeService');
-      const stripeInstance = getStripeInstance();
-
-      await stripeInstance.customers.update(customer, {
-        invoice_settings: {
-          default_payment_method: payment_method,
-        },
-      });
-
-      // Also update in our database
-      await supabase
-        .from('companies')
-        .update({ stripe_payment_method_id: payment_method })
-        .eq('id', metadata.company_id);
-
-      console.log(`Payment method set as default successfully`);
-    } catch (error) {
-      console.error('Failed to set default payment method:', error);
-    }
-  }
-
   // Determine payment type from metadata
   if (metadata.credits) {
     // This is a credit pack purchase
