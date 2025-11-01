@@ -195,9 +195,20 @@ async function handleSubscriptionDeleted(subscription: any) {
  * Used for credit pack purchases and agreement payments
  */
 async function handlePaymentSucceeded(paymentIntent: any) {
-  const { id, metadata, amount, customer } = paymentIntent;
+  const { id, metadata, amount, customer, payment_method } = paymentIntent;
 
   console.log(`Payment succeeded: ${id}, amount: ${amount}, metadata:`, metadata);
+
+  // If save_payment_method flag is set, save this as the customer's default payment method
+  if (metadata.save_payment_method === 'true' && payment_method && customer) {
+    try {
+      console.log(`Saving payment method ${payment_method} as default for customer ${customer}`);
+      await billingService.savePaymentMethod(metadata.company_id, payment_method);
+      console.log(`Payment method saved successfully`);
+    } catch (error) {
+      console.error('Failed to save payment method:', error);
+    }
+  }
 
   // Determine payment type from metadata
   if (metadata.credits) {
@@ -216,8 +227,20 @@ async function handlePaymentSucceeded(paymentIntent: any) {
     console.log(`Fulfilled credit pack purchase: ${credits} credits to company ${companyId}`);
     // TODO: Send receipt email
   } else if (metadata.agreement_id) {
-    // This is an agreement payment - already logged by chargeForAgreement
-    console.log(`Agreement payment succeeded for agreement ${metadata.agreement_id}`);
+    // This is an agreement payment - update payment status
+    const agreementId = metadata.agreement_id;
+    const amountGbp = amount / 100;
+
+    await supabase
+      .from('agreement_payments')
+      .update({
+        payment_status: 'succeeded',
+        stripe_charge_id: paymentIntent.latest_charge as string,
+        paid_at: new Date().toISOString(),
+      })
+      .eq('stripe_payment_intent_id', id);
+
+    console.log(`Agreement payment succeeded for agreement ${agreementId}`);
     // TODO: Send receipt email
   }
 }

@@ -444,7 +444,7 @@ export async function chargeForAgreement(
   agreementId: string,
   agreementType: string = 'standard',
   userId?: string
-): Promise<{ success: boolean; payment_intent_id: string }> {
+): Promise<{ success: boolean; payment_intent_id?: string; client_secret?: string; requires_payment_method?: boolean }> {
   // Get pricing
   const priceGbp = await getAgreementPricing(agreementType);
   const amount = stripeService.poundsToPence(priceGbp);
@@ -452,8 +452,34 @@ export async function chargeForAgreement(
   // Get Stripe customer
   const customerId = await getOrCreateStripeCustomer(companyId);
 
+  // Check if customer has a default payment method
+  const customer = await stripeService.getCustomer(customerId);
+  const hasPaymentMethod = !!customer.invoice_settings?.default_payment_method;
+
+  // If no payment method, create a PaymentIntent and return client_secret
+  if (!hasPaymentMethod) {
+    const paymentIntent = await stripeService.createPaymentIntent(
+      amount,
+      customerId,
+      `Agreement generation: ${agreementType}`,
+      {
+        company_id: companyId,
+        agreement_id: agreementId,
+        agreement_type: agreementType,
+        save_payment_method: 'true', // Flag to save this payment method
+      }
+    );
+
+    return {
+      success: false,
+      requires_payment_method: true,
+      client_secret: paymentIntent.client_secret || '',
+      payment_intent_id: paymentIntent.id,
+    };
+  }
+
+  // Has payment method - charge immediately
   try {
-    // Charge customer immediately
     const paymentIntent = await stripeService.chargeCustomer(
       customerId,
       amount,
