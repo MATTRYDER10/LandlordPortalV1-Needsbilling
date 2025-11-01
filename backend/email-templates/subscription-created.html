@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Activated - PropertyGoose</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <div style="display: inline-block; text-align: center;">
+                                            <img src="https://frontend-production-bbe3.up.railway.app/PropertyGooseIcon.png" alt="PropertyGoose" style="width: 48px; height: 48px; vertical-align: middle; margin-right: 12px;">
+                                            <span style="font-size: 32px; font-weight: bold; vertical-align: middle;">
+                                                <span style="color: #111827;">Property</span><span style="color: #f97316;">Goose</span>
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: bold; color: #111827; text-align: center;">Subscription Activated!</h1>
+
+                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                Hi {{ CompanyName }},
+                            </p>
+
+                            <div style="margin: 0 0 24px; padding: 20px; background-color: #dcfce7; border-left: 4px solid #22c55e; border-radius: 4px;">
+                                <p style="margin: 0 0 12px; font-size: 16px; line-height: 24px; color: #166534;">
+                                    <strong>🎉 Welcome to {{ TierName }}!</strong>
+                                </p>
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #166534;">
+                                    Your subscription is now active and <strong>{{ CreditsPerMonth }} credits</strong> have been added to your account.
+                                </p>
+                            </div>
+
+                            <h2 style="margin: 24px 0 16px; font-size: 18px; font-weight: 600; color: #111827;">Subscription Details:</h2>
+
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 24px;">
+                                <tr>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Plan:</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        {{ TierName }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Credits Per Month:</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        {{ CreditsPerMonth }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Monthly Cost:</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        £{{ MonthlyTotal }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Price Per Credit:</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        £{{ PricePerCredit }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Billing Cycle:</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        Monthly
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Next Billing Date:</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        {{ NextBillingDate }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; background-color: #f9fafb;">
+                                        <strong style="color: #374151;">Current Balance:</strong>
+                                    </td>
+                                    <td style="padding: 12px; background-color: #f9fafb; color: #111827;">
+                                        <strong>{{ CurrentBalance }} credits</strong>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <div style="margin: 32px 0; text-align: center;">
+                                <a href="{{ DashboardLink }}" style="display: inline-block; padding: 14px 32px; background-color: #f97316; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">View Dashboard</a>
+                            </div>
+
+                            <div style="margin: 24px 0; padding: 16px; background-color: #f3f4f6; border-left: 4px solid #6b7280; border-radius: 4px;">
+                                <p style="margin: 0 0 8px; font-size: 14px; line-height: 20px; color: #374151;">
+                                    <strong>💡 What's Next:</strong>
+                                </p>
+                                <ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 20px; color: #374151;">
+                                    <li style="margin-bottom: 4px;">Your credits will automatically renew on {{ NextBillingDate }}</li>
+                                    <li style="margin-bottom: 4px;">Unused credits roll over and never expire</li>
+                                    <li>You can upgrade, downgrade, or cancel your subscription anytime</li>
+                                </ol>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px 40px; background-color: #f9fafb; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 8px; font-size: 14px; line-height: 20px; color: #6b7280; text-align: center;">
+                                This is an automated notification from PropertyGoose.
+                            </p>
+                            <p style="margin: 0; font-size: 12px; line-height: 16px; color: #9ca3af; text-align: center;">
+                                © 2025 PropertyGoose. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
