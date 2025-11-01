@@ -51,9 +51,28 @@ const error = ref<string | null>(null)
 let stripe: any = null
 let elements: any = null
 let paymentElement: any = null
+let clientSecret: string = ''
 
 onMounted(async () => {
   try {
+    // First, get the SetupIntent client secret from backend
+    const token = localStorage.getItem('token')
+    const setupIntentResponse = await fetch('/api/billing/setup-intent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!setupIntentResponse.ok) {
+      throw new Error('Failed to create setup intent')
+    }
+
+    const { client_secret } = await setupIntentResponse.json()
+    clientSecret = client_secret
+
+    // Now initialize Stripe Elements with the client secret
     const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51SOgxnLLQSrQhTAA1FbO3GHy58oEuSBY8UkpMZRqK0Yzk3F4y0CxuCyPnTWFgbEc34db2X2nIbQg7iMsvmFiy2KZ00AjdBk9nc'
     stripe = await loadStripe(stripeKey)
 
@@ -70,10 +89,8 @@ onMounted(async () => {
     }
 
     elements = stripe.elements({
-      mode: 'setup',
-      currency: 'gbp',
+      clientSecret: client_secret,
       appearance,
-      setupFutureUsage: 'off_session', // Allow charging later without customer being present
     })
 
     // Create and mount Payment Element
@@ -93,7 +110,7 @@ onMounted(async () => {
 })
 
 async function handleSubmit() {
-  if (!stripe || !elements) {
+  if (!stripe || !elements || !clientSecret) {
     error.value = 'Payment form not ready'
     return
   }
@@ -108,9 +125,10 @@ async function handleSubmit() {
       return
     }
 
-    // Confirm the setup
+    // Confirm the setup with client secret
     const { setupIntent, error: confirmError } = await stripe.confirmSetup({
       elements,
+      clientSecret,
       redirect: 'if_required',
       confirmParams: {
         return_url: `${window.location.origin}/billing`,

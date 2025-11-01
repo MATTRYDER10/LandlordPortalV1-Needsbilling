@@ -557,6 +557,22 @@ export async function consumeCreditForReference(
 // ============================================================================
 
 /**
+ * Create a SetupIntent for adding a payment method
+ */
+export async function createSetupIntent(companyId: string): Promise<{ client_secret: string }> {
+  const customerId = await getOrCreateStripeCustomer(companyId);
+
+  const stripeInstance = stripeService.stripe();
+  const setupIntent = await stripeInstance.setupIntents.create({
+    customer: customerId,
+    payment_method_types: ['card'],
+    usage: 'off_session',
+  });
+
+  return { client_secret: setupIntent.client_secret! };
+}
+
+/**
  * Save a payment method for a company
  */
 export async function savePaymentMethod(
