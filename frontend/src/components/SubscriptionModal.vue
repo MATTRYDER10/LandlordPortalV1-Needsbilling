@@ -281,7 +281,7 @@ async function handleSubscribe() {
 .modal-content {
   background: white;
   border-radius: 16px;
-  max-width: 1200px;
+  max-width: 1400px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -354,7 +354,7 @@ async function handleSubscribe() {
 
 .subscription-tiers-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1.25rem;
   margin-bottom: 2rem;
 }
@@ -675,7 +675,7 @@ async function handleSubscribe() {
   background: #e5e7eb;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .subscription-tiers-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
