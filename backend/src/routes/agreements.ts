@@ -218,20 +218,33 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
     }
 
     // Charge for agreement generation BEFORE generating the PDF
+    let paymentResult
     try {
       console.log(`Charging company ${companyId} for agreement ${id}`)
-      const paymentResult = await billingService.chargeForAgreement(
+      paymentResult = await billingService.chargeForAgreement(
         companyId,
         id,
         'standard', // agreement type
         userId
       )
 
+      // Check if payment method is required
+      if (paymentResult.requires_payment_method && paymentResult.client_secret) {
+        console.log(`Payment method required for agreement ${id}, returning client secret`)
+        return res.status(402).json({
+          error: 'Payment method required',
+          message: 'Please add a payment method to generate this agreement.',
+          requires_payment_method: true,
+          client_secret: paymentResult.client_secret,
+          amount: 9.99 // TODO: Get from billing service
+        })
+      }
+
       if (!paymentResult.success) {
         return res.status(402).json({
           error: 'Payment failed',
           message: 'Unable to charge for agreement generation. Please check your payment method and try again.',
-          requires_payment_method: true
+          requires_payment_method: false
         })
       }
 
@@ -240,8 +253,8 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       console.error('Payment failed for agreement:', paymentError)
       return res.status(402).json({
         error: 'Payment failed',
-        message: paymentError.message || 'Unable to charge for agreement generation. Please add a payment method.',
-        requires_payment_method: true
+        message: paymentError.message || 'Unable to charge for agreement generation.',
+        requires_payment_method: false
       })
     }
 

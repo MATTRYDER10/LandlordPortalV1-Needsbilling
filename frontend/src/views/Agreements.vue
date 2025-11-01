@@ -870,16 +870,28 @@
         </div>
       </div>
     </div>
+
+    <!-- Agreement Payment Modal -->
+    <AgreementPaymentModal
+      v-if="showPaymentModal"
+      :client-secret="paymentClientSecret"
+      :price="agreementPrice"
+      @close="showPaymentModal = false"
+      @paid="handleAgreementPaid"
+    />
   </Sidebar>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useToast } from 'vue-toastification'
 import Sidebar from '../components/Sidebar.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
+import AgreementPaymentModal from '../components/AgreementPaymentModal.vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
+const toast = useToast()
 
 const steps = ['Template', 'Property', 'Details', 'Landlords', 'Tenants', 'Guarantors', 'Review']
 const currentStep = ref(0)
@@ -891,6 +903,12 @@ const success = ref('')
 const agreements = ref<any[]>([])
 const loadingAgreements = ref(false)
 const searchQuery = ref('')
+
+// Payment modal state
+const showPaymentModal = ref(false)
+const paymentClientSecret = ref('')
+const agreementPrice = ref(9.99)
+const pendingAgreementId = ref<string | null>(null)
 
 const templateOptions = [
   {
@@ -1349,8 +1367,65 @@ async function generateAgreement() {
 
     const { agreement } = await createResponse.json()
 
-    // Generate the DOCX file
+    // Generate the DOCX file - this may require payment
     const generateResponse = await fetch(`${API_URL}/api/agreements/${agreement.id}/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    const generateData = await generateResponse.json()
+
+    // Check if payment is required
+    if (generateResponse.status === 402 && generateData.requires_payment_method && generateData.client_secret) {
+      // Payment method required - show payment modal
+      pendingAgreementId.value = agreement.id
+      paymentClientSecret.value = generateData.client_secret
+      agreementPrice.value = generateData.amount || 9.99
+      showPaymentModal.value = true
+      loading.value = false
+      return
+    }
+
+    if (!generateResponse.ok) {
+      throw new Error(generateData.error || 'Failed to generate agreement file')
+    }
+
+    const { fileUrl } = generateData
+
+    success.value = 'Agreement generated successfully! View it in the history below.'
+    toast.success('Agreement generated successfully!')
+
+    // Refresh the agreements list
+    await fetchAgreements()
+
+    // Download the file
+    setTimeout(() => {
+      window.open(fileUrl, '_blank')
+    }, 1500)
+  } catch (err: any) {
+    console.error('Error generating agreement:', err)
+    error.value = err.message || 'Failed to generate agreement'
+    toast.error(err.message || 'Failed to generate agreement')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Handle successful payment for agreement
+async function handleAgreementPaid() {
+  if (!pendingAgreementId.value) return
+
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const token = authStore.session?.access_token
+
+    toast.info('Payment successful! Generating your agreement...')
+
+    // Retry generating the agreement after payment
+    const generateResponse = await fetch(`${API_URL}/api/agreements/${pendingAgreementId.value}/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1366,6 +1441,7 @@ async function generateAgreement() {
     const { fileUrl } = await generateResponse.json()
 
     success.value = 'Agreement generated successfully! View it in the history below.'
+    toast.success('Agreement generated successfully!')
 
     // Refresh the agreements list
     await fetchAgreements()
@@ -1373,12 +1449,14 @@ async function generateAgreement() {
     // Download the file
     setTimeout(() => {
       window.open(fileUrl, '_blank')
-    }, 1500)
+    }, 1000)
+
+    // Clear pending agreement
+    pendingAgreementId.value = null
   } catch (err: any) {
-    console.error('Error generating agreement:', err)
+    console.error('Error generating agreement after payment:', err)
     error.value = err.message || 'Failed to generate agreement'
-  } finally {
-    loading.value = false
+    toast.error(err.message || 'Failed to generate agreement')
   }
 }
 </script>
