@@ -229,6 +229,71 @@ router.get('/subscriptions/active', authenticateToken, async (req: AuthRequest, 
 });
 
 /**
+ * POST /api/billing/subscriptions/sync
+ * Sync subscription dates from Stripe (fixes invalid dates)
+ */
+router.post('/subscriptions/sync', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Get user's company
+    const { supabase } = await import('../config/supabase');
+    const { data: companyUser, error: companyError } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+      .single();
+
+    if (companyError || !companyUser) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    const subscription = await billingService.getActiveSubscription(companyUser.company_id);
+
+    if (!subscription) {
+      return res.status(404).json({ error: 'No active subscription found' });
+    }
+
+    // Fetch latest data from Stripe
+    const { stripe: getStripeInstance } = await import('../services/stripeService');
+    const stripeInstance = getStripeInstance();
+    const stripeSubscription: any = await stripeInstance.subscriptions.retrieve(subscription.stripe_subscription_id);
+
+    // Update database with correct dates
+    const updateData: any = {
+      status: stripeSubscription.status,
+    };
+
+    if (stripeSubscription.current_period_start) {
+      updateData.current_period_start = new Date(stripeSubscription.current_period_start * 1000).toISOString();
+    }
+    if (stripeSubscription.current_period_end) {
+      updateData.current_period_end = new Date(stripeSubscription.current_period_end * 1000).toISOString();
+    }
+
+    await supabase
+      .from('subscriptions')
+      .update(updateData)
+      .eq('id', subscription.id);
+
+    // Fetch updated subscription
+    const updatedSubscription = await billingService.getActiveSubscription(companyUser.company_id);
+
+    res.json({
+      message: 'Subscription synced successfully',
+      subscription: updatedSubscription,
+    });
+  } catch (error: any) {
+    console.error('Error syncing subscription:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * DELETE /api/billing/subscriptions
  * Cancel the active subscription
  */
