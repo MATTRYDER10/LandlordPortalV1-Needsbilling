@@ -7,68 +7,84 @@
       </div>
 
       <div class="modal-body">
-        <p class="subtitle">Choose a credit pack to purchase. Credits never expire.</p>
+        <!-- Step 1: Choose Credit Pack -->
+        <div v-if="!showPaymentForm">
+          <p class="subtitle">Choose a credit pack to purchase. Credits never expire.</p>
 
-        <div v-if="billingStore.loading" class="loading-state">
-          <div class="spinner"></div>
-          <p>Loading credit packs...</p>
-        </div>
+          <div v-if="billingStore.loading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading credit packs...</p>
+          </div>
 
-        <div v-else class="credit-packs-grid">
-          <div
-            v-for="pack in billingStore.creditPacks"
-            :key="pack.id"
-            class="credit-pack-card"
-            :class="{ recommended: pack.is_recommended, selected: selectedPack?.id === pack.id }"
-            @click="selectPack(pack)"
-          >
-            <div v-if="pack.is_recommended" class="recommended-badge">
-              ⭐ Recommended
-            </div>
-
-            <div class="pack-header">
-              <h3>{{ pack.product_name }}</h3>
-              <p class="pack-description">{{ pack.description }}</p>
-            </div>
-
-            <div class="pack-pricing">
-              <div class="price-main">
-                <span class="currency">£</span>
-                <span class="amount">{{ pack.price_gbp.toFixed(2) }}</span>
+          <div v-else class="credit-packs-grid">
+            <div
+              v-for="pack in billingStore.creditPacks"
+              :key="pack.id"
+              class="credit-pack-card"
+              :class="{ recommended: pack.is_recommended, selected: selectedPack?.id === pack.id }"
+              @click="selectPack(pack)"
+            >
+              <div v-if="pack.is_recommended" class="recommended-badge">
+                ⭐ Recommended
               </div>
-              <div class="price-details">
-                <div class="detail-item">
-                  <span class="label">Credits:</span>
-                  <span class="value">{{ pack.credits_quantity }}</span>
+
+              <div class="pack-header">
+                <h3>{{ pack.product_name }}</h3>
+                <p class="pack-description">{{ pack.description }}</p>
+              </div>
+
+              <div class="pack-pricing">
+                <div class="price-main">
+                  <span class="currency">£</span>
+                  <span class="amount">{{ pack.price_gbp.toFixed(2) }}</span>
                 </div>
-                <div class="detail-item">
-                  <span class="label">Per credit:</span>
-                  <span class="value">£{{ pack.price_per_credit.toFixed(2) }}</span>
+                <div class="price-details">
+                  <div class="detail-item">
+                    <span class="label">Credits:</span>
+                    <span class="value">{{ pack.credits_quantity }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="label">Per credit:</span>
+                    <span class="value">£{{ pack.price_per_credit.toFixed(2) }}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div class="pack-savings">
-              <span v-if="calculateSavings(pack) > 0" class="savings-badge">
-                Save £{{ calculateSavings(pack).toFixed(2) }} vs pay-as-you-go
-              </span>
+              <div class="pack-savings">
+                <span v-if="calculateSavings(pack) > 0" class="savings-badge">
+                  Save £{{ calculateSavings(pack).toFixed(2) }}
+                </span>
+              </div>
             </div>
+          </div>
+
+          <div v-if="selectedPack" class="pack-actions">
+            <button @click="proceedToPayment" class="btn-primary">
+              Continue to Payment
+            </button>
           </div>
         </div>
 
-        <div v-if="selectedPack && !showPaymentForm" class="pack-actions">
-          <button @click="proceedToPayment" class="btn-primary">
-            Continue to Payment
-          </button>
-        </div>
+        <!-- Step 2: Payment Form -->
+        <div v-else-if="showPaymentForm && selectedPack" class="payment-section">
+          <!-- Order Summary -->
+          <div class="order-summary">
+            <h3>Order Summary</h3>
+            <div class="summary-row">
+              <span>{{ selectedPack.product_name }}</span>
+              <span class="summary-amount">£{{ selectedPack.price_gbp.toFixed(2) }}</span>
+            </div>
+            <div class="summary-detail">
+              {{ selectedPack.credits_quantity }} credits • £{{ selectedPack.price_per_credit.toFixed(2) }} per credit
+            </div>
+            <div class="summary-total">
+              <span>Total</span>
+              <span class="total-amount">£{{ selectedPack.price_gbp.toFixed(2) }}</span>
+            </div>
+          </div>
 
-        <!-- Stripe Payment Form -->
-        <div v-if="showPaymentForm && selectedPack" class="payment-section">
-          <h3>Payment Details</h3>
-          <p class="payment-info">
-            You're purchasing <strong>{{ selectedPack.credits_quantity }} credits</strong> for
-            <strong>£{{ selectedPack.price_gbp.toFixed(2) }}</strong>
-          </p>
+          <!-- Payment Form -->
+          <h3 class="payment-title">Payment Information</h3>
 
           <div id="payment-element"></div>
 
@@ -77,7 +93,7 @@
           </div>
 
           <div class="payment-actions">
-            <button @click="showPaymentForm = false" class="btn-secondary">
+            <button @click="cancelPayment" class="btn-secondary">
               Back
             </button>
             <button
@@ -86,7 +102,7 @@
               class="btn-primary"
             >
               <span v-if="processing">Processing...</span>
-              <span v-else>Complete Purchase</span>
+              <span v-else>Pay £{{ selectedPack.price_gbp.toFixed(2) }}</span>
             </button>
           </div>
         </div>
@@ -159,8 +175,17 @@ async function proceedToPayment() {
       appearance,
     })
 
-    // Create and mount Payment Element
-    paymentElement = elements.create('payment')
+    // Create and mount Payment Element with billing details
+    paymentElement = elements.create('payment', {
+      fields: {
+        billingDetails: {
+          address: {
+            country: 'auto',
+            postalCode: 'auto',
+          },
+        },
+      },
+    })
 
     showPaymentForm.value = true
 
@@ -174,6 +199,15 @@ async function proceedToPayment() {
   } finally {
     processing.value = false
   }
+}
+
+function cancelPayment() {
+  showPaymentForm.value = false
+  if (paymentElement) {
+    paymentElement.unmount()
+    paymentElement = null
+  }
+  paymentError.value = null
 }
 
 async function handlePayment() {
@@ -411,24 +445,71 @@ async function handlePayment() {
 }
 
 .payment-section {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 2px solid #e5e7eb;
+  min-height: 400px;
 }
 
-.payment-section h3 {
-  font-size: 1.25rem;
+.order-summary {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.order-summary h3 {
+  font-size: 1rem;
   font-weight: 600;
   color: #111827;
+  margin: 0 0 1rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.summary-row span:first-child {
+  font-weight: 500;
+  color: #111827;
+}
+
+.summary-amount {
+  font-weight: 600;
+  color: #111827;
+}
+
+.summary-detail {
+  font-size: 0.875rem;
+  color: #6b7280;
   margin-bottom: 1rem;
 }
 
-.payment-info {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: #f9fafb;
-  border-radius: 6px;
-  color: #374151;
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 2px solid #e5e7eb;
+  font-weight: 600;
+}
+
+.total-amount {
+  font-size: 1.5rem;
+  color: #667eea;
+}
+
+.payment-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 #payment-element {
