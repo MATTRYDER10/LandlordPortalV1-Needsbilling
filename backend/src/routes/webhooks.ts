@@ -214,7 +214,7 @@ async function handlePaymentSucceeded(paymentIntent: any) {
     // Fetch the subscription to check if it's now active
     const { stripe: getStripeInstance } = await import('../services/stripeService');
     const stripeInstance = getStripeInstance();
-    const subscription = await stripeInstance.subscriptions.retrieve(metadata.subscription_id);
+    const subscription: any = await stripeInstance.subscriptions.retrieve(metadata.subscription_id);
 
     if (subscription.status === 'active') {
       console.log(`Subscription ${subscription.id} is now active, delivering credits`);
@@ -232,13 +232,20 @@ async function handlePaymentSucceeded(paymentIntent: any) {
         const monthlyTotal = dbSubscription.monthly_total;
 
         // Update subscription status in database
+        const updateData: any = {
+          status: 'active',
+        };
+
+        if (subscription.current_period_start) {
+          updateData.current_period_start = new Date(subscription.current_period_start * 1000).toISOString();
+        }
+        if (subscription.current_period_end) {
+          updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+        }
+
         await supabase
           .from('subscriptions')
-          .update({
-            status: 'active',
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          })
+          .update(updateData)
           .eq('stripe_subscription_id', subscription.id);
 
         // Deliver credits
