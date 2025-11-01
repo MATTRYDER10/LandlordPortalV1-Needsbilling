@@ -28,11 +28,13 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 
   -- Audit fields
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-  CONSTRAINT unique_active_subscription_per_company UNIQUE (company_id, status)
-    WHERE status IN ('active', 'trialing')
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Partial unique index: Only one active/trialing subscription per company
+CREATE UNIQUE INDEX unique_active_subscription_per_company
+  ON subscriptions(company_id)
+  WHERE status IN ('active', 'trialing');
 
 -- Index for faster lookups
 CREATE INDEX idx_subscriptions_company_id ON subscriptions(company_id);
