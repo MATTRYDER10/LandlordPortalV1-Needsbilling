@@ -204,6 +204,14 @@
       @close="showSubscriptionModal = false"
       @subscribed="handleSubscribed"
     />
+
+    <!-- Cancel Subscription Modal -->
+    <CancelSubscriptionModal
+      v-if="showCancelModal"
+      :billing-end-date="formatDate(billingStore.activeSubscription?.current_period_end || '')"
+      @close="showCancelModal = false"
+      @confirm="confirmCancelSubscription"
+    />
   </div>
 </template>
 
@@ -213,12 +221,14 @@ import { useToast } from 'vue-toastification'
 import { useBillingStore } from '../stores/billing'
 import CreditPacksModal from '../components/CreditPacksModal.vue'
 import SubscriptionModal from '../components/SubscriptionModal.vue'
+import CancelSubscriptionModal from '../components/CancelSubscriptionModal.vue'
 
 const toast = useToast()
 
 const billingStore = useBillingStore()
 const showPurchaseModal = ref(false)
 const showSubscriptionModal = ref(false)
+const showCancelModal = ref(false)
 
 // Auto-recharge state
 const autoRechargeEnabled = ref(false)
@@ -269,14 +279,17 @@ function formatTransactionType(type: string): string {
   return types[type] || type
 }
 
-async function handleCancelSubscription() {
-  if (confirm('Are you sure you want to cancel your subscription? You can continue using it until the end of your billing period.')) {
-    try {
-      await billingStore.cancelSubscription(true)
-      toast.success('Subscription canceled successfully')
-    } catch (err) {
-      toast.error('Failed to cancel subscription')
-    }
+function handleCancelSubscription() {
+  showCancelModal.value = true
+}
+
+async function confirmCancelSubscription() {
+  showCancelModal.value = false
+  try {
+    await billingStore.cancelSubscription(true)
+    toast.success('Subscription canceled successfully')
+  } catch (err) {
+    toast.error('Failed to cancel subscription')
   }
 }
 

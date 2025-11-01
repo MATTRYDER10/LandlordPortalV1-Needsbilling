@@ -73,12 +73,6 @@
               </div>
             </div>
           </div>
-
-          <div v-if="selectedTier" class="tier-actions">
-            <button @click="proceedToPayment" class="btn-primary">
-              Continue to Payment
-            </button>
-          </div>
         </div>
 
         <!-- Step 2: Payment Form -->
@@ -158,8 +152,10 @@ onMounted(async () => {
   stripe = await loadStripe(stripeKey)
 })
 
-function selectTier(tier: SubscriptionTier) {
+async function selectTier(tier: SubscriptionTier) {
   selectedTier.value = tier
+  // Immediately proceed to payment to reduce friction
+  await proceedToPayment()
 }
 
 function calculateSavings(tier: SubscriptionTier): number {
@@ -264,7 +260,8 @@ async function handleSubscribe() {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -274,24 +271,24 @@ async function handleSubscribe() {
 
 .modal-content {
   background: white;
-  border-radius: 12px;
-  max-width: 1100px;
+  border-radius: 16px;
+  max-width: 1200px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 2rem 2.5rem;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .modal-header h2 {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: #111827;
   margin: 0;
@@ -301,20 +298,23 @@ async function handleSubscribe() {
   background: none;
   border: none;
   font-size: 2rem;
-  color: #6b7280;
+  color: #9ca3af;
   cursor: pointer;
   line-height: 1;
   padding: 0;
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
 
 .close-button:hover {
-  color: #111827;
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .modal-body {
-  padding: 2rem;
+  padding: 2.5rem;
 }
 
 .subtitle {
@@ -345,8 +345,8 @@ async function handleSubscribe() {
 
 .subscription-tiers-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
   margin-bottom: 2rem;
 }
 
@@ -417,8 +417,8 @@ async function handleSubscribe() {
 }
 
 .currency {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 2.5rem;
+  font-weight: 700;
   color: #111827;
   margin-right: 0.25rem;
 }
@@ -461,13 +461,6 @@ async function handleSubscribe() {
   height: 1.25rem;
   color: #10b981;
   flex-shrink: 0;
-}
-
-.tier-actions {
-  display: flex;
-  justify-content: center;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
 }
 
 .payment-section {
@@ -605,5 +598,52 @@ async function handleSubscribe() {
 
 .btn-secondary:hover {
   background: #e5e7eb;
+}
+
+@media (max-width: 1024px) {
+  .subscription-tiers-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .subscription-tiers-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .modal-header {
+    padding: 1.5rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+  }
+
+  .tier-card {
+    padding: 1.5rem;
+  }
+
+  .amount {
+    font-size: 2rem;
+  }
+
+  .currency {
+    font-size: 2rem;
+  }
+
+  .payment-actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+  }
 }
 </style>

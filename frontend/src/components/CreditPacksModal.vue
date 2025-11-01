@@ -63,12 +63,6 @@
               </div>
             </div>
           </div>
-
-          <div v-if="selectedPack" class="pack-actions">
-            <button @click="proceedToPayment" class="btn-primary btn-large">
-              Continue to Payment →
-            </button>
-          </div>
         </div>
 
         <!-- Step 2: Payment Form -->
@@ -146,8 +140,10 @@ onMounted(async () => {
   stripe = await loadStripe(stripeKey)
 })
 
-function selectPack(pack: CreditPack) {
+async function selectPack(pack: CreditPack) {
   selectedPack.value = pack
+  // Immediately proceed to payment to reduce friction
+  await proceedToPayment()
 }
 
 function calculateSavings(pack: CreditPack): number {
@@ -265,7 +261,7 @@ async function handlePayment() {
 .modal-content {
   background: white;
   border-radius: 16px;
-  max-width: 1100px;
+  max-width: 1400px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -338,8 +334,8 @@ async function handlePayment() {
 
 .credit-packs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
   margin-bottom: 2rem;
 }
 
@@ -382,39 +378,44 @@ async function handlePayment() {
   right: 0;
   background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
   color: white;
-  padding: 0.5rem 1rem;
-  border-bottom-left-radius: 12px;
-  font-size: 0.75rem;
+  padding: 0.4rem 0.875rem;
+  border-bottom-left-radius: 8px;
+  font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+  z-index: 10;
 }
 
 .pack-content {
-  padding: 2rem 1.5rem 1.5rem;
+  padding: 1.5rem 1.25rem 1.25rem;
   flex: 1;
+}
+
+.credit-pack-card.recommended .pack-content {
+  padding-top: 2.25rem;
 }
 
 .pack-credits {
   text-align: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
   border-bottom: 1px solid #f3f4f6;
 }
 
 .credits-number {
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: 800;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   line-height: 1;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .credits-label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #6b7280;
   font-weight: 500;
   text-transform: uppercase;
@@ -423,18 +424,18 @@ async function handlePayment() {
 
 .pack-price {
   text-align: center;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .currency {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #374151;
-  vertical-align: top;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
 }
 
 .amount {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 800;
   color: #111827;
   letter-spacing: -0.02em;
@@ -442,26 +443,26 @@ async function handlePayment() {
 
 .pack-details {
   background: #f9fafb;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
 .detail-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .detail-label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #6b7280;
   font-weight: 500;
 }
 
 .detail-value {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   color: #111827;
   font-weight: 700;
 }
@@ -470,33 +471,34 @@ async function handlePayment() {
   text-align: center;
   background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
   color: #166534;
-  padding: 0.5rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  padding: 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
   font-weight: 700;
-  margin-top: 0.5rem;
+  margin-top: 0.4rem;
 }
 
 .pack-description {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #6b7280;
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.4;
+  min-height: 2.8em;
 }
 
 .pack-footer {
-  padding: 0 1.5rem 1.5rem;
+  padding: 0 1.25rem 1.25rem;
 }
 
 .select-button {
   width: 100%;
-  padding: 0.875rem;
+  padding: 0.75rem;
   background: #667eea;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -512,13 +514,6 @@ async function handlePayment() {
 
 .credit-pack-card.selected .select-button:hover {
   background: #059669;
-}
-
-.pack-actions {
-  display: flex;
-  justify-content: center;
-  padding-top: 1.5rem;
-  border-top: 1px solid #f3f4f6;
 }
 
 /* Payment Section */
@@ -675,17 +670,41 @@ async function handlePayment() {
   border-color: #d1d5db;
 }
 
+@media (max-width: 1024px) {
+  .credit-packs-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
 @media (max-width: 768px) {
   .credit-packs-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.875rem;
   }
 
   .modal-header {
     padding: 1.5rem;
   }
 
+  .modal-header h2 {
+    font-size: 1.5rem;
+  }
+
   .modal-body {
     padding: 1.5rem;
+  }
+
+  .pack-content {
+    padding: 1rem;
+  }
+
+  .credits-number {
+    font-size: 2rem;
+  }
+
+  .amount {
+    font-size: 1.75rem;
   }
 
   .payment-actions {
@@ -695,6 +714,12 @@ async function handlePayment() {
   .btn-primary,
   .btn-secondary {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .credit-packs-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
