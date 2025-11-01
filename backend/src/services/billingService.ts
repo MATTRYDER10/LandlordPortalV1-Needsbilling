@@ -136,11 +136,29 @@ export async function getOrCreateStripeCustomer(companyId: string): Promise<stri
 
   // Create new Stripe customer
   const { decrypt } = await import('./encryption');
-  const email = decrypt(company.email_encrypted);
-  const companyName = decrypt(company.name_encrypted);
+  let email = company.email_encrypted ? decrypt(company.email_encrypted) : null;
+  const companyName = company.name_encrypted ? decrypt(company.name_encrypted) : null;
+
+  // If company email is missing, use the owner's email as fallback
+  if (!email) {
+    const { data: ownerUser } = await supabase
+      .from('company_users')
+      .select('user_id')
+      .eq('company_id', companyId)
+      .eq('role', 'owner')
+      .limit(1)
+      .single();
+
+    if (ownerUser) {
+      const { data: { user } } = await supabase.auth.admin.getUserById(ownerUser.user_id);
+      if (user?.email) {
+        email = user.email;
+      }
+    }
+  }
 
   if (!email || !companyName) {
-    throw new Error('Company email or name not found');
+    throw new Error('Company email or name not found. Please contact support.');
   }
 
   const customer = await stripeService.createCustomer(email, companyName, {

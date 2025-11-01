@@ -278,6 +278,8 @@ router.post('/credits/purchase', authenticateToken, async (req: AuthRequest, res
       return res.status(400).json({ error: 'pack_product_key is required' });
     }
 
+    console.log(`[Billing] Purchasing credit pack: ${pack_product_key} for user: ${userId}`);
+
     // Get user's company
     const { data: companyUser, error: companyError } = await (await import('../config/supabase')).supabase
       .from('company_users')
@@ -287,8 +289,11 @@ router.post('/credits/purchase', authenticateToken, async (req: AuthRequest, res
       .single();
 
     if (companyError || !companyUser) {
+      console.error('[Billing] Company not found for user:', userId, companyError);
       return res.status(404).json({ error: 'Company not found' });
     }
+
+    console.log(`[Billing] Company ID: ${companyUser.company_id}`);
 
     const result = await billingService.purchaseCreditPack(
       companyUser.company_id,
@@ -296,8 +301,10 @@ router.post('/credits/purchase', authenticateToken, async (req: AuthRequest, res
       userId
     );
 
+    console.log('[Billing] Purchase initiated successfully');
     res.json(result);
   } catch (error: any) {
+    console.error('[Billing] Error purchasing credit pack:', error);
     res.status(500).json({ error: error.message });
   }
 });
