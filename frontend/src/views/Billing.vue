@@ -209,9 +209,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useToast } from 'vue-toastification'
 import { useBillingStore } from '../stores/billing'
 import CreditPacksModal from '../components/CreditPacksModal.vue'
 import SubscriptionModal from '../components/SubscriptionModal.vue'
+
+const toast = useToast()
 
 const billingStore = useBillingStore()
 const showPurchaseModal = ref(false)
@@ -270,9 +273,9 @@ async function handleCancelSubscription() {
   if (confirm('Are you sure you want to cancel your subscription? You can continue using it until the end of your billing period.')) {
     try {
       await billingStore.cancelSubscription(true)
-      alert('Subscription canceled successfully')
+      toast.success('Subscription canceled successfully')
     } catch (err) {
-      alert('Failed to cancel subscription')
+      toast.error('Failed to cancel subscription')
     }
   }
 }
@@ -284,7 +287,7 @@ async function handleCreditsPurchased() {
   const initialBalance = billingStore.creditsCount
 
   // Show success message
-  alert('Payment successful! Your credits are being added...')
+  toast.info('Payment successful! Your credits are being added...', { timeout: 5000 })
 
   // Poll for credit balance update (webhook takes a moment)
   let attempts = 0
@@ -296,7 +299,7 @@ async function handleCreditsPurchased() {
 
     // If balance has increased, credits have been added
     if (billingStore.creditsCount > initialBalance) {
-      alert(`Success! ${billingStore.creditsCount - initialBalance} credits have been added to your account!`)
+      toast.success(`Success! ${billingStore.creditsCount - initialBalance} credits have been added to your account!`, { timeout: 5000 })
       await billingStore.fetchTransactions()
       break
     }
@@ -317,7 +320,7 @@ async function handleSubscribed() {
   const initialBalance = billingStore.creditsCount
 
   // Show success message
-  alert('Subscription activated! Your credits are being added...')
+  toast.info('Subscription activated! Your credits are being added...', { timeout: 5000 })
 
   // Poll for credit balance update (webhook takes a moment)
   let attempts = 0
@@ -332,7 +335,7 @@ async function handleSubscribed() {
 
     // If balance has increased, credits have been added
     if (billingStore.creditsCount > initialBalance) {
-      alert(`Success! Your subscription is active and ${billingStore.creditsCount - initialBalance} credits have been added!`)
+      toast.success(`Success! Your subscription is active and ${billingStore.creditsCount - initialBalance} credits have been added!`, { timeout: 5000 })
       await billingStore.fetchTransactions()
       break
     }
