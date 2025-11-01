@@ -15,6 +15,8 @@ import verificationRoutes from './routes/verification'
 import referenceNotesRoutes from './routes/reference-notes'
 import referenceAuditLogRoutes from './routes/reference-audit-log'
 import agreementsRoutes from './routes/agreements'
+import billingRoutes from './routes/billing'
+import webhookRoutes from './routes/webhooks'
 
 dotenv.config()
 
@@ -86,6 +88,10 @@ app.use(cors({
   exposedHeaders: ['Content-Disposition'] // Allow frontend to read this header
 }))
 
+// IMPORTANT: Stripe webhook must use raw body for signature verification
+// This route must come BEFORE express.json() middleware
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), webhookRoutes)
+
 // Middleware
 app.use(express.json())
 
@@ -108,6 +114,7 @@ app.use('/api/verification', verificationRoutes)
 app.use('/api/reference-notes', referenceNotesRoutes)
 app.use('/api/reference-audit-log', referenceAuditLogRoutes)
 app.use('/api/agreements', agreementsRoutes)
+app.use('/api/billing', billingRoutes)
 
 // Start server
 app.listen(PORT, () => {

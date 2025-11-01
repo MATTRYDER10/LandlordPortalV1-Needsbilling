@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
+import { checkCredits } from '../middleware/checkCredits'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
@@ -13,6 +14,7 @@ import pdfService from '../services/pdfService'
 import { creditsafeService } from '../services/creditsafeService'
 import { sanctionsService } from '../services/sanctionsService'
 import { generateReferenceReportPDF } from '../services/pdfReportService'
+import * as billingService from '../services/billingService'
 
 const router = Router()
 
@@ -716,7 +718,7 @@ router.get('/:id/sanctions', authenticateToken, async (req: AuthRequest, res) =>
 })
 
 // Create new reference
-router.post('/', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/', authenticateToken, checkCredits, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     console.log('Creating reference for user:', userId)
@@ -963,6 +965,19 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         }
       )
 
+      // Deduct 1 credit for the reference creation
+      try {
+        await billingService.consumeCreditForReference(
+          companyUser.company_id,
+          parentReference.id,
+          userId
+        )
+        console.log(`Deducted 1 credit for reference ${parentReference.id}`)
+      } catch (creditError: any) {
+        console.error('Failed to deduct credit:', creditError)
+        // Log error but don't fail the request - credit was already checked by middleware
+      }
+
       res.json({
         reference: parentReference,
         childReferences,
@@ -1117,6 +1132,19 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           has_guarantor: !!guarantorReference
         }
       )
+
+      // Deduct 1 credit for the reference creation
+      try {
+        await billingService.consumeCreditForReference(
+          companyUser.company_id,
+          reference.id,
+          userId
+        )
+        console.log(`Deducted 1 credit for reference ${reference.id}`)
+      } catch (creditError: any) {
+        console.error('Failed to deduct credit:', creditError)
+        // Log error but don't fail the request - credit was already checked by middleware
+      }
 
       res.json({
         reference,

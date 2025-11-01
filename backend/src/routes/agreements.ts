@@ -3,6 +3,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { agreementService, AgreementData } from '../services/agreementService'
 import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
+import * as billingService from '../services/billingService'
 
 const router = Router()
 
@@ -216,7 +217,35 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       companyAddress
     }
 
-    // Generate DOCX
+    // Charge for agreement generation BEFORE generating the PDF
+    try {
+      console.log(`Charging company ${companyId} for agreement ${id}`)
+      const paymentResult = await billingService.chargeForAgreement(
+        companyId,
+        id,
+        'standard', // agreement type
+        userId
+      )
+
+      if (!paymentResult.success) {
+        return res.status(402).json({
+          error: 'Payment failed',
+          message: 'Unable to charge for agreement generation. Please check your payment method and try again.',
+          requires_payment_method: true
+        })
+      }
+
+      console.log(`Successfully charged for agreement ${id}, payment intent: ${paymentResult.payment_intent_id}`)
+    } catch (paymentError: any) {
+      console.error('Payment failed for agreement:', paymentError)
+      return res.status(402).json({
+        error: 'Payment failed',
+        message: paymentError.message || 'Unable to charge for agreement generation. Please add a payment method.',
+        requires_payment_method: true
+      })
+    }
+
+    // Generate DOCX (only after successful payment)
     const docxBuffer = await agreementService.generateAgreementDocx(agreementData)
 
     // Generate filename
