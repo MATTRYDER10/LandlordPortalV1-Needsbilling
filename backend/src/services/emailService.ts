@@ -364,3 +364,35 @@ export async function sendSanctionsAlert(
     html,
   });
 }
+
+/**
+ * Send reference completion notification to agent
+ */
+export async function sendReferenceCompletedNotification(
+  agentEmail: string,
+  agentName: string,
+  tenantName: string,
+  propertyAddress: string,
+  dashboardLink: string,
+  completedDate: string
+): Promise<void> {
+  const html = loadEmailTemplate('reference-completed-notification', {
+    AgentName: agentName,
+    TenantName: capitalizeWords(tenantName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    DashboardLink: dashboardLink,
+    CompletedDate: new Date(completedDate).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  });
+
+  await sendEmail({
+    to: agentEmail,
+    subject: `Reference Completed - ${tenantName} - PropertyGoose`,
+    html,
+  });
+}

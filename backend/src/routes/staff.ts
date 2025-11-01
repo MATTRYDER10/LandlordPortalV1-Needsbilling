@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase'
 import { decrypt, encrypt } from '../services/encryption'
 import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
 import { sanctionsService } from '../services/sanctionsService'
+import { sendReferenceCompletedNotification } from '../services/emailService'
 
 const router = Router()
 
@@ -647,7 +648,14 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
       })
       .eq('id', id)
       .eq('status', 'pending_verification') // Only allow verification if status is pending_verification
-      .select()
+      .select(`
+        *,
+        companies:company_id (
+          id,
+          name_encrypted,
+          email_encrypted
+        )
+      `)
       .single()
 
     if (error) {
@@ -656,6 +664,37 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
 
     if (!reference) {
       return res.status(404).json({ error: 'Reference not found or already verified' })
+    }
+
+    // Send email notification to agent/company
+    try {
+      if (reference.companies && reference.companies.email_encrypted && reference.companies.name_encrypted) {
+        const companyEmail = decrypt(reference.companies.email_encrypted)
+        const companyName = decrypt(reference.companies.name_encrypted)
+        const tenantName = decrypt(reference.tenant_name_encrypted)
+        const propertyAddressDecrypted = reference.property_address_encrypted
+          ? decrypt(reference.property_address_encrypted)
+          : null
+        const propertyAddress = propertyAddressDecrypted || 'N/A'
+
+        // Only send email if all required fields are present
+        if (companyEmail && companyName && tenantName) {
+          // Construct dashboard link
+          const dashboardLink = `${process.env.FRONTEND_URL || 'https://frontend-production-bbe3.up.railway.app'}/dashboard/references/${reference.id}`
+
+          await sendReferenceCompletedNotification(
+            companyEmail,
+            companyName,
+            tenantName,
+            propertyAddress,
+            dashboardLink,
+            reference.completed_at || new Date().toISOString()
+          )
+        }
+      }
+    } catch (emailError: any) {
+      console.error('Error sending completion notification email:', emailError)
+      // Don't fail the request if email fails
     }
 
     res.json({
