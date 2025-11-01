@@ -28,48 +28,57 @@
               @click="selectTier(tier)"
             >
               <div v-if="tier.is_popular" class="popular-badge">
-                ⭐ Most Popular
+                Most Popular
               </div>
 
-              <div class="tier-header">
-                <h3>{{ tier.product_name }}</h3>
-                <p class="tier-description">{{ tier.description }}</p>
+              <div class="tier-content">
+                <div class="tier-header">
+                  <h3>{{ tier.product_name }}</h3>
+                  <p class="tier-description">{{ tier.description }}</p>
+                </div>
+
+                <div class="tier-pricing">
+                  <div class="price-main">
+                    <span class="currency">£</span>
+                    <span class="amount">{{ tier.price_gbp.toFixed(0) }}</span>
+                    <span class="period">/month</span>
+                  </div>
+                  <p class="price-detail">£{{ tier.price_per_credit.toFixed(2) }} per credit</p>
+                </div>
+
+                <div class="tier-features">
+                  <div class="feature-item">
+                    <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span>{{ tier.credits_quantity }} credits per month</span>
+                  </div>
+                  <div class="feature-item">
+                    <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span>Credits roll over</span>
+                  </div>
+                  <div class="feature-item">
+                    <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span>Cancel anytime</span>
+                  </div>
+                  <div class="feature-item savings-feature">
+                    <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span>Save {{ calculateSavings(tier) }}% vs pay-as-you-go</span>
+                  </div>
+                </div>
               </div>
 
-              <div class="tier-pricing">
-                <div class="price-main">
-                  <span class="currency">£</span>
-                  <span class="amount">{{ tier.price_gbp.toFixed(0) }}</span>
-                  <span class="period">/month</span>
-                </div>
-                <p class="price-detail">£{{ tier.price_per_credit.toFixed(2) }} per credit</p>
-              </div>
-
-              <div class="tier-features">
-                <div class="feature-item">
-                  <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span>{{ tier.credits_quantity }} credits per month</span>
-                </div>
-                <div class="feature-item">
-                  <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span>Credits roll over</span>
-                </div>
-                <div class="feature-item">
-                  <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span>Cancel anytime</span>
-                </div>
-                <div class="feature-item">
-                  <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  <span>Save {{ calculateSavings(tier) }}% vs pay-as-you-go</span>
-                </div>
+              <div class="tier-footer">
+                <button class="select-button">
+                  <span v-if="selectedTier?.id === tier.id">✓ Selected</span>
+                  <span v-else>Select Plan</span>
+                </button>
               </div>
             </div>
           </div>
@@ -354,89 +363,115 @@ async function handleSubscribe() {
   position: relative;
   border: 2px solid #e5e7eb;
   border-radius: 12px;
-  padding: 2rem;
+  overflow: hidden;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
   background: white;
+  display: flex;
+  flex-direction: column;
 }
 
 .tier-card:hover {
   border-color: #667eea;
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.15);
   transform: translateY(-4px);
+  box-shadow: 0 12px 24px -10px rgba(102, 126, 234, 0.3);
 }
 
 .tier-card.selected {
   border-color: #667eea;
-  background: #f5f7ff;
+  background: linear-gradient(135deg, #f5f7ff 0%, #ffffff 100%);
+  box-shadow: 0 8px 16px -6px rgba(102, 126, 234, 0.2);
 }
 
 .tier-card.popular {
   border-color: #667eea;
-  border-width: 3px;
+}
+
+.tier-card.popular.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #f5f7ff 0%, #ffffff 100%);
 }
 
 .popular-badge {
   position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #667eea;
+  top: 0;
+  right: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 0.25rem 1rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
+  padding: 0.4rem 0.875rem;
+  border-bottom-left-radius: 8px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  z-index: 10;
+}
+
+.tier-content {
+  padding: 1.5rem 1.25rem 1.25rem;
+  flex: 1;
+}
+
+.tier-card.popular .tier-content {
+  padding-top: 2.25rem;
+}
+
+.tier-header {
+  margin-bottom: 1.25rem;
 }
 
 .tier-header h3 {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #111827;
   margin: 0 0 0.5rem;
 }
 
 .tier-description {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: #6b7280;
-  margin: 0 0 1.5rem;
-  min-height: 3rem;
+  margin: 0;
+  line-height: 1.4;
+  min-height: 2.8em;
 }
 
 .tier-pricing {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #f3f4f6;
+  text-align: center;
 }
 
 .price-main {
   display: flex;
   align-items: baseline;
-  margin-bottom: 0.25rem;
+  justify-content: center;
+  margin-bottom: 0.5rem;
 }
 
 .currency {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 700;
   color: #111827;
   margin-right: 0.25rem;
 }
 
 .amount {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 700;
   color: #111827;
 }
 
 .period {
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: #6b7280;
   margin-left: 0.25rem;
+  font-weight: 500;
 }
 
 .price-detail {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: #667eea;
   font-weight: 600;
   margin: 0;
@@ -445,22 +480,62 @@ async function handleSubscribe() {
 .tier-features {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.625rem;
 }
 
 .feature-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: #374151;
+  line-height: 1.4;
+}
+
+.savings-feature {
+  margin-top: 0.25rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid #f3f4f6;
+  font-weight: 600;
+  color: #10b981;
 }
 
 .check-icon {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.125rem;
+  height: 1.125rem;
   color: #10b981;
   flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.tier-footer {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.select-button {
+  width: 100%;
+  padding: 0.75rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.select-button:hover {
+  background: #5568d3;
+  transform: scale(1.02);
+}
+
+.tier-card.selected .select-button {
+  background: #10b981;
+}
+
+.tier-card.selected .select-button:hover {
+  background: #059669;
 }
 
 .payment-section {
@@ -618,23 +693,35 @@ async function handleSubscribe() {
   }
 
   .modal-header h2 {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
   }
 
   .modal-body {
     padding: 1.5rem;
   }
 
-  .tier-card {
-    padding: 1.5rem;
+  .tier-content {
+    padding: 1.25rem 1rem 1rem;
+  }
+
+  .tier-card.popular .tier-content {
+    padding-top: 2rem;
+  }
+
+  .tier-header h3 {
+    font-size: 1rem;
   }
 
   .amount {
-    font-size: 2rem;
+    font-size: 1.75rem;
   }
 
   .currency {
-    font-size: 2rem;
+    font-size: 1.75rem;
+  }
+
+  .tier-footer {
+    padding: 0 1rem 1rem;
   }
 
   .payment-actions {
