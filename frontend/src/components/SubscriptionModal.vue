@@ -197,11 +197,10 @@ async function proceedToPayment() {
     })
 
     // Create and mount Payment Element with billing details
+    // Note: Billing address is collected by default with the Payment Element
     paymentElement = elements.create('payment', {
       fields: {
-        billingDetails: {
-          address: 'always',
-        },
+        billingDetails: 'auto',
       },
     })
 
