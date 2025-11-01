@@ -211,10 +211,9 @@ async function handlePaymentSucceeded(paymentIntent: any) {
   if (metadata.subscription_id) {
     console.log(`Subscription payment succeeded for: ${metadata.subscription_id}`);
 
-    // Fetch the subscription to check if it's now active
-    const { stripe: getStripeInstance } = await import('../services/stripeService');
-    const stripeInstance = getStripeInstance();
-    const subscription: any = await stripeInstance.subscriptions.retrieve(metadata.subscription_id);
+    try {
+      // Fetch the subscription to check if it's now active
+      const subscription: any = await stripeService.getSubscription(metadata.subscription_id);
 
     if (subscription.status === 'active') {
       console.log(`Subscription ${subscription.id} is now active, delivering credits`);
@@ -263,6 +262,10 @@ async function handlePaymentSucceeded(paymentIntent: any) {
 
         console.log(`Delivered ${creditsPerMonth} credits to company ${companyId} for subscription ${subscription.id}`);
       }
+    }
+    } catch (error) {
+      console.error('Error handling subscription payment:', error);
+      // Don't throw - we don't want to fail the webhook
     }
 
     return; // Exit early for subscription payments
