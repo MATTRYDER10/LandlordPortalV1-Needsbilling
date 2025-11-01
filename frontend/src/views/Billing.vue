@@ -279,15 +279,71 @@ async function handleCancelSubscription() {
 
 async function handleCreditsPurchased() {
   showPurchaseModal.value = false
-  await billingStore.fetchCreditBalance()
-  await billingStore.fetchTransactions()
+
+  // Store the current balance
+  const initialBalance = billingStore.creditsCount
+
+  // Show success message
+  alert('Payment successful! Your credits are being added...')
+
+  // Poll for credit balance update (webhook takes a moment)
+  let attempts = 0
+  const maxAttempts = 10
+
+  while (attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second
+    await billingStore.fetchCreditBalance()
+
+    // If balance has increased, credits have been added
+    if (billingStore.creditsCount > initialBalance) {
+      alert(`Success! ${billingStore.creditsCount - initialBalance} credits have been added to your account!`)
+      await billingStore.fetchTransactions()
+      break
+    }
+
+    attempts++
+  }
+
+  // If we didn't see the update after 10 seconds, still refresh
+  if (attempts >= maxAttempts) {
+    await billingStore.fetchTransactions()
+  }
 }
 
 async function handleSubscribed() {
   showSubscriptionModal.value = false
-  await billingStore.fetchActiveSubscription()
-  await billingStore.fetchCreditBalance()
-  await billingStore.fetchTransactions()
+
+  // Store the current balance
+  const initialBalance = billingStore.creditsCount
+
+  // Show success message
+  alert('Subscription activated! Your credits are being added...')
+
+  // Poll for credit balance update (webhook takes a moment)
+  let attempts = 0
+  const maxAttempts = 10
+
+  while (attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second
+    await Promise.all([
+      billingStore.fetchActiveSubscription(),
+      billingStore.fetchCreditBalance()
+    ])
+
+    // If balance has increased, credits have been added
+    if (billingStore.creditsCount > initialBalance) {
+      alert(`Success! Your subscription is active and ${billingStore.creditsCount - initialBalance} credits have been added!`)
+      await billingStore.fetchTransactions()
+      break
+    }
+
+    attempts++
+  }
+
+  // If we didn't see the update after 10 seconds, still refresh
+  if (attempts >= maxAttempts) {
+    await billingStore.fetchTransactions()
+  }
 }
 
 async function handleAutoRechargeToggle() {

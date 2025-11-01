@@ -224,8 +224,10 @@ async function handlePayment() {
     if (error) {
       paymentError.value = error.message || 'Payment failed'
     } else {
-      // Payment succeeded
+      // Payment succeeded - close modal and refresh
       emit('purchased')
+      // Give a brief moment for user to see success before closing
+      await new Promise(resolve => setTimeout(resolve, 500))
     }
   } catch (error: any) {
     paymentError.value = error.message || 'Payment processing failed'
