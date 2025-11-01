@@ -216,7 +216,7 @@ export async function createPaymentIntent(
   description: string,
   metadata?: Record<string, string>
 ): Promise<Stripe.PaymentIntent> {
-  return await getStripe().paymentIntents.create({
+  const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
     amount,
     currency: 'gbp',
     customer: customerId,
@@ -228,7 +228,15 @@ export async function createPaymentIntent(
     automatic_payment_methods: {
       enabled: true,
     },
-  });
+  };
+
+  // If save_payment_method flag is set, configure PaymentIntent to save the method
+  if (metadata?.save_payment_method === 'true') {
+    paymentIntentParams.setup_future_usage = 'off_session';
+    // This tells Stripe to save the payment method for future use
+  }
+
+  return await getStripe().paymentIntents.create(paymentIntentParams);
 }
 
 /**
