@@ -412,7 +412,16 @@ export class AgreementService {
         doc.render(templateData)
       } catch (error: any) {
         console.error('Error rendering template:', error)
-        console.error('Error properties:', error.properties)
+        console.error('Error properties:', JSON.stringify(error.properties, null, 2))
+
+        // Log detailed errors if available
+        if (error.properties && error.properties.errors) {
+          console.error('Detailed errors:')
+          error.properties.errors.forEach((err: any, index: number) => {
+            console.error(`Error ${index + 1}:`, JSON.stringify(err, null, 2))
+          })
+        }
+
         throw new Error(`Template rendering failed: ${error.message}`)
       }
 
