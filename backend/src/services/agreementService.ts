@@ -281,6 +281,7 @@ export class AgreementService {
       'property_address': this.formatPropertyAddress(data.propertyAddress),
       'RENT_AMOUNT': data.rentAmount ? `£${data.rentAmount.toFixed(2)}` : '£0.00',
       'DEPOSIT_AMOUNT': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      'DEPOSIT_PAYER_NAME_AND_ADDRESS': tenantDefinitions, // Usually the tenant pays the deposit
       'DEPOSIT_SCHEME_DEPOSIT_TYPE_INSURED_CUSTODIAL': fullDepositScheme, // e.g., "DPS Insured" or "MyDeposits Custodial"
       'RENT_DUE_DATE': data.rentDueDay || '1st',
 
