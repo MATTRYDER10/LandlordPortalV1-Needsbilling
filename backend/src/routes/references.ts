@@ -945,6 +945,36 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 guarantorUrl
               )
               console.log('✅ Guarantor email sent to:', tenant.guarantor.email)
+
+              // Charge £9.99 for guarantor reference processing
+              console.log('💳 Charging £9.99 for guarantor reference...')
+              try {
+                const chargeResult = await billingService.chargeForGuarantorReference(
+                  companyUser.company_id,
+                  guarantorRef.id,
+                  userId
+                )
+
+                if (chargeResult.success) {
+                  console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
+                } else {
+                  console.error('❌ Guarantor reference charge failed:', chargeResult.error)
+                  // Delete the guarantor reference if payment failed
+                  await supabase
+                    .from('tenant_references')
+                    .delete()
+                    .eq('id', guarantorRef.id)
+                  console.log('🗑️  Deleted guarantor reference due to payment failure')
+                }
+              } catch (chargeError: any) {
+                console.error('❌ Failed to charge for guarantor reference:', chargeError)
+                // Delete the guarantor reference if charging fails
+                await supabase
+                  .from('tenant_references')
+                  .delete()
+                  .eq('id', guarantorRef.id)
+                console.log('🗑️  Deleted guarantor reference due to charge error')
+              }
             }
           } catch (guarantorError: any) {
             console.error('❌ Failed to send guarantor email for tenant', tenant.email, ':', guarantorError)
@@ -1112,6 +1142,38 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
               guarantorUrl
             )
             console.log('✅ Guarantor email sent to:', guarantor_email)
+
+            // Charge £9.99 for guarantor reference processing
+            console.log('💳 Charging £9.99 for guarantor reference...')
+            try {
+              const chargeResult = await billingService.chargeForGuarantorReference(
+                companyUser.company_id,
+                guarantorRef.id,
+                userId
+              )
+
+              if (chargeResult.success) {
+                console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
+              } else {
+                console.error('❌ Guarantor reference charge failed:', chargeResult.error)
+                // Delete the guarantor reference if payment failed
+                await supabase
+                  .from('tenant_references')
+                  .delete()
+                  .eq('id', guarantorRef.id)
+                console.log('🗑️  Deleted guarantor reference due to payment failure')
+                guarantorReference = null
+              }
+            } catch (chargeError: any) {
+              console.error('❌ Failed to charge for guarantor reference:', chargeError)
+              // Delete the guarantor reference if charging fails
+              await supabase
+                .from('tenant_references')
+                .delete()
+                .eq('id', guarantorRef.id)
+              console.log('🗑️  Deleted guarantor reference due to charge error')
+              guarantorReference = null
+            }
           }
         } catch (error: any) {
           console.error('❌ Error creating guarantor:', error)
