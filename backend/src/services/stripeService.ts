@@ -235,7 +235,7 @@ export async function createPaymentIntent(
 
 /**
  * Confirm a payment intent with a payment method
- * Used for auto-billing agreements
+ * Used for auto-billing agreements and off-session charges
  */
 export async function confirmPaymentIntent(
   paymentIntentId: string,
@@ -243,6 +243,7 @@ export async function confirmPaymentIntent(
 ): Promise<Stripe.PaymentIntent> {
   return await getStripe().paymentIntents.confirm(paymentIntentId, {
     payment_method: paymentMethodId,
+    off_session: true,
   });
 }
 
