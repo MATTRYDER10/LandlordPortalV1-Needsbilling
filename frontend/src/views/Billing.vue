@@ -493,8 +493,19 @@ async function loadPaymentMethods() {
     })
 
     console.log('Payment methods response:', response.data)
-    paymentMethods.value = response.data.payment_methods || []
-    defaultPaymentMethodId.value = response.data.default_payment_method || null
+
+    // Backend returns payment methods array directly (not wrapped in an object)
+    if (Array.isArray(response.data)) {
+      paymentMethods.value = response.data
+      // Find default payment method (marked with is_default: true)
+      const defaultMethod = response.data.find((pm: any) => pm.is_default)
+      defaultPaymentMethodId.value = defaultMethod?.id || null
+    } else {
+      // Fallback for wrapped response
+      paymentMethods.value = response.data.payment_methods || []
+      defaultPaymentMethodId.value = response.data.default_payment_method || null
+    }
+
     console.log('Payment methods loaded:', paymentMethods.value.length)
   } catch (err: any) {
     console.error('Failed to load payment methods:', err)
