@@ -344,6 +344,12 @@ export async function purchaseCreditPack(
     .eq('id', companyId)
     .single();
 
+  console.log('[Billing] Checking for saved payment method:', {
+    companyId,
+    hasPaymentMethod: !!company?.stripe_payment_method_id,
+    paymentMethodId: company?.stripe_payment_method_id
+  });
+
   const amount = stripeService.poundsToPence(pricing.price_gbp);
   const description = `Purchase ${pricing.credits_quantity} reference credits`;
   const metadata = {
@@ -354,6 +360,7 @@ export async function purchaseCreditPack(
 
   // If customer has saved payment method, charge automatically
   if (company?.stripe_payment_method_id) {
+    console.log('[Billing] Attempting auto-charge with saved payment method...');
     try {
       const paymentIntent = await stripeService.chargeCustomer(
         customerId,
@@ -362,6 +369,7 @@ export async function purchaseCreditPack(
         metadata
       );
 
+      console.log('[Billing] Auto-charge succeeded!', { status: paymentIntent.status });
       return {
         payment_intent: paymentIntent,
         charged: true,
@@ -371,6 +379,8 @@ export async function purchaseCreditPack(
       // Fall through to manual payment if auto-charge fails
     }
   }
+
+  console.log('[Billing] No saved payment method, creating manual payment intent');
 
   // Otherwise, create payment intent for manual payment
   const paymentIntent = await stripeService.createPaymentIntent(

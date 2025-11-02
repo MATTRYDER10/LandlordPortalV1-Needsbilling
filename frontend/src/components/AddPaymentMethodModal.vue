@@ -135,9 +135,25 @@ async function handleSubmit() {
 
     console.log('SetupIntent confirmed:', setupIntent)
 
-    // SetupIntent confirmed - payment method is now saved to the customer
+    // SetupIntent confirmed - payment method is now attached to the Stripe customer
+    // Now save it to our database and set as default
+    const paymentMethodId = typeof setupIntent.payment_method === 'string'
+      ? setupIntent.payment_method
+      : setupIntent.payment_method.id
+
+    console.log('Saving payment method to database:', paymentMethodId)
+
+    const token = authStore.session?.access_token
+    await axios.put(
+      `${API_URL}/api/billing/payment-methods/default`,
+      { payment_method_id: paymentMethodId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+
+    console.log('Payment method saved and set as default')
+
     // Emit the payment method ID
-    emit('added', setupIntent.payment_method)
+    emit('added', paymentMethodId)
   } catch (err: any) {
     error.value = err.message || 'An error occurred'
     console.error('Payment method add error:', err)
