@@ -321,12 +321,13 @@ export async function cancelSubscription(
 
 /**
  * Purchase a credit pack (one-off payment)
+ * Auto-charges if default payment method exists, otherwise returns client_secret for manual payment
  */
 export async function purchaseCreditPack(
   companyId: string,
   packProductKey: string,
   userId: string
-): Promise<{ payment_intent: any; client_secret: string }> {
+): Promise<{ payment_intent: any; client_secret?: string; charged?: boolean }> {
   // Get pricing details
   const pricing = await getProductPricing(packProductKey);
   if (!pricing) {
@@ -336,22 +337,53 @@ export async function purchaseCreditPack(
   // Get or create Stripe customer
   const customerId = await getOrCreateStripeCustomer(companyId);
 
-  // Create payment intent
+  // Check if customer has a saved payment method
+  const { data: company } = await supabase
+    .from('companies')
+    .select('stripe_payment_method_id')
+    .eq('id', companyId)
+    .single();
+
   const amount = stripeService.poundsToPence(pricing.price_gbp);
+  const description = `Purchase ${pricing.credits_quantity} reference credits`;
+  const metadata = {
+    company_id: companyId,
+    pack_key: packProductKey,
+    credits: pricing.credits_quantity.toString(),
+  };
+
+  // If customer has saved payment method, charge automatically
+  if (company?.stripe_payment_method_id) {
+    try {
+      const paymentIntent = await stripeService.chargeCustomer(
+        customerId,
+        amount,
+        description,
+        metadata
+      );
+
+      return {
+        payment_intent: paymentIntent,
+        charged: true,
+      };
+    } catch (error) {
+      console.error('Auto-charge failed, falling back to manual payment:', error);
+      // Fall through to manual payment if auto-charge fails
+    }
+  }
+
+  // Otherwise, create payment intent for manual payment
   const paymentIntent = await stripeService.createPaymentIntent(
     amount,
     customerId,
-    `Purchase ${pricing.credits_quantity} reference credits`,
-    {
-      company_id: companyId,
-      pack_key: packProductKey,
-      credits: pricing.credits_quantity.toString(),
-    }
+    description,
+    metadata
   );
 
   return {
     payment_intent: paymentIntent,
     client_secret: paymentIntent.client_secret || '',
+    charged: false,
   };
 }
 
@@ -473,16 +505,46 @@ export async function chargeForAgreement(
   // Get Stripe customer
   const customerId = await getOrCreateStripeCustomer(companyId);
 
-  // SIMPLIFIED: Always create a PaymentIntent for fresh payment each time
+  // Check if customer has a saved payment method
+  const { data: company } = await supabase
+    .from('companies')
+    .select('stripe_payment_method_id')
+    .eq('id', companyId)
+    .single();
+
+  const description = `Agreement generation: ${agreementType}`;
+  const metadata = {
+    company_id: companyId,
+    agreement_id: agreementId,
+    agreement_type: agreementType,
+  };
+
+  // If customer has saved payment method, charge automatically
+  if (company?.stripe_payment_method_id) {
+    try {
+      const paymentIntent = await stripeService.chargeCustomer(
+        customerId,
+        amount,
+        description,
+        metadata
+      );
+
+      return {
+        success: true,
+        payment_intent_id: paymentIntent.id,
+      };
+    } catch (error) {
+      console.error('Auto-charge failed for agreement, falling back to manual payment:', error);
+      // Fall through to manual payment if auto-charge fails
+    }
+  }
+
+  // Otherwise, create payment intent for manual payment
   const paymentIntent = await stripeService.createPaymentIntent(
     amount,
     customerId,
-    `Agreement generation: ${agreementType}`,
-    {
-      company_id: companyId,
-      agreement_id: agreementId,
-      agreement_type: agreementType,
-    }
+    description,
+    metadata
   );
 
   return {
