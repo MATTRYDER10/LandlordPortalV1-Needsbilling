@@ -522,6 +522,13 @@ export async function chargeForAgreement(
     .eq('id', companyId)
     .single();
 
+  console.log('[Agreement] Checking for saved payment method:', {
+    companyId,
+    agreementId,
+    hasPaymentMethod: !!company?.stripe_payment_method_id,
+    paymentMethodId: company?.stripe_payment_method_id
+  });
+
   const description = `Agreement generation: ${agreementType}`;
   const metadata = {
     company_id: companyId,
@@ -531,6 +538,7 @@ export async function chargeForAgreement(
 
   // If customer has saved payment method, charge automatically
   if (company?.stripe_payment_method_id) {
+    console.log('[Agreement] Attempting auto-charge with saved payment method...');
     try {
       const paymentIntent = await stripeService.chargeCustomer(
         customerId,
@@ -539,15 +547,18 @@ export async function chargeForAgreement(
         metadata
       );
 
+      console.log('[Agreement] Auto-charge succeeded!', { status: paymentIntent.status, id: paymentIntent.id });
       return {
         success: true,
         payment_intent_id: paymentIntent.id,
       };
     } catch (error) {
-      console.error('Auto-charge failed for agreement, falling back to manual payment:', error);
+      console.error('[Agreement] Auto-charge failed, falling back to manual payment:', error);
       // Fall through to manual payment if auto-charge fails
     }
   }
+
+  console.log('[Agreement] No saved payment method, creating manual payment intent');
 
   // Otherwise, create payment intent for manual payment
   const paymentIntent = await stripeService.createPaymentIntent(
