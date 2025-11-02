@@ -280,9 +280,9 @@ export class AgreementService {
       'PROPERTY ADDRESS': this.formatPropertyAddress(data.propertyAddress),
       'property_address': this.formatPropertyAddress(data.propertyAddress),
       'RENT_AMOUNT': data.rentAmount ? `£${data.rentAmount.toFixed(2)}` : '£0.00',
-      'DEPOSIT_ AMOUNT': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
-      'DEPOSIT_SCHEME_ DEPOSIT_TYPE_INSURED_ CUSTODIAL': fullDepositScheme, // e.g., "DPS Insured" or "MyDeposits Custodial"
-      'RENT DUE DATE': data.rentDueDay || '1st',
+      'DEPOSIT_AMOUNT': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      'DEPOSIT_SCHEME_DEPOSIT_TYPE_INSURED_CUSTODIAL': fullDepositScheme, // e.g., "DPS Insured" or "MyDeposits Custodial"
+      'RENT_DUE_DATE': data.rentDueDay || '1st',
 
       // Dates
       'TENANCY_START_DATE': data.tenancyStartDate ? this.formatDateToUK(data.tenancyStartDate) : new Date().toLocaleDateString('en-GB'),
