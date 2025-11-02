@@ -4,6 +4,8 @@ import fs from 'fs'
 import path from 'path'
 import { supabase } from '../config/supabase'
 
+// Force Railway rebuild to pick up updated PGAST-DPS.docx template
+
 export type TemplateType = 'dps' | 'mydeposits' | 'tds' | 'no_deposit' | 'reposit'
 
 export interface Party {
