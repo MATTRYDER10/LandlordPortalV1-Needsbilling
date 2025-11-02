@@ -615,6 +615,35 @@ export async function getPaymentMethods(companyId: string): Promise<any[]> {
   return await stripeService.listPaymentMethods(company.stripe_customer_id);
 }
 
+/**
+ * Delete a payment method
+ */
+export async function deletePaymentMethod(
+  companyId: string,
+  paymentMethodId: string
+): Promise<void> {
+  const { data: company } = await supabase
+    .from('companies')
+    .select('stripe_customer_id, stripe_payment_method_id')
+    .eq('id', companyId)
+    .single();
+
+  if (!company?.stripe_customer_id) {
+    throw new Error('No Stripe customer found for this company');
+  }
+
+  // Detach the payment method from the customer in Stripe
+  await stripeService.detachPaymentMethod(paymentMethodId);
+
+  // If this was the default payment method, clear it from the database
+  if (company.stripe_payment_method_id === paymentMethodId) {
+    await supabase
+      .from('companies')
+      .update({ stripe_payment_method_id: null })
+      .eq('id', companyId);
+  }
+}
+
 // ============================================================================
 // AUTO-RECHARGE SETTINGS
 // ============================================================================

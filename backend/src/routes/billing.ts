@@ -489,6 +489,40 @@ router.post('/payment-methods', authenticateToken, async (req: AuthRequest, res)
 });
 
 /**
+ * DELETE /api/billing/payment-methods/:id
+ * Delete a payment method
+ */
+router.delete('/payment-methods/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const paymentMethodId = req.params.id;
+
+    // Get user's company
+    const { data: companyUser, error: companyError } = await (await import('../config/supabase')).supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+      .single();
+
+    if (companyError || !companyUser) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    await billingService.deletePaymentMethod(companyUser.company_id, paymentMethodId);
+
+    res.json({ message: 'Payment method deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting payment method:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * Set default payment method
  * PUT /api/billing/payment-methods/default
  */

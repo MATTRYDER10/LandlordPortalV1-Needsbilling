@@ -106,15 +106,20 @@
               </svg>
             </div>
             <div>
-              <div style="font-weight: 600; color: #111827;">
-                {{ method.card.brand.toUpperCase() }} •••• {{ method.card.last4 }}
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-weight: 600; color: #111827;">
+                  {{ method.card.brand.toUpperCase() }} •••• {{ method.card.last4 }}
+                </span>
+                <span
+                  v-if="method.id === defaultPaymentMethodId"
+                  style="padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;"
+                >
+                  Default
+                </span>
               </div>
               <div style="font-size: 0.875rem; color: #6b7280;">
                 Expires {{ method.card.exp_month }}/{{ method.card.exp_year }}
               </div>
-            </div>
-            <div v-if="method.id === defaultPaymentMethodId" style="margin-left: 1rem;">
-              <span style="padding: 0.25rem 0.75rem; background: #667eea; color: white; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">DEFAULT</span>
             </div>
           </div>
           <div style="display: flex; gap: 0.5rem;">
@@ -125,6 +130,15 @@
               style="padding: 0.5rem 1rem; font-size: 0.875rem;"
             >
               Set as Default
+            </button>
+            <button
+              @click="confirmDeletePaymentMethod(method.id)"
+              class="btn-danger"
+              style="padding: 0.5rem 1rem; font-size: 0.875rem;"
+              :disabled="method.id === defaultPaymentMethodId && paymentMethods.length > 1"
+              :title="method.id === defaultPaymentMethodId && paymentMethods.length > 1 ? 'Set another card as default before deleting' : 'Delete payment method'"
+            >
+              Delete
             </button>
           </div>
         </div>
@@ -539,6 +553,39 @@ async function setDefaultPaymentMethod(paymentMethodId: string) {
     toast.error(err.response?.data?.error || 'Failed to update default payment method')
   }
 }
+
+async function confirmDeletePaymentMethod(paymentMethodId: string) {
+  const method = paymentMethods.value.find(pm => pm.id === paymentMethodId)
+  const isDefault = paymentMethodId === defaultPaymentMethodId.value
+
+  if (isDefault && paymentMethods.value.length > 1) {
+    toast.error('Please set another card as default before deleting this one')
+    return
+  }
+
+  const cardInfo = method ? `${method.card.brand.toUpperCase()} •••• ${method.card.last4}` : 'this card'
+
+  if (!confirm(`Are you sure you want to delete ${cardInfo}?`)) {
+    return
+  }
+
+  await deletePaymentMethod(paymentMethodId)
+}
+
+async function deletePaymentMethod(paymentMethodId: string) {
+  try {
+    const token = authStore.session?.access_token
+    await axios.delete(
+      `${API_URL}/api/billing/payment-methods/${paymentMethodId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+
+    toast.success('Payment method deleted successfully')
+    await loadPaymentMethods()
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || 'Failed to delete payment method')
+  }
+}
 </script>
 
 <style scoped>
@@ -776,5 +823,26 @@ async function setDefaultPaymentMethod(paymentMethodId: string) {
 
 .toggle-switch input:checked + .toggle-slider:before {
   transform: translateX(26px);
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
