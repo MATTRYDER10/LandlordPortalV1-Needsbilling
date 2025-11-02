@@ -44,12 +44,14 @@
 import { ref, onMounted } from 'vue'
 import { loadStripe } from '@stripe/stripe-js'
 import axios from 'axios'
+import { useAuthStore } from '../stores/auth'
 
 const emit = defineEmits(['close', 'added'])
 const processing = ref(false)
 const error = ref<string | null>(null)
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const authStore = useAuthStore()
 
 let stripe: any = null
 let elements: any = null
@@ -59,7 +61,7 @@ onMounted(async () => {
     console.log('Initializing payment form...')
 
     // Get SetupIntent client secret from backend
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
     console.log('Token exists:', !!token)
     console.log('API URL:', API_URL)
 
