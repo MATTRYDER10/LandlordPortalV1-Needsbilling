@@ -124,7 +124,7 @@
           </div>
           <div style="display: flex; gap: 0.5rem;">
             <button
-              v-if="method.id !== defaultPaymentMethodId"
+              v-if="!method.is_default"
               @click="setDefaultPaymentMethod(method.id)"
               class="btn-secondary"
               style="padding: 0.5rem 1rem; font-size: 0.875rem;"
@@ -135,8 +135,8 @@
               @click="confirmDeletePaymentMethod(method.id)"
               class="btn-danger"
               style="padding: 0.5rem 1rem; font-size: 0.875rem;"
-              :disabled="method.id === defaultPaymentMethodId && paymentMethods.length > 1"
-              :title="method.id === defaultPaymentMethodId && paymentMethods.length > 1 ? 'Set another card as default before deleting' : 'Delete payment method'"
+              :disabled="method.is_default && paymentMethods.length > 1"
+              :title="method.is_default && paymentMethods.length > 1 ? 'Set another card as default before deleting' : 'Delete payment method'"
             >
               Delete
             </button>
@@ -556,9 +556,8 @@ async function setDefaultPaymentMethod(paymentMethodId: string) {
 
 async function confirmDeletePaymentMethod(paymentMethodId: string) {
   const method = paymentMethods.value.find(pm => pm.id === paymentMethodId)
-  const isDefault = paymentMethodId === defaultPaymentMethodId.value
 
-  if (isDefault && paymentMethods.value.length > 1) {
+  if (method?.is_default && paymentMethods.value.length > 1) {
     toast.error('Please set another card as default before deleting this one')
     return
   }
