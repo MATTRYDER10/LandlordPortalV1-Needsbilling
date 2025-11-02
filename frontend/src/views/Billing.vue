@@ -126,8 +126,7 @@
             <button
               v-if="!method.is_default"
               @click="setDefaultPaymentMethod(method.id)"
-              class="btn-secondary"
-              style="padding: 0.5rem 1rem; font-size: 0.875rem;"
+              class="btn-set-default"
             >
               Set as Default
             </button>
@@ -843,5 +842,22 @@ async function deletePaymentMethod(paymentMethodId: string) {
 .btn-danger:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-set-default {
+  background: white;
+  color: #667eea;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: 2px solid #667eea;
+  transition: all 0.2s;
+}
+
+.btn-set-default:hover {
+  background: #667eea;
+  color: white;
 }
 </style>
