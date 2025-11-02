@@ -499,7 +499,7 @@ async function loadPaymentMethods() {
   }
 }
 
-async function handlePaymentMethodAdded(paymentMethodId: string) {
+async function handlePaymentMethodAdded() {
   showAddPaymentMethod.value = false
 
   // SetupIntent already attached the payment method to the customer
