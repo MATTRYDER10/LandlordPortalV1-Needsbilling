@@ -249,7 +249,7 @@ export async function confirmPaymentIntent(
 
 /**
  * Charge a customer immediately using saved payment method
- * Used for agreement auto-billing
+ * Used for off-session charges (auto-billing, agreements, credit packs)
  */
 export async function chargeCustomer(
   customerId: string,
@@ -265,12 +265,29 @@ export async function chargeCustomer(
     throw new Error('No default payment method found for customer');
   }
 
-  const paymentIntent = await createPaymentIntent(amount, customerId, description, metadata);
+  const paymentMethodId = typeof defaultPaymentMethod === 'string' ? defaultPaymentMethod : defaultPaymentMethod.id;
 
-  return await confirmPaymentIntent(
-    paymentIntent.id,
-    typeof defaultPaymentMethod === 'string' ? defaultPaymentMethod : defaultPaymentMethod.id
-  );
+  // Create PaymentIntent specifically for off-session charges
+  // Disable redirects to avoid return_url requirement
+  const paymentIntent = await getStripe().paymentIntents.create({
+    amount,
+    currency: 'gbp',
+    customer: customerId,
+    description,
+    metadata: {
+      ...metadata,
+      source: 'propertygoose',
+    },
+    payment_method: paymentMethodId,
+    off_session: true,
+    confirm: true, // Confirm immediately
+    automatic_payment_methods: {
+      enabled: true,
+      allow_redirects: 'never', // Prevent redirect-based payment methods for off-session
+    },
+  });
+
+  return paymentIntent;
 }
 
 /**
