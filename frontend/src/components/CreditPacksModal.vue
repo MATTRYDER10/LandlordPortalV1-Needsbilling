@@ -163,6 +163,18 @@ async function proceedToPayment() {
     // Create payment intent on backend
     const result = await billingStore.purchaseCreditPack(selectedPack.value.product_key)
 
+    // If payment was auto-charged with saved payment method, skip payment form
+    if (result.charged === true) {
+      console.log('Payment auto-charged successfully')
+      emit('purchased')
+      return
+    }
+
+    // If no client_secret, something went wrong
+    if (!result.client_secret) {
+      throw new Error('No payment details received from server')
+    }
+
     if (!stripe) {
       throw new Error('Stripe not initialized')
     }
