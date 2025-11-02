@@ -10,7 +10,7 @@
       </div>
 
       <div class="modal-body">
-        <div id="card-element"></div>
+        <div id="payment-element"></div>
 
         <div v-if="error" class="error-message">
           {{ error }}
@@ -52,10 +52,26 @@ const error = ref<string | null>(null)
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 let stripe: any = null
-let cardElement: any = null
+let elements: any = null
 
 onMounted(async () => {
   try {
+    console.log('Initializing payment form...')
+
+    // Get SetupIntent client secret from backend
+    const token = localStorage.getItem('token')
+    console.log('Token exists:', !!token)
+    console.log('API URL:', API_URL)
+
+    const response = await axios.post(
+      `${API_URL}/api/billing/setup-intent`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+
+    console.log('SetupIntent response:', response.data)
+    const { clientSecret } = response.data
+
     // Initialize Stripe
     const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51SOgxnLLQSrQhTAA1FbO3GHy58oEuSBY8UkpMZRqK0Yzk3F4y0CxuCyPnTWFgbEc34db2X2nIbQg7iMsvmFiy2KZ00AjdBk9nc'
     stripe = await loadStripe(stripeKey)
@@ -64,38 +80,32 @@ onMounted(async () => {
       throw new Error('Failed to load Stripe')
     }
 
-    // Create Elements instance
-    const elements = stripe.elements()
-
-    // Create and mount Card Element
-    cardElement = elements.create('card', {
-      style: {
-        base: {
-          fontSize: '16px',
-          color: '#32325d',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          '::placeholder': {
-            color: '#aab7c4',
-          },
-        },
-        invalid: {
-          color: '#dc2626',
-          iconColor: '#dc2626',
+    // Create Elements instance with SetupIntent client secret
+    elements = stripe.elements({
+      clientSecret,
+      appearance: {
+        theme: 'stripe',
+        variables: {
+          colorPrimary: '#667eea',
         },
       },
     })
 
+    // Create and mount Payment Element
+    const paymentElement = elements.create('payment')
+
     // Wait for DOM
     await new Promise(resolve => setTimeout(resolve, 100))
-    cardElement.mount('#card-element')
+    paymentElement.mount('#payment-element')
+    console.log('Payment element mounted successfully')
   } catch (err: any) {
-    error.value = err.message || 'Failed to initialize payment form'
-    console.error('Card element initialization error:', err)
+    error.value = err.response?.data?.error || err.message || 'Failed to initialize payment form'
+    console.error('Payment element initialization error:', err)
   }
 })
 
 async function handleSubmit() {
-  if (!stripe || !cardElement) {
+  if (!stripe || !elements) {
     error.value = 'Payment form not ready'
     return
   }
@@ -104,29 +114,30 @@ async function handleSubmit() {
     processing.value = true
     error.value = null
 
-    // Create payment method directly with Stripe
-    const { paymentMethod, error: createError } = await stripe.createPaymentMethod({
-      type: 'card',
-      card: cardElement,
+    console.log('Submitting payment method...')
+
+    // Confirm the SetupIntent
+    const { setupIntent, error: confirmError } = await stripe.confirmSetup({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/billing`,
+      },
+      redirect: 'if_required',
     })
 
-    if (createError) {
-      error.value = createError.message || 'Failed to create payment method'
+    if (confirmError) {
+      error.value = confirmError.message || 'Failed to save payment method'
+      console.error('Confirm error:', confirmError)
       return
     }
 
-    // Send payment method ID to backend
-    const token = localStorage.getItem('token')
-    await axios.post(
-      `${API_URL}/api/billing/payment-methods`,
-      { payment_method_id: paymentMethod.id },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
+    console.log('SetupIntent confirmed:', setupIntent)
 
-    // Success - emit the payment method ID
-    emit('added', paymentMethod.id)
+    // SetupIntent confirmed - payment method is now saved to the customer
+    // Emit the payment method ID
+    emit('added', setupIntent.payment_method)
   } catch (err: any) {
-    error.value = err.response?.data?.error || err.message || 'An error occurred'
+    error.value = err.message || 'An error occurred'
     console.error('Payment method add error:', err)
   } finally {
     processing.value = false
@@ -207,12 +218,8 @@ async function handleSubmit() {
   flex: 1;
 }
 
-#card-element {
+#payment-element {
   margin-bottom: 1.5rem;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: white;
 }
 
 .error-message {

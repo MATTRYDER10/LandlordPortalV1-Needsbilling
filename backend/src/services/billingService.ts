@@ -557,6 +557,28 @@ export async function consumeCreditForReference(
 // ============================================================================
 
 /**
+ * Create a SetupIntent for saving a payment method
+ * Following Stripe's recommended approach for save-and-reuse
+ */
+export async function createSetupIntent(companyId: string): Promise<{ clientSecret: string }> {
+  const customerId = await getOrCreateStripeCustomer(companyId);
+
+  const stripeInstance = stripeService.stripe();
+  const setupIntent = await stripeInstance.setupIntents.create({
+    customer: customerId,
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+
+  if (!setupIntent.client_secret) {
+    throw new Error('Failed to create setup intent');
+  }
+
+  return { clientSecret: setupIntent.client_secret };
+}
+
+/**
  * Save a payment method for a company
  */
 export async function savePaymentMethod(

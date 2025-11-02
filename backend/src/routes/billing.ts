@@ -388,6 +388,39 @@ router.post('/credits/purchase', authenticateToken, async (req: AuthRequest, res
 // ============================================================================
 
 /**
+ * POST /api/billing/setup-intent
+ * Create a SetupIntent for collecting payment method
+ * Following Stripe's recommended approach: https://docs.stripe.com/payments/save-and-reuse
+ */
+router.post('/setup-intent', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Get user's company
+    const { data: companyUser, error: companyError } = await (await import('../config/supabase')).supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+      .single();
+
+    if (companyError || !companyUser) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    const result = await billingService.createSetupIntent(companyUser.company_id);
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error creating setup intent:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/billing/payment-methods
  * Get saved payment methods
  */
