@@ -292,6 +292,7 @@
 import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useBillingStore } from '../stores/billing'
+import { useAuthStore } from '../stores/auth'
 import CreditPacksModal from '../components/CreditPacksModal.vue'
 import SubscriptionModal from '../components/SubscriptionModal.vue'
 import CancelSubscriptionModal from '../components/CancelSubscriptionModal.vue'
@@ -302,6 +303,7 @@ const toast = useToast()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const billingStore = useBillingStore()
+const authStore = useAuthStore()
 const showPurchaseModal = ref(false)
 const showSubscriptionModal = ref(false)
 const showCancelModal = ref(false)
@@ -483,7 +485,7 @@ async function saveAutoRechargeSettings() {
 async function loadPaymentMethods() {
   try {
     loadingPaymentMethods.value = true
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
     const response = await axios.get(`${API_URL}/api/billing/payment-methods`, {
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -500,24 +502,15 @@ async function loadPaymentMethods() {
 async function handlePaymentMethodAdded(paymentMethodId: string) {
   showAddPaymentMethod.value = false
 
-  try {
-    const token = localStorage.getItem('token')
-    await axios.post(
-      `${API_URL}/api/billing/payment-methods`,
-      { payment_method_id: paymentMethodId },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-
-    toast.success('Payment method added successfully')
-    await loadPaymentMethods()
-  } catch (err: any) {
-    toast.error(err.response?.data?.error || 'Failed to save payment method')
-  }
+  // SetupIntent already attached the payment method to the customer
+  // Just refresh the payment methods list
+  toast.success('Payment method added successfully')
+  await loadPaymentMethods()
 }
 
 async function setDefaultPaymentMethod(paymentMethodId: string) {
   try {
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
     await axios.put(
       `${API_URL}/api/billing/payment-methods/default`,
       { payment_method_id: paymentMethodId },
