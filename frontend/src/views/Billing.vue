@@ -486,14 +486,19 @@ async function loadPaymentMethods() {
   try {
     loadingPaymentMethods.value = true
     const token = authStore.session?.access_token
+    console.log('Loading payment methods with token:', !!token)
+
     const response = await axios.get(`${API_URL}/api/billing/payment-methods`, {
       headers: { Authorization: `Bearer ${token}` }
     })
 
+    console.log('Payment methods response:', response.data)
     paymentMethods.value = response.data.payment_methods || []
     defaultPaymentMethodId.value = response.data.default_payment_method || null
-  } catch (err) {
+    console.log('Payment methods loaded:', paymentMethods.value.length)
+  } catch (err: any) {
     console.error('Failed to load payment methods:', err)
+    console.error('Error details:', err.response?.data)
   } finally {
     loadingPaymentMethods.value = false
   }
