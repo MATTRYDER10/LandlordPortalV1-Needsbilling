@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { checkCredits } from '../middleware/checkCredits'
+import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
@@ -718,7 +719,8 @@ router.get('/:id/sanctions', authenticateToken, async (req: AuthRequest, res) =>
 })
 
 // Create new reference
-router.post('/', authenticateToken, checkCredits, async (req: AuthRequest, res) => {
+// Note: Order matters - checkCredits first (if no credits, ask for credits), then checkPaymentMethod (if no payment method, ask for that)
+router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     console.log('Creating reference for user:', userId)
@@ -1656,13 +1658,11 @@ router.post('/submit/:token', async (req, res) => {
       }
     }
 
-    // TODO: CREDIT SYSTEM - When implemented, requesting a guarantor should consume an additional credit
-    // Create guarantor reference if requested
+    // Create guarantor reference if requested and charge £9.99
     if (data.requires_guarantor && data.guarantor_first_name && data.guarantor_email) {
       console.log(`=== GUARANTOR CREATION START ===`)
       console.log(`GUARANTOR REQUIRED: Tenant ${data.first_name} ${data.last_name} has requested a guarantor: ${data.guarantor_first_name} ${data.guarantor_last_name || ''} (${data.guarantor_email})`)
       console.log(`Parent reference ID: ${updatedReference?.id}`)
-      console.log(`NOTE: When credit system is implemented, this will consume an additional credit`)
 
       // Check if a guarantor already exists (added by agent during creation)
       const { data: existingGuarantor } = await supabase
@@ -1769,6 +1769,45 @@ router.post('/submit/:token', async (req, res) => {
           )
 
           console.log('✅ Guarantor reference email sent to:', data.guarantor_email)
+
+          // Charge £9.99 for guarantor reference processing
+          console.log('💳 Charging £9.99 for guarantor reference...')
+          try {
+            const chargeResult = await billingService.chargeForGuarantorReference(
+              reference.company_id,
+              guarantorRef.id,
+              undefined // No userId for public tenant submission
+            )
+
+            if (chargeResult.success) {
+              console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
+            } else {
+              console.error('❌ Guarantor reference charge failed:', chargeResult.error)
+              // Delete the guarantor reference if payment failed
+              await supabase
+                .from('tenant_references')
+                .delete()
+                .eq('id', guarantorRef.id)
+
+              return res.status(402).json({
+                error: 'Payment Required',
+                message: chargeResult.error || 'Failed to charge for guarantor reference. Please add a payment method to your account.',
+                requires_payment_method: true,
+              })
+            }
+          } catch (chargeError: any) {
+            console.error('❌ Failed to charge for guarantor reference:', chargeError)
+            // Delete the guarantor reference if charging fails
+            await supabase
+              .from('tenant_references')
+              .delete()
+              .eq('id', guarantorRef.id)
+
+            return res.status(500).json({
+              error: 'Payment Error',
+              message: 'Failed to process payment for guarantor reference. Please contact support.',
+            })
+          }
         }
         } catch (error: any) {
           console.error('❌ Failed to create/send guarantor reference:', error)
@@ -3612,6 +3651,45 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     )
 
     console.log('Guarantor reference email sent to:', guarantor_email)
+
+    // Charge £9.99 for guarantor reference processing
+    console.log('💳 Charging £9.99 for guarantor reference...')
+    try {
+      const chargeResult = await billingService.chargeForGuarantorReference(
+        parentReference.company_id,
+        guarantorReference.id,
+        userId
+      )
+
+      if (!chargeResult.success) {
+        console.error('❌ Guarantor reference charge failed:', chargeResult.error)
+        // Delete the guarantor reference if payment failed
+        await supabase
+          .from('tenant_references')
+          .delete()
+          .eq('id', guarantorReference.id)
+
+        return res.status(402).json({
+          error: 'Payment Required',
+          message: chargeResult.error || 'Failed to charge for guarantor reference. Please add a payment method to your account.',
+          requires_payment_method: true,
+        })
+      }
+
+      console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
+    } catch (chargeError: any) {
+      console.error('❌ Failed to charge for guarantor reference:', chargeError)
+      // Delete the guarantor reference if charging fails
+      await supabase
+        .from('tenant_references')
+        .delete()
+        .eq('id', guarantorReference.id)
+
+      return res.status(500).json({
+        error: 'Payment Error',
+        message: 'Failed to process payment for guarantor reference. Please contact support.',
+      })
+    }
 
     // Log to audit trail
     await logAuditAction({

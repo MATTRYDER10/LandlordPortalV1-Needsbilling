@@ -825,6 +825,12 @@
       @close="showInsufficientCreditsModal = false"
       @purchased="handleCreditsPurchased"
     />
+
+    <!-- Payment Method Required Modal -->
+    <PaymentMethodRequiredModal
+      :show="showPaymentMethodModal"
+      @close="showPaymentMethodModal = false"
+    />
   </Sidebar>
 </template>
 
@@ -837,6 +843,7 @@ import PhoneInput from '../components/PhoneInput.vue'
 import DatePicker from '../components/DatePicker.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import InsufficientCreditsModal from '../components/InsufficientCreditsModal.vue'
+import PaymentMethodRequiredModal from '../components/PaymentMethodRequiredModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -847,6 +854,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const showCreateModal = ref(false)
 const showGuarantorFields = ref(false)
 const showInsufficientCreditsModal = ref(false)
+const showPaymentMethodModal = ref(false)
 const references = ref<any[]>([])
 const loading = ref(true)
 const createLoading = ref(false)
@@ -1150,10 +1158,19 @@ const handleCreate = async () => {
     })
 
     if (!response.ok) {
-      // Check for insufficient credits (402 Payment Required)
+      // Check for 402 Payment Required (could be credits OR payment method)
       if (response.status === 402) {
+        const errorData = await response.json()
         closeCreateModal()
-        showInsufficientCreditsModal.value = true
+
+        // Check if it's a payment method issue or credits issue
+        if (errorData.requires_payment_method || errorData.error === 'Payment Method Required') {
+          // Payment method required - show modal
+          showPaymentMethodModal.value = true
+        } else {
+          // Insufficient credits
+          showInsufficientCreditsModal.value = true
+        }
         return
       }
 

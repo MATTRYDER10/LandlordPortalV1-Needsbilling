@@ -44,15 +44,21 @@ export async function checkCredits(
     // Check if company can create a reference
     const canCreate = await billingService.canCreateReference(companyUser.company_id);
 
+    console.log('[checkCredits] Company:', companyUser.company_id);
+    console.log('[checkCredits] Credits remaining:', canCreate.credits_remaining);
+    console.log('[checkCredits] Can create reference:', canCreate.allowed);
+
     if (canCreate.allowed) {
       // Company has credits, proceed to route handler
       // Store company_id in request for use in route handler
+      console.log('[checkCredits] ✅ Credits check passed, proceeding to next middleware');
       (req as any).companyId = companyUser.company_id;
       next();
       return;
     }
 
     // Insufficient credits - return 402 Payment Required with purchase options
+    console.log('[checkCredits] ❌ Insufficient credits, blocking request');
     res.status(402).json({
       error: 'Insufficient credits',
       message: 'You need credits to create a reference. Please purchase a subscription or credit pack.',

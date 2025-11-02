@@ -674,10 +674,13 @@ export async function savePaymentMethod(
   await stripeService.attachPaymentMethod(paymentMethodId, customerId);
   await stripeService.setDefaultPaymentMethod(customerId, paymentMethodId);
 
-  // Save to database
+  // Save to database and clear payment_method_required flag
   await supabase
     .from('companies')
-    .update({ stripe_payment_method_id: paymentMethodId })
+    .update({
+      stripe_payment_method_id: paymentMethodId,
+      payment_method_required: false,
+    })
     .eq('id', companyId);
 }
 
@@ -726,10 +729,180 @@ export async function deletePaymentMethod(
 
   // If this was the default payment method, clear it from the database
   if (company.stripe_payment_method_id === paymentMethodId) {
+    // Check if there are other payment methods
+    const remainingMethods = await stripeService.listPaymentMethods(company.stripe_customer_id);
+    const otherMethods = remainingMethods.filter(pm => pm.id !== paymentMethodId);
+
     await supabase
       .from('companies')
-      .update({ stripe_payment_method_id: null })
+      .update({
+        stripe_payment_method_id: null,
+        // Set payment_method_required back to true if no other payment methods exist
+        payment_method_required: otherMethods.length === 0,
+      })
       .eq('id', companyId);
+  }
+}
+
+// ============================================================================
+// GUARANTOR REFERENCE BILLING
+// ============================================================================
+
+/**
+ * Get guarantor reference pricing
+ */
+export async function getGuarantorReferencePricing(): Promise<number> {
+  const { data, error } = await supabase
+    .from('pricing_config')
+    .select('price_gbp')
+    .eq('product_type', 'guarantor_reference')
+    .eq('product_key', 'guarantor_reference_standard')
+    .eq('active', true)
+    .single();
+
+  if (error) {
+    console.error('Failed to fetch guarantor reference pricing:', error.message);
+    return 9.99; // Default fallback
+  }
+
+  return data?.price_gbp || 9.99;
+}
+
+/**
+ * Charge for guarantor reference processing
+ * Auto-charges using saved payment method - REQUIRED for guarantors
+ *
+ * @param companyId - The company being charged
+ * @param guarantorReferenceId - The guarantor reference ID
+ * @param userId - Optional user who triggered the charge
+ * @returns Payment result with status
+ */
+export async function chargeForGuarantorReference(
+  companyId: string,
+  guarantorReferenceId: string,
+  userId?: string
+): Promise<{ success: boolean; payment_intent_id?: string; error?: string }> {
+  // Check if there's already a successful payment for this guarantor reference
+  const { data: existingPayment } = await supabase
+    .from('guarantor_reference_payments')
+    .select('*')
+    .eq('guarantor_reference_id', guarantorReferenceId)
+    .eq('payment_status', 'succeeded')
+    .single();
+
+  if (existingPayment) {
+    console.log(`Guarantor reference ${guarantorReferenceId} already has a successful payment: ${existingPayment.stripe_payment_intent_id}`);
+    return {
+      success: true,
+      payment_intent_id: existingPayment.stripe_payment_intent_id,
+    };
+  }
+
+  // Get pricing
+  const priceGbp = await getGuarantorReferencePricing();
+  const amount = stripeService.poundsToPence(priceGbp);
+
+  // Get Stripe customer
+  const customerId = await getOrCreateStripeCustomer(companyId);
+
+  // Check if customer has a saved payment method
+  const { data: company } = await supabase
+    .from('companies')
+    .select('stripe_payment_method_id')
+    .eq('id', companyId)
+    .single();
+
+  console.log('[GuarantorReference] Checking for saved payment method:', {
+    companyId,
+    guarantorReferenceId,
+    hasPaymentMethod: !!company?.stripe_payment_method_id,
+    paymentMethodId: company?.stripe_payment_method_id
+  });
+
+  // Guarantor references REQUIRE a saved payment method for auto-billing
+  if (!company?.stripe_payment_method_id) {
+    const errorMessage = 'Payment method required. Please add a payment method to your account before requesting guarantor references.';
+    console.error('[GuarantorReference] No saved payment method found:', errorMessage);
+
+    // Log failed payment attempt
+    await supabase
+      .from('guarantor_reference_payments')
+      .insert({
+        company_id: companyId,
+        guarantor_reference_id: guarantorReferenceId,
+        amount_gbp: priceGbp,
+        payment_status: 'failed',
+        failure_code: 'no_payment_method',
+        failure_message: errorMessage,
+        created_by: userId,
+      });
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+
+  const description = `Guarantor Reference Processing (£${priceGbp})`;
+  const metadata = {
+    company_id: companyId,
+    guarantor_reference_id: guarantorReferenceId,
+    product_type: 'guarantor_reference',
+  };
+
+  // Auto-charge using saved payment method
+  console.log('[GuarantorReference] Auto-charging with saved payment method...');
+  try {
+    const paymentIntent = await stripeService.chargeCustomer(
+      customerId,
+      amount,
+      description,
+      metadata
+    );
+
+    console.log('[GuarantorReference] Auto-charge succeeded!', {
+      status: paymentIntent.status,
+      id: paymentIntent.id
+    });
+
+    // Record successful payment
+    await supabase
+      .from('guarantor_reference_payments')
+      .insert({
+        company_id: companyId,
+        guarantor_reference_id: guarantorReferenceId,
+        amount_gbp: priceGbp,
+        stripe_payment_intent_id: paymentIntent.id,
+        stripe_charge_id: paymentIntent.latest_charge as string,
+        payment_status: 'succeeded',
+        paid_at: new Date().toISOString(),
+        created_by: userId,
+      });
+
+    return {
+      success: true,
+      payment_intent_id: paymentIntent.id,
+    };
+  } catch (error: any) {
+    console.error('[GuarantorReference] Auto-charge failed:', error);
+
+    // Log failed payment
+    await supabase
+      .from('guarantor_reference_payments')
+      .insert({
+        company_id: companyId,
+        guarantor_reference_id: guarantorReferenceId,
+        amount_gbp: priceGbp,
+        payment_status: 'failed',
+        failure_code: error.code || 'charge_failed',
+        failure_message: error.message || 'Payment failed',
+        created_by: userId,
+      });
+
+    return {
+      success: false,
+      error: error.message || 'Payment failed. Please check your payment method.',
+    };
   }
 }
 
