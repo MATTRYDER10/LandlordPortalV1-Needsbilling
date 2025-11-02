@@ -604,7 +604,7 @@ export async function savePaymentMethod(
 export async function getPaymentMethods(companyId: string): Promise<any[]> {
   const { data: company } = await supabase
     .from('companies')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, stripe_payment_method_id')
     .eq('id', companyId)
     .single();
 
@@ -612,7 +612,13 @@ export async function getPaymentMethods(companyId: string): Promise<any[]> {
     return [];
   }
 
-  return await stripeService.listPaymentMethods(company.stripe_customer_id);
+  const paymentMethods = await stripeService.listPaymentMethods(company.stripe_customer_id);
+
+  // Mark the default payment method
+  return paymentMethods.map(pm => ({
+    ...pm,
+    is_default: pm.id === company.stripe_payment_method_id
+  }));
 }
 
 /**
