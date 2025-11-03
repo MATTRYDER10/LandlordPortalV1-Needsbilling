@@ -120,13 +120,23 @@ router.post('/complete', authenticateToken, async (req: AuthRequest, res) => {
     // Validate that required information is present
     const { data: company, error: companyError } = await supabase
       .from('companies')
-      .select('name_encrypted, address_encrypted, city_encrypted, postcode_encrypted, phone_encrypted, stripe_payment_method_id')
+      .select('name_encrypted, address_encrypted, city_encrypted, postcode_encrypted, phone_encrypted, stripe_payment_method_id, onboarding_completed')
       .eq('id', companyUser.company_id)
       .single()
 
     if (companyError || !company) {
       console.error('Company fetch error:', companyError)
       return res.status(404).json({ error: 'Company not found' })
+    }
+
+    // Idempotency check: if onboarding is already completed, return success without re-processing
+    // This prevents duplicate emails and audit logs when the endpoint is called multiple times
+    if (company.onboarding_completed) {
+      console.log('Onboarding already completed for company:', companyUser.company_id)
+      return res.json({
+        message: 'Onboarding already completed',
+        onboardingCompleted: true
+      })
     }
 
     // Log company data for debugging
