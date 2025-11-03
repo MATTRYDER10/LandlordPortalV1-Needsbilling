@@ -136,7 +136,10 @@ onMounted(async () => {
   await billingStore.fetchCreditPacks()
 
   // Initialize Stripe
-  const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51SOgxnLLQSrQhTAA1FbO3GHy58oEuSBY8UkpMZRqK0Yzk3F4y0CxuCyPnTWFgbEc34db2X2nIbQg7iMsvmFiy2KZ00AjdBk9nc'
+  const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+  if (!stripeKey) {
+    throw new Error('Stripe publishable key not configured')
+  }
   stripe = await loadStripe(stripeKey)
 })
 

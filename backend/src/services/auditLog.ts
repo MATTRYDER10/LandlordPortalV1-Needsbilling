@@ -15,6 +15,7 @@ export type AuditAction =
   | 'company.updated'
   | 'company.branding_updated'
   | 'company.logo_uploaded'
+  | 'company.onboarding_completed'
   // Reference actions
   | 'reference.created'
   | 'reference.updated'

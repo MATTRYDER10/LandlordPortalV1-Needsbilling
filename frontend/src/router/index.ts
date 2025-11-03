@@ -16,6 +16,7 @@ import EmployerReference from '../views/EmployerReference.vue'
 import AccountantReference from '../views/AccountantReference.vue'
 import Settings from '../views/Settings.vue'
 import Agreements from '../views/Agreements.vue'
+import Onboarding from '../views/Onboarding.vue'
 import StaffLogin from '../views/StaffLogin.vue'
 import StaffDashboard from '../views/StaffDashboard.vue'
 import StaffChaseList from '../views/StaffChaseList.vue'
@@ -58,6 +59,12 @@ const router = createRouter({
       name: 'AcceptInvite',
       component: AcceptInvite,
       meta: { requiresGuest: true }
+    },
+    {
+      path: '/onboarding',
+      name: 'Onboarding',
+      component: Onboarding,
+      meta: { requiresAuth: true, skipOnboardingCheck: true }
     },
     {
       path: '/dashboard',
@@ -219,13 +226,50 @@ router.beforeEach(async (to, _from, next) => {
 
   const isAuthenticated = !!authStore.user
 
+  // Authentication checks
   if (to.meta.requiresAuth && !isAuthenticated) {
     next('/login')
-  } else if (to.meta.requiresGuest && isAuthenticated) {
-    next('/dashboard')
-  } else {
-    next()
+    return
   }
+
+  if (to.meta.requiresGuest && isAuthenticated) {
+    next('/dashboard')
+    return
+  }
+
+  // Onboarding check - redirect to onboarding if incomplete
+  // Skip check for: onboarding route, public routes, staff routes, reference submission routes
+  const publicPaths = [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/accept-invite',
+    '/onboarding'
+  ]
+  const isPublicPath = publicPaths.some(path => to.path.startsWith(path))
+  const isStaffPath = to.path.startsWith('/staff')
+  const isReferenceSubmission = to.path.startsWith('/submit-reference') ||
+                                 to.path.startsWith('/guarantor-reference') ||
+                                 to.path.startsWith('/landlord-reference') ||
+                                 to.path.startsWith('/agent-reference') ||
+                                 to.path.startsWith('/employer-reference') ||
+                                 to.path.startsWith('/accountant-reference')
+  const skipOnboardingCheck = to.meta.skipOnboardingCheck === true
+
+  if (
+    isAuthenticated &&
+    !authStore.onboardingCompleted &&
+    !isPublicPath &&
+    !isStaffPath &&
+    !isReferenceSubmission &&
+    !skipOnboardingCheck
+  ) {
+    next('/onboarding')
+    return
+  }
+
+  next()
 })
 
 export default router

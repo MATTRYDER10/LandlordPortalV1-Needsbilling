@@ -7,10 +7,11 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const session = ref<Session | null>(null)
   const company = ref<{ name: string, role: string } | null>(null)
+  const onboardingCompleted = ref<boolean>(true) // Default to true to avoid flashing
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // Fetch company data
+  // Fetch company data and onboarding status
   const fetchCompany = async () => {
     try {
       const token = session.value?.access_token
@@ -41,6 +42,39 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Fetch onboarding status
+  const fetchOnboardingStatus = async () => {
+    try {
+      const token = session.value?.access_token
+      if (!token) return
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/onboarding/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        onboardingCompleted.value = data.onboardingCompleted || data.shouldSkipOnboarding
+      } else {
+        // Default to true if error (prevents redirect loop)
+        onboardingCompleted.value = true
+      }
+    } catch (err) {
+      console.error('Failed to fetch onboarding status:', err)
+      onboardingCompleted.value = true
+    }
+  }
+
+  // Fetch user data (includes onboarding check)
+  const fetchUser = async () => {
+    await fetchCompany()
+    await fetchOnboardingStatus()
+  }
+
   // Initialize auth state
   const initialize = async () => {
     loading.value = true
@@ -49,9 +83,10 @@ export const useAuthStore = defineStore('auth', () => {
       session.value = currentSession
       user.value = currentSession?.user ?? null
 
-      // Fetch company data if user is logged in
+      // Fetch company data and onboarding status if user is logged in
       if (currentSession?.user) {
         await fetchCompany()
+        await fetchOnboardingStatus()
       }
 
       // Listen for auth changes
@@ -59,11 +94,13 @@ export const useAuthStore = defineStore('auth', () => {
         session.value = newSession
         user.value = newSession?.user ?? null
 
-        // Fetch company data when user signs in
+        // Fetch company data and onboarding status when user signs in
         if (newSession?.user) {
           await fetchCompany()
+          await fetchOnboardingStatus()
         } else {
           company.value = null
+          onboardingCompleted.value = true
         }
       })
     } catch (err: any) {
@@ -179,6 +216,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     session,
     company,
+    onboardingCompleted,
     loading,
     error,
     initialize,
@@ -187,6 +225,8 @@ export const useAuthStore = defineStore('auth', () => {
     signOut,
     resetPassword,
     updatePassword,
-    fetchCompany
+    fetchCompany,
+    fetchOnboardingStatus,
+    fetchUser
   }
 })

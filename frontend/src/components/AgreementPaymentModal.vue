@@ -64,7 +64,11 @@ let paymentElement: any = null
 
 onMounted(async () => {
   // Initialize Stripe
-  const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51SOgxnLLQSrQhTAA1FbO3GHy58oEuSBY8UkpMZRqK0Yzk3F4y0CxuCyPnTWFgbEc34db2X2nIbQg7iMsvmFiy2KZ00AjdBk9nc'
+  const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+  if (!stripeKey) {
+    paymentError.value = 'Stripe publishable key not configured'
+    return
+  }
   stripe = await loadStripe(stripeKey)
 
   if (!stripe) {

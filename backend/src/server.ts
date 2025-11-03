@@ -17,6 +17,7 @@ import referenceAuditLogRoutes from './routes/reference-audit-log'
 import agreementsRoutes from './routes/agreements'
 import billingRoutes from './routes/billing'
 import webhookRoutes from './routes/webhooks'
+import onboardingRoutes from './routes/onboarding'
 
 dotenv.config()
 
@@ -115,6 +116,7 @@ app.use('/api/reference-notes', referenceNotesRoutes)
 app.use('/api/reference-audit-log', referenceAuditLogRoutes)
 app.use('/api/agreements', agreementsRoutes)
 app.use('/api/billing', billingRoutes)
+app.use('/api/onboarding', onboardingRoutes)
 
 // Start server
 app.listen(PORT, () => {

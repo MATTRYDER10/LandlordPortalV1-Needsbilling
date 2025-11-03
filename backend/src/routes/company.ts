@@ -98,6 +98,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
       const companyName = user?.user_metadata?.company_name || `${user?.email?.split('@')[0]}'s Company`
 
+      console.log('Initializing company name from metadata:', {
+        userId,
+        companyName,
+        metadata_company_name: user?.user_metadata?.company_name,
+        email: user?.email
+      })
+
       // Encrypt and save the company name
       const { error: updateError } = await supabase
         .from('companies')
@@ -129,6 +136,12 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       postcode: decrypt((companyUser.companies as any).postcode_encrypted),
       website: decrypt((companyUser.companies as any).website_encrypted)
     } : null
+
+    console.log('GET /api/company returning:', {
+      userId,
+      companyName: company?.name,
+      hasNameEncrypted: !!(companyUser.companies as any)?.name_encrypted
+    })
 
     res.json({
       company,
@@ -214,6 +227,9 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id
     const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code } = req.body
 
+    // Debug logging
+    console.log('Company update request body:', { name, address, city, postcode, phone, email, website, bank_account_name, bank_account_number, bank_sort_code })
+
     // Get user's company
     const { data: companyUsers } = await supabase
       .from('company_users')
@@ -239,25 +255,32 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
       .eq('id', companyUser.company_id)
       .single()
 
+    // Build update object - only include fields that are explicitly provided
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    }
+
+    // Only update fields that are provided in the request
+    if (name !== undefined) updateData.name_encrypted = name ? encrypt(name) : null
+    if (address !== undefined) updateData.address_encrypted = address ? encrypt(address) : null
+    if (city !== undefined) updateData.city_encrypted = city ? encrypt(city) : null
+    if (postcode !== undefined) updateData.postcode_encrypted = postcode ? encrypt(postcode) : null
+    if (phone !== undefined) updateData.phone_encrypted = phone ? encrypt(phone) : null
+    if (email !== undefined) updateData.email_encrypted = email ? encrypt(email) : null
+    if (website !== undefined) updateData.website_encrypted = website ? encrypt(website) : null
+    if (logo_url !== undefined) updateData.logo_url = logo_url
+    if (primary_color !== undefined) updateData.primary_color = primary_color
+    if (button_color !== undefined) updateData.button_color = button_color
+    if (bank_account_name !== undefined) updateData.bank_account_name = bank_account_name || null
+    if (bank_account_number !== undefined) updateData.bank_account_number = bank_account_number || null
+    if (bank_sort_code !== undefined) updateData.bank_sort_code = bank_sort_code || null
+
+    console.log('Updating company with fields:', Object.keys(updateData))
+
     // Update company
     const { data, error } = await supabase
       .from('companies')
-      .update({
-        name_encrypted: name ? encrypt(name) : null,
-        address_encrypted: address ? encrypt(address) : null,
-        city_encrypted: city ? encrypt(city) : null,
-        postcode_encrypted: postcode ? encrypt(postcode) : null,
-        phone_encrypted: phone ? encrypt(phone) : null,
-        email_encrypted: email ? encrypt(email) : null,
-        website_encrypted: website ? encrypt(website) : null,
-        logo_url,
-        primary_color,
-        button_color,
-        bank_account_name: bank_account_name || null,
-        bank_account_number: bank_account_number || null,
-        bank_sort_code: bank_sort_code || null,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', companyUser.company_id)
       .select()
       .single()
