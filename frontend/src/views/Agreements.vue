@@ -35,10 +35,137 @@
         </div>
       </div>
 
+      <!-- Imported From Reference Banner -->
+      <div v-if="importedFromReference && selectedReferenceId" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+        <div class="flex items-center">
+          <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span class="text-sm font-medium text-blue-900">Imported from Reference #{{ selectedReferenceId }}</span>
+        </div>
+        <button
+          @click="clearImport"
+          type="button"
+          class="text-sm text-blue-700 hover:text-blue-900 font-medium"
+        >
+          Clear Import
+        </button>
+      </div>
+
       <!-- Form Container -->
       <div class="bg-white rounded-lg shadow p-6">
-        <!-- Step 1: Select Template -->
+        <!-- Step 0: Import from Reference -->
         <div v-if="currentStep === 0">
+          <h3 class="text-xl font-semibold text-gray-900 mb-4">Import from Reference (Optional)</h3>
+          <p class="text-sm text-gray-600 mb-6">Pre-fill this agreement with data from a completed reference, or skip to enter manually</p>
+
+          <!-- Toggle Button -->
+          <div class="mb-6">
+            <button
+              @click="toggleReferenceSelector"
+              type="button"
+              class="px-6 py-3 text-sm font-medium rounded-md transition-colors"
+              :class="showReferenceSelector
+                ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                : 'bg-primary text-white hover:bg-primary/90'
+              "
+            >
+              {{ showReferenceSelector ? 'Skip - Enter Manually' : 'Import from Reference' }}
+            </button>
+          </div>
+
+          <!-- Reference Selector -->
+          <div v-if="showReferenceSelector" class="space-y-4">
+            <!-- Search and Filter -->
+            <div class="flex gap-4">
+              <div class="flex-1">
+                <input
+                  v-model="referenceSearchQuery"
+                  type="text"
+                  placeholder="Search by tenant name or property address..."
+                  class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <button
+                @click="fetchParentReferences"
+                type="button"
+                :disabled="loadingReferences"
+                class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50"
+              >
+                {{ loadingReferences ? 'Loading...' : 'Search' }}
+              </button>
+            </div>
+
+            <!-- Loading State -->
+            <div v-if="loadingReferences" class="text-center py-12">
+              <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p class="mt-2 text-gray-600">Loading references...</p>
+            </div>
+
+            <!-- No References -->
+            <div v-else-if="!loadingReferences && filteredReferences.length === 0" class="text-center py-12">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p class="mt-2 text-gray-600">{{ referenceSearchQuery ? 'No references match your search' : 'No completed references found. Click "Skip" to enter manually.' }}</p>
+            </div>
+
+            <!-- Reference Cards -->
+            <div v-else class="grid grid-cols-1 gap-4 max-h-96 overflow-y-auto">
+              <div
+                v-for="reference in filteredReferences"
+                :key="reference.id"
+                @click="selectReference(reference.id)"
+                class="border-2 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md"
+                :class="
+                  selectedReferenceId === reference.id
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-primary/50'
+                "
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                      <h4 class="font-semibold text-gray-900">
+                        {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
+                      </h4>
+                      <span v-if="reference.is_group_parent" class="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                        {{ reference.tenant_count || 0 }} Tenants
+                      </span>
+                      <span class="px-2 py-0.5 text-xs font-medium rounded" :class="{
+                        'bg-green-100 text-green-800': reference.status === 'completed',
+                        'bg-yellow-100 text-yellow-800': reference.status === 'pending_verification',
+                        'bg-gray-100 text-gray-800': reference.status !== 'completed' && reference.status !== 'pending_verification'
+                      }">
+                        {{ reference.status }}
+                      </span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-1">
+                      {{ reference.property_address }}, {{ reference.property_city }} {{ reference.property_postcode }}
+                    </p>
+                    <div class="flex items-center gap-4 text-sm text-gray-500">
+                      <span>Rent: £{{ reference.monthly_rent || 'N/A' }}/mo</span>
+                      <span v-if="reference.move_in_date">Move-in: {{ new Date(reference.move_in_date).toLocaleDateString('en-GB') }}</span>
+                    </div>
+                  </div>
+                  <div
+                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                    :class="
+                      selectedReferenceId === reference.id
+                        ? 'border-primary bg-primary'
+                        : 'border-gray-300'
+                    "
+                  >
+                    <div v-if="selectedReferenceId === reference.id" class="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 1: Select Template -->
+        <div v-if="currentStep === 1">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Select Agreement Template</h3>
           <p class="text-sm text-gray-600 mb-6">Choose the deposit protection scheme for this tenancy</p>
 
@@ -75,7 +202,7 @@
         </div>
 
         <!-- Step 2: Property Address -->
-        <div v-if="currentStep === 1">
+        <div v-if="currentStep === 2">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Property Address</h3>
           <div class="space-y-4 max-w-2xl">
             <AddressAutocomplete
@@ -127,7 +254,7 @@
         </div>
 
         <!-- Step 3: Agreement Details -->
-        <div v-if="currentStep === 2">
+        <div v-if="currentStep === 3">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Agreement Details</h3>
           <div class="space-y-4 max-w-2xl">
             <div class="grid grid-cols-2 gap-4">
@@ -395,7 +522,7 @@
         </div>
 
         <!-- Step 4: Landlords -->
-        <div v-if="currentStep === 3">
+        <div v-if="currentStep === 4">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Landlord Details</h3>
           <p class="text-sm text-gray-600 mb-6">Add up to 20 landlords for this agreement</p>
 
@@ -472,7 +599,7 @@
         </div>
 
         <!-- Step 5: Tenants -->
-        <div v-if="currentStep === 4">
+        <div v-if="currentStep === 5">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Tenant Details</h3>
           <p class="text-sm text-gray-600 mb-6">Add up to 20 tenants for this agreement</p>
 
@@ -549,7 +676,7 @@
         </div>
 
         <!-- Step 6: Guarantors -->
-        <div v-if="currentStep === 5">
+        <div v-if="currentStep === 6">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Guarantor Details (Optional)</h3>
           <p class="text-sm text-gray-600 mb-6">Add up to 20 guarantors for this agreement, or skip if none required</p>
 
@@ -638,7 +765,7 @@
         </div>
 
         <!-- Step 7: Review & Generate -->
-        <div v-if="currentStep === 6">
+        <div v-if="currentStep === 7">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Review & Generate</h3>
           <p class="text-sm text-gray-600 mb-6">Please review the information before generating the agreement</p>
 
@@ -916,7 +1043,7 @@ import { useAuthStore } from '../stores/auth'
 const authStore = useAuthStore()
 const toast = useToast()
 
-const steps = ['Template', 'Property', 'Details', 'Landlords', 'Tenants', 'Guarantors', 'Review']
+const steps = ['Import', 'Template', 'Property', 'Details', 'Landlords', 'Tenants', 'Guarantors', 'Review']
 const currentStep = ref(0)
 const loading = ref(false)
 const error = ref('')
@@ -932,6 +1059,14 @@ const showPaymentModal = ref(false)
 const paymentClientSecret = ref('')
 const agreementPrice = ref(9.99)
 const pendingAgreementId = ref<string | null>(null)
+
+// Reference import state
+const availableReferences = ref<any[]>([])
+const loadingReferences = ref(false)
+const referenceSearchQuery = ref('')
+const selectedReferenceId = ref<string | null>(null)
+const importedFromReference = ref(false)
+const showReferenceSelector = ref(false)
 
 const templateOptions = [
   {
@@ -1121,6 +1256,18 @@ const generatedBreakClause = computed(() => {
   return `Either party may terminate this tenancy by providing ${notice} month${notice > 1 ? 's' : ''}' written notice to the other party, which notice may be given at any time after the expiry of ${months} month${months > 1 ? 's' : ''} from the commencement of this tenancy.`
 })
 
+// Filter references by search query
+const filteredReferences = computed(() => {
+  if (!referenceSearchQuery.value) return availableReferences.value
+
+  const query = referenceSearchQuery.value.toLowerCase()
+  return availableReferences.value.filter((ref: any) => {
+    const tenantName = `${ref.tenant_first_name} ${ref.tenant_last_name}`.toLowerCase()
+    const propertyAddress = `${ref.property_address} ${ref.property_city}`.toLowerCase()
+    return tenantName.includes(query) || propertyAddress.includes(query)
+  })
+})
+
 // Filter agreements by search query
 const filteredAgreements = computed(() => {
   if (!searchQuery.value) return agreements.value
@@ -1135,15 +1282,17 @@ const filteredAgreements = computed(() => {
 
 const canProceed = computed(() => {
   switch (currentStep.value) {
-    case 0: // Template selection
+    case 0: // Import from reference (always can proceed - it's optional)
+      return true
+    case 1: // Template selection
       return formData.value.templateType !== ''
-    case 1: // Property address
+    case 2: // Property address
       return (
         formData.value.propertyAddress.line1 !== '' &&
         formData.value.propertyAddress.city !== '' &&
         formData.value.propertyAddress.postcode !== ''
       )
-    case 2: // Agreement details
+    case 3: // Agreement details
       const baseValid = (
         formData.value.rentAmount !== undefined && formData.value.rentAmount > 0 &&
         formData.value.depositAmount !== undefined && formData.value.depositAmount >= 0 &&
@@ -1176,15 +1325,15 @@ const canProceed = computed(() => {
       }
 
       return baseValid && breakClauseValid
-    case 3: // Landlords
+    case 4: // Landlords
       return formData.value.landlords.every(
         (l) => l.name !== '' && l.address.line1 !== '' && l.address.city !== '' && l.address.postcode !== ''
       )
-    case 4: // Tenants
+    case 5: // Tenants
       return formData.value.tenants.every(
         (t) => t.name !== '' && t.address.line1 !== '' && t.address.city !== '' && t.address.postcode !== ''
       )
-    case 5: // Guarantors (optional, so always can proceed)
+    case 6: // Guarantors (optional, so always can proceed)
       if (formData.value.guarantors.length === 0) return true
       return formData.value.guarantors.every(
         (g) => g.name !== '' && g.address.line1 !== '' && g.address.city !== '' && g.address.postcode !== ''
@@ -1346,6 +1495,204 @@ async function fetchAgreements() {
   } finally {
     loadingAgreements.value = false
   }
+}
+
+// Fetch parent references for import selection
+async function fetchParentReferences() {
+  loadingReferences.value = true
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const token = authStore.session?.access_token
+
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/references`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const { references } = await response.json()
+      // Filter for parent references only (not guarantors, not children)
+      availableReferences.value = references.filter((ref: any) =>
+        !ref.is_guarantor && !ref.parent_reference_id
+      )
+    }
+  } catch (err) {
+    console.error('Error fetching references:', err)
+    toast.error('Failed to load references')
+  } finally {
+    loadingReferences.value = false
+  }
+}
+
+// Toggle reference selector
+function toggleReferenceSelector() {
+  showReferenceSelector.value = !showReferenceSelector.value
+  if (showReferenceSelector.value && availableReferences.value.length === 0) {
+    fetchParentReferences()
+  }
+}
+
+// Helper function to get ordinal suffix for rent due day
+function getOrdinalSuffixForDay(day: number): string {
+  if (day >= 11 && day <= 13) return 'th'
+  switch (day % 10) {
+    case 1: return 'st'
+    case 2: return 'nd'
+    case 3: return 'rd'
+    default: return 'th'
+  }
+}
+
+// Select a reference and load its full data
+async function selectReference(referenceId: string) {
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const token = authStore.session?.access_token
+
+    if (!token) return
+
+    // Fetch full reference data
+    const response = await fetch(`${API_URL}/api/references/${referenceId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch reference details')
+    }
+
+    const data = await response.json()
+    const { reference, childReferences, guarantorReferences, landlordReference } = data
+
+    // Mark as selected
+    selectedReferenceId.value = referenceId
+    importedFromReference.value = true
+
+    // Map reference data to form
+    mapReferenceToForm(reference, childReferences, guarantorReferences, landlordReference)
+
+    toast.success('Reference data imported successfully!')
+  } catch (err) {
+    console.error('Error selecting reference:', err)
+    toast.error('Failed to import reference data')
+  }
+}
+
+// Map reference data to agreement form
+function mapReferenceToForm(
+  reference: any,
+  childReferences: any[] = [],
+  guarantorReferences: any[] = [],
+  landlordReference: any = null
+) {
+  // Property address
+  if (reference.property_address) {
+    formData.value.propertyAddress = {
+      line1: reference.property_address,
+      line2: '',
+      city: reference.property_city || '',
+      county: '',
+      postcode: reference.property_postcode || ''
+    }
+  }
+
+  // Financial details
+  if (reference.monthly_rent) {
+    formData.value.rentAmount = parseFloat(reference.monthly_rent)
+  }
+
+  // Tenancy dates
+  if (reference.move_in_date) {
+    formData.value.tenancyStartDate = reference.move_in_date
+
+    // Auto-set rent due day from move-in date
+    const moveInDate = new Date(reference.move_in_date)
+    const day = moveInDate.getDate()
+    const suffix = getOrdinalSuffixForDay(day)
+    formData.value.rentDueDay = `${day}${suffix}`
+  }
+
+  // Tenancy term (convert years + months to total months)
+  if (reference.term_years !== undefined && reference.term_months !== undefined) {
+    formData.value.tenancyTerm = (reference.term_years * 12) + reference.term_months
+  }
+
+  // Tenant email
+  if (reference.tenant_email) {
+    formData.value.tenantEmail = reference.tenant_email
+  }
+
+  // Build tenants array
+  if (reference.is_group_parent && childReferences && childReferences.length > 0) {
+    // Multi-tenant scenario
+    formData.value.tenants = childReferences.map((child: any) => ({
+      name: `${child.tenant_first_name} ${child.tenant_last_name}`,
+      address: {
+        line1: child.property_address || '',
+        line2: '',
+        city: child.property_city || '',
+        county: '',
+        postcode: child.property_postcode || ''
+      }
+    }))
+  } else {
+    // Single tenant
+    formData.value.tenants = [{
+      name: `${reference.tenant_first_name} ${reference.tenant_last_name}`,
+      address: {
+        line1: reference.property_address || '',
+        line2: '',
+        city: reference.property_city || '',
+        county: '',
+        postcode: reference.property_postcode || ''
+      }
+    }]
+  }
+
+  // Build guarantors array
+  if (guarantorReferences && guarantorReferences.length > 0) {
+    formData.value.guarantors = guarantorReferences.map((g: any) => ({
+      name: `${g.tenant_first_name} ${g.tenant_last_name}`,
+      address: {
+        line1: g.property_address || '',
+        line2: '',
+        city: g.property_city || '',
+        county: '',
+        postcode: g.property_postcode || ''
+      }
+    }))
+  } else {
+    formData.value.guarantors = []
+  }
+
+  // Landlord data if available
+  if (landlordReference) {
+    formData.value.landlords = [{
+      name: landlordReference.landlord_name || '',
+      address: {
+        line1: landlordReference.property_address || '',
+        line2: '',
+        city: landlordReference.property_city || '',
+        county: '',
+        postcode: landlordReference.property_postcode || ''
+      }
+    }]
+  }
+}
+
+// Clear imported reference data
+function clearImport() {
+  selectedReferenceId.value = null
+  importedFromReference.value = false
+  showReferenceSelector.value = false
+
+  // Reset form to defaults (but keep any manually entered data)
+  // User can manually edit if they want to start fresh
+  toast.info('Import cleared. Form data retained.')
 }
 
 // Fetch company settings for managed properties
