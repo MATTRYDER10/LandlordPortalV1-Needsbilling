@@ -198,11 +198,34 @@
               >
                 <option value="1st">1st of each month</option>
                 <option value="2nd">2nd of each month</option>
+                <option value="3rd">3rd of each month</option>
+                <option value="4th">4th of each month</option>
                 <option value="5th">5th of each month</option>
+                <option value="6th">6th of each month</option>
+                <option value="7th">7th of each month</option>
+                <option value="8th">8th of each month</option>
+                <option value="9th">9th of each month</option>
                 <option value="10th">10th of each month</option>
+                <option value="11th">11th of each month</option>
+                <option value="12th">12th of each month</option>
+                <option value="13th">13th of each month</option>
+                <option value="14th">14th of each month</option>
                 <option value="15th">15th of each month</option>
+                <option value="16th">16th of each month</option>
+                <option value="17th">17th of each month</option>
+                <option value="18th">18th of each month</option>
+                <option value="19th">19th of each month</option>
                 <option value="20th">20th of each month</option>
+                <option value="21st">21st of each month</option>
+                <option value="22nd">22nd of each month</option>
+                <option value="23rd">23rd of each month</option>
+                <option value="24th">24th of each month</option>
                 <option value="25th">25th of each month</option>
+                <option value="26th">26th of each month</option>
+                <option value="27th">27th of each month</option>
+                <option value="28th">28th of each month</option>
+                <option value="29th">29th of each month</option>
+                <option value="30th">30th of each month</option>
                 <option value="Last">Last day of each month</option>
               </select>
             </div>
@@ -1029,6 +1052,27 @@ onMounted(() => {
 watch(() => formData.value.managementType, () => {
   if (formData.value.managementType === 'managed') {
     fetchCompanySettings()
+  }
+})
+
+// Helper function to get ordinal suffix (1st, 2nd, 3rd, etc.)
+function getOrdinalSuffix(day: number): string {
+  if (day >= 11 && day <= 13) return 'th'
+  switch (day % 10) {
+    case 1: return 'st'
+    case 2: return 'nd'
+    case 3: return 'rd'
+    default: return 'th'
+  }
+}
+
+// Update rent due date when tenancy start date changes
+watch(() => formData.value.tenancyStartDate, (newDate) => {
+  if (newDate) {
+    const date = new Date(newDate)
+    const day = date.getDate()
+    const suffix = getOrdinalSuffix(day)
+    formData.value.rentDueDay = `${day}${suffix}`
   }
 })
 
