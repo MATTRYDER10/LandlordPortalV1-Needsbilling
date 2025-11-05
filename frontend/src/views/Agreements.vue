@@ -282,8 +282,12 @@
                     required
                     class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                     placeholder="0.00"
+                    @input="depositManuallyEdited = true"
                   />
                 </div>
+                <p v-if="!depositManuallyEdited && calculatedDeposit" class="text-xs text-blue-600 mt-1">
+                  Auto-calculated as 5 weeks rent
+                </p>
               </div>
             </div>
 
@@ -1148,6 +1152,37 @@ const displayEndDate = computed(() => {
   return date.toLocaleDateString('en-GB')
 })
 
+// Computed property to calculate 5 weeks deposit from monthly rent
+const calculatedDeposit = computed(() => {
+  if (!formData.value.rentAmount || formData.value.rentAmount <= 0) {
+    return null
+  }
+  // Formula: (monthly rent * 12 / 52) * 5 = 5 weeks rent
+  const weeklyRent = (formData.value.rentAmount * 12) / 52
+  const fiveWeeksDeposit = weeklyRent * 5
+  // Round to 2 decimal places
+  return Math.round(fiveWeeksDeposit * 100) / 100
+})
+
+// Track whether user has manually edited the deposit
+const depositManuallyEdited = ref(false)
+
+// Watch rent amount and auto-calculate deposit
+watch(() => formData.value.rentAmount, (newRent) => {
+  // Only auto-update if user hasn't manually edited the deposit
+  if (!depositManuallyEdited.value && newRent && newRent > 0 && calculatedDeposit.value !== null) {
+    formData.value.depositAmount = calculatedDeposit.value
+  }
+})
+
+// Track manual edits to deposit field
+watch(() => formData.value.depositAmount, (newDeposit, oldDeposit) => {
+  // If user changes deposit value manually (not from our auto-calculation)
+  if (newDeposit !== calculatedDeposit.value && newDeposit !== oldDeposit) {
+    depositManuallyEdited.value = true
+  }
+})
+
 // Generate formal legal text for break clause
 const generatedBreakClause = computed(() => {
   if (!formData.value.breakClauseEnabled ||
@@ -1441,6 +1476,12 @@ function mapReferenceToForm(
   // Financial details
   if (reference.monthly_rent) {
     formData.value.rentAmount = parseFloat(reference.monthly_rent)
+    // Auto-calculate deposit as 5 weeks rent
+    const weeklyRent = (formData.value.rentAmount * 12) / 52
+    const fiveWeeksDeposit = weeklyRent * 5
+    formData.value.depositAmount = Math.round(fiveWeeksDeposit * 100) / 100
+    // Reset manual edit flag since this is auto-imported
+    depositManuallyEdited.value = false
   }
 
   // Tenancy dates

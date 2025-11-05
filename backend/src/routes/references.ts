@@ -73,6 +73,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     console.log('Total references in this company:', totalCount)
 
     // Get all references for the company (excluding child references)
+    // Note: Guarantors are included so they can be nested under parent tenants in the UI
     const { data: references, error } = await supabase
       .from('tenant_references')
       .select('*')
@@ -89,15 +90,31 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     // For each parent reference, count the children and sync status
     const referencesWithCount = await Promise.all(references.map(async (ref) => {
       // Check which references have been submitted
-      const [landlordRefCheck, agentRefCheck, employerRefCheck] = await Promise.all([
+      const [landlordRefCheck, agentRefCheck, employerRefCheck, accountantRefCheck] = await Promise.all([
         supabase.from('landlord_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('agent_references').select('id').eq('reference_id', ref.id).maybeSingle(),
-        supabase.from('employer_references').select('id').eq('reference_id', ref.id).maybeSingle()
+        supabase.from('employer_references').select('id').eq('reference_id', ref.id).maybeSingle(),
+        supabase.from('accountant_references').select('id').eq('tenant_reference_id', ref.id).maybeSingle()
       ])
 
       const has_landlord_reference = !!landlordRefCheck.data
       const has_agent_reference = !!agentRefCheck.data
       const has_employer_reference = !!employerRefCheck.data
+      const has_accountant_reference = !!accountantRefCheck.data
+
+      // Check if guarantor reference is complete (for references that require a guarantor)
+      let has_guarantor_reference = false
+      if (ref.requires_guarantor) {
+        const { data: guarantorRef } = await supabase
+          .from('tenant_references')
+          .select('id, status')
+          .eq('guarantor_for_reference_id', ref.id)
+          .eq('is_guarantor', true)
+          .maybeSingle()
+
+        // Guarantor is considered "complete" if status is 'completed' or 'pending_verification'
+        has_guarantor_reference = !!guarantorRef && (guarantorRef.status === 'completed' || guarantorRef.status === 'pending_verification')
+      }
 
       if (ref.is_group_parent) {
         const { data: children, count } = await supabase
@@ -142,14 +159,18 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           tenant_count: count || 0,
           has_landlord_reference,
           has_agent_reference,
-          has_employer_reference
+          has_employer_reference,
+          has_accountant_reference,
+          has_guarantor_reference
         }
       }
       return {
         ...ref,
         has_landlord_reference,
         has_agent_reference,
-        has_employer_reference
+        has_employer_reference,
+        has_accountant_reference,
+        has_guarantor_reference
       }
     }))
 
@@ -244,12 +265,19 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .single()
 
     // Get guarantor references (NEW SYSTEM - as tenant_references)
-    const { data: guarantorReferences } = await supabase
+    const { data: guarantorReferences, error: guarantorError } = await supabase
       .from('tenant_references')
       .select('*')
       .eq('guarantor_for_reference_id', referenceId)
       .eq('is_guarantor', true)
       .order('created_at', { ascending: true })
+
+    console.log(`[DEBUG] Looking for guarantors for reference ${referenceId}`)
+    console.log(`[DEBUG] Found ${guarantorReferences?.length || 0} guarantor references`)
+    if (guarantorError) console.error('[DEBUG] Guarantor query error:', guarantorError)
+    if (guarantorReferences && guarantorReferences.length > 0) {
+      console.log('[DEBUG] Guarantor IDs:', guarantorReferences.map(g => g.id))
+    }
 
     // If this is a child reference and no landlord/agent/accountant ref found, check siblings
     if (reference.parent_reference_id && (!landlordReference && !agentReference && !accountantReference)) {
@@ -444,7 +472,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         guarantor_phone: decrypt(ref.guarantor_phone_encrypted),
         notes: decrypt(ref.notes_encrypted),
         internal_notes: decrypt(ref.internal_notes_encrypted),
-        verification_notes: decrypt(ref.verification_notes_encrypted)
+        verification_notes: decrypt(ref.verification_notes_encrypted),
+        consent_printed_name: decrypt(ref.consent_printed_name_encrypted)
       }
     }
 
@@ -585,6 +614,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       guarantor_phone: guarantorReference.guarantor_phone_encrypted ? decrypt(guarantorReference.guarantor_phone_encrypted) : null,
       consent_printed_name: guarantorReference.consent_printed_name_encrypted ? decrypt(guarantorReference.consent_printed_name_encrypted) : null
     } : null
+
+    console.log('[DEBUG] Returning guarantorReferences count:', decryptedGuarantorReferences?.length || 0)
 
     res.json({
       reference: decryptedReference,
@@ -751,7 +782,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
     console.log('Looking up company for user:', userId)
     const { data: companyUsers, error: companyError } = await supabase
       .from('company_users')
-      .select('company_id, companies:company_id(name_encrypted, phone_encrypted)')
+      .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted)')
       .eq('user_id', userId)
       .limit(1)
 
@@ -766,7 +797,10 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
       ? (decrypt((companyUser as any).companies.name_encrypted) || 'Your agent')
       : 'Your agent'
     const companyPhone = (companyUser as any).companies?.phone_encrypted
-      ? decrypt((companyUser as any).companies.phone_encrypted)
+      ? (decrypt((companyUser as any).companies.phone_encrypted) || '')
+      : ''
+    const companyEmail = (companyUser as any).companies?.email_encrypted
+      ? (decrypt((companyUser as any).companies.email_encrypted) || '')
       : ''
 
     // Check if this is a multi-tenant reference
@@ -943,6 +977,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 tenantFullName,
                 property_address,
                 companyName,
+                companyPhone,
+                companyEmail,
                 guarantorUrl
               )
               console.log('✅ Guarantor email sent to:', tenant.guarantor.email)
@@ -1140,6 +1176,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
               tenantFullName,
               property_address,
               companyName,
+              companyPhone,
+              companyEmail,
               guarantorUrl
             )
             console.log('✅ Guarantor email sent to:', guarantor_email)
@@ -1810,13 +1848,19 @@ router.post('/submit/:token', async (req, res) => {
           // Get company name for email
           const { data: companyData } = await supabase
             .from('companies')
-            .select('name_encrypted')
+            .select('name_encrypted, phone_encrypted, email_encrypted')
             .eq('id', reference.company_id)
             .single()
 
           const companyName = (companyData?.name_encrypted
             ? decrypt(companyData.name_encrypted)
             : null) || 'Your agent'
+          const companyPhone = companyData?.phone_encrypted
+            ? (decrypt(companyData.phone_encrypted) || '')
+            : ''
+          const companyEmail = companyData?.email_encrypted
+            ? (decrypt(companyData.email_encrypted) || '')
+            : ''
 
           // Use guarantor-specific form link
           const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
@@ -1828,6 +1872,8 @@ router.post('/submit/:token', async (req, res) => {
             tenantName,
             propertyAddress,
             companyName,
+            companyPhone,
+            companyEmail,
             formLink
           )
 
@@ -3600,7 +3646,7 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     // Get the parent reference
     const { data: parentReference, error: refError } = await supabase
       .from('tenant_references')
-      .select('*, companies!inner(id, name_encrypted)')
+      .select('*, companies!inner(id, name_encrypted, phone_encrypted, email_encrypted)')
       .eq('id', referenceId)
       .single()
 
@@ -3702,6 +3748,12 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     const companyName = parentReference.companies?.name_encrypted
       ? decrypt(parentReference.companies.name_encrypted) || 'Your agent'
       : 'Your agent'
+    const companyPhone = parentReference.companies?.phone_encrypted
+      ? (decrypt(parentReference.companies.phone_encrypted) || '')
+      : ''
+    const companyEmail = parentReference.companies?.email_encrypted
+      ? (decrypt(parentReference.companies.email_encrypted) || '')
+      : ''
     const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
 
     await sendGuarantorReferenceRequest(
@@ -3710,6 +3762,8 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
       tenantName,
       propertyAddress,
       companyName,
+      companyPhone,
+      companyEmail,
       formLink
     )
 
@@ -3829,7 +3883,7 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted')
+      .select('name_encrypted, phone_encrypted, email_encrypted')
       .eq('id', reference.company_id)
       .single()
 
@@ -3838,6 +3892,8 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     const propertyAddress = decrypt(reference.property_address_encrypted) || 'the property'
     const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) || 'Your agent' : 'Your agent'
+    const companyPhone = companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || '') : ''
+    const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
     const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
 
     await sendGuarantorReferenceRequest(
@@ -3846,6 +3902,8 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
       tenantName,
       propertyAddress,
       companyName,
+      companyPhone,
+      companyEmail,
       formLink
     )
 

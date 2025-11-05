@@ -1242,26 +1242,57 @@ const clearFilters = () => {
 }
 
 const formatStatus = (status: string, reference?: any) => {
-  // If status is 'in_progress' or 'pending_verification', provide more detail
+  // If status is 'in_progress' or 'pending_verification', provide more detail about what's missing
   if ((status === 'in_progress' || status === 'pending_verification') && reference) {
     const missing: string[] = []
 
     // Check for residential reference (landlord or agent)
-    if (!reference.has_landlord_reference && !reference.has_agent_reference) {
+    // Skip if tenant is a homeowner or is a guarantor (guarantors don't need residential refs)
+    const needsResidential = reference.home_ownership_status !== 'homeowner' && !reference.is_guarantor
+    if (needsResidential && !reference.has_landlord_reference && !reference.has_agent_reference) {
       missing.push('Residential')
     }
 
-    // Check for income reference (employer)
-    if (!reference.has_employer_reference && !reference.income_self_employed) {
-      missing.push('Income')
+    // Check for employment reference (employer)
+    // Only needed if income source is employment (not self-employed)
+    if (reference.income_employment && !reference.income_self_employed && !reference.has_employer_reference) {
+      missing.push('Employment')
     }
 
-    // If references are missing, show "Awaiting X Reference"
-    if (missing.length > 0 && status === 'in_progress') {
-      return `Awaiting ${missing.join(' & ')} Reference${missing.length > 1 ? 's' : ''}`
+    // Check for accountant reference
+    // Only needed if income source is self-employed
+    if (reference.income_self_employed && !reference.has_accountant_reference) {
+      missing.push('Accountant')
+    }
+
+    // Check for guarantor reference
+    // Only needed if tenant requires a guarantor and guarantor hasn't completed their reference
+    if (reference.requires_guarantor && !reference.has_guarantor_reference) {
+      missing.push('Guarantor')
+    }
+
+    // If references are missing, show "Awaiting X" status
+    if (missing.length > 0) {
+      // Build the "Awaiting X" string with proper grammar
+      if (missing.length === 1) {
+        return `Awaiting ${missing[0]}`
+      } else if (missing.length === 2) {
+        return `Awaiting ${missing[0]} & ${missing[1]}`
+      } else {
+        // 3 or more items: "Awaiting X, Y & Z"
+        const lastItem = missing[missing.length - 1]
+        const otherItems = missing.slice(0, -1).join(', ')
+        return `Awaiting ${otherItems} & ${lastItem}`
+      }
+    }
+
+    // If no references are missing and status is 'pending_verification', show proper status
+    if (status === 'pending_verification' && missing.length === 0) {
+      return 'Pending Verification'
     }
   }
 
+  // Default: format the status string nicely
   return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
