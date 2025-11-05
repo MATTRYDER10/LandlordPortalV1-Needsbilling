@@ -281,6 +281,54 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
       return null
     }))
 
+    // Also check standalone guarantor references from guarantor_references table
+    const { data: guarantorReferences, error: guarantorError } = await supabase
+      .from('guarantor_references')
+      .select(`
+        *,
+        tenant_references!inner(
+          id,
+          tenant_first_name_encrypted,
+          tenant_last_name_encrypted,
+          property_address_encrypted,
+          company_id,
+          companies:company_id (
+            id,
+            name_encrypted
+          )
+        )
+      `)
+      .is('submitted_at', null) // Haven't completed yet (need to chase)
+      .order('created_at', { ascending: true })
+
+    if (!guarantorError && guarantorReferences) {
+      for (const guarantorRef of guarantorReferences) {
+        // Add guarantor as a chase item
+        chaseItems.push({
+          id: guarantorRef.reference_id,
+          tenant_name: `${decrypt(guarantorRef.guarantor_first_name_encrypted)} ${decrypt(guarantorRef.guarantor_last_name_encrypted)} (Guarantor)`,
+          tenant_email: decrypt(guarantorRef.email_encrypted),
+          property_address: decrypt(guarantorRef.tenant_references.property_address_encrypted),
+          submitted_at: guarantorRef.created_at,
+          created_at: guarantorRef.created_at,
+          status: 'in_progress',
+          company: guarantorRef.tenant_references.companies ? {
+            id: guarantorRef.tenant_references.companies.id,
+            name: decrypt(guarantorRef.tenant_references.companies.name_encrypted)
+          } : null,
+          missing_responses: ['Guarantor Reference'],
+          contacts_to_chase: [{
+            type: 'Guarantor',
+            name: `${decrypt(guarantorRef.guarantor_first_name_encrypted)} ${decrypt(guarantorRef.guarantor_last_name_encrypted)}`.trim(),
+            email: decrypt(guarantorRef.email_encrypted) || '',
+            phone: decrypt(guarantorRef.contact_number_encrypted) || undefined,
+            sentDate: guarantorRef.created_at
+          }],
+          days_pending: Math.floor((new Date().getTime() - new Date(guarantorRef.created_at).getTime()) / (1000 * 60 * 60 * 24))
+        })
+      }
+    }
+
     // Filter out null entries and sort by days pending (oldest first)
     const filteredChaseItems = chaseItems
       .filter(item => item !== null)
