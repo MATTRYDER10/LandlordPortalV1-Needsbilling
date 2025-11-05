@@ -124,9 +124,14 @@ const filteredAgreements = computed(() => {
 const fetchAgreements = async () => {
   loadingAgreements.value = true
   try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      throw new Error('No authentication token found')
+    }
+
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/agreements`, {
       headers: {
-        'Authorization': `Bearer ${authStore.token}`
+        'Authorization': `Bearer ${token}`
       }
     })
 
