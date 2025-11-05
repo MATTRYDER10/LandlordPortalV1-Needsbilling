@@ -138,46 +138,92 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="reference in recentReferences" :key="reference.id" class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm font-medium text-gray-900">
-                    {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
-                  </div>
-                  <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
-                  <div class="text-sm text-gray-500">
-                    {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode : '' }}
-                  </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <span
-                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                    :class="{
-                      'bg-yellow-100 text-yellow-800': reference.status === 'pending',
-                      'bg-blue-100 text-blue-800': reference.status === 'in_progress',
-                      'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
-                      'bg-green-100 text-green-800': reference.status === 'completed',
-                      'bg-red-100 text-red-800': reference.status === 'rejected',
-                      'bg-gray-100 text-gray-800': reference.status === 'cancelled'
-                    }"
-                  >
-                    {{ formatStatus(reference.status) }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{ formatDate(reference.created_at) }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    @click="viewReference(reference.id)"
-                    class="text-primary hover:text-primary/80"
-                  >
-                    View
-                  </button>
-                </td>
-              </tr>
+              <template v-for="reference in recentReferences" :key="reference.id">
+                <!-- Main tenant row -->
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">
+                      {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
+                    </div>
+                    <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
+                    <div class="text-sm text-gray-500">
+                      {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode : '' }}
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                      :class="{
+                        'bg-yellow-100 text-yellow-800': reference.status === 'pending',
+                        'bg-blue-100 text-blue-800': reference.status === 'in_progress',
+                        'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
+                        'bg-green-100 text-green-800': reference.status === 'completed',
+                        'bg-red-100 text-red-800': reference.status === 'rejected',
+                        'bg-gray-100 text-gray-800': reference.status === 'cancelled'
+                      }"
+                    >
+                      {{ formatStatus(reference.status) }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {{ formatDate(reference.created_at) }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      @click="viewReference(reference.id)"
+                      class="text-primary hover:text-primary/80"
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+                <!-- Nested guarantor rows -->
+                <tr v-for="guarantor in reference.guarantors" :key="guarantor.id" class="bg-purple-50 hover:bg-purple-100">
+                  <td class="px-6 py-4 whitespace-nowrap pl-12">
+                    <div class="text-sm font-medium text-purple-900 flex items-center">
+                      <span class="mr-2">↳</span>
+                      {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
+                      <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-200 text-purple-800">Guarantor</span>
+                    </div>
+                    <div class="text-sm text-purple-700 pl-4">{{ guarantor.tenant_email }}</div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="text-sm text-purple-900">{{ guarantor.property_address }}</div>
+                    <div class="text-sm text-purple-700">
+                      {{ guarantor.property_city }}{{ guarantor.property_postcode ? ', ' + guarantor.property_postcode : '' }}
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                      :class="{
+                        'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
+                        'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
+                        'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
+                        'bg-green-100 text-green-800': guarantor.status === 'completed',
+                        'bg-red-100 text-red-800': guarantor.status === 'rejected',
+                        'bg-gray-100 text-gray-800': guarantor.status === 'cancelled'
+                      }"
+                    >
+                      {{ formatStatus(guarantor.status) }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-purple-700">
+                    {{ formatDate(guarantor.created_at) }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      @click="viewReference(guarantor.id)"
+                      class="text-purple-600 hover:text-purple-800"
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -226,7 +272,26 @@ const fetchReferences = async () => {
     if (!response.ok) return
 
     const data = await response.json()
-    const references = data.references || []
+    const allReferences = data.references || []
+
+    // Attach guarantors to their parent references
+    const guarantorMap = new Map()
+    allReferences.forEach((ref: any) => {
+      if (ref.is_guarantor && ref.guarantor_for_reference_id) {
+        if (!guarantorMap.has(ref.guarantor_for_reference_id)) {
+          guarantorMap.set(ref.guarantor_for_reference_id, [])
+        }
+        guarantorMap.get(ref.guarantor_for_reference_id).push(ref)
+      }
+    })
+
+    // Attach guarantors array to parent references and filter out standalone guarantors
+    const references = allReferences
+      .filter((ref: any) => !ref.is_guarantor)
+      .map((ref: any) => ({
+        ...ref,
+        guarantors: guarantorMap.get(ref.id) || []
+      }))
 
     totalReferences.value = references.length
     inProgressReferences.value = references.filter((ref: any) =>
