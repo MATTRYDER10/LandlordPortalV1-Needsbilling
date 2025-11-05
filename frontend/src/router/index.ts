@@ -16,13 +16,18 @@ import EmployerReference from '../views/EmployerReference.vue'
 import AccountantReference from '../views/AccountantReference.vue'
 import Settings from '../views/Settings.vue'
 import Agreements from '../views/Agreements.vue'
+import AgreementsLayout from '../views/AgreementsLayout.vue'
+import AgreementHistory from '../views/AgreementHistory.vue'
 import Onboarding from '../views/Onboarding.vue'
 import StaffLogin from '../views/StaffLogin.vue'
 import StaffDashboard from '../views/StaffDashboard.vue'
 import StaffChaseList from '../views/StaffChaseList.vue'
 import StaffReferenceDetail from '../views/StaffReferenceDetail.vue'
 import StaffVerification from '../views/StaffVerification.vue'
+import StaffVerificationNew from '../views/StaffVerificationNew.vue'
 import StaffReferenceView from '../views/StaffReferenceView.vue'
+import StaffWorkQueue from '../views/StaffWorkQueue.vue'
+import StaffChasePanel from '../views/StaffChasePanel.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -116,9 +121,24 @@ const router = createRouter({
     },
     {
       path: '/agreements',
-      name: 'Agreements',
-      component: Agreements,
-      meta: { requiresAuth: true }
+      component: AgreementsLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          redirect: '/agreements/generate'
+        },
+        {
+          path: 'generate',
+          name: 'GenerateAgreement',
+          component: Agreements
+        },
+        {
+          path: 'history',
+          name: 'AgreementHistory',
+          component: AgreementHistory
+        }
+      ]
     },
     {
       path: '/billing',
@@ -195,6 +215,18 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/staff/work-queue',
+      name: 'StaffWorkQueue',
+      component: StaffWorkQueue,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/work-queue/chase/:id',
+      name: 'StaffChasePanel',
+      component: StaffChasePanel,
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/staff/references/:id',
       name: 'StaffReferenceDetail',
       component: StaffReferenceDetail,
@@ -203,6 +235,12 @@ const router = createRouter({
     {
       path: '/staff/verification/:id',
       name: 'StaffVerification',
+      component: StaffVerificationNew,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/verification-old/:id',
+      name: 'StaffVerificationOld',
       component: StaffVerification,
       meta: { requiresAuth: true }
     },
