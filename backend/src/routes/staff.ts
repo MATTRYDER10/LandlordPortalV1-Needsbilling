@@ -92,11 +92,14 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
 
     // For each reference, check which responses are missing
     const chaseItems = await Promise.all(references.map(async (ref) => {
+      const tenantName = `${decrypt(ref.tenant_first_name_encrypted)} ${decrypt(ref.tenant_last_name_encrypted)}`
+      console.log(`[Chase List] Processing reference ${ref.id} - Tenant: ${tenantName}, is_guarantor: ${ref.is_guarantor}, requires_guarantor: ${ref.requires_guarantor}`)
+
       const missingResponses: string[] = []
       const contactsToChase: Array<{type: string, name: string, email: string, phone?: string, sentDate?: string}> = []
 
-      // Check for landlord reference
-      if (!ref.income_self_employed) { // Only if not self-employed, as they need residential reference
+      // Check for landlord reference (skip for guarantors - they don't need residential references)
+      if (!ref.income_self_employed && !ref.is_guarantor) { // Only if not self-employed and not a guarantor
         const { data: landlordRef } = await supabase
           .from('landlord_references')
           .select('submitted_at, landlord_name_encrypted, landlord_email_encrypted, landlord_phone_encrypted, created_at')
@@ -112,6 +115,12 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
         // If neither landlord nor agent has responded
         if ((!landlordRef || !landlordRef.submitted_at) && (!agentRef || !agentRef.submitted_at)) {
           missingResponses.push('Residential Reference (Landlord/Agent)')
+
+          console.log(`[Chase List] Reference ${ref.id} missing residential - checking for contacts...`)
+          console.log(`- landlordRef exists: ${!!landlordRef}`)
+          console.log(`- agentRef exists: ${!!agentRef}`)
+          console.log(`- Has previous_landlord_name: ${!!ref.previous_landlord_name_encrypted}`)
+          console.log(`- Has previous_landlord_email: ${!!ref.previous_landlord_email_encrypted}`)
 
           // If landlordRef exists (email sent), use that
           if (landlordRef) {
