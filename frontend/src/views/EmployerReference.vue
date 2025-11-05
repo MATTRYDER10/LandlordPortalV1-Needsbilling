@@ -37,8 +37,13 @@
         <!-- Instruction Banner -->
         <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
           <p class="text-sm text-blue-900">
-            The tenant has input the below information, please check the information and correct where required, please ensure the form is filled out honestly and factually.
+            The tenant has input the below information whilst applying for a Rental property, they have named you as their employer, please check the information and correct where required, please ensure the form is filled out honestly and factually, if you cannot fill out this form please forward to your HR department to complete.
           </p>
+        </div>
+
+        <!-- Employee Details -->
+        <div v-if="employeeName" class="text-sm text-gray-700">
+          <strong>Employee:</strong> {{ employeeName }}
         </div>
 
         <!-- Employer/Company Information -->
@@ -416,6 +421,9 @@ const primaryColor = ref('#FF8C41')
 const buttonColor = ref('#FF8C41')
 const brandingLoaded = ref(false)
 
+// Employee information
+const employeeName = ref('')
+
 const formData = ref({
   companyName: '',
   employerName: '',
@@ -517,6 +525,9 @@ onMounted(async () => {
         formData.value.employmentStartDate = data.tenantInfo.employmentStartDate || ''
         formData.value.annualSalary = data.tenantInfo.annualSalary || ''
         formData.value.salaryFrequency = data.tenantInfo.salaryFrequency || 'annual'
+
+        // Set employee name
+        employeeName.value = `${data.tenantInfo.tenantFirstName} ${data.tenantInfo.tenantLastName}`
       }
     }
   } catch (err) {
