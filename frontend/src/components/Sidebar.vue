@@ -56,20 +56,67 @@
 
           <div class="border-t border-gray-200 my-2"></div>
 
-          <router-link
-            v-for="item in navigation"
-            :key="item.name"
-            :to="item.path"
-            class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
-            :class="isActive(item.path)
-              ? 'bg-primary text-white'
-              : 'text-gray-700 hover:bg-gray-100'"
-          >
-            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
-            </svg>
-            {{ item.name }}
-          </router-link>
+          <template v-for="item in navigation" :key="item.name">
+            <!-- Menu item without children -->
+            <router-link
+              v-if="!item.children"
+              :to="item.path"
+              class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+              :class="isActive(item.path)
+                ? 'bg-primary text-white'
+                : 'text-gray-700 hover:bg-gray-100'"
+            >
+              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
+              </svg>
+              {{ item.name }}
+            </router-link>
+
+            <!-- Menu item with children (expandable) -->
+            <div v-else>
+              <button
+                @click="toggleSubmenu(item.name)"
+                class="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+                :class="isParentActive(item)
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-gray-700 hover:bg-gray-100'"
+              >
+                <div class="flex items-center">
+                  <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
+                  </svg>
+                  {{ item.name }}
+                </div>
+                <svg
+                  class="w-4 h-4 transition-transform"
+                  :class="openMenus[item.name] ? 'rotate-180' : ''"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              <!-- Submenu items -->
+              <div v-if="openMenus[item.name]" class="ml-4 mt-1 space-y-1">
+                <router-link
+                  v-for="child in item.children"
+                  :key="child.name"
+                  :to="child.path"
+                  class="flex items-center px-4 py-2 text-sm rounded-lg transition-colors"
+                  :class="isActive(child.path)
+                    ? 'bg-primary text-white font-medium'
+                    : 'text-gray-600 hover:bg-gray-100'"
+                >
+                  <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="child.icon" />
+                  </svg>
+                  {{ child.name }}
+                </router-link>
+              </div>
+            </div>
+          </template>
         </nav>
 
         <!-- Credits Display -->
@@ -122,6 +169,9 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const showCreateMenu = ref(false)
+const openMenus = ref<Record<string, boolean>>({
+  Agreements: true // Open by default
+})
 
 const navigation = [
   {
@@ -136,8 +186,19 @@ const navigation = [
   },
   {
     name: 'Agreements',
-    path: '/agreements',
-    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    children: [
+      {
+        name: 'Generate Agreement',
+        path: '/agreements/generate',
+        icon: 'M12 4v16m8-8H4'
+      },
+      {
+        name: 'Agreement History',
+        path: '/agreements/history',
+        icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+      }
+    ]
   },
   {
     name: 'Settings',
@@ -161,6 +222,15 @@ const isActive = (path: string) => {
   return route.path === path
 }
 
+const isParentActive = (item: any) => {
+  if (!item.children) return false
+  return item.children.some((child: any) => route.path === child.path)
+}
+
+const toggleSubmenu = (menuName: string) => {
+  openMenus.value[menuName] = !openMenus.value[menuName]
+}
+
 const handleSignOut = async () => {
   await authStore.signOut()
   router.push('/login')
@@ -180,6 +250,6 @@ const handleCreateReference = () => {
 
 const handleCreateAgreement = () => {
   showCreateMenu.value = false
-  router.push('/agreements?create=true')
+  router.push('/agreements/generate')
 }
 </script>
