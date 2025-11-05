@@ -1082,15 +1082,10 @@ onMounted(async () => {
   // Check if we should auto-import a reference from query params
   const referenceId = route.query.referenceId as string
   if (referenceId) {
-    try {
-      await selectReference(referenceId)
-      // Skip to step 1 (Template selection) after successful import
-      currentStep.value = 1
-      toast.success('Reference data imported successfully!')
-    } catch (error) {
-      console.error('Failed to auto-import reference:', error)
-      toast.error('Failed to import reference data')
-    }
+    await selectReference(referenceId)
+    // Skip to step 1 (Template selection) after successful import
+    // Note: selectReference() already handles toast notifications
+    currentStep.value = 1
   }
 })
 
