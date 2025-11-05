@@ -1,0 +1,695 @@
+<template>
+  <div class="min-h-screen bg-background">
+    <!-- Header -->
+    <div class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center py-6">
+          <div class="flex items-center">
+            <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="w-10 h-10 mr-3" />
+            <h1 class="text-3xl font-bold">
+              <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
+              <span class="ml-3 text-sm font-semibold px-3 py-1 bg-primary/10 text-primary rounded-full">Staff Portal</span>
+            </h1>
+          </div>
+          <div class="flex items-center gap-4">
+            <router-link
+              to="/staff"
+              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+            >
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Dashboard
+            </router-link>
+            <button
+              @click="handleSignOut"
+              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+            >
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="header">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Work Queue</h2>
+        <div class="stats-bar">
+          <div class="stat-card chase">
+            <div class="stat-label">Chase Available</div>
+            <div class="stat-value">{{ stats.chase.available }}</div>
+          </div>
+          <div class="stat-card verify">
+            <div class="stat-label">Verify Available</div>
+            <div class="stat-value">{{ stats.verify.available }}</div>
+          </div>
+          <div class="stat-card my-items">
+            <div class="stat-label">My Active Cases</div>
+            <div class="stat-value">{{ stats.chase.myItems + stats.verify.myItems }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+    <div class="tabs">
+      <button
+        :class="['tab', { active: activeTab === 'chase' }]"
+        @click="activeTab = 'chase'"
+      >
+        Chase Queue ({{ stats.chase.available }})
+      </button>
+      <button
+        :class="['tab', { active: activeTab === 'verify' }]"
+        @click="activeTab = 'verify'"
+      >
+        Verify Queue ({{ stats.verify.available }})
+      </button>
+      <button
+        :class="['tab', { active: activeTab === 'my-cases' }]"
+        @click="activeTab = 'my-cases'"
+      >
+        My Cases ({{ stats.chase.myItems + stats.verify.myItems }})
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="loading">
+      <div class="spinner"></div>
+      <p>Loading work queue...</p>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="error-message">
+      <p>{{ error }}</p>
+      <button @click="fetchWorkQueue" class="btn btn-primary">Retry</button>
+    </div>
+
+    <!-- Work Queue Table -->
+    <div v-else class="work-queue-table">
+      <table v-if="filteredWorkItems.length > 0">
+        <thead>
+          <tr>
+            <th>Urgency</th>
+            <th>Type</th>
+            <th>Tenant</th>
+            <th>Property</th>
+            <th>Age</th>
+            <th>Status</th>
+            <th>Assigned To</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="item in filteredWorkItems"
+            :key="item.id"
+            :class="['work-item', `urgency-${item.urgency}`]"
+          >
+            <td>
+              <span :class="['urgency-badge', item.urgency]">
+                {{ urgencyLabel(item.urgency) }}
+              </span>
+            </td>
+            <td>
+              <span :class="['type-badge', item.work_type.toLowerCase()]">
+                {{ item.work_type }}
+              </span>
+            </td>
+            <td>
+              <div class="tenant-info">
+                <div class="tenant-name">
+                  {{ item.reference.tenant_first_name }} {{ item.reference.tenant_last_name }}
+                </div>
+                <div class="tenant-email">{{ item.reference.tenant_email }}</div>
+              </div>
+            </td>
+            <td>
+              <div class="property-address">{{ item.reference.property_address }}</div>
+            </td>
+            <td>
+              <div class="age-info">
+                <div class="age-hours">{{ item.ageHours }}h</div>
+                <div class="age-label">{{ ageLabel(item.ageHours) }}</div>
+              </div>
+            </td>
+            <td>
+              <span :class="['status-badge', item.status.toLowerCase()]">
+                {{ item.status }}
+              </span>
+            </td>
+            <td>
+              <div v-if="item.assigned_staff" class="assigned-info">
+                {{ item.assigned_staff.full_name }}
+              </div>
+              <div v-else class="unassigned">Unassigned</div>
+            </td>
+            <td>
+              <div class="actions">
+                <button
+                  v-if="item.status === 'AVAILABLE' || item.status === 'RETURNED'"
+                  @click="claimWorkItem(item)"
+                  class="btn btn-sm btn-primary"
+                  :disabled="claiming === item.id"
+                >
+                  {{ claiming === item.id ? 'Claiming...' : 'Pick Up' }}
+                </button>
+                <button
+                  v-else-if="isMyItem(item)"
+                  @click="openWorkItem(item)"
+                  class="btn btn-sm btn-success"
+                >
+                  Open
+                </button>
+                <button
+                  v-if="isMyItem(item)"
+                  @click="releaseWorkItem(item)"
+                  class="btn btn-sm btn-secondary"
+                  :disabled="releasing === item.id"
+                >
+                  {{ releasing === item.id ? 'Releasing...' : 'Release' }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div v-else class="empty-state">
+        <p>No work items in this queue</p>
+      </div>
+    </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+// State
+const activeTab = ref<'chase' | 'verify' | 'my-cases'>('chase')
+const workItems = ref<any[]>([])
+const stats = ref({
+  chase: { available: 0, assigned: 0, inProgress: 0, myItems: 0 },
+  verify: { available: 0, assigned: 0, inProgress: 0, myItems: 0 }
+})
+const loading = ref(false)
+const error = ref<string | null>(null)
+const claiming = ref<string | null>(null)
+const releasing = ref<string | null>(null)
+const refreshInterval = ref<number | null>(null)
+
+// Computed
+const filteredWorkItems = computed(() => {
+  if (activeTab.value === 'my-cases') {
+    return workItems.value.filter(item => isMyItem(item))
+  } else {
+    const type = activeTab.value.toUpperCase()
+    return workItems.value.filter(item => item.work_type === type)
+  }
+})
+
+// Methods
+const fetchWorkQueue = async () => {
+  try {
+    loading.value = true
+    error.value = null
+
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/work-queue`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch work queue')
+    }
+
+    const data = await response.json()
+    workItems.value = data.workItems || []
+  } catch (err: any) {
+    error.value = err.message
+    console.error('Error fetching work queue:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const fetchStats = async () => {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/work-queue/stats`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch stats')
+    }
+
+    const data = await response.json()
+    stats.value = data.stats
+  } catch (err) {
+    console.error('Error fetching stats:', err)
+  }
+}
+
+const claimWorkItem = async (item: any) => {
+  try {
+    claiming.value = item.id
+
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/work-queue/${item.id}/claim`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to claim work item')
+    }
+
+    // Refresh queue
+    await fetchWorkQueue()
+    await fetchStats()
+
+    // Open the work item immediately
+    openWorkItem(item)
+  } catch (err: any) {
+    alert(`Error claiming work item: ${err.message}`)
+    console.error('Error claiming work item:', err)
+  } finally {
+    claiming.value = null
+  }
+}
+
+const releaseWorkItem = async (item: any) => {
+  const cooldownHours = item.work_type === 'CHASE' ? 4 : 0
+
+  try {
+    releasing.value = item.id
+
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/work-queue/${item.id}/release`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ cooldownHours })
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to release work item')
+    }
+
+    // Refresh queue
+    await fetchWorkQueue()
+    await fetchStats()
+  } catch (err: any) {
+    alert(`Error releasing work item: ${err.message}`)
+    console.error('Error releasing work item:', err)
+  } finally {
+    releasing.value = null
+  }
+}
+
+const openWorkItem = (item: any) => {
+  if (item.work_type === 'CHASE') {
+    router.push(`/staff/work-queue/chase/${item.id}`)
+  } else if (item.work_type === 'VERIFY') {
+    router.push(`/staff/verification/${item.reference_id}?workItemId=${item.id}`)
+  }
+}
+
+const isMyItem = (item: any) => {
+  return item.assigned_staff && item.assigned_staff.id === authStore.user?.id
+}
+
+const urgencyLabel = (urgency: string) => {
+  switch (urgency) {
+    case 'urgent': return 'URGENT'
+    case 'warning': return 'WARNING'
+    default: return 'NORMAL'
+  }
+}
+
+const ageLabel = (hours: number) => {
+  if (hours < 1) return 'Just now'
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+const handleSignOut = async () => {
+  await authStore.signOut()
+  router.push('/staff/login')
+}
+
+// Auto-refresh every 30 seconds
+const startAutoRefresh = () => {
+  refreshInterval.value = window.setInterval(() => {
+    fetchWorkQueue()
+    fetchStats()
+  }, 30000)
+}
+
+const stopAutoRefresh = () => {
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value)
+    refreshInterval.value = null
+  }
+}
+
+// Lifecycle
+onMounted(() => {
+  fetchWorkQueue()
+  fetchStats()
+  startAutoRefresh()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
+})
+</script>
+
+<style scoped>
+.header {
+  margin-bottom: 2rem;
+}
+
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.stat-card {
+  padding: 1rem;
+  border-radius: 8px;
+  background: white;
+  border: 2px solid #e5e7eb;
+}
+
+.stat-card.chase {
+  border-color: #f97316;
+}
+
+.stat-card.verify {
+  border-color: #3b82f6;
+}
+
+.stat-card.my-items {
+  border-color: #10b981;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tab {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: #1f2937;
+  background: #f9fafb;
+}
+
+.tab.active {
+  color: #f97316;
+  border-bottom-color: #f97316;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #f97316;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-message {
+  text-align: center;
+  padding: 2rem;
+  color: #dc2626;
+}
+
+.work-queue-table {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  background: #f9fafb;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+td {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.work-item.urgency-urgent {
+  background: #fef2f2;
+}
+
+.work-item.urgency-warning {
+  background: #fffbeb;
+}
+
+.urgency-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.urgency-badge.urgent {
+  background: #dc2626;
+  color: white;
+}
+
+.urgency-badge.warning {
+  background: #f59e0b;
+  color: white;
+}
+
+.urgency-badge.normal {
+  background: #10b981;
+  color: white;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.type-badge.chase {
+  background: #fed7aa;
+  color: #9a3412;
+}
+
+.type-badge.verify {
+  background: #bfdbfe;
+  color: #1e40af;
+}
+
+.tenant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tenant-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.tenant-email {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.property-address {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.age-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.age-hours {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.age-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.available {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.assigned {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge.in_progress {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.returned {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.assigned-info {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.unassigned {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.btn-primary {
+  background: #f97316;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #ea580c;
+}
+
+.btn-success {
+  background: #10b981;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-secondary {
+  background: #6b7280;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #4b5563;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  padding: 3rem;
+  text-align: center;
+  color: #6b7280;
+}
+</style>

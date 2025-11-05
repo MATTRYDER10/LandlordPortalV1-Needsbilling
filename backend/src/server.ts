@@ -18,6 +18,10 @@ import agreementsRoutes from './routes/agreements'
 import billingRoutes from './routes/billing'
 import webhookRoutes from './routes/webhooks'
 import onboardingRoutes from './routes/onboarding'
+import workQueueRoutes from './routes/work-queue'
+import contactAttemptsRoutes from './routes/contact-attempts'
+import verificationStepsRoutes from './routes/verification-steps'
+import { startSchedulers } from './services/workQueueScheduler'
 
 dotenv.config()
 
@@ -117,8 +121,14 @@ app.use('/api/reference-audit-log', referenceAuditLogRoutes)
 app.use('/api/agreements', agreementsRoutes)
 app.use('/api/billing', billingRoutes)
 app.use('/api/onboarding', onboardingRoutes)
+app.use('/api/work-queue', workQueueRoutes)
+app.use('/api/contact-attempts', contactAttemptsRoutes)
+app.use('/api/verification-steps', verificationStepsRoutes)
 
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
+
+  // Start background schedulers for work queue management
+  startSchedulers()
 })
