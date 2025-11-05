@@ -98,8 +98,9 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
       const missingResponses: string[] = []
       const contactsToChase: Array<{type: string, name: string, email: string, phone?: string, sentDate?: string}> = []
 
-      // Check for landlord reference (skip for guarantors - they don't need residential references)
-      if (!ref.income_self_employed && !ref.is_guarantor) { // Only if not self-employed and not a guarantor
+      // Check for landlord reference
+      // Skip if: self-employed (need accountant instead), is a guarantor, or homeowner (no landlord to reference)
+      if (!ref.income_self_employed && !ref.is_guarantor && ref.home_ownership_status !== 'homeowner') {
         const { data: landlordRef } = await supabase
           .from('landlord_references')
           .select('submitted_at, landlord_name_encrypted, landlord_email_encrypted, landlord_phone_encrypted, created_at')
