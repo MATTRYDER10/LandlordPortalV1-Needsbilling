@@ -240,7 +240,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea
-                v-model="steps[0].notes"
+                v-model="steps[0]!.notes"
                 rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Add any notes about this verification step..."
@@ -252,10 +252,10 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <div class="flex gap-4">
                 <button
-                  @click="steps[0].overall_pass = true"
+                  @click="steps[0]!.overall_pass = true"
                   :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[0].overall_pass === true
+                    steps[0]!.overall_pass === true
                       ? 'bg-green-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-green-50'
                   ]"
@@ -263,10 +263,10 @@
                   Pass
                 </button>
                 <button
-                  @click="steps[0].overall_pass = false"
+                  @click="steps[0]!.overall_pass = false"
                   :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[0].overall_pass === false
+                    steps[0]!.overall_pass === false
                       ? 'bg-red-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-red-50'
                   ]"
@@ -460,12 +460,12 @@
                   v-for="source in evidenceSourceOptions.INCOME_AFFORDABILITY"
                   :key="source.evidence_type"
                   class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="steps[1].evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'"
+                  :class="steps[1]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'"
                 >
                   <input
                     type="checkbox"
                     :value="source.evidence_type"
-                    v-model="steps[1].evidence_sources"
+                    v-model="steps[1]!.evidence_sources"
                     class="mr-3 h-4 w-4 text-primary focus:ring-primary"
                   />
                   <span class="text-sm">{{ source.display_label }}</span>
@@ -477,7 +477,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea
-                v-model="steps[1].notes"
+                v-model="steps[1]!.notes"
                 rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Add notes about income verification, affordability calculations, etc."
@@ -489,10 +489,10 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <div class="flex gap-4">
                 <button
-                  @click="steps[1].overall_pass = true"
+                  @click="steps[1]!.overall_pass = true"
                   :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[1].overall_pass === true
+                    steps[1]!.overall_pass === true
                       ? 'bg-green-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-green-50'
                   ]"
@@ -500,10 +500,10 @@
                   Pass
                 </button>
                 <button
-                  @click="steps[1].overall_pass = false"
+                  @click="steps[1]!.overall_pass = false"
                   :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[1].overall_pass === false
+                    steps[1]!.overall_pass === false
                       ? 'bg-red-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-red-50'
                   ]"
@@ -724,12 +724,12 @@
                   v-for="source in evidenceSourceOptions.RESIDENTIAL"
                   :key="source.evidence_type"
                   class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="steps[2].evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'"
+                  :class="steps[2]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'"
                 >
                   <input
                     type="checkbox"
                     :value="source.evidence_type"
-                    v-model="steps[2].evidence_sources"
+                    v-model="steps[2]!.evidence_sources"
                     class="mr-3 h-4 w-4 text-primary focus:ring-primary"
                   />
                   <span class="text-sm">{{ source.display_label }}</span>
@@ -741,7 +741,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea
-                v-model="steps[2].notes"
+                v-model="steps[2]!.notes"
                 rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Add notes about landlord references, address history, etc."
@@ -753,10 +753,10 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <div class="flex gap-4">
                 <button
-                  @click="steps[2].overall_pass = true"
+                  @click="steps[2]!.overall_pass = true"
                   :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[2].overall_pass === true
+                    steps[2]!.overall_pass === true
                       ? 'bg-green-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-green-50'
                   ]"
@@ -764,10 +764,10 @@
                   Pass
                 </button>
                 <button
-                  @click="steps[2].overall_pass = false"
+                  @click="steps[2]!.overall_pass = false"
                   :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[2].overall_pass === false
+                    steps[2]!.overall_pass === false
                       ? 'bg-red-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-red-50'
                   ]"
@@ -916,31 +916,31 @@
                 <div class="p-3 bg-gray-50 rounded">
                   <p class="text-xs text-gray-500 mb-1">Step 1: ID & Selfie</p>
                   <p :class="{
-                    'text-green-600 font-semibold': steps[0].overall_pass === true,
-                    'text-red-600 font-semibold': steps[0].overall_pass === false,
-                    'text-gray-400': steps[0].overall_pass === null
+                    'text-green-600 font-semibold': steps[0]!.overall_pass === true,
+                    'text-red-600 font-semibold': steps[0]!.overall_pass === false,
+                    'text-gray-400': steps[0]!.overall_pass === null
                   }">
-                    {{ steps[0].overall_pass === null ? 'Pending' : (steps[0].overall_pass ? 'PASS' : 'FAIL') }}
+                    {{ steps[0]!.overall_pass === null ? 'Pending' : (steps[0]!.overall_pass ? 'PASS' : 'FAIL') }}
                   </p>
                 </div>
                 <div class="p-3 bg-gray-50 rounded">
                   <p class="text-xs text-gray-500 mb-1">Step 2: Income</p>
                   <p :class="{
-                    'text-green-600 font-semibold': steps[1].overall_pass === true,
-                    'text-red-600 font-semibold': steps[1].overall_pass === false,
-                    'text-gray-400': steps[1].overall_pass === null
+                    'text-green-600 font-semibold': steps[1]!.overall_pass === true,
+                    'text-red-600 font-semibold': steps[1]!.overall_pass === false,
+                    'text-gray-400': steps[1]!.overall_pass === null
                   }">
-                    {{ steps[1].overall_pass === null ? 'Pending' : (steps[1].overall_pass ? 'PASS' : 'FAIL') }}
+                    {{ steps[1]!.overall_pass === null ? 'Pending' : (steps[1]!.overall_pass ? 'PASS' : 'FAIL') }}
                   </p>
                 </div>
                 <div class="p-3 bg-gray-50 rounded">
                   <p class="text-xs text-gray-500 mb-1">Step 3: Residential</p>
                   <p :class="{
-                    'text-green-600 font-semibold': steps[2].overall_pass === true,
-                    'text-red-600 font-semibold': steps[2].overall_pass === false,
-                    'text-gray-400': steps[2].overall_pass === null
+                    'text-green-600 font-semibold': steps[2]!.overall_pass === true,
+                    'text-red-600 font-semibold': steps[2]!.overall_pass === false,
+                    'text-gray-400': steps[2]!.overall_pass === null
                   }">
-                    {{ steps[2].overall_pass === null ? 'Pending' : (steps[2].overall_pass ? 'PASS' : 'FAIL') }}
+                    {{ steps[2]!.overall_pass === null ? 'Pending' : (steps[2]!.overall_pass ? 'PASS' : 'FAIL') }}
                   </p>
                 </div>
                 <div class="p-3 bg-gray-50 rounded">
@@ -974,12 +974,12 @@
                   v-for="source in evidenceSourceOptions.CREDIT_TAS"
                   :key="source.evidence_type"
                   class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="steps[3].evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'"
+                  :class="steps[3]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'"
                 >
                   <input
                     type="checkbox"
                     :value="source.evidence_type"
-                    v-model="steps[3].evidence_sources"
+                    v-model="steps[3]!.evidence_sources"
                     class="mr-3 h-4 w-4 text-primary focus:ring-primary"
                   />
                   <span class="text-sm">{{ source.display_label }}</span>
@@ -1103,7 +1103,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
               <textarea
-                v-model="steps[3].notes"
+                v-model="steps[3]!.notes"
                 rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Add notes about credit checks, sanctions screening, etc."
@@ -1115,10 +1115,10 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Step Result</label>
               <div class="flex gap-4">
                 <button
-                  @click="steps[3].overall_pass = true"
+                  @click="steps[3]!.overall_pass = true"
                   :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[3].overall_pass === true
+                    steps[3]!.overall_pass === true
                       ? 'bg-green-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-green-50'
                   ]"
@@ -1126,10 +1126,10 @@
                   Pass
                 </button>
                 <button
-                  @click="steps[3].overall_pass = false"
+                  @click="steps[3]!.overall_pass = false"
                   :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[3].overall_pass === false
+                    steps[3]!.overall_pass === false
                       ? 'bg-red-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-red-50'
                   ]"
@@ -1185,7 +1185,6 @@
 </template>
 
 <script setup lang="ts">
-// @ts-nocheck
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -1213,8 +1212,18 @@ const creditsafeLoading = ref(false)
 
 const stepLabels = ['ID & Selfie', 'Income & Affordability', 'Residential', 'Credit & TAS']
 
+// Type definition for verification step
+interface VerificationStep {
+  step_number: number
+  step_type: string
+  overall_pass: boolean | null
+  notes: string
+  evidence_sources: any[]
+  checks: any[]
+}
+
 // Step data
-const steps = ref([
+const steps = ref<VerificationStep[]>([
   { step_number: 1, step_type: 'ID_SELFIE', overall_pass: null, notes: '', evidence_sources: [], checks: [] },
   { step_number: 2, step_type: 'INCOME_AFFORDABILITY', overall_pass: null, notes: '', evidence_sources: [], checks: [] },
   { step_number: 3, step_type: 'RESIDENTIAL', overall_pass: null, notes: '', evidence_sources: [], checks: [] },
@@ -1242,6 +1251,7 @@ const evidenceSourceOptions = ref<any>({
 // Computed
 const canProceed = computed(() => {
   const step = steps.value[currentStep.value - 1]
+  if (!step) return false
 
   // For Step 1, all ID checks must be complete before assigning overall pass/fail
   if (currentStep.value === 1) {
@@ -1289,6 +1299,10 @@ const loadImageAsBlob = async (filePath: string): Promise<string> => {
     }
 
     const [referenceId, folder, filename] = parts
+    if (!referenceId || !folder || !filename) {
+      console.error('Missing parts in file path')
+      return ''
+    }
     const downloadUrl = `${import.meta.env.VITE_API_URL}/api/staff/download/${referenceId}/${folder}/${encodeURIComponent(filename)}`
 
     console.log('Loading image from staff API:', downloadUrl)
@@ -1503,6 +1517,10 @@ const saveProgress = async () => {
     saving.value = true
     const referenceId = route.params.id as string
     const stepData = steps.value[currentStep.value - 1]
+    if (!stepData) {
+      console.error('Step data not found')
+      return
+    }
 
     const response = await fetch(
       `${import.meta.env.VITE_API_URL}/api/verification-steps/reference/${referenceId}/steps/${stepData.step_number}`,
@@ -1579,7 +1597,7 @@ const finalizeVerification = async () => {
       throw new Error(errorData.error || 'Failed to finalize verification')
     }
 
-    const result = await response.json()
+    await response.json() // Consume response
 
     // Show success and redirect
     alert('Verification completed and report generated successfully!')
@@ -1613,7 +1631,7 @@ const handleSignOut = async () => {
 
 // Helper functions for verification checks
 const toggleCheck = (checkName: string, pass: boolean) => {
-  const currentChecks = steps.value[1].checks as any[]
+  const currentChecks = steps.value[1]!.checks as any[]
   const existingCheckIndex = currentChecks.findIndex((c: any) => c.name === checkName)
 
   if (existingCheckIndex >= 0) {
@@ -1629,14 +1647,14 @@ const toggleCheck = (checkName: string, pass: boolean) => {
 }
 
 const getCheckValue = (checkName: string): boolean | null => {
-  const currentChecks = steps.value[1].checks as any[]
+  const currentChecks = steps.value[1]!.checks as any[]
   const check = currentChecks.find((c: any) => c.name === checkName)
   return check ? check.pass : null
 }
 
 // Helper functions for residential verification checks
 const toggleResidentialCheck = (checkName: string, pass: boolean) => {
-  const currentChecks = steps.value[2].checks as any[]
+  const currentChecks = steps.value[2]!.checks as any[]
   const existingCheckIndex = currentChecks.findIndex((c: any) => c.name === checkName)
 
   if (existingCheckIndex >= 0) {
@@ -1652,7 +1670,7 @@ const toggleResidentialCheck = (checkName: string, pass: boolean) => {
 }
 
 const getResidentialCheckValue = (checkName: string): boolean | null => {
-  const currentChecks = steps.value[2].checks as any[]
+  const currentChecks = steps.value[2]!.checks as any[]
   const check = currentChecks.find((c: any) => c.name === checkName)
   return check ? check.pass : null
 }
