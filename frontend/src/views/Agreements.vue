@@ -936,11 +936,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import AgreementPaymentModal from '../components/AgreementPaymentModal.vue'
 import { useAuthStore } from '../stores/auth'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const toast = useToast()
 
@@ -1074,8 +1076,22 @@ const formData = ref<{
 })
 
 // Fetch company settings on mount
-onMounted(() => {
+onMounted(async () => {
   fetchCompanySettings()
+
+  // Check if we should auto-import a reference from query params
+  const referenceId = route.query.referenceId as string
+  if (referenceId) {
+    try {
+      await selectReference(referenceId)
+      // Skip to step 1 (Template selection) after successful import
+      currentStep.value = 1
+      toast.success('Reference data imported successfully!')
+    } catch (error) {
+      console.error('Failed to auto-import reference:', error)
+      toast.error('Failed to import reference data')
+    }
+  }
 })
 
 // Re-fetch when management type changes

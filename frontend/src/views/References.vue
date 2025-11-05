@@ -257,6 +257,13 @@
                 >
                   View
                 </button>
+                <button
+                  @click="createAgreement(reference)"
+                  class="ml-3 text-green-600 hover:text-green-700 font-medium"
+                  title="Create Agreement from this reference"
+                >
+                  Create Agreement
+                </button>
               </td>
             </tr>
             <!-- Guarantor Row (if exists) -->
@@ -1268,6 +1275,13 @@ const formatDate = (date: string) => {
 
 const viewReference = (reference: any) => {
   router.push(`/references/${reference.id}`)
+}
+
+const createAgreement = (reference: any) => {
+  router.push({
+    path: '/agreements/generate',
+    query: { referenceId: reference.id }
+  })
 }
 
 const toggleExpanded = async (referenceId: string) => {
