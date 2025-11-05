@@ -160,11 +160,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import StaffHeader from '../components/StaffHeader.vue'
 
-const router = useRouter()
 const authStore = useAuthStore()
 
 const loading = ref(true)
