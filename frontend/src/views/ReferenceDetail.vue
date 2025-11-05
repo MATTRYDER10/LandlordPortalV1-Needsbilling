@@ -1777,13 +1777,18 @@
                     </div>
 
                     <!-- Consent Signature -->
-                    <div v-if="guarantorReference.consent_signature" class="mt-4">
+                    <div v-if="guarantorReference.consent_signature || guarantorReference.consent_signature_name" class="mt-4">
                       <div class="p-3 bg-white rounded border border-green-200">
                         <span class="text-green-700 font-medium text-sm">Signature:</span>
-                        <div v-if="guarantorReference.consent_signature_name" class="mb-2 text-sm text-gray-700 font-medium">
-                          {{ guarantorReference.consent_signature_name }}
+                        <div v-if="guarantorReference.consent_signature" class="mt-2">
+                          <img :src="guarantorReference.consent_signature" alt="Signature" class="max-w-md h-auto" />
                         </div>
-                        <img :src="guarantorReference.consent_signature" alt="Signature" class="max-w-md h-auto" />
+                        <div v-if="guarantorReference.consent_signature_name && !guarantorReference.consent_printed_name" class="mt-2 text-sm text-gray-700 font-medium">
+                          Signed by: {{ guarantorReference.consent_signature_name }}
+                        </div>
+                        <div v-if="guarantorReference.consent_printed_name" class="mt-2 text-sm text-gray-700 font-medium">
+                          Printed Name: {{ guarantorReference.consent_printed_name }}
+                        </div>
                         <p v-if="guarantorReference.consent_date" class="text-xs text-green-700 mt-2">Date: {{ formatDate(guarantorReference.consent_date) }}</p>
                       </div>
                     </div>

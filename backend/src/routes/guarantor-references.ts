@@ -318,6 +318,7 @@ router.post('/submit/:token', async (req, res) => {
       willing_to_pay_damages: data.willing_to_pay_damages || false,
       consent_signature: data.consent_signature || null,
       consent_signature_name: data.consent_signature_name || null,
+      consent_printed_name_encrypted: encrypt(data.consent_printed_name || ''),
       consent_date: data.consent_date || null,
 
       // Additional Information
@@ -343,6 +344,21 @@ router.post('/submit/:token', async (req, res) => {
     }
 
     console.log('Guarantor reference submitted successfully:', guarantorReference.id)
+
+    // Determine if guarantor should go to pending_verification immediately
+    // This happens when: retired + owns home outright (no employer/landlord refs needed)
+    const isRetired = data.employment_status === 'retired'
+    const ownsHomeOutright = data.home_ownership_status === 'owner'
+
+    if (isRetired && ownsHomeOutright) {
+      console.log('Guarantor is retired and owns home outright - moving to pending_verification')
+      await supabase
+        .from('guarantor_references')
+        .update({ status: 'pending_verification' })
+        .eq('id', guarantorRef.id)
+    } else {
+      console.log('Guarantor requires additional references - staying in default status')
+    }
 
     res.json({
       message: 'Guarantor reference submitted successfully',

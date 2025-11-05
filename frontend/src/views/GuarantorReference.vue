@@ -1697,13 +1697,22 @@
 
           <!-- Signature Section -->
           <div class="mt-8 pt-6 border-t border-gray-200 space-y-4">
+            <!-- Signature -->
+            <SignaturePad
+              v-model="formData.consent_signature_name"
+              label="Signature"
+            />
+
+            <!-- Printed Name -->
             <div>
-              <label class="block text-sm font-medium text-gray-700">Full Name (Signature) *</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Printed Name *
+              </label>
               <input
-                v-model="formData.consent_signature_name"
+                v-model="formData.consent_printed_name"
                 type="text"
                 required
-                placeholder="Type your full legal name"
+                placeholder="Print your full name"
                 class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>

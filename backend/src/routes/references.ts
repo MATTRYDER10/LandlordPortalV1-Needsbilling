@@ -582,7 +582,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       previous_guarantor_details: guarantorReference.previous_guarantor_details_encrypted ? decrypt(guarantorReference.previous_guarantor_details_encrypted) : null,
       additional_comments: guarantorReference.additional_comments_encrypted ? decrypt(guarantorReference.additional_comments_encrypted) : null,
       guarantor_email: guarantorReference.guarantor_email_encrypted ? decrypt(guarantorReference.guarantor_email_encrypted) : null,
-      guarantor_phone: guarantorReference.guarantor_phone_encrypted ? decrypt(guarantorReference.guarantor_phone_encrypted) : null
+      guarantor_phone: guarantorReference.guarantor_phone_encrypted ? decrypt(guarantorReference.guarantor_phone_encrypted) : null,
+      consent_printed_name: guarantorReference.consent_printed_name_encrypted ? decrypt(guarantorReference.consent_printed_name_encrypted) : null
     } : null
 
     res.json({
