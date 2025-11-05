@@ -271,6 +271,8 @@ export async function sendGuarantorReferenceRequest(
   tenantName: string,
   propertyAddress: string,
   agentName: string,
+  agentPhone: string,
+  agentEmail: string,
   formLink: string
 ): Promise<void> {
   const html = loadEmailTemplate('guarantor-reference-request', {
@@ -278,6 +280,8 @@ export async function sendGuarantorReferenceRequest(
     TenantName: tenantName,
     PropertyAddress: propertyAddress,
     AgentName: agentName,
+    AgentPhone: agentPhone,
+    AgentEmail: agentEmail,
     FormLink: formLink
   });
 
