@@ -21,11 +21,11 @@
       <!-- Progress Bar -->
       <div v-if="!initialLoading && !tokenError && reference && !reference.submitted_at" class="mb-8">
         <div class="flex justify-between items-center mb-2">
-          <span class="text-sm font-medium text-gray-700">Page {{ currentPage }} of 12</span>
-          <span class="text-sm text-gray-500">{{ Math.round((currentPage / 15) * 100) }}% Complete</span>
+          <span class="text-sm font-medium text-gray-700">Page {{ getDisplayPage(currentPage) }} of {{ totalPages }}</span>
+          <span class="text-sm text-gray-500">{{ Math.round((getDisplayPage(currentPage) / totalPages) * 100) }}% Complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
-          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 15 * 100) + '%', backgroundColor: primaryColor }"></div>
+          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (getDisplayPage(currentPage) / totalPages * 100) + '%', backgroundColor: primaryColor }"></div>
         </div>
       </div>
 
@@ -653,8 +653,8 @@
           </div>
         </div>
 
-        <!-- PAGE 6: Proof of Address -->
-        <div v-if="currentPage === 6" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 6: Proof of Address (only show if not driving licence) -->
+        <div v-if="currentPage === 6 && !shouldSkipProofOfAddress" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Proof of Address</h2>
           <p class="text-sm text-gray-600 mb-6">Bank Statement, Utility bill or UK Driving License</p>
 
@@ -1519,7 +1519,6 @@
                     @change="handleBankStatementUpload"
                     accept=".pdf,.jpg,.jpeg,.png"
                     class="hidden"
-                    required
                   />
                   <button
                     type="button"
@@ -1634,8 +1633,8 @@
         <!-- PAGE 11: Previous Landlord/Agent Reference - REMOVED "About You" page as not relevant for guarantors -->
 
 
-        <!-- PAGE 14: Legal Consent & Understanding -->
-        <div v-if="currentPage === 11" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 11: Legal Consent & Understanding (only show if not driving licence, or show consent if driving licence) -->
+        <div v-if="currentPage === 11 && !shouldSkipProofOfAddress" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Legal Obligations & Consent</h2>
           <p class="text-sm text-gray-600 mb-6">Please read carefully and confirm your understanding of your legal obligations as a guarantor</p>
 
@@ -1729,8 +1728,8 @@
           </div>
         </div>
 
-        <!-- PAGE 15: Review and Submit -->
-        <div v-if="currentPage === 12" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 12: Referencing Consent (or page 11 when driving licence is selected) -->
+        <div v-if="currentPage === 12 || (currentPage === 11 && shouldSkipProofOfAddress)" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Referencing Consent</h2>
           <p class="text-sm text-gray-600 mb-6">Please read and sign the declaration below</p>
 
@@ -1823,7 +1822,7 @@
             <div v-else></div>
 
             <button
-              v-if="currentPage < 15"
+              v-if="currentPage < (shouldSkipProofOfAddress ? 11 : 12)"
               type="submit"
               :disabled="submitting"
               class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 hover:opacity-90"
@@ -2226,11 +2225,29 @@ const cityPlaceholder = computed(() => {
 
 // Consent validation - checks if all required consent fields are filled
 const consentGiven = computed(() => {
-  return !!(
-    formData.value.consent_signature &&
-    formData.value.consent_agreed_date &&
-    formData.value.consent_printed_name
-  )
+  // When driving licence is selected, last page is 11 (Legal Obligations) which uses different field names
+  // When passport is selected, last page is 12 (Referencing Consent) which uses consent_signature
+  const lastPage = shouldSkipProofOfAddress.value ? 11 : 12
+  
+  if (lastPage === 11) {
+    // Page 11: Legal Obligations & Consent
+    return !!(
+      formData.value.consent_signature_name &&
+      formData.value.consent_date &&
+      formData.value.consent_printed_name &&
+      formData.value.understands_obligations &&
+      formData.value.willing_to_pay_rent &&
+      formData.value.willing_to_pay_damages &&
+      formData.value.consent_legal_checks
+    )
+  } else {
+    // Page 12: Referencing Consent
+    return !!(
+      formData.value.consent_signature &&
+      formData.value.consent_agreed_date &&
+      formData.value.consent_printed_name
+    )
+  }
 })
 
 // Previous address country dropdowns
@@ -2313,6 +2330,53 @@ const needsMoreAddressHistory = computed(() => {
   // Need 3 years (36 months) of address history
   return totalAddressHistoryInMonths.value < 36
 })
+
+// Check if driving licence is selected (to skip Proof of Address step)
+const shouldSkipProofOfAddress = computed(() => {
+  return formData.value.id_document_type === 'driving_licence'
+})
+
+// Total pages: 11 if driving licence (skip page 6), 12 otherwise
+const totalPages = computed(() => {
+  return shouldSkipProofOfAddress.value ? 11 : 12
+})
+
+// Map logical page number (what user sees) to actual page number (internal)
+const getDisplayPage = (actualPage: number): number => {
+  if (!shouldSkipProofOfAddress.value) {
+    return actualPage
+  }
+  // If skipping page 6, pages 7-12 become 6-11 in display
+  // Page 7 -> 6, Page 8 -> 7, Page 9 -> 8, Page 10 -> 9, Page 11 -> 10, Page 12 -> 11
+  if (actualPage >= 7) {
+    return actualPage - 1
+  }
+  return actualPage
+}
+
+// Map actual page number to next page (handling skip of page 6)
+const getNextPage = (currentActualPage: number): number => {
+  if (!shouldSkipProofOfAddress.value) {
+    return currentActualPage + 1
+  }
+  // If on page 5, skip to page 7 (which displays as page 6)
+  if (currentActualPage === 5) {
+    return 7
+  }
+  return currentActualPage + 1
+}
+
+// Map actual page number to previous page (handling skip of page 6)
+const getPreviousPage = (currentActualPage: number): number => {
+  if (!shouldSkipProofOfAddress.value) {
+    return currentActualPage - 1
+  }
+  // If on page 7, go back to page 5 (skipping page 6)
+  if (currentActualPage === 7) {
+    return 5
+  }
+  return currentActualPage - 1
+}
 
 // Benefits annual calculation
 const benefitsAnnualAmount = computed(() => {
@@ -2667,6 +2731,18 @@ watch(() => formData.value.previous_landlord_email, () => {
   landlordEmailError.value = ''
 })
 
+// Watch for document type changes and adjust page if needed
+watch(() => formData.value.id_document_type, (newType, oldType) => {
+  // If user changes from passport to driving licence while on page 6, skip to page 7
+  if (oldType === 'passport' && newType === 'driving_licence' && currentPage.value === 6) {
+    currentPage.value = 7
+  }
+  // If user changes from driving licence to passport while on page 7, go to page 6
+  if (oldType === 'driving_licence' && newType === 'passport' && currentPage.value === 7) {
+    currentPage.value = 6
+  }
+})
+
 // Auto-calculate annual benefits when monthly amount changes
 watch(() => formData.value.benefits_monthly_amount, (newValue) => {
   if (newValue !== null && newValue !== undefined) {
@@ -2808,6 +2884,12 @@ const handleBankStatementUpload = (event: Event) => {
 
 const removeBankStatement = () => {
   bankStatement.value = null
+  formData.value.bank_statement_path = ''
+  // Clear the file input
+  const input = document.querySelector('input[type="file"][accept=".pdf,.jpg,.jpeg,.png"]') as HTMLInputElement
+  if (input) {
+    input.value = ''
+  }
 }
 
 const handlePayslipUpload = (event: Event) => {
@@ -2916,7 +2998,7 @@ const formatFileSize = (bytes: number) => {
 
 const goToPreviousPage = () => {
   if (currentPage.value > 1) {
-    currentPage.value--
+    currentPage.value = getPreviousPage(currentPage.value)
     submitError.value = ''
   }
 }
@@ -2938,7 +3020,8 @@ const uploadCurrentPageFiles = async () => {
     hasFilesToUpload = true
   }
 
-  if (currentPage.value === 6 && proofOfAddress.value && !formData.value.proof_of_address_path) {
+  // Only upload proof of address if not skipping (i.e., not driving licence)
+  if (currentPage.value === 6 && !shouldSkipProofOfAddress.value && proofOfAddress.value && !formData.value.proof_of_address_path) {
     formDataFiles.append('proof_of_address', proofOfAddress.value)
     hasFilesToUpload = true
   }
@@ -2962,6 +3045,12 @@ const uploadCurrentPageFiles = async () => {
 
   if (currentPage.value === 7 && proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {
     formDataFiles.append('proof_of_additional_income', proofOfAdditionalIncome.value)
+    hasFilesToUpload = true
+  }
+
+  // Upload bank statement on page 9
+  if (currentPage.value === 9 && bankStatement.value && !formData.value.bank_statement_path) {
+    formDataFiles.append('bank_statements', bankStatement.value)
     hasFilesToUpload = true
   }
 
@@ -3004,6 +3093,10 @@ const uploadCurrentPageFiles = async () => {
   }
   if (uploadedFiles.payslips && uploadedFiles.payslips.length > 0) {
     formData.value.payslip_paths = uploadedFiles.payslips
+  }
+  // Handle bank statements - backend returns array, but we only need the first one for guarantors
+  if (uploadedFiles.bank_statements && uploadedFiles.bank_statements.length > 0) {
+    formData.value.bank_statement_path = uploadedFiles.bank_statements[0]
   }
 }
 
@@ -3056,10 +3149,12 @@ const handlePageSubmit = async () => {
   } else if (currentPage.value === 5) {
     // Home ownership validation - no proof of address yet on this page
   } else if (currentPage.value === 6) {
-    // Validate proof of address upload
-    if (!proofOfAddress.value && !formData.value.proof_of_address_path) {
-      submitError.value = 'Please upload proof of address'
-      return
+    // Only validate proof of address if not skipping (i.e., not driving licence)
+    if (!shouldSkipProofOfAddress.value) {
+      if (!proofOfAddress.value && !formData.value.proof_of_address_path) {
+        submitError.value = 'Please upload proof of address'
+        return
+      }
     }
   } else if (currentPage.value === 7) {
     // Validate employer email if regular employment income is selected
@@ -3115,7 +3210,8 @@ const handlePageSubmit = async () => {
   }
 
   // If on last page, submit the form
-  if (currentPage.value === 11) {
+  const lastPage = shouldSkipProofOfAddress.value ? 11 : 12
+  if (currentPage.value === lastPage) {
     await handleFinalSubmit()
   } else {
     // Upload files for current page before moving to next page
@@ -3128,8 +3224,8 @@ const handlePageSubmit = async () => {
       uploadProgress.value = 0
       submitting.value = false
 
-      // Move to next page
-      currentPage.value++
+      // Move to next page (handling skip of page 6)
+      currentPage.value = getNextPage(currentPage.value)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error: any) {
       submitError.value = error.message || 'Failed to upload files'
@@ -3162,7 +3258,7 @@ const handleFinalSubmit = async () => {
     uploadProgress.value = 50
 
     // Submit form data with already uploaded file paths
-    const submitData = {
+    const submitData: any = {
       ...formData.value,
       date_of_birth: dateOfBirth,
       employment_start_date: employmentStartDate,
@@ -3170,6 +3266,12 @@ const handleFinalSubmit = async () => {
       payslip_files: formData.value.payslip_paths,
       // Include previous addresses for 3-year history
       previous_addresses: previousAddresses.value
+    }
+
+    // If driving licence is selected, completely exclude proof_of_address_path from payload
+    // (since we skipped that step - driving licence itself serves as proof of address)
+    if (shouldSkipProofOfAddress.value) {
+      delete submitData.proof_of_address_path
     }
 
     // Guarantors submit using the same endpoint as tenants
