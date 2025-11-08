@@ -21,11 +21,11 @@
       <!-- Progress Bar -->
       <div v-if="!initialLoading && !tokenError && reference && !reference.submitted_at" class="mb-8">
         <div class="flex justify-between items-center mb-2">
-          <span class="text-sm font-medium text-gray-700">Page {{ currentPage }} of 12</span>
-          <span class="text-sm text-gray-500">{{ Math.round((currentPage / 15) * 100) }}% Complete</span>
+          <span class="text-sm font-medium text-gray-700">Page {{ getDisplayPage(currentPage) }} of {{ totalPages }}</span>
+          <span class="text-sm text-gray-500">{{ Math.round((getDisplayPage(currentPage) / totalPages) * 100) }}% Complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
-          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (currentPage / 15 * 100) + '%', backgroundColor: primaryColor }"></div>
+          <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (getDisplayPage(currentPage) / totalPages * 100) + '%', backgroundColor: primaryColor }"></div>
         </div>
       </div>
 
@@ -53,8 +53,6 @@
 
         <!-- PAGE 1: ID Document Upload -->
         <div v-if="currentPage === 1" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Identification Document</h2>
-
           <!-- Reference Details Notice -->
           <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p class="text-sm text-gray-700 mb-2">
@@ -64,6 +62,7 @@
               <strong>Important:</strong> As a guarantor, you will be legally responsible for paying rent and covering damages if the tenant is unable to do so. Please ensure you understand these obligations before proceeding.
             </p>
           </div>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Identification Document</h2>
 
           <p class="text-sm text-gray-600 mb-6">Please upload a clear photo of your Driving Licence or Passport</p>
 
@@ -654,8 +653,8 @@
           </div>
         </div>
 
-        <!-- PAGE 6: Proof of Address -->
-        <div v-if="currentPage === 6" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 6: Proof of Address (only show if not driving licence) -->
+        <div v-if="currentPage === 6 && !shouldSkipProofOfAddress" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Proof of Address</h2>
           <p class="text-sm text-gray-600 mb-6">Bank Statement, Utility bill or UK Driving License</p>
 
@@ -1477,14 +1476,14 @@
           </div>
         </div>
 
-        <!-- PAGE 9: Savings, Assets & Financial Obligations -->
+        <!-- PAGE 9: Savings, Assets & Bank Statement -->
         <div v-if="currentPage === 9" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Savings, Assets & Financial Obligations</h2>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Savings, Assets & Bank Statement</h2>
           <p class="text-sm text-gray-600 mb-6">Please provide details about your financial position to demonstrate your ability to act as guarantor</p>
 
           <div class="space-y-6">
-            <!-- Savings Section -->
-            <div class="pb-6 border-b border-gray-200">
+            <!-- Savings Section - Only show if "Savings, Pensions or Investments" is selected -->
+            <div v-if="formData.income_savings_pension_investments" class="pb-6 border-b border-gray-200">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Savings & Assets</h3>
               <div class="space-y-4">
                 <div>
@@ -1510,92 +1509,47 @@
                   ></textarea>
                   <p class="mt-1 text-xs text-gray-500">Describe any other assets that demonstrate financial stability</p>
                 </div>
-
-                <!-- Bank Statement Upload -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statement (Last 3 months) *</label>
-                  <input
-                    ref="bankStatementInput"
-                    type="file"
-                    @change="handleBankStatementUpload"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    class="hidden"
-                    required
-                  />
-                  <button
-                    type="button"
-                    @click="($refs.bankStatementInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
-                    :style="{ color: buttonColor }"
-                  >
-                    {{ bankStatement ? 'Change File' : 'Choose File' }}
-                  </button>
-                  <p class="mt-1 text-xs text-gray-500">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
-                  <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 rounded">
-                    <div class="flex items-center justify-between">
-                      <span class="text-sm text-gray-700">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
-                      <button type="button" @click="removeBankStatement" class="text-red-600 hover:text-red-800">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  <div v-else-if="formData.bank_statement_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                    <div class="flex items-center">
-                      <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
-            <!-- Financial Obligations Section -->
+            <!-- Bank Statement Upload - Always required for guarantors -->
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Financial Obligations</h3>
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Monthly Mortgage/Rent Payment (£) *</label>
-                  <input
-                    v-model.number="formData.monthly_mortgage_rent"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    placeholder="e.g., 1200"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                  <p class="mt-1 text-xs text-gray-500">Your monthly housing cost</p>
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Bank Statement</h3>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statement (Last 3 months) *</label>
+                <input
+                  ref="bankStatementInput"
+                  type="file"
+                  @change="handleBankStatementUpload"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  class="hidden"
+                />
+                <button
+                  type="button"
+                  @click="($refs.bankStatementInput as any).click()"
+                  class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                  :style="{ color: buttonColor }"
+                >
+                  {{ bankStatement ? 'Change File' : 'Choose File' }}
+                </button>
+                <p class="mt-1 text-xs text-gray-500">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
+                <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 rounded">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
+                    <button type="button" @click="removeBankStatement" class="text-red-600 hover:text-red-800">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Other Monthly Financial Commitments (£)</label>
-                  <input
-                    v-model.number="formData.other_monthly_commitments"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="e.g., 500"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                  <p class="mt-1 text-xs text-gray-500">Loans, credit cards, car payments, etc.</p>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Estimated Total Monthly Expenditure (£) *</label>
-                  <input
-                    v-model.number="formData.total_monthly_expenditure"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    placeholder="e.g., 2500"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                  <p class="mt-1 text-xs text-gray-500">Including all bills, food, transport, etc.</p>
+                <div v-else-if="formData.bank_statement_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                  <div class="flex items-center">
+                    <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1635,8 +1589,8 @@
         <!-- PAGE 11: Previous Landlord/Agent Reference - REMOVED "About You" page as not relevant for guarantors -->
 
 
-        <!-- PAGE 14: Legal Consent & Understanding -->
-        <div v-if="currentPage === 11" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 11: Legal Consent & Understanding (only show if not driving licence, or show consent if driving licence) -->
+        <div v-if="currentPage === 11 && !shouldSkipProofOfAddress" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Legal Obligations & Consent</h2>
           <p class="text-sm text-gray-600 mb-6">Please read carefully and confirm your understanding of your legal obligations as a guarantor</p>
 
@@ -1730,8 +1684,8 @@
           </div>
         </div>
 
-        <!-- PAGE 15: Review and Submit -->
-        <div v-if="currentPage === 12" class="bg-white rounded-lg shadow p-6">
+        <!-- PAGE 12: Referencing Consent (or page 11 when driving licence is selected) -->
+        <div v-if="currentPage === 12 || (currentPage === 11 && shouldSkipProofOfAddress)" class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Referencing Consent</h2>
           <p class="text-sm text-gray-600 mb-6">Please read and sign the declaration below</p>
 
@@ -1824,7 +1778,7 @@
             <div v-else></div>
 
             <button
-              v-if="currentPage < 15"
+              v-if="currentPage < (shouldSkipProofOfAddress ? 11 : 12)"
               type="submit"
               :disabled="submitting"
               class="px-6 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 hover:opacity-90"
@@ -2227,11 +2181,25 @@ const cityPlaceholder = computed(() => {
 
 // Consent validation - checks if all required consent fields are filled
 const consentGiven = computed(() => {
-  return !!(
-    formData.value.consent_signature &&
-    formData.value.consent_agreed_date &&
-    formData.value.consent_printed_name
-  )
+  // When driving licence is selected, last page is 11 which shows Referencing Consent (page 12 content)
+  // When passport is selected, last page is 12 which shows Referencing Consent
+  // Both use the same fields: consent_signature, consent_agreed_date, consent_printed_name
+  
+  // Check which page is currently displayed
+  const isOnLastPage = currentPage.value === (shouldSkipProofOfAddress.value ? 11 : 12)
+  
+  if (isOnLastPage) {
+    // Both page 11 (when driving licence) and page 12 (when passport) show Referencing Consent
+    // So we check for the Referencing Consent fields
+    return !!(
+      formData.value.consent_signature &&
+      formData.value.consent_agreed_date &&
+      formData.value.consent_printed_name
+    )
+  }
+  
+  // If not on last page, return false (shouldn't happen, but safety check)
+  return false
 })
 
 // Previous address country dropdowns
@@ -2314,6 +2282,53 @@ const needsMoreAddressHistory = computed(() => {
   // Need 3 years (36 months) of address history
   return totalAddressHistoryInMonths.value < 36
 })
+
+// Check if driving licence is selected (to skip Proof of Address step)
+const shouldSkipProofOfAddress = computed(() => {
+  return formData.value.id_document_type === 'driving_licence'
+})
+
+// Total pages: 11 if driving licence (skip page 6), 12 otherwise
+const totalPages = computed(() => {
+  return shouldSkipProofOfAddress.value ? 11 : 12
+})
+
+// Map logical page number (what user sees) to actual page number (internal)
+const getDisplayPage = (actualPage: number): number => {
+  if (!shouldSkipProofOfAddress.value) {
+    return actualPage
+  }
+  // If skipping page 6, pages 7-12 become 6-11 in display
+  // Page 7 -> 6, Page 8 -> 7, Page 9 -> 8, Page 10 -> 9, Page 11 -> 10, Page 12 -> 11
+  if (actualPage >= 7) {
+    return actualPage - 1
+  }
+  return actualPage
+}
+
+// Map actual page number to next page (handling skip of page 6)
+const getNextPage = (currentActualPage: number): number => {
+  if (!shouldSkipProofOfAddress.value) {
+    return currentActualPage + 1
+  }
+  // If on page 5, skip to page 7 (which displays as page 6)
+  if (currentActualPage === 5) {
+    return 7
+  }
+  return currentActualPage + 1
+}
+
+// Map actual page number to previous page (handling skip of page 6)
+const getPreviousPage = (currentActualPage: number): number => {
+  if (!shouldSkipProofOfAddress.value) {
+    return currentActualPage - 1
+  }
+  // If on page 7, go back to page 5 (skipping page 6)
+  if (currentActualPage === 7) {
+    return 5
+  }
+  return currentActualPage - 1
+}
 
 // Benefits annual calculation
 const benefitsAnnualAmount = computed(() => {
@@ -2518,10 +2533,10 @@ const formData = ref({
   other_assets: '',
   bank_statement_path: '',
 
-  // Financial Obligations
-  monthly_mortgage_rent: null as number | null,
-  other_monthly_commitments: null as number | null,
-  total_monthly_expenditure: null as number | null,
+  // Financial Obligations (removed - not needed for guarantors as pass rate is 32x monthly rent)
+  // monthly_mortgage_rent: null as number | null,
+  // other_monthly_commitments: null as number | null,
+  // total_monthly_expenditure: null as number | null,
 
   // Previous Guarantor Experience
   previously_acted_as_guarantor: false,
@@ -2668,6 +2683,18 @@ watch(() => formData.value.previous_landlord_email, () => {
   landlordEmailError.value = ''
 })
 
+// Watch for document type changes and adjust page if needed
+watch(() => formData.value.id_document_type, (newType, oldType) => {
+  // If user changes from passport to driving licence while on page 6, skip to page 7
+  if (oldType === 'passport' && newType === 'driving_licence' && currentPage.value === 6) {
+    currentPage.value = 7
+  }
+  // If user changes from driving licence to passport while on page 7, go to page 6
+  if (oldType === 'driving_licence' && newType === 'passport' && currentPage.value === 7) {
+    currentPage.value = 6
+  }
+})
+
 // Auto-calculate annual benefits when monthly amount changes
 watch(() => formData.value.benefits_monthly_amount, (newValue) => {
   if (newValue !== null && newValue !== undefined) {
@@ -2809,6 +2836,12 @@ const handleBankStatementUpload = (event: Event) => {
 
 const removeBankStatement = () => {
   bankStatement.value = null
+  formData.value.bank_statement_path = ''
+  // Clear the file input
+  const input = document.querySelector('input[type="file"][accept=".pdf,.jpg,.jpeg,.png"]') as HTMLInputElement
+  if (input) {
+    input.value = ''
+  }
 }
 
 const handlePayslipUpload = (event: Event) => {
@@ -2917,7 +2950,7 @@ const formatFileSize = (bytes: number) => {
 
 const goToPreviousPage = () => {
   if (currentPage.value > 1) {
-    currentPage.value--
+    currentPage.value = getPreviousPage(currentPage.value)
     submitError.value = ''
   }
 }
@@ -2939,7 +2972,8 @@ const uploadCurrentPageFiles = async () => {
     hasFilesToUpload = true
   }
 
-  if (currentPage.value === 6 && proofOfAddress.value && !formData.value.proof_of_address_path) {
+  // Only upload proof of address if not skipping (i.e., not driving licence)
+  if (currentPage.value === 6 && !shouldSkipProofOfAddress.value && proofOfAddress.value && !formData.value.proof_of_address_path) {
     formDataFiles.append('proof_of_address', proofOfAddress.value)
     hasFilesToUpload = true
   }
@@ -2963,6 +2997,12 @@ const uploadCurrentPageFiles = async () => {
 
   if (currentPage.value === 7 && proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {
     formDataFiles.append('proof_of_additional_income', proofOfAdditionalIncome.value)
+    hasFilesToUpload = true
+  }
+
+  // Upload bank statement on page 9
+  if (currentPage.value === 9 && bankStatement.value && !formData.value.bank_statement_path) {
+    formDataFiles.append('bank_statements', bankStatement.value)
     hasFilesToUpload = true
   }
 
@@ -3005,6 +3045,10 @@ const uploadCurrentPageFiles = async () => {
   }
   if (uploadedFiles.payslips && uploadedFiles.payslips.length > 0) {
     formData.value.payslip_paths = uploadedFiles.payslips
+  }
+  // Handle bank statements - backend returns array, but we only need the first one for guarantors
+  if (uploadedFiles.bank_statements && uploadedFiles.bank_statements.length > 0) {
+    formData.value.bank_statement_path = uploadedFiles.bank_statements[0]
   }
 }
 
@@ -3057,10 +3101,12 @@ const handlePageSubmit = async () => {
   } else if (currentPage.value === 5) {
     // Home ownership validation - no proof of address yet on this page
   } else if (currentPage.value === 6) {
-    // Validate proof of address upload
-    if (!proofOfAddress.value && !formData.value.proof_of_address_path) {
-      submitError.value = 'Please upload proof of address'
-      return
+    // Only validate proof of address if not skipping (i.e., not driving licence)
+    if (!shouldSkipProofOfAddress.value) {
+      if (!proofOfAddress.value && !formData.value.proof_of_address_path) {
+        submitError.value = 'Please upload proof of address'
+        return
+      }
     }
   } else if (currentPage.value === 7) {
     // Validate employer email if regular employment income is selected
@@ -3102,6 +3148,16 @@ const handlePageSubmit = async () => {
       submitError.value = 'Please upload your bank statement (last 3 months). This is required to verify your financial capability.'
       return
     }
+    // If savings is selected and they've started entering a value, validate it's valid
+    // Note: We make it optional - if they don't want to enter savings, that's fine
+    // But if they do enter something, it should be a positive number
+    if (formData.value.income_savings_pension_investments && 
+        formData.value.savings_amount !== null && 
+        formData.value.savings_amount !== undefined && 
+        formData.value.savings_amount <= 0) {
+      submitError.value = 'Please enter a valid savings amount (must be greater than 0)'
+      return
+    }
   } else if (currentPage.value === 10) {
     // Validate landlord/agent email
     if (formData.value.previous_landlord_email && !isWorkEmail(formData.value.previous_landlord_email)) {
@@ -3116,7 +3172,8 @@ const handlePageSubmit = async () => {
   }
 
   // If on last page, submit the form
-  if (currentPage.value === 11) {
+  const lastPage = shouldSkipProofOfAddress.value ? 11 : 12
+  if (currentPage.value === lastPage) {
     await handleFinalSubmit()
   } else {
     // Upload files for current page before moving to next page
@@ -3129,8 +3186,8 @@ const handlePageSubmit = async () => {
       uploadProgress.value = 0
       submitting.value = false
 
-      // Move to next page
-      currentPage.value++
+      // Move to next page (handling skip of page 6)
+      currentPage.value = getNextPage(currentPage.value)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error: any) {
       submitError.value = error.message || 'Failed to upload files'
@@ -3163,7 +3220,7 @@ const handleFinalSubmit = async () => {
     uploadProgress.value = 50
 
     // Submit form data with already uploaded file paths
-    const submitData = {
+    const submitData: any = {
       ...formData.value,
       date_of_birth: dateOfBirth,
       employment_start_date: employmentStartDate,
@@ -3171,6 +3228,12 @@ const handleFinalSubmit = async () => {
       payslip_files: formData.value.payslip_paths,
       // Include previous addresses for 3-year history
       previous_addresses: previousAddresses.value
+    }
+
+    // If driving licence is selected, completely exclude proof_of_address_path from payload
+    // (since we skipped that step - driving licence itself serves as proof of address)
+    if (shouldSkipProofOfAddress.value) {
+      delete submitData.proof_of_address_path
     }
 
     // Guarantors submit using the same endpoint as tenants
