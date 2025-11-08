@@ -1476,14 +1476,14 @@
           </div>
         </div>
 
-        <!-- PAGE 9: Savings, Assets & Financial Obligations -->
+        <!-- PAGE 9: Savings, Assets & Bank Statement -->
         <div v-if="currentPage === 9" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Savings, Assets & Financial Obligations</h2>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Savings, Assets & Bank Statement</h2>
           <p class="text-sm text-gray-600 mb-6">Please provide details about your financial position to demonstrate your ability to act as guarantor</p>
 
           <div class="space-y-6">
-            <!-- Savings Section -->
-            <div class="pb-6 border-b border-gray-200">
+            <!-- Savings Section - Only show if "Savings, Pensions or Investments" is selected -->
+            <div v-if="formData.income_savings_pension_investments" class="pb-6 border-b border-gray-200">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Savings & Assets</h3>
               <div class="space-y-4">
                 <div>
@@ -1509,91 +1509,47 @@
                   ></textarea>
                   <p class="mt-1 text-xs text-gray-500">Describe any other assets that demonstrate financial stability</p>
                 </div>
-
-                <!-- Bank Statement Upload -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statement (Last 3 months) *</label>
-                  <input
-                    ref="bankStatementInput"
-                    type="file"
-                    @change="handleBankStatementUpload"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    class="hidden"
-                  />
-                  <button
-                    type="button"
-                    @click="($refs.bankStatementInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
-                    :style="{ color: buttonColor }"
-                  >
-                    {{ bankStatement ? 'Change File' : 'Choose File' }}
-                  </button>
-                  <p class="mt-1 text-xs text-gray-500">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
-                  <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 rounded">
-                    <div class="flex items-center justify-between">
-                      <span class="text-sm text-gray-700">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
-                      <button type="button" @click="removeBankStatement" class="text-red-600 hover:text-red-800">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  <div v-else-if="formData.bank_statement_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                    <div class="flex items-center">
-                      <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
-            <!-- Financial Obligations Section -->
+            <!-- Bank Statement Upload - Always required for guarantors -->
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Financial Obligations</h3>
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Monthly Mortgage/Rent Payment (£) *</label>
-                  <input
-                    v-model.number="formData.monthly_mortgage_rent"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    placeholder="e.g., 1200"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                  <p class="mt-1 text-xs text-gray-500">Your monthly housing cost</p>
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Bank Statement</h3>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statement (Last 3 months) *</label>
+                <input
+                  ref="bankStatementInput"
+                  type="file"
+                  @change="handleBankStatementUpload"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  class="hidden"
+                />
+                <button
+                  type="button"
+                  @click="($refs.bankStatementInput as any).click()"
+                  class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                  :style="{ color: buttonColor }"
+                >
+                  {{ bankStatement ? 'Change File' : 'Choose File' }}
+                </button>
+                <p class="mt-1 text-xs text-gray-500">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
+                <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 rounded">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
+                    <button type="button" @click="removeBankStatement" class="text-red-600 hover:text-red-800">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Other Monthly Financial Commitments (£)</label>
-                  <input
-                    v-model.number="formData.other_monthly_commitments"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="e.g., 500"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                  <p class="mt-1 text-xs text-gray-500">Loans, credit cards, car payments, etc.</p>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Estimated Total Monthly Expenditure (£) *</label>
-                  <input
-                    v-model.number="formData.total_monthly_expenditure"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    placeholder="e.g., 2500"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
-                  <p class="mt-1 text-xs text-gray-500">Including all bills, food, transport, etc.</p>
+                <div v-else-if="formData.bank_statement_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                  <div class="flex items-center">
+                    <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2225,29 +2181,25 @@ const cityPlaceholder = computed(() => {
 
 // Consent validation - checks if all required consent fields are filled
 const consentGiven = computed(() => {
-  // When driving licence is selected, last page is 11 (Legal Obligations) which uses different field names
-  // When passport is selected, last page is 12 (Referencing Consent) which uses consent_signature
-  const lastPage = shouldSkipProofOfAddress.value ? 11 : 12
+  // When driving licence is selected, last page is 11 which shows Referencing Consent (page 12 content)
+  // When passport is selected, last page is 12 which shows Referencing Consent
+  // Both use the same fields: consent_signature, consent_agreed_date, consent_printed_name
   
-  if (lastPage === 11) {
-    // Page 11: Legal Obligations & Consent
-    return !!(
-      formData.value.consent_signature_name &&
-      formData.value.consent_date &&
-      formData.value.consent_printed_name &&
-      formData.value.understands_obligations &&
-      formData.value.willing_to_pay_rent &&
-      formData.value.willing_to_pay_damages &&
-      formData.value.consent_legal_checks
-    )
-  } else {
-    // Page 12: Referencing Consent
+  // Check which page is currently displayed
+  const isOnLastPage = currentPage.value === (shouldSkipProofOfAddress.value ? 11 : 12)
+  
+  if (isOnLastPage) {
+    // Both page 11 (when driving licence) and page 12 (when passport) show Referencing Consent
+    // So we check for the Referencing Consent fields
     return !!(
       formData.value.consent_signature &&
       formData.value.consent_agreed_date &&
       formData.value.consent_printed_name
     )
   }
+  
+  // If not on last page, return false (shouldn't happen, but safety check)
+  return false
 })
 
 // Previous address country dropdowns
@@ -2581,10 +2533,10 @@ const formData = ref({
   other_assets: '',
   bank_statement_path: '',
 
-  // Financial Obligations
-  monthly_mortgage_rent: null as number | null,
-  other_monthly_commitments: null as number | null,
-  total_monthly_expenditure: null as number | null,
+  // Financial Obligations (removed - not needed for guarantors as pass rate is 32x monthly rent)
+  // monthly_mortgage_rent: null as number | null,
+  // other_monthly_commitments: null as number | null,
+  // total_monthly_expenditure: null as number | null,
 
   // Previous Guarantor Experience
   previously_acted_as_guarantor: false,
@@ -3194,6 +3146,16 @@ const handlePageSubmit = async () => {
     // Validate bank statement (mandatory for all guarantors)
     if (!bankStatement.value && !formData.value.bank_statement_path) {
       submitError.value = 'Please upload your bank statement (last 3 months). This is required to verify your financial capability.'
+      return
+    }
+    // If savings is selected and they've started entering a value, validate it's valid
+    // Note: We make it optional - if they don't want to enter savings, that's fine
+    // But if they do enter something, it should be a positive number
+    if (formData.value.income_savings_pension_investments && 
+        formData.value.savings_amount !== null && 
+        formData.value.savings_amount !== undefined && 
+        formData.value.savings_amount <= 0) {
+      submitError.value = 'Please enter a valid savings amount (must be greater than 0)'
       return
     }
   } else if (currentPage.value === 10) {
