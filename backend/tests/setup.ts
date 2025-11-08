@@ -12,6 +12,8 @@ if (!process.env.SUPABASE_URL) {
   throw new Error('SUPABASE_URL environment variable is required for tests');
 }
 
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is required for tests');
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_SERVICE_KEY) {
+  throw new Error(
+    'Supabase service key is required for tests. Set SUPABASE_SERVICE_ROLE_KEY (preferred) or SUPABASE_SERVICE_KEY.'
+  );
 }

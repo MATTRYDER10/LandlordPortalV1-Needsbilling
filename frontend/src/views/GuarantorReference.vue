@@ -53,8 +53,6 @@
 
         <!-- PAGE 1: ID Document Upload -->
         <div v-if="currentPage === 1" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Identification Document</h2>
-
           <!-- Reference Details Notice -->
           <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p class="text-sm text-gray-700 mb-2">
@@ -64,6 +62,7 @@
               <strong>Important:</strong> As a guarantor, you will be legally responsible for paying rent and covering damages if the tenant is unable to do so. Please ensure you understand these obligations before proceeding.
             </p>
           </div>
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Identification Document</h2>
 
           <p class="text-sm text-gray-600 mb-6">Please upload a clear photo of your Driving Licence or Passport</p>
 

@@ -283,6 +283,18 @@ export class AgreementService {
       'property_address': this.formatPropertyAddress(data.propertyAddress),
       'RENT_AMOUNT': data.rentAmount ? `£${data.rentAmount.toFixed(2)}` : '£0.00',
       'DEPOSIT_AMOUNT': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      // CRITICAL: Template uses [DEPOSIT_ AMOUNT] with space after underscore!
+      'DEPOSIT_ AMOUNT': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      // Alternative variable names for SUMMARY OF AGREEMENT table (with spaces)
+      'Rent Due Date': data.rentDueDay || '1st',
+      'RENT DUE DATE': data.rentDueDay || '1st',
+      // 'Deposit': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      // 'DEPOSIT': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      // 'Deposit Amount': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      // 'DEPOSIT AMOUNT': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      // 'DepositAmount': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      // 'deposit': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
+      // 'deposit_amount': data.depositAmount ? `£${data.depositAmount.toFixed(2)}` : '£0.00',
       'DEPOSIT_PAYER_NAME_AND_ADDRESS': tenantDefinitions, // Usually the tenant pays the deposit
       'DEPOSIT_SCHEME_DEPOSIT_TYPE_INSURED_CUSTODIAL': fullDepositScheme, // e.g., "DPS Insured" or "MyDeposits Custodial"
       'RENT_DUE_DATE': data.rentDueDay || '1st',
@@ -316,53 +328,53 @@ export class AgreementService {
       // Deposit scheme type (Insured or Custodial)
       'Insured_Custodial': data.depositSchemeType || 'Custodial',
 
-      // Landlord signatures (up to 4 landlords)
+      // Landlord signatures (up to 4 landlords) - only set for existing landlords to reduce spacing
       'LANDLORD1NAME': data.landlords[0]?.name || '',
       'LANDLORD1SIGN': '',
       'LANDLORD1SIGNDATE': '',
       'LANDLORD2NAME': data.landlords[1]?.name || '',
-      'LANDLORD2SIGN': '',
-      'LANDLORD2SIGNDATE': '',
+      'LANDLORD2SIGN': data.landlords[1] ? '' : '',
+      'LANDLORD2SIGNDATE': data.landlords[1] ? '' : '',
       'LANDLORD3NAME': data.landlords[2]?.name || '',
-      'LANDLORD3SIGN': '',
-      'LANDLORD3SIGNDATE': '',
+      'LANDLORD3SIGN': data.landlords[2] ? '' : '',
+      'LANDLORD3SIGNDATE': data.landlords[2] ? '' : '',
       'LANDLORD4NAME': data.landlords[3]?.name || '',
-      'LANDLORD4SIGN': '',
-      'LANDLORD4SIGNDATE': '',
+      'LANDLORD4SIGN': data.landlords[3] ? '' : '',
+      'LANDLORD4SIGNDATE': data.landlords[3] ? '' : '',
 
-      // Tenant signatures (up to 10 tenants)
+      // Tenant signatures (up to 10 tenants) - only set for existing tenants to reduce spacing
       'TENANT1NAME': data.tenants[0]?.name || '',
       'TENANT1SIGN': '',
       'TENANT1SIGNDATE': '',
       'TENANT2NAME': data.tenants[1]?.name || '',
-      'TENANT2SIGN': '',
-      'TENANT2SIGNDATE': '',
+      'TENANT2SIGN': data.tenants[1] ? '' : '',
+      'TENANT2SIGNDATE': data.tenants[1] ? '' : '',
       'TENANT3NAME': data.tenants[2]?.name || '',
-      'TENANT3SIGN': '',
-      'TENANT3SIGNDATE': '',
+      'TENANT3SIGN': data.tenants[2] ? '' : '',
+      'TENANT3SIGNDATE': data.tenants[2] ? '' : '',
       'TENANT4NAME': data.tenants[3]?.name || '',
-      'TENANT4SIGN': '',
-      'TENANT4SIGNDATE': '',
+      'TENANT4SIGN': data.tenants[3] ? '' : '',
+      'TENANT4SIGNDATE': data.tenants[3] ? '' : '',
       'TENANT5NAME': data.tenants[4]?.name || '',
-      'TENANT5SIGN': '',
-      'TENANT5SIGNDATE': '',
+      'TENANT5SIGN': data.tenants[4] ? '' : '',
+      'TENANT5SIGNDATE': data.tenants[4] ? '' : '',
       'TENANT6NAME': data.tenants[5]?.name || '',
-      'TENANT6SIGN': '',
-      'TENANT6SIGNDATE': '',
+      'TENANT6SIGN': data.tenants[5] ? '' : '',
+      'TENANT6SIGNDATE': data.tenants[5] ? '' : '',
       'TENANT7NAME': data.tenants[6]?.name || '',
-      'TENANT7SIGN': '',
-      'TENANT7SIGNDATE': '',
+      'TENANT7SIGN': data.tenants[6] ? '' : '',
+      'TENANT7SIGNDATE': data.tenants[6] ? '' : '',
       'TENANT8NAME': data.tenants[7]?.name || '',
-      'TENANT8SIGN': '',
-      'TENANT8SIGNDATE': '',
+      'TENANT8SIGN': data.tenants[7] ? '' : '',
+      'TENANT8SIGNDATE': data.tenants[7] ? '' : '',
       'TENANT9NAME': data.tenants[8]?.name || '',
-      'TENANT9SIGN': '',
-      'TENANT9SIGNDATE': '',
+      'TENANT9SIGN': data.tenants[8] ? '' : '',
+      'TENANT9SIGNDATE': data.tenants[8] ? '' : '',
       'TENANT10NAME': data.tenants[9]?.name || '',
-      'TENANT10SIGN': '',
-      'TENANT10SIGNDATE': '',
+      'TENANT10SIGN': data.tenants[9] ? '' : '',
+      'TENANT10SIGNDATE': data.tenants[9] ? '' : '',
 
-      // Guarantor signatures (up to 8 guarantors - only for G templates)
+      // Guarantor signatures (up to 8 guarantors - only for G templates) - only set for existing guarantors
       'GUARANTOR1NAME': data.guarantors[0]?.name || '',
       'GUARANTOR2NAME': data.guarantors[1]?.name || '',
       'GUARANTOR3NAME': data.guarantors[2]?.name || '',
@@ -393,10 +405,55 @@ export class AgreementService {
       // Create a PizZip instance with the content
       const zip = new PizZip(content)
 
+      // Extract all variable names from template for debugging
+      try {
+        const xml = zip.file('word/document.xml')?.asText()
+        if (xml) {
+          const variableMatches = xml.match(/\[([^\]]+)\]/g)
+          if (variableMatches) {
+            const uniqueVars = [...new Set(variableMatches)]
+            console.log('DEBUG - All variables found in template:', uniqueVars.slice(0, 50)) // Limit to first 50
+            // Look specifically for deposit-related variables
+            const depositVars = uniqueVars.filter(v =>
+              v.toLowerCase().includes('deposit') ||
+              v.toLowerCase().includes('depo')
+            )
+            console.log('DEBUG - Deposit-related variables in template:', depositVars)
+            // Look specifically for rent due date variables
+            const rentDueVars = uniqueVars.filter(v =>
+              v.toLowerCase().includes('rent') &&
+              (v.toLowerCase().includes('due') || v.toLowerCase().includes('date'))
+            )
+            console.log('DEBUG - Rent Due Date variables in template:', rentDueVars)
+          }
+        }
+      } catch (debugError) {
+        console.warn('Could not extract template variables for debugging:', debugError)
+      }
+
       // Prepare template data
       const templateData = this.prepareTemplateData(data)
 
-      console.log('Template data:', JSON.stringify(templateData, null, 2))
+      // Filter out undefined values to prevent template rendering issues
+      const cleanTemplateData = Object.fromEntries(
+        Object.entries(templateData).filter(([_, value]) => value !== undefined)
+      )
+
+      console.log('Template data:', JSON.stringify(cleanTemplateData, null, 2))
+      console.log('DEBUG - Rent Due Date values:', {
+        rentDueDay: data.rentDueDay,
+        'Rent Due Date': templateData['Rent Due Date'],
+        'RENT DUE DATE': templateData['RENT DUE DATE'],
+        'RENT_DUE_DATE': templateData['RENT_DUE_DATE']
+      })
+      console.log('DEBUG - Deposit values:', {
+        depositAmount: data.depositAmount,
+        'Deposit': templateData['Deposit'],
+        'DEPOSIT': templateData['DEPOSIT'],
+        'DEPOSIT_AMOUNT': templateData['DEPOSIT_AMOUNT'],
+        'Deposit Amount': templateData['Deposit Amount'],
+        'DEPOSIT AMOUNT': templateData['DEPOSIT AMOUNT']
+      })
 
       // Create docxtemplater instance with square bracket delimiters
       const doc = new Docxtemplater(zip, {
@@ -412,7 +469,7 @@ export class AgreementService {
 
       // Render the document with data
       try {
-        doc.render(templateData)
+        doc.render(cleanTemplateData)
       } catch (error: any) {
         console.error('Error rendering template:', error)
         console.error('Error properties:', JSON.stringify(error.properties, null, 2))
@@ -426,6 +483,76 @@ export class AgreementService {
         }
 
         throw new Error(`Template rendering failed: ${error.message}`)
+      }
+
+      // Post-process the document to remove excessive empty paragraphs in signature sections at the end
+      // Focus only on the signature/execution sections to avoid affecting the main document content
+      try {
+        const documentXml = doc.getZip().file('word/document.xml')?.asText()
+        if (documentXml) {
+          let cleanedXml = documentXml
+
+          // Find signature-related sections (AGREEMENT SIGNED BY, SIGNED AS A DEED, etc.)
+          // We'll target empty paragraphs that appear after these markers
+          const signatureMarkers = [
+            'AGREEMENT SIGNED BY',
+            'SIGNED AS A DEED',
+            'SIGNED:',
+            'DATED:',
+            'GUARANTOR',
+            'LANDLORD',
+            'TENANT'
+          ]
+
+          // Split document into parts - we only want to clean the signature sections at the end
+          // Find the position where signature sections start
+          let signatureStartIndex = -1
+          for (const marker of signatureMarkers) {
+            const index = cleanedXml.lastIndexOf(marker)
+            if (index > signatureStartIndex) {
+              signatureStartIndex = index
+            }
+          }
+
+          // Only process if we found signature sections
+          if (signatureStartIndex > 0) {
+            const beforeSignatures = cleanedXml.substring(0, signatureStartIndex)
+            const signatureSection = cleanedXml.substring(signatureStartIndex)
+
+            // Clean only the signature section
+            let cleanedSignatureSection = signatureSection
+
+            // Remove excessive empty paragraphs (more than 2 consecutive)
+            // This targets the large gaps in signature blocks
+            cleanedSignatureSection = cleanedSignatureSection.replace(
+              /((?:<w:p[^>]*>(?:\s*<w:pPr[^>]*>.*?<\/w:pPr>)?\s*(?:<w:r[^>]*>(?:<w:rPr[^>]*>.*?<\/w:rPr>)?\s*(?:<w:t[^>]*>\s*<\/w:t>)?\s*<\/w:r>)*\s*<\/w:p>\s*){3,})/g,
+              (match) => {
+                // Keep only 2 empty paragraphs for spacing
+                const emptyPara = match.match(/<w:p[^>]*>[\s\S]*?<\/w:p>/)?.[0] || '<w:p><w:r><w:t></w:t></w:r></w:p>'
+                return emptyPara + '\n' + emptyPara + '\n'
+              }
+            )
+
+            // Remove paragraphs that are completely empty and appear after signature labels
+            cleanedSignatureSection = cleanedSignatureSection.replace(
+              /(<w:p[^>]*>[\s\S]*?(?:SIGNED|DATED|GUARANTOR|LANDLORD|TENANT)[\s\S]*?<\/w:p>)\s*(<w:p[^>]*>(?:\s*<w:pPr[^>]*>.*?<\/w:pPr>)?\s*(?:<w:r[^>]*>(?:<w:rPr[^>]*>.*?<\/w:rPr>)?\s*(?:<w:t[^>]*>\s*<\/w:t>)?\s*<\/w:r>)*\s*<\/w:p>\s*){4,}/g,
+              (match, labelPara, emptyParas) => {
+                // Keep the label and only 2 empty paragraphs after it
+                const emptyPara = emptyParas.match(/<w:p[^>]*>[\s\S]*?<\/w:p>/)?.[0] || '<w:p><w:r><w:t></w:t></w:r></w:p>'
+                return labelPara + '\n' + emptyPara + '\n' + emptyPara + '\n'
+              }
+            )
+
+            // Recombine the document
+            cleanedXml = beforeSignatures + cleanedSignatureSection
+          }
+
+          // Update the document XML
+          doc.getZip().file('word/document.xml', cleanedXml)
+        }
+      } catch (cleanupError) {
+        console.warn('Could not clean up signature section spacing (this is non-critical):', cleanupError)
+        // Continue with document generation even if cleanup fails
       }
 
       // Get the generated document as a buffer
