@@ -400,3 +400,38 @@ export async function sendReferenceCompletedNotification(
     html,
   });
 }
+
+/**
+ * Send landlord verification request email (for AML checks)
+ */
+export async function sendLandlordVerificationRequest(
+  landlordEmail: string,
+  landlordName: string,
+  verificationLink: string,
+  companyId: string
+): Promise<void> {
+  // Get company name for email
+  const { supabase } = await import('../config/supabase')
+  const { decrypt } = await import('./encryption')
+  
+  const { data: company } = await supabase
+    .from('companies')
+    .select('name_encrypted')
+    .eq('id', companyId)
+    .single()
+
+  const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : 'PropertyGoose'
+
+  const html = loadEmailTemplate('landlord-verification-request', {
+    LandlordName: landlordName,
+    VerificationLink: verificationLink,
+    Year: new Date().getFullYear().toString(),
+    CompanyName: companyName || ''
+  })
+
+  await sendEmail({
+    to: landlordEmail,
+    subject: 'Landlord Verification Request - PropertyGoose',
+    html,
+  })
+}
