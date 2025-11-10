@@ -161,7 +161,7 @@ import { ref, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 
-const props = defineProps<{
+defineProps<{
   show: boolean
 }>()
 
@@ -205,7 +205,10 @@ const isMappingValid = computed(() => {
 const handleFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
-    selectedFile.value = target.files[0]
+    const file = target.files[0]
+    if (file) {
+      selectedFile.value = file
+    }
   }
 }
 
@@ -224,19 +227,29 @@ const parseCSV = async () => {
     }
 
     // Parse headers
-    csvHeaders.value = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+    const headerLine = lines[0]
+    if (!headerLine) {
+      toast.error('CSV file is empty')
+      return
+    }
+    csvHeaders.value = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''))
     
     // Parse first data row for preview
-    const firstRowValues = lines[1].split(',').map(v => v.trim().replace(/^"|"$/g, ''))
-    csvPreview.value = {}
-    csvHeaders.value.forEach((header, index) => {
-      csvPreview.value[header] = firstRowValues[index] || ''
-    })
+    const firstDataLine = lines[1]
+    if (firstDataLine) {
+      const firstRowValues = firstDataLine.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+      csvPreview.value = {}
+      csvHeaders.value.forEach((header, index) => {
+        csvPreview.value[header] = firstRowValues[index] || ''
+      })
+    }
 
     // Parse all data rows
     csvData.value = []
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+      const line = lines[i]
+      if (!line) continue
+      const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
       const row: any = {}
       csvHeaders.value.forEach((header, index) => {
         row[header] = values[index] || ''

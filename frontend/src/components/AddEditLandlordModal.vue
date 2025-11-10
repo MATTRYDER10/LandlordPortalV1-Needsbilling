@@ -394,7 +394,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 
@@ -408,7 +407,6 @@ const emit = defineEmits<{
   saved: []
 }>()
 
-const route = useRoute()
 const toast = useToast()
 const authStore = useAuthStore()
 
