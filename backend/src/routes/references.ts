@@ -72,35 +72,43 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     console.log('Total references in this company:', totalCount)
 
-    // Get all references for the company (excluding child references)
+    // Get all references for the company (excluding child references, but including guarantors)
     // Note: Guarantors are included so they can be nested under parent tenants in the UI
-    const { data: references, error } = await supabase
+    // Get top-level references (parent_reference_id is null) OR guarantors
+    const { data: allRefs, error: allRefsError } = await supabase
       .from('tenant_references')
       .select('*')
       .eq('company_id', companyUser.company_id)
-      .is('parent_reference_id', null) // Only get top-level references (no children)
       .order('created_at', { ascending: false })
 
-    console.log('Top-level references found:', references?.length || 0)
-
-    if (error) {
-      return res.status(400).json({ error: error.message })
+    if (allRefsError) {
+      return res.status(400).json({ error: allRefsError.message })
     }
+
+    // Filter to get only top-level references (no parent) OR guarantors
+    const references = allRefs?.filter(ref =>
+      ref.parent_reference_id === null || ref.is_guarantor === true
+    ) || []
+
+    console.log('Top-level references found:', references?.length || 0)
 
     // For each parent reference, count the children and sync status
     const referencesWithCount = await Promise.all(references.map(async (ref) => {
       // Check which references have been submitted
-      const [landlordRefCheck, agentRefCheck, employerRefCheck, accountantRefCheck] = await Promise.all([
+      const [landlordRefCheck, agentRefCheck, employerRefCheck, accountantRefCheck, creditsafeCheck] = await Promise.all([
         supabase.from('landlord_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('agent_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('employer_references').select('id').eq('reference_id', ref.id).maybeSingle(),
-        supabase.from('accountant_references').select('id').eq('tenant_reference_id', ref.id).maybeSingle()
+        supabase.from('accountant_references').select('id').eq('tenant_reference_id', ref.id).maybeSingle(),
+        supabase.from('creditsafe_verifications').select('id, status').eq('reference_id', ref.id).maybeSingle()
       ])
 
       const has_landlord_reference = !!landlordRefCheck.data
       const has_agent_reference = !!agentRefCheck.data
       const has_employer_reference = !!employerRefCheck.data
       const has_accountant_reference = !!accountantRefCheck.data
+      const has_credit_check = !!creditsafeCheck.data
+      const credit_check_status = creditsafeCheck.data?.status || null
 
       // Check if guarantor reference is complete (for references that require a guarantor)
       let has_guarantor_reference = false
@@ -161,7 +169,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           has_agent_reference,
           has_employer_reference,
           has_accountant_reference,
-          has_guarantor_reference
+          has_guarantor_reference,
+          has_credit_check,
+          credit_check_status
         }
       }
       return {
@@ -170,7 +180,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         has_agent_reference,
         has_employer_reference,
         has_accountant_reference,
-        has_guarantor_reference
+        has_guarantor_reference,
+        has_credit_check,
+        credit_check_status
       }
     }))
 
@@ -1128,7 +1140,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           const parentFirstNameEncrypted = encrypt(tenant_first_name)
           const parentLastNameEncrypted = encrypt(tenant_last_name)
 
-          const { data: guarantorRef, error: guarantorError} = await supabase
+          const { data: guarantorRef, error: guarantorError } = await supabase
             .from('tenant_references')
             .insert({
               company_id: companyUser.company_id,
@@ -1780,144 +1792,144 @@ router.post('/submit/:token', async (req, res) => {
       } else {
         // Automatically create guarantor reference as a tenant_reference and send email to guarantor
         try {
-        // Generate unique token for guarantor
-        const guarantorToken = generateToken()
-        const guarantorTokenHash = hash(guarantorToken)
-        const guarantorExpiresAt = new Date()
-        guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 30)
+          // Generate unique token for guarantor
+          const guarantorToken = generateToken()
+          const guarantorTokenHash = hash(guarantorToken)
+          const guarantorExpiresAt = new Date()
+          guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 30)
 
-        // Create guarantor reference as a full tenant_reference
-        const { data: guarantorRef, error: guarantorError } = await supabase
-          .from('tenant_references')
-          .insert({
-            company_id: reference.company_id,
-            created_by: reference.created_by,
+          // Create guarantor reference as a full tenant_reference
+          const { data: guarantorRef, error: guarantorError } = await supabase
+            .from('tenant_references')
+            .insert({
+              company_id: reference.company_id,
+              created_by: reference.created_by,
 
-            // Mark as guarantor and link to parent
-            is_guarantor: true,
-            guarantor_for_reference_id: updatedReference.id,
+              // Mark as guarantor and link to parent
+              is_guarantor: true,
+              guarantor_for_reference_id: updatedReference.id,
 
-            // Inherit property details from parent
-            property_address_encrypted: reference.property_address_encrypted,
-            property_city_encrypted: reference.property_city_encrypted,
-            property_postcode_encrypted: reference.property_postcode_encrypted,
-            monthly_rent: reference.monthly_rent,
-            move_in_date: reference.move_in_date,
+              // Inherit property details from parent
+              property_address_encrypted: reference.property_address_encrypted,
+              property_city_encrypted: reference.property_city_encrypted,
+              property_postcode_encrypted: reference.property_postcode_encrypted,
+              monthly_rent: reference.monthly_rent,
+              move_in_date: reference.move_in_date,
 
-            // Store guarantor's own info in tenant fields
-            tenant_first_name_encrypted: encrypt(data.guarantor_first_name),
-            tenant_last_name_encrypted: encrypt(data.guarantor_last_name || ''),
-            tenant_email_encrypted: encrypt(data.guarantor_email),
-            tenant_phone_encrypted: data.guarantor_phone ? encrypt(data.guarantor_phone) : null,
+              // Store guarantor's own info in tenant fields
+              tenant_first_name_encrypted: encrypt(data.guarantor_first_name),
+              tenant_last_name_encrypted: encrypt(data.guarantor_last_name || ''),
+              tenant_email_encrypted: encrypt(data.guarantor_email),
+              tenant_phone_encrypted: data.guarantor_phone ? encrypt(data.guarantor_phone) : null,
 
-            // Store parent tenant info for display in guarantor form
-            guarantor_first_name_encrypted: encrypt(data.first_name),
-            guarantor_last_name_encrypted: encrypt(data.last_name),
+              // Store parent tenant info for display in guarantor form
+              guarantor_first_name_encrypted: encrypt(data.first_name),
+              guarantor_last_name_encrypted: encrypt(data.last_name),
 
-            // Token for form access
-            reference_token_hash: guarantorTokenHash,
-            token_expires_at: guarantorExpiresAt.toISOString(),
+              // Token for form access
+              reference_token_hash: guarantorTokenHash,
+              token_expires_at: guarantorExpiresAt.toISOString(),
 
-            // Initial status
-            status: 'pending',
+              // Initial status
+              status: 'pending',
 
-            reference_type: 'landlord' // Default, they'll select during form
-          })
-          .select()
-          .single()
-
-        if (guarantorError) {
-          console.error('❌ Failed to create guarantor reference:', guarantorError)
-          console.error('Full error details:', JSON.stringify(guarantorError, null, 2))
-        } else {
-          console.log('✅ Guarantor reference created as tenant_reference:', guarantorRef?.id)
-          console.log('Guarantor details:', {
-            id: guarantorRef?.id,
-            is_guarantor: guarantorRef?.is_guarantor,
-            guarantor_for_reference_id: guarantorRef?.guarantor_for_reference_id,
-            status: guarantorRef?.status
-          })
-
-          // Send email to guarantor with tenant reference form link (not custom guarantor form)
-          const tenantName = `${data.first_name} ${data.last_name}`
-          const guarantorName = `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`
-          const propertyAddress = (reference.property_address_encrypted
-            ? decrypt(reference.property_address_encrypted)
-            : null) || 'the property'
-
-          // Get company name for email
-          const { data: companyData } = await supabase
-            .from('companies')
-            .select('name_encrypted, phone_encrypted, email_encrypted')
-            .eq('id', reference.company_id)
+              reference_type: 'landlord' // Default, they'll select during form
+            })
+            .select()
             .single()
 
-          const companyName = (companyData?.name_encrypted
-            ? decrypt(companyData.name_encrypted)
-            : null) || 'Your agent'
-          const companyPhone = companyData?.phone_encrypted
-            ? (decrypt(companyData.phone_encrypted) || '')
-            : ''
-          const companyEmail = companyData?.email_encrypted
-            ? (decrypt(companyData.email_encrypted) || '')
-            : ''
+          if (guarantorError) {
+            console.error('❌ Failed to create guarantor reference:', guarantorError)
+            console.error('Full error details:', JSON.stringify(guarantorError, null, 2))
+          } else {
+            console.log('✅ Guarantor reference created as tenant_reference:', guarantorRef?.id)
+            console.log('Guarantor details:', {
+              id: guarantorRef?.id,
+              is_guarantor: guarantorRef?.is_guarantor,
+              guarantor_for_reference_id: guarantorRef?.guarantor_for_reference_id,
+              status: guarantorRef?.status
+            })
 
-          // Use guarantor-specific form link
-          const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+            // Send email to guarantor with tenant reference form link (not custom guarantor form)
+            const tenantName = `${data.first_name} ${data.last_name}`
+            const guarantorName = `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`
+            const propertyAddress = (reference.property_address_encrypted
+              ? decrypt(reference.property_address_encrypted)
+              : null) || 'the property'
 
-          // Send guarantor reference email
-          await sendGuarantorReferenceRequest(
-            data.guarantor_email,
-            `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`,
-            tenantName,
-            propertyAddress,
-            companyName,
-            companyPhone,
-            companyEmail,
-            formLink
-          )
+            // Get company name for email
+            const { data: companyData } = await supabase
+              .from('companies')
+              .select('name_encrypted, phone_encrypted, email_encrypted')
+              .eq('id', reference.company_id)
+              .single()
 
-          console.log('✅ Guarantor reference email sent to:', data.guarantor_email)
+            const companyName = (companyData?.name_encrypted
+              ? decrypt(companyData.name_encrypted)
+              : null) || 'Your agent'
+            const companyPhone = companyData?.phone_encrypted
+              ? (decrypt(companyData.phone_encrypted) || '')
+              : ''
+            const companyEmail = companyData?.email_encrypted
+              ? (decrypt(companyData.email_encrypted) || '')
+              : ''
 
-          // Charge £9.99 for guarantor reference processing
-          console.log('💳 Charging £9.99 for guarantor reference...')
-          try {
-            const chargeResult = await billingService.chargeForGuarantorReference(
-              reference.company_id,
-              guarantorRef.id,
-              undefined // No userId for public tenant submission
+            // Use guarantor-specific form link
+            const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+
+            // Send guarantor reference email
+            await sendGuarantorReferenceRequest(
+              data.guarantor_email,
+              `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`,
+              tenantName,
+              propertyAddress,
+              companyName,
+              companyPhone,
+              companyEmail,
+              formLink
             )
 
-            if (chargeResult.success) {
-              console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
-            } else {
-              console.error('❌ Guarantor reference charge failed:', chargeResult.error)
-              // Delete the guarantor reference if payment failed
+            console.log('✅ Guarantor reference email sent to:', data.guarantor_email)
+
+            // Charge £9.99 for guarantor reference processing
+            console.log('💳 Charging £9.99 for guarantor reference...')
+            try {
+              const chargeResult = await billingService.chargeForGuarantorReference(
+                reference.company_id,
+                guarantorRef.id,
+                undefined // No userId for public tenant submission
+              )
+
+              if (chargeResult.success) {
+                console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
+              } else {
+                console.error('❌ Guarantor reference charge failed:', chargeResult.error)
+                // Delete the guarantor reference if payment failed
+                await supabase
+                  .from('tenant_references')
+                  .delete()
+                  .eq('id', guarantorRef.id)
+
+                return res.status(402).json({
+                  error: 'Payment Required',
+                  message: chargeResult.error || 'Failed to charge for guarantor reference. Please add a payment method to your account.',
+                  requires_payment_method: true,
+                })
+              }
+            } catch (chargeError: any) {
+              console.error('❌ Failed to charge for guarantor reference:', chargeError)
+              // Delete the guarantor reference if charging fails
               await supabase
                 .from('tenant_references')
                 .delete()
                 .eq('id', guarantorRef.id)
 
-              return res.status(402).json({
-                error: 'Payment Required',
-                message: chargeResult.error || 'Failed to charge for guarantor reference. Please add a payment method to your account.',
-                requires_payment_method: true,
+              return res.status(500).json({
+                error: 'Payment Error',
+                message: 'Failed to process payment for guarantor reference. Please contact support.',
               })
             }
-          } catch (chargeError: any) {
-            console.error('❌ Failed to charge for guarantor reference:', chargeError)
-            // Delete the guarantor reference if charging fails
-            await supabase
-              .from('tenant_references')
-              .delete()
-              .eq('id', guarantorRef.id)
-
-            return res.status(500).json({
-              error: 'Payment Error',
-              message: 'Failed to process payment for guarantor reference. Please contact support.',
-            })
           }
-        }
         } catch (error: any) {
           console.error('❌ Failed to create/send guarantor reference:', error)
           console.error('Error stack:', error.stack)
@@ -2024,8 +2036,8 @@ router.post('/submit/:token', async (req, res) => {
         postcode: data.current_postcode
       }).then(async (verificationResult) => {
         console.log('Creditsafe verification completed:', verificationResult.status,
-                    'Risk:', verificationResult.riskLevel,
-                    'Score:', verificationResult.riskScore)
+          'Risk:', verificationResult.riskLevel,
+          'Score:', verificationResult.riskScore)
 
         // Store the verification result
         await creditsafeService.storeVerificationResult(
@@ -2087,7 +2099,7 @@ router.post('/submit/:token', async (req, res) => {
         postcode: data.current_postcode
       }).then(async (screeningResult) => {
         console.log('Sanctions screening completed:', screeningResult.risk_level,
-                    'Total matches:', screeningResult.total_matches)
+          'Total matches:', screeningResult.total_matches)
 
         // Store the screening result
         await sanctionsService.storeScreeningResult(
