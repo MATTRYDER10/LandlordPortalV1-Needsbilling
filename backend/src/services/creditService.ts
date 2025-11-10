@@ -131,12 +131,12 @@ export async function addCredits(
 
 /**
  * Deduct credits from a company's balance
- * Used when creating a reference
+ * Used when creating a reference or other operations (e.g., AML checks)
  */
 export async function deductCredits(
   companyId: string,
   credits: number,
-  referenceId: string,
+  referenceId: string | null,
   description: string,
   userId?: string
 ): Promise<CreditTransaction> {
