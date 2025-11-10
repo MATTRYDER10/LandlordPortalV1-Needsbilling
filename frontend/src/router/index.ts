@@ -28,6 +28,9 @@ import StaffVerificationNew from '../views/StaffVerificationNew.vue'
 import StaffReferenceView from '../views/StaffReferenceView.vue'
 import StaffWorkQueue from '../views/StaffWorkQueue.vue'
 import StaffChasePanel from '../views/StaffChasePanel.vue'
+import Landlords from '../views/Landlords.vue'
+import LandlordDetail from '../views/LandlordDetail.vue'
+import LandlordVerification from '../views/LandlordVerification.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -139,6 +142,23 @@ const router = createRouter({
           component: AgreementHistory
         }
       ]
+    },
+    {
+      path: '/landlords',
+      name: 'Landlords',
+      component: Landlords,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/landlords/:id',
+      name: 'LandlordDetail',
+      component: LandlordDetail,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/landlord-verification/:id/:token',
+      name: 'LandlordVerification',
+      component: LandlordVerification
     },
     {
       path: '/billing',

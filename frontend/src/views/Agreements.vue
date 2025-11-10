@@ -526,8 +526,19 @@
 
         <!-- Step 4: Landlords -->
         <div v-if="currentStep === 4">
-          <h3 class="text-xl font-semibold text-gray-900 mb-4">Landlord Details</h3>
-          <p class="text-sm text-gray-600 mb-6">Add up to 20 landlords for this agreement</p>
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h3 class="text-xl font-semibold text-gray-900">Landlord Details</h3>
+              <p class="text-sm text-gray-600 mt-1">Add up to 20 landlords for this agreement</p>
+            </div>
+            <button
+              @click="showLandlordSelector = true"
+              type="button"
+              class="px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/5"
+            >
+              Select from Landlords
+            </button>
+          </div>
 
           <div v-for="(landlord, index) in formData.landlords" :key="'landlord-' + index" class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
             <div class="flex justify-between items-center mb-4">
@@ -936,6 +947,87 @@
     @close="showPaymentModal = false"
     @paid="handleAgreementPaid"
   />
+
+  <!-- Landlord Selector Modal -->
+  <div
+    v-if="showLandlordSelector"
+    class="fixed inset-0 z-50 overflow-y-auto"
+    aria-labelledby="modal-title"
+    role="dialog"
+    aria-modal="true"
+    @click.self="showLandlordSelector = false"
+  >
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+      <div
+        class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full"
+        @click.stop
+      >
+        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-2xl font-bold text-gray-900">Select Landlord</h3>
+            <button
+              @click="showLandlordSelector = false"
+              class="text-gray-400 hover:text-gray-500"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Search -->
+          <div class="mb-4">
+            <input
+              v-model="landlordSearchQuery"
+              type="text"
+              placeholder="Search landlords..."
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+            />
+          </div>
+
+          <!-- Loading State -->
+          <div v-if="loadingLandlords" class="text-center py-8 text-gray-600">
+            Loading landlords...
+          </div>
+
+          <!-- Landlords List -->
+          <div v-else class="max-h-96 overflow-y-auto">
+            <div v-if="filteredLandlords.length === 0" class="text-center py-8 text-gray-500">
+              No landlords found
+            </div>
+            <div
+              v-for="landlord in filteredLandlords"
+              :key="landlord.id"
+              @click="selectLandlord(landlord)"
+              class="p-4 border border-gray-200 rounded-lg mb-3 hover:bg-gray-50 cursor-pointer"
+            >
+              <div class="flex justify-between items-center">
+                <div>
+                  <div class="text-sm font-medium text-gray-900">
+                    {{ landlord.first_name }} {{ landlord.last_name }}
+                  </div>
+                  <div class="text-sm text-gray-500">{{ landlord.email }}</div>
+                  <div v-if="landlord.residential_address" class="text-xs text-gray-400 mt-1">
+                    {{ landlord.residential_address.line1 }}, {{ landlord.residential_address.city }}, {{ landlord.residential_address.postcode }}
+                  </div>
+                </div>
+                <button
+                  @click.stop="selectLandlord(landlord)"
+                  class="px-3 py-1 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/5"
+                >
+                  Select
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -969,6 +1061,12 @@ const referenceSearchQuery = ref('')
 const selectedReferenceId = ref<string | null>(null)
 const importedFromReference = ref(false)
 const showReferenceSelector = ref(false)
+
+// Landlord selection state
+const availableLandlords = ref<any[]>([])
+const loadingLandlords = ref(false)
+const landlordSearchQuery = ref('')
+const showLandlordSelector = ref(false)
 
 const templateOptions = [
   {
@@ -1208,6 +1306,102 @@ const filteredReferences = computed(() => {
     return tenantName.includes(query) || propertyAddress.includes(query)
   })
 })
+
+// Filter landlords by search query
+const filteredLandlords = computed(() => {
+  if (!landlordSearchQuery.value) return availableLandlords.value
+
+  const query = landlordSearchQuery.value.toLowerCase()
+  return availableLandlords.value.filter((landlord: any) => {
+    const fullName = `${landlord.first_name || ''} ${landlord.last_name || ''}`.toLowerCase()
+    const email = (landlord.email || '').toLowerCase()
+    return fullName.includes(query) || email.includes(query)
+  })
+})
+
+// Watch for landlord selector modal to open and fetch landlords
+watch(() => showLandlordSelector.value, (isOpen) => {
+  if (isOpen && availableLandlords.value.length === 0) {
+    fetchLandlords()
+  }
+})
+
+// Fetch landlords
+async function fetchLandlords() {
+  loadingLandlords.value = true
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const token = authStore.session?.access_token
+
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/landlords`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch landlords')
+    }
+
+    const data = await response.json()
+    availableLandlords.value = data.landlords || []
+  } catch (err) {
+    console.error('Error fetching landlords:', err)
+    toast.error('Failed to load landlords')
+  } finally {
+    loadingLandlords.value = false
+  }
+}
+
+// Select landlord and add to form
+function selectLandlord(landlord: any) {
+  // Check if landlord already exists
+  const existingIndex = formData.value.landlords.findIndex(
+    (l: any) => l.name === `${landlord.first_name} ${landlord.last_name}`
+  )
+
+  if (existingIndex >= 0) {
+    // Update existing landlord
+    formData.value.landlords[existingIndex] = {
+      name: landlord.full_name_displayed_on_contracts || `${landlord.first_name} ${landlord.last_name}`,
+      address: {
+        line1: landlord.residential_address?.line1 || '',
+        line2: landlord.residential_address?.line2 || '',
+        city: landlord.residential_address?.city || '',
+        county: landlord.residential_address?.county || '',
+        postcode: landlord.residential_address?.postcode || ''
+      }
+    }
+  } else {
+    // Add new landlord if under limit
+    if (formData.value.landlords.length < 20) {
+      formData.value.landlords.push({
+        name: landlord.full_name_displayed_on_contracts || `${landlord.first_name} ${landlord.last_name}`,
+        address: {
+          line1: landlord.residential_address?.line1 || '',
+          line2: landlord.residential_address?.line2 || '',
+          city: landlord.residential_address?.city || '',
+          county: landlord.residential_address?.county || '',
+          postcode: landlord.residential_address?.postcode || ''
+        }
+      })
+    } else {
+      toast.error('Maximum of 20 landlords allowed')
+      return
+    }
+  }
+
+  // Set landlord email if not already set
+  if (!formData.value.landlordEmail && landlord.email) {
+    formData.value.landlordEmail = landlord.email
+  }
+
+  showLandlordSelector.value = false
+  toast.success('Landlord added successfully')
+}
 
 const canProceed = computed(() => {
   switch (currentStep.value) {
