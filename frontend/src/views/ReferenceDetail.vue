@@ -1509,10 +1509,21 @@
 
               <!-- Employer Reference Status -->
               <div v-if="reference.employer_ref_email && !employerReference" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 class="text-sm font-semibold text-blue-900 mb-2">Employer Reference</h4>
-                <p class="text-sm text-blue-800">
-                  An email has been sent to the employer to complete their reference.
-                </p>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-sm font-semibold text-blue-900 mb-2">Employer Reference</h4>
+                    <p class="text-sm text-blue-800">
+                      An email has been sent to the employer to complete their reference.
+                    </p>
+                  </div>
+                  <button
+                    @click="resendMainEmployerEmail"
+                    :disabled="resendingMainEmployer"
+                    class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {{ resendingMainEmployer ? 'Sending...' : 'Resend Email' }}
+                  </button>
+                </div>
               </div>
 
               <!-- Employer Reference Submitted -->
@@ -2704,6 +2715,7 @@ const viewingDocumentType = ref('') // 'image' or 'pdf'
 const resendingLandlord = ref(false)
 const resendingAgent = ref(false)
 const resendingEmployer = ref<Record<string, boolean>>({})
+const resendingMainEmployer = ref(false)
 const resendingAccountant = ref<Record<string, boolean>>({})
 const resendingGuarantor = ref(false)
 
@@ -3429,6 +3441,27 @@ const resendEmployerEmail = async (childId: string) => {
     toast.error('Failed to resend email: ' + err.message)
   } finally {
     resendingEmployer.value[childId] = false
+  }
+}
+
+const resendMainEmployerEmail = async () => {
+  if (!reference.value?.id) return
+  resendingMainEmployer.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/${reference.value.id}/resend-employer-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!response.ok) throw new Error('Failed to resend email')
+    toast.success('Employer reference email resent successfully')
+  } catch (err: any) {
+    console.error('Error resending employer email:', err)
+    toast.error('Failed to resend email: ' + err.message)
+  } finally {
+    resendingMainEmployer.value = false
   }
 }
 

@@ -3109,6 +3109,19 @@ const handlePageSubmit = async () => {
       }
     }
   } else if (currentPage.value === 7) {
+    // Validate that at least one income source is selected
+    const hasIncomeSource = 
+      formData.value.income_regular_employment ||
+      formData.value.income_self_employed ||
+      formData.value.income_benefits ||
+      formData.value.income_savings_pension_investments ||
+      formData.value.income_retired
+
+    if (!hasIncomeSource) {
+      submitError.value = 'Please select at least one income source'
+      return
+    }
+
     // Validate employer email if regular employment income is selected
     if (formData.value.income_regular_employment && formData.value.employer_ref_email) {
       if (!isWorkEmail(formData.value.employer_ref_email)) {
@@ -3134,7 +3147,7 @@ const handlePageSubmit = async () => {
         return
       }
     }
-  } else if (currentPage.value === 7) {
+  } else if (currentPage.value === 8) {
     // Validate proof of additional income/savings if declared
     if (formData.value.has_additional_income) {
       if (!proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {

@@ -163,7 +163,33 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">References</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button
+                  @click="toggleSort('created_at')"
+                  class="flex items-center gap-1 hover:text-gray-700"
+                  :class="{ 'text-primary': sortBy === 'created_at' }"
+                >
+                  Created
+                  <svg v-if="sortBy === 'created_at'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path v-if="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button
+                  @click="toggleSort('move_in_date')"
+                  class="flex items-center gap-1 hover:text-gray-700"
+                  :class="{ 'text-primary': sortBy === 'move_in_date' }"
+                >
+                  Move In Date
+                  <svg v-if="sortBy === 'move_in_date'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path v-if="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </th>
               <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
@@ -190,6 +216,16 @@
                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
                   Pending
                 </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap" style="width: 150px;">
+                <div class="flex items-center gap-3">
+                  <div class="h-5 w-5 bg-gray-200 rounded animate-pulse"></div>
+                  <div class="h-5 w-5 bg-gray-200 rounded animate-pulse"></div>
+                  <div class="h-5 w-5 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" style="width: 150px;">
+                <div class="h-4 bg-gray-100 rounded w-28 animate-pulse"></div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" style="width: 150px;">
                 <div class="h-4 bg-gray-100 rounded w-28 animate-pulse"></div>
@@ -247,8 +283,54 @@
                   {{ formatStatus(reference.status, reference) }}
                 </span>
               </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center gap-3">
+                  <!-- Employment Reference -->
+                  <div class="flex items-center gap-1" :title="reference.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                    <svg 
+                      class="w-5 h-5" 
+                      :class="reference.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
+                      fill="currentColor" 
+                      viewBox="0 0 20 20"
+                    >
+                      <path v-if="reference.has_employer_reference" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-xs text-gray-600">Emp</span>
+                  </div>
+                  <!-- Credit Check -->
+                  <div class="flex items-center gap-1" :title="reference.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
+                    <svg 
+                      class="w-5 h-5" 
+                      :class="reference.has_credit_check ? 'text-green-600' : 'text-gray-300'"
+                      fill="currentColor" 
+                      viewBox="0 0 20 20"
+                    >
+                      <path v-if="reference.has_credit_check" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-xs text-gray-600">Credit</span>
+                  </div>
+                  <!-- Residential Reference -->
+                  <div class="flex items-center gap-1" :title="(reference.has_landlord_reference || reference.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
+                    <svg 
+                      class="w-5 h-5" 
+                      :class="(reference.has_landlord_reference || reference.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
+                      fill="currentColor" 
+                      viewBox="0 0 20 20"
+                    >
+                      <path v-if="(reference.has_landlord_reference || reference.has_agent_reference)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-xs text-gray-600">Res</span>
+                  </div>
+                </div>
+              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {{ formatDate(reference.created_at) }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{ reference.move_in_date ? formatDate(reference.move_in_date) : '—' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button
@@ -302,8 +384,54 @@
                   {{ formatStatus(guarantor.status, guarantor) }}
                 </span>
               </td>
-              <td class="px-6 py-3 text-sm text-gray-500">
+              <td class="px-6 py-3 whitespace-nowrap">
+                <div class="flex items-center gap-3">
+                  <!-- Employment Reference -->
+                  <div class="flex items-center gap-1" :title="guarantor.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                    <svg 
+                      class="w-5 h-5" 
+                      :class="guarantor.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
+                      fill="currentColor" 
+                      viewBox="0 0 20 20"
+                    >
+                      <path v-if="guarantor.has_employer_reference" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-xs text-gray-600">Emp</span>
+                  </div>
+                  <!-- Credit Check -->
+                  <div class="flex items-center gap-1" :title="guarantor.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
+                    <svg 
+                      class="w-5 h-5" 
+                      :class="guarantor.has_credit_check ? 'text-green-600' : 'text-gray-300'"
+                      fill="currentColor" 
+                      viewBox="0 0 20 20"
+                    >
+                      <path v-if="guarantor.has_credit_check" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-xs text-gray-600">Credit</span>
+                  </div>
+                  <!-- Residential Reference -->
+                  <div class="flex items-center gap-1" :title="(guarantor.has_landlord_reference || guarantor.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
+                    <svg 
+                      class="w-5 h-5" 
+                      :class="(guarantor.has_landlord_reference || guarantor.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
+                      fill="currentColor" 
+                      viewBox="0 0 20 20"
+                    >
+                      <path v-if="(guarantor.has_landlord_reference || guarantor.has_agent_reference)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-xs text-gray-600">Res</span>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
                 {{ formatDate(guarantor.created_at) }}
+              </td>
+              <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
+                {{ guarantor.move_in_date ? formatDate(guarantor.move_in_date) : '—' }}
               </td>
               <td class="px-6 py-3 text-right text-sm font-medium">
                 <button
@@ -871,6 +999,8 @@ const expandedReference = ref<string | null>(null)
 const searchQuery = ref('')
 const statusFilter = ref('')
 const dateFilter = ref('')
+const sortBy = ref<'created_at' | 'move_in_date'>('created_at')
+const sortOrder = ref<'asc' | 'desc'>('desc')
 
 const tenantCount = ref(1)
 const tenants = ref<Array<{
@@ -998,7 +1128,28 @@ const filteredReferences = computed(() => {
     })
   }
 
-  return filtered
+  // Sort references
+  const sorted = [...filtered].sort((a, b) => {
+    let aValue: any
+    let bValue: any
+
+    if (sortBy.value === 'move_in_date') {
+      aValue = a.move_in_date ? new Date(a.move_in_date).getTime() : 0
+      bValue = b.move_in_date ? new Date(b.move_in_date).getTime() : 0
+    } else {
+      // Default: sort by created_at
+      aValue = a.created_at ? new Date(a.created_at).getTime() : 0
+      bValue = b.created_at ? new Date(b.created_at).getTime() : 0
+    }
+
+    if (sortOrder.value === 'asc') {
+      return aValue - bValue
+    } else {
+      return bValue - aValue
+    }
+  })
+
+  return sorted
 })
 
 const updateTenantCount = (count: number) => {
@@ -1294,6 +1445,17 @@ const formatStatus = (status: string, reference?: any) => {
 
   // Default: format the status string nicely
   return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+const toggleSort = (field: 'created_at' | 'move_in_date') => {
+  if (sortBy.value === field) {
+    // Toggle order if same field
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    // Set new field and default to desc
+    sortBy.value = field
+    sortOrder.value = 'desc'
+  }
 }
 
 const formatDate = (date: string) => {
