@@ -148,7 +148,7 @@ const fetchLandlord = async () => {
 
   try {
     const landlordId = route.params.id as string
-    const token = route.params.token as string
+    // Token is used later in handleSubmit, so we don't need to extract it here
 
     // Verify token and get landlord
     const response = await fetch(`${API_URL}/api/landlords/${landlordId}`, {
@@ -179,14 +179,20 @@ const fetchLandlord = async () => {
 const handleIdDocumentUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
-    idDocument.value = target.files[0]
+    const file = target.files[0]
+    if (file) {
+      idDocument.value = file
+    }
   }
 }
 
 const handleSelfieUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
-    selfie.value = target.files[0]
+    const file = target.files[0]
+    if (file) {
+      selfie.value = file
+    }
   }
 }
 

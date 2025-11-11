@@ -294,14 +294,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import Sidebar from '../components/Sidebar.vue'
 import AddEditLandlordModal from '../components/AddEditLandlordModal.vue'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
-const router = useRouter()
 const toast = useToast()
 const authStore = useAuthStore()
 
