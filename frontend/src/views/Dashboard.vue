@@ -8,10 +8,8 @@
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-5 gap-0 mb-8">
-        <router-link
-          to="/references"
-          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
-        >
+        <router-link to="/references"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer">
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Total References</p>
@@ -19,16 +17,15 @@
             </div>
             <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
           </div>
         </router-link>
 
-        <router-link
-          :to="{ path: '/references', query: { status: 'in_progress' } }"
-          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
-        >
+        <router-link :to="{ path: '/references', query: { status: 'in_progress' } }"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer">
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">In Progress</p>
@@ -36,16 +33,15 @@
             </div>
             <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </router-link>
 
-        <router-link
-          :to="{ path: '/references', query: { status: 'pending_verification' } }"
-          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
-        >
+        <router-link :to="{ path: '/references', query: { status: 'pending_verification' } }"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer">
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Pending Verification</p>
@@ -53,16 +49,15 @@
             </div>
             <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
             </div>
           </div>
         </router-link>
 
-        <router-link
-          :to="{ path: '/references', query: { status: 'rejected' } }"
-          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
-        >
+        <router-link :to="{ path: '/references', query: { status: 'rejected' } }"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer">
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Rejected</p>
@@ -76,10 +71,8 @@
           </div>
         </router-link>
 
-        <router-link
-          :to="{ path: '/references', query: { status: 'completed' } }"
-          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer"
-        >
+        <router-link :to="{ path: '/references', query: { status: 'completed' } }"
+          class="bg-white shadow p-6 border-r border-gray-200 first:rounded-l-lg last:rounded-r-lg last:border-r-0 hover:bg-gray-50 transition-colors cursor-pointer">
           <div class="flex items-center">
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-600">Completed</p>
@@ -87,21 +80,36 @@
             </div>
             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </router-link>
       </div>
 
+      <!-- Quick Actions -->
+      <div class="mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div class="flex gap-4">
+            <router-link to="/tenant-applications/create"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
+              Send Application Form
+            </router-link>
+          </div>
+          <p class="mt-3 text-sm text-gray-600">
+            <strong>New:</strong> Send an application form to tenants - they fill in their details directly, saving you
+            time on data entry!
+          </p>
+        </div>
+      </div>
+
       <!-- Recent References -->
       <div class="bg-white rounded-lg shadow">
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h3 class="text-lg font-semibold text-gray-900">Recent References</h3>
-          <router-link
-            to="/references"
-            class="text-sm font-medium text-primary hover:text-primary/80"
-          >
+          <router-link to="/references" class="text-sm font-medium text-primary hover:text-primary/80">
             View All →
           </router-link>
         </div>
@@ -110,15 +118,14 @@
         <div v-if="recentReferences.length === 0" class="p-6">
           <div class="text-center py-12">
             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <h3 class="mt-2 text-sm font-medium text-gray-900">No references yet</h3>
             <p class="mt-1 text-sm text-gray-500">Get started by creating a new tenant reference.</p>
             <div class="mt-6">
-              <router-link
-                to="/references?create=true"
-                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block"
-              >
+              <router-link to="/references?create=true"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
                 Create New Reference
               </router-link>
             </div>
@@ -150,21 +157,19 @@
                   <td class="px-6 py-4">
                     <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
                     <div class="text-sm text-gray-500">
-                      {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode : '' }}
+                      {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode :
+                        '' }}
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span
-                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                      :class="{
-                        'bg-yellow-100 text-yellow-800': reference.status === 'pending',
-                        'bg-blue-100 text-blue-800': reference.status === 'in_progress',
-                        'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
-                        'bg-green-100 text-green-800': reference.status === 'completed',
-                        'bg-red-100 text-red-800': reference.status === 'rejected',
-                        'bg-gray-100 text-gray-800': reference.status === 'cancelled'
-                      }"
-                    >
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
+                      'bg-yellow-100 text-yellow-800': reference.status === 'pending',
+                      'bg-blue-100 text-blue-800': reference.status === 'in_progress',
+                      'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
+                      'bg-green-100 text-green-800': reference.status === 'completed',
+                      'bg-red-100 text-red-800': reference.status === 'rejected',
+                      'bg-gray-100 text-gray-800': reference.status === 'cancelled'
+                    }">
                       {{ formatStatus(reference.status) }}
                     </span>
                   </td>
@@ -172,42 +177,39 @@
                     {{ formatDate(reference.created_at) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      @click="viewReference(reference.id)"
-                      class="text-primary hover:text-primary/80"
-                    >
+                    <button @click="viewReference(reference.id)" class="text-primary hover:text-primary/80">
                       View
                     </button>
                   </td>
                 </tr>
                 <!-- Nested guarantor rows -->
-                <tr v-for="guarantor in reference.guarantors" :key="guarantor.id" class="bg-purple-50 hover:bg-purple-100">
+                <tr v-for="guarantor in reference.guarantors" :key="guarantor.id"
+                  class="bg-purple-50 hover:bg-purple-100">
                   <td class="px-6 py-4 whitespace-nowrap pl-12">
                     <div class="text-sm font-medium text-purple-900 flex items-center">
                       <span class="mr-2">↳</span>
                       {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
-                      <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-200 text-purple-800">Guarantor</span>
+                      <span
+                        class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-200 text-purple-800">Guarantor</span>
                     </div>
                     <div class="text-sm text-purple-700 pl-4">{{ guarantor.tenant_email }}</div>
                   </td>
                   <td class="px-6 py-4">
                     <div class="text-sm text-purple-900">{{ guarantor.property_address }}</div>
                     <div class="text-sm text-purple-700">
-                      {{ guarantor.property_city }}{{ guarantor.property_postcode ? ', ' + guarantor.property_postcode : '' }}
+                      {{ guarantor.property_city }}{{ guarantor.property_postcode ? ', ' + guarantor.property_postcode :
+                        '' }}
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span
-                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                      :class="{
-                        'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
-                        'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
-                        'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
-                        'bg-green-100 text-green-800': guarantor.status === 'completed',
-                        'bg-red-100 text-red-800': guarantor.status === 'rejected',
-                        'bg-gray-100 text-gray-800': guarantor.status === 'cancelled'
-                      }"
-                    >
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
+                      'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
+                      'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
+                      'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
+                      'bg-green-100 text-green-800': guarantor.status === 'completed',
+                      'bg-red-100 text-red-800': guarantor.status === 'rejected',
+                      'bg-gray-100 text-gray-800': guarantor.status === 'cancelled'
+                    }">
                       {{ formatStatus(guarantor.status) }}
                     </span>
                   </td>
@@ -215,10 +217,7 @@
                     {{ formatDate(guarantor.created_at) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      @click="viewReference(guarantor.id)"
-                      class="text-purple-600 hover:text-purple-800"
-                    >
+                    <button @click="viewReference(guarantor.id)" class="text-purple-600 hover:text-purple-800">
                       View
                     </button>
                   </td>

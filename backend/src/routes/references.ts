@@ -876,6 +876,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
 
       // Create child references for each tenant
       const childReferences = []
+      const childTokens: string[] = []
       for (let i = 0; i < tenants.length; i++) {
         const tenant = tenants[i]
         const token = generateToken()
@@ -914,6 +915,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
         }
 
         childReferences.push(childReference)
+        childTokens.push(token)
 
         // Send email to each tenant
         const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
@@ -1062,6 +1064,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
       res.json({
         reference: parentReference,
         childReferences,
+        childTokens, // Include tokens for frontend redirect
         message: `Reference created successfully for ${tenants.length} tenants`
       })
 

@@ -9,6 +9,8 @@ import Dashboard from '../views/Dashboard.vue'
 import References from '../views/References.vue'
 import ReferenceDetail from '../views/ReferenceDetail.vue'
 import SubmitReference from '../views/SubmitReference.vue'
+import TenantApplication from '../views/TenantApplication.vue'
+import CreateTenantApplication from '../views/CreateTenantApplication.vue'
 import GuarantorReference from '../views/GuarantorReference.vue'
 import LandlordReference from '../views/LandlordReference.vue'
 import AgentReference from '../views/AgentReference.vue'
@@ -96,6 +98,17 @@ const router = createRouter({
       path: '/submit-reference/:token',
       name: 'SubmitReference',
       component: SubmitReference
+    },
+    {
+      path: '/tenant-application/:token',
+      name: 'TenantApplication',
+      component: TenantApplication
+    },
+    {
+      path: '/tenant-applications/create',
+      name: 'CreateTenantApplication',
+      component: CreateTenantApplication,
+      meta: { requiresAuth: true }
     },
     {
       path: '/guarantor-reference/:token',
@@ -308,6 +321,7 @@ router.beforeEach(async (to, _from, next) => {
   const isPublicPath = publicPaths.some(path => to.path.startsWith(path))
   const isStaffPath = to.path.startsWith('/staff')
   const isReferenceSubmission = to.path.startsWith('/submit-reference') ||
+    to.path.startsWith('/tenant-application') ||
                                  to.path.startsWith('/guarantor-reference') ||
                                  to.path.startsWith('/landlord-reference') ||
                                  to.path.startsWith('/agent-reference') ||

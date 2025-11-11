@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rental Application Completed - Property Goose</title>
+</head>
+
+<body
+    style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
+        style="background-color: #f3f4f6;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
+                    style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <div style="display: inline-block; text-align: center;">
+                                            <img src="https://frontend-production-bbe3.up.railway.app/PropertyGooseIcon.png"
+                                                alt="PropertyGoose"
+                                                style="width: 48px; height: 48px; vertical-align: middle; margin-right: 12px;">
+                                            <span style="font-size: 32px; font-weight: bold; vertical-align: middle;">
+                                                <span style="color: #111827;">Property</span><span
+                                                    style="color: #f97316;">Goose</span>
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h1
+                                style="margin: 0 0 24px; font-size: 24px; font-weight: bold; color: #111827; text-align: center;">
+                                Rental Application Completed</h1>
+
+                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                Hello,
+                            </p>
+
+                            <div
+                                style="margin: 0 0 24px; padding: 20px; background-color: #dcfce7; border-left: 4px solid #22c55e; border-radius: 4px;">
+                                <p style="margin: 0 0 12px; font-size: 16px; line-height: 24px; color: #166534;">
+                                    <strong>✓ Application Submitted</strong>
+                                </p>
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #166534;">
+                                    <strong>{{ ApplicantName }}</strong> has completed and submitted their rental
+                                    application for <strong>{{ PropertyAddress }}</strong>.
+                                </p>
+                            </div>
+
+                            <h2 style="margin: 24px 0 16px; font-size: 18px; font-weight: 600; color: #111827;">
+                                Application Details:</h2>
+
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
+                                style="margin: 0 0 24px;">
+                                <tr>
+                                    <td
+                                        style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Applicant:</strong>
+                                    </td>
+                                    <td
+                                        style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        {{ ApplicantName }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td
+                                        style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Property Address:</strong>
+                                    </td>
+                                    <td
+                                        style="padding: 12px; background-color: #ffffff; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        {{ PropertyAddress }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td
+                                        style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #374151;">Status:</strong>
+                                    </td>
+                                    <td
+                                        style="padding: 12px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; color: #111827;">
+                                        <span
+                                            style="display: inline-block; padding: 4px 12px; background-color: #22c55e; color: #ffffff; border-radius: 4px; font-size: 14px; font-weight: 600;">Submitted</span>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <div style="margin: 32px 0; text-align: center;">
+                                <a href="{{ DashboardLink }}"
+                                    style="display: inline-block; padding: 14px 32px; background-color: #f97316; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">View
+                                    Application Details</a>
+                            </div>
+
+                            <div
+                                style="margin: 24px 0; padding: 16px; background-color: #f3f4f6; border-left: 4px solid #6b7280; border-radius: 4px;">
+                                <p style="margin: 0 0 8px; font-size: 14px; line-height: 20px; color: #374151;">
+                                    <strong>📋 Next Steps:</strong>
+                                </p>
+                                <ol
+                                    style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 20px; color: #374151;">
+                                    <li style="margin-bottom: 4px;">Log in to your PropertyGoose dashboard to review the
+                                        completed application</li>
+                                    <li style="margin-bottom: 4px;">Review all applicant details and supporting
+                                        documentation</li>
+                                    <li>You can now proceed with creating a tenant reference from this application if
+                                        needed</li>
+                                </ol>
+                            </div>
+
+                            <p style="margin: 24px 0 0; font-size: 14px; line-height: 20px; color: #6b7280;">
+                                The applicant has filled in all their details directly, saving you time on data entry.
+                                All information is securely stored in your dashboard.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td
+                            style="padding: 30px 40px; background-color: #f9fafb; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border-top: 1px solid #e5e7eb;">
+                            <p
+                                style="margin: 0 0 8px; font-size: 14px; line-height: 20px; color: #6b7280; text-align: center;">
+                                This is an automated notification from {{ CompanyName }} via PropertyGoose.
+                            </p>
+                            <p
+                                style="margin: 0; font-size: 12px; line-height: 16px; color: #9ca3af; text-align: center;">
+                                © 2025 PropertyGoose. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>

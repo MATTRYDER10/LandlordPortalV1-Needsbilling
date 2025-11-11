@@ -435,3 +435,53 @@ export async function sendLandlordVerificationRequest(
     html,
   })
 }
+
+/**
+ * Send tenant application request email
+ */
+export async function sendTenantApplicationRequest(
+  applicantEmail: string,
+  applicationLink: string,
+  companyName: string,
+  propertyAddress?: string,
+  companyPhone?: string
+): Promise<void> {
+  const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
+
+  const html = loadEmailTemplate('tenant-application-request', {
+    CompanyName: companyName,
+    ApplicationLink: applicationLink,
+    PropertyAddress: capitalizeWords(propertyAddress || ''),
+    ContactInfo: contactInfo,
+  })
+
+  await sendEmail({
+    to: applicantEmail,
+    subject: 'Complete Your Rental Application - PropertyGoose',
+    html,
+  })
+}
+
+/**
+ * Send application completed notification to agent
+ */
+export async function sendApplicationCompletedNotification(
+  agentEmail: string,
+  applicantName: string,
+  propertyAddress: string,
+  dashboardLink: string,
+  companyName: string
+): Promise<void> {
+  const html = loadEmailTemplate('application-completed-notification', {
+    ApplicantName: capitalizeWords(applicantName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    DashboardLink: dashboardLink,
+    CompanyName: companyName || 'PropertyGoose'
+  })
+
+  await sendEmail({
+    to: agentEmail,
+    subject: `Rental Application Completed - ${applicantName} - PropertyGoose`,
+    html,
+  })
+}
