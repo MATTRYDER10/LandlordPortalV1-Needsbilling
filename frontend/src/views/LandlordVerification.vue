@@ -26,27 +26,27 @@
       <!-- Success/Already Submitted -->
       <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
         <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <h3 class="mt-4 text-lg font-semibold text-gray-900">Thank You!</h3>
-        <p class="mt-2 text-gray-600">Your verification has been submitted successfully. Your documents are being reviewed.</p>
+        <p class="mt-2 text-gray-600">Your verification has been submitted successfully. Your documents are being
+          reviewed.</p>
       </div>
 
       <!-- Form -->
       <form v-else-if="landlord" @submit.prevent="handleSubmit" class="space-y-6">
         <div class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Identity Verification</h2>
-          <p class="text-sm text-gray-600 mb-6">Please upload a clear photo of your ID document and take a selfie for verification.</p>
+          <p class="text-sm text-gray-600 mb-6">Please upload a clear photo of your ID document and take a selfie for
+            verification.</p>
 
           <div class="space-y-6">
             <!-- ID Document Type -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Document Type *</label>
-              <select
-                v-model="formData.id_document_type"
-                required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              >
+              <select v-model="formData.id_document_type" required
+                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
                 <option value="">Select document type</option>
                 <option value="driving_licence">Driving Licence</option>
                 <option value="passport">Passport</option>
@@ -56,20 +56,11 @@
             <!-- ID Document Upload -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Upload ID Document *</label>
-              <input
-                ref="idDocumentInput"
-                type="file"
-                @change="handleIdDocumentUpload"
-                accept=".pdf,.jpg,.jpeg,.png"
-                class="hidden"
-                required
-              />
-              <button
-                type="button"
-                @click="($refs.idDocumentInput as any).click()"
+              <input ref="idDocumentInput" type="file" @change="handleIdDocumentUpload" accept=".pdf,.jpg,.jpeg,.png"
+                class="hidden" required />
+              <button type="button" @click="($refs.idDocumentInput as any).click()"
                 class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
-                :style="{ color: buttonColor }"
-              >
+                :style="{ color: buttonColor }">
                 {{ idDocument ? 'Change File' : 'Choose File' }}
               </button>
               <p v-if="idDocument" class="mt-2 text-sm text-gray-600">{{ idDocument.name }}</p>
@@ -79,20 +70,11 @@
             <!-- Selfie Upload -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Upload Selfie *</label>
-              <input
-                ref="selfieInput"
-                type="file"
-                @change="handleSelfieUpload"
-                accept=".jpg,.jpeg,.png"
-                class="hidden"
-                required
-              />
-              <button
-                type="button"
-                @click="($refs.selfieInput as any).click()"
+              <input ref="selfieInput" type="file" @change="handleSelfieUpload" accept=".jpg,.jpeg,.png" class="hidden"
+                required />
+              <button type="button" @click="($refs.selfieInput as any).click()"
                 class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
-                :style="{ color: buttonColor }"
-              >
+                :style="{ color: buttonColor }">
                 {{ selfie ? 'Change File' : 'Choose File' }}
               </button>
               <p v-if="selfie" class="mt-2 text-sm text-gray-600">{{ selfie.name }}</p>
@@ -103,11 +85,8 @@
 
         <!-- Submit Button -->
         <div class="flex justify-end gap-3">
-          <button
-            type="submit"
-            :disabled="submitting || !formData.id_document_type || !idDocument || !selfie"
-            class="px-6 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <button type="submit" :disabled="submitting || !formData.id_document_type || !idDocument || !selfie"
+            class="px-6 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
             {{ submitting ? 'Submitting...' : 'Submit Verification' }}
           </button>
         </div>
@@ -242,4 +221,3 @@ onMounted(() => {
   fetchLandlord()
 })
 </script>
-
