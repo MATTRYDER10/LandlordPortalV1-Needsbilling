@@ -762,6 +762,59 @@ router.get('/:id/sanctions', authenticateToken, async (req: AuthRequest, res) =>
   }
 })
 
+// Get Creditsafe verification for a reference (agents/company users)
+router.get('/:id/creditsafe', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+
+    // Check if user is staff (staff can view all verifications)
+    const { data: staffUser } = await supabase
+      .from('staff_users')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (!staffUser) {
+      // Not staff, must be company user - verify they own this reference
+      const { data: companyUsers } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (!companyUsers || companyUsers.length === 0) {
+        return res.status(404).json({ error: 'Company not found' })
+      }
+
+      const companyUser = companyUsers[0]
+
+      // Verify reference belongs to user's company
+      const { data: reference } = await supabase
+        .from('tenant_references')
+        .select('id, company_id')
+        .eq('id', referenceId)
+        .eq('company_id', companyUser.company_id)
+        .single()
+
+      if (!reference) {
+        return res.status(404).json({ error: 'Reference not found' })
+      }
+    }
+
+    // Get Creditsafe verification result
+    const verification = await creditsafeService.getVerificationResult(referenceId)
+
+    if (!verification) {
+      return res.status(404).json({ error: 'No Creditsafe verification found for this reference' })
+    }
+
+    res.json({ verification })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Create new reference
 // Note: Order matters - checkCredits first (if no credits, ask for credits), then checkPaymentMethod (if no payment method, ask for that)
 router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req: AuthRequest, res) => {
