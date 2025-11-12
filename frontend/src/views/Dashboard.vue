@@ -99,8 +99,9 @@
             </router-link>
           </div>
           <p class="mt-3 text-sm text-gray-600">
-            <strong>New:</strong> Send an application form to tenants - they fill in their details directly, saving you
-            time on data entry!
+            <strong>New:</strong> Send an application form to tenants - they fill in their offer details directly,
+            saving you time on data entry! Once they submit, you can approve, decline, or accept with changes, then
+            collect holding deposits and automatically create references.
           </p>
         </div>
       </div>
@@ -158,7 +159,7 @@
                     <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
                     <div class="text-sm text-gray-500">
                       {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode :
-                        '' }}
+                      '' }}
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
@@ -198,7 +199,7 @@
                     <div class="text-sm text-purple-900">{{ guarantor.property_address }}</div>
                     <div class="text-sm text-purple-700">
                       {{ guarantor.property_city }}{{ guarantor.property_postcode ? ', ' + guarantor.property_postcode :
-                        '' }}
+                      '' }}
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">

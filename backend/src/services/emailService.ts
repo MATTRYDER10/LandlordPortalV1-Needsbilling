@@ -463,6 +463,78 @@ export async function sendTenantApplicationRequest(
 }
 
 /**
+ * Send tenant offer form request email
+ */
+export async function sendTenantOfferRequest(
+  tenantEmail: string,
+  offerLink: string,
+  companyName: string,
+  propertyAddress?: string,
+  companyPhone?: string
+): Promise<void> {
+  const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
+
+  const html = loadEmailTemplate('tenant-offer-request', {
+    CompanyName: companyName,
+    OfferLink: offerLink,
+    PropertyAddress: capitalizeWords(propertyAddress || ''),
+    ContactInfo: contactInfo,
+  })
+
+  await sendEmail({
+    to: tenantEmail,
+    subject: 'Submit Your Rental Offer - PropertyGoose',
+    html,
+  })
+}
+
+/**
+ * Send offer accepted email with bank details
+ */
+export async function sendOfferAcceptedEmail(
+  tenantEmail: string,
+  companyName: string,
+  bankAccountName: string,
+  bankAccountNumber: string,
+  bankSortCode: string,
+  holdingDepositAmount: number
+): Promise<void> {
+  const html = loadEmailTemplate('offer-accepted', {
+    CompanyName: companyName,
+    BankAccountName: bankAccountName,
+    BankAccountNumber: bankAccountNumber,
+    BankSortCode: bankSortCode,
+    HoldingDepositAmount: holdingDepositAmount.toFixed(2),
+  })
+
+  await sendEmail({
+    to: tenantEmail,
+    subject: 'Congratulations — Your Offer Has Been Accepted!',
+    html,
+  })
+}
+
+/**
+ * Send offer declined email with reason
+ */
+export async function sendOfferDeclinedEmail(
+  tenantEmail: string,
+  companyName: string,
+  declineReason: string
+): Promise<void> {
+  const html = loadEmailTemplate('offer-declined', {
+    CompanyName: companyName,
+    DeclineReason: declineReason,
+  })
+
+  await sendEmail({
+    to: tenantEmail,
+    subject: 'Update on Your Offer',
+    html,
+  })
+}
+
+/**
  * Send application completed notification to agent
  */
 export async function sendApplicationCompletedNotification(

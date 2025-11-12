@@ -33,6 +33,9 @@ import StaffChasePanel from '../views/StaffChasePanel.vue'
 import Landlords from '../views/Landlords.vue'
 import LandlordDetail from '../views/LandlordDetail.vue'
 import LandlordVerification from '../views/LandlordVerification.vue'
+import TenantOffer from '../views/TenantOffer.vue'
+import TenantOffers from '../views/TenantOffers.vue'
+import TenantOfferDetail from '../views/TenantOfferDetail.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -103,6 +106,23 @@ const router = createRouter({
       path: '/tenant-application/:token',
       name: 'TenantApplication',
       component: TenantApplication
+    },
+    {
+      path: '/tenant-offer',
+      name: 'TenantOffer',
+      component: TenantOffer
+    },
+    {
+      path: '/tenant-offers',
+      name: 'TenantOffers',
+      component: TenantOffers,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/tenant-offers/:id',
+      name: 'TenantOfferDetail',
+      component: TenantOfferDetail,
+      meta: { requiresAuth: true }
     },
     {
       path: '/tenant-applications/create',
@@ -322,6 +342,7 @@ router.beforeEach(async (to, _from, next) => {
   const isStaffPath = to.path.startsWith('/staff')
   const isReferenceSubmission = to.path.startsWith('/submit-reference') ||
     to.path.startsWith('/tenant-application') ||
+                                 to.path.startsWith('/tenant-offer') ||
                                  to.path.startsWith('/guarantor-reference') ||
                                  to.path.startsWith('/landlord-reference') ||
                                  to.path.startsWith('/agent-reference') ||

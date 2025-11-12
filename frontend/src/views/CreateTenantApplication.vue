@@ -4,8 +4,8 @@
             <div class="mb-8">
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <h2 class="text-3xl font-bold text-gray-900">Create Tenant Application</h2>
-                        <p class="mt-2 text-gray-600">Send an application form to a tenant</p>
+                        <h2 class="text-3xl font-bold text-gray-900">Send Application Form</h2>
+                        <p class="mt-2 text-gray-600">Send an offer form link to a tenant via email</p>
                     </div>
                 </div>
             </div>
@@ -20,11 +20,11 @@
                                     d="M5 13l4 4L19 7"></path>
                             </svg>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-900 mb-2">Application Sent Successfully!</h3>
-                        <p class="text-gray-600 mb-1">The application form has been sent to</p>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2">Application Form Sent Successfully!</h3>
+                        <p class="text-gray-600 mb-1">The offer form link has been sent to</p>
                         <p class="text-gray-900 font-medium mb-4">{{ submittedEmail }}</p>
                         <p class="text-sm text-gray-500">
-                            The tenant will receive an email with a link to complete the application form.
+                            The tenant will receive an email with a link to complete the offer form.
                         </p>
                     </div>
                     <div class="flex justify-center space-x-3">
@@ -49,13 +49,13 @@
                         <!-- Applicant Email -->
                         <div>
                             <label for="applicant-email" class="block text-sm font-medium text-gray-700 mb-2">
-                                Applicant Email Address *
+                                Tenant Email Address *
                             </label>
                             <input id="applicant-email" v-model="formData.applicant_email" type="email" required
-                                placeholder="applicant@example.com"
+                                placeholder="tenant@example.com"
                                 class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm" />
                             <p class="mt-1 text-sm text-gray-500">
-                                The tenant will receive an email with a link to complete the application form
+                                The tenant will receive an email with a link to complete the offer form
                             </p>
                         </div>
 
@@ -121,48 +121,27 @@ const handleSubmit = async () => {
     try {
         const token = authStore.session?.access_token
         if (!token) {
-            errorMessage.value = 'You must be logged in to create an application'
+            errorMessage.value = 'You must be logged in to send the offer form'
             return
         }
 
-        // Get company email to use as agent_email
-        const companyResponse = await fetch(`${API_URL}/api/company`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        })
-
-        let agentEmail = ''
-        if (companyResponse.ok) {
-            const companyData = await companyResponse.json()
-            agentEmail = companyData.company?.email || ''
-        }
-
-        // If no company email, use a default or get from user
-        if (!agentEmail) {
-            // Try to get user email as fallback
-            const user = authStore.user
-            agentEmail = user?.email || ''
-        }
-
-        const response = await fetch(`${API_URL}/api/tenant-applications`, {
+        // Send offer form link
+        const response = await fetch(`${API_URL}/api/tenant-offers/send-link`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                applicant_email: formData.value.applicant_email,
-                property_address: formData.value.property_address,
-                agent_email: agentEmail || 'noreply@propertygoose.co.uk' // Fallback
+                tenant_email: formData.value.applicant_email,
+                property_address: formData.value.property_address
             })
         })
 
         const data = await response.json()
 
         if (!response.ok) {
-            errorMessage.value = data.error || 'Failed to create application'
+            errorMessage.value = data.error || 'Failed to send offer form link'
             return
         }
 
@@ -176,7 +155,7 @@ const handleSubmit = async () => {
             property_address: ''
         }
     } catch (err: any) {
-        errorMessage.value = err.message || 'An error occurred while creating the application'
+        errorMessage.value = err.message || 'An error occurred while sending the offer form link'
     } finally {
         loading.value = false
     }

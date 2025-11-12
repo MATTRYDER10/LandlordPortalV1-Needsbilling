@@ -8,6 +8,33 @@ import { encrypt, decrypt } from '../services/encryption'
 
 const router = Router()
 
+// Get company branding (public route for forms)
+router.get('/branding/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params
+
+    const { data: company, error } = await supabase
+      .from('companies')
+      .select('logo_url, primary_color, button_color')
+      .eq('id', companyId)
+      .single()
+
+    if (error || !company) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    res.json({
+      branding: {
+        logo_url: company.logo_url,
+        primary_color: company.primary_color || '#FF8C41',
+        button_color: company.button_color || '#FF8C41'
+      }
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Configure multer for logo uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -56,6 +83,7 @@ router.get('/settings', authenticateToken, async (req: AuthRequest, res) => {
       bank_account_name: companyData.bank_account_name || '',
       bank_account_number: companyData.bank_account_number || '',
       bank_sort_code: companyData.bank_sort_code || '',
+      offer_notification_email: companyData.offer_notification_email || null,
       logo_url: companyData.logo_url,
       primary_color: companyData.primary_color,
       button_color: companyData.button_color
@@ -225,7 +253,7 @@ router.post('/logo', authenticateToken, upload.single('logo'), async (req: AuthR
 router.put('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
-    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code } = req.body
+    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code, offer_notification_email } = req.body
 
     // Debug logging
     console.log('Company update request body:', { name, address, city, postcode, phone, email, website, bank_account_name, bank_account_number, bank_sort_code })
@@ -268,6 +296,7 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     if (phone !== undefined) updateData.phone_encrypted = phone ? encrypt(phone) : null
     if (email !== undefined) updateData.email_encrypted = email ? encrypt(email) : null
     if (website !== undefined) updateData.website_encrypted = website ? encrypt(website) : null
+    if (offer_notification_email !== undefined) updateData.offer_notification_email = offer_notification_email || null
     if (logo_url !== undefined) updateData.logo_url = logo_url
     if (primary_color !== undefined) updateData.primary_color = primary_color
     if (button_color !== undefined) updateData.button_color = button_color
