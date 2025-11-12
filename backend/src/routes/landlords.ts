@@ -614,10 +614,10 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
 
     // Get field mapping from request body
     const fieldMapping = req.body.fieldMapping ? JSON.parse(req.body.fieldMapping) : {}
-    
+
     // Parse header row
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
-    
+
     // Parse data rows
     const csvData: any[] = []
     for (let i = 1; i < lines.length; i++) {
@@ -777,7 +777,7 @@ router.post('/:id/initiate-aml-check', authenticateToken, async (req: AuthReques
     // Update landlord AML status
     await supabase
       .from('landlords')
-      .update({ 
+      .update({
         aml_status: 'requested',
         aml_checked_by: userId
       })
@@ -804,13 +804,18 @@ router.post('/:id/initiate-aml-check', authenticateToken, async (req: AuthReques
     // Send verification request email to landlord
     const landlordEmail = decrypt(landlord.email_encrypted)
     const landlordName = `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
-    
+
     // Generate verification token
     const verificationToken = generateToken(32)
     const tokenHash = hash(verificationToken)
 
-    // Store token hash in landlord record (we'll need to add a verification_token_hash field)
-    // For now, we'll use the AML check ID as the token
+    // Store token hash in AML check record
+    await supabase
+      .from('landlord_aml_checks')
+      .update({
+        verification_token_hash: tokenHash
+      })
+      .eq('id', amlCheck.id)
 
     const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-verification/${landlordId}/${verificationToken}`
 
@@ -842,6 +847,62 @@ router.post('/:id/initiate-aml-check', authenticateToken, async (req: AuthReques
 })
 
 /**
+ * GET /api/landlords/:id/verification/:token
+ * Get landlord verification details by token - public route
+ */
+router.get('/:id/verification/:token', async (req, res) => {
+  try {
+    const landlordId = req.params.id
+    const token = req.params.token
+
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required' })
+    }
+
+    // Hash the token to compare with stored hash
+    const tokenHash = hash(token)
+
+    // Get AML check with token hash
+    const { data: amlCheck, error: amlError } = await supabase
+      .from('landlord_aml_checks')
+      .select('id, landlord_id, verification_status, verification_token_hash')
+      .eq('landlord_id', landlordId)
+      .eq('verification_token_hash', tokenHash)
+      .maybeSingle()
+
+    if (amlError || !amlCheck) {
+      return res.status(404).json({ error: 'Invalid verification link' })
+    }
+
+    // Get landlord
+    const { data: landlord, error: landlordError } = await supabase
+      .from('landlords')
+      .select('id, first_name_encrypted, last_name_encrypted, email_encrypted, verification_status, verification_submitted_at')
+      .eq('id', landlordId)
+      .single()
+
+    if (landlordError || !landlord) {
+      return res.status(404).json({ error: 'Landlord not found' })
+    }
+
+    // Decrypt landlord data
+    const decryptedLandlord = {
+      id: landlord.id,
+      first_name: decrypt(landlord.first_name_encrypted) || '',
+      last_name: decrypt(landlord.last_name_encrypted) || '',
+      email: decrypt(landlord.email_encrypted) || '',
+      verification_status: landlord.verification_status,
+      verification_submitted_at: landlord.verification_submitted_at
+    }
+
+    res.json({ landlord: decryptedLandlord })
+  } catch (error: any) {
+    console.error('Error fetching landlord verification:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * POST /api/landlords/:id/submit-verification
  * Submit landlord verification (ID + selfie) - public route
  */
@@ -857,8 +918,20 @@ router.post('/:id/submit-verification', upload.fields([
       return res.status(400).json({ error: 'Verification token is required' })
     }
 
-    // Verify token (you'll need to implement token verification)
-    // For now, we'll just check if landlord exists
+    // Verify token
+    const tokenHash = hash(token)
+
+    // Get AML check with token hash
+    const { data: amlCheck, error: amlError } = await supabase
+      .from('landlord_aml_checks')
+      .select('id, landlord_id, verification_status, verification_token_hash')
+      .eq('landlord_id', landlordId)
+      .eq('verification_token_hash', tokenHash)
+      .maybeSingle()
+
+    if (amlError || !amlCheck) {
+      return res.status(404).json({ error: 'Invalid verification token' })
+    }
 
     // Get landlord
     const { data: landlord, error: landlordError } = await supabase
@@ -884,13 +957,7 @@ router.post('/:id/submit-verification', upload.fields([
     const idDocumentPath = `landlords/${landlordId}/id_document/${Date.now()}_${idDocumentFile.originalname}`
     const selfiePath = `landlords/${landlordId}/selfie/${Date.now()}_${selfieFile.originalname}`
 
-    // Update AML check with document paths
-    const { data: amlCheck } = await supabase
-      .from('landlord_aml_checks')
-      .select('id')
-      .eq('landlord_id', landlordId)
-      .maybeSingle()
-
+    // Update AML check with document paths (amlCheck already fetched above)
     if (amlCheck) {
       await supabase
         .from('landlord_aml_checks')

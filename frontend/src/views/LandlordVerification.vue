@@ -148,17 +148,22 @@ const fetchLandlord = async () => {
 
   try {
     const landlordId = route.params.id as string
-    // Token is used later in handleSubmit, so we don't need to extract it here
+    const token = route.params.token as string
+
+    if (!token) {
+      throw new Error('Verification token is required')
+    }
 
     // Verify token and get landlord
-    const response = await fetch(`${API_URL}/api/landlords/${landlordId}`, {
+    const response = await fetch(`${API_URL}/api/landlords/${landlordId}/verification/${token}`, {
       headers: {
         'Content-Type': 'application/json'
       }
     })
 
     if (!response.ok) {
-      throw new Error('Invalid verification link')
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || 'Invalid verification link')
     }
 
     const data = await response.json()
@@ -170,7 +175,7 @@ const fetchLandlord = async () => {
     }
   } catch (err: any) {
     error.value = err.message || 'Failed to load verification details'
-    toast.error('Failed to load verification details')
+    toast.error(err.message || 'Failed to load verification details')
   } finally {
     loading.value = false
   }
