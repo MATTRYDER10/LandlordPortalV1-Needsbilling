@@ -190,7 +190,7 @@ const statusFilter = ref('')
 const statusCounts = computed(() => {
   return {
     pending: offers.value.filter((o: any) => o.status === 'pending').length,
-    approved: offers.value.filter((o: any) => o.status === 'approved').length,
+    approved: offers.value.filter((o: any) => o.status === 'approved' || o.status === 'reference_created').length,
     declined: offers.value.filter((o: any) => o.status === 'declined').length,
     accepted_with_changes: offers.value.filter((o: any) => o.status === 'accepted_with_changes').length,
     holding_deposit_received: offers.value.filter((o: any) => o.status === 'holding_deposit_received').length,
@@ -213,7 +213,12 @@ const filteredOffers = computed(() => {
 
   // Apply status filter
   if (statusFilter.value) {
-    filtered = filtered.filter((offer: any) => offer.status === statusFilter.value)
+    if (statusFilter.value === 'approved') {
+      // Show both 'approved' and 'reference_created' when filtering by approved
+      filtered = filtered.filter((offer: any) => offer.status === 'approved' || offer.status === 'reference_created')
+    } else {
+      filtered = filtered.filter((offer: any) => offer.status === statusFilter.value)
+    }
   }
 
   return filtered
