@@ -216,7 +216,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import Sidebar from '../components/Sidebar.vue'
 import AddEditLandlordModal from '../components/AddEditLandlordModal.vue'
@@ -224,6 +224,7 @@ import CSVImportModal from '../components/CSVImportModal.vue'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 const authStore = useAuthStore()
 
@@ -397,6 +398,13 @@ const handleClickOutside = (event: MouseEvent) => {
 onMounted(() => {
   fetchLandlords()
   document.addEventListener('click', handleClickOutside)
+
+  // Check if we should open the add modal
+  if (route.query.add === 'true') {
+    showAddModal.value = true
+    // Remove the query parameter from the URL
+    router.replace('/landlords')
+  }
 })
 
 onUnmounted(() => {

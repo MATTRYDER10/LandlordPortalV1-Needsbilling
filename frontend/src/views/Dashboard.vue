@@ -92,16 +92,25 @@
       <div class="mb-8">
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div class="flex gap-4">
+          <div class="flex flex-wrap gap-4">
+            <router-link to="/references?create=true"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
+              Create Reference
+            </router-link>
+            <router-link to="/landlords?add=true"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
+              Add Landlord
+            </router-link>
             <router-link to="/tenant-applications/create"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
               Send Application Form
             </router-link>
           </div>
           <p class="mt-3 text-sm text-gray-600">
-            <strong>New:</strong> Send an application form to tenants - they fill in their offer details directly,
-            saving you time on data entry! Once they submit, you can approve, decline, or accept with changes, then
-            collect holding deposits and automatically create references.
+            Quickly create tenant references, add landlord details, or send application forms to tenants. Application
+            forms allow tenants to fill in their offer details directly, saving you time on data entry. Once they
+            submit, you can approve, decline, or accept with changes, then collect holding deposits and automatically
+            create references.
           </p>
         </div>
       </div>
