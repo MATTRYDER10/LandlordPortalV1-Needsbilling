@@ -60,13 +60,10 @@
                         </div>
 
                         <!-- Property Address -->
-                        <div>
-                            <label for="property-address" class="block text-sm font-medium text-gray-700 mb-2">
-                                Property Address to Rent *
-                            </label>
-                            <input id="property-address" v-model="formData.property_address" type="text" required
-                                placeholder="123 Main Street"
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm" />
+                        <div class="relative overflow-visible">
+                            <AddressAutocomplete v-model="formData.property_address" label="Property Address to Rent"
+                                :required="true" id="property-address" placeholder="Start typing address..."
+                                @addressSelected="handlePropertyAddressSelected" />
                         </div>
 
                         <!-- Submit Button -->
@@ -92,6 +89,7 @@
 import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
+import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -106,6 +104,13 @@ const successMessage = ref<string | null>(null)
 const loading = ref(false)
 const isSuccess = ref(false)
 const submittedEmail = ref<string>('')
+
+const handlePropertyAddressSelected = (addressData: any) => {
+    formData.value.property_address = addressData.addressLine1
+    // Optionally store city and postcode if needed in the future
+    // formData.value.property_city = addressData.city
+    // formData.value.property_postcode = addressData.postcode
+}
 
 const handleSubmit = async () => {
     errorMessage.value = null

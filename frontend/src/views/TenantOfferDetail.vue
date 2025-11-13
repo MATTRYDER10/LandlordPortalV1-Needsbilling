@@ -177,6 +177,94 @@
             </div>
           </dl>
         </div>
+
+        <!-- Terms & Conditions and Signatures -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-xl font-semibold text-gray-900 mb-4">Terms & Conditions Agreement</h3>
+          
+          <!-- Holding Deposit Agreement -->
+          <div class="mb-6">
+            <h4 class="text-lg font-semibold text-gray-900 mb-3">Holding Deposit Agreement</h4>
+            <div class="space-y-4 text-sm text-gray-700">
+              <div>
+                <p class="font-semibold mb-2">Deposit Amount:</p>
+                <p>A holding deposit equivalent to <strong>one week's rent</strong> is payable upon
+                  acceptance of your application. This sum will be deducted from your initial tenancy
+                  deposit at the start of the tenancy.</p>
+              </div>
+              <div>
+                <p class="font-semibold mb-2">Privacy Policy Agreement:</p>
+                <p>By paying the holding deposit, you agree to our Privacy Policy
+                  (rgproperty.co.uk/privacypolicy).</p>
+              </div>
+              <div>
+                <p class="font-semibold mb-2">Non-Refundable Clause:</p>
+                <p>Please note: the holding deposit is <strong>non-refundable</strong> in the following
+                  circumstances:</p>
+                <ol class="list-decimal list-inside mt-2 space-y-1 ml-4">
+                  <li>You provide false or misleading information during the application process,
+                    resulting in a failed reference.</li>
+                  <li>You withdraw from the tenancy application voluntarily.</li>
+                  <li>You fail to provide satisfactory Right to Rent documentation as required by law.</li>
+                  <li>You do not engage in reasonable communication with us and/or fail to take the
+                    necessary steps to progress and enter into the tenancy.</li>
+                </ol>
+              </div>
+              <div>
+                <p class="font-semibold mb-2">Refund Clause:</p>
+                <p>If the landlord or agent decides not to proceed with the tenancy for reasons other than
+                  those listed above, the holding deposit will be refunded in full.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Declaration -->
+          <div class="mb-6">
+            <h4 class="text-lg font-semibold text-gray-900 mb-3">Declaration</h4>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p class="text-sm text-gray-700">
+                I agree that Propertygoose Ltd will use the information I provide on this application form
+                and any information acquired from relevant sources to process my application for tenancy/to become a
+                Guarantor for a tenancy. I understand that this application and the results of the findings will be
+                forwarded to the instructing letting agent and/or landlord and that this information may be accessed
+                again in the future should I default on my rental payments or payments due as a Guarantor, apply for a
+                new tenancy or if there is a complaint or legal challenge with significance to this process.
+              </p>
+            </div>
+          </div>
+
+          <!-- Tenant Signatures -->
+          <div class="space-y-6">
+            <h4 class="text-lg font-semibold text-gray-900 mb-3">Tenant Signatures</h4>
+            <div v-for="(tenant, index) in offer.tenants" :key="index" class="border border-gray-200 rounded-lg p-4">
+              <h5 class="text-md font-medium text-gray-900 mb-3">Tenant {{ index + 1 }}: {{ tenant.name }}</h5>
+              <dl class="space-y-3">
+                <div v-if="tenant.signature_name">
+                  <dt class="text-sm font-medium text-gray-500">Signature Name</dt>
+                  <dd class="mt-1 text-sm text-gray-900">{{ tenant.signature_name }}</dd>
+                </div>
+                <div v-if="tenant.signature">
+                  <dt class="text-sm font-medium text-gray-500 mb-2">Signature</dt>
+                  <dd class="mt-1">
+                    <img 
+                      :src="tenant.signature" 
+                      alt="Signature" 
+                      class="border border-gray-300 rounded bg-white p-2 max-w-md"
+                      style="max-height: 150px;"
+                    />
+                  </dd>
+                </div>
+                <div v-if="tenant.signed_at">
+                  <dt class="text-sm font-medium text-gray-500">Signed At</dt>
+                  <dd class="mt-1 text-sm text-gray-900">{{ formatDate(tenant.signed_at) }}</dd>
+                </div>
+                <div v-if="!tenant.signature && !tenant.signature_name" class="text-sm text-gray-500 italic">
+                  No signature provided
+                </div>
+              </dl>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Approve Modal -->

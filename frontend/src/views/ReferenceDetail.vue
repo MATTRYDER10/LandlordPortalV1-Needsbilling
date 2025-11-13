@@ -50,6 +50,16 @@
               </svg>
               {{ downloadingPDF ? 'Generating...' : 'Download PDF Report' }}
             </button>
+            <button
+              @click="showDeleteModal = true"
+              class="flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors"
+              title="Delete reference"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </button>
             <span class="px-3 py-1 text-sm font-semibold rounded-full" :class="{
               'bg-yellow-100 text-yellow-800': reference.status === 'pending',
               'bg-blue-100 text-blue-800': reference.status === 'in_progress',
@@ -3071,6 +3081,34 @@
       </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg max-w-md w-full p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Reference</h3>
+        <p class="text-sm text-gray-600 mb-6">
+          Are you sure you want to delete the reference for 
+          <span class="font-medium">{{ reference?.tenant_first_name }} {{ reference?.tenant_last_name }}</span>
+          at <span class="font-medium">{{ reference?.property_address }}</span>?
+          This action cannot be undone.
+        </p>
+        <div class="flex justify-end space-x-3">
+          <button
+            @click="showDeleteModal = false"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            @click="handleDelete"
+            :disabled="deleteLoading"
+            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
+          >
+            {{ deleteLoading ? 'Deleting...' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Add Guarantor Modal -->
     <div v-if="showAddGuarantorModal"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -3129,7 +3167,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
@@ -3142,6 +3180,7 @@ import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
 
@@ -3204,6 +3243,10 @@ const resendingEmployer = ref<Record<string, boolean>>({})
 const resendingMainEmployer = ref(false)
 const resendingAccountant = ref<Record<string, boolean>>({})
 const resendingGuarantor = ref(false)
+
+// Delete modal state
+const showDeleteModal = ref(false)
+const deleteLoading = ref(false)
 
 onMounted(async () => {
   await fetchReference()
@@ -4007,6 +4050,41 @@ const resendGuarantorEmail = async () => {
     toast.error('Failed to resend email: ' + err.message)
   } finally {
     resendingGuarantor.value = false
+  }
+}
+
+const handleDelete = async () => {
+  if (!reference.value) return
+
+  deleteLoading.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/references/${reference.value.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to delete reference')
+    }
+
+    toast.success('Reference deleted successfully')
+    // Navigate back to references list
+    router.push('/references')
+  } catch (error: any) {
+    console.error('Failed to delete reference:', error)
+    toast.error(error.message || 'Failed to delete reference')
+  } finally {
+    deleteLoading.value = false
   }
 }
 </script>

@@ -346,6 +346,13 @@
                 >
                   Create Agreement
                 </button>
+                <button
+                  @click="confirmDelete(reference)"
+                  class="ml-3 text-red-600 hover:text-red-700 font-medium"
+                  title="Delete reference"
+                >
+                  Delete
+                </button>
               </td>
             </tr>
             <!-- Guarantor Row (if exists) -->
@@ -440,6 +447,13 @@
                 >
                   View
                 </button>
+                <button
+                  @click="confirmDelete(guarantor)"
+                  class="ml-3 text-red-600 hover:text-red-700 font-medium"
+                  title="Delete guarantor reference"
+                >
+                  Delete
+                </button>
               </td>
             </tr>
             <!-- Expanded Tenant List -->
@@ -475,12 +489,21 @@
                             Rent Share: <span class="font-semibold text-primary">£{{ child.rent_share }}</span>
                           </p>
                         </div>
-                        <button
-                          @click="viewReference(child)"
-                          class="ml-4 px-3 py-1.5 text-xs bg-primary text-white rounded-md hover:bg-primary/90"
-                        >
-                          View
-                        </button>
+                        <div class="ml-4 flex gap-2">
+                          <button
+                            @click="viewReference(child)"
+                            class="px-3 py-1.5 text-xs bg-primary text-white rounded-md hover:bg-primary/90"
+                          >
+                            View
+                          </button>
+                          <button
+                            @click="confirmDelete(child)"
+                            class="px-3 py-1.5 text-xs bg-red-600 text-white rounded-md hover:bg-red-700"
+                            title="Delete tenant reference"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
 
                       <!-- Guarantors for this tenant -->
@@ -509,12 +532,21 @@
                               </p>
                               <p class="text-xs text-gray-600">{{ guarantor.tenant_email }}</p>
                             </div>
-                            <button
-                              @click="viewReference(guarantor)"
-                              class="ml-2 px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
-                            >
-                              View
-                            </button>
+                            <div class="ml-2 flex gap-2">
+                              <button
+                                @click="viewReference(guarantor)"
+                                class="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+                              >
+                                View
+                              </button>
+                              <button
+                                @click="confirmDelete(guarantor)"
+                                class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                title="Delete guarantor reference"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -966,6 +998,34 @@
       :show="showPaymentMethodModal"
       @close="showPaymentMethodModal = false"
     />
+
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg max-w-md w-full p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Reference</h3>
+        <p class="text-sm text-gray-600 mb-6">
+          Are you sure you want to delete the reference for 
+          <span class="font-medium">{{ referenceToDelete?.tenant_first_name }} {{ referenceToDelete?.tenant_last_name }}</span>
+          at <span class="font-medium">{{ referenceToDelete?.property_address }}</span>?
+          This action cannot be undone.
+        </p>
+        <div class="flex justify-end space-x-3">
+          <button
+            @click="showDeleteModal = false"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            @click="handleDelete"
+            :disabled="deleteLoading"
+            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
+          >
+            {{ deleteLoading ? 'Deleting...' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </Sidebar>
 </template>
 
@@ -990,6 +1050,9 @@ const showCreateModal = ref(false)
 const showGuarantorFields = ref(false)
 const showInsufficientCreditsModal = ref(false)
 const showPaymentMethodModal = ref(false)
+const showDeleteModal = ref(false)
+const referenceToDelete = ref<any>(null)
+const deleteLoading = ref(false)
 const references = ref<any[]>([])
 const loading = ref(true)
 const createLoading = ref(false)
@@ -1525,5 +1588,46 @@ const handleCreditsPurchased = () => {
   showInsufficientCreditsModal.value = false
   // Re-open the create modal so user can try again
   showCreateModal.value = true
+}
+
+const confirmDelete = (reference: any) => {
+  referenceToDelete.value = reference
+  showDeleteModal.value = true
+}
+
+const handleDelete = async () => {
+  if (!referenceToDelete.value) return
+
+  deleteLoading.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      console.error('No auth token available')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/references/${referenceToDelete.value.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to delete reference')
+    }
+
+    // Close modal and refresh list
+    showDeleteModal.value = false
+    referenceToDelete.value = null
+    await fetchReferences()
+  } catch (error: any) {
+    console.error('Failed to delete reference:', error)
+    alert(error.message || 'Failed to delete reference')
+  } finally {
+    deleteLoading.value = false
+  }
 }
 </script>

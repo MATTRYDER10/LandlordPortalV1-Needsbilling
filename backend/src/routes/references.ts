@@ -1451,8 +1451,9 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     const companyUser = companyUsers[0]
 
-    // Check if user is owner or admin
-    if (companyUser.role !== 'owner' && companyUser.role !== 'admin') {
+    // Check if user is owner, admin, agent, or landlord
+    const allowedRoles = ['owner', 'admin', 'agent', 'landlord']
+    if (!allowedRoles.includes(companyUser.role)) {
       return res.status(403).json({ error: 'Insufficient permissions' })
     }
 
