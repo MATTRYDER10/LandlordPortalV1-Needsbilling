@@ -133,6 +133,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
                 phone: tenant.phone_encrypted ? decrypt(tenant.phone_encrypted) : '',
                 email: tenant.email_encrypted ? decrypt(tenant.email_encrypted) : '',
                 annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
+                job_title: tenant.job_title_encrypted ? decrypt(tenant.job_title_encrypted) : '',
                 no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
                 signature: tenant.signature_encrypted ? decrypt(tenant.signature_encrypted) : '',
                 signature_name: tenant.signature_name_encrypted ? decrypt(tenant.signature_name_encrypted) : '',
@@ -239,6 +240,78 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }
 })
 
+// Check if tenant has already submitted an offer (public route - no auth required)
+router.get('/check-submission', async (req, res) => {
+    try {
+        const { email, company_id } = req.query
+
+        if (!email || !company_id) {
+            return res.status(400).json({ error: 'Email and company_id are required' })
+        }
+
+        // Get all offers for the company
+        const { data: offers, error: offersError } = await supabase
+            .from('tenant_offers')
+            .select('id, status, created_at')
+            .eq('company_id', company_id as string)
+            .order('created_at', { ascending: false })
+
+        if (offersError) {
+            return res.status(500).json({ error: 'Failed to check offers' })
+        }
+
+        if (!offers || offers.length === 0) {
+            return res.status(200).json({ submitted: false })
+        }
+
+        // Check if any tenant in any offer has this email
+        const offerIds = offers.map(offer => offer.id)
+        const { data: tenants, error: tenantsError } = await supabase
+            .from('tenant_offer_tenants')
+            .select('id, email_encrypted, tenant_offer_id, tenant_offers:tenant_offer_id(status, created_at)')
+            .in('tenant_offer_id', offerIds)
+
+        if (tenantsError) {
+            return res.status(500).json({ error: 'Failed to check tenants' })
+        }
+
+        // Decrypt and check emails
+        let foundSubmission = null
+        const emailToCheck = (email as string).toLowerCase()
+
+        for (const tenant of tenants || []) {
+            try {
+                if (tenant.email_encrypted) {
+                    const decryptedEmail = decrypt(tenant.email_encrypted)
+                    if (decryptedEmail?.toLowerCase() === emailToCheck) {
+                        foundSubmission = {
+                            status: (tenant.tenant_offers as any)?.status || 'pending',
+                            created_at: (tenant.tenant_offers as any)?.created_at
+                        }
+                        break
+                    }
+                }
+            } catch (err) {
+                // Continue checking other tenants
+                continue
+            }
+        }
+
+        if (foundSubmission) {
+            return res.status(200).json({
+                submitted: true,
+                status: foundSubmission.status,
+                created_at: foundSubmission.created_at
+            })
+        }
+
+        return res.status(200).json({ submitted: false })
+    } catch (error: any) {
+        console.error('Error checking submission:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Submit offer form (public route - no auth required)
 router.post('/submit', async (req, res) => {
     try {
@@ -329,6 +402,7 @@ router.post('/submit', async (req, res) => {
             phone_encrypted: encrypt(tenant.phone),
             email_encrypted: encrypt(tenant.email),
             annual_income_encrypted: encrypt(tenant.annual_income),
+            job_title_encrypted: tenant.job_title ? encrypt(tenant.job_title) : null,
             no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva === true,
             signature_encrypted: tenant.signature ? encrypt(tenant.signature) : null,
             signature_name_encrypted: tenant.signature_name ? encrypt(tenant.signature_name) : null,
@@ -687,6 +761,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
                 phone_encrypted: encrypt(tenant.phone),
                 email_encrypted: encrypt(tenant.email),
                 annual_income_encrypted: encrypt(tenant.annual_income),
+                job_title_encrypted: tenant.job_title ? encrypt(tenant.job_title) : null,
                 no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva === true,
                 signature_encrypted: tenant.signature ? encrypt(tenant.signature) : null,
                 signature_name_encrypted: tenant.signature_name ? encrypt(tenant.signature_name) : null,
@@ -807,6 +882,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                 phone: tenant.phone_encrypted ? decrypt(tenant.phone_encrypted) : '',
                 address: tenant.address_encrypted ? decrypt(tenant.address_encrypted) : '',
                 annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
+                job_title: tenant.job_title_encrypted ? decrypt(tenant.job_title_encrypted) : '',
                 rent_share: (offer.offered_rent_amount / (offer.tenant_offer_tenants?.length || 1)).toFixed(2)
             }
         })

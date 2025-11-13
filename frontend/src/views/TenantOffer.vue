@@ -24,6 +24,17 @@
                 <div class="text-gray-600">Loading...</div>
             </div>
 
+            <!-- Already Submitted State -->
+            <div v-else-if="alreadySubmitted" class="bg-white rounded-lg shadow p-8 text-center">
+                <svg class="mx-auto h-12 w-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 class="mt-4 text-lg font-semibold text-gray-900">Application Already Submitted</h3>
+                <p class="mt-2 text-gray-600">You have already filled the form. We will mail you once the agent approves
+                    or disapproves your application.</p>
+            </div>
+
             <!-- Success State -->
             <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
                 <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,13 +51,10 @@
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-xl font-semibold text-gray-900 mb-4">Property Information</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2">
-                            <label for="property-address" class="block text-sm font-medium text-gray-700 mb-2">
-                                Property Address *
-                            </label>
-                            <input id="property-address" v-model="formData.property_address" type="text" required
-                                placeholder="Enter the full property address"
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                        <div class="md:col-span-2 relative overflow-visible">
+                            <AddressAutocomplete v-model="formData.property_address" label="Property Address"
+                                :required="true" id="property-address" placeholder="Start typing address..."
+                                @addressSelected="handlePropertyAddressSelected" />
                         </div>
                         <div>
                             <label for="property-city" class="block text-sm font-medium text-gray-700 mb-2">
@@ -94,14 +102,14 @@
                                 class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                             <p class="mt-1 text-xs text-gray-500">Must be between 1 and 12 months</p>
                         </div>
-                        <div>
+                        <!-- <div>
                             <label for="deposit-amount" class="block text-sm font-medium text-gray-700 mb-2">
                                 Deposit Amount (£) (Optional)
                             </label>
                             <input id="deposit-amount" v-model.number="formData.deposit_amount" type="number"
                                 step="0.01" min="0"
                                 class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
-                        </div>
+                        </div> -->
                         <div class="md:col-span-2">
                             <label for="special-conditions" class="block text-sm font-medium text-gray-700 mb-2">
                                 Special Conditions for Landlord to Consider
@@ -125,7 +133,7 @@
                     </div>
 
                     <div v-for="(tenant, index) in formData.tenants" :key="index"
-                        class="mb-6 p-4 border border-gray-200 rounded-lg">
+                        class="mb-6 p-4 border border-gray-200 rounded-lg overflow-visible">
                         <div class="flex justify-between items-center mb-3">
                             <h3 class="text-lg font-medium text-gray-900">Tenant {{ index + 1 }}</h3>
                             <button v-if="formData.tenants.length > 1" type="button" @click="removeTenant(index)"
@@ -143,13 +151,11 @@
                                 <input :id="`tenant-${index}-name`" v-model="tenant.name" type="text" required
                                     class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                             </div>
-                            <div>
-                                <label :for="`tenant-${index}-address`"
-                                    class="block text-sm font-medium text-gray-700 mb-2">
-                                    Current Address *
-                                </label>
-                                <input :id="`tenant-${index}-address`" v-model="tenant.address" type="text" required
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                            <div class="relative overflow-visible">
+                                <AddressAutocomplete v-model="tenant.address" :label="`Current Address`"
+                                    :required="true" :id="`tenant-${index}-address`"
+                                    placeholder="Start typing address..."
+                                    @addressSelected="(address) => handleTenantAddressSelected(index, address)" />
                             </div>
                             <div>
                                 <PhoneInput v-model="tenant.phone" :label="`Phone Number`" :id="`tenant-${index}-phone`"
@@ -172,6 +178,15 @@
                                     required placeholder="e.g., 30000"
                                     class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                             </div>
+                            <div>
+                                <label :for="`tenant-${index}-job-title`"
+                                    class="block text-sm font-medium text-gray-700 mb-2">
+                                    Job Title / Income Source
+                                </label>
+                                <input :id="`tenant-${index}-job-title`" v-model="tenant.job_title" type="text"
+                                    placeholder="e.g., Software Engineer, Self-Employed, etc."
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                            </div>
                             <div class="md:col-span-2">
                                 <div class="flex items-start">
                                     <input :id="`tenant-${index}-no-ccj`" v-model="tenant.no_ccj_bankruptcy_iva"
@@ -183,6 +198,50 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Terms and Conditions -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Holding Deposit Agreement</h2>
+                    <div class="space-y-4 text-sm text-gray-700 mb-4">
+                        <div>
+                            <p class="font-semibold mb-2">Deposit Amount:</p>
+                            <p>A holding deposit equivalent to <strong>one week's rent</strong> is payable upon
+                                acceptance of your application. This sum will be deducted from your initial tenancy
+                                deposit at the start of the tenancy.</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold mb-2">Privacy Policy Agreement:</p>
+                            <p>By paying the holding deposit, you agree to our Privacy Policy
+                                (rgproperty.co.uk/privacypolicy).</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold mb-2">Non-Refundable Clause:</p>
+                            <p>Please note: the holding deposit is <strong>non-refundable</strong> in the following
+                                circumstances:</p>
+                            <ol class="list-decimal list-inside mt-2 space-y-1 ml-4">
+                                <li>You provide false or misleading information during the application process,
+                                    resulting in a failed reference.</li>
+                                <li>You withdraw from the tenancy application voluntarily.</li>
+                                <li>You fail to provide satisfactory Right to Rent documentation as required by law.
+                                </li>
+                                <li>You do not engage in reasonable communication with us and/or fail to take the
+                                    necessary steps to progress and enter into the tenancy.</li>
+                            </ol>
+                        </div>
+                        <div>
+                            <p class="font-semibold mb-2">Refund Clause:</p>
+                            <p>If the landlord or agent decides not to proceed with the tenancy for reasons other than
+                                those listed above, the holding deposit will be refunded in full.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <input id="terms-agreement" v-model="formData.terms_agreed" type="checkbox" required
+                            class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
+                        <label for="terms-agreement" class="ml-2 block text-sm text-gray-700">
+                            I agree to the terms and conditions *
+                        </label>
                     </div>
                 </div>
 
@@ -237,16 +296,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
+import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const loading = ref(false)
 const submitted = ref(false)
+const alreadySubmitted = ref(false)
 const submitting = ref(false)
 const submitError = ref('')
 const brandingLoaded = ref(false)
@@ -272,11 +333,13 @@ const formData = ref({
             phone: '',
             email: '',
             annual_income: '',
+            job_title: '',
             no_ccj_bankruptcy_iva: false
         }
     ],
     signature: '',
-    signature_name: ''
+    signature_name: '',
+    terms_agreed: false
 })
 
 const addTenant = () => {
@@ -286,6 +349,7 @@ const addTenant = () => {
         phone: '',
         email: '',
         annual_income: '',
+        job_title: '',
         no_ccj_bankruptcy_iva: false
     })
 }
@@ -293,6 +357,21 @@ const addTenant = () => {
 const removeTenant = (index: number) => {
     if (formData.value.tenants.length > 1) {
         formData.value.tenants.splice(index, 1)
+    }
+}
+
+const handlePropertyAddressSelected = (addressData: any) => {
+    formData.value.property_address = addressData.addressLine1
+    formData.value.property_city = addressData.city
+    formData.value.property_postcode = addressData.postcode
+}
+
+const handleTenantAddressSelected = (index: number, addressData: any) => {
+    const tenant = formData.value.tenants[index]
+    if (tenant) {
+        tenant.address = addressData.addressLine1
+        // Note: We're only storing the address line 1 for tenant addresses
+        // If you need to store city/postcode for tenants, you'd need to add those fields
     }
 }
 
@@ -330,6 +409,10 @@ const handleSubmit = async () => {
             throw new Error('Signature and signature name are required')
         }
 
+        if (!formData.value.terms_agreed) {
+            throw new Error('You must agree to the terms and conditions')
+        }
+
         // Get company ID from query parameter
         const companyId = route.query.company_id as string
         if (!companyId) {
@@ -352,6 +435,7 @@ const handleSubmit = async () => {
                 phone: tenant.phone,
                 email: tenant.email,
                 annual_income: tenant.annual_income,
+                job_title: tenant.job_title || null,
                 no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
                 signature: formData.value.signature,
                 signature_name: formData.value.signature_name
@@ -374,12 +458,76 @@ const handleSubmit = async () => {
         }
 
         submitted.value = true
+        // Store email in localStorage to check on future visits
+        if (formData.value.tenants.length > 0 && formData.value.tenants[0]?.email) {
+            const companyId = route.query.company_id as string
+            if (companyId) {
+                localStorage.setItem(`tenant_offer_submitted_${companyId}`, formData.value.tenants[0].email)
+            }
+        }
     } catch (error: any) {
         submitError.value = error.message || 'An error occurred while submitting the offer'
     } finally {
         submitting.value = false
     }
 }
+
+// Check if tenant has already submitted
+const checkExistingSubmission = async () => {
+    try {
+        const companyId = route.query.company_id as string
+        if (!companyId) {
+            return
+        }
+
+        // Check localStorage first for quick check
+        const storedEmail = localStorage.getItem(`tenant_offer_submitted_${companyId}`)
+        if (storedEmail) {
+            // Verify with backend
+            const response = await fetch(`${API_URL}/api/tenant-offers/check-submission?email=${encodeURIComponent(storedEmail)}&company_id=${companyId}`)
+            if (response.ok) {
+                const data = await response.json()
+                if (data.submitted) {
+                    alreadySubmitted.value = true
+                    return
+                }
+            }
+        }
+
+        // Also check if user has entered email in form and check on that
+        // This will be checked when they start filling the form
+    } catch (error) {
+        console.error('Failed to check existing submission:', error)
+        // Don't block the form if check fails
+    }
+}
+
+// Watch for email input to check if already submitted
+let emailCheckTimeout: number | null = null
+watch(() => formData.value.tenants[0]?.email, async (newEmail) => {
+    if (emailCheckTimeout) {
+        clearTimeout(emailCheckTimeout)
+    }
+
+    if (newEmail && newEmail.length > 5 && !alreadySubmitted.value) {
+        emailCheckTimeout = setTimeout(async () => {
+            const companyId = route.query.company_id as string
+            if (companyId) {
+                try {
+                    const response = await fetch(`${API_URL}/api/tenant-offers/check-submission?email=${encodeURIComponent(newEmail)}&company_id=${companyId}`)
+                    if (response.ok) {
+                        const data = await response.json()
+                        if (data.submitted) {
+                            alreadySubmitted.value = true
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to check submission:', error)
+                }
+            }
+        }, 1000) as unknown as number
+    }
+})
 
 // Fetch company branding on mount
 onMounted(async () => {
@@ -389,6 +537,9 @@ onMounted(async () => {
             brandingLoaded.value = true
             return
         }
+
+        // Check for existing submission first
+        await checkExistingSubmission()
 
         // Load branding from company
         const response = await fetch(`${API_URL}/api/company/branding/${companyId}`)
