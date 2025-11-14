@@ -80,6 +80,79 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
     evidenceLabels[option.evidence_type] = option.display_label
   })
 
+  // Fetch Creditsafe verification data
+  const { data: creditsafe } = await supabase
+    .from('creditsafe_verifications')
+    .select('*')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  // Fetch sanctions screening
+  const { data: sanctions } = await supabase
+    .from('sanctions_screenings')
+    .select('*')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  // Fetch reference score
+  const { data: score } = await supabase
+    .from('reference_scores')
+    .select('*')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  // Fetch landlord reference
+  const { data: landlordReference } = await supabase
+    .from('landlord_references')
+    .select('*')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  // Fetch agent reference
+  const { data: agentReference } = await supabase
+    .from('agent_references')
+    .select('*')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  // Fetch employer reference
+  const { data: employerReference } = await supabase
+    .from('employer_references')
+    .select('*')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  // Fetch guarantor reference
+  const { data: guarantorReference } = await supabase
+    .from('guarantor_references')
+    .select('*')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  // Decrypt guarantor fields if exists
+  let decryptedGuarantor: any = null
+  if (guarantorReference) {
+    decryptedGuarantor = {
+      ...guarantorReference,
+      guarantor_first_name: decrypt(guarantorReference.guarantor_first_name_encrypted),
+      guarantor_last_name: decrypt(guarantorReference.guarantor_last_name_encrypted),
+      email: decrypt(guarantorReference.email_encrypted),
+      contact_number: decrypt(guarantorReference.contact_number_encrypted),
+      annual_income: decrypt(guarantorReference.annual_income_encrypted),
+      savings_amount: decrypt(guarantorReference.savings_amount_encrypted),
+      employer_name: decrypt(guarantorReference.employer_name_encrypted),
+      job_title: decrypt(guarantorReference.job_title_encrypted)
+    }
+  }
+
+  // Calculate total income
+  let totalIncome = 0
+  const employmentSalary = reference.employment_salary_amount_encrypted ? parseFloat(decrypt(reference.employment_salary_amount_encrypted) || '0') : 0
+  const selfEmployedIncome = reference.self_employed_annual_income_encrypted ? parseFloat(decrypt(reference.self_employed_annual_income_encrypted) || '0') : 0
+  const benefitsAnnual = reference.benefits_annual_amount_encrypted ? parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0') : 0
+  const additionalIncome = reference.additional_income_amount_encrypted ? parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0') : 0
+  totalIncome = employmentSalary + selfEmployedIncome + benefitsAnnual + additionalIncome
+
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margin: 50 })
@@ -180,7 +253,228 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
 
       y = Math.max(leftY, rightY) + 20
 
+      // Employment & Income Section
+      if (employerReference || reference.employment_company_name_encrypted || totalIncome > 0) {
+        if (y > 650) {
+          doc.addPage()
+          y = 50
+        }
+        doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Employment & Income Details', 50, y)
+        y += 20
+        
+        if (employerReference) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Employer Reference:', 60, y)
+          y += 15
+          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          if (employerReference.employer_name) {
+            doc.text(`Company: ${employerReference.employer_name}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (employerReference.job_title) {
+            doc.text(`Position: ${employerReference.job_title}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (employerReference.salary_amount) {
+            doc.text(`Salary: £${parseFloat(employerReference.salary_amount).toLocaleString('en-GB')}`, 70, y, { width: 465 })
+            y += 12
+          }
+          y += 5
+        }
+        
+        const employmentCompany = reference.employment_company_name_encrypted ? decrypt(reference.employment_company_name_encrypted) : ''
+        const employmentPosition = reference.employment_position_encrypted ? decrypt(reference.employment_position_encrypted) : ''
+        if (employmentCompany || employmentPosition) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Tenant Provided Employment:', 60, y)
+          y += 15
+          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          if (employmentCompany) {
+            doc.text(`Company: ${employmentCompany}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (employmentPosition) {
+            doc.text(`Position: ${employmentPosition}`, 70, y, { width: 465 })
+            y += 12
+          }
+          y += 5
+        }
+        
+        if (totalIncome > 0) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Total Annual Income:', 60, y)
+          doc.fontSize(10).fillColor(darkGray).font('Helvetica-Bold')
+            .text(`£${totalIncome.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 200, y)
+          y += 20
+        }
+      }
+
+      // Credit Score & Checks Section
+      if (score || creditsafe || sanctions) {
+        if (y > 650) {
+          doc.addPage()
+          y = 50
+        }
+        doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Credit & Background Checks', 50, y)
+        y += 20
+        
+        if (score) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Credit Score:', 60, y)
+          doc.fontSize(10).fillColor(darkGray).font('Helvetica-Bold')
+            .text(`${score.score || 'N/A'}`, 200, y)
+          y += 15
+        }
+        
+        if (creditsafe) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Creditsafe Verification:', 60, y)
+          y += 15
+          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          if (creditsafe.credit_score) {
+            doc.text(`Credit Score: ${creditsafe.credit_score}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (creditsafe.credit_rating) {
+            doc.text(`Credit Rating: ${creditsafe.credit_rating}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (creditsafe.verified_at) {
+            doc.text(`Verified: ${new Date(creditsafe.verified_at).toLocaleDateString('en-GB')}`, 70, y, { width: 465 })
+            y += 12
+          }
+          y += 5
+        }
+        
+        if (sanctions) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('AML & Sanctions Screening:', 60, y)
+          y += 15
+          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          const sanctionsStatus = sanctions.match_found ? 'MATCH FOUND' : 'CLEAR'
+          const sanctionsColor = sanctions.match_found ? failRed : passGreen
+          doc.fillColor(sanctionsColor).text(`Status: ${sanctionsStatus}`, 70, y, { width: 465 })
+          y += 12
+          if (sanctions.screened_at) {
+            doc.fillColor(darkGray).text(`Screened: ${new Date(sanctions.screened_at).toLocaleDateString('en-GB')}`, 70, y, { width: 465 })
+            y += 12
+          }
+          y += 5
+        }
+      }
+
+      // Landlord/Agent Reference Section
+      if (landlordReference || agentReference) {
+        if (y > 650) {
+          doc.addPage()
+          y = 50
+        }
+        doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Previous Tenancy Reference', 50, y)
+        y += 20
+        
+        if (landlordReference) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Landlord Reference:', 60, y)
+          y += 15
+          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          if (landlordReference.landlord_name) {
+            doc.text(`Landlord: ${landlordReference.landlord_name}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (landlordReference.monthly_rent) {
+            doc.text(`Monthly Rent: £${parseFloat(landlordReference.monthly_rent).toLocaleString('en-GB')}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (landlordReference.tenancy_start_date) {
+            doc.text(`Tenancy Start: ${new Date(landlordReference.tenancy_start_date).toLocaleDateString('en-GB')}`, 70, y, { width: 465 })
+            y += 12
+          }
+          y += 5
+        }
+        
+        if (agentReference) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Letting Agent Reference:', 60, y)
+          y += 15
+          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          if (agentReference.agent_name) {
+            doc.text(`Agent: ${agentReference.agent_name}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (agentReference.monthly_rent) {
+            doc.text(`Monthly Rent: £${parseFloat(agentReference.monthly_rent).toLocaleString('en-GB')}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (agentReference.tenancy_start_date) {
+            doc.text(`Tenancy Start: ${new Date(agentReference.tenancy_start_date).toLocaleDateString('en-GB')}`, 70, y, { width: 465 })
+            y += 12
+          }
+          y += 5
+        }
+      }
+
+      // Guarantor Section
+      if (decryptedGuarantor && decryptedGuarantor.submitted_at) {
+        if (y > 600) {
+          doc.addPage()
+          y = 50
+        }
+        doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Guarantor Information', 50, y)
+        y += 20
+        
+        doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Personal Details:', 60, y)
+        y += 15
+        doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+        doc.text(`Name: ${decryptedGuarantor.guarantor_first_name} ${decryptedGuarantor.guarantor_last_name}`, 70, y, { width: 465 })
+        y += 12
+        if (decryptedGuarantor.email) {
+          doc.text(`Email: ${decryptedGuarantor.email}`, 70, y, { width: 465 })
+          y += 12
+        }
+        if (decryptedGuarantor.contact_number) {
+          doc.text(`Phone: ${decryptedGuarantor.contact_number}`, 70, y, { width: 465 })
+          y += 12
+        }
+        if (decryptedGuarantor.relationship_to_tenant) {
+          doc.text(`Relationship: ${decryptedGuarantor.relationship_to_tenant}`, 70, y, { width: 465 })
+          y += 12
+        }
+        y += 5
+        
+        if (decryptedGuarantor.annual_income || decryptedGuarantor.savings_amount || decryptedGuarantor.employer_name) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Financial Information:', 60, y)
+          y += 15
+          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          if (decryptedGuarantor.annual_income) {
+            doc.text(`Annual Income: £${parseFloat(decryptedGuarantor.annual_income || '0').toLocaleString('en-GB')}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (decryptedGuarantor.savings_amount) {
+            doc.text(`Savings: £${parseFloat(decryptedGuarantor.savings_amount || '0').toLocaleString('en-GB')}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (decryptedGuarantor.employer_name) {
+            doc.text(`Employer: ${decryptedGuarantor.employer_name}`, 70, y, { width: 465 })
+            y += 12
+          }
+          if (decryptedGuarantor.job_title) {
+            doc.text(`Job Title: ${decryptedGuarantor.job_title}`, 70, y, { width: 465 })
+            y += 12
+          }
+          y += 5
+        }
+        
+        if (decryptedGuarantor.id_document_path || decryptedGuarantor.selfie_path || decryptedGuarantor.proof_of_address_path || decryptedGuarantor.bank_statement_path) {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Documents Provided:', 60, y)
+          y += 15
+          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          const documents: string[] = []
+          if (decryptedGuarantor.id_document_path) documents.push('ID Document')
+          if (decryptedGuarantor.selfie_path) documents.push('Selfie')
+          if (decryptedGuarantor.proof_of_address_path) documents.push('Proof of Address')
+          if (decryptedGuarantor.bank_statement_path) documents.push('Bank Statement')
+          doc.text(documents.join(', '), 70, y, { width: 465 })
+          y += 12
+        }
+      }
+
       // Verification Summary Section
+      if (y > 700) {
+        doc.addPage()
+        y = 50
+      }
       doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Verification Summary', 50, y)
       y += 25
 
@@ -265,7 +559,32 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
       y += 20
       doc.fontSize(9).fillColor(darkGray).font('Helvetica')
         .text('All checks performed in accordance with UK Right to Rent requirements.', 60, y, { width: 475 })
-      y += 30
+      y += 15
+      
+      // Right to Rent Status
+      const rightToRentStatus = reference.right_to_rent_status || 'Not Checked'
+      const rightToRentColor = rightToRentStatus === 'PASS' ? passGreen : rightToRentStatus === 'FAIL' ? failRed : lightGray
+      doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Right to Rent Status:', 60, y)
+      doc.fontSize(10).fillColor(rightToRentColor).font('Helvetica-Bold')
+        .text(rightToRentStatus, 200, y)
+      y += 20
+      
+      if (reference.id_document_type) {
+        doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          .text(`ID Document Type: ${reference.id_document_type.replace('_', ' ').toUpperCase()}`, 60, y, { width: 475 })
+        y += 12
+      }
+      if (reference.id_document_path) {
+        doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          .text('ID Document: Provided and verified', 60, y, { width: 475 })
+        y += 12
+      }
+      if (reference.selfie_path) {
+        doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+          .text('Selfie Verification: Completed', 60, y, { width: 475 })
+        y += 12
+      }
+      y += 10
 
       // Identity Verification Details
       const idStep = verificationSteps?.find((s: VerificationStep) => s.step_type === 'ID_SELFIE')
@@ -368,7 +687,8 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
         y += 20
       }
 
-      // Footer on both pages
+      // Footer on all pages
+      const totalPages = doc.bufferedPageRange().count
       const addFooter = (pageNumber: number) => {
         const footerY = 770
         doc.fontSize(8).fillColor(lightGray).font('Helvetica')
@@ -380,18 +700,18 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
           )
         doc.fontSize(8).fillColor(lightGray).font('Helvetica')
           .text(
-            `Page ${pageNumber} of 2`,
+            `Page ${pageNumber} of ${totalPages}`,
             0,
             footerY,
             { align: 'right', width: 545 }
           )
       }
 
-      // Add footers to both pages
-      doc.switchToPage(0)
-      addFooter(1)
-      doc.switchToPage(1)
-      addFooter(2)
+      // Add footers to all pages
+      for (let i = 0; i < totalPages; i++) {
+        doc.switchToPage(i)
+        addFooter(i + 1)
+      }
 
       doc.end()
     } catch (error) {

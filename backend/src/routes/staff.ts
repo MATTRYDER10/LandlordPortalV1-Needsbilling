@@ -896,6 +896,57 @@ router.get('/download/:referenceId/:folder/:filename', authenticateStaff, async 
   }
 })
 
+// Download guarantor document (from reference-documents bucket)
+router.get('/download-guarantor/:guarantorId/:filename', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { guarantorId, filename } = req.params
+
+    // Verify the guarantor reference exists
+    const { data: guarantorRef, error: refError } = await supabase
+      .from('guarantor_references')
+      .select('id, reference_id')
+      .eq('id', guarantorId)
+      .single()
+
+    if (refError || !guarantorRef) {
+      return res.status(404).json({ error: 'Guarantor reference not found' })
+    }
+
+    // Construct file path (guarantor-documents/{guarantorId}/{filename})
+    const filePath = `guarantor-documents/${guarantorId}/${filename}`
+
+    // Download file from reference-documents storage bucket
+    const { data, error: downloadError } = await supabase.storage
+      .from('reference-documents')
+      .download(filePath)
+
+    if (downloadError) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+
+    // Set content type based on file extension
+    const ext = filename.split('.').pop()?.toLowerCase()
+    const contentTypes: { [key: string]: string } = {
+      'pdf': 'application/pdf',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'webp': 'image/webp'
+    }
+    const contentType = contentTypes[ext || ''] || 'application/octet-stream'
+
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+
+    // Convert blob to buffer and send
+    const buffer = Buffer.from(await data.arrayBuffer())
+    res.send(buffer)
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Get Creditsafe verification results for a reference
 router.get('/references/:id/creditsafe', authenticateStaff, async (req: StaffAuthRequest, res) => {
   try {

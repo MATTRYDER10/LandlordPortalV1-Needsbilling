@@ -1046,6 +1046,61 @@
                       </div>
                     </div>
                   </div>
+
+                  <!-- Guarantor Documents Section -->
+                  <div v-if="guarantorReference.id_document_path || guarantorReference.selfie_path || guarantorReference.proof_of_address_path || guarantorReference.bank_statement_path" class="mt-4 pt-4 border-t border-blue-300">
+                    <h5 class="text-sm font-semibold text-blue-800 mb-3">Uploaded Documents</h5>
+                    <div class="space-y-2">
+                      <div v-if="guarantorReference.id_document_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-blue-200">
+                        <div class="flex items-center">
+                          <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          <span class="text-sm text-blue-900">ID Document</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <button @click="viewGuarantorFile(guarantorReference.id_document_path, guarantorReference.id)" class="px-2 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded">View</button>
+                          <button @click="downloadGuarantorFile(guarantorReference.id_document_path, guarantorReference.id)" class="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 rounded border border-blue-600">Download</button>
+                        </div>
+                      </div>
+                      <div v-if="guarantorReference.selfie_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-blue-200">
+                        <div class="flex items-center">
+                          <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span class="text-sm text-blue-900">Selfie</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <button @click="viewGuarantorFile(guarantorReference.selfie_path, guarantorReference.id)" class="px-2 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded">View</button>
+                          <button @click="downloadGuarantorFile(guarantorReference.selfie_path, guarantorReference.id)" class="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 rounded border border-blue-600">Download</button>
+                        </div>
+                      </div>
+                      <div v-if="guarantorReference.proof_of_address_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-blue-200">
+                        <div class="flex items-center">
+                          <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                          </svg>
+                          <span class="text-sm text-blue-900">Proof of Address</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <button @click="viewGuarantorFile(guarantorReference.proof_of_address_path, guarantorReference.id)" class="px-2 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded">View</button>
+                          <button @click="downloadGuarantorFile(guarantorReference.proof_of_address_path, guarantorReference.id)" class="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 rounded border border-blue-600">Download</button>
+                        </div>
+                      </div>
+                      <div v-if="guarantorReference.bank_statement_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-blue-200">
+                        <div class="flex items-center">
+                          <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span class="text-sm text-blue-900">Bank Statement</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <button @click="viewGuarantorFile(guarantorReference.bank_statement_path, guarantorReference.id)" class="px-2 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded">View</button>
+                          <button @click="downloadGuarantorFile(guarantorReference.bank_statement_path, guarantorReference.id)" class="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 rounded border border-blue-600">Download</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2506,6 +2561,96 @@ const closeDocumentViewer = () => {
   viewingDocumentName.value = ''
   viewingDocumentPath.value = ''
   viewingDocumentType.value = ''
+}
+
+// Helper functions for guarantor documents
+const viewGuarantorFile = async (filePath: string, guarantorId: string) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    // Extract filename from path (guarantor-documents/{guarantorId}/{filename})
+    const parts = filePath.split('/')
+    const filename = parts[parts.length - 1]
+    const downloadUrl = `${API_URL}/api/staff/download-guarantor/${guarantorId}/${encodeURIComponent(filename)}`
+
+    const response = await fetch(downloadUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to load file')
+    }
+
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+
+    // Detect file type from filename
+    const extension = filename.split('.').pop()?.toLowerCase()
+    const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
+    const pdfExtensions = ['pdf']
+
+    let docType = 'image'
+    if (pdfExtensions.includes(extension || '')) {
+      docType = 'pdf'
+      // For PDFs, open in new window instead of modal to avoid CORS issues
+      window.open(blobUrl, '_blank')
+      return
+    } else if (imageExtensions.includes(extension || '')) {
+      docType = 'image'
+    }
+
+    // Set modal state for images
+    viewingDocumentUrl.value = blobUrl
+    viewingDocumentName.value = filename
+    viewingDocumentPath.value = filePath
+    viewingDocumentType.value = docType
+    viewingDocument.value = true
+  } catch (error) {
+    toast.error('Failed to view file')
+  }
+}
+
+const downloadGuarantorFile = async (filePath: string, guarantorId: string) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    // Extract filename from path (guarantor-documents/{guarantorId}/{filename})
+    const parts = filePath.split('/')
+    const filename = parts[parts.length - 1]
+    const downloadUrl = `${API_URL}/api/staff/download-guarantor/${guarantorId}/${encodeURIComponent(filename)}`
+
+    const response = await fetch(downloadUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to download file')
+    }
+
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(blobUrl)
+    document.body.removeChild(a)
+  } catch (error) {
+    toast.error('Failed to download file')
+  }
 }
 
 const verifyReference = async () => {

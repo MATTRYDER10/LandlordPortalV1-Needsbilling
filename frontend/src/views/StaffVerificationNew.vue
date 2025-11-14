@@ -114,6 +114,75 @@
         </div>
       </div>
 
+      <!-- Guarantor Information Card -->
+      <div v-if="guarantorReference && guarantorReference.submitted_at" class="bg-purple-50 border border-purple-200 rounded-lg shadow p-6 mb-6">
+        <h3 class="text-lg font-semibold text-purple-900 mb-4">Guarantor Information</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div>
+            <p class="text-sm text-purple-700 font-medium">Name</p>
+            <p class="font-medium text-purple-900">{{ guarantorReference.guarantor_first_name }} {{ guarantorReference.guarantor_last_name }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-purple-700 font-medium">Email</p>
+            <p class="font-medium text-purple-900">{{ guarantorReference.email }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-purple-700 font-medium">Phone</p>
+            <p class="font-medium text-purple-900">{{ guarantorReference.contact_number }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-purple-700 font-medium">Relationship</p>
+            <p class="font-medium text-purple-900 capitalize">{{ guarantorReference.relationship_to_tenant }}</p>
+          </div>
+        </div>
+        
+        <!-- Guarantor Documents -->
+        <div v-if="guarantorReference.id_document_path || guarantorReference.selfie_path || guarantorReference.proof_of_address_path || guarantorReference.bank_statement_path" class="mt-4 pt-4 border-t border-purple-300">
+          <h4 class="text-sm font-semibold text-purple-800 mb-3">Guarantor Documents</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div v-if="guarantorReference.id_document_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
+              <span class="text-sm text-purple-900">ID Document</span>
+              <a :href="`${import.meta.env.VITE_API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.id_document_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+            </div>
+            <div v-if="guarantorReference.selfie_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
+              <span class="text-sm text-purple-900">Selfie</span>
+              <a :href="`${import.meta.env.VITE_API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.selfie_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+            </div>
+            <div v-if="guarantorReference.proof_of_address_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
+              <span class="text-sm text-purple-900">Proof of Address</span>
+              <a :href="`${import.meta.env.VITE_API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.proof_of_address_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+            </div>
+            <div v-if="guarantorReference.bank_statement_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
+              <span class="text-sm text-purple-900">Bank Statement</span>
+              <a :href="`${import.meta.env.VITE_API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.bank_statement_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Guarantor Financial Summary -->
+        <div v-if="guarantorReference.annual_income || guarantorReference.savings_amount" class="mt-4 pt-4 border-t border-purple-300">
+          <h4 class="text-sm font-semibold text-purple-800 mb-3">Financial Summary</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div v-if="guarantorReference.annual_income">
+              <p class="text-sm text-purple-700 font-medium">Annual Income</p>
+              <p class="font-medium text-purple-900">£{{ parseFloat(guarantorReference.annual_income || '0').toLocaleString('en-GB') }}</p>
+            </div>
+            <div v-if="guarantorReference.savings_amount">
+              <p class="text-sm text-purple-700 font-medium">Savings</p>
+              <p class="font-medium text-purple-900">£{{ parseFloat(guarantorReference.savings_amount || '0').toLocaleString('en-GB') }}</p>
+            </div>
+            <div v-if="guarantorReference.employment_status">
+              <p class="text-sm text-purple-700 font-medium">Employment Status</p>
+              <p class="font-medium text-purple-900 capitalize">{{ guarantorReference.employment_status }}</p>
+            </div>
+            <div v-if="guarantorReference.home_ownership_status">
+              <p class="text-sm text-purple-700 font-medium">Home Ownership</p>
+              <p class="font-medium text-purple-900 capitalize">{{ guarantorReference.home_ownership_status }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Step Content -->
       <div class="bg-white rounded-lg shadow p-6">
 
@@ -1205,6 +1274,7 @@ const idDocumentBlobUrl = ref('')
 const selfieBlobUrl = ref('')
 const landlordReference = ref<any>(null)
 const agentReference = ref<any>(null)
+const guarantorReference = ref<any>(null)
 const creditCheckData = ref<any>(null)
 const sanctionsData = ref<any>(null)
 const creditsafeData = ref<any>(null)
@@ -1386,9 +1456,11 @@ const loadData = async () => {
         const refDetailData = await refDetailResponse.json()
         landlordReference.value = refDetailData.landlordReference || null
         agentReference.value = refDetailData.agentReference || null
-        console.log('Landlord/Agent references loaded:', {
+        guarantorReference.value = refDetailData.guarantorReference || null
+        console.log('Landlord/Agent/Guarantor references loaded:', {
           hasLandlord: !!landlordReference.value,
-          hasAgent: !!agentReference.value
+          hasAgent: !!agentReference.value,
+          hasGuarantor: !!guarantorReference.value
         })
       }
     } catch (err) {
