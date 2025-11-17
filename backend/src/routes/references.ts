@@ -2851,6 +2851,15 @@ router.post('/landlord/:referenceId', async (req, res) => {
         ? `${formData.propertyAddressLine1}, ${formData.propertyAddressLine2}`
         : formData.propertyAddressLine1)
 
+    // Helper function to convert empty date strings to null
+    const normalizeDate = (date: string | null | undefined): string | null => {
+      if (!date || date.trim() === '') return null
+      return date
+    }
+
+    // Determine if tenancy is still in progress based on status
+    const tenancyStillInProgress = formData.tenancyStatus === 'in-situ' || formData.tenancyStatus === 'notice-served' || formData.tenancyStillInProgress
+
     const dbData = {
       reference_id: referenceId,
       landlord_name_encrypted: encrypt(formData.landlordName),
@@ -2859,9 +2868,9 @@ router.post('/landlord/:referenceId', async (req, res) => {
       property_address_encrypted: encrypt(propertyAddress),
       property_city_encrypted: encrypt(formData.propertyCity || ''),
       property_postcode_encrypted: encrypt(formData.propertyPostcode || ''),
-      tenancy_start_date: formData.tenancyStartDate,
-      tenancy_end_date: formData.tenancyStillInProgress ? null : formData.tenancyEndDate,
-      tenancy_still_in_progress: formData.tenancyStillInProgress || false,
+      tenancy_start_date: normalizeDate(formData.tenancyStartDate),
+      tenancy_end_date: tenancyStillInProgress ? null : normalizeDate(formData.tenancyEndDate),
+      tenancy_still_in_progress: tenancyStillInProgress,
       monthly_rent_encrypted: encrypt(formData.monthlyRent ? String(formData.monthlyRent) : null),
       address_correct: formData.addressCorrect,
       corrected_address_line1_encrypted: encrypt(formData.correctedAddressLine1 || ''),
@@ -2874,7 +2883,7 @@ router.post('/landlord/:referenceId', async (req, res) => {
       additional_comments_encrypted: encrypt(formData.additionalComments || ''),
       signature_name_encrypted: encrypt(formData.signatureName),
       signature_encrypted: encrypt(formData.signature),
-      date: formData.date,
+      date: normalizeDate(formData.date),
       submitted_at: new Date().toISOString()
     }
 
@@ -2961,6 +2970,15 @@ router.post('/agent/:referenceId', async (req, res) => {
         ? `${formData.propertyAddressLine1}, ${formData.propertyAddressLine2}`
         : formData.propertyAddressLine1)
 
+    // Helper function to convert empty date strings to null
+    const normalizeDate = (date: string | null | undefined): string | null => {
+      if (!date || date.trim() === '') return null
+      return date
+    }
+
+    // Determine if tenancy is still in progress based on status
+    const tenancyStillInProgress = formData.tenancyStatus === 'in-situ' || formData.tenancyStatus === 'notice-served' || formData.tenancyStillInProgress
+
     const dbData = {
       reference_id: referenceId,
       agent_name_encrypted: encrypt(formData.agentName),
@@ -2975,9 +2993,9 @@ router.post('/agent/:referenceId', async (req, res) => {
       corrected_address_line2_encrypted: encrypt(formData.correctedAddressLine2 || ''),
       corrected_city_encrypted: encrypt(formData.correctedCity || ''),
       corrected_postcode_encrypted: encrypt(formData.correctedPostcode || ''),
-      tenancy_start_date: formData.tenancyStartDate,
-      tenancy_end_date: formData.tenancyStillInProgress ? null : formData.tenancyEndDate,
-      tenancy_still_in_progress: formData.tenancyStillInProgress || false,
+      tenancy_start_date: normalizeDate(formData.tenancyStartDate),
+      tenancy_end_date: tenancyStillInProgress ? null : normalizeDate(formData.tenancyEndDate),
+      tenancy_still_in_progress: tenancyStillInProgress,
       monthly_rent_encrypted: encrypt(formData.monthlyRent ? String(formData.monthlyRent) : null),
       rent_paid_on_time: formData.rentPaidOnTime,
       good_tenant: formData.goodTenant, // "Have they been a good tenant" question
@@ -2985,7 +3003,7 @@ router.post('/agent/:referenceId', async (req, res) => {
       additional_comments_encrypted: encrypt(formData.additionalComments || ''),
       signature_name_encrypted: encrypt(formData.signatureName),
       signature_encrypted: encrypt(formData.signature),
-      date: formData.date,
+      date: normalizeDate(formData.date),
       submitted_at: new Date().toISOString()
     }
 
