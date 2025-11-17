@@ -2572,7 +2572,13 @@ router.get('/view/:token', async (req, res) => {
           name_encrypted,
           logo_url,
           primary_color,
-          button_color
+          button_color,
+          phone_encrypted,
+          email_encrypted,
+          address_encrypted,
+          city_encrypted,
+          postcode_encrypted,
+          website_encrypted
         )
       `)
       .eq('reference_token_hash', tokenHash)
@@ -2591,6 +2597,18 @@ router.get('/view/:token', async (req, res) => {
 
     // Decrypt fields for display
     const company = Array.isArray(reference.companies) ? reference.companies[0] : reference.companies
+    const companyDetails = company ? {
+      logo_url: company.logo_url || '',
+      primary_color: company.primary_color || '#FF8C41',
+      button_color: company.button_color || '#FF8C41',
+      name: company?.name_encrypted ? decrypt(company.name_encrypted) : '',
+      phone: company?.phone_encrypted ? decrypt(company.phone_encrypted) : '',
+      email: company?.email_encrypted ? decrypt(company.email_encrypted) : '',
+      address: company?.address_encrypted ? decrypt(company.address_encrypted) : '',
+      city: company?.city_encrypted ? decrypt(company.city_encrypted) : '',
+      postcode: company?.postcode_encrypted ? decrypt(company.postcode_encrypted) : '',
+      website: company?.website_encrypted ? decrypt(company.website_encrypted) : ''
+    } : null
     const decryptedReference: any = {
       ...reference,
       tenant_first_name: decrypt((reference as any).tenant_first_name_encrypted),
@@ -2599,7 +2617,7 @@ router.get('/view/:token', async (req, res) => {
       property_address: decrypt((reference as any).property_address_encrypted),
       property_city: decrypt((reference as any).property_city_encrypted),
       property_postcode: decrypt((reference as any).property_postcode_encrypted),
-      company_name: company?.name_encrypted ? decrypt(company.name_encrypted) : ''
+      company_name: companyDetails?.name || ''
     }
 
     // If this is a guarantor reference, the parent tenant's name is stored in guarantor fields
@@ -2615,7 +2633,18 @@ router.get('/view/:token', async (req, res) => {
       }
     }
 
-    res.json({ reference: decryptedReference })
+    res.json({
+      reference: {
+        ...decryptedReference,
+        companies: companyDetails,
+        company_phone: companyDetails?.phone || '',
+        company_email: companyDetails?.email || '',
+        company_address: companyDetails?.address || '',
+        company_city: companyDetails?.city || '',
+        company_postcode: companyDetails?.postcode || '',
+        company_website: companyDetails?.website || ''
+      }
+    })
   } catch (error: any) {
     console.error('Exception in /view/:token:', error)
     res.status(500).json({ error: error.message })

@@ -19,7 +19,7 @@
       </div>
 
       <!-- Progress Bar -->
-      <div v-if="!initialLoading && !tokenError && reference && !reference.submitted_at" class="mb-8">
+      <div v-if="showProgressBar" class="mb-8">
         <div class="flex justify-between items-center mb-2">
           <span class="text-sm font-medium text-gray-700">Page {{ getDisplayPage(currentPage) }} of {{ totalPages }}</span>
           <span class="text-sm text-gray-500">{{ Math.round((getDisplayPage(currentPage) / totalPages) * 100) }}% Complete</span>
@@ -49,7 +49,25 @@
       </div>
 
       <!-- Form -->
-      <form v-else-if="reference" @submit.prevent="handlePageSubmit" class="space-y-6">
+      <div v-else-if="reference">
+        <DeviceHandoffGate
+          v-if="showDeviceGate"
+          :title="deviceGateTitle"
+          :description="deviceGateDescription"
+          :company-name="agentCompanyName"
+          :company-logo="companyLogo"
+          :company-contact-email="agentCompanyEmail"
+          :company-contact-phone="agentCompanyPhone"
+          :company-contact-address="agentCompanyAddress"
+          :company-website="agentCompanyWebsite"
+          :request-details="guarantorRequestDetails"
+          :link="deviceLink"
+          :primary-color="primaryColor"
+          :button-color="buttonColor"
+          proceed-label="Proceed on this device (Camera required)"
+          @proceed="handleDeviceGateProceed"
+        />
+        <form v-else @submit.prevent="handlePageSubmit" class="space-y-6">
 
         <!-- PAGE 1: ID Document Upload -->
         <div v-if="currentPage === 1" class="bg-white rounded-lg shadow p-6">
@@ -1797,7 +1815,8 @@
             </button>
           </div>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   </div>
 </template>
@@ -1809,6 +1828,7 @@ import PhoneInput from '../components/PhoneInput.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import DatePicker from '../components/DatePicker.vue'
+import DeviceHandoffGate from '../components/DeviceHandoffGate.vue'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 
 const route = useRoute()
@@ -1817,6 +1837,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 // LocalStorage key for this reference
 const getStorageKey = () => `tenant_reference_form_${route.params.token}`
+const getDeviceGateStorageKey = () => `${getStorageKey()}_device_gate_ack`
 
 const reference = ref<any>(null)
 const initialLoading = ref(true)
@@ -1836,6 +1857,8 @@ const landlordEmailError = ref('')
 const companyLogo = ref('')
 const primaryColor = ref('#FF8C41')
 const buttonColor = ref('#FF8C41')
+const showDeviceGate = ref(true)
+const deviceLink = ref('')
 
 // Nationality search
 const nationalitySearch = ref('')
@@ -2552,6 +2575,11 @@ const formData = ref({
 })
 
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    deviceLink.value = window.location.href
+    const hasAcknowledged = localStorage.getItem(getDeviceGateStorageKey())
+    showDeviceGate.value = hasAcknowledged !== 'true'
+  }
   fetchReferenceByToken()
 })
 
@@ -2946,6 +2974,79 @@ const formatFileSize = (bytes: number) => {
   const sizes = ['Bytes', 'KB', 'MB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+const agentCompanyName = computed(() => reference.value?.company_name || reference.value?.companies?.name || 'your agent')
+const agentCompanyEmail = computed(() => reference.value?.company_email || reference.value?.companies?.email || '')
+const agentCompanyPhone = computed(() => reference.value?.company_phone || reference.value?.companies?.phone || '')
+const agentCompanyAddress = computed(() => {
+  const parts = [
+    reference.value?.company_address || reference.value?.companies?.address || '',
+    reference.value?.company_city || reference.value?.companies?.city || '',
+    reference.value?.company_postcode || reference.value?.companies?.postcode || ''
+  ].filter(Boolean)
+  return parts.join(', ')
+})
+const agentCompanyWebsite = computed(() => reference.value?.company_website || reference.value?.companies?.website || '')
+
+const guarantorRequestDetails = computed(() => {
+  if (!reference.value) return []
+  const details: { label: string; value: string }[] = []
+  const supportedTenant = [
+    reference.value.parent_tenant_first_name || reference.value.tenant_first_name,
+    reference.value.parent_tenant_last_name || reference.value.tenant_last_name
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+
+  if (supportedTenant) {
+    details.push({ label: 'Tenant you are supporting', value: supportedTenant })
+  }
+  if (reference.value.property_address) {
+    details.push({ label: 'Property', value: reference.value.property_address })
+  }
+  if (reference.value.move_in_date) {
+    try {
+      details.push({
+        label: 'Proposed Move-in',
+        value: new Date(reference.value.move_in_date).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        })
+      })
+    } catch (error) {
+      details.push({ label: 'Proposed Move-in', value: reference.value.move_in_date })
+    }
+  }
+  if (reference.value.monthly_rent) {
+    const rent = Number(reference.value.monthly_rent)
+    if (!Number.isNaN(rent) && rent > 0) {
+      details.push({
+        label: 'Monthly Rent',
+        value: `£${rent.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+      })
+    }
+  }
+  return details
+})
+
+const deviceGateTitle = computed(() => `Confirm the guarantor request from ${agentCompanyName.value}`)
+const deviceGateDescription = computed(
+  () =>
+    `${agentCompanyName.value} needs to verify your identity so you can act as a guarantor. Use the QR code to switch to your phone or continue here if this device has a working camera.`
+)
+
+const showProgressBar = computed(
+  () => !initialLoading.value && !tokenError.value && reference.value && !reference.value.submitted_at && !showDeviceGate.value
+)
+
+const handleDeviceGateProceed = () => {
+  showDeviceGate.value = false
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(getDeviceGateStorageKey(), 'true')
+  }
 }
 
 const goToPreviousPage = () => {

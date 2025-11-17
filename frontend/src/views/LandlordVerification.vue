@@ -4,10 +4,15 @@
       <!-- Header -->
       <div v-if="!loading" class="text-center mb-8">
         <div class="flex justify-center items-center gap-3 mb-4">
-          <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
-          <span class="text-2xl font-bold">
-            <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-          </span>
+          <template v-if="companyLogo">
+            <img :src="companyLogo" alt="Company Logo" class="h-14 object-contain" />
+          </template>
+          <template v-else>
+            <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
+            <span class="text-2xl font-bold">
+              <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
+            </span>
+          </template>
         </div>
         <h1 class="text-3xl font-bold text-gray-900">Landlord Verification</h1>
         <p class="mt-2 text-gray-600">Please complete your identity verification</p>
@@ -35,7 +40,25 @@
       </div>
 
       <!-- Form -->
-      <form v-else-if="landlord" @submit.prevent="handleSubmit" class="space-y-6">
+      <div v-else-if="landlord">
+        <DeviceHandoffGate
+          v-if="showDeviceGate"
+          :title="deviceGateTitle"
+          :description="deviceGateDescription"
+          :company-name="agentCompanyName"
+          :company-logo="companyLogo"
+          :company-contact-email="agentCompanyEmail"
+          :company-contact-phone="agentCompanyPhone"
+          :company-contact-address="agentCompanyAddress"
+          :company-website="agentCompanyWebsite"
+          :request-details="landlordRequestDetails"
+          :link="deviceLink"
+          :primary-color="primaryColor"
+          :button-color="buttonColor"
+          proceed-label="Proceed on this device (Camera required)"
+          @proceed="handleDeviceGateProceed"
+        />
+        <form v-else @submit.prevent="handleSubmit" class="space-y-6">
         <div class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Identity Verification</h2>
           <p class="text-sm text-gray-600 mb-6">Please upload a clear photo of your ID document and take a selfie for
@@ -90,20 +113,23 @@
             {{ submitting ? 'Submitting...' : 'Submit Verification' }}
           </button>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
+import DeviceHandoffGate from '../components/DeviceHandoffGate.vue'
 
 const route = useRoute()
 const toast = useToast()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const getDeviceGateStorageKey = () => `landlord_verification_gate_${route.params.id}_${route.params.token}`
 
 const loading = ref(true)
 const error = ref('')
@@ -113,6 +139,11 @@ const landlord = ref<any>(null)
 const idDocument = ref<File | null>(null)
 const selfie = ref<File | null>(null)
 const buttonColor = ref('#f97316')
+const primaryColor = ref('#f97316')
+const companyLogo = ref('')
+const companyDetails = ref<any>(null)
+const showDeviceGate = ref(true)
+const deviceLink = ref('')
 
 const formData = ref({
   id_document_type: ''
@@ -147,6 +178,12 @@ const fetchLandlord = async () => {
 
     const data = await response.json()
     landlord.value = data.landlord
+    if (data.company) {
+      companyDetails.value = data.company
+      companyLogo.value = data.company.logo_url || ''
+      primaryColor.value = data.company.primary_color || primaryColor.value
+      buttonColor.value = data.company.button_color || buttonColor.value
+    }
 
     // Check if already submitted
     if (landlord.value.verification_status === 'submitted' || landlord.value.verification_status === 'verified') {
@@ -177,6 +214,44 @@ const handleSelfieUpload = (event: Event) => {
     if (file) {
       selfie.value = file
     }
+  }
+}
+
+const agentCompanyName = computed(() => companyDetails.value?.name || 'your letting agent')
+const agentCompanyEmail = computed(() => companyDetails.value?.email || '')
+const agentCompanyPhone = computed(() => companyDetails.value?.phone || '')
+const agentCompanyAddress = computed(() => {
+  const parts = [companyDetails.value?.address, companyDetails.value?.city, companyDetails.value?.postcode].filter(Boolean)
+  return parts.join(', ')
+})
+const agentCompanyWebsite = computed(() => companyDetails.value?.website || '')
+
+const landlordRequestDetails = computed(() => {
+  if (!landlord.value) return []
+  const details: { label: string; value: string }[] = []
+  const landlordName = [landlord.value.first_name, landlord.value.last_name].filter(Boolean).join(' ').trim()
+  if (landlordName) {
+    details.push({ label: 'Landlord', value: landlordName })
+  }
+  if (landlord.value.email) {
+    details.push({ label: 'Email', value: landlord.value.email })
+  }
+  if (agentCompanyName.value) {
+    details.push({ label: 'Agent', value: agentCompanyName.value })
+  }
+  return details
+})
+
+const deviceGateTitle = computed(() => `Confirm the request from ${agentCompanyName.value}`)
+const deviceGateDescription = computed(
+  () =>
+    `${agentCompanyName.value} needs to verify your identity to progress with compliance checks. Use the QR code to open this form on your phone, or continue on this device if it has a working camera.`
+)
+
+const handleDeviceGateProceed = () => {
+  showDeviceGate.value = false
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(getDeviceGateStorageKey(), 'true')
   }
 }
 
@@ -218,6 +293,11 @@ const handleSubmit = async () => {
 }
 
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    deviceLink.value = window.location.href
+    const hasAcknowledged = localStorage.getItem(getDeviceGateStorageKey())
+    showDeviceGate.value = hasAcknowledged !== 'true'
+  }
   fetchLandlord()
 })
 </script>

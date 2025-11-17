@@ -877,7 +877,7 @@ router.get('/:id/verification/:token', async (req, res) => {
     // Get landlord
     const { data: landlord, error: landlordError } = await supabase
       .from('landlords')
-      .select('id, first_name_encrypted, last_name_encrypted, email_encrypted, verification_status, verification_submitted_at')
+      .select('id, company_id, first_name_encrypted, last_name_encrypted, email_encrypted, verification_status, verification_submitted_at')
       .eq('id', landlordId)
       .single()
 
@@ -895,7 +895,31 @@ router.get('/:id/verification/:token', async (req, res) => {
       verification_submitted_at: landlord.verification_submitted_at
     }
 
-    res.json({ landlord: decryptedLandlord })
+    let companyDetails = null
+    if (landlord.company_id) {
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('name_encrypted, phone_encrypted, email_encrypted, address_encrypted, city_encrypted, postcode_encrypted, website_encrypted, logo_url, primary_color, button_color')
+        .eq('id', landlord.company_id)
+        .single()
+
+      if (!companyError && company) {
+        companyDetails = {
+          name: company.name_encrypted ? decrypt(company.name_encrypted) : '',
+          phone: company.phone_encrypted ? decrypt(company.phone_encrypted) : '',
+          email: company.email_encrypted ? decrypt(company.email_encrypted) : '',
+          address: company.address_encrypted ? decrypt(company.address_encrypted) : '',
+          city: company.city_encrypted ? decrypt(company.city_encrypted) : '',
+          postcode: company.postcode_encrypted ? decrypt(company.postcode_encrypted) : '',
+          website: company.website_encrypted ? decrypt(company.website_encrypted) : '',
+          logo_url: company.logo_url || '',
+          primary_color: company.primary_color || '#f97316',
+          button_color: company.button_color || '#f97316'
+        }
+      }
+    }
+
+    res.json({ landlord: decryptedLandlord, company: companyDetails })
   } catch (error: any) {
     console.error('Error fetching landlord verification:', error)
     res.status(500).json({ error: error.message })
