@@ -20,7 +20,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
 
         const {
             tenant_email,
-            property_address
+            property_address,
+            offer_deposit_replacement
         } = req.body
 
         // Validate required fields
@@ -51,7 +52,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             : ''
 
         // Generate offer form link with company ID
-        const offerLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offer?company_id=${companyUser.company_id}`
+        const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
+        const offerLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}`
 
         // Send email to tenant with offer form link
         try {
@@ -72,7 +74,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         res.status(200).json({
             success: true,
             message: 'Offer form link sent successfully',
-            email: tenant_email
+            email: tenant_email,
+            deposit_replacement_offered: !!offer_deposit_replacement
         })
     } catch (error: any) {
         console.error('Error sending offer form link:', error)
@@ -328,7 +331,9 @@ router.post('/submit', async (req, res) => {
             proposed_tenancy_length_months,
             deposit_amount,
             special_conditions,
-            tenants // Array of tenant objects
+            tenants, // Array of tenant objects
+            deposit_replacement_offered,
+            deposit_replacement_requested
         } = req.body
 
         // Validate required fields
@@ -375,6 +380,22 @@ router.post('/submit', async (req, res) => {
             return res.status(404).json({ error: 'Company not found' })
         }
 
+        const normalizeBoolean = (value: any): boolean => {
+            if (Array.isArray(value)) {
+                return value.some(item => normalizeBoolean(item))
+            }
+            if (typeof value === 'boolean') return value
+            if (typeof value === 'string') {
+                const normalized = value.toLowerCase()
+                return normalized === 'true' || normalized === '1' || normalized === 'yes'
+            }
+            return false
+        }
+
+        const depositReplacementOfferedFromQuery = normalizeBoolean(req.query.deposit_replacement_offered)
+        const depositReplacementOffered = normalizeBoolean(deposit_replacement_offered) || depositReplacementOfferedFromQuery
+        const depositReplacementRequested = depositReplacementOffered && normalizeBoolean(deposit_replacement_requested)
+
         // Create offer
         const { data: offer, error: offerError } = await supabase
             .from('tenant_offers')
@@ -388,7 +409,9 @@ router.post('/submit', async (req, res) => {
                 proposed_tenancy_length_months: parseInt(proposed_tenancy_length_months),
                 deposit_amount: deposit_amount ? parseFloat(deposit_amount) : null,
                 special_conditions_encrypted: special_conditions ? encrypt(special_conditions) : null,
-                status: 'pending'
+                status: 'pending',
+                deposit_replacement_offered: depositReplacementOffered,
+                deposit_replacement_requested: depositReplacementRequested
             })
             .select()
             .single()

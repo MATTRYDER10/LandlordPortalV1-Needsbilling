@@ -11,7 +11,7 @@
 
       <div v-else-if="offer" class="space-y-6">
         <!-- Header -->
-        <div class="flex justify-between items-start">
+        <div class="flex flex-col gap-4 md:flex-row md:justify-between md:items-start">
           <div>
             <button @click="$router.push('/tenant-offers')"
               class="text-gray-600 hover:text-gray-900 mb-4 flex items-center">
@@ -23,13 +23,20 @@
             <h2 class="text-3xl font-bold text-gray-900">{{ offer.property_address }}</h2>
             <p class="mt-2 text-gray-600">Tenant Offer Details</p>
           </div>
-          <span class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-2" :class="statusBadgeClass">
-            <span>{{ statusDisplay }}</span>
-            <svg v-if="showStatusTick" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor"
-              viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </span>
+          <div class="flex flex-col items-start md:items-end gap-2">
+            <span class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-2"
+              :class="statusBadgeClass">
+              <span>{{ statusDisplay }}</span>
+              <svg v-if="showStatusTick" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
+            <span v-if="offer.deposit_replacement_requested"
+              class="px-3 py-1 text-sm font-semibold rounded-full bg-emerald-100 text-emerald-800 whitespace-nowrap">
+              Deposit replacement service applied for
+            </span>
+          </div>
         </div>
 
         <!-- Action Buttons -->
@@ -94,6 +101,15 @@
             <div>
               <dt class="text-sm font-medium text-gray-500">Holding Deposit Amount</dt>
               <dd class="mt-1 text-sm text-gray-900">£{{ holdingDepositAmount.toFixed(2) }} (one week's rent)</dd>
+            </div>
+            <div v-if="offer.deposit_replacement_offered" class="sm:col-span-2">
+              <dt class="text-sm font-medium text-gray-500">Deposit Replacement Service</dt>
+              <dd class="mt-1 text-sm text-gray-900">
+                <span v-if="offer.deposit_replacement_requested" class="text-green-700 font-medium">
+                  Deposit replacement service applied for
+                </span>
+                <span v-else class="text-gray-600">Not requested</span>
+              </dd>
             </div>
             <div v-if="offer.holding_deposit_amount_paid">
               <dt class="text-sm font-medium text-gray-500">Holding Deposit Paid</dt>

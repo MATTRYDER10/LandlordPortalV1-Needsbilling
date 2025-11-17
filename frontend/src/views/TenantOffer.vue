@@ -201,6 +201,25 @@
                     </div>
                 </div>
 
+            <!-- Deposit Replacement Service -->
+            <div v-if="depositReplacementOffered" class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Deposit Replacement Service</h2>
+                <p class="text-sm text-gray-600">
+                    We offer a deposit replacement service that can reduce upfront costs while providing landlords with
+                    protection comparable to a traditional deposit.
+                </p>
+                <div class="mt-4 flex items-start gap-3">
+                    <input id="deposit-replacement-opt-in" v-model="formData.deposit_replacement_requested" type="checkbox"
+                        class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
+                    <label for="deposit-replacement-opt-in" class="text-sm text-gray-700">
+                        I would like to apply for the deposit replacement service.
+                    </label>
+                </div>
+                <p class="mt-2 text-xs text-gray-500">
+                    We will review your request and confirm eligibility with you after receiving your offer.
+                </p>
+            </div>
+
                 <!-- Terms and Conditions -->
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-xl font-semibold text-gray-900 mb-4">Holding Deposit Agreement</h2>
@@ -296,7 +315,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
@@ -339,8 +358,24 @@ const formData = ref({
     ],
     signature: '',
     signature_name: '',
-    terms_agreed: false
+    terms_agreed: false,
+    deposit_replacement_requested: false
 })
+
+const parseBooleanQueryParam = (value: string | string[] | undefined): boolean => {
+    if (Array.isArray(value)) {
+        return value.some(item => parseBooleanQueryParam(item))
+    }
+    if (typeof value !== 'string') {
+        return false
+    }
+    const normalized = value.toLowerCase()
+    return normalized === '1' || normalized === 'true' || normalized === 'yes'
+}
+
+const depositReplacementOffered = computed(() =>
+    parseBooleanQueryParam(route.query.deposit_replacement_offered as string | string[] | undefined)
+)
 
 const addTenant = () => {
     formData.value.tenants.push({
@@ -439,7 +474,9 @@ const handleSubmit = async () => {
                 no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
                 signature: formData.value.signature,
                 signature_name: formData.value.signature_name
-            }))
+            })),
+            deposit_replacement_offered: depositReplacementOffered.value,
+            deposit_replacement_requested: depositReplacementOffered.value ? formData.value.deposit_replacement_requested : false
         }
 
         // Submit offer

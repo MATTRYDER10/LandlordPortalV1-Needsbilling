@@ -66,6 +66,22 @@
                                 @addressSelected="handlePropertyAddressSelected" />
                         </div>
 
+                        <!-- Deposit Replacement Offer -->
+                        <div class="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <input id="offer-deposit-replacement" type="checkbox"
+                                v-model="formData.offer_deposit_replacement"
+                                class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
+                            <div>
+                                <label for="offer-deposit-replacement" class="text-sm font-medium text-gray-900">
+                                    Offer Deposit Replacement
+                                </label>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    Include an option in the tenant application for them to request the deposit
+                                    replacement service.
+                                </p>
+                            </div>
+                        </div>
+
                         <!-- Submit Button -->
                         <div class="flex justify-end space-x-3">
                             <router-link to="/dashboard"
@@ -96,7 +112,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const formData = ref({
     applicant_email: '',
-    property_address: ''
+    property_address: '',
+    offer_deposit_replacement: false
 })
 
 const errorMessage = ref<string | null>(null)
@@ -139,7 +156,8 @@ const handleSubmit = async () => {
             },
             body: JSON.stringify({
                 tenant_email: formData.value.applicant_email,
-                property_address: formData.value.property_address
+                property_address: formData.value.property_address,
+                offer_deposit_replacement: formData.value.offer_deposit_replacement
             })
         })
 
@@ -157,7 +175,8 @@ const handleSubmit = async () => {
         // Clear form
         formData.value = {
             applicant_email: '',
-            property_address: ''
+            property_address: '',
+            offer_deposit_replacement: false
         }
     } catch (err: any) {
         errorMessage.value = err.message || 'An error occurred while sending the offer form link'
@@ -173,7 +192,8 @@ const createNewApplication = () => {
     successMessage.value = null
     formData.value = {
         applicant_email: '',
-        property_address: ''
+        property_address: '',
+        offer_deposit_replacement: false
     }
 }
 </script>

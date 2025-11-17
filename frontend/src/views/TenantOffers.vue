@@ -147,6 +147,11 @@
                         </svg>
                       </span>
                     </div>
+                    <div v-if="offer.deposit_replacement_requested" class="mt-2">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                        Deposit replacement service applied for
+                      </span>
+                    </div>
                     <div class="mt-2 text-sm text-gray-500">
                       <p><strong>Tenants:</strong> {{ offer.tenants.map((t: any) => t.name).join(', ') }}</p>
                       <p><strong>Offered Rent:</strong> £{{ offer.offered_rent_amount }} per month</p>
