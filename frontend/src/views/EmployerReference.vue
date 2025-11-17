@@ -26,7 +26,8 @@
       <!-- Success State -->
       <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
         <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <h3 class="mt-4 text-lg font-semibold text-gray-900">Thank You!</h3>
         <p class="mt-2 text-gray-600">Your employer reference has been submitted successfully.</p>
@@ -37,7 +38,10 @@
         <!-- Instruction Banner -->
         <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
           <p class="text-sm text-blue-900">
-            The tenant has input the below information whilst applying for a Rental property, they have named you as their employer, please check the information and correct where required, please ensure the form is filled out honestly and factually, if you cannot fill out this form please forward to your HR department to complete.
+            The tenant has input the below information whilst applying for a Rental property, they have named you as
+            their employer, please check the information and correct where required, please ensure the form is filled
+            out honestly and factually, if you cannot fill out this form please forward to your HR department to
+            complete.
           </p>
         </div>
 
@@ -52,57 +56,34 @@
           <div class="space-y-4">
             <div>
               <label for="company-name" class="block text-sm font-medium text-gray-700">Company Name *</label>
-              <input
-                id="company-name"
-                v-model="formData.companyName"
-                type="text"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <input id="company-name" v-model="formData.companyName" type="text" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
             </div>
 
             <div>
               <label for="employer-name" class="block text-sm font-medium text-gray-700">Your Full Name *</label>
-              <input
-                id="employer-name"
-                v-model="formData.employerName"
-                type="text"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <input id="employer-name" v-model="formData.employerName" type="text" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
             </div>
 
             <div>
-              <label for="employer-position" class="block text-sm font-medium text-gray-700">Your Position/Title *</label>
-              <input
-                id="employer-position"
-                v-model="formData.employerPosition"
-                type="text"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <label for="employer-position" class="block text-sm font-medium text-gray-700">Your Position/Title
+                *</label>
+              <input id="employer-position" v-model="formData.employerPosition" type="text" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label for="employer-email" class="block text-sm font-medium text-gray-700">Your Email Address *</label>
-                <input
-                  id="employer-email"
-                  v-model="formData.employerEmail"
-                  type="email"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
+                <input id="employer-email" v-model="formData.employerEmail" type="email" required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
               </div>
 
-              <PhoneInput
-                v-model="formData.employerPhone"
-                label="Your Phone Number"
-                id="employer-phone"
+              <PhoneInput v-model="formData.employerPhone" label="Your Phone Number" id="employer-phone"
                 :required="true"
                 select-class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                input-class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+                input-class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
             </div>
           </div>
         </div>
@@ -112,24 +93,16 @@
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Employment Information</h2>
           <div class="space-y-4">
             <div>
-              <label for="employee-position" class="block text-sm font-medium text-gray-700">Employee's Position/Title *</label>
-              <input
-                id="employee-position"
-                v-model="formData.employeePosition"
-                type="text"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <label for="employee-position" class="block text-sm font-medium text-gray-700">Employee's Position/Title
+                *</label>
+              <input id="employee-position" v-model="formData.employeePosition" type="text" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
             </div>
 
             <div>
               <label for="employment-type" class="block text-sm font-medium text-gray-700">Employment Type *</label>
-              <select
-                id="employment-type"
-                v-model="formData.employmentType"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
+              <select id="employment-type" v-model="formData.employmentType" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                 <option value="">Select an option</option>
                 <option value="full-time">Full-time</option>
                 <option value="part-time">Part-time</option>
@@ -140,33 +113,20 @@
             </div>
 
             <div class="flex items-center">
-              <input
-                id="is-current"
-                v-model="formData.isCurrentEmployee"
-                type="checkbox"
-                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
+              <input id="is-current" v-model="formData.isCurrentEmployee" type="checkbox"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
               <label for="is-current" class="ml-2 block text-sm text-gray-700">
                 Currently employed
               </label>
             </div>
 
-            <DatePicker
-              v-model="formData.employmentStartDate"
-              label="Employment Start Date"
-              :required="true"
+            <DatePicker v-model="formData.employmentStartDate" label="Employment Start Date" :required="true"
               year-range-type="employment"
-              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            />
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
 
-            <DatePicker
-              v-if="!formData.isCurrentEmployee"
-              v-model="formData.employmentEndDate"
-              label="Employment End Date"
-              :required="!formData.isCurrentEmployee"
-              year-range-type="employment"
-              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            />
+            <DatePicker v-if="!formData.isCurrentEmployee" v-model="formData.employmentEndDate"
+              label="Employment End Date" :required="!formData.isCurrentEmployee" year-range-type="employment"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
           </div>
         </div>
 
@@ -177,24 +137,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label for="salary" class="block text-sm font-medium text-gray-700">Salary (£) *</label>
-                <input
-                  id="salary"
-                  v-model="formData.annualSalary"
-                  type="number"
-                  step="0.01"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
+                <input id="salary" v-model="formData.annualSalary" type="number" step="0.01" required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
               </div>
 
               <div>
                 <label for="frequency" class="block text-sm font-medium text-gray-700">Pay Frequency *</label>
-                <select
-                  id="frequency"
-                  v-model="formData.salaryFrequency"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                >
+                <select id="frequency" v-model="formData.salaryFrequency" required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                   <option value="annual">Annual</option>
                   <option value="monthly">Monthly</option>
                   <option value="weekly">Weekly</option>
@@ -204,27 +154,19 @@
             </div>
 
             <div>
-              <label for="probation" class="block text-sm font-medium text-gray-700">Is the employee in a probationary period? *</label>
-              <select
-                id="probation"
-                v-model="formData.isProbation"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
+              <label for="probation" class="block text-sm font-medium text-gray-700">Is the employee in a probationary
+                period? *</label>
+              <select id="probation" v-model="formData.isProbation" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                 <option value="">Select an option</option>
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
             </div>
 
-            <DatePicker
-              v-if="formData.isProbation === 'yes'"
-              v-model="formData.probationEndDate"
-              label="Probation End Date"
-              :required="true"
-              year-range-type="future"
-              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            />
+            <DatePicker v-if="formData.isProbation === 'yes'" v-model="formData.probationEndDate"
+              label="Probation End Date" :required="true" year-range-type="future"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
           </div>
         </div>
 
@@ -233,13 +175,10 @@
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Employment Confirmation</h2>
           <div class="space-y-4">
             <div>
-              <label for="employment-status" class="block text-sm font-medium text-gray-700">Can you confirm the employment details above are accurate? *</label>
-              <select
-                id="employment-status"
-                v-model="formData.employmentStatus"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
+              <label for="employment-status" class="block text-sm font-medium text-gray-700">Can you confirm the
+                employment details above are accurate? *</label>
+              <select id="employment-status" v-model="formData.employmentStatus" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                 <option value="">Select an option</option>
                 <option value="confirmed">All details were correct</option>
                 <option value="partial">I've had to change a few details</option>
@@ -248,25 +187,18 @@
             </div>
 
             <div v-if="formData.employmentStatus === 'partial' || formData.employmentStatus === 'cannot-confirm'">
-              <label for="clarification-details" class="block text-sm font-medium text-gray-700">Please provide clarification *</label>
-              <textarea
-                id="clarification-details"
-                v-model="formData.clarificationDetails"
-                rows="3"
-                required
+              <label for="clarification-details" class="block text-sm font-medium text-gray-700">Please provide
+                clarification *</label>
+              <textarea id="clarification-details" v-model="formData.clarificationDetails" rows="3" required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Please explain which details need clarification or cannot be confirmed"
-              ></textarea>
+                placeholder="Please explain which details need clarification or cannot be confirmed"></textarea>
             </div>
 
             <div>
-              <label for="contract-type-confirmation" class="block text-sm font-medium text-gray-700">Can you confirm the contract type? *</label>
-              <select
-                id="contract-type-confirmation"
-                v-model="formData.contractTypeConfirmation"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
+              <label for="contract-type-confirmation" class="block text-sm font-medium text-gray-700">Can you confirm
+                the contract type? *</label>
+              <select id="contract-type-confirmation" v-model="formData.contractTypeConfirmation" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                 <option value="">Select an option</option>
                 <option value="permanent">Permanent</option>
                 <option value="fixed-term">Fixed-term contract</option>
@@ -276,40 +208,10 @@
             </div>
 
             <div>
-              <label for="income-expectation" class="block text-sm font-medium text-gray-700">Do you expect the employee's income to change in the near future? *</label>
-              <select
-                id="income-expectation"
-                v-model="formData.incomeExpectation"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select an option</option>
-                <option value="improve">Likely to improve</option>
-                <option value="stay-same">Expected to stay the same</option>
-                <option value="worsen">May worsen or reduce</option>
-                <option value="uncertain">Uncertain</option>
-              </select>
-            </div>
-
-            <div v-if="formData.incomeExpectation && formData.incomeExpectation !== 'stay-same'">
-              <label for="income-expectation-details" class="block text-sm font-medium text-gray-700">Please provide details</label>
-              <textarea
-                id="income-expectation-details"
-                v-model="formData.incomeExpectationDetails"
-                rows="3"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Please explain why you expect their income to change"
-              ></textarea>
-            </div>
-
-            <div>
-              <label for="employment-stable" class="block text-sm font-medium text-gray-700">Is the employee's position secure? *</label>
-              <select
-                id="employment-stable"
-                v-model="formData.employmentStable"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
+              <label for="employment-stable" class="block text-sm font-medium text-gray-700">Is the employee's position
+                secure? *</label>
+              <select id="employment-stable" v-model="formData.employmentStable" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                 <option value="">Select an option</option>
                 <option value="yes">Yes, position is secure</option>
                 <option value="at-risk">Position may be at risk</option>
@@ -318,26 +220,19 @@
             </div>
 
             <div v-if="formData.employmentStable !== 'yes'">
-              <label for="employment-stable-details" class="block text-sm font-medium text-gray-700">Please provide details *</label>
-              <textarea
-                id="employment-stable-details"
-                v-model="formData.employmentStableDetails"
-                rows="3"
-                required
+              <label for="employment-stable-details" class="block text-sm font-medium text-gray-700">Please provide
+                details *</label>
+              <textarea id="employment-stable-details" v-model="formData.employmentStableDetails" rows="3" required
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Please explain the employment situation"
-              ></textarea>
+                placeholder="Please explain the employment situation"></textarea>
             </div>
 
             <div>
-              <label for="additional-comments" class="block text-sm font-medium text-gray-700">Additional Comments</label>
-              <textarea
-                id="additional-comments"
-                v-model="formData.additionalComments"
-                rows="4"
+              <label for="additional-comments" class="block text-sm font-medium text-gray-700">Additional
+                Comments</label>
+              <textarea id="additional-comments" v-model="formData.additionalComments" rows="4"
                 placeholder="Please provide any additional information that may be relevant to this reference"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              ></textarea>
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea>
             </div>
           </div>
         </div>
@@ -347,7 +242,8 @@
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Declaration</h2>
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
             <p class="text-sm text-gray-700">
-              I declare that the information provided in this reference is true and accurate to the best of my knowledge.
+              I declare that the information provided in this reference is true and accurate to the best of my
+              knowledge.
               I understand that this information will be used to assess the individual's suitability for a tenancy.
             </p>
           </div>
@@ -355,27 +251,14 @@
           <div class="space-y-4">
             <div>
               <label for="signature-name" class="block text-sm font-medium text-gray-700">Full Name *</label>
-              <input
-                id="signature-name"
-                v-model="formData.signatureName"
-                type="text"
-                required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <input id="signature-name" v-model="formData.signatureName" type="text" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
             </div>
 
-            <SignaturePad
-              v-model="formData.signature"
-              label="Signature"
-            />
+            <SignaturePad v-model="formData.signature" label="Signature" />
 
-            <DatePicker
-              v-model="formData.date"
-              label="Date"
-              :required="true"
-              year-range-type="current"
-              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            />
+            <DatePicker v-model="formData.date" label="Date" :required="true" year-range-type="current"
+              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
           </div>
         </div>
 
@@ -386,12 +269,9 @@
 
         <!-- Submit Button -->
         <div class="bg-white rounded-lg shadow p-6">
-          <button
-            type="submit"
-            :disabled="submitting"
+          <button type="submit" :disabled="submitting"
             class="w-full px-6 py-3 text-base font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-            :style="{ backgroundColor: buttonColor }"
-          >
+            :style="{ backgroundColor: buttonColor }">
             {{ submitting ? 'Submitting...' : 'Submit Reference' }}
           </button>
         </div>
@@ -442,8 +322,6 @@ const formData = ref({
   employmentStatus: '',
   clarificationDetails: '',
   contractTypeConfirmation: '',
-  incomeExpectation: '',
-  incomeExpectationDetails: '',
   employmentStable: '',
   employmentStableDetails: '',
   additionalComments: '',
