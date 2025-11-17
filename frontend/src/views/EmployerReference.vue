@@ -286,6 +286,7 @@ import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
 import DatePicker from '../components/DatePicker.vue'
+import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -303,6 +304,7 @@ const brandingLoaded = ref(false)
 
 // Employee information
 const employeeName = ref('')
+const { geolocation: userGeolocation } = useGeolocationCapture()
 
 const formData = ref({
   companyName: '',
@@ -343,12 +345,17 @@ const handleSubmit = async () => {
     }
 
     const referenceId = route.params.referenceId
+    const payload = {
+      ...formData.value,
+      geolocation: userGeolocation.value
+    }
+
     const response = await fetch(`${API_URL}/api/references/employer/${referenceId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(formData.value)
+      body: JSON.stringify(payload)
     })
 
     if (!response.ok) {

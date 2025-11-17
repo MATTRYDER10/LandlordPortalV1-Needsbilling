@@ -8,6 +8,18 @@ import { sendReferenceCompletedNotification } from '../services/emailService'
 
 const router = Router()
 
+const parseEncryptedJsonField = (value?: string | null) => {
+  if (!value) return null
+  try {
+    const decrypted = decrypt(value)
+    if (!decrypted) return null
+    return JSON.parse(decrypted)
+  } catch (error) {
+    console.error('Failed to parse encrypted JSON field:', error)
+    return null
+  }
+}
+
 // Get all references across all companies (for staff dashboard)
 router.get('/references', authenticateStaff, async (req: StaffAuthRequest, res) => {
   try {
@@ -477,6 +489,8 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
           ...ref.companies,
           name: decrypt(ref.companies.name_encrypted)
         } : null,
+        submitted_ip_address: ref.submitted_ip_encrypted ? decrypt(ref.submitted_ip_encrypted) : null,
+        submitted_geolocation: parseEncryptedJsonField(ref.submitted_geolocation_encrypted),
         tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
         tenant_last_name: decrypt(ref.tenant_last_name_encrypted),
         middle_name: decrypt(ref.middle_name_encrypted),
@@ -578,7 +592,9 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       would_rent_again_details: decrypt(landlordReference.would_rent_again_details_encrypted),
       additional_comments: decrypt(landlordReference.additional_comments_encrypted),
       signature_name: decrypt(landlordReference.signature_name_encrypted),
-      signature: decrypt(landlordReference.signature_encrypted)
+      signature: decrypt(landlordReference.signature_encrypted),
+      submitted_ip_address: landlordReference.submitted_ip_encrypted ? decrypt(landlordReference.submitted_ip_encrypted) : null,
+      submitted_geolocation: parseEncryptedJsonField(landlordReference.submitted_geolocation_encrypted)
     } : null
 
     const decryptedAgentReference = agentReference ? {
@@ -601,7 +617,9 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       would_rent_again: agentReference.would_rent_again,
       additional_comments: decrypt(agentReference.additional_comments_encrypted),
       signature_name: decrypt(agentReference.signature_name_encrypted),
-      signature: decrypt(agentReference.signature_encrypted)
+      signature: decrypt(agentReference.signature_encrypted),
+      submitted_ip_address: agentReference.submitted_ip_encrypted ? decrypt(agentReference.submitted_ip_encrypted) : null,
+      submitted_geolocation: parseEncryptedJsonField(agentReference.submitted_geolocation_encrypted)
     } : null
 
     const decryptedEmployerReference = employerReference ? {
@@ -618,7 +636,9 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       absence_details: decrypt(employerReference.absence_details_encrypted),
       would_reemploy_details: decrypt(employerReference.would_reemploy_details_encrypted),
       additional_comments: decrypt(employerReference.additional_comments_encrypted),
-      signature: decrypt(employerReference.signature_encrypted)
+      signature: decrypt(employerReference.signature_encrypted),
+      submitted_ip_address: employerReference.submitted_ip_encrypted ? decrypt(employerReference.submitted_ip_encrypted) : null,
+      submitted_geolocation: parseEncryptedJsonField(employerReference.submitted_geolocation_encrypted)
     } : null
 
     const decryptedAccountantReference = accountantReference ? {
@@ -635,7 +655,9 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       estimated_monthly_income: decrypt(accountantReference.estimated_monthly_income_encrypted),
       additional_comments: decrypt(accountantReference.additional_comments_encrypted),
       recommendation_comments: decrypt(accountantReference.recommendation_comments_encrypted),
-      signature: decrypt(accountantReference.signature_encrypted)
+      signature: decrypt(accountantReference.signature_encrypted),
+      submitted_ip_address: accountantReference.submitted_ip_encrypted ? decrypt(accountantReference.submitted_ip_encrypted) : null,
+      submitted_geolocation: parseEncryptedJsonField(accountantReference.submitted_geolocation_encrypted)
     } : null
 
     const decryptedGuarantorReference = guarantorReference ? {
@@ -669,7 +691,9 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       total_monthly_expenditure: decrypt(guarantorReference.total_monthly_expenditure_encrypted),
       adverse_credit_details: decrypt(guarantorReference.adverse_credit_details_encrypted),
       previous_guarantor_details: decrypt(guarantorReference.previous_guarantor_details_encrypted),
-      additional_comments: decrypt(guarantorReference.additional_comments_encrypted)
+      additional_comments: decrypt(guarantorReference.additional_comments_encrypted),
+      submitted_ip_address: guarantorReference.submitted_ip_encrypted ? decrypt(guarantorReference.submitted_ip_encrypted) : null,
+      submitted_geolocation: parseEncryptedJsonField(guarantorReference.submitted_geolocation_encrypted)
     } : null
 
     res.json({

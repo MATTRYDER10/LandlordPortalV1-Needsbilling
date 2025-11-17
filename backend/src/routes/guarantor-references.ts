@@ -1,8 +1,9 @@
-import { Router } from 'express'
+import { Router, Request } from 'express'
 import { supabase } from '../config/supabase'
 import crypto from 'crypto'
 import multer from 'multer'
 import { hash, encrypt } from '../services/encryption'
+import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/requestMetadata'
 
 const router = Router()
 
@@ -193,10 +194,15 @@ router.post('/upload/:token', (req, res, next) => {
 
 // POST /api/guarantor-references/submit/:token
 // Submit guarantor form (files already uploaded via upload endpoint)
-router.post('/submit/:token', async (req, res) => {
+router.post('/submit/:token', async (req: Request, res) => {
   try {
     const { token } = req.params
     const data = req.body
+    const clientIpAddress = getClientIpAddress(req)
+    const geolocationPayload = normalizeGeolocationPayload(data.geolocation)
+    if ('geolocation' in data) {
+      delete data.geolocation
+    }
 
     console.log('=== GUARANTOR SUBMISSION ===')
     console.log('Token:', token)
@@ -325,6 +331,8 @@ router.post('/submit/:token', async (req, res) => {
       additional_comments_encrypted: encrypt(data.additional_comments || ''),
 
       // Submission tracking
+      submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : null,
+      submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : null,
       submitted_at: new Date().toISOString()
     }
 

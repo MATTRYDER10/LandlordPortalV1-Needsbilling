@@ -445,6 +445,7 @@ import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
 import DatePicker from '../components/DatePicker.vue'
+import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -459,6 +460,8 @@ const companyLogo = ref('')
 const primaryColor = ref('#FF8C41')
 const buttonColor = ref('#FF8C41')
 const brandingLoaded = ref(false)
+
+const { geolocation: userGeolocation } = useGeolocationCapture()
 
 const formData = ref({
   agentName: '',
@@ -509,12 +512,17 @@ const handleSubmit = async () => {
     }
 
     const referenceId = route.params.referenceId
+    const payload = {
+      ...formData.value,
+      geolocation: userGeolocation.value
+    }
+
     const response = await fetch(`${API_URL}/api/references/agent/${referenceId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(formData.value)
+      body: JSON.stringify(payload)
     })
 
     if (!response.ok) {

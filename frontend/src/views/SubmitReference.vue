@@ -2161,6 +2161,7 @@ import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import DatePicker from '../components/DatePicker.vue'
 import DeviceHandoffGate from '../components/DeviceHandoffGate.vue'
+import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 import { formatDate as formatUkDate } from '../utils/date'
 
@@ -2200,6 +2201,7 @@ const primaryColor = ref('#FF8C41')
 const buttonColor = ref('#FF8C41')
 const showDeviceGate = ref(true)
 const deviceLink = ref('')
+const { geolocation: userGeolocation } = useGeolocationCapture()
 
 // Nationality search
 const nationalitySearch = ref('')
@@ -3629,7 +3631,8 @@ const handleFinalSubmit = async () => {
       // Use the paths already stored in formData (uploaded on each step)
       payslip_files: formData.value.payslip_paths,
       // Include previous addresses for 3-year history
-      previous_addresses: previousAddresses.value
+      previous_addresses: previousAddresses.value,
+      geolocation: userGeolocation.value
     }
 
     const response = await fetch(`${API_URL}/api/references/submit/${token}`, {

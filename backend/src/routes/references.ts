@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, Request } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { checkCredits } from '../middleware/checkCredits'
 import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
@@ -16,6 +16,7 @@ import { creditsafeService } from '../services/creditsafeService'
 import { sanctionsService } from '../services/sanctionsService'
 import { generateReferenceReportPDF } from '../services/pdfReportService'
 import * as billingService from '../services/billingService'
+import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/requestMetadata'
 
 const router = Router()
 
@@ -1502,10 +1503,15 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 // Tenant submits their information (public route)
-router.post('/submit/:token', async (req, res) => {
+router.post('/submit/:token', async (req: Request, res) => {
   try {
     const { token } = req.params
     const data = req.body
+    const clientIpAddress = getClientIpAddress(req)
+    const geolocationPayload = normalizeGeolocationPayload(data.geolocation)
+    if ('geolocation' in data) {
+      delete data.geolocation
+    }
 
     // Hash the token to look up the reference securely
     const tokenHash = hash(token)
@@ -1664,6 +1670,8 @@ router.post('/submit/:token', async (req, res) => {
       rtr_verification_data: data.rtr_verification_data || null,
 
       // Submission tracking
+      submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : reference.submitted_ip_encrypted || null,
+      submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : reference.submitted_geolocation_encrypted || null,
       submitted_at: new Date().toISOString(),
       status: 'in_progress'
     }
@@ -2872,10 +2880,15 @@ router.get('/accountant/:token/check', async (req, res) => {
 })
 
 // Landlord submits reference (public route)
-router.post('/landlord/:referenceId', async (req, res) => {
+router.post('/landlord/:referenceId', async (req: Request, res) => {
   try {
     const { referenceId } = req.params
     const formData = req.body
+    const clientIpAddress = getClientIpAddress(req)
+    const geolocationPayload = normalizeGeolocationPayload(formData.geolocation)
+    if ('geolocation' in formData) {
+      delete formData.geolocation
+    }
 
     // Verify reference exists
     const { data: reference, error: refError } = await supabase
@@ -2928,6 +2941,8 @@ router.post('/landlord/:referenceId', async (req, res) => {
       signature_name_encrypted: encrypt(formData.signatureName),
       signature_encrypted: encrypt(formData.signature),
       date: normalizeDate(formData.date),
+      submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : null,
+      submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : null,
       submitted_at: new Date().toISOString()
     }
 
@@ -2991,10 +3006,15 @@ router.post('/landlord/:referenceId', async (req, res) => {
 })
 
 // Agent submits reference (public route)
-router.post('/agent/:referenceId', async (req, res) => {
+router.post('/agent/:referenceId', async (req: Request, res) => {
   try {
     const { referenceId } = req.params
     const formData = req.body
+    const clientIpAddress = getClientIpAddress(req)
+    const geolocationPayload = normalizeGeolocationPayload(formData.geolocation)
+    if ('geolocation' in formData) {
+      delete formData.geolocation
+    }
 
     // Verify reference exists
     const { data: reference, error: refError } = await supabase
@@ -3048,6 +3068,8 @@ router.post('/agent/:referenceId', async (req, res) => {
       signature_name_encrypted: encrypt(formData.signatureName),
       signature_encrypted: encrypt(formData.signature),
       date: normalizeDate(formData.date),
+      submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : null,
+      submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : null,
       submitted_at: new Date().toISOString()
     }
 
@@ -3111,10 +3133,15 @@ router.post('/agent/:referenceId', async (req, res) => {
 })
 
 // Employer submits reference (public route)
-router.post('/employer/:referenceId', async (req, res) => {
+router.post('/employer/:referenceId', async (req: Request, res) => {
   try {
     const { referenceId } = req.params
     const formData = req.body
+    const clientIpAddress = getClientIpAddress(req)
+    const geolocationPayload = normalizeGeolocationPayload(formData.geolocation)
+    if ('geolocation' in formData) {
+      delete formData.geolocation
+    }
 
     // Verify reference exists
     const { data: reference, error: refError } = await supabase
@@ -3154,6 +3181,8 @@ router.post('/employer/:referenceId', async (req, res) => {
       additional_comments_encrypted: encrypt(formData.additionalComments || ''),
       signature_encrypted: encrypt(formData.signature),
       date: formData.date,
+      submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : null,
+      submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : null,
       submitted_at: new Date().toISOString()
     }
 
@@ -3237,10 +3266,15 @@ router.post('/employer/:referenceId', async (req, res) => {
 })
 
 // Accountant submits reference (public route)
-router.post('/accountant/:token', async (req, res) => {
+router.post('/accountant/:token', async (req: Request, res) => {
   try {
     const { token } = req.params
     const formData = req.body
+    const clientIpAddress = getClientIpAddress(req)
+    const geolocationPayload = normalizeGeolocationPayload(formData.geolocation)
+    if ('geolocation' in formData) {
+      delete formData.geolocation
+    }
 
     // Hash the token to look up securely
     const tokenHash = hash(token)
@@ -3285,6 +3319,8 @@ router.post('/accountant/:token', async (req, res) => {
         recommendation_comments_encrypted: encrypt(formData.recommendationComments || ''),
         signature_encrypted: encrypt(formData.signature),
         date: formData.date,
+        submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : accountantRef.submitted_ip_encrypted || null,
+        submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : accountantRef.submitted_geolocation_encrypted || null,
         submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })

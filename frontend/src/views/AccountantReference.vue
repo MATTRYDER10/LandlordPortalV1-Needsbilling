@@ -430,6 +430,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import DatePicker from '../components/DatePicker.vue'
 import SignaturePad from '../components/SignaturePad.vue'
+import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -439,6 +440,7 @@ const error = ref('')
 const submitted = ref(false)
 const submitting = ref(false)
 const submitError = ref('')
+const { geolocation: userGeolocation } = useGeolocationCapture()
 
 // Company branding
 const companyLogo = ref('')
@@ -555,12 +557,17 @@ const handleSubmit = async () => {
 
   try {
     const token = route.params.token as string
+    const payload = {
+      ...formData.value,
+      geolocation: userGeolocation.value
+    }
+
     const response = await fetch(`${API_URL}/api/references/accountant/${token}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(formData.value)
+      body: JSON.stringify(payload)
     })
 
     if (!response.ok) {

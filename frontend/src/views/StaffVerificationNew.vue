@@ -88,7 +88,7 @@
     <div v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
       <!-- Tenant Info Card -->
-      <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <div class="bg-white rounded-lg.shadow p-6 mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Reference Information</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
@@ -106,6 +106,40 @@
           <div>
             <p class="text-sm text-gray-500">Status</p>
             <p class="font-medium">{{ reference?.status }}</p>
+          </div>
+        </div>
+        <div v-if="reference?.submitted_ip_address || reference?.submitted_geolocation"
+          class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-if="reference?.submitted_ip_address">
+            <p class="text-sm text-gray-500">Submitted IP</p>
+            <p class="font-mono text-sm text-gray-900">{{ reference.submitted_ip_address }}</p>
+          </div>
+          <div v-if="reference?.submitted_geolocation">
+            <p class="text-sm text-gray-500">Approximate Location</p>
+            <div class="flex items-center gap-2 text-sm text-gray-900">
+              {{ formatGeolocationText(reference.submitted_geolocation) }}
+              <button type="button" class="text-primary hover:underline text-xs"
+                @click="openGeolocationMap(reference.submitted_geolocation)">
+                Map
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="hasTenantDocuments" class="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Tenant Uploaded Documents</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-for="doc in tenantDocuments" :key="doc.label"
+            class="flex items-center justify-between border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <div class="pr-4">
+              <p class="text-sm font-medium text-gray-900">{{ doc.label }}</p>
+              <p class="text-xs text-gray-500 break-all">{{ doc.path }}</p>
+            </div>
+            <a :href="getDocumentDownloadUrl(doc.path)" target="_blank" rel="noopener"
+              class="text-sm font-medium text-primary hover:underline">
+              View
+            </a>
           </div>
         </div>
       </div>
@@ -131,6 +165,23 @@
           <div>
             <p class="text-sm text-purple-700 font-medium">Relationship</p>
             <p class="font-medium text-purple-900 capitalize">{{ guarantorReference.relationship_to_tenant }}</p>
+          </div>
+        </div>
+        <div v-if="guarantorReference.submitted_ip_address || guarantorReference.submitted_geolocation"
+          class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div v-if="guarantorReference.submitted_ip_address">
+            <p class="text-sm text-purple-700 font-medium">Submitted IP</p>
+            <p class="font-mono text-sm text-purple-900">{{ guarantorReference.submitted_ip_address }}</p>
+          </div>
+          <div v-if="guarantorReference.submitted_geolocation">
+            <p class="text-sm text-purple-700 font-medium">Approximate Location</p>
+            <div class="flex items-center gap-2 text-sm text-purple-900">
+              {{ formatGeolocationText(guarantorReference.submitted_geolocation) }}
+              <button type="button" class="text-xs text-purple-700 underline"
+                @click="openGeolocationMap(guarantorReference.submitted_geolocation)">
+                Map
+              </button>
+            </div>
           </div>
         </div>
 
@@ -298,6 +349,105 @@
               <textarea v-model="steps[0]!.notes" rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Add any notes about this verification step..."></textarea>
+            </div>
+
+            <!-- External Reference Responses -->
+            <div v-if="employerReference || accountantReference" class="space-y-4">
+              <div v-if="employerReference" class="bg-white border rounded-lg p-4">
+                <h4 class="font-semibold text-gray-900 mb-3">Employer Reference Response</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Company</p>
+                    <p class="font-medium text-gray-900">{{ employerReference.company_name }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Contact</p>
+                    <p class="font-medium text-gray-900">{{ employerReference.employer_name }}</p>
+                    <p class="text-gray-600">{{ employerReference.employer_email }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Position</p>
+                    <p class="font-medium text-gray-900">{{ employerReference.employee_position }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Annual Salary</p>
+                    <p class="font-medium text-gray-900">£{{ employerReference.annual_salary }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Would Re-Employ</p>
+                    <p class="font-medium text-gray-900">{{ formatBooleanDisplay(employerReference.would_reemploy) }}</p>
+                  </div>
+                </div>
+                <div v-if="employerReference.additional_comments" class="mt-3 text-sm text-gray-900">
+                  <p class="text-xs text-gray-500 uppercase tracking-wide">Comments</p>
+                  <p class="whitespace-pre-line">{{ employerReference.additional_comments }}</p>
+                </div>
+                <div v-if="employerReference.signature" class="mt-3">
+                  <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
+                  <img :src="employerReference.signature" alt="Employer signature" class="h-20 object-contain border rounded bg-white p-2" />
+                </div>
+                <div v-if="employerReference.submitted_ip_address || employerReference.submitted_geolocation"
+                  class="mt-3 text-xs text-gray-500 space-y-1">
+                  <p v-if="employerReference.submitted_ip_address">IP: {{ employerReference.submitted_ip_address }}</p>
+                  <p v-if="employerReference.submitted_geolocation" class="flex items-center gap-2">
+                    Location: {{ formatGeolocationText(employerReference.submitted_geolocation) }}
+                    <button type="button" class="text-primary underline"
+                      @click="openGeolocationMap(employerReference.submitted_geolocation)">
+                      Map
+                    </button>
+                  </p>
+                </div>
+              </div>
+
+              <div v-if="accountantReference" class="bg-white border rounded-lg p-4">
+                <h4 class="font-semibold text-gray-900 mb-3">Accountant Reference Response</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Firm</p>
+                    <p class="font-medium text-gray-900">{{ accountantReference.accountant_firm }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Contact</p>
+                    <p class="font-medium text-gray-900">{{ accountantReference.accountant_name }}</p>
+                    <p class="text-gray-600">{{ accountantReference.accountant_email }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Business</p>
+                    <p class="font-medium text-gray-900">{{ accountantReference.business_name }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Annual Turnover</p>
+                    <p class="font-medium text-gray-900">{{ accountantReference.annual_turnover }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Estimated Monthly Income</p>
+                    <p class="font-medium text-gray-900">{{ accountantReference.estimated_monthly_income }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Recommendation</p>
+                    <p class="font-medium text-gray-900">{{ formatBooleanDisplay(accountantReference.would_recommend) }}</p>
+                  </div>
+                </div>
+                <div v-if="accountantReference.additional_comments" class="mt-3 text-sm text-gray-900">
+                  <p class="text-xs text-gray-500 uppercase tracking-wide">Comments</p>
+                  <p class="whitespace-pre-line">{{ accountantReference.additional_comments }}</p>
+                </div>
+                <div v-if="accountantReference.signature" class="mt-3">
+                  <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
+                  <img :src="accountantReference.signature" alt="Accountant signature" class="h-20 object-contain border rounded bg-white p-2" />
+                </div>
+                <div v-if="accountantReference.submitted_ip_address || accountantReference.submitted_geolocation"
+                  class="mt-3 text-xs text-gray-500 space-y-1">
+                  <p v-if="accountantReference.submitted_ip_address">IP: {{ accountantReference.submitted_ip_address }}</p>
+                  <p v-if="accountantReference.submitted_geolocation" class="flex items-center gap-2">
+                    Location: {{ formatGeolocationText(accountantReference.submitted_geolocation) }}
+                    <button type="button" class="text-primary underline"
+                      @click="openGeolocationMap(accountantReference.submitted_geolocation)">
+                      Map
+                    </button>
+                  </p>
+                </div>
+              </div>
             </div>
 
             <!-- Pass/Fail -->
@@ -626,13 +776,50 @@
               <h4 class="font-semibold text-gray-900 mb-3">{{ landlordReference ? 'Landlord' : 'Agent' }} Reference
                 Response
               </h4>
-              <div class="space-y-2 text-sm">
+              <div class="space-y-4 text-sm">
                 <div v-if="landlordReference">
                   <p><strong>Landlord:</strong> {{ landlordReference.landlord_name }}</p>
                   <p><strong>Email:</strong> {{ landlordReference.landlord_email }}</p>
                   <p v-if="landlordReference.submitted_at" class="text-green-600"><strong>Submitted:</strong> {{
                     formatDate(landlordReference.submitted_at) }}</p>
                   <p v-else class="text-orange-600"><strong>Status:</strong> Awaiting response</p>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <p class="text-xs text-gray-500 uppercase tracking-wide">Rent Paid On Time</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(landlordReference.rent_paid_on_time) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 uppercase tracking-wide">Good Tenant</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(landlordReference.good_tenant) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 uppercase tracking-wide">Would Rent Again</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(landlordReference.would_rent_again) }}</p>
+                    </div>
+                    <div v-if="landlordReference.monthly_rent">
+                      <p class="text-xs text-gray-500 uppercase tracking-wide">Monthly Rent</p>
+                      <p class="font-medium text-gray-900">£{{ landlordReference.monthly_rent }}</p>
+                    </div>
+                  </div>
+                  <div v-if="landlordReference.additional_comments" class="mt-2">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Additional Comments</p>
+                    <p class="text-sm text-gray-900 whitespace-pre-line">{{ landlordReference.additional_comments }}</p>
+                  </div>
+                  <div v-if="landlordReference.signature" class="mt-3">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
+                    <img :src="landlordReference.signature" alt="Landlord signature" class="h-20 object-contain border rounded bg-white p-2" />
+                  </div>
+                  <div v-if="landlordReference.submitted_ip_address || landlordReference.submitted_geolocation"
+                    class="mt-3 text-xs text-gray-500 space-y-1">
+                    <p v-if="landlordReference.submitted_ip_address">IP: {{ landlordReference.submitted_ip_address }}</p>
+                    <p v-if="landlordReference.submitted_geolocation" class="flex items-center gap-2">
+                      Location: {{ formatGeolocationText(landlordReference.submitted_geolocation) }}
+                      <button type="button" class="text-primary underline"
+                        @click="openGeolocationMap(landlordReference.submitted_geolocation)">
+                        Map
+                      </button>
+                    </p>
+                  </div>
                 </div>
                 <div v-if="agentReference">
                   <p><strong>Agent:</strong> {{ agentReference.agent_name }}</p>
@@ -641,6 +828,39 @@
                   <p v-if="agentReference.submitted_at" class="text-green-600"><strong>Submitted:</strong> {{
                     formatDate(agentReference.submitted_at) }}</p>
                   <p v-else class="text-orange-600"><strong>Status:</strong> Awaiting response</p>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <p class="text-xs text-gray-500 uppercase tracking-wide">Rent Paid On Time</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(agentReference.rent_paid_on_time) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 uppercase tracking-wide">Good Tenant</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(agentReference.good_tenant) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 uppercase tracking-wide">Would Rent Again</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(agentReference.would_rent_again) }}</p>
+                    </div>
+                  </div>
+                  <div v-if="agentReference.additional_comments" class="mt-2">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Additional Comments</p>
+                    <p class="text-sm text-gray-900 whitespace-pre-line">{{ agentReference.additional_comments }}</p>
+                  </div>
+                  <div v-if="agentReference.signature" class="mt-3">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
+                    <img :src="agentReference.signature" alt="Agent signature" class="h-20 object-contain border rounded bg-white p-2" />
+                  </div>
+                  <div v-if="agentReference.submitted_ip_address || agentReference.submitted_geolocation"
+                    class="mt-3 text-xs text-gray-500 space-y-1">
+                    <p v-if="agentReference.submitted_ip_address">IP: {{ agentReference.submitted_ip_address }}</p>
+                    <p v-if="agentReference.submitted_geolocation" class="flex items-center gap-2">
+                      Location: {{ formatGeolocationText(agentReference.submitted_geolocation) }}
+                      <button type="button" class="text-primary underline"
+                        @click="openGeolocationMap(agentReference.submitted_geolocation)">
+                        Map
+                      </button>
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1196,6 +1416,8 @@ const idDocumentBlobUrl = ref('')
 const selfieBlobUrl = ref('')
 const landlordReference = ref<any>(null)
 const agentReference = ref<any>(null)
+const employerReference = ref<any>(null)
+const accountantReference = ref<any>(null)
 const guarantorReference = ref<any>(null)
 const creditCheckData = ref<any>(null)
 const sanctionsData = ref<any>(null)
@@ -1239,6 +1461,70 @@ const evidenceSourceOptions = ref<any>({
   RESIDENTIAL: [],
   CREDIT_TAS: []
 })
+const formatBooleanDisplay = (value: boolean | null | undefined) => {
+  if (value === true) return 'Yes'
+  if (value === false) return 'No'
+  return 'Not provided'
+}
+
+const tenantDocumentFieldMap = [
+  { key: 'id_document_path', label: 'ID Document' },
+  { key: 'selfie_path', label: 'Selfie' },
+  { key: 'proof_of_address_path', label: 'Proof of Address' },
+  { key: 'proof_of_funds_path', label: 'Proof of Funds' },
+  { key: 'proof_of_additional_income_path', label: 'Additional Income Evidence' },
+  { key: 'tax_return_path', label: 'Tax Return' }
+]
+
+const tenantDocuments = computed(() => {
+  if (!reference.value) return []
+  const docs: Array<{ label: string; path: string }> = []
+
+  tenantDocumentFieldMap.forEach(({ key, label }) => {
+    const path = reference.value?.[key]
+    if (typeof path === 'string' && path.length > 0) {
+      docs.push({ label, path })
+    }
+  })
+
+  if (Array.isArray(reference.value?.payslip_files)) {
+    reference.value.payslip_files.forEach((path: string, index: number) => {
+      if (typeof path === 'string' && path.length > 0) {
+        docs.push({ label: `Payslip ${index + 1}`, path })
+      }
+    })
+  }
+
+  return docs
+})
+
+const hasTenantDocuments = computed(() => tenantDocuments.value.length > 0)
+
+const getDocumentDownloadUrl = (storagePath: string) => {
+  if (!storagePath) return ''
+  const segments = storagePath.split('/')
+  if (segments.length < 3) return ''
+  const [referenceId, folder, ...rest] = segments
+  const filename = rest.join('/')
+  return `${API_URL}/api/staff/download/${referenceId}/${folder}/${encodeURIComponent(filename)}`
+}
+
+const formatGeolocationText = (geo: any) => {
+  if (!geo || typeof geo.latitude !== 'number' || typeof geo.longitude !== 'number') {
+    return 'Not provided'
+  }
+  const lat = geo.latitude.toFixed(5)
+  const lng = geo.longitude.toFixed(5)
+  const accuracy = geo.accuracy ? `±${Math.round(geo.accuracy)}m` : null
+  return accuracy ? `${lat}, ${lng} (${accuracy})` : `${lat}, ${lng}`
+}
+
+const openGeolocationMap = (geo: any) => {
+  if (typeof window === 'undefined') return
+  if (!geo || typeof geo.latitude !== 'number' || typeof geo.longitude !== 'number') return
+  const url = `https://www.google.com/maps?q=${geo.latitude},${geo.longitude}`
+  window.open(url, '_blank', 'noopener')
+}
 
 // Computed
 const canProceed = computed(() => {
@@ -1343,6 +1629,11 @@ const loadData = async () => {
 
     const refData = await refResponse.json()
     reference.value = refData.reference
+    landlordReference.value = refData.landlordReference || null
+    agentReference.value = refData.agentReference || null
+    employerReference.value = refData.employerReference || null
+    accountantReference.value = refData.accountantReference || null
+    guarantorReference.value = refData.guarantorReference || null
 
     console.log('Reference data loaded:', {
       id: reference.value.id,
@@ -1363,30 +1654,6 @@ const loadData = async () => {
       selfieBlobUrl.value = await loadImageAsBlob(reference.value.selfie_path)
     } else {
       console.warn('No selfie path found')
-    }
-
-    // Load landlord/agent references and credit data
-    try {
-      const refDetailResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}`, {
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (refDetailResponse.ok) {
-        const refDetailData = await refDetailResponse.json()
-        landlordReference.value = refDetailData.landlordReference || null
-        agentReference.value = refDetailData.agentReference || null
-        guarantorReference.value = refDetailData.guarantorReference || null
-        console.log('Landlord/Agent/Guarantor references loaded:', {
-          hasLandlord: !!landlordReference.value,
-          hasAgent: !!agentReference.value,
-          hasGuarantor: !!guarantorReference.value
-        })
-      }
-    } catch (err) {
-      console.error('Error loading landlord/agent references:', err)
     }
 
     // Load credit check data

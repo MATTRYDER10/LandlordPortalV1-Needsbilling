@@ -1829,6 +1829,7 @@ import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import DatePicker from '../components/DatePicker.vue'
 import DeviceHandoffGate from '../components/DeviceHandoffGate.vue'
+import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 
 const route = useRoute()
@@ -1857,6 +1858,7 @@ const landlordEmailError = ref('')
 const companyLogo = ref('')
 const primaryColor = ref('#FF8C41')
 const buttonColor = ref('#FF8C41')
+const { geolocation: userGeolocation } = useGeolocationCapture()
 const showDeviceGate = ref(true)
 const deviceLink = ref('')
 
@@ -3341,7 +3343,8 @@ const handleFinalSubmit = async () => {
       // Use the paths already stored in formData (uploaded on each step)
       payslip_files: formData.value.payslip_paths,
       // Include previous addresses for 3-year history
-      previous_addresses: previousAddresses.value
+    previous_addresses: previousAddresses.value,
+    geolocation: userGeolocation.value
     }
 
     // If driving licence is selected, completely exclude proof_of_address_path from payload
