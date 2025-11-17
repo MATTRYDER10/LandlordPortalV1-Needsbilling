@@ -602,7 +602,7 @@
                     type="text"
                     readonly
                     :value="getEmployerReferenceLink()"
-                    class="flex-1 px-3 py-2 text-sm bg-white border border-blue-300 rounded-md font-mono text-xs"
+                    class="flex-1 px-3 py-2 bg-white border border-blue-300 rounded-md font-mono text-xs"
                   />
                   <button
                     type="button"
@@ -1283,7 +1283,7 @@
                 type="text"
                 readonly
                 :value="getLandlordReferenceLink()"
-                class="flex-1 px-3 py-2 text-sm bg-white border border-purple-300 rounded-md font-mono text-xs"
+                class="flex-1 px-3 py-2 bg-white border border-purple-300 rounded-md font-mono text-xs"
               />
               <button
                 type="button"
@@ -1306,7 +1306,7 @@
                 type="text"
                 readonly
                 :value="getAgentReferenceLink()"
-                class="flex-1 px-3 py-2 text-sm bg-white border border-purple-300 rounded-md font-mono text-xs"
+                class="flex-1 px-3 py-2 bg-white border border-purple-300 rounded-md font-mono text-xs"
               />
               <button
                 type="button"
@@ -2574,7 +2574,7 @@ const viewGuarantorFile = async (filePath: string, guarantorId: string) => {
 
     // Extract filename from path (guarantor-documents/{guarantorId}/{filename})
     const parts = filePath.split('/')
-    const filename = parts[parts.length - 1]
+    const filename = parts[parts.length - 1] || '_unknown_'
     const downloadUrl = `${API_URL}/api/staff/download-guarantor/${guarantorId}/${encodeURIComponent(filename)}`
 
     const response = await fetch(downloadUrl, {
@@ -2626,7 +2626,7 @@ const downloadGuarantorFile = async (filePath: string, guarantorId: string) => {
 
     // Extract filename from path (guarantor-documents/{guarantorId}/{filename})
     const parts = filePath.split('/')
-    const filename = parts[parts.length - 1]
+    const filename = parts[parts.length - 1] || '_unknown_'
     const downloadUrl = `${API_URL}/api/staff/download-guarantor/${guarantorId}/${encodeURIComponent(filename)}`
 
     const response = await fetch(downloadUrl, {

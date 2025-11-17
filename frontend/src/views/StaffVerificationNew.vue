@@ -142,19 +142,19 @@
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div v-if="guarantorReference.id_document_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
               <span class="text-sm text-purple-900">ID Document</span>
-              <a :href="`${import.meta.env.VITE_API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.id_document_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.id_document_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
             <div v-if="guarantorReference.selfie_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
               <span class="text-sm text-purple-900">Selfie</span>
-              <a :href="`${import.meta.env.VITE_API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.selfie_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.selfie_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
             <div v-if="guarantorReference.proof_of_address_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
               <span class="text-sm text-purple-900">Proof of Address</span>
-              <a :href="`${import.meta.env.VITE_API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.proof_of_address_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.proof_of_address_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
             <div v-if="guarantorReference.bank_statement_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
               <span class="text-sm text-purple-900">Bank Statement</span>
-              <a :href="`${import.meta.env.VITE_API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.bank_statement_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.bank_statement_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
           </div>
         </div>
@@ -1262,6 +1262,7 @@ import SideBySideViewer from '../components/SideBySideViewer.vue'
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const API_URL = import.meta.env.VITE_API_URL
 
 // State
 const loading = ref(true)
@@ -1373,7 +1374,7 @@ const loadImageAsBlob = async (filePath: string): Promise<string> => {
       console.error('Missing parts in file path')
       return ''
     }
-    const downloadUrl = `${import.meta.env.VITE_API_URL}/api/staff/download/${referenceId}/${folder}/${encodeURIComponent(filename)}`
+    const downloadUrl = `${API_URL}/api/staff/download/${referenceId}/${folder}/${encodeURIComponent(filename)}`
 
     console.log('Loading image from staff API:', downloadUrl)
 
@@ -1408,7 +1409,7 @@ const loadData = async () => {
     workItemId.value = route.query.workItemId as string || null
 
     // Load reference data
-    const refResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/staff/references/${referenceId}`, {
+    const refResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}`, {
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
@@ -1445,7 +1446,7 @@ const loadData = async () => {
 
     // Load landlord/agent references and credit data
     try {
-      const refDetailResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/staff/references/${referenceId}`, {
+      const refDetailResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}`, {
         headers: {
           'Authorization': `Bearer ${authStore.session?.access_token}`,
           'Content-Type': 'application/json'
@@ -1469,7 +1470,7 @@ const loadData = async () => {
 
     // Load credit check data
     try {
-      const creditResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/staff/references/${referenceId}/creditsafe`, {
+      const creditResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}/creditsafe`, {
         headers: {
           'Authorization': `Bearer ${authStore.session?.access_token}`,
           'Content-Type': 'application/json'
@@ -1497,7 +1498,7 @@ const loadData = async () => {
 
     // Load sanctions data
     try {
-      const sanctionsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/staff/references/${referenceId}/sanctions`, {
+      const sanctionsResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}/sanctions`, {
         headers: {
           'Authorization': `Bearer ${authStore.session?.access_token}`,
           'Content-Type': 'application/json'
@@ -1526,7 +1527,7 @@ const loadData = async () => {
     }
 
     // Load evidence source options
-    const evidenceResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/verification-steps/evidence-sources`, {
+    const evidenceResponse = await fetch(`${API_URL}/api/verification-steps/evidence-sources`, {
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
@@ -1544,7 +1545,7 @@ const loadData = async () => {
     }
 
     // Load existing progress if any
-    const progressResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/verification-steps/reference/${referenceId}/progress`, {
+    const progressResponse = await fetch(`${API_URL}/api/verification-steps/reference/${referenceId}/progress`, {
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
@@ -1595,7 +1596,7 @@ const saveProgress = async () => {
     }
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/api/verification-steps/reference/${referenceId}/steps/${stepData.step_number}`,
+      `${API_URL}/api/verification-steps/reference/${referenceId}/steps/${stepData.step_number}`,
       {
         method: 'POST',
         headers: {
@@ -1649,7 +1650,7 @@ const finalizeVerification = async () => {
 
     // Finalize verification
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/api/verification-steps/reference/${referenceId}/finalize`,
+      `${API_URL}/api/verification-steps/reference/${referenceId}/finalize`,
       {
         method: 'POST',
         headers: {
@@ -1676,7 +1677,7 @@ const finalizeVerification = async () => {
 
     // If there's a work item, mark it complete and go back to work queue
     if (workItemId.value) {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/work-queue/${workItemId.value}/status`, {
+      await fetch(`${API_URL}/api/work-queue/${workItemId.value}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${authStore.session?.access_token}`,
@@ -1754,7 +1755,7 @@ const triggerCreditsafeCheck = async () => {
     const referenceId = route.params.id as string
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/api/staff/references/${referenceId}/creditsafe/retry`,
+      `${API_URL}/api/staff/references/${referenceId}/creditsafe/retry`,
       {
         method: 'POST',
         headers: {
