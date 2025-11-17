@@ -10,6 +10,59 @@ interface EmailOptions {
   subject: string;
   html: string;
   from?: string;
+  attachments?: {
+    filename: string;
+    content: Buffer | string;
+  }[];
+  contactDetails?: ContactDetails;
+}
+
+interface ContactDetails {
+  companyName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+}
+
+const DEFAULT_CONTACT_DETAILS: ContactDetails = {
+  companyName: 'PropertyGoose Support',
+  email: 'hello@propertygoose.co.uk'
+};
+
+function buildContactFooter(details?: ContactDetails): string {
+  if (!details) return '';
+
+  const { companyName, phone, email, website } = details;
+  if (!companyName && !phone && !email && !website) {
+    return '';
+  }
+
+  const contactParts: string[] = [];
+  if (phone) {
+    contactParts.push(`Phone: <a href="tel:${phone}" style="color:#2563eb;text-decoration:none;">${phone}</a>`);
+  }
+  if (email) {
+    contactParts.push(`Email: <a href="mailto:${email}" style="color:#2563eb;text-decoration:none;">${email}</a>`);
+  }
+  if (website) {
+    contactParts.push(`<a href="${website}" style="color:#2563eb;text-decoration:none;">Website</a>`);
+  }
+
+  const contactLines = [
+    companyName ? `<div style="font-weight:600;margin-bottom:4px;">${companyName}</div>` : '',
+    contactParts.length ? `<div>${contactParts.join(' • ')}</div>` : ''
+  ].filter(Boolean);
+
+  if (!contactLines.length) {
+    return '';
+  }
+
+  return `
+    <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;color:#374151;">
+      <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">Need help? Contact your agent:</div>
+      ${contactLines.join('')}
+    </div>
+  `;
 }
 
 /**
@@ -17,11 +70,15 @@ interface EmailOptions {
  */
 export async function sendEmail(options: EmailOptions): Promise<void> {
   try {
+    const footer = buildContactFooter(options.contactDetails);
+    const html = footer ? `${options.html}${footer}` : options.html;
+
     const { data, error } = await resend.emails.send({
       from: options.from || 'PropertyGoose <hello@notifications.propertygoose.co.uk>',
       to: options.to,
       subject: options.subject,
-      html: options.html,
+      html,
+      attachments: options.attachments,
     });
 
     if (error) {
@@ -74,7 +131,8 @@ export async function sendTenantReferenceRequest(
   referenceLink: string,
   companyName: string,
   propertyAddress?: string,
-  companyPhone?: string
+  companyPhone?: string,
+  companyEmail?: string | null
 ): Promise<void> {
   const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
 
@@ -90,6 +148,11 @@ export async function sendTenantReferenceRequest(
     to: tenantEmail,
     subject: 'Complete Your Tenant Reference - PropertyGoose',
     html,
+    contactDetails: {
+      companyName,
+      phone: companyPhone,
+      email: companyEmail || undefined
+    }
   });
 }
 
@@ -118,6 +181,11 @@ export async function sendEmployerReferenceRequest(
     to: employerEmail,
     subject: 'Employment Reference Request - PropertyGoose',
     html,
+    contactDetails: {
+      companyName: agentCompanyName || undefined,
+      phone: agentPhone || undefined,
+      email: agentEmail || undefined
+    }
   });
 }
 
@@ -146,6 +214,11 @@ export async function sendLandlordReferenceRequest(
     to: landlordEmail,
     subject: 'Landlord Reference Request - PropertyGoose',
     html,
+    contactDetails: {
+      companyName: agentCompanyName || undefined,
+      phone: agentPhone || undefined,
+      email: agentEmail || undefined
+    }
   });
 }
 
@@ -175,6 +248,11 @@ export async function sendAccountantReferenceRequest(
     to: accountantEmail,
     subject: 'Accountant Reference Request - PropertyGoose',
     html,
+    contactDetails: {
+      companyName: agentCompanyName || undefined,
+      phone: agentPhone || undefined,
+      email: agentEmail || undefined
+    }
   });
 }
 
@@ -203,6 +281,11 @@ export async function sendAgentReferenceRequest(
     to: agentEmail,
     subject: 'Agent Reference Request - PropertyGoose',
     html,
+    contactDetails: {
+      companyName: agentCompanyName || undefined,
+      phone: agentPhone || undefined,
+      email: agentEmailContact || undefined
+    }
   });
 }
 
@@ -229,6 +312,9 @@ export async function sendUserInvitation(
     to: inviteeEmail,
     subject: `You've been invited to join ${companyName} on PropertyGoose`,
     html,
+    contactDetails: {
+      companyName
+    }
   });
 }
 
@@ -259,6 +345,7 @@ export async function sendGuarantorRequestNotification(
     to: agentEmail,
     subject: `Guarantor Required - ${tenantName} - PropertyGoose`,
     html,
+    contactDetails: DEFAULT_CONTACT_DETAILS
   });
 }
 
@@ -289,6 +376,11 @@ export async function sendGuarantorReferenceRequest(
     to: guarantorEmail,
     subject: `Guarantor Reference Request - ${tenantName} - PropertyGoose`,
     html,
+    contactDetails: {
+      companyName: agentName,
+      phone: agentPhone,
+      email: agentEmail
+    }
   });
 }
 
@@ -299,36 +391,31 @@ export async function sendConsentPDFToTenant(
   tenantEmail: string,
   tenantName: string,
   pdfBuffer: Buffer,
-  pdfFilename: string
+  pdfFilename: string,
+  companyName?: string | null,
+  companyPhone?: string | null,
+  companyEmail?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('consent-pdf', {
     TenantName: tenantName,
   });
 
-  try {
-    const { data, error } = await resend.emails.send({
-      from: 'PropertyGoose <hello@notifications.propertygoose.co.uk>',
-      to: tenantEmail,
-      subject: 'Your Referencing Consent Declaration - PropertyGoose',
-      html,
-      attachments: [
-        {
-          filename: pdfFilename,
-          content: pdfBuffer,
-        }
-      ],
-    });
-
-    if (error) {
-      console.error('Error sending consent PDF email:', error);
-      throw error;
+  await sendEmail({
+    to: tenantEmail,
+    subject: 'Your Referencing Consent Declaration - PropertyGoose',
+    html,
+    attachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer,
+      }
+    ],
+    contactDetails: {
+      companyName: companyName || undefined,
+      phone: companyPhone || undefined,
+      email: companyEmail || undefined
     }
-
-    console.log(`Consent PDF sent successfully to ${tenantEmail}`);
-  } catch (error) {
-    console.error('Error sending consent PDF email:', error);
-    throw error;
-  }
+  });
 }
 
 /**
@@ -366,6 +453,7 @@ export async function sendSanctionsAlert(
     to: companyEmail,
     subject: `⚠️ URGENT: Sanctions Screening Alert - ${tenantName}`,
     html,
+    contactDetails: DEFAULT_CONTACT_DETAILS
   });
 }
 
@@ -398,6 +486,10 @@ export async function sendReferenceCompletedNotification(
     to: agentEmail,
     subject: `Reference Completed - ${tenantName} - PropertyGoose`,
     html,
+    contactDetails: {
+      companyName: agentName,
+      email: agentEmail
+    }
   });
 }
 
@@ -416,11 +508,13 @@ export async function sendLandlordVerificationRequest(
   
   const { data: company } = await supabase
     .from('companies')
-    .select('name_encrypted')
+    .select('name_encrypted, phone_encrypted, email_encrypted')
     .eq('id', companyId)
     .single()
 
   const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : 'PropertyGoose'
+  const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) : ''
+  const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : ''
 
   const html = loadEmailTemplate('landlord-verification-request', {
     LandlordName: landlordName,
@@ -433,6 +527,11 @@ export async function sendLandlordVerificationRequest(
     to: landlordEmail,
     subject: 'Landlord Verification Request - PropertyGoose',
     html,
+    contactDetails: {
+      companyName: companyName || undefined,
+      phone: companyPhone || undefined,
+      email: companyEmail || undefined
+    }
   })
 }
 
@@ -444,7 +543,8 @@ export async function sendTenantApplicationRequest(
   applicationLink: string,
   companyName: string,
   propertyAddress?: string,
-  companyPhone?: string
+  companyPhone?: string,
+  companyEmail?: string | null
 ): Promise<void> {
   const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
 
@@ -459,6 +559,11 @@ export async function sendTenantApplicationRequest(
     to: applicantEmail,
     subject: 'Complete Your Rental Application - PropertyGoose',
     html,
+    contactDetails: {
+      companyName,
+      phone: companyPhone || undefined,
+      email: companyEmail || undefined
+    }
   })
 }
 
@@ -470,7 +575,8 @@ export async function sendTenantOfferRequest(
   offerLink: string,
   companyName: string,
   propertyAddress?: string,
-  companyPhone?: string
+  companyPhone?: string,
+  companyEmail?: string | null
 ): Promise<void> {
   const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
 
@@ -485,6 +591,11 @@ export async function sendTenantOfferRequest(
     to: tenantEmail,
     subject: 'Submit Your Rental Offer - PropertyGoose',
     html,
+    contactDetails: {
+      companyName,
+      phone: companyPhone || undefined,
+      email: companyEmail || undefined
+    }
   })
 }
 
@@ -497,7 +608,9 @@ export async function sendOfferAcceptedEmail(
   bankAccountName: string,
   bankAccountNumber: string,
   bankSortCode: string,
-  holdingDepositAmount: number
+  holdingDepositAmount: number,
+  companyPhone?: string | null,
+  companyEmail?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('offer-accepted', {
     CompanyName: companyName,
@@ -511,6 +624,11 @@ export async function sendOfferAcceptedEmail(
     to: tenantEmail,
     subject: 'Congratulations — Your Offer Has Been Accepted!',
     html,
+    contactDetails: {
+      companyName,
+      phone: companyPhone || undefined,
+      email: companyEmail || undefined
+    }
   })
 }
 
@@ -520,7 +638,9 @@ export async function sendOfferAcceptedEmail(
 export async function sendOfferDeclinedEmail(
   tenantEmail: string,
   companyName: string,
-  declineReason: string
+  declineReason: string,
+  companyPhone?: string | null,
+  companyEmail?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('offer-declined', {
     CompanyName: companyName,
@@ -531,6 +651,11 @@ export async function sendOfferDeclinedEmail(
     to: tenantEmail,
     subject: 'Update on Your Offer',
     html,
+    contactDetails: {
+      companyName,
+      phone: companyPhone || undefined,
+      email: companyEmail || undefined
+    }
   })
 }
 
@@ -542,7 +667,9 @@ export async function sendApplicationCompletedNotification(
   applicantName: string,
   propertyAddress: string,
   dashboardLink: string,
-  companyName: string
+  companyName: string,
+  companyPhone?: string | null,
+  companyEmail?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('application-completed-notification', {
     ApplicantName: capitalizeWords(applicantName),
@@ -555,5 +682,10 @@ export async function sendApplicationCompletedNotification(
     to: agentEmail,
     subject: `Rental Application Completed - ${applicantName} - PropertyGoose`,
     html,
+    contactDetails: {
+      companyName,
+      phone: companyPhone || undefined,
+      email: companyEmail || undefined
+    }
   })
 }

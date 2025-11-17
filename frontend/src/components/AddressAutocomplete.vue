@@ -105,7 +105,7 @@ const loadGoogleMapsAPI = async () => {
 
   return new Promise((resolve, reject) => {
     const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&region=GB&loading=async`
     script.async = true
     script.defer = true
     script.onload = () => resolve(true)

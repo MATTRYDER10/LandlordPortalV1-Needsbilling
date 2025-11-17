@@ -229,7 +229,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
                 applicationUrl,
                 companyName,
                 property_address,
-                companyPhone || undefined
+                companyPhone || undefined,
+                companyEmail || undefined
             )
             console.log('Application email sent successfully to:', applicant_email)
         } catch (emailError: any) {
@@ -421,11 +422,13 @@ router.post('/token/:token/submit', upload.single('id_document'), async (req, re
         // Get company details for email
         const { data: company } = await supabase
             .from('companies')
-            .select('name_encrypted')
+            .select('name_encrypted, phone_encrypted, email_encrypted')
             .eq('id', application.company_id)
             .single()
 
         const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : 'PropertyGoose'
+        const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) : ''
+        const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : ''
 
         // Send notification email to agent
         const agentEmail = application.agent_email_encrypted ? decrypt(application.agent_email_encrypted) : ''
@@ -444,7 +447,9 @@ router.post('/token/:token/submit', upload.single('id_document'), async (req, re
                 applicantName,
                 propertyAddress || '',
                 dashboardUrl,
-                companyName || ''
+                companyName || '',
+                companyPhone || undefined,
+                companyEmail || undefined
             )
             console.log('Application completion email sent to agent:', agentEmail)
         } catch (emailError: any) {

@@ -979,7 +979,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
             tenantUrl,
             companyName,
             property_address,
-            companyPhone || undefined
+            companyPhone || undefined,
+            companyEmail || undefined
           )
           console.log('Email sent successfully to tenant:', tenant.email)
         } catch (emailError: any) {
@@ -1175,7 +1176,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           tenantUrl,
           companyName,
           property_address,
-          companyPhone || undefined
+          companyPhone || undefined,
+          companyEmail || undefined
         )
         console.log('Email sent successfully to tenant:', tenant_email)
       } catch (emailError: any) {
@@ -2047,11 +2049,24 @@ router.post('/submit/:token', async (req, res) => {
             const tenantEmail = reference.tenant_email_encrypted ? decrypt(reference.tenant_email_encrypted) : null
 
             if (tenantEmail) {
+              const { data: consentCompanyData } = await supabase
+                .from('companies')
+                .select('name_encrypted, phone_encrypted, email_encrypted')
+                .eq('id', reference.company_id)
+                .single()
+
+              const consentCompanyName = consentCompanyData?.name_encrypted ? decrypt(consentCompanyData.name_encrypted ?? '') ?? '' : ''
+              const consentCompanyPhone = consentCompanyData?.phone_encrypted ? decrypt(consentCompanyData.phone_encrypted ?? '') ?? '' : ''
+              const consentCompanyEmail = consentCompanyData?.email_encrypted ? decrypt(consentCompanyData.email_encrypted ?? '') ?? '' : ''
+
               await sendConsentPDFToTenant(
                 tenantEmail,
                 `${data.first_name} ${data.last_name}`,
                 pdfBuffer,
-                pdfFilename
+                pdfFilename,
+                consentCompanyName || undefined,
+                consentCompanyPhone || undefined,
+                consentCompanyEmail || undefined
               )
               console.log('Consent PDF sent to tenant email successfully')
             } else {
