@@ -50,13 +50,12 @@
               </svg>
               {{ downloadingPDF ? 'Generating...' : 'Download PDF Report' }}
             </button>
-            <button
-              @click="showDeleteModal = true"
+            <button @click="showDeleteModal = true"
               class="flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors"
-              title="Delete reference"
-            >
+              title="Delete reference">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
               Delete
             </button>
@@ -98,9 +97,9 @@
                   clip-rule="evenodd" />
               </svg>
               Credit: {{ creditsafeVerification.verification_status === 'passed' ? 'PASS' :
-                creditsafeVerification.verification_status === 'failed' ? 'FAIL' :
-                  creditsafeVerification.verification_status === 'refer' ? 'REVIEW' :
-                    creditsafeVerification.verification_status.toUpperCase() }}
+              creditsafeVerification.verification_status === 'failed' ? 'FAIL' :
+              creditsafeVerification.verification_status === 'refer' ? 'REVIEW' :
+              creditsafeVerification.verification_status.toUpperCase() }}
             </span>
 
             <!-- Sanctions Screening Status -->
@@ -123,7 +122,7 @@
                   clip-rule="evenodd" />
               </svg>
               Sanctions: {{ sanctionsScreening.risk_level === 'clear' ? 'PASS' :
-                sanctionsScreening.risk_level.toUpperCase() }}
+              sanctionsScreening.risk_level.toUpperCase() }}
             </span>
           </div>
         </div>
@@ -153,7 +152,7 @@
                 <button @click="$router.push(`/references/${parentReference.id}`)"
                   class="text-sm text-purple-600 hover:text-purple-800 hover:underline font-medium">
                   View Parent Tenant Reference: {{ parentReference.tenant_first_name }} {{
-                    parentReference.tenant_last_name }} →
+                  parentReference.tenant_last_name }} →
                 </button>
               </div>
             </div>
@@ -342,8 +341,8 @@
                           <label class="block text-sm font-medium text-gray-500">Verification Date</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.rtr_verification_date ?
-                              formatDate(childReferenceDetails[child.id].reference.rtr_verification_date) : 'Not provided'
-                          }}</p>
+                            formatDate(childReferenceDetails[child.id].reference.rtr_verification_date) : 'Not provided'
+                            }}</p>
                         </div>
                         <div v-if="childReferenceDetails[child.id].reference.rtr_verification_data.immigrationStatus"
                           class="col-span-2">
@@ -373,8 +372,8 @@
                         <label class="block text-sm font-medium text-gray-500">Document Type</label>
                         <p class="mt-1 text-gray-900 capitalize">{{
                           childReferenceDetails[child.id].reference.id_document_type ?
-                            childReferenceDetails[child.id].reference.id_document_type.replace('_', ' ') : 'Not provided'
-                        }}</p>
+                          childReferenceDetails[child.id].reference.id_document_type.replace('_', ' ') : 'Not provided'
+                          }}</p>
                       </div>
                     </div>
                     <div class="space-y-2">
@@ -454,9 +453,9 @@
                           <span
                             v-if="childReferenceDetails[child.id].reference.time_at_address_years !== null || childReferenceDetails[child.id].reference.time_at_address_months !== null">
                             {{ childReferenceDetails[child.id].reference.time_at_address_years || 0 }} year{{
-                              childReferenceDetails[child.id].reference.time_at_address_years !== 1 ? 's' : '' }},
+                            childReferenceDetails[child.id].reference.time_at_address_years !== 1 ? 's' : '' }},
                             {{ childReferenceDetails[child.id].reference.time_at_address_months || 0 }} month{{
-                              childReferenceDetails[child.id].reference.time_at_address_months !== 1 ? 's' : '' }}
+                            childReferenceDetails[child.id].reference.time_at_address_months !== 1 ? 's' : '' }}
                           </span>
                           <span v-else>Not provided yet</span>
                         </p>
@@ -529,8 +528,8 @@
                           <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.employment_start_date ?
-                              formatDate(childReferenceDetails[child.id].reference.employment_start_date) : 'Not provided'
-                          }}</p>
+                            formatDate(childReferenceDetails[child.id].reference.employment_start_date) : 'Not provided'
+                            }}</p>
                         </div>
                         <div>
                           <label class="block text-sm font-medium text-gray-500">Job Title</label>
@@ -546,14 +545,14 @@
                           <label class="block text-sm font-medium text-gray-500">Annual Salary</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.employment_salary_amount ?
-                              `£${childReferenceDetails[child.id].reference.employment_salary_amount}` : 'Not provided' }}
+                            `£${childReferenceDetails[child.id].reference.employment_salary_amount}` : 'Not provided' }}
                           </p>
                         </div>
                         <div v-if="childReferenceDetails[child.id].reference.employment_is_hourly">
                           <label class="block text-sm font-medium text-gray-500">Hourly Rate</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.employment_salary_amount ?
-                              `£${childReferenceDetails[child.id].reference.employment_salary_amount}/hour` :
+                            `£${childReferenceDetails[child.id].reference.employment_salary_amount}/hour` :
                             'Notprovided' }}</p>
                         </div>
                       </div>
@@ -602,16 +601,16 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Company:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].employerReference.company_name }}</span></div>
+                                    childReferenceDetails[child.id].employerReference.company_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Contact:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].employerReference.employer_name }}</span></div>
+                                    childReferenceDetails[child.id].employerReference.employer_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Position:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].employerReference.employer_position }}</span></div>
+                                    childReferenceDetails[child.id].employerReference.employer_position }}</span></div>
                                 <div><span class="text-green-700 font-medium">Email:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].employerReference.employer_email }}</span></div>
+                                    childReferenceDetails[child.id].employerReference.employer_email }}</span></div>
                               </div>
                             </div>
 
@@ -621,21 +620,21 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Position:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].employerReference.employee_position }}</span></div>
+                                    childReferenceDetails[child.id].employerReference.employee_position }}</span></div>
                                 <div><span class="text-green-700 font-medium">Type:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].employerReference.employment_type }}</span></div>
+                                    childReferenceDetails[child.id].employerReference.employment_type }}</span></div>
                                 <div><span class="text-green-700 font-medium">Start Date:</span> <span
                                     class="text-green-900">{{
-                                      formatDate(childReferenceDetails[child.id].employerReference.employment_start_date)
+                                    formatDate(childReferenceDetails[child.id].employerReference.employment_start_date)
                                     }}</span></div>
                                 <div v-if="childReferenceDetails[child.id].employerReference.employment_end_date"><span
                                     class="text-green-700 font-medium">End Date:</span> <span class="text-green-900">{{
-                                      formatDate(childReferenceDetails[child.id].employerReference.employment_end_date)
+                                    formatDate(childReferenceDetails[child.id].employerReference.employment_end_date)
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Currently Employed:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].employerReference.is_current_employee ? 'Yes' : 'No'
+                                    childReferenceDetails[child.id].employerReference.is_current_employee ? 'Yes' : 'No'
                                     }}</span></div>
                               </div>
                             </div>
@@ -646,17 +645,17 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Salary:</span> <span
                                     class="text-green-900">£{{
-                                      childReferenceDetails[child.id].employerReference.annual_salary }} ({{
-                                      childReferenceDetails[child.id].employerReference.salary_frequency }})</span></div>
+                                    childReferenceDetails[child.id].employerReference.annual_salary }} ({{
+                                    childReferenceDetails[child.id].employerReference.salary_frequency }})</span></div>
                                 <div><span class="text-green-700 font-medium">Probation:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].employerReference.is_probation === 'yes' ? 'Yes' :
-                                        'No' }}</span></div>
+                                    childReferenceDetails[child.id].employerReference.is_probation === 'yes' ? 'Yes' :
+                                    'No' }}</span></div>
                                 <div
                                   v-if="childReferenceDetails[child.id].employerReference.is_probation === 'yes' && childReferenceDetails[child.id].employerReference.probation_end_date">
                                   <span class="text-green-700 font-medium">Probation End:</span> <span
                                     class="text-green-900">{{
-                                      formatDate(childReferenceDetails[child.id].employerReference.probation_end_date)
+                                    formatDate(childReferenceDetails[child.id].employerReference.probation_end_date)
                                     }}</span>
                                 </div>
                               </div>
@@ -668,18 +667,18 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Details Verified:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].employerReference.employment_status }}</span></div>
+                                    childReferenceDetails[child.id].employerReference.employment_status }}</span></div>
                                 <div><span class="text-green-700 font-medium">Contract Type:</span> <span
                                     class="text-green-900 capitalize">{{
-                                      childReferenceDetails[child.id].employerReference.contract_type_confirmation ||
+                                    childReferenceDetails[child.id].employerReference.contract_type_confirmation ||
                                     'Notprovided' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Income Expectation:</span> <span
                                     class="text-green-900 capitalize">{{
-                                      childReferenceDetails[child.id].employerReference.income_expectation ||
+                                    childReferenceDetails[child.id].employerReference.income_expectation ||
                                     'Notprovided' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Position Security:</span> <span
                                     class="text-green-900 capitalize">{{
-                                      childReferenceDetails[child.id].employerReference.employment_stable || 'Notprovided'
+                                    childReferenceDetails[child.id].employerReference.employment_stable || 'Notprovided'
                                     }}</span></div>
                               </div>
 
@@ -719,7 +718,7 @@
                         <div class="flex items-center justify-between">
                           <p class="text-sm text-blue-800">
                             Waiting for employer reference from {{
-                              childReferenceDetails[child.id].reference.employer_ref_email }}
+                            childReferenceDetails[child.id].reference.employer_ref_email }}
                           </p>
                           <button @click="resendEmployerEmail(child.id)" :disabled="resendingEmployer[child.id]"
                             class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
@@ -743,8 +742,8 @@
                           <label class="block text-sm font-medium text-gray-500">Annual Income</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.self_employed_annual_income ?
-                              `£${childReferenceDetails[child.id].reference.self_employed_annual_income}` : 'Not provided'
-                          }}</p>
+                            `£${childReferenceDetails[child.id].reference.self_employed_annual_income}` : 'Not provided'
+                            }}</p>
                         </div>
                       </div>
 
@@ -765,16 +764,16 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Name:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.accountant_name }}</span></div>
+                                    childReferenceDetails[child.id].accountantReference.accountant_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Firm:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.firm_name }}</span></div>
+                                    childReferenceDetails[child.id].accountantReference.firm_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Email:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.accountant_email }}</span></div>
+                                    childReferenceDetails[child.id].accountantReference.accountant_email }}</span></div>
                                 <div><span class="text-green-700 font-medium">Phone:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.accountant_phone }}</span></div>
+                                    childReferenceDetails[child.id].accountantReference.accountant_phone }}</span></div>
                               </div>
                             </div>
 
@@ -784,18 +783,18 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Business:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.business_name }}</span></div>
+                                    childReferenceDetails[child.id].accountantReference.business_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Trading Status:</span> <span
                                     class="text-green-900 capitalize">{{
-                                      childReferenceDetails[child.id].accountantReference.business_trading_status
+                                    childReferenceDetails[child.id].accountantReference.business_trading_status
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Start Date:</span> <span
                                     class="text-green-900">{{
-                                      formatDate(childReferenceDetails[child.id].accountantReference.business_start_date)
+                                    formatDate(childReferenceDetails[child.id].accountantReference.business_start_date)
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Nature:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.nature_of_business }}</span>
+                                    childReferenceDetails[child.id].accountantReference.nature_of_business }}</span>
                                 </div>
                               </div>
                             </div>
@@ -806,39 +805,39 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Annual Turnover:</span> <span
                                     class="text-green-900">£{{
-                                      childReferenceDetails[child.id].accountantReference.annual_turnover?.toLocaleString()
+                                    childReferenceDetails[child.id].accountantReference.annual_turnover?.toLocaleString()
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Annual Profit:</span> <span
                                     class="text-green-900">£{{
-                                      childReferenceDetails[child.id].accountantReference.annual_profit?.toLocaleString()
+                                    childReferenceDetails[child.id].accountantReference.annual_profit?.toLocaleString()
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Tax Returns Filed:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.tax_returns_filed ? 'Yes' : 'No'
+                                    childReferenceDetails[child.id].accountantReference.tax_returns_filed ? 'Yes' : 'No'
                                     }}</span></div>
                                 <div v-if="childReferenceDetails[child.id].accountantReference.last_tax_return_date">
                                   <span class="text-green-700 font-medium">Last Tax Return:</span> <span
                                     class="text-green-900">{{
-                                      formatDate(childReferenceDetails[child.id].accountantReference.last_tax_return_date)
+                                    formatDate(childReferenceDetails[child.id].accountantReference.last_tax_return_date)
                                     }}</span>
                                 </div>
                                 <div><span class="text-green-700 font-medium">Accounts Prepared:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.accounts_prepared ? 'Yes' : 'No'
+                                    childReferenceDetails[child.id].accountantReference.accounts_prepared ? 'Yes' : 'No'
                                     }}</span></div>
                                 <div v-if="childReferenceDetails[child.id].accountantReference.accounts_year_end"><span
                                     class="text-green-700 font-medium">Accounts Year End:</span> <span
                                     class="text-green-900">{{
-                                      formatDate(childReferenceDetails[child.id].accountantReference.accounts_year_end)
+                                    formatDate(childReferenceDetails[child.id].accountantReference.accounts_year_end)
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Tax Liabilities:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.any_outstanding_tax_liabilities
-                                        ? 'Yes' : 'No' }}</span></div>
+                                    childReferenceDetails[child.id].accountantReference.any_outstanding_tax_liabilities
+                                    ? 'Yes' : 'No' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Financially Stable:</span> <span
                                     class="text-green-900 font-semibold">{{
-                                      childReferenceDetails[child.id].accountantReference.business_financially_stable ?
-                                        'Yes' : 'No' }}</span></div>
+                                    childReferenceDetails[child.id].accountantReference.business_financially_stable ?
+                                    'Yes' : 'No' }}</span></div>
                               </div>
 
                               <div v-if="childReferenceDetails[child.id].accountantReference.tax_liabilities_details"
@@ -855,11 +854,11 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Income Confirmed:</span> <span
                                     class="text-green-900">{{
-                                      childReferenceDetails[child.id].accountantReference.accountant_confirms_income ?
-                                        'Yes' : 'No' }}</span></div>
+                                    childReferenceDetails[child.id].accountantReference.accountant_confirms_income ?
+                                    'Yes' : 'No' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Would Recommend:</span> <span
                                     class="text-green-900 font-semibold">{{
-                                      childReferenceDetails[child.id].accountantReference.would_recommend ? 'Yes' : 'No'
+                                    childReferenceDetails[child.id].accountantReference.would_recommend ? 'Yes' : 'No'
                                     }}</span></div>
                               </div>
 
@@ -878,7 +877,7 @@
                         <div class="flex items-center justify-between">
                           <p class="text-sm text-blue-800">
                             Waiting for accountant reference from {{
-                              childReferenceDetails[child.id].reference.accountant_email }}
+                            childReferenceDetails[child.id].reference.accountant_email }}
                           </p>
                           <button @click="resendAccountantEmail(child.id)" :disabled="resendingAccountant[child.id]"
                             class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
@@ -941,7 +940,7 @@
                           <label class="block text-sm font-medium text-gray-500">Amount</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.additional_income_amount ?
-                              `£${childReferenceDetails[child.id].reference.additional_income_amount}` : 'Not provided' }}
+                            `£${childReferenceDetails[child.id].reference.additional_income_amount}` : 'Not provided' }}
                           </p>
                         </div>
                         <div>
@@ -1063,7 +1062,7 @@
                         <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
                         <p class="mt-1 text-gray-900">{{
                           formatTenancyDuration(childReferenceDetails[child.id].reference.tenancy_years,
-                            childReferenceDetails[child.id].reference.tenancy_months) }}</p>
+                          childReferenceDetails[child.id].reference.tenancy_months) }}</p>
                       </div>
                     </div>
 
@@ -1084,13 +1083,13 @@
                             <h6 class="text-xs font-semibold text-green-800 mb-2">Landlord Contact Information</h6>
                             <div class="grid grid-cols-2 gap-3 text-sm">
                               <div><span class="text-green-700 font-medium">Name:</span> <span class="text-green-900">{{
-                                childReferenceDetails[child.id].landlordReference.landlord_name }}</span></div>
+                                  childReferenceDetails[child.id].landlordReference.landlord_name }}</span></div>
                               <div><span class="text-green-700 font-medium">Email:</span> <span
                                   class="text-green-900">{{
-                                    childReferenceDetails[child.id].landlordReference.landlord_email }}</span></div>
+                                  childReferenceDetails[child.id].landlordReference.landlord_email }}</span></div>
                               <div><span class="text-green-700 font-medium">Phone:</span> <span
                                   class="text-green-900">{{
-                                    childReferenceDetails[child.id].landlordReference.landlord_phone }}</span></div>
+                                  childReferenceDetails[child.id].landlordReference.landlord_phone }}</span></div>
                             </div>
                           </div>
 
@@ -1103,17 +1102,17 @@
                                 <span class="text-green-900">
                                   {{ [childReferenceDetails[child.id].landlordReference.property_address_line1,
                                   childReferenceDetails[child.id].landlordReference.property_address_line2].filter(Boolean).join(',')
-                                    || childReferenceDetails[child.id].landlordReference.property_address }}
+                                  || childReferenceDetails[child.id].landlordReference.property_address }}
                                 </span>
                               </div>
                               <div><span class="text-green-700 font-medium">City:</span> <span class="text-green-900">{{
-                                childReferenceDetails[child.id].landlordReference.property_city }}</span></div>
+                                  childReferenceDetails[child.id].landlordReference.property_city }}</span></div>
                               <div><span class="text-green-700 font-medium">Postcode:</span> <span
                                   class="text-green-900">{{
-                                    childReferenceDetails[child.id].landlordReference.property_postcode }}</span></div>
+                                  childReferenceDetails[child.id].landlordReference.property_postcode }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy Start:</span> <span
                                   class="text-green-900">{{
-                                    formatDate(childReferenceDetails[child.id].landlordReference.tenancy_start_date)
+                                  formatDate(childReferenceDetails[child.id].landlordReference.tenancy_start_date)
                                   }}</span></div>
                               <div>
                                 <span class="text-green-700 font-medium">Tenancy End:</span>
@@ -1125,7 +1124,7 @@
                               </div>
                               <div><span class="text-green-700 font-medium">Monthly Rent:</span> <span
                                   class="text-green-900">£{{
-                                    childReferenceDetails[child.id].landlordReference.monthly_rent }}</span></div>
+                                  childReferenceDetails[child.id].landlordReference.monthly_rent }}</span></div>
                             </div>
                           </div>
 
@@ -1199,10 +1198,10 @@
                             <h6 class="text-xs font-semibold text-green-800 mb-2">Agent Contact Information</h6>
                             <div class="grid grid-cols-2 gap-3 text-sm">
                               <div><span class="text-green-700 font-medium">Name:</span> <span class="text-green-900">{{
-                                childReferenceDetails[child.id].agentReference.agent_name }}</span></div>
+                                  childReferenceDetails[child.id].agentReference.agent_name }}</span></div>
                               <div v-if="childReferenceDetails[child.id].agentReference.agency_name"><span
                                   class="text-green-700 font-medium">Agency:</span> <span class="text-green-900">{{
-                                    childReferenceDetails[child.id].agentReference.agency_name }}</span></div>
+                                  childReferenceDetails[child.id].agentReference.agency_name }}</span></div>
                               <div><span class="text-green-700 font-medium">Email:</span> <span
                                   class="text-green-900">{{ childReferenceDetails[child.id].agentReference.agent_email
                                   }}</span></div>
@@ -1221,17 +1220,17 @@
                                 <span class="text-green-900">
                                   {{ [childReferenceDetails[child.id].agentReference.property_address_line1,
                                   childReferenceDetails[child.id].agentReference.property_address_line2].filter(Boolean).join(',')
-                                    || childReferenceDetails[child.id].agentReference.property_address }}
+                                  || childReferenceDetails[child.id].agentReference.property_address }}
                                 </span>
                               </div>
                               <div><span class="text-green-700 font-medium">City:</span> <span class="text-green-900">{{
-                                childReferenceDetails[child.id].agentReference.property_city }}</span></div>
+                                  childReferenceDetails[child.id].agentReference.property_city }}</span></div>
                               <div><span class="text-green-700 font-medium">Postcode:</span> <span
                                   class="text-green-900">{{
-                                    childReferenceDetails[child.id].agentReference.property_postcode }}</span></div>
+                                  childReferenceDetails[child.id].agentReference.property_postcode }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy Start:</span> <span
                                   class="text-green-900">{{
-                                    formatDate(childReferenceDetails[child.id].agentReference.tenancy_start_date)
+                                  formatDate(childReferenceDetails[child.id].agentReference.tenancy_start_date)
                                   }}</span></div>
                               <div>
                                 <span class="text-green-700 font-medium">Tenancy End:</span>
@@ -1592,8 +1591,8 @@
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-500">Agreed On</label>
-                <p class="mt-1 text-gray-900">{{ reference.consent_agreed_date ? new
-                  Date(reference.consent_agreed_date).toLocaleDateString('en-GB') : 'Not provided' }}</p>
+                <p class="mt-1 text-gray-900">{{ reference.consent_agreed_date ?
+                  formatDate(reference.consent_agreed_date, 'Not provided') : 'Not provided' }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-500">Printed Name</label>
@@ -3086,23 +3085,18 @@
       <div class="bg-white rounded-lg max-w-md w-full p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Reference</h3>
         <p class="text-sm text-gray-600 mb-6">
-          Are you sure you want to delete the reference for 
+          Are you sure you want to delete the reference for
           <span class="font-medium">{{ reference?.tenant_first_name }} {{ reference?.tenant_last_name }}</span>
           at <span class="font-medium">{{ reference?.property_address }}</span>?
           This action cannot be undone.
         </p>
         <div class="flex justify-end space-x-3">
-          <button
-            @click="showDeleteModal = false"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
+          <button @click="showDeleteModal = false"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
             Cancel
           </button>
-          <button
-            @click="handleDelete"
-            :disabled="deleteLoading"
-            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
-          >
+          <button @click="handleDelete" :disabled="deleteLoading"
+            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50">
             {{ deleteLoading ? 'Deleting...' : 'Delete' }}
           </button>
         </div>
@@ -3178,6 +3172,7 @@ import ScoreCard from '../components/ScoreCard.vue'
 import ReferenceNotes from '../components/ReferenceNotes.vue'
 import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
+import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
 
 const route = useRoute()
 const router = useRouter()
@@ -3507,23 +3502,29 @@ const formatTenancyDuration = (years: number | null, months: number | null) => {
   return parts.join(', ')
 }
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
-}
+const formatDate = (date?: string | null, fallback = 'N/A') =>
+  formatUkDate(
+    date,
+    {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    },
+    fallback
+  )
 
-const formatDateTime = (date: string) => {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
+const formatDateTime = (date?: string | null, fallback = 'N/A') =>
+  formatUkDateTime(
+    date,
+    {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    },
+    fallback
+  )
 
 const toggleTenantExpanded = async (tenantId: string) => {
   if (expandedTenant.value === tenantId) {

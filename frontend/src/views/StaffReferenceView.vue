@@ -60,7 +60,7 @@
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500">Date of Birth</dt>
-            <dd class="mt-1 text-sm text-gray-900">{{ reference.date_of_birth ? new Date(reference.date_of_birth).toLocaleDateString('en-GB') : 'Not provided' }}</dd>
+            <dd class="mt-1 text-sm text-gray-900">{{ formatDate(reference.date_of_birth, 'Not provided') }}</dd>
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500">Email</dt>
@@ -177,6 +177,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const route = useRoute()
 const router = useRouter()
@@ -265,6 +266,17 @@ const handleSignOut = async () => {
   await authStore.signOut()
   router.push('/staff/login')
 }
+
+const formatDate = (value?: string | null, fallback = 'Not provided') =>
+  formatUkDate(
+    value,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    },
+    fallback
+  )
 
 onMounted(async () => {
   await fetchReference()

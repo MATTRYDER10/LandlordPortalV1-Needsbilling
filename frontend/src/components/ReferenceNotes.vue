@@ -67,6 +67,7 @@
 import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const props = defineProps<{
   referenceId: string
@@ -214,7 +215,16 @@ const formatDate = (dateString: string) => {
   const diffDays = Math.floor(diffHours / 24)
   if (diffDays < 7) return `${diffDays}d ago`
 
-  return date.toLocaleDateString()
+  return formatUkDate(
+    date,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }
+  )
 }
 
 onMounted(() => {

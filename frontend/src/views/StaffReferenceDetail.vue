@@ -340,7 +340,7 @@
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-500">Agreed On</label>
-                <p class="mt-1 text-gray-900">{{ reference.consent_agreed_date ? new Date(reference.consent_agreed_date).toLocaleDateString('en-GB') : 'Not provided' }}</p>
+                <p class="mt-1 text-gray-900">{{ formatDate(reference.consent_agreed_date) }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-500">Printed Name</label>
@@ -2003,6 +2003,7 @@ import ComparisonTable from '../components/ComparisonTable.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 import SanctionsScreeningCard from '../components/SanctionsScreeningCard.vue'
 import ScoreCard from '../components/ScoreCard.vue'
+import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
 
 const route = useRoute()
 const router = useRouter()
@@ -2407,23 +2408,29 @@ const formatTenancyDuration = (years: number | null, months: number | null) => {
   return parts.join(', ')
 }
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
-}
+const formatDate = (date?: string | null, fallback = 'Not provided') =>
+  formatUkDate(
+    date,
+    {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    },
+    fallback
+  )
 
-const formatDateTime = (date: string) => {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
+const formatDateTime = (date?: string | null, fallback = 'Not provided') =>
+  formatUkDateTime(
+    date,
+    {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    },
+    fallback
+  )
 
 const getLandlordReferenceLink = () => {
   return `${window.location.origin}/landlord-reference/${reference.value?.id || ''}`

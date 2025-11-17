@@ -116,7 +116,7 @@
               <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
                 <div>
                   <p class="text-sm font-medium text-gray-700">Date of Birth</p>
-                  <p class="text-sm text-gray-900">{{ reference.date_of_birth ? new Date(reference.date_of_birth).toLocaleDateString('en-GB') : 'Not provided' }}</p>
+                  <p class="text-sm text-gray-900">{{ formatDate(reference.date_of_birth, 'Not provided') }}</p>
                 </div>
                 <div class="flex gap-2">
                   <button
@@ -653,6 +653,7 @@ import SideBySideViewer from '../components/SideBySideViewer.vue'
 import InteractiveComparisonTable from '../components/InteractiveComparisonTable.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 import SanctionsScreeningCard from '../components/SanctionsScreeningCard.vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const route = useRoute()
 const router = useRouter()
@@ -1192,6 +1193,17 @@ const handleSignOut = async () => {
   await authStore.signOut()
   router.push('/staff/login')
 }
+
+const formatDate = (value?: string | null, fallback = 'Not provided') =>
+  formatUkDate(
+    value,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    },
+    fallback
+  )
 
 onMounted(async () => {
   await fetchReference()

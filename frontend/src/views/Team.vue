@@ -181,6 +181,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Sidebar from '../components/Sidebar.vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const showInviteModal = ref(false)
 const inviteData = ref({
@@ -209,13 +210,16 @@ const getInitials = (email: string) => {
   return email.charAt(0).toUpperCase()
 }
 
-const formatDate = (date: Date) => {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  })
-}
+const formatDate = (date?: string | number | Date | null, fallback = 'N/A') =>
+  formatUkDate(
+    date,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    },
+    fallback
+  )
 
 const handleInvite = async () => {
   inviteLoading.value = true

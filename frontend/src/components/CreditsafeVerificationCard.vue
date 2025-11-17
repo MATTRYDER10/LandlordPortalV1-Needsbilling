@@ -252,6 +252,7 @@
 
 <script setup lang="ts">
 import { computed, h } from 'vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 // Icons as render functions
 const CheckCircleIcon = () => h('svg', { fill: 'currentColor', viewBox: '0 0 20 20' }, [
@@ -407,14 +408,17 @@ const getScoreColor = (score: number): string => {
   return 'text-red-600'
 }
 
-const formatDate = (dateString: string): string => {
+const formatDate = (dateString?: string | null): string => {
   if (!dateString) return 'N/A'
   try {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
+    return formatUkDate(
+      dateString,
+      {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      }
+    )
   } catch {
     return dateString
   }

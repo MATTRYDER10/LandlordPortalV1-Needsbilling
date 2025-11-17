@@ -1039,6 +1039,7 @@ import DatePicker from '../components/DatePicker.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import InsufficientCreditsModal from '../components/InsufficientCreditsModal.vue'
 import PaymentMethodRequiredModal from '../components/PaymentMethodRequiredModal.vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const router = useRouter()
 const route = useRoute()
@@ -1521,13 +1522,16 @@ const toggleSort = (field: 'created_at' | 'move_in_date') => {
   }
 }
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  })
-}
+const formatDate = (date?: string | null, fallback = 'N/A') =>
+  formatUkDate(
+    date,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    },
+    fallback
+  )
 
 const viewReference = (reference: any) => {
   router.push(`/references/${reference.id}`)

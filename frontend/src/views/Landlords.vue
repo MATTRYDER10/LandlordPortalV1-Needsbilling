@@ -222,6 +222,7 @@ import Sidebar from '../components/Sidebar.vue'
 import AddEditLandlordModal from '../components/AddEditLandlordModal.vue'
 import CSVImportModal from '../components/CSVImportModal.vue'
 import { useAuthStore } from '../stores/auth'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const router = useRouter()
 const route = useRoute()
@@ -377,15 +378,16 @@ const formatAMLStatus = (status: string) => {
   return statusMap[status] || status
 }
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return 'n/a'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
-}
+const formatDate = (dateString?: string | null, fallback = 'n/a') =>
+  formatUkDate(
+    dateString,
+    {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    },
+    fallback
+  )
 
 // Close menu when clicking outside
 const handleClickOutside = (event: MouseEvent) => {

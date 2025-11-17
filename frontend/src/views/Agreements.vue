@@ -144,7 +144,7 @@
                     </p>
                     <div class="flex items-center gap-4 text-sm text-gray-500">
                       <span>Rent: £{{ reference.monthly_rent || 'N/A' }}/mo</span>
-                      <span v-if="reference.move_in_date">Move-in: {{ new Date(reference.move_in_date).toLocaleDateString('en-GB') }}</span>
+                      <span v-if="reference.move_in_date">Move-in: {{ formatUkDate(reference.move_in_date, { day: 'numeric', month: 'short', year: 'numeric' }) }}</span>
                     </div>
                   </div>
                   <div
@@ -861,7 +861,7 @@
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <p class="text-sm text-gray-600">Start Date</p>
-                  <p class="text-gray-700 font-medium">{{ formData.tenancyStartDate ? new Date(formData.tenancyStartDate).toLocaleDateString('en-GB') : 'Not set' }}</p>
+                  <p class="text-gray-700 font-medium">{{ formData.tenancyStartDate ? formatUkDate(formData.tenancyStartDate, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not set' }}</p>
                 </div>
                 <div>
                   <p class="text-sm text-gray-600">Tenancy Term</p>
@@ -1037,6 +1037,7 @@ import { useToast } from 'vue-toastification'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import AgreementPaymentModal from '../components/AgreementPaymentModal.vue'
 import { useAuthStore } from '../stores/auth'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -1246,8 +1247,11 @@ const displayEndDate = computed(() => {
   if (!calculatedEndDate.value) {
     return 'Rolling (month-to-month)'
   }
-  const date = new Date(calculatedEndDate.value)
-  return date.toLocaleDateString('en-GB')
+  return formatUkDate(calculatedEndDate.value, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
 })
 
 // Computed property to calculate 5 weeks deposit from monthly rent

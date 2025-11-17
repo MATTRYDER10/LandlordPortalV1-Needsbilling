@@ -383,6 +383,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
+import { formatDateTime } from '../utils/date'
 
 const route = useRoute()
 const router = useRouter()
@@ -468,11 +469,7 @@ const formatStatus = (status: string) => {
   return statusMap[status] || status
 }
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
+const formatDate = (dateString: string) => formatDateTime(dateString)
 
 const fetchOffer = async () => {
   loading.value = true

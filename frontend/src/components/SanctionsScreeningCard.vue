@@ -184,6 +184,7 @@
 
 <script setup lang="ts">
 import { computed, h } from 'vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 // Icons as render functions
 const CheckCircleIcon = () => h('svg', { fill: 'currentColor', viewBox: '0 0 20 20' }, [
@@ -327,16 +328,19 @@ const totalDonations = computed(() => {
   return formatCurrency(total)
 })
 
-const formatDate = (dateString: string): string => {
-  if (!dateString) return 'N/A'
+const formatDate = (dateString?: string | null, fallback = 'N/A'): string => {
   try {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
+    return formatUkDate(
+      dateString,
+      {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      },
+      fallback
+    )
   } catch {
-    return dateString
+    return dateString || fallback
   }
 }
 

@@ -168,6 +168,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 interface DomainScores {
   credit_tas: number
@@ -301,14 +302,17 @@ function formatFlag(flag: string): string {
     .join(' ')
 }
 
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+function formatDate(dateString?: string | null, fallback = 'N/A'): string {
+  return formatUkDate(
+    dateString,
+    {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    },
+    fallback
+  )
 }
 </script>

@@ -162,6 +162,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import StaffHeader from '../components/StaffHeader.vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const authStore = useAuthStore()
 
@@ -194,15 +195,16 @@ const fetchChaseList = async () => {
   }
 }
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  })
-}
+const formatDate = (dateString?: string | null, fallback = 'N/A') =>
+  formatUkDate(
+    dateString,
+    {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    },
+    fallback
+  )
 
 
 onMounted(() => {

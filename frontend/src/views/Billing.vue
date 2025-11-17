@@ -311,6 +311,7 @@ import SubscriptionModal from '../components/SubscriptionModal.vue'
 import CancelSubscriptionModal from '../components/CancelSubscriptionModal.vue'
 import AddPaymentMethodModal from '../components/AddPaymentMethodModal.vue'
 import axios from 'axios'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const toast = useToast()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -358,12 +359,16 @@ function formatTierName(tier: string): string {
   return names[tier] || tier
 }
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  })
+function formatDate(dateString?: string | null, fallback = 'N/A'): string {
+  return formatUkDate(
+    dateString,
+    {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    },
+    fallback
+  )
 }
 
 function formatTransactionType(type: string): string {

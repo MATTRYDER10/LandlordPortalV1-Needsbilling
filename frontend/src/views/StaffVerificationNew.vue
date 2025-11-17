@@ -8,25 +8,24 @@
             <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="w-10 h-10 mr-3" />
             <h1 class="text-3xl font-bold">
               <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-              <span class="ml-3 text-sm font-semibold px-3 py-1 bg-primary/10 text-primary rounded-full">Staff Portal</span>
+              <span class="ml-3 text-sm font-semibold px-3 py-1 bg-primary/10 text-primary rounded-full">Staff
+                Portal</span>
             </h1>
           </div>
           <div class="flex items-center gap-4">
-            <router-link
-              to="/staff/work-queue"
-              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-            >
+            <router-link to="/staff/work-queue"
+              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
               Back to Work Queue
             </router-link>
-            <button
-              @click="handleSignOut"
-              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-            >
+            <button @click="handleSignOut"
+              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
               Sign Out
             </button>
@@ -40,28 +39,25 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex items-center justify-between mb-2">
           <h2 class="text-xl font-bold text-gray-900">4-Step Verification</h2>
-          <span class="text-sm text-gray-500">Step {{ currentStep }} of 4 • {{ Math.round((currentStep / 4) * 100) }}% Complete</span>
+          <span class="text-sm text-gray-500">Step {{ currentStep }} of 4 • {{ Math.round((currentStep / 4) * 100) }}%
+            Complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
-          <div
-            class="bg-primary h-2 rounded-full transition-all duration-300"
-            :style="{ width: `${(currentStep / 4) * 100}%` }"
-          ></div>
+          <div class="bg-primary h-2 rounded-full transition-all duration-300"
+            :style="{ width: `${(currentStep / 4) * 100}%` }"></div>
         </div>
         <div class="grid grid-cols-4 gap-4 mt-3">
-          <div
-            v-for="(step, index) in stepLabels"
-            :key="index"
-            :class="[
-              'text-center py-2 px-3 rounded-md text-sm font-medium transition-all',
-              currentStep > index + 1 ? 'bg-green-100 text-green-800' :
+          <div v-for="(step, index) in stepLabels" :key="index" :class="[
+            'text-center py-2 px-3 rounded-md text-sm font-medium transition-all',
+            currentStep > index + 1 ? 'bg-green-100 text-green-800' :
               currentStep === index + 1 ? 'bg-primary/10 text-primary' :
-              'bg-gray-100 text-gray-400'
-            ]"
-          >
+                'bg-gray-100 text-gray-400'
+          ]">
             <div class="flex items-center justify-center gap-2">
               <svg v-if="currentStep > index + 1" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                <path fill-rule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clip-rule="evenodd" />
               </svg>
               <span>{{ step }}</span>
             </div>
@@ -115,12 +111,14 @@
       </div>
 
       <!-- Guarantor Information Card -->
-      <div v-if="guarantorReference && guarantorReference.submitted_at" class="bg-purple-50 border border-purple-200 rounded-lg shadow p-6 mb-6">
+      <div v-if="guarantorReference && guarantorReference.submitted_at"
+        class="bg-purple-50 border border-purple-200 rounded-lg shadow p-6 mb-6">
         <h3 class="text-lg font-semibold text-purple-900 mb-4">Guarantor Information</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div>
             <p class="text-sm text-purple-700 font-medium">Name</p>
-            <p class="font-medium text-purple-900">{{ guarantorReference.guarantor_first_name }} {{ guarantorReference.guarantor_last_name }}</p>
+            <p class="font-medium text-purple-900">{{ guarantorReference.guarantor_first_name }} {{
+              guarantorReference.guarantor_last_name }}</p>
           </div>
           <div>
             <p class="text-sm text-purple-700 font-medium">Email</p>
@@ -135,41 +133,54 @@
             <p class="font-medium text-purple-900 capitalize">{{ guarantorReference.relationship_to_tenant }}</p>
           </div>
         </div>
-        
+
         <!-- Guarantor Documents -->
-        <div v-if="guarantorReference.id_document_path || guarantorReference.selfie_path || guarantorReference.proof_of_address_path || guarantorReference.bank_statement_path" class="mt-4 pt-4 border-t border-purple-300">
+        <div
+          v-if="guarantorReference.id_document_path || guarantorReference.selfie_path || guarantorReference.proof_of_address_path || guarantorReference.bank_statement_path"
+          class="mt-4 pt-4 border-t border-purple-300">
           <h4 class="text-sm font-semibold text-purple-800 mb-3">Guarantor Documents</h4>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div v-if="guarantorReference.id_document_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
+            <div v-if="guarantorReference.id_document_path"
+              class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
               <span class="text-sm text-purple-900">ID Document</span>
-              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.id_document_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.id_document_path.split('/').pop()}`"
+                target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
-            <div v-if="guarantorReference.selfie_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
+            <div v-if="guarantorReference.selfie_path"
+              class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
               <span class="text-sm text-purple-900">Selfie</span>
-              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.selfie_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.selfie_path.split('/').pop()}`"
+                target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
-            <div v-if="guarantorReference.proof_of_address_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
+            <div v-if="guarantorReference.proof_of_address_path"
+              class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
               <span class="text-sm text-purple-900">Proof of Address</span>
-              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.proof_of_address_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.proof_of_address_path.split('/').pop()}`"
+                target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
-            <div v-if="guarantorReference.bank_statement_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
+            <div v-if="guarantorReference.bank_statement_path"
+              class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
               <span class="text-sm text-purple-900">Bank Statement</span>
-              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.bank_statement_path.split('/').pop()}`" target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
+              <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.bank_statement_path.split('/').pop()}`"
+                target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
           </div>
         </div>
 
         <!-- Guarantor Financial Summary -->
-        <div v-if="guarantorReference.annual_income || guarantorReference.savings_amount" class="mt-4 pt-4 border-t border-purple-300">
+        <div v-if="guarantorReference.annual_income || guarantorReference.savings_amount"
+          class="mt-4 pt-4 border-t border-purple-300">
           <h4 class="text-sm font-semibold text-purple-800 mb-3">Financial Summary</h4>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div v-if="guarantorReference.annual_income">
               <p class="text-sm text-purple-700 font-medium">Annual Income</p>
-              <p class="font-medium text-purple-900">£{{ parseFloat(guarantorReference.annual_income || '0').toLocaleString('en-GB') }}</p>
+              <p class="font-medium text-purple-900">£{{ parseFloat(guarantorReference.annual_income ||
+                '0').toLocaleString('en-GB') }}</p>
             </div>
             <div v-if="guarantorReference.savings_amount">
               <p class="text-sm text-purple-700 font-medium">Savings</p>
-              <p class="font-medium text-purple-900">£{{ parseFloat(guarantorReference.savings_amount || '0').toLocaleString('en-GB') }}</p>
+              <p class="font-medium text-purple-900">£{{ parseFloat(guarantorReference.savings_amount ||
+                '0').toLocaleString('en-GB') }}</p>
             </div>
             <div v-if="guarantorReference.employment_status">
               <p class="text-sm text-purple-700 font-medium">Employment Status</p>
@@ -193,39 +204,31 @@
 
           <div class="space-y-6">
             <!-- ID Document vs Info -->
-            <SideBySideViewer
-              :left-image-url="idDocumentBlobUrl"
-              left-title="ID Document"
-              right-title="Verify Information Matches"
-            >
+            <SideBySideViewer :left-image-url="idDocumentBlobUrl" left-title="ID Document"
+              right-title="Verify Information Matches">
               <template #right-content>
                 <div class="mt-4 space-y-4">
                   <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
                     <div>
                       <p class="text-sm font-medium text-gray-700">Full Name</p>
-                      <p class="text-sm text-gray-900">{{ reference?.tenant_first_name }} {{ reference?.tenant_last_name }}</p>
+                      <p class="text-sm text-gray-900">{{ reference?.tenant_first_name }} {{ reference?.tenant_last_name
+                        }}</p>
                     </div>
                     <div class="flex gap-2">
-                      <button
-                        @click="idChecks.nameMatch = true"
-                        :class="[
-                          'px-4 py-2 text-sm font-medium rounded-md transition-all',
-                          idChecks.nameMatch === true
-                            ? 'bg-green-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-green-100'
-                        ]"
-                      >
+                      <button @click="idChecks.nameMatch = true" :class="[
+                        'px-4 py-2 text-sm font-medium rounded-md transition-all',
+                        idChecks.nameMatch === true
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-green-100'
+                      ]">
                         Match
                       </button>
-                      <button
-                        @click="idChecks.nameMatch = false"
-                        :class="[
-                          'px-4 py-2 text-sm font-medium rounded-md transition-all',
-                          idChecks.nameMatch === false
-                            ? 'bg-red-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-red-100'
-                        ]"
-                      >
+                      <button @click="idChecks.nameMatch = false" :class="[
+                        'px-4 py-2 text-sm font-medium rounded-md transition-all',
+                        idChecks.nameMatch === false
+                          ? 'bg-red-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-red-100'
+                      ]">
                         No Match
                       </button>
                     </div>
@@ -234,29 +237,23 @@
                   <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
                     <div>
                       <p class="text-sm font-medium text-gray-700">Date of Birth</p>
-                      <p class="text-sm text-gray-900">{{ reference?.date_of_birth ? new Date(reference.date_of_birth).toLocaleDateString('en-GB') : 'Not provided' }}</p>
+                      <p class="text-sm text-gray-900">{{ formatDate(reference?.date_of_birth, 'Not provided') }}</p>
                     </div>
                     <div class="flex gap-2">
-                      <button
-                        @click="idChecks.dobMatch = true"
-                        :class="[
-                          'px-4 py-2 text-sm font-medium rounded-md transition-all',
-                          idChecks.dobMatch === true
-                            ? 'bg-green-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-green-100'
-                        ]"
-                      >
+                      <button @click="idChecks.dobMatch = true" :class="[
+                        'px-4 py-2 text-sm font-medium rounded-md transition-all',
+                        idChecks.dobMatch === true
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-green-100'
+                      ]">
                         Match
                       </button>
-                      <button
-                        @click="idChecks.dobMatch = false"
-                        :class="[
-                          'px-4 py-2 text-sm font-medium rounded-md transition-all',
-                          idChecks.dobMatch === false
-                            ? 'bg-red-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-red-100'
-                        ]"
-                      >
+                      <button @click="idChecks.dobMatch = false" :class="[
+                        'px-4 py-2 text-sm font-medium rounded-md transition-all',
+                        idChecks.dobMatch === false
+                          ? 'bg-red-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-red-100'
+                      ]">
                         No Match
                       </button>
                     </div>
@@ -266,37 +263,27 @@
             </SideBySideViewer>
 
             <!-- Selfie vs ID Photo -->
-            <SideBySideViewer
-              :left-image-url="idDocumentBlobUrl"
-              :right-image-url="selfieBlobUrl"
-              left-title="ID Document Photo"
-              right-title="Selfie"
-            >
+            <SideBySideViewer :left-image-url="idDocumentBlobUrl" :right-image-url="selfieBlobUrl"
+              left-title="ID Document Photo" right-title="Selfie">
               <template #right-content>
                 <div class="mt-4">
                   <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
                     <p class="text-sm font-medium text-gray-700">Person in selfie matches ID photo</p>
                     <div class="flex gap-2">
-                      <button
-                        @click="idChecks.selfieMatch = true"
-                        :class="[
-                          'px-4 py-2 text-sm font-medium rounded-md transition-all',
-                          idChecks.selfieMatch === true
-                            ? 'bg-green-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-green-100'
-                        ]"
-                      >
+                      <button @click="idChecks.selfieMatch = true" :class="[
+                        'px-4 py-2 text-sm font-medium rounded-md transition-all',
+                        idChecks.selfieMatch === true
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-green-100'
+                      ]">
                         Match
                       </button>
-                      <button
-                        @click="idChecks.selfieMatch = false"
-                        :class="[
-                          'px-4 py-2 text-sm font-medium rounded-md transition-all',
-                          idChecks.selfieMatch === false
-                            ? 'bg-red-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-red-100'
-                        ]"
-                      >
+                      <button @click="idChecks.selfieMatch = false" :class="[
+                        'px-4 py-2 text-sm font-medium rounded-md transition-all',
+                        idChecks.selfieMatch === false
+                          ? 'bg-red-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-red-100'
+                      ]">
                         No Match
                       </button>
                     </div>
@@ -308,38 +295,29 @@
             <!-- Notes -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-              <textarea
-                v-model="steps[0]!.notes"
-                rows="3"
+              <textarea v-model="steps[0]!.notes" rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Add any notes about this verification step..."
-              ></textarea>
+                placeholder="Add any notes about this verification step..."></textarea>
             </div>
 
             <!-- Pass/Fail -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <div class="flex gap-4">
-                <button
-                  @click="steps[0]!.overall_pass = true"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[0]!.overall_pass === true
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-green-50'
-                  ]"
-                >
+                <button @click="steps[0]!.overall_pass = true" :class="[
+                  'flex-1 py-3 px-4 rounded-md font-medium transition-all',
+                  steps[0]!.overall_pass === true
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                ]">
                   Pass
                 </button>
-                <button
-                  @click="steps[0]!.overall_pass = false"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[0]!.overall_pass === false
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-red-50'
-                  ]"
-                >
+                <button @click="steps[0]!.overall_pass = false" :class="[
+                  'flex-1 py-3 px-4 rounded-md font-medium transition-all',
+                  steps[0]!.overall_pass === false
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-red-50'
+                ]">
                   Fail
                 </button>
               </div>
@@ -358,13 +336,21 @@
               <h4 class="font-semibold text-gray-900">Declared Income Sources</h4>
 
               <!-- Employment Income -->
-              <div v-if="reference?.income_employment || reference?.income_regular_employment" class="border-l-4 border-blue-500 pl-4">
+              <div v-if="reference?.income_employment || reference?.income_regular_employment"
+                class="border-l-4 border-blue-500 pl-4">
                 <p class="font-medium text-gray-900">Employment Income</p>
                 <div class="mt-2 space-y-1 text-sm">
-                  <p v-if="reference?.employment_company_name"><strong>Company:</strong> {{ reference.employment_company_name }}</p>
-                  <p v-if="reference?.employment_job_title"><strong>Position:</strong> {{ reference.employment_job_title }}</p>
-                  <p v-if="reference?.employment_salary_amount"><strong>Salary:</strong> £{{ reference.employment_salary_amount }} {{ reference.employment_salary_frequency || 'per year' }}</p>
-                  <p v-if="reference?.employer_ref_name"><strong>Reference Contact:</strong> {{ reference.employer_ref_name }}</p>
+                  <p v-if="reference?.employment_company_name"><strong>Company:</strong> {{
+                    reference.employment_company_name }}
+                  </p>
+                  <p v-if="reference?.employment_job_title"><strong>Position:</strong> {{ reference.employment_job_title
+                    }}</p>
+                  <p v-if="reference?.employment_salary_amount"><strong>Salary:</strong> £{{
+                    reference.employment_salary_amount
+                    }} {{ reference.employment_salary_frequency || 'per year' }}</p>
+                  <p v-if="reference?.employer_ref_name"><strong>Reference Contact:</strong> {{
+                    reference.employer_ref_name }}
+                  </p>
                   <p v-if="reference?.employer_ref_email"><strong>Email:</strong> {{ reference.employer_ref_email }}</p>
                 </div>
               </div>
@@ -373,10 +359,15 @@
               <div v-if="reference?.income_self_employed" class="border-l-4 border-purple-500 pl-4">
                 <p class="font-medium text-gray-900">Self-Employed Income</p>
                 <div class="mt-2 space-y-1 text-sm">
-                  <p v-if="reference?.self_employed_business_name"><strong>Business:</strong> {{ reference.self_employed_business_name }}</p>
-                  <p v-if="reference?.self_employed_nature_of_business"><strong>Nature:</strong> {{ reference.self_employed_nature_of_business }}</p>
-                  <p v-if="reference?.self_employed_annual_income"><strong>Annual Income:</strong> £{{ reference.self_employed_annual_income }}</p>
-                  <p v-if="reference?.accountant_name"><strong>Accountant:</strong> {{ reference.accountant_contact_name }} ({{ reference.accountant_name }})</p>
+                  <p v-if="reference?.self_employed_business_name"><strong>Business:</strong> {{
+                    reference.self_employed_business_name }}</p>
+                  <p v-if="reference?.self_employed_nature_of_business"><strong>Nature:</strong> {{
+                    reference.self_employed_nature_of_business }}</p>
+                  <p v-if="reference?.self_employed_annual_income"><strong>Annual Income:</strong> £{{
+                    reference.self_employed_annual_income }}</p>
+                  <p v-if="reference?.accountant_name"><strong>Accountant:</strong> {{ reference.accountant_contact_name
+                    }} ({{
+                      reference.accountant_name }})</p>
                   <p v-if="reference?.accountant_email"><strong>Email:</strong> {{ reference.accountant_email }}</p>
                 </div>
               </div>
@@ -385,8 +376,10 @@
               <div v-if="reference?.income_benefits" class="border-l-4 border-green-500 pl-4">
                 <p class="font-medium text-gray-900">Benefits Income</p>
                 <div class="mt-2 space-y-1 text-sm">
-                  <p v-if="reference?.benefits_monthly_amount"><strong>Monthly Amount:</strong> £{{ reference.benefits_monthly_amount }}</p>
-                  <p v-if="reference?.benefits_annual_amount"><strong>Annual Amount:</strong> £{{ reference.benefits_annual_amount }}</p>
+                  <p v-if="reference?.benefits_monthly_amount"><strong>Monthly Amount:</strong> £{{
+                    reference.benefits_monthly_amount }}</p>
+                  <p v-if="reference?.benefits_annual_amount"><strong>Annual Amount:</strong> £{{
+                    reference.benefits_annual_amount }}</p>
                 </div>
               </div>
 
@@ -402,8 +395,12 @@
               <div v-if="reference?.additional_income_source" class="border-l-4 border-orange-500 pl-4">
                 <p class="font-medium text-gray-900">Additional Income</p>
                 <div class="mt-2 space-y-1 text-sm">
-                  <p v-if="reference?.additional_income_source"><strong>Source:</strong> {{ reference.additional_income_source }}</p>
-                  <p v-if="reference?.additional_income_amount"><strong>Amount:</strong> £{{ reference.additional_income_amount }}</p>
+                  <p v-if="reference?.additional_income_source"><strong>Source:</strong> {{
+                    reference.additional_income_source
+                    }}</p>
+                  <p v-if="reference?.additional_income_amount"><strong>Amount:</strong> £{{
+                    reference.additional_income_amount
+                    }}</p>
                 </div>
               </div>
 
@@ -412,12 +409,15 @@
                 <p class="font-medium text-gray-900">Property Details</p>
                 <div class="mt-2 space-y-1 text-sm">
                   <p><strong>Monthly Rent:</strong> £{{ reference.monthly_rent }}</p>
-                  <p v-if="reference?.property_address"><strong>Property:</strong> {{ reference.property_address }}, {{ reference.property_city }} {{ reference.property_postcode }}</p>
+                  <p v-if="reference?.property_address"><strong>Property:</strong> {{ reference.property_address }}, {{
+                    reference.property_city }} {{ reference.property_postcode }}</p>
                 </div>
               </div>
 
               <!-- No income declared -->
-              <div v-if="!reference?.income_employment && !reference?.income_regular_employment && !reference?.income_self_employed && !reference?.income_benefits && !reference?.income_savings_pension_investments" class="text-gray-500 italic">
+              <div
+                v-if="!reference?.income_employment && !reference?.income_regular_employment && !reference?.income_self_employed && !reference?.income_benefits && !reference?.income_savings_pension_investments"
+                class="text-gray-500 italic">
                 No income sources declared
               </div>
             </div>
@@ -426,63 +426,57 @@
             <div class="bg-white border rounded-lg p-4">
               <h4 class="font-semibold text-gray-900 mb-3">Verification Checks</h4>
               <div class="space-y-3">
-                <div v-if="reference?.income_employment || reference?.income_regular_employment" class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                <div v-if="reference?.income_employment || reference?.income_regular_employment"
+                  class="flex items-start justify-between p-3 bg-gray-50 rounded">
                   <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-700">Is the employer email genuine? (Business domain check)</p>
-                    <p v-if="reference?.employer_ref_email" class="text-xs text-gray-500 mt-1">{{ reference.employer_ref_email }}</p>
+                    <p class="text-sm font-medium text-gray-700">Is the employer email genuine? (Business domain check)
+                    </p>
+                    <p v-if="reference?.employer_ref_email" class="text-xs text-gray-500 mt-1">{{
+                      reference.employer_ref_email
+                      }}</p>
                   </div>
                   <div class="flex gap-2 ml-4">
-                    <button
-                      @click="toggleCheck('employerEmailGenuine', true)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getCheckValue('employerEmailGenuine') === true
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-green-100'
-                      ]"
-                    >
+                    <button @click="toggleCheck('employerEmailGenuine', true)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getCheckValue('employerEmailGenuine') === true
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                    ]">
                       Pass
                     </button>
-                    <button
-                      @click="toggleCheck('employerEmailGenuine', false)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getCheckValue('employerEmailGenuine') === false
-                          ? 'bg-red-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-red-100'
-                      ]"
-                    >
+                    <button @click="toggleCheck('employerEmailGenuine', false)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getCheckValue('employerEmailGenuine') === false
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                    ]">
                       Fail
                     </button>
                   </div>
                 </div>
 
-                <div v-if="reference?.income_employment || reference?.income_regular_employment" class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                <div v-if="reference?.income_employment || reference?.income_regular_employment"
+                  class="flex items-start justify-between p-3 bg-gray-50 rounded">
                   <div class="flex-1">
                     <p class="text-sm font-medium text-gray-700">Is the business actively trading?</p>
-                    <p v-if="reference?.employment_company_name" class="text-xs text-gray-500 mt-1">{{ reference.employment_company_name }}</p>
+                    <p v-if="reference?.employment_company_name" class="text-xs text-gray-500 mt-1">{{
+                      reference.employment_company_name }}</p>
                   </div>
                   <div class="flex gap-2 ml-4">
-                    <button
-                      @click="toggleCheck('businessTrading', true)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getCheckValue('businessTrading') === true
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-green-100'
-                      ]"
-                    >
+                    <button @click="toggleCheck('businessTrading', true)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getCheckValue('businessTrading') === true
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                    ]">
                       Pass
                     </button>
-                    <button
-                      @click="toggleCheck('businessTrading', false)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getCheckValue('businessTrading') === false
-                          ? 'bg-red-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-red-100'
-                      ]"
-                    >
+                    <button @click="toggleCheck('businessTrading', false)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getCheckValue('businessTrading') === false
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                    ]">
                       Fail
                     </button>
                   </div>
@@ -491,29 +485,24 @@
                 <div class="flex items-start justify-between p-3 bg-gray-50 rounded">
                   <div class="flex-1">
                     <p class="text-sm font-medium text-gray-700">Income sufficient for rent affordability?</p>
-                    <p v-if="reference?.monthly_rent" class="text-xs text-gray-500 mt-1">Monthly rent: £{{ reference.monthly_rent }}</p>
+                    <p v-if="reference?.monthly_rent" class="text-xs text-gray-500 mt-1">Monthly rent: £{{
+                      reference.monthly_rent }}</p>
                   </div>
                   <div class="flex gap-2 ml-4">
-                    <button
-                      @click="toggleCheck('affordability', true)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getCheckValue('affordability') === true
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-green-100'
-                      ]"
-                    >
+                    <button @click="toggleCheck('affordability', true)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getCheckValue('affordability') === true
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                    ]">
                       Pass
                     </button>
-                    <button
-                      @click="toggleCheck('affordability', false)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getCheckValue('affordability') === false
-                          ? 'bg-red-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-red-100'
-                      ]"
-                    >
+                    <button @click="toggleCheck('affordability', false)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getCheckValue('affordability') === false
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                    ]">
                       Fail
                     </button>
                   </div>
@@ -525,18 +514,11 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Evidence Sources Used</label>
               <div class="grid grid-cols-2 gap-3">
-                <label
-                  v-for="source in evidenceSourceOptions.INCOME_AFFORDABILITY"
-                  :key="source.evidence_type"
+                <label v-for="source in evidenceSourceOptions.INCOME_AFFORDABILITY" :key="source.evidence_type"
                   class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="steps[1]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'"
-                >
-                  <input
-                    type="checkbox"
-                    :value="source.evidence_type"
-                    v-model="steps[1]!.evidence_sources"
-                    class="mr-3 h-4 w-4 text-primary focus:ring-primary"
-                  />
+                  :class="steps[1]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'">
+                  <input type="checkbox" :value="source.evidence_type" v-model="steps[1]!.evidence_sources"
+                    class="mr-3 h-4 w-4 text-primary focus:ring-primary" />
                   <span class="text-sm">{{ source.display_label }}</span>
                 </label>
               </div>
@@ -545,38 +527,29 @@
             <!-- Notes -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-              <textarea
-                v-model="steps[1]!.notes"
-                rows="3"
+              <textarea v-model="steps[1]!.notes" rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Add notes about income verification, affordability calculations, etc."
-              ></textarea>
+                placeholder="Add notes about income verification, affordability calculations, etc."></textarea>
             </div>
 
             <!-- Pass/Fail -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <div class="flex gap-4">
-                <button
-                  @click="steps[1]!.overall_pass = true"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[1]!.overall_pass === true
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-green-50'
-                  ]"
-                >
+                <button @click="steps[1]!.overall_pass = true" :class="[
+                  'flex-1 py-3 px-4 rounded-md font-medium transition-all',
+                  steps[1]!.overall_pass === true
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                ]">
                   Pass
                 </button>
-                <button
-                  @click="steps[1]!.overall_pass = false"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[1]!.overall_pass === false
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-red-50'
-                  ]"
-                >
+                <button @click="steps[1]!.overall_pass = false" :class="[
+                  'flex-1 py-3 px-4 rounded-md font-medium transition-all',
+                  steps[1]!.overall_pass === false
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-red-50'
+                ]">
                   Fail
                 </button>
               </div>
@@ -595,39 +568,54 @@
               <h4 class="font-semibold text-gray-900">Current Address</h4>
               <div class="border-l-4 border-blue-500 pl-4">
                 <div class="space-y-1 text-sm">
-                  <p v-if="reference?.current_address_line1"><strong>Address:</strong> {{ reference.current_address_line1 }}</p>
+                  <p v-if="reference?.current_address_line1"><strong>Address:</strong> {{
+                    reference.current_address_line1 }}</p>
                   <p v-if="reference?.current_address_line2" class="ml-16">{{ reference.current_address_line2 }}</p>
                   <p v-if="reference?.current_city || reference?.current_postcode">
-                    <span class="ml-16">{{ reference.current_city }}{{ reference.current_city && reference.current_postcode ? ', ' : '' }}{{ reference.current_postcode }}</span>
+                    <span class="ml-16">{{ reference.current_city }}{{ reference.current_city && reference.current_postcode ? ',' : '' }}{{ reference.current_postcode }}</span>
                   </p>
                   <p v-if="reference?.current_country"><span class="ml-16">{{ reference.current_country }}</span></p>
                   <p v-if="reference?.time_at_address_years || reference?.time_at_address_months">
                     <strong>Time at address:</strong>
-                    {{ reference.time_at_address_years || 0 }} year(s), {{ reference.time_at_address_months || 0 }} month(s)
+                    {{ reference.time_at_address_years || 0 }} year(s), {{ reference.time_at_address_months || 0 }}
+                    month(s)
                   </p>
                 </div>
               </div>
             </div>
 
             <!-- Previous Rental History -->
-            <div v-if="reference?.previous_landlord_name || reference?.previous_rental_address_line1" class="bg-gray-50 rounded-lg p-4 space-y-4">
+            <div v-if="reference?.previous_landlord_name || reference?.previous_rental_address_line1"
+              class="bg-gray-50 rounded-lg p-4 space-y-4">
               <h4 class="font-semibold text-gray-900">Previous Rental History</h4>
               <div class="border-l-4 border-purple-500 pl-4">
                 <div class="space-y-1 text-sm">
-                  <p v-if="reference?.previous_landlord_name"><strong>Landlord/Agent:</strong> {{ reference.previous_landlord_name }}</p>
-                  <p v-if="reference?.previous_landlord_email"><strong>Email:</strong> {{ reference.previous_landlord_email }}</p>
-                  <p v-if="reference?.previous_landlord_phone"><strong>Phone:</strong> {{ reference.previous_landlord_phone }}</p>
-                  <p v-if="reference?.previous_rental_address_line1" class="mt-2"><strong>Previous Address:</strong> {{ reference.previous_rental_address_line1 }}</p>
-                  <p v-if="reference?.previous_rental_address_line2" class="ml-20">{{ reference.previous_rental_address_line2 }}</p>
-                  <p v-if="reference?.previous_rental_city || reference?.previous_rental_postcode">
-                    <span class="ml-20">{{ reference.previous_rental_city }}{{ reference.previous_rental_city && reference.previous_rental_postcode ? ', ' : '' }}{{ reference.previous_rental_postcode }}</span>
+                  <p v-if="reference?.previous_landlord_name"><strong>Landlord/Agent:</strong> {{
+                    reference.previous_landlord_name }}</p>
+                  <p v-if="reference?.previous_landlord_email"><strong>Email:</strong> {{
+                    reference.previous_landlord_email }}
                   </p>
-                  <p v-if="reference?.previous_monthly_rent"><strong>Previous Rent:</strong> £{{ reference.previous_monthly_rent }}/month</p>
+                  <p v-if="reference?.previous_landlord_phone"><strong>Phone:</strong> {{
+                    reference.previous_landlord_phone }}
+                  </p>
+                  <p v-if="reference?.previous_rental_address_line1" class="mt-2"><strong>Previous Address:</strong> {{
+                    reference.previous_rental_address_line1 }}</p>
+                  <p v-if="reference?.previous_rental_address_line2" class="ml-20">{{
+                    reference.previous_rental_address_line2 }}
+                  </p>
+                  <p v-if="reference?.previous_rental_city || reference?.previous_rental_postcode">
+                    <span class="ml-20">{{ reference.previous_rental_city }}{{ reference.previous_rental_city &&
+                      reference.previous_rental_postcode ? ', ' : '' }}{{ reference.previous_rental_postcode }}</span>
+                  </p>
+                  <p v-if="reference?.previous_monthly_rent"><strong>Previous Rent:</strong> £{{
+                    reference.previous_monthly_rent
+                    }}/month</p>
                   <p v-if="reference?.previous_tenancy_start_date || reference?.previous_tenancy_end_date">
                     <strong>Tenancy Period:</strong>
-                    {{ reference.previous_tenancy_start_date ? new Date(reference.previous_tenancy_start_date).toLocaleDateString('en-GB') : 'N/A' }}
+                    {{ formatDate(reference.previous_tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
-                    {{ reference.previous_tenancy_still_in_progress ? 'Present' : (reference.previous_tenancy_end_date ? new Date(reference.previous_tenancy_end_date).toLocaleDateString('en-GB') : 'N/A') }}
+                    {{ reference.previous_tenancy_still_in_progress ? 'Present' :
+                      formatDate(reference.previous_tenancy_end_date, 'N/A') }}
                   </p>
                 </div>
               </div>
@@ -635,19 +623,23 @@
 
             <!-- Landlord/Agent Reference Response -->
             <div v-if="landlordReference || agentReference" class="bg-white border rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">{{ landlordReference ? 'Landlord' : 'Agent' }} Reference Response</h4>
+              <h4 class="font-semibold text-gray-900 mb-3">{{ landlordReference ? 'Landlord' : 'Agent' }} Reference
+                Response
+              </h4>
               <div class="space-y-2 text-sm">
                 <div v-if="landlordReference">
                   <p><strong>Landlord:</strong> {{ landlordReference.landlord_name }}</p>
                   <p><strong>Email:</strong> {{ landlordReference.landlord_email }}</p>
-                  <p v-if="landlordReference.submitted_at" class="text-green-600"><strong>Submitted:</strong> {{ new Date(landlordReference.submitted_at).toLocaleDateString('en-GB') }}</p>
+                  <p v-if="landlordReference.submitted_at" class="text-green-600"><strong>Submitted:</strong> {{
+                    formatDate(landlordReference.submitted_at) }}</p>
                   <p v-else class="text-orange-600"><strong>Status:</strong> Awaiting response</p>
                 </div>
                 <div v-if="agentReference">
                   <p><strong>Agent:</strong> {{ agentReference.agent_name }}</p>
                   <p><strong>Agency:</strong> {{ agentReference.agency_name }}</p>
                   <p><strong>Email:</strong> {{ agentReference.agent_email }}</p>
-                  <p v-if="agentReference.submitted_at" class="text-green-600"><strong>Submitted:</strong> {{ new Date(agentReference.submitted_at).toLocaleDateString('en-GB') }}</p>
+                  <p v-if="agentReference.submitted_at" class="text-green-600"><strong>Submitted:</strong> {{
+                    formatDate(agentReference.submitted_at) }}</p>
                   <p v-else class="text-orange-600"><strong>Status:</strong> Awaiting response</p>
                 </div>
               </div>
@@ -660,62 +652,55 @@
                 <div class="flex items-start justify-between p-3 bg-gray-50 rounded">
                   <div class="flex-1">
                     <p class="text-sm font-medium text-gray-700">Do tenancy dates match application?</p>
-                    <p class="text-xs text-gray-500 mt-1">Check previous tenancy dates align with declared residential history</p>
+                    <p class="text-xs text-gray-500 mt-1">Check previous tenancy dates align with declared residential
+                      history
+                    </p>
                   </div>
                   <div class="flex gap-2 ml-4">
-                    <button
-                      @click="toggleResidentialCheck('tenancyDatesMatch', true)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getResidentialCheckValue('tenancyDatesMatch') === true
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-green-100'
-                      ]"
-                    >
+                    <button @click="toggleResidentialCheck('tenancyDatesMatch', true)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getResidentialCheckValue('tenancyDatesMatch') === true
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                    ]">
                       Pass
                     </button>
-                    <button
-                      @click="toggleResidentialCheck('tenancyDatesMatch', false)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getResidentialCheckValue('tenancyDatesMatch') === false
-                          ? 'bg-red-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-red-100'
-                      ]"
-                    >
+                    <button @click="toggleResidentialCheck('tenancyDatesMatch', false)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getResidentialCheckValue('tenancyDatesMatch') === false
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                    ]">
                       Fail
                     </button>
                   </div>
                 </div>
 
-                <div v-if="reference?.previous_landlord_email || (landlordReference || agentReference)" class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                <div v-if="reference?.previous_landlord_email || (landlordReference || agentReference)"
+                  class="flex items-start justify-between p-3 bg-gray-50 rounded">
                   <div class="flex-1">
                     <p class="text-sm font-medium text-gray-700">Are contact details verifiable?</p>
                     <p class="text-xs text-gray-500 mt-1">
-                      {{ reference?.previous_landlord_email || landlordReference?.landlord_email || agentReference?.agent_email }}
+                      {{ reference?.previous_landlord_email || landlordReference?.landlord_email ||
+                      agentReference?.agent_email
+                      }}
                     </p>
                   </div>
                   <div class="flex gap-2 ml-4">
-                    <button
-                      @click="toggleResidentialCheck('contactDetailsVerifiable', true)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getResidentialCheckValue('contactDetailsVerifiable') === true
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-green-100'
-                      ]"
-                    >
+                    <button @click="toggleResidentialCheck('contactDetailsVerifiable', true)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getResidentialCheckValue('contactDetailsVerifiable') === true
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                    ]">
                       Pass
                     </button>
-                    <button
-                      @click="toggleResidentialCheck('contactDetailsVerifiable', false)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getResidentialCheckValue('contactDetailsVerifiable') === false
-                          ? 'bg-red-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-red-100'
-                      ]"
-                    >
+                    <button @click="toggleResidentialCheck('contactDetailsVerifiable', false)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getResidentialCheckValue('contactDetailsVerifiable') === false
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                    ]">
                       Fail
                     </button>
                   </div>
@@ -724,60 +709,50 @@
                 <div class="flex items-start justify-between p-3 bg-gray-50 rounded">
                   <div class="flex-1">
                     <p class="text-sm font-medium text-gray-700">Any conflicts vs. application?</p>
-                    <p class="text-xs text-gray-500 mt-1">Check for discrepancies between reference and application data</p>
+                    <p class="text-xs text-gray-500 mt-1">Check for discrepancies between reference and application data
+                    </p>
                   </div>
                   <div class="flex gap-2 ml-4">
-                    <button
-                      @click="toggleResidentialCheck('noConflicts', true)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getResidentialCheckValue('noConflicts') === true
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-green-100'
-                      ]"
-                    >
+                    <button @click="toggleResidentialCheck('noConflicts', true)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getResidentialCheckValue('noConflicts') === true
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                    ]">
                       Pass
                     </button>
-                    <button
-                      @click="toggleResidentialCheck('noConflicts', false)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getResidentialCheckValue('noConflicts') === false
-                          ? 'bg-red-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-red-100'
-                      ]"
-                    >
+                    <button @click="toggleResidentialCheck('noConflicts', false)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getResidentialCheckValue('noConflicts') === false
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                    ]">
                       Fail
                     </button>
                   </div>
                 </div>
 
-                <div v-if="landlordReference?.submitted_at || agentReference?.submitted_at" class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                <div v-if="landlordReference?.submitted_at || agentReference?.submitted_at"
+                  class="flex items-start justify-between p-3 bg-gray-50 rounded">
                   <div class="flex-1">
                     <p class="text-sm font-medium text-gray-700">Reference response received and satisfactory?</p>
                     <p class="text-xs text-gray-500 mt-1">Review the full reference response for any red flags</p>
                   </div>
                   <div class="flex gap-2 ml-4">
-                    <button
-                      @click="toggleResidentialCheck('referenceResponseSatisfactory', true)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getResidentialCheckValue('referenceResponseSatisfactory') === true
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-green-100'
-                      ]"
-                    >
+                    <button @click="toggleResidentialCheck('referenceResponseSatisfactory', true)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getResidentialCheckValue('referenceResponseSatisfactory') === true
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                    ]">
                       Pass
                     </button>
-                    <button
-                      @click="toggleResidentialCheck('referenceResponseSatisfactory', false)"
-                      :class="[
-                        'px-3 py-1 text-xs font-medium rounded transition-all',
-                        getResidentialCheckValue('referenceResponseSatisfactory') === false
-                          ? 'bg-red-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-red-100'
-                      ]"
-                    >
+                    <button @click="toggleResidentialCheck('referenceResponseSatisfactory', false)" :class="[
+                      'px-3 py-1 text-xs font-medium rounded transition-all',
+                      getResidentialCheckValue('referenceResponseSatisfactory') === false
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                    ]">
                       Fail
                     </button>
                   </div>
@@ -789,18 +764,11 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Evidence Sources Used</label>
               <div class="grid grid-cols-2 gap-3">
-                <label
-                  v-for="source in evidenceSourceOptions.RESIDENTIAL"
-                  :key="source.evidence_type"
+                <label v-for="source in evidenceSourceOptions.RESIDENTIAL" :key="source.evidence_type"
                   class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="steps[2]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'"
-                >
-                  <input
-                    type="checkbox"
-                    :value="source.evidence_type"
-                    v-model="steps[2]!.evidence_sources"
-                    class="mr-3 h-4 w-4 text-primary focus:ring-primary"
-                  />
+                  :class="steps[2]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'">
+                  <input type="checkbox" :value="source.evidence_type" v-model="steps[2]!.evidence_sources"
+                    class="mr-3 h-4 w-4 text-primary focus:ring-primary" />
                   <span class="text-sm">{{ source.display_label }}</span>
                 </label>
               </div>
@@ -809,38 +777,29 @@
             <!-- Notes -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-              <textarea
-                v-model="steps[2]!.notes"
-                rows="3"
+              <textarea v-model="steps[2]!.notes" rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Add notes about landlord references, address history, etc."
-              ></textarea>
+                placeholder="Add notes about landlord references, address history, etc."></textarea>
             </div>
 
             <!-- Pass/Fail -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <div class="flex gap-4">
-                <button
-                  @click="steps[2]!.overall_pass = true"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[2]!.overall_pass === true
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-green-50'
-                  ]"
-                >
+                <button @click="steps[2]!.overall_pass = true" :class="[
+                  'flex-1 py-3 px-4 rounded-md font-medium transition-all',
+                  steps[2]!.overall_pass === true
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                ]">
                   Pass
                 </button>
-                <button
-                  @click="steps[2]!.overall_pass = false"
-                  :class="[
-                    'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                    steps[2]!.overall_pass === false
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-red-50'
-                  ]"
-                >
+                <button @click="steps[2]!.overall_pass = false" :class="[
+                  'flex-1 py-3 px-4 rounded-md font-medium transition-all',
+                  steps[2]!.overall_pass === false
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-red-50'
+                ]">
                   Fail
                 </button>
               </div>
@@ -859,8 +818,11 @@
               <h4 class="font-semibold text-gray-900">Credit Check Summary</h4>
               <div class="border-l-4 border-blue-500 pl-4">
                 <div class="space-y-2 text-sm">
-                  <p v-if="creditCheckData.credit_rating"><strong>Credit Rating:</strong> {{ creditCheckData.credit_rating }}</p>
-                  <p v-if="creditCheckData.credit_score"><strong>Credit Score:</strong> {{ creditCheckData.credit_score }}</p>
+                  <p v-if="creditCheckData.credit_rating"><strong>Credit Rating:</strong> {{
+                    creditCheckData.credit_rating }}
+                  </p>
+                  <p v-if="creditCheckData.credit_score"><strong>Credit Score:</strong> {{ creditCheckData.credit_score
+                    }}</p>
                   <p v-if="creditCheckData.band_text"><strong>Band:</strong> {{ creditCheckData.band_text }}</p>
                   <p v-if="creditCheckData.adverse_credit !== undefined">
                     <strong>Adverse Credit:</strong>
@@ -872,7 +834,7 @@
                     <strong>Details:</strong> {{ creditCheckData.adverse_credit_details }}
                   </p>
                   <p v-if="creditCheckData.checked_at" class="text-gray-500">
-                    <strong>Checked:</strong> {{ new Date(creditCheckData.checked_at).toLocaleDateString('en-GB') }}
+                    <strong>Checked:</strong> {{ formatDate(creditCheckData.checked_at) }}
                   </p>
                 </div>
               </div>
@@ -881,35 +843,31 @@
             <!-- Sanctions Screening -->
             <div v-if="sanctionsData" class="bg-gray-50 rounded-lg p-4 space-y-4">
               <h4 class="font-semibold text-gray-900">Sanctions Screening</h4>
-              <div
-                class="border-l-4 pl-4"
-                :class="{
-                  'border-green-500': sanctionsData.risk_level === 'clear',
-                  'border-blue-500': sanctionsData.risk_level === 'low',
-                  'border-yellow-500': sanctionsData.risk_level === 'medium',
-                  'border-red-500': sanctionsData.risk_level === 'high'
-                }"
-              >
+              <div class="border-l-4 pl-4" :class="{
+                'border-green-500': sanctionsData.risk_level === 'clear',
+                'border-blue-500': sanctionsData.risk_level === 'low',
+                'border-yellow-500': sanctionsData.risk_level === 'medium',
+                'border-red-500': sanctionsData.risk_level === 'high'
+              }">
                 <div class="space-y-2 text-sm">
                   <p>
                     <strong>Risk Level:</strong>
-                    <span
-                      :class="{
-                        'text-green-600 font-semibold': sanctionsData.risk_level === 'clear',
-                        'text-blue-600 font-semibold': sanctionsData.risk_level === 'low',
-                        'text-yellow-600 font-semibold': sanctionsData.risk_level === 'medium',
-                        'text-red-600 font-semibold': sanctionsData.risk_level === 'high'
-                      }"
-                    >
+                    <span :class="{
+                      'text-green-600 font-semibold': sanctionsData.risk_level === 'clear',
+                      'text-blue-600 font-semibold': sanctionsData.risk_level === 'low',
+                      'text-yellow-600 font-semibold': sanctionsData.risk_level === 'medium',
+                      'text-red-600 font-semibold': sanctionsData.risk_level === 'high'
+                    }">
                       {{ sanctionsData.risk_level?.toUpperCase() }}
                     </span>
                   </p>
-                  <p v-if="sanctionsData.summary_message"><strong>Summary:</strong> {{ sanctionsData.summary_message }}</p>
+                  <p v-if="sanctionsData.summary_message"><strong>Summary:</strong> {{ sanctionsData.summary_message }}
+                  </p>
                   <p v-if="sanctionsData.matches_found > 0" class="text-orange-600">
                     <strong>Matches Found:</strong> {{ sanctionsData.matches_found }}
                   </p>
                   <p v-if="sanctionsData.screened_at" class="text-gray-500">
-                    <strong>Screened:</strong> {{ new Date(sanctionsData.screened_at).toLocaleDateString('en-GB') }}
+                    <strong>Screened:</strong> {{ formatDate(sanctionsData.screened_at) }}
                   </p>
                 </div>
               </div>
@@ -922,7 +880,9 @@
                 <span v-if="creditsafeLoading" class="text-sm text-gray-500">
                   <svg class="inline-block animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
                   </svg>
                   Running identity check...
                 </span>
@@ -932,7 +892,8 @@
                 <div class="space-y-2 text-sm">
                   <p v-if="creditsafeData.verifyMatch !== undefined">
                     <strong>Identity Match:</strong>
-                    <span :class="creditsafeData.verifyMatch ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
+                    <span
+                      :class="creditsafeData.verifyMatch ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
                       {{ creditsafeData.verifyMatch ? 'VERIFIED' : 'NOT VERIFIED' }}
                     </span>
                   </p>
@@ -969,7 +930,7 @@
                     <strong>Risk Score:</strong> {{ creditsafeData.riskScore }}
                   </p>
                   <p v-if="creditsafeData.verified_at" class="text-gray-500">
-                    <strong>Checked:</strong> {{ new Date(creditsafeData.verified_at).toLocaleDateString('en-GB') }}
+                    <strong>Checked:</strong> {{ formatDate(creditsafeData.verified_at) }}
                   </p>
                 </div>
               </div>
@@ -1021,8 +982,9 @@
                     'text-gray-400': !creditCheckData && !sanctionsData
                   }">
                     {{ !creditCheckData && !sanctionsData ? 'N/A' :
-                       (creditCheckData?.adverse_credit || sanctionsData?.risk_level === 'high' ? 'FAIL' :
-                       (sanctionsData?.risk_level === 'low' || sanctionsData?.risk_level === 'medium' ? 'REFER' : 'PASS')) }}
+                      (creditCheckData?.adverse_credit || sanctionsData?.risk_level === 'high' ? 'FAIL' :
+                        (sanctionsData?.risk_level === 'low' || sanctionsData?.risk_level === 'medium' ? 'REFER' : 'PASS'))
+                    }}
                   </p>
                 </div>
               </div>
@@ -1036,214 +998,172 @@
               </p>
 
               <!-- Evidence Source Selection -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Evidence Sources Used</label>
-              <div class="grid grid-cols-2 gap-3">
-                <label
-                  v-for="source in evidenceSourceOptions.CREDIT_TAS"
-                  :key="source.evidence_type"
-                  class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="steps[3]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'"
-                >
-                  <input
-                    type="checkbox"
-                    :value="source.evidence_type"
-                    v-model="steps[3]!.evidence_sources"
-                    class="mr-3 h-4 w-4 text-primary focus:ring-primary"
-                  />
-                  <span class="text-sm">{{ source.display_label }}</span>
-                </label>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Evidence Sources Used</label>
+                <div class="grid grid-cols-2 gap-3">
+                  <label v-for="source in evidenceSourceOptions.CREDIT_TAS" :key="source.evidence_type"
+                    class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
+                    :class="steps[3]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'">
+                    <input type="checkbox" :value="source.evidence_type" v-model="steps[3]!.evidence_sources"
+                      class="mr-3 h-4 w-4 text-primary focus:ring-primary" />
+                    <span class="text-sm">{{ source.display_label }}</span>
+                  </label>
+                </div>
               </div>
-            </div>
 
-            <!-- TAS Decision Categories -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">Select TAS Category</label>
-              <div class="grid grid-cols-2 gap-4">
-                <button
-                  @click="tasDecision = 'PASS_PLUS'"
-                  :class="[
+              <!-- TAS Decision Categories -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-3">Select TAS Category</label>
+                <div class="grid grid-cols-2 gap-4">
+                  <button @click="tasDecision = 'PASS_PLUS'" :class="[
                     'p-4 rounded-lg border-2 text-left transition-all',
                     tasDecision === 'PASS_PLUS'
                       ? 'border-green-600 bg-green-50'
                       : 'border-gray-300 bg-white hover:border-green-300'
-                  ]"
-                >
-                  <div class="flex items-center gap-2 mb-1">
-                    <div :class="[
-                      'w-4 h-4 rounded-full border-2',
-                      tasDecision === 'PASS_PLUS' ? 'border-green-600 bg-green-600' : 'border-gray-300'
-                    ]">
-                      <svg v-if="tasDecision === 'PASS_PLUS'" class="w-full h-full text-white" fill="currentColor" viewBox="0 0 12 12">
-                        <circle cx="6" cy="6" r="3" />
-                      </svg>
+                  ]">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div :class="[
+                        'w-4 h-4 rounded-full border-2',
+                        tasDecision === 'PASS_PLUS' ? 'border-green-600 bg-green-600' : 'border-gray-300'
+                      ]">
+                        <svg v-if="tasDecision === 'PASS_PLUS'" class="w-full h-full text-white" fill="currentColor"
+                          viewBox="0 0 12 12">
+                          <circle cx="6" cy="6" r="3" />
+                        </svg>
+                      </div>
+                      <span class="font-semibold text-green-700">Pass+ (Top 5%)</span>
                     </div>
-                    <span class="font-semibold text-green-700">Pass+ (Top 5%)</span>
-                  </div>
-                  <p class="text-xs text-gray-600 ml-6">Exceptional applicant, no concerns</p>
-                </button>
+                    <p class="text-xs text-gray-600 ml-6">Exceptional applicant, no concerns</p>
+                  </button>
 
-                <button
-                  @click="tasDecision = 'PASS'"
-                  :class="[
+                  <button @click="tasDecision = 'PASS'" :class="[
                     'p-4 rounded-lg border-2 text-left transition-all',
                     tasDecision === 'PASS'
                       ? 'border-blue-600 bg-blue-50'
                       : 'border-gray-300 bg-white hover:border-blue-300'
-                  ]"
-                >
-                  <div class="flex items-center gap-2 mb-1">
-                    <div :class="[
-                      'w-4 h-4 rounded-full border-2',
-                      tasDecision === 'PASS' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
-                    ]">
-                      <svg v-if="tasDecision === 'PASS'" class="w-full h-full text-white" fill="currentColor" viewBox="0 0 12 12">
-                        <circle cx="6" cy="6" r="3" />
-                      </svg>
+                  ]">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div :class="[
+                        'w-4 h-4 rounded-full border-2',
+                        tasDecision === 'PASS' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                      ]">
+                        <svg v-if="tasDecision === 'PASS'" class="w-full h-full text-white" fill="currentColor"
+                          viewBox="0 0 12 12">
+                          <circle cx="6" cy="6" r="3" />
+                        </svg>
+                      </div>
+                      <span class="font-semibold text-blue-700">Pass (Accept)</span>
                     </div>
-                    <span class="font-semibold text-blue-700">Pass (Accept)</span>
-                  </div>
-                  <p class="text-xs text-gray-600 ml-6">Satisfactory applicant, recommend acceptance</p>
-                </button>
+                    <p class="text-xs text-gray-600 ml-6">Satisfactory applicant, recommend acceptance</p>
+                  </button>
 
-                <button
-                  @click="tasDecision = 'REFER'"
-                  :class="[
+                  <button @click="tasDecision = 'REFER'" :class="[
                     'p-4 rounded-lg border-2 text-left transition-all',
                     tasDecision === 'REFER'
                       ? 'border-yellow-600 bg-yellow-50'
                       : 'border-gray-300 bg-white hover:border-yellow-300'
-                  ]"
-                >
-                  <div class="flex items-center gap-2 mb-1">
-                    <div :class="[
-                      'w-4 h-4 rounded-full border-2',
-                      tasDecision === 'REFER' ? 'border-yellow-600 bg-yellow-600' : 'border-gray-300'
-                    ]">
-                      <svg v-if="tasDecision === 'REFER'" class="w-full h-full text-white" fill="currentColor" viewBox="0 0 12 12">
-                        <circle cx="6" cy="6" r="3" />
-                      </svg>
+                  ]">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div :class="[
+                        'w-4 h-4 rounded-full border-2',
+                        tasDecision === 'REFER' ? 'border-yellow-600 bg-yellow-600' : 'border-gray-300'
+                      ]">
+                        <svg v-if="tasDecision === 'REFER'" class="w-full h-full text-white" fill="currentColor"
+                          viewBox="0 0 12 12">
+                          <circle cx="6" cy="6" r="3" />
+                        </svg>
+                      </div>
+                      <span class="font-semibold text-yellow-700">Refer (Review Required)</span>
                     </div>
-                    <span class="font-semibold text-yellow-700">Refer (Review Required)</span>
-                  </div>
-                  <p class="text-xs text-gray-600 ml-6">Requires landlord/agent review - must provide reason</p>
-                </button>
+                    <p class="text-xs text-gray-600 ml-6">Requires landlord/agent review - must provide reason</p>
+                  </button>
 
-                <button
-                  @click="tasDecision = 'FAIL'"
-                  :class="[
+                  <button @click="tasDecision = 'FAIL'" :class="[
                     'p-4 rounded-lg border-2 text-left transition-all',
                     tasDecision === 'FAIL'
                       ? 'border-red-600 bg-red-50'
                       : 'border-gray-300 bg-white hover:border-red-300'
-                  ]"
-                >
-                  <div class="flex items-center gap-2 mb-1">
-                    <div :class="[
-                      'w-4 h-4 rounded-full border-2',
-                      tasDecision === 'FAIL' ? 'border-red-600 bg-red-600' : 'border-gray-300'
-                    ]">
-                      <svg v-if="tasDecision === 'FAIL'" class="w-full h-full text-white" fill="currentColor" viewBox="0 0 12 12">
-                        <circle cx="6" cy="6" r="3" />
-                      </svg>
+                  ]">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div :class="[
+                        'w-4 h-4 rounded-full border-2',
+                        tasDecision === 'FAIL' ? 'border-red-600 bg-red-600' : 'border-gray-300'
+                      ]">
+                        <svg v-if="tasDecision === 'FAIL'" class="w-full h-full text-white" fill="currentColor"
+                          viewBox="0 0 12 12">
+                          <circle cx="6" cy="6" r="3" />
+                        </svg>
+                      </div>
+                      <span class="font-semibold text-red-700">Fail (Reject)</span>
                     </div>
-                    <span class="font-semibold text-red-700">Fail (Reject)</span>
-                  </div>
-                  <p class="text-xs text-gray-600 ml-6">Not suitable - must provide reason</p>
-                </button>
+                    <p class="text-xs text-gray-600 ml-6">Not suitable - must provide reason</p>
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <!-- TAS Reason (required for REFER and FAIL) -->
-            <div v-if="tasDecision === 'REFER' || tasDecision === 'FAIL'">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Reason for {{ tasDecision }} Decision *
-              </label>
-              <textarea
-                v-model="tasReason"
-                rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Explain the reason for this decision..."
-                required
-              ></textarea>
-            </div>
+              <!-- TAS Reason (required for REFER and FAIL) -->
+              <div v-if="tasDecision === 'REFER' || tasDecision === 'FAIL'">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for {{ tasDecision }} Decision *
+                </label>
+                <textarea v-model="tasReason" rows="3"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="Explain the reason for this decision..." required></textarea>
+              </div>
 
-            <!-- Notes -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
-              <textarea
-                v-model="steps[3]!.notes"
-                rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Add notes about credit checks, sanctions screening, etc."
-              ></textarea>
-            </div>
+              <!-- Notes -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
+                <textarea v-model="steps[3]!.notes" rows="3"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="Add notes about credit checks, sanctions screening, etc."></textarea>
+              </div>
 
-            <!-- Overall Pass/Fail -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Overall Step Result</label>
-              <div class="flex gap-4">
-                <button
-                  @click="steps[3]!.overall_pass = true"
-                  :class="[
+              <!-- Overall Pass/Fail -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Overall Step Result</label>
+                <div class="flex gap-4">
+                  <button @click="steps[3]!.overall_pass = true" :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                     steps[3]!.overall_pass === true
                       ? 'bg-green-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-green-50'
-                  ]"
-                >
-                  Pass
-                </button>
-                <button
-                  @click="steps[3]!.overall_pass = false"
-                  :class="[
+                  ]">
+                    Pass
+                  </button>
+                  <button @click="steps[3]!.overall_pass = false" :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                     steps[3]!.overall_pass === false
                       ? 'bg-red-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-red-50'
-                  ]"
-                >
-                  Fail
-                </button>
+                  ]">
+                    Fail
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
 
         <!-- Navigation Buttons -->
         <div class="flex justify-between mt-8 pt-6 border-t">
-          <button
-            v-if="currentStep > 1"
-            @click="previousStep"
-            class="px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md font-medium"
-          >
+          <button v-if="currentStep > 1" @click="previousStep"
+            class="px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md font-medium">
             Previous
           </button>
           <div v-else></div>
 
           <div class="flex gap-3">
-            <button
-              @click="saveProgress"
-              :disabled="saving"
-              class="px-6 py-2 text-primary bg-primary/10 hover:bg-primary/20 rounded-md font-medium disabled:opacity-50"
-            >
+            <button @click="saveProgress" :disabled="saving"
+              class="px-6 py-2 text-primary bg-primary/10 hover:bg-primary/20 rounded-md font-medium disabled:opacity-50">
               {{ saving ? 'Saving...' : 'Save Progress' }}
             </button>
-            <button
-              v-if="currentStep < 4"
-              @click="nextStep"
-              :disabled="!canProceed"
-              class="px-6 py-2 text-white bg-primary hover:bg-primary-dark rounded-md font-medium disabled:opacity-50"
-            >
+            <button v-if="currentStep < 4" @click="nextStep" :disabled="!canProceed"
+              class="px-6 py-2 text-white bg-primary hover:bg-primary-dark rounded-md font-medium disabled:opacity-50">
               Next Step
             </button>
-            <button
-              v-else
-              @click="finalizeVerification"
-              :disabled="!canFinalize || saving"
-              class="px-6 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md font-medium disabled:opacity-50"
-            >
+            <button v-else @click="finalizeVerification" :disabled="!canFinalize || saving"
+              class="px-6 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md font-medium disabled:opacity-50">
               {{ saving ? 'Finalizing...' : 'Finalize & Generate Report' }}
             </button>
           </div>
@@ -1258,6 +1178,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import SideBySideViewer from '../components/SideBySideViewer.vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const router = useRouter()
 const route = useRoute()
@@ -1327,8 +1248,8 @@ const canProceed = computed(() => {
   // For Step 1, all ID checks must be complete before assigning overall pass/fail
   if (currentStep.value === 1) {
     const allChecksComplete = idChecks.value.nameMatch !== null &&
-                              idChecks.value.dobMatch !== null &&
-                              idChecks.value.selfieMatch !== null
+      idChecks.value.dobMatch !== null &&
+      idChecks.value.selfieMatch !== null
     if (allChecksComplete && step.overall_pass === null) {
       // Auto-set overall pass based on individual checks
       const allPass = idChecks.value.nameMatch && idChecks.value.dobMatch && idChecks.value.selfieMatch
@@ -1782,6 +1703,17 @@ const triggerCreditsafeCheck = async () => {
     creditsafeLoading.value = false
   }
 }
+
+const formatDate = (value?: string | null, fallback = 'N/A') =>
+  formatUkDate(
+    value,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    },
+    fallback
+  )
 
 // Lifecycle
 onMounted(() => {

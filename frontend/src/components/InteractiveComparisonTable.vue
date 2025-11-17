@@ -99,6 +99,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 interface ComparisonRow {
   field: string
@@ -147,7 +148,16 @@ const formatValue = (value: any): string => {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'number') return value.toString()
   if (typeof value === 'string') return value
-  if (value instanceof Date) return value.toLocaleDateString()
+  if (value instanceof Date) {
+    return formatUkDate(
+      value,
+      {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      }
+    )
+  }
   return String(value)
 }
 

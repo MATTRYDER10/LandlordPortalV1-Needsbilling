@@ -186,6 +186,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import StaffHeader from '../components/StaffHeader.vue'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -288,12 +289,14 @@ const formatStatus = (status: string) => {
   return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
-const formatDate = (date: string) => {
-  if (!date) return 'N/A'
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  })
-}
+const formatDate = (date?: string | null, fallback = 'N/A') =>
+  formatUkDate(
+    date,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    },
+    fallback
+  )
 </script>

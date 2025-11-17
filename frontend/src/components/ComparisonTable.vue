@@ -65,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDate as formatUkDate } from '../utils/date'
 interface ComparisonRow {
   field: string
   label: string
@@ -90,7 +91,16 @@ const formatValue = (value: any): string => {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'number') return value.toString()
   if (typeof value === 'string') return value
-  if (value instanceof Date) return value.toLocaleDateString()
+  if (value instanceof Date) {
+    return formatUkDate(
+      value,
+      {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      }
+    )
+  }
   return String(value)
 }
 

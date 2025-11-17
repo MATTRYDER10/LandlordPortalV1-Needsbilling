@@ -75,7 +75,7 @@
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ new Date(agreement.created_at).toLocaleDateString('en-GB') }}
+                {{ formatDate(agreement.created_at) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button
@@ -102,6 +102,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -199,6 +200,17 @@ const downloadAgreement = async (pdfUrl: string) => {
     toast.error('Failed to download agreement')
   }
 }
+
+const formatDate = (value?: string | null, fallback = 'N/A') =>
+  formatUkDate(
+    value,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    },
+    fallback
+  )
 
 onMounted(() => {
   fetchAgreements()

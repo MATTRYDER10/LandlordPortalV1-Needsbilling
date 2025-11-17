@@ -2142,6 +2142,7 @@ import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import DatePicker from '../components/DatePicker.vue'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
+import { formatDate as formatUkDate } from '../utils/date'
 
 const route = useRoute()
 
@@ -3216,14 +3217,16 @@ const formatFileSize = (bytes: number) => {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 
-const formatDate = (date: string) => {
-  if (!date) return 'Not specified'
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
-}
+const formatDate = (date: string) =>
+  formatUkDate(
+    date,
+    {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    },
+    'Not specified'
+  )
 
 const goToPreviousPage = () => {
   if (currentPage.value > 1) {

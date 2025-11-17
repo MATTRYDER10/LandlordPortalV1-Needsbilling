@@ -178,6 +178,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
+import { formatDate } from '../utils/date'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -285,12 +286,6 @@ const getStatusBadgeClass = (offer: any) => {
   }
 
   return map[offer.status] || 'bg-gray-100 text-gray-800'
-}
-
-const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 const clearFilters = () => {
