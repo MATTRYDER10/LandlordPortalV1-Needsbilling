@@ -100,8 +100,6 @@
                 <option value="approved">Approved</option>
                 <option value="declined">Declined</option>
                 <option value="accepted_with_changes">Accepted with Changes</option>
-                <option value="holding_deposit_received">Holding Deposit Received</option>
-                <option value="reference_created">Reference Created</option>
               </select>
             </div>
             <button
@@ -134,16 +132,19 @@
                         {{ offer.property_address }}
                       </h3>
                       <span
-                        class="ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                        :class="{
-                          'bg-yellow-100 text-yellow-800': offer.status === 'pending',
-                          'bg-blue-100 text-blue-800': offer.status === 'approved',
-                          'bg-red-100 text-red-800': offer.status === 'declined',
-                          'bg-purple-100 text-purple-800': offer.status === 'accepted_with_changes',
-                          'bg-green-100 text-green-800': offer.status === 'holding_deposit_received' || offer.status === 'reference_created'
-                        }"
+                        class="ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1"
+                        :class="getStatusBadgeClass(offer)"
                       >
-                        {{ formatStatus(offer.status) }}
+                        <span>{{ formatStatusDisplay(offer) }}</span>
+                        <svg
+                          v-if="showStatusTick(offer)"
+                          class="w-3.5 h-3.5 text-green-700"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
                       </span>
                     </div>
                     <div class="mt-2 text-sm text-gray-500">
@@ -188,14 +189,35 @@ const searchQuery = ref('')
 const statusFilter = ref('')
 
 const statusCounts = computed(() => {
-  return {
-    pending: offers.value.filter((o: any) => o.status === 'pending').length,
-    approved: offers.value.filter((o: any) => o.status === 'approved' || o.status === 'reference_created').length,
-    declined: offers.value.filter((o: any) => o.status === 'declined').length,
-    accepted_with_changes: offers.value.filter((o: any) => o.status === 'accepted_with_changes').length,
-    holding_deposit_received: offers.value.filter((o: any) => o.status === 'holding_deposit_received').length,
-    reference_created: offers.value.filter((o: any) => o.status === 'reference_created').length
+  const counts = {
+    pending: 0,
+    approved: 0,
+    declined: 0,
+    accepted_with_changes: 0
   }
+
+  for (const offer of offers.value) {
+    switch (offer.status) {
+      case 'pending':
+        counts.pending++
+        break
+      case 'declined':
+        counts.declined++
+        break
+      case 'accepted_with_changes':
+        counts.accepted_with_changes++
+        break
+      case 'approved':
+      case 'holding_deposit_received':
+      case 'reference_created':
+        counts.approved++
+        break
+      default:
+        break
+    }
+  }
+
+  return counts
 })
 
 const filteredOffers = computed(() => {
@@ -213,12 +235,13 @@ const filteredOffers = computed(() => {
 
   // Apply status filter
   if (statusFilter.value) {
-    if (statusFilter.value === 'approved') {
-      // Show both 'approved' and 'reference_created' when filtering by approved
-      filtered = filtered.filter((offer: any) => offer.status === 'approved' || offer.status === 'reference_created')
-    } else {
-      filtered = filtered.filter((offer: any) => offer.status === statusFilter.value)
-    }
+    const filterValue = statusFilter.value
+    filtered = filtered.filter((offer: any) => {
+      if (filterValue === 'approved') {
+        return offer.status === 'approved' || offer.status === 'holding_deposit_received' || offer.status === 'reference_created'
+      }
+      return offer.status === filterValue
+    })
   }
 
   return filtered
@@ -229,11 +252,39 @@ const formatStatus = (status: string) => {
     pending: 'Pending',
     approved: 'Approved',
     declined: 'Declined',
-    accepted_with_changes: 'Accepted with Changes',
-    holding_deposit_received: 'Holding Deposit Received',
-    reference_created: 'Reference Created'
+    accepted_with_changes: 'Accepted with Changes'
   }
+
+  if (status === 'holding_deposit_received' || status === 'reference_created') {
+    return 'Approved'
+  }
+
   return statusMap[status] || status
+}
+
+const formatStatusDisplay = (offer: any) => formatStatus(offer.status)
+
+const showStatusTick = (offer: any) =>
+  offer.holding_deposit_received ||
+  offer.status === 'holding_deposit_received' ||
+  offer.status === 'reference_created'
+
+const getStatusBadgeClass = (offer: any) => {
+  if (offer.status === 'approved') {
+    return showStatusTick(offer) ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+  }
+
+  if (offer.status === 'holding_deposit_received' || offer.status === 'reference_created') {
+    return 'bg-green-100 text-green-800'
+  }
+
+  const map: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    declined: 'bg-red-100 text-red-800',
+    accepted_with_changes: 'bg-purple-100 text-purple-800'
+  }
+
+  return map[offer.status] || 'bg-gray-100 text-gray-800'
 }
 
 const formatDate = (dateString: string) => {

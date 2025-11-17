@@ -23,47 +23,38 @@
             <h2 class="text-3xl font-bold text-gray-900">{{ offer.property_address }}</h2>
             <p class="mt-2 text-gray-600">Tenant Offer Details</p>
           </div>
-          <span class="px-3 py-1 text-sm font-semibold rounded-full" :class="{
-            'bg-yellow-100 text-yellow-800': offer.status === 'pending',
-            'bg-blue-100 text-blue-800': offer.status === 'approved',
-            'bg-red-100 text-red-800': offer.status === 'declined',
-            'bg-purple-100 text-purple-800': offer.status === 'accepted_with_changes',
-            'bg-green-100 text-green-800': offer.status === 'holding_deposit_received' || offer.status === 'reference_created'
-          }">
-            {{ formatStatus(offer.status) }}
+          <span class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-2" :class="statusBadgeClass">
+            <span>{{ statusDisplay }}</span>
+            <svg v-if="showStatusTick" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor"
+              viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
           </span>
         </div>
 
         <!-- Action Buttons -->
-        <div v-if="offer.status === 'pending' || offer.status === 'accepted_with_changes'" class="bg-white rounded-lg shadow p-6">
+        <div v-if="offer.status === 'pending' || offer.status === 'accepted_with_changes'"
+          class="bg-white rounded-lg shadow p-6">
           <div class="flex gap-3">
-            <button
-              @click="showApproveModal = true"
-              class="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700"
-            >
+            <button @click="showApproveModal = true"
+              class="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700">
               Approve Offer
             </button>
-            <button
-              @click="showDeclineModal = true"
-              class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700"
-            >
+            <button @click="showDeclineModal = true"
+              class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700">
               Decline Offer
             </button>
-            <button
-              @click="showEditModal = true"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
-            >
+            <button @click="showEditModal = true"
+              class="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
               Accept with Changes
             </button>
           </div>
         </div>
 
-        <div v-if="offer.status === 'approved' && !offer.holding_deposit_received" class="bg-white rounded-lg shadow p-6">
-          <button
-            @click="markHoldingDepositReceived"
-            :disabled="processing"
-            class="w-full px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 disabled:opacity-50"
-          >
+        <div v-if="offer.status === 'approved' && !offer.holding_deposit_received"
+          class="bg-white rounded-lg shadow p-6">
+          <button @click="markHoldingDepositReceived" :disabled="processing"
+            class="w-full px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 disabled:opacity-50">
             {{ processing ? 'Processing...' : 'Holding Deposit Received - Send References' }}
           </button>
         </div>
@@ -103,6 +94,10 @@
             <div>
               <dt class="text-sm font-medium text-gray-500">Holding Deposit Amount</dt>
               <dd class="mt-1 text-sm text-gray-900">£{{ holdingDepositAmount.toFixed(2) }} (one week's rent)</dd>
+            </div>
+            <div v-if="offer.holding_deposit_amount_paid">
+              <dt class="text-sm font-medium text-gray-500">Holding Deposit Paid</dt>
+              <dd class="mt-1 text-sm text-gray-900">£{{ formatCurrency(offer.holding_deposit_amount_paid) }}</dd>
             </div>
             <div v-if="offer.special_conditions" class="sm:col-span-2">
               <dt class="text-sm font-medium text-gray-500">Special Conditions</dt>
@@ -181,7 +176,7 @@
         <!-- Terms & Conditions and Signatures -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Terms & Conditions Agreement</h3>
-          
+
           <!-- Holding Deposit Agreement -->
           <div class="mb-6">
             <h4 class="text-lg font-semibold text-gray-900 mb-3">Holding Deposit Agreement</h4>
@@ -246,12 +241,8 @@
                 <div v-if="tenant.signature">
                   <dt class="text-sm font-medium text-gray-500 mb-2">Signature</dt>
                   <dd class="mt-1">
-                    <img 
-                      :src="tenant.signature" 
-                      alt="Signature" 
-                      class="border border-gray-300 rounded bg-white p-2 max-w-md"
-                      style="max-height: 150px;"
-                    />
+                    <img :src="tenant.signature" alt="Signature"
+                      class="border border-gray-300 rounded bg-white p-2 max-w-md" style="max-height: 150px;" />
                   </dd>
                 </div>
                 <div v-if="tenant.signed_at">
@@ -268,24 +259,20 @@
       </div>
 
       <!-- Approve Modal -->
-      <div v-if="showApproveModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" @click.self="showApproveModal = false">
+      <div v-if="showApproveModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        @click.self="showApproveModal = false">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
           <h3 class="text-lg font-bold text-gray-900 mb-4">Approve Offer</h3>
           <p class="text-sm text-gray-600 mb-4">
             This will send an email to the tenant(s) with bank details and request for holding deposit payment.
           </p>
           <div class="flex gap-3">
-            <button
-              @click="approveOffer"
-              :disabled="processing"
-              class="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-50"
-            >
+            <button @click="approveOffer" :disabled="processing"
+              class="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-50">
               {{ processing ? 'Processing...' : 'Confirm Approve' }}
             </button>
-            <button
-              @click="showApproveModal = false"
-              class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-400"
-            >
+            <button @click="showApproveModal = false"
+              class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-400">
               Cancel
             </button>
           </div>
@@ -293,34 +280,25 @@
       </div>
 
       <!-- Decline Modal -->
-      <div v-if="showDeclineModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" @click.self="showDeclineModal = false">
+      <div v-if="showDeclineModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        @click.self="showDeclineModal = false">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
           <h3 class="text-lg font-bold text-gray-900 mb-4">Decline Offer</h3>
           <div class="mb-4">
             <label for="decline-reason" class="block text-sm font-medium text-gray-700 mb-2">
               Reason for Decline *
             </label>
-            <textarea
-              id="decline-reason"
-              v-model="declineReason"
-              rows="4"
-              required
+            <textarea id="decline-reason" v-model="declineReason" rows="4" required
               placeholder="Enter reason for declining this offer..."
-              class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-            ></textarea>
+              class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"></textarea>
           </div>
           <div class="flex gap-3">
-            <button
-              @click="declineOffer"
-              :disabled="processing || !declineReason"
-              class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-50"
-            >
+            <button @click="declineOffer" :disabled="processing || !declineReason"
+              class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-50">
               {{ processing ? 'Processing...' : 'Confirm Decline' }}
             </button>
-            <button
-              @click="showDeclineModal = false"
-              class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-400"
-            >
+            <button @click="showDeclineModal = false"
+              class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-400">
               Cancel
             </button>
           </div>
@@ -328,104 +306,69 @@
       </div>
 
       <!-- Edit Modal (Accept with Changes) -->
-      <div v-if="showEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" @click.self="showEditModal = false">
-        <div class="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+      <div v-if="showEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        @click.self="showEditModal = false">
+        <div
+          class="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
           <h3 class="text-lg font-bold text-gray-900 mb-4">Accept with Changes</h3>
           <p class="text-sm text-gray-600 mb-4">Edit the offer details before accepting.</p>
-          
+
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Property Address *</label>
-              <input
-                v-model="editForm.property_address"
-                type="text"
-                required
-                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              />
+              <input v-model="editForm.property_address" type="text" required
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">City</label>
-                <input
-                  v-model="editForm.property_city"
-                  type="text"
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
+                <input v-model="editForm.property_city" type="text"
+                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Postcode</label>
-                <input
-                  v-model="editForm.property_postcode"
-                  type="text"
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
+                <input v-model="editForm.property_postcode" type="text"
+                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
               </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Offered Rent (£) *</label>
-                <input
-                  v-model.number="editForm.offered_rent_amount"
-                  type="number"
-                  step="0.01"
-                  required
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
+                <input v-model.number="editForm.offered_rent_amount" type="number" step="0.01" required
+                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Move-in Date *</label>
-                <input
-                  v-model="editForm.proposed_move_in_date"
-                  type="date"
-                  required
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
+                <input v-model="editForm.proposed_move_in_date" type="date" required
+                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
               </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Tenancy Length (months) *</label>
-                <input
-                  v-model.number="editForm.proposed_tenancy_length_months"
-                  type="number"
-                  min="1"
-                  max="12"
-                  required
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
+                <input v-model.number="editForm.proposed_tenancy_length_months" type="number" min="1" max="12" required
+                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Deposit Amount (£)</label>
-                <input
-                  v-model.number="editForm.deposit_amount"
-                  type="number"
-                  step="0.01"
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
+                <input v-model.number="editForm.deposit_amount" type="number" step="0.01"
+                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
               </div>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Special Conditions</label>
-              <textarea
-                v-model="editForm.special_conditions"
-                rows="3"
-                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              ></textarea>
+              <textarea v-model="editForm.special_conditions" rows="3"
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"></textarea>
             </div>
           </div>
 
           <div class="mt-6 flex gap-3">
-            <button
-              @click="acceptWithChanges"
-              :disabled="processing"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
+            <button @click="acceptWithChanges" :disabled="processing"
+              class="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50">
               {{ processing ? 'Processing...' : 'Save Changes' }}
             </button>
-            <button
-              @click="showEditModal = false"
-              class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-400"
-            >
+            <button @click="showEditModal = false"
+              class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-400">
               Cancel
             </button>
           </div>
@@ -471,14 +414,56 @@ const holdingDepositAmount = computed(() => {
   return (offer.value.offered_rent_amount * 12) / 52
 })
 
+const statusColorMap: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  approved: 'bg-blue-100 text-blue-800',
+  declined: 'bg-red-100 text-red-800',
+  accepted_with_changes: 'bg-purple-100 text-purple-800'
+}
+
+const statusBadgeClass = computed(() => {
+  if (!offer.value) return 'bg-gray-100 text-gray-800'
+
+  const status = offer.value.status
+  const depositReceived = offer.value.holding_deposit_received || status === 'holding_deposit_received' || status === 'reference_created'
+
+  if ((status === 'approved' && depositReceived) || status === 'holding_deposit_received' || status === 'reference_created') {
+    return 'bg-green-100 text-green-800'
+  }
+
+  return statusColorMap[status] || 'bg-gray-100 text-gray-800'
+})
+
+const statusDisplay = computed(() => {
+  if (!offer.value) return ''
+  const status = offer.value.status
+  if (status === 'holding_deposit_received' || status === 'reference_created') {
+    return 'Approved'
+  }
+  return formatStatus(status)
+})
+
+const showStatusTick = computed(() =>
+  !!offer.value?.holding_deposit_received ||
+  offer.value?.status === 'holding_deposit_received' ||
+  offer.value?.status === 'reference_created'
+)
+
+const formatCurrency = (value: number | string | null | undefined) => {
+  if (value === null || value === undefined || value === '') return ''
+  const numericValue = typeof value === 'string' ? parseFloat(value) : value
+  if (Number.isNaN(numericValue)) return ''
+  return numericValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 const formatStatus = (status: string) => {
   const statusMap: Record<string, string> = {
     pending: 'Pending',
     approved: 'Approved',
     declined: 'Declined',
     accepted_with_changes: 'Accepted with Changes',
-    holding_deposit_received: 'Holding Deposit Received',
-    reference_created: 'Reference Created'
+    holding_deposit_received: 'Approved',
+    reference_created: 'Approved'
   }
   return statusMap[status] || status
 }
@@ -624,6 +609,17 @@ const acceptWithChanges = async () => {
 }
 
 const markHoldingDepositReceived = async () => {
+  const amountInput = window.prompt('Enter the holding deposit amount received (£)')
+  if (amountInput === null) {
+    return
+  }
+
+  const parsedAmount = parseFloat(amountInput)
+  if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+    alert('Please enter a valid amount greater than zero.')
+    return
+  }
+
   if (!confirm('Mark holding deposit as received and create references? This will send reference forms to all tenants.')) {
     return
   }
@@ -631,14 +627,18 @@ const markHoldingDepositReceived = async () => {
   processing.value = true
   try {
     const token = authStore.session?.access_token
-    if (!token) return
+    if (!token) {
+      processing.value = false
+      return
+    }
 
     const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}/holding-deposit-received`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ amount_paid: parsedAmount })
     })
 
     const data = await response.json()
@@ -648,7 +648,7 @@ const markHoldingDepositReceived = async () => {
     }
 
     await fetchOffer()
-    alert('Holding deposit marked as received. References have been created and sent to tenants.')
+    alert(`Holding deposit of £${parsedAmount.toFixed(2)} marked as received. References have been created and sent to tenants.`)
   } catch (err: any) {
     error.value = err.message || 'Failed to mark holding deposit as received'
   } finally {
@@ -660,4 +660,3 @@ onMounted(() => {
   fetchOffer()
 })
 </script>
-

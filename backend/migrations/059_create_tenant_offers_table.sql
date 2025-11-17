@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS tenant_offers (
   special_conditions_encrypted TEXT,
 
   -- Offer Status
-  status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'approved', 'declined', 'accepted_with_changes', 'holding_deposit_received', 'reference_created'
+  status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'approved', 'declined', 'accepted_with_changes'
   declined_reason_encrypted TEXT,
   holding_deposit_received BOOLEAN DEFAULT FALSE,
   holding_deposit_received_at TIMESTAMP WITH TIME ZONE,

@@ -792,6 +792,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
     try {
         const userId = req.user?.id
         const { id } = req.params
+        const { amount_paid } = req.body
 
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' })
@@ -854,13 +855,24 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
             return res.status(400).json({ error: 'Holding deposit has already been marked as received' })
         }
 
+        const parsedAmount = typeof amount_paid === 'number'
+            ? amount_paid
+            : typeof amount_paid === 'string'
+                ? parseFloat(amount_paid)
+                : NaN
+
+        if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+            return res.status(400).json({ error: 'Valid holding deposit amount is required' })
+        }
+
         // Update offer
         const { error: updateError } = await supabase
             .from('tenant_offers')
             .update({
                 holding_deposit_received: true,
                 holding_deposit_received_at: new Date().toISOString(),
-                status: 'holding_deposit_received'
+                holding_deposit_amount_paid: parsedAmount,
+                status: 'approved'
             })
             .eq('id', id)
 
@@ -1105,8 +1117,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
         await supabase
             .from('tenant_offers')
             .update({
-                reference_id: referenceId,
-                status: 'reference_created'
+                reference_id: referenceId
             })
             .eq('id', id)
 
@@ -1114,7 +1125,8 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
             success: true,
             message: 'Holding deposit marked as received and references created',
             reference_id: referenceId,
-            references_created: createdReferences.length
+            references_created: createdReferences.length,
+            holding_deposit_amount_paid: parsedAmount
         })
     } catch (error: any) {
         console.error('Error marking holding deposit received:', error)
