@@ -1746,7 +1746,7 @@
                 v-model="formData.consent_agreed_date"
                 type="text"
                 readonly
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
               />
             </div>
 
