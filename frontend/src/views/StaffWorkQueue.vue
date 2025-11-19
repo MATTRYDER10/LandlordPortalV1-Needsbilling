@@ -9,12 +9,40 @@
         <h2 class="text-2xl font-bold text-gray-900 mb-4">Work Queue</h2>
         <div class="stats-bar">
           <div class="stat-card chase">
-            <div class="stat-label">Chase Available</div>
-            <div class="stat-value">{{ stats.chase.available }}</div>
+            <div class="stat-label">Chase Queue</div>
+            <div class="stat-value">{{ stats.chase.total }}</div>
+            <div class="stat-breakdown">
+              <span class="stat-chip available">
+                <span class="dot"></span>
+                {{ stats.chase.available }} Available
+              </span>
+              <span class="stat-chip assigned">
+                <span class="dot"></span>
+                {{ stats.chase.assigned }} Assigned
+              </span>
+              <span class="stat-chip in-progress">
+                <span class="dot"></span>
+                {{ stats.chase.inProgress }} In Progress
+              </span>
+            </div>
           </div>
           <div class="stat-card verify">
-            <div class="stat-label">Verify Available</div>
-            <div class="stat-value">{{ stats.verify.available }}</div>
+            <div class="stat-label">Verify Queue</div>
+            <div class="stat-value">{{ stats.verify.total }}</div>
+            <div class="stat-breakdown">
+              <span class="stat-chip available">
+                <span class="dot"></span>
+                {{ stats.verify.available }} Available
+              </span>
+              <span class="stat-chip assigned">
+                <span class="dot"></span>
+                {{ stats.verify.assigned }} Assigned
+              </span>
+              <span class="stat-chip in-progress">
+                <span class="dot"></span>
+                {{ stats.verify.inProgress }} In Progress
+              </span>
+            </div>
           </div>
           <div class="stat-card my-items">
             <div class="stat-label">My Active Cases</div>
@@ -24,133 +52,108 @@
       </div>
 
       <!-- Tabs -->
-    <div class="tabs">
-      <button
-        :class="['tab', { active: activeTab === 'chase' }]"
-        @click="activeTab = 'chase'"
-      >
-        Chase Queue ({{ stats.chase.available }})
-      </button>
-      <button
-        :class="['tab', { active: activeTab === 'verify' }]"
-        @click="activeTab = 'verify'"
-      >
-        Verify Queue ({{ stats.verify.available }})
-      </button>
-      <button
-        :class="['tab', { active: activeTab === 'my-cases' }]"
-        @click="activeTab = 'my-cases'"
-      >
-        My Cases ({{ stats.chase.myItems + stats.verify.myItems }})
-      </button>
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-      <p>Loading work queue...</p>
-    </div>
-
-    <!-- Error State -->
-    <div v-else-if="error" class="error-message">
-      <p>{{ error }}</p>
-      <button @click="fetchWorkQueue" class="btn btn-primary">Retry</button>
-    </div>
-
-    <!-- Work Queue Table -->
-    <div v-else class="work-queue-table">
-      <table v-if="filteredWorkItems.length > 0">
-        <thead>
-          <tr>
-            <th>Urgency</th>
-            <th>Type</th>
-            <th>Tenant</th>
-            <th>Property</th>
-            <th>Age</th>
-            <th>Status</th>
-            <th>Assigned To</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="item in filteredWorkItems"
-            :key="item.id"
-            :class="['work-item', `urgency-${item.urgency}`]"
-          >
-            <td>
-              <span :class="['urgency-badge', item.urgency]">
-                {{ urgencyLabel(item.urgency) }}
-              </span>
-            </td>
-            <td>
-              <span :class="['type-badge', item.work_type.toLowerCase()]">
-                {{ item.work_type }}
-              </span>
-            </td>
-            <td>
-              <div class="tenant-info">
-                <div class="tenant-name">
-                  {{ item.reference.tenant_first_name }} {{ item.reference.tenant_last_name }}
-                </div>
-                <div class="tenant-email">{{ item.reference.tenant_email }}</div>
-              </div>
-            </td>
-            <td>
-              <div class="property-address">{{ item.reference.property_address }}</div>
-            </td>
-            <td>
-              <div class="age-info">
-                <div class="age-hours">{{ item.ageHours }}h</div>
-                <div class="age-label">{{ ageLabel(item.ageHours) }}</div>
-              </div>
-            </td>
-            <td>
-              <span :class="['status-badge', item.status.toLowerCase()]">
-                {{ item.status }}
-              </span>
-            </td>
-            <td>
-              <div v-if="item.assigned_staff" class="assigned-info">
-                {{ item.assigned_staff.full_name }}
-              </div>
-              <div v-else class="unassigned">Unassigned</div>
-            </td>
-            <td>
-              <div class="actions">
-                <button
-                  v-if="item.status === 'AVAILABLE' || item.status === 'RETURNED'"
-                  @click="claimWorkItem(item)"
-                  class="btn btn-sm btn-primary"
-                  :disabled="claiming === item.id"
-                >
-                  {{ claiming === item.id ? 'Claiming...' : 'Pick Up' }}
-                </button>
-                <button
-                  v-else-if="isMyItem(item)"
-                  @click="openWorkItem(item)"
-                  class="btn btn-sm btn-success"
-                >
-                  Open
-                </button>
-                <button
-                  v-if="isMyItem(item)"
-                  @click="releaseWorkItem(item)"
-                  class="btn btn-sm btn-secondary"
-                  :disabled="releasing === item.id"
-                >
-                  {{ releasing === item.id ? 'Releasing...' : 'Release' }}
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div v-else class="empty-state">
-        <p>No work items in this queue</p>
+      <div class="tabs">
+        <button :class="['tab', { active: activeTab === 'chase' }]" @click="activeTab = 'chase'">
+          Chase Queue ({{ stats.chase.total }})
+        </button>
+        <button :class="['tab', { active: activeTab === 'verify' }]" @click="activeTab = 'verify'">
+          Verify Queue ({{ stats.verify.total }})
+        </button>
+        <button :class="['tab', { active: activeTab === 'my-cases' }]" @click="activeTab = 'my-cases'">
+          My Cases ({{ stats.chase.myItems + stats.verify.myItems }})
+        </button>
       </div>
-    </div>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading work queue...</p>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="error-message">
+        <p>{{ error }}</p>
+        <button @click="fetchWorkQueue" class="btn btn-primary">Retry</button>
+      </div>
+
+      <!-- Work Queue Table -->
+      <div v-else class="work-queue-table">
+        <table v-if="filteredWorkItems.length > 0">
+          <thead>
+            <tr>
+              <th>Urgency</th>
+              <th>Type</th>
+              <th>Tenant</th>
+              <th>Property</th>
+              <th>Age</th>
+              <th>Status</th>
+              <th>Assigned To</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in filteredWorkItems" :key="item.id" :class="['work-item', `urgency-${item.urgency}`]">
+              <td>
+                <span :class="['urgency-badge', item.urgency]">
+                  {{ urgencyLabel(item.urgency) }}
+                </span>
+              </td>
+              <td>
+                <span :class="['type-badge', item.work_type.toLowerCase()]">
+                  {{ item.work_type }}
+                </span>
+              </td>
+              <td>
+                <div class="tenant-info">
+                  <div class="tenant-name">
+                    {{ item.reference.tenant_first_name }} {{ item.reference.tenant_last_name }}
+                  </div>
+                  <div class="tenant-email">{{ item.reference.tenant_email }}</div>
+                </div>
+              </td>
+              <td>
+                <div class="property-address">{{ item.reference.property_address }}</div>
+              </td>
+              <td>
+                <div class="age-info">
+                  <div class="age-hours">{{ item.ageHours }}h</div>
+                  <div class="age-label">{{ ageLabel(item.ageHours) }}</div>
+                </div>
+              </td>
+              <td>
+                <span :class="['status-badge', item.status.toLowerCase()]">
+                  {{ item.status }}
+                </span>
+              </td>
+              <td>
+                <div v-if="item.assigned_staff" class="assigned-info">
+                  {{ item.assigned_staff.full_name }}
+                </div>
+                <div v-else class="unassigned">Unassigned</div>
+              </td>
+              <td>
+                <div class="actions">
+                  <button v-if="item.status === 'AVAILABLE' || item.status === 'RETURNED'" @click="claimWorkItem(item)"
+                    class="btn btn-sm btn-primary" :disabled="claiming === item.id">
+                    {{ claiming === item.id ? 'Claiming...' : 'Pick Up' }}
+                  </button>
+                  <button v-else-if="isMyItem(item)" @click="openWorkItem(item)" class="btn btn-sm btn-success">
+                    Open
+                  </button>
+                  <button v-if="isMyItem(item)" @click="releaseWorkItem(item)" class="btn btn-sm btn-secondary"
+                    :disabled="releasing === item.id">
+                    {{ releasing === item.id ? 'Releasing...' : 'Release' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div v-else class="empty-state">
+          <p>No work items in this queue</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -168,8 +171,8 @@ const authStore = useAuthStore()
 const activeTab = ref<'chase' | 'verify' | 'my-cases'>('chase')
 const workItems = ref<any[]>([])
 const stats = ref({
-  chase: { available: 0, assigned: 0, inProgress: 0, myItems: 0 },
-  verify: { available: 0, assigned: 0, inProgress: 0, myItems: 0 }
+  chase: { available: 0, assigned: 0, inProgress: 0, myItems: 0, total: 0 },
+  verify: { available: 0, assigned: 0, inProgress: 0, myItems: 0, total: 0 }
 })
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -304,7 +307,12 @@ const openWorkItem = (item: any) => {
 }
 
 const isMyItem = (item: any) => {
-  return item.assigned_staff && item.assigned_staff.id === authStore.user?.id
+  const currentUserId = authStore.user?.id
+  if (!currentUserId) return false
+  if (item.assigned_staff?.user_id) {
+    return item.assigned_staff.user_id === currentUserId
+  }
+  return false
 }
 
 const urgencyLabel = (urgency: string) => {
@@ -366,6 +374,9 @@ onUnmounted(() => {
   border-radius: 8px;
   background: white;
   border: 2px solid #e5e7eb;
+  display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .stat-card.chase {
@@ -392,6 +403,43 @@ onUnmounted(() => {
   color: #1f2937;
 }
 
+.stat-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.stat-chip .dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  display: inline-block;
+}
+
+.stat-chip.available .dot {
+  background: #10b981;
+}
+
+.stat-chip.assigned .dot {
+  background: #3b82f6;
+}
+
+.stat-chip.in-progress .dot {
+  background: #f59e0b;
+}
 .tabs {
   display: flex;
   gap: 0.5rem;

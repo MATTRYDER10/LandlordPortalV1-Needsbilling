@@ -323,21 +323,141 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
         }
         
         if (creditsafe) {
+          const formatFlag = (value?: boolean | null) => {
+            if (value === true) return 'Flagged'
+            if (value === false) return 'Clear'
+            return 'Not Checked'
+          }
+
+          const parseFraudIndicators = (): string[] => {
+            if (!creditsafe.fraud_indicators) return []
+            try {
+              const raw = typeof creditsafe.fraud_indicators === 'string'
+                ? JSON.parse(creditsafe.fraud_indicators)
+                : creditsafe.fraud_indicators
+              const lines: string[] = []
+              if (raw.ccjMatch) {
+                const count = raw.ccjCount || 0
+                lines.push(`${count} CCJ match${count === 1 ? '' : 'es'} found`)
+              }
+              if (raw.insolvencyMatch) {
+                const count = raw.insolvencyCount || 0
+                lines.push(`${count} insolvency record${count === 1 ? '' : 's'} found`)
+              }
+              if (raw.deceasedMatch) {
+                lines.push('Deceased register match')
+              }
+              if (raw.electoralRollMatch === false) {
+                lines.push('Not found on electoral roll')
+              }
+              return lines
+            } catch {
+              return []
+            }
+          }
+
           doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Creditsafe Verification:', 60, y)
           y += 15
           doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-          if (creditsafe.credit_score) {
-            doc.text(`Credit Score: ${creditsafe.credit_score}`, 70, y, { width: 465 })
+
+          if (creditsafe.verification_status) {
+            doc.text(`Status: ${creditsafe.verification_status.toUpperCase()}`, 70, y, { width: 465 })
             y += 12
           }
-          if (creditsafe.credit_rating) {
-            doc.text(`Credit Rating: ${creditsafe.credit_rating}`, 70, y, { width: 465 })
+
+          if (typeof creditsafe.verification_score === 'number') {
+            doc.text(`Verification Score: ${creditsafe.verification_score}/100`, 70, y, { width: 465 })
             y += 12
           }
+
+          if (creditsafe.risk_level) {
+            doc.text(`Risk Level: ${creditsafe.risk_level.replace('_', ' ').toUpperCase()}`, 70, y, { width: 465 })
+            y += 12
+          }
+
           if (creditsafe.verified_at) {
             doc.text(`Verified: ${new Date(creditsafe.verified_at).toLocaleDateString('en-GB')}`, 70, y, { width: 465 })
             y += 12
           }
+
+          if (creditsafe.creditsafe_transaction_id) {
+            doc.text(`Transaction: ${creditsafe.creditsafe_transaction_id}`, 70, y, { width: 465 })
+            y += 12
+          }
+
+          const matchScores = [
+            { label: 'Name Match', value: creditsafe.name_match_score },
+            { label: 'Address Match', value: creditsafe.address_match_score },
+            { label: 'DOB Match', value: creditsafe.dob_match_score }
+          ]
+          const hasMatchScores = matchScores.some(score => typeof score.value === 'number')
+          if (hasMatchScores) {
+            doc.moveDown(0.3)
+            doc.fontSize(8).fillColor(lightGray).font('Helvetica-Bold').text('Identity Match Scores:', 70, y)
+            y += 12
+            doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+            matchScores.forEach(score => {
+              if (typeof score.value === 'number') {
+                doc.text(`${score.label}: ${score.value}%`, 80, y, { width: 455 })
+                y += 12
+              }
+            })
+          }
+
+          const complianceFlags = [
+            { label: 'PEP Check', value: creditsafe.pep_check_result },
+            { label: 'Sanctions Check', value: creditsafe.sanctions_check_result },
+            { label: 'Adverse Media', value: creditsafe.adverse_media_result }
+          ]
+          const hasCompliance = complianceFlags.some(flag => flag.value !== null && flag.value !== undefined)
+          if (hasCompliance) {
+            doc.moveDown(0.3)
+            doc.fontSize(8).fillColor(lightGray).font('Helvetica-Bold').text('Compliance Screening:', 70, y)
+            y += 12
+            doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+            complianceFlags.forEach(flag => {
+              if (flag.value !== null && flag.value !== undefined) {
+                doc.text(`${flag.label}: ${formatFlag(flag.value)}`, 80, y, { width: 455 })
+                y += 12
+              }
+            })
+          }
+
+          if (typeof creditsafe.document_verified === 'boolean' || typeof creditsafe.document_authenticity_score === 'number') {
+            doc.moveDown(0.3)
+            doc.fontSize(8).fillColor(lightGray).font('Helvetica-Bold').text('Document Verification:', 70, y)
+            y += 12
+            doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+            if (typeof creditsafe.document_verified === 'boolean') {
+              doc.text(`Documents: ${creditsafe.document_verified ? 'Verified' : 'Not Verified'}`, 80, y, { width: 455 })
+              y += 12
+            }
+            if (typeof creditsafe.document_authenticity_score === 'number') {
+              doc.text(`Authenticity Score: ${creditsafe.document_authenticity_score}/100`, 80, y, { width: 455 })
+              y += 12
+            }
+          }
+
+          const fraudLines = parseFraudIndicators()
+          if (fraudLines.length > 0) {
+            doc.moveDown(0.3)
+            doc.fontSize(8).fillColor(lightGray).font('Helvetica-Bold').text('Fraud Indicators:', 70, y)
+            y += 12
+            doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+            fraudLines.forEach(line => {
+              doc.text(`- ${line}`, 80, y, { width: 455 })
+              y += 12
+            })
+          }
+
+          if (creditsafe.error_message) {
+            doc.moveDown(0.3)
+            doc.fontSize(8).fillColor(failRed).font('Helvetica-Bold').text('Creditsafe Error:', 70, y)
+            y += 12
+            doc.fontSize(8).fillColor(darkGray).font('Helvetica').text(creditsafe.error_message, 80, y, { width: 455 })
+            y += 12
+          }
+
           y += 5
         }
         

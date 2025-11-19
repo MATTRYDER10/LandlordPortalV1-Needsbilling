@@ -12,6 +12,7 @@ import { supabase as supabaseAdmin } from '../config/supabase';
 const IDLE_TIMEOUT_HOURS = 4;
 const COOLDOWN_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const IDLE_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+const VERIFY_SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const URGENCY_THRESHOLD_HOURS = 8;
 
 /**
@@ -217,6 +218,73 @@ export async function escalateUrgentItems() {
 }
 
 /**
+ * Ensure VERIFY work items exist for all references in pending_verification
+ */
+export async function syncMissingVerifyItems() {
+  try {
+    const { data: pendingReferences, error: pendingError } = await supabaseAdmin
+      .from('tenant_references')
+      .select('id')
+      .eq('status', 'pending_verification');
+
+    if (pendingError) {
+      console.error('Error fetching pending verification references:', pendingError);
+      return { success: false, error: pendingError.message };
+    }
+
+    if (!pendingReferences || pendingReferences.length === 0) {
+      console.log('[Scheduler] No pending references found for verify sync');
+      return { success: true, createdCount: 0 };
+    }
+
+    const referenceIds = pendingReferences.map(ref => ref.id);
+
+    const { data: existingVerifyItems, error: existingError } = await supabaseAdmin
+      .from('work_items')
+      .select('reference_id')
+      .eq('work_type', 'VERIFY')
+      .in('reference_id', referenceIds);
+
+    if (existingError) {
+      console.error('Error fetching existing verify work items:', existingError);
+      return { success: false, error: existingError.message };
+    }
+
+    const existingReferenceIds = new Set(existingVerifyItems?.map(item => item.reference_id) || []);
+    const missingReferenceIds = referenceIds.filter(id => !existingReferenceIds.has(id));
+
+    if (missingReferenceIds.length === 0) {
+      console.log('[Scheduler] All pending references already have verify work items');
+      return { success: true, createdCount: 0 };
+    }
+
+    const now = new Date().toISOString();
+    const newItems = missingReferenceIds.map(referenceId => ({
+      reference_id: referenceId,
+      work_type: 'VERIFY',
+      status: 'AVAILABLE',
+      priority: 0,
+      last_activity_at: now
+    }));
+
+    const { error: insertError } = await supabaseAdmin
+      .from('work_items')
+      .insert(newItems);
+
+    if (insertError) {
+      console.error('Error inserting missing verify work items:', insertError);
+      return { success: false, error: insertError.message };
+    }
+
+    console.log(`[Scheduler] Created ${missingReferenceIds.length} missing verify work items`);
+    return { success: true, createdCount: missingReferenceIds.length };
+  } catch (error: any) {
+    console.error('[Scheduler] Error in syncMissingVerifyItems:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Start all background schedulers
  */
 export function startSchedulers() {
@@ -240,12 +308,19 @@ export function startSchedulers() {
     await escalateUrgentItems();
   }, IDLE_CHECK_INTERVAL_MS);
 
+  // Verify sync (every 10 minutes)
+  setInterval(async () => {
+    console.log('[Scheduler] Running verify work item sync...');
+    await syncMissingVerifyItems();
+  }, VERIFY_SYNC_INTERVAL_MS);
+
   // Run immediately on startup
   setTimeout(async () => {
     console.log('[Scheduler] Running initial checks...');
     await processCooldownExpiry();
     await autoUnassignIdleChaseItems();
     await escalateUrgentItems();
+    await syncMissingVerifyItems();
   }, 5000); // Wait 5 seconds after startup
 
   console.log('[Scheduler] Background schedulers started successfully');

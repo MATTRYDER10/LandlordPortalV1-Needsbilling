@@ -30,6 +30,7 @@ router.get('/', staffAuth, async (req: StaffAuthRequest, res: Response) => {
         ),
         assigned_staff:staff_users!work_items_assigned_to_fkey (
           id,
+          user_id,
           full_name
         )
       `)
@@ -115,13 +116,15 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
         available: 0,
         assigned: 0,
         inProgress: 0,
-        myItems: 0
+        myItems: 0,
+        total: 0
       },
       verify: {
         available: 0,
         assigned: 0,
         inProgress: 0,
-        myItems: 0
+        myItems: 0,
+        total: 0
       }
     };
 
@@ -149,6 +152,9 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
         summary[type].myItems++;
       }
     });
+
+    summary.chase.total = summary.chase.available + summary.chase.assigned + summary.chase.inProgress;
+    summary.verify.total = summary.verify.available + summary.verify.assigned + summary.verify.inProgress;
 
     res.json({ stats: summary });
   } catch (error: any) {
@@ -180,7 +186,7 @@ router.get('/:id', staffAuth, async (req: StaffAuthRequest, res: Response) => {
           status,
           created_at
         ),
-        assigned_staff:staff_users!work_items_assigned_to_fkey (id, full_name),
+        assigned_staff:staff_users!work_items_assigned_to_fkey (id, user_id, full_name),
         contact_attempts (
           id,
           channel,
