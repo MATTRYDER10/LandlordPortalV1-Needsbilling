@@ -63,6 +63,9 @@
           My Cases ({{ stats.chase.myItems + stats.verify.myItems }})
         </button>
       </div>
+      <p class="tab-help">
+        You can hold up to {{ MAX_ACTIVE_ITEMS }} active cases. Items idle for 2 hours are automatically returned and escalated.
+      </p>
 
       <!-- Loading State -->
       <div v-if="loading" class="loading">
@@ -134,7 +137,8 @@
               <td>
                 <div class="actions">
                   <button v-if="item.status === 'AVAILABLE' || item.status === 'RETURNED'" @click="claimWorkItem(item)"
-                    class="btn btn-sm btn-primary" :disabled="claiming === item.id">
+                    class="btn btn-sm btn-primary"
+                    :disabled="claiming === item.id || !canClaimMoreItems">
                     {{ claiming === item.id ? 'Claiming...' : 'Pick Up' }}
                   </button>
                   <button v-else-if="isMyItem(item)" @click="openWorkItem(item)" class="btn btn-sm btn-success">
@@ -159,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import StaffHeader from '../components/StaffHeader.vue'
@@ -168,6 +172,9 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 // State
+const MAX_ACTIVE_ITEMS = 10
+const AUTO_RETURN_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours
+
 const activeTab = ref<'chase' | 'verify' | 'my-cases'>('chase')
 const workItems = ref<any[]>([])
 const stats = ref({
@@ -181,13 +188,23 @@ const releasing = ref<string | null>(null)
 const refreshInterval = ref<number | null>(null)
 
 // Computed
+const myActiveItems = computed(() => workItems.value.filter(item => isMyItem(item)))
+const myActiveItemsCount = computed(() => myActiveItems.value.length)
+const canClaimMoreItems = computed(() => myActiveItemsCount.value < MAX_ACTIVE_ITEMS)
+
 const filteredWorkItems = computed(() => {
-  if (activeTab.value === 'my-cases') {
-    return workItems.value.filter(item => isMyItem(item))
-  } else {
-    const type = activeTab.value.toUpperCase()
-    return workItems.value.filter(item => item.work_type === type)
-  }
+  const items =
+    activeTab.value === 'my-cases'
+      ? myActiveItems.value
+      : workItems.value.filter(item => item.work_type === activeTab.value.toUpperCase())
+
+  return [...items].sort((a, b) => {
+    const dateA =
+      new Date(a.reference?.move_in_date ?? a.reference?.created_at ?? a.created_at ?? 0).getTime()
+    const dateB =
+      new Date(b.reference?.move_in_date ?? b.reference?.created_at ?? b.created_at ?? 0).getTime()
+    return dateA - dateB
+  })
 })
 
 // Methods
@@ -209,6 +226,7 @@ const fetchWorkQueue = async () => {
 
     const data = await response.json()
     workItems.value = data.workItems || []
+    await autoReturnStaleItems()
   } catch (err: any) {
     error.value = err.message
     console.error('Error fetching work queue:', err)
@@ -238,6 +256,11 @@ const fetchStats = async () => {
 }
 
 const claimWorkItem = async (item: any) => {
+  if (!canClaimMoreItems.value) {
+    alert(`You already have ${MAX_ACTIVE_ITEMS} active cases. Complete or release one before picking up another.`)
+    return
+  }
+
   try {
     claiming.value = item.id
 
@@ -268,8 +291,11 @@ const claimWorkItem = async (item: any) => {
   }
 }
 
-const releaseWorkItem = async (item: any) => {
-  const cooldownHours = item.work_type === 'CHASE' ? 4 : 0
+const releaseWorkItem = async (
+  item: any,
+  options?: { forceUrgent?: boolean; suppressAlert?: boolean }
+) => {
+  const cooldownHours = options?.forceUrgent ? 0 : item.work_type === 'CHASE' ? 4 : 0
 
   try {
     releasing.value = item.id
@@ -280,7 +306,10 @@ const releaseWorkItem = async (item: any) => {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ cooldownHours })
+      body: JSON.stringify({
+        cooldownHours,
+        forceUrgent: Boolean(options?.forceUrgent)
+      })
     })
 
     if (!response.ok) {
@@ -291,7 +320,9 @@ const releaseWorkItem = async (item: any) => {
     await fetchWorkQueue()
     await fetchStats()
   } catch (err: any) {
-    alert(`Error releasing work item: ${err.message}`)
+    if (!options?.suppressAlert) {
+      alert(`Error releasing work item: ${err.message}`)
+    }
     console.error('Error releasing work item:', err)
   } finally {
     releasing.value = null
@@ -332,6 +363,31 @@ const ageLabel = (hours: number) => {
 
 
 // Auto-refresh every 30 seconds
+const autoReturnInProgress = ref(false)
+const autoReturnStaleItems = async () => {
+  if (autoReturnInProgress.value) return
+  autoReturnInProgress.value = true
+  try {
+    const now = Date.now()
+    for (const item of workItems.value) {
+      if (
+        !isMyItem(item) ||
+        !item.claimed_at ||
+        !['ASSIGNED', 'IN_PROGRESS'].includes(item.status)
+      ) {
+        continue
+      }
+      const claimedAtTime = new Date(item.claimed_at).getTime()
+      if (!claimedAtTime) continue
+      if (now - claimedAtTime >= AUTO_RETURN_THRESHOLD_MS) {
+        await releaseWorkItem(item, { forceUrgent: true, suppressAlert: true })
+      }
+    }
+  } finally {
+    autoReturnInProgress.value = false
+  }
+}
+
 const startAutoRefresh = () => {
   refreshInterval.value = window.setInterval(() => {
     fetchWorkQueue()
@@ -351,6 +407,11 @@ onMounted(() => {
   fetchWorkQueue()
   fetchStats()
   startAutoRefresh()
+})
+
+onActivated(() => {
+  fetchWorkQueue()
+  fetchStats()
 })
 
 onUnmounted(() => {
@@ -467,6 +528,12 @@ onUnmounted(() => {
 .tab.active {
   color: #f97316;
   border-bottom-color: #f97316;
+}
+
+.tab-help {
+  margin: 0.5rem 0 1.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
 }
 
 .loading {
