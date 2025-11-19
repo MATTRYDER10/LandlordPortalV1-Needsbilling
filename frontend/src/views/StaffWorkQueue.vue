@@ -64,7 +64,8 @@
         </button>
       </div>
       <p class="tab-help">
-        You can hold up to {{ MAX_ACTIVE_ITEMS }} active cases. Items idle for 2 hours are automatically returned and escalated.
+        You can hold up to {{ MAX_ACTIVE_ITEMS }} active cases. Items idle for 2 hours are automatically returned and
+        escalated.
       </p>
 
       <!-- Loading State -->
@@ -137,8 +138,7 @@
               <td>
                 <div class="actions">
                   <button v-if="item.status === 'AVAILABLE' || item.status === 'RETURNED'" @click="claimWorkItem(item)"
-                    class="btn btn-sm btn-primary"
-                    :disabled="claiming === item.id || !canClaimMoreItems">
+                    class="btn btn-sm btn-primary" :disabled="claiming === item.id || !canClaimMoreItems">
                     {{ claiming === item.id ? 'Claiming...' : 'Pick Up' }}
                   </button>
                   <button v-else-if="isMyItem(item)" @click="openWorkItem(item)" class="btn btn-sm btn-success">
@@ -436,8 +436,8 @@ onUnmounted(() => {
   background: white;
   border: 2px solid #e5e7eb;
   display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .stat-card.chase {
@@ -501,6 +501,7 @@ onUnmounted(() => {
 .stat-chip.in-progress .dot {
   background: #f59e0b;
 }
+
 .tabs {
   display: flex;
   gap: 0.5rem;
@@ -535,7 +536,6 @@ onUnmounted(() => {
   font-size: 0.875rem;
   color: #6b7280;
 }
-
 .loading {
   text-align: center;
   padding: 3rem;
