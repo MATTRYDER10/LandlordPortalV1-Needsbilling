@@ -1186,7 +1186,6 @@ const residentialDiscrepancies = computed(() => {
 
 const declaredIncomeValue = computed(() => parseCurrencyValue(reference.value?.employment_salary_amount))
 const employerIncomeValue = computed(() => parseCurrencyValue(employerReference.value?.annual_salary))
-const verifiedIncomeValue = computed(() => employerIncomeValue.value ?? declaredIncomeValue.value ?? null)
 const incomeDifferenceValue = computed(() => {
   if (declaredIncomeValue.value === null || employerIncomeValue.value === null) return null
   return employerIncomeValue.value - declaredIncomeValue.value
