@@ -352,54 +352,8 @@
             </div>
 
             <!-- External Reference Responses -->
-            <div v-if="employerReference || accountantReference" class="space-y-4">
-              <div v-if="employerReference" class="bg-white border rounded-lg p-4">
-                <h4 class="font-semibold text-gray-900 mb-3">Employer Reference Response</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Company</p>
-                    <p class="font-medium text-gray-900">{{ employerReference.company_name }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Contact</p>
-                    <p class="font-medium text-gray-900">{{ employerReference.employer_name }}</p>
-                    <p class="text-gray-600">{{ employerReference.employer_email }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Position</p>
-                    <p class="font-medium text-gray-900">{{ employerReference.employee_position }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Annual Salary</p>
-                    <p class="font-medium text-gray-900">£{{ employerReference.annual_salary }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Would Re-Employ</p>
-                    <p class="font-medium text-gray-900">{{ formatBooleanDisplay(employerReference.would_reemploy) }}</p>
-                  </div>
-                </div>
-                <div v-if="employerReference.additional_comments" class="mt-3 text-sm text-gray-900">
-                  <p class="text-xs text-gray-500 uppercase tracking-wide">Comments</p>
-                  <p class="whitespace-pre-line">{{ employerReference.additional_comments }}</p>
-                </div>
-                <div v-if="employerReference.signature" class="mt-3">
-                  <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
-                  <img :src="employerReference.signature" alt="Employer signature" class="h-20 object-contain border rounded bg-white p-2" />
-                </div>
-                <div v-if="employerReference.submitted_ip_address || employerReference.submitted_geolocation"
-                  class="mt-3 text-xs text-gray-500 space-y-1">
-                  <p v-if="employerReference.submitted_ip_address">IP: {{ employerReference.submitted_ip_address }}</p>
-                  <p v-if="employerReference.submitted_geolocation" class="flex items-center gap-2">
-                    Location: {{ formatGeolocationText(employerReference.submitted_geolocation) }}
-                    <button type="button" class="text-primary underline"
-                      @click="openGeolocationMap(employerReference.submitted_geolocation)">
-                      Map
-                    </button>
-                  </p>
-                </div>
-              </div>
-
-              <div v-if="accountantReference" class="bg-white border rounded-lg p-4">
+            <div v-if="accountantReference" class="space-y-4">
+              <div class="bg-white border rounded-lg p-4">
                 <h4 class="font-semibold text-gray-900 mb-3">Accountant Reference Response</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                   <div>
@@ -570,6 +524,56 @@
                 class="text-gray-500 italic">
                 No income sources declared
               </div>
+            </div>
+
+            <!-- Employer vs Tenant Comparison -->
+            <div v-if="employmentComparisonTable.length" class="bg-white border rounded-lg p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-semibold text-gray-900">Employer Reference vs Tenant Declaration</h4>
+                <span class="text-xs text-gray-500" v-if="employmentComparisonHasMismatch">
+                  Differences detected—document rationale below.
+                </span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Field</th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Tenant Provided</th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Employer Confirmed</th>
+                      <th class="px-4 py-2 text-center font-medium text-gray-600 uppercase tracking-wide">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100">
+                    <tr
+                      v-for="row in employmentComparisonTable"
+                      :key="row.key"
+                      :class="row.status === 'mismatch'
+                        ? 'bg-red-50'
+                        : row.status === 'unknown'
+                          ? 'bg-gray-50'
+                          : ''"
+                    >
+                      <td class="px-4 py-2 font-medium text-gray-900">{{ row.label }}</td>
+                      <td class="px-4 py-2 text-gray-900">{{ row.tenant }}</td>
+                      <td class="px-4 py-2 text-gray-900">{{ row.employer }}</td>
+                      <td class="px-4 py-2 text-center">
+                        <span
+                          :class="[
+                            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                            comparisonBadgeClass(row.status)
+                          ]"
+                        >
+                          {{ comparisonStatusLabel(row.status) }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p v-if="employmentComparisonHasMismatch" class="mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                Please add notes in this step explaining how you resolved these differences before proceeding.
+              </p>
             </div>
 
             <!-- Verification Checks -->
@@ -1426,6 +1430,15 @@ const creditsafeLoading = ref(false)
 
 const stepLabels = ['ID & Selfie', 'Income & Affordability', 'Residential', 'Credit & TAS']
 
+type SimpleComparisonStatus = 'match' | 'mismatch' | 'unknown'
+interface EmploymentComparisonDisplayRow {
+  key: string
+  label: string
+  tenant: string
+  employer: string
+  status: SimpleComparisonStatus
+}
+
 // Type definition for verification step
 interface VerificationStep {
   step_number: number
@@ -1525,6 +1538,134 @@ const openGeolocationMap = (geo: any) => {
   const url = `https://www.google.com/maps?q=${geo.latitude},${geo.longitude}`
   window.open(url, '_blank', 'noopener')
 }
+
+const normalizeTextValue = (value: any): string => {
+  if (value === null || value === undefined) return ''
+  return String(value).trim().toLowerCase()
+}
+
+const parseCurrencyNumber = (value: any): number | null => {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = parseFloat(String(value).replace(/[^0-9.-]+/g, ''))
+  return isNaN(parsed) ? null : parsed
+}
+
+const formatCurrencyDisplay = (value: any): string => {
+  const parsed = parseCurrencyNumber(value)
+  if (parsed === null) {
+    return value && value !== '' ? String(value) : 'Not provided'
+  }
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(parsed)
+}
+
+const formatTextDisplay = (value: any): string => {
+  if (value === null || value === undefined || value === '') return 'Not provided'
+  return String(value)
+}
+
+const formatDateDisplay = (value?: string | null) => {
+  if (!value) return 'Not provided'
+  return formatUkDate(
+    value,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    },
+    'Not provided'
+  )
+}
+
+const compareTextValues = (tenant: any, employer: any): SimpleComparisonStatus => {
+  const tenantValue = normalizeTextValue(tenant)
+  const employerValue = normalizeTextValue(employer)
+  if (!tenantValue || !employerValue) return 'unknown'
+  return tenantValue === employerValue ? 'match' : 'mismatch'
+}
+
+const compareCurrencyValues = (tenant: any, employer: any): SimpleComparisonStatus => {
+  const tenantValue = parseCurrencyNumber(tenant)
+  const employerValue = parseCurrencyNumber(employer)
+  if (tenantValue === null || employerValue === null) return 'unknown'
+  const variance = Math.abs(tenantValue - employerValue)
+  const tolerance = Math.max(1, tenantValue * 0.05)
+  return variance <= tolerance ? 'match' : 'mismatch'
+}
+
+const comparisonBadgeClass = (status: SimpleComparisonStatus) => {
+  if (status === 'match') return 'bg-green-100 text-green-800'
+  if (status === 'mismatch') return 'bg-red-100 text-red-800'
+  return 'bg-gray-100 text-gray-600'
+}
+
+const comparisonStatusLabel = (status: SimpleComparisonStatus) => {
+  if (status === 'match') return 'Match'
+  if (status === 'mismatch') return 'Mismatch'
+  return 'Not Provided'
+}
+
+const employmentComparisonTable = computed<EmploymentComparisonDisplayRow[]>(() => {
+  if (!reference.value || !employerReference.value) return []
+
+  const tenant = reference.value
+  const employer = employerReference.value
+
+  const rows: EmploymentComparisonDisplayRow[] = [
+    {
+      key: 'company',
+      label: 'Company',
+      tenant: formatTextDisplay(tenant.employment_company_name),
+      employer: formatTextDisplay(employer.company_name),
+      status: compareTextValues(tenant.employment_company_name, employer.company_name)
+    },
+    {
+      key: 'position',
+      label: 'Job Title',
+      tenant: formatTextDisplay(tenant.employment_job_title),
+      employer: formatTextDisplay(employer.employee_position),
+      status: compareTextValues(tenant.employment_job_title, employer.employee_position)
+    },
+    {
+      key: 'start_date',
+      label: 'Employment Start Date',
+      tenant: formatDateDisplay(tenant.employment_start_date),
+      employer: formatDateDisplay(employer.employment_start_date),
+      status: compareTextValues(tenant.employment_start_date, employer.employment_start_date)
+    },
+    {
+      key: 'salary',
+      label: 'Annual Salary',
+      tenant: formatCurrencyDisplay(tenant.employment_salary_amount),
+      employer: formatCurrencyDisplay(employer.annual_salary),
+      status: compareCurrencyValues(tenant.employment_salary_amount, employer.annual_salary)
+    },
+    {
+      key: 'contact_name',
+      label: 'Reference Contact',
+      tenant: formatTextDisplay(tenant.employer_ref_name),
+      employer: formatTextDisplay(employer.employer_name),
+      status: compareTextValues(tenant.employer_ref_name, employer.employer_name)
+    },
+    {
+      key: 'contact_email',
+      label: 'Reference Email',
+      tenant: formatTextDisplay(tenant.employer_ref_email),
+      employer: formatTextDisplay(employer.employer_email),
+      status: compareTextValues(tenant.employer_ref_email, employer.employer_email)
+    }
+  ]
+
+  return rows
+})
+
+const employmentComparisonHasMismatch = computed(() =>
+  employmentComparisonTable.value.some(row => row.status === 'mismatch')
+)
 
 // Computed
 const canProceed = computed(() => {

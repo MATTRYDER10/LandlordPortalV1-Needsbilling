@@ -296,6 +296,8 @@
         description="Review employment details and verify data consistency"
         :completed="verificationCheck.employment_step_completed"
         :can-proceed="canProceedFromStep3"
+        :cannot-proceed-message="employmentOverrideRequired ? 'Please add notes explaining how discrepancies were resolved before continuing.' : ''"
+        :show-cannot-proceed-warning="employmentOverrideRequired"
         :notes="verificationCheck.employment_notes"
         @update:notes="verificationCheck.employment_notes = $event"
         @previous="currentStep = 2"
@@ -306,12 +308,63 @@
         <div class="space-y-6">
           <div v-if="reference.income_regular_employment && employerReference">
             <h4 class="text-md font-semibold text-gray-900 mb-4">Employment Data Comparison</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div class="p-4 bg-white border border-gray-200 rounded-lg">
+                <p class="text-sm text-gray-500">Tenant Declared Income</p>
+                <p class="text-xl font-semibold text-gray-900">{{ formatCurrency(declaredIncomeValue) }}</p>
+              </div>
+              <div class="p-4 bg-white border border-gray-200 rounded-lg">
+                <p class="text-sm text-gray-500">Employer Confirmed Income</p>
+                <p class="text-xl font-semibold text-gray-900">
+                  {{ employerIncomeValue !== null ? formatCurrency(employerIncomeValue) : 'Not provided' }}
+                </p>
+              </div>
+              <div class="p-4 rounded-lg"
+                :class="{
+                  'bg-green-50 border border-green-200 text-green-900': !incomeDifferenceValue,
+                  'bg-yellow-50 border border-yellow-200 text-yellow-900': incomeDifferenceValue && Math.abs(incomeDifferenceValue) < (declaredIncomeValue || 0) * 0.05,
+                  'bg-red-50 border border-red-200 text-red-900': incomeDifferenceValue && Math.abs(incomeDifferenceValue) >= (declaredIncomeValue || 0) * 0.05
+                }"
+              >
+                <p class="text-sm font-medium">Variance</p>
+                <p class="text-lg font-semibold">
+                  <template v-if="incomeDifferenceValue !== null">
+                    {{ incomeDifferenceValue > 0 ? '+' : '' }}{{ formatCurrency(incomeDifferenceValue) }}
+                  </template>
+                  <template v-else>
+                    Not available
+                  </template>
+                </p>
+                <p class="text-xs mt-1" v-if="incomeDifferenceValue !== null">
+                  {{ incomeDifferenceValue === 0 ? 'Matches tenant declaration' : 'Requires manual review' }}
+                </p>
+              </div>
+            </div>
             <InteractiveComparisonTable
               :rows="employmentComparisonRows"
               v-model="employmentVerifications"
               tenant-column-label="Tenant Provided"
               reference-column-label="Employer Confirmed"
             />
+            <div
+              v-if="employmentDiscrepancies.length"
+              class="p-4 bg-red-50 border border-red-200 rounded-lg"
+            >
+              <h5 class="text-sm font-semibold text-red-900 mb-2">Discrepancies detected</h5>
+              <ul class="list-disc list-inside space-y-1">
+                <li
+                  v-for="item in employmentDiscrepancies"
+                  :key="item.field"
+                  :class="item.status === 'mismatch' ? 'text-red-800' : 'text-yellow-800'"
+                  class="text-sm"
+                >
+                  {{ item.label }} {{ item.status === 'mismatch' ? 'does not match employer data' : 'differs slightly from employer data' }}.
+                </li>
+              </ul>
+              <p class="text-sm text-red-800 mt-3">
+                Please document the rationale in the notes field before proceeding.
+              </p>
+            </div>
           </div>
           <div v-else-if="reference.income_regular_employment">
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -356,6 +409,8 @@
         description="Review previous tenancy details and landlord/agent reference"
         :completed="verificationCheck.tenancy_step_completed"
         :can-proceed="canProceedFromStep4"
+        :cannot-proceed-message="tenancyOverrideRequired ? 'Add notes explaining tenancy discrepancies before moving on.' : ''"
+        :show-cannot-proceed-warning="tenancyOverrideRequired"
         :notes="verificationCheck.tenancy_notes"
         @update:notes="verificationCheck.tenancy_notes = $event"
         @previous="currentStep = 3"
@@ -364,23 +419,63 @@
         :saving="saving"
       >
         <div class="space-y-6">
-          <div v-if="landlordReference">
-            <h4 class="text-md font-semibold text-gray-900 mb-4">Landlord Reference Comparison</h4>
+          <div v-if="residentialComparisonRows.length > 0">
+            <h4 class="text-md font-semibold text-gray-900 mb-4">{{ residentialReferenceLabel }} Reference Comparison</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div class="p-4 bg-white border border-gray-200 rounded-lg">
+                <p class="text-sm text-gray-500">Tenant Declared Rent</p>
+                <p class="text-xl font-semibold text-gray-900">{{ tenantRentValue !== null ? formatCurrency(tenantRentValue) : 'Not provided' }}</p>
+              </div>
+              <div class="p-4 bg-white border border-gray-200 rounded-lg">
+                <p class="text-sm text-gray-500">{{ residentialReferenceLabel }} Confirmed Rent</p>
+                <p class="text-xl font-semibold text-gray-900">{{ verifiedRentValue !== null ? formatCurrency(verifiedRentValue) : 'Not provided' }}</p>
+              </div>
+              <div class="p-4 rounded-lg"
+                :class="{
+                  'bg-green-50 border border-green-200 text-green-900': !rentDifferenceValue,
+                  'bg-yellow-50 border border-yellow-200 text-yellow-900': rentDifferenceValue && Math.abs(rentDifferenceValue) < (tenantRentValue || 0) * 0.05,
+                  'bg-red-50 border border-red-200 text-red-900': rentDifferenceValue && Math.abs(rentDifferenceValue) >= (tenantRentValue || 0) * 0.05
+                }"
+              >
+                <p class="text-sm font-medium">Rent Variance</p>
+                <p class="text-lg font-semibold">
+                  <template v-if="rentDifferenceValue !== null">
+                    {{ rentDifferenceValue > 0 ? '+' : '' }}{{ formatCurrency(rentDifferenceValue) }}
+                  </template>
+                  <template v-else>
+                    Not available
+                  </template>
+                </p>
+                <p class="text-xs mt-1" v-if="rentDifferenceValue !== null">
+                  {{ rentDifferenceValue === 0 ? 'Matches tenant declaration' : 'Requires manual review' }}
+                </p>
+              </div>
+            </div>
             <InteractiveComparisonTable
-              :rows="landlordComparisonRows"
+              :rows="residentialComparisonRows"
               v-model="tenancyVerifications"
               tenant-column-label="Tenant Provided"
-              reference-column-label="Landlord Confirmed"
+              :reference-column-label="`${residentialReferenceLabel} Confirmed`"
             />
-          </div>
-          <div v-else-if="agentReference">
-            <h4 class="text-md font-semibold text-gray-900 mb-4">Agent Reference Comparison</h4>
-            <InteractiveComparisonTable
-              :rows="agentComparisonRows"
-              v-model="tenancyVerifications"
-              tenant-column-label="Tenant Provided"
-              reference-column-label="Agent Confirmed"
-            />
+            <div
+              v-if="residentialDiscrepancies.length"
+              class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+            >
+              <h5 class="text-sm font-semibold text-yellow-900 mb-2">Inconsistencies found</h5>
+              <ul class="list-disc list-inside space-y-1">
+                <li
+                  v-for="item in residentialDiscrepancies"
+                  :key="item.field"
+                  :class="item.status === 'mismatch' ? 'text-red-800' : 'text-yellow-800'"
+                  class="text-sm"
+                >
+                  {{ item.label }} {{ item.status === 'mismatch' ? 'conflicts with' : 'differs from' }} {{ residentialReferenceLabel.toLowerCase() }} data.
+                </li>
+              </ul>
+              <p class="text-sm text-yellow-800 mt-3">
+                Provide justification in the notes field before continuing.
+              </p>
+            </div>
           </div>
           <div v-else>
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -654,6 +749,7 @@ import InteractiveComparisonTable from '../components/InteractiveComparisonTable
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 import SanctionsScreeningCard from '../components/SanctionsScreeningCard.vue'
 import { formatDate as formatUkDate } from '../utils/date'
+import { computeComparisonStatus, isMismatchStatus, type ComparisonRow } from '../utils/comparison'
 
 const route = useRoute()
 const router = useRouter()
@@ -718,6 +814,23 @@ const sanctionsScreening = ref<any>(null)
 const loadingSanctions = ref(false)
 const runningSanctions = ref(false)
 
+const parseCurrencyValue = (value: any): number | null => {
+  if (value === null || value === undefined || value === '') return null
+  if (typeof value === 'number') return isNaN(value) ? null : value
+  const numeric = parseFloat(String(value).replace(/[^0-9.-]+/g, ''))
+  return isNaN(numeric) ? null : numeric
+}
+
+const formatCurrency = (value: number | null | undefined): string => {
+  if (value === null || value === undefined || isNaN(value)) return 'Not provided'
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value)
+}
+
 // Helper function to capitalize first letter of each word
 const capitalizeWords = (str: string | null | undefined): string => {
   if (!str) return ''
@@ -754,13 +867,13 @@ const canProceedFromStep2 = computed(() => {
 })
 
 const canProceedFromStep3 = computed(() => {
-  // Can proceed if employment check has been made (true or false, not null)
-  return verificationCheck.value.employment_verified !== null
+  const decisionMade = verificationCheck.value.employment_verified !== null
+  return decisionMade && !employmentOverrideRequired.value
 })
 
 const canProceedFromStep4 = computed(() => {
-  // Can proceed if tenancy check has been made (true or false, not null)
-  return verificationCheck.value.tenancy_verified !== null
+  const decisionMade = verificationCheck.value.tenancy_verified !== null
+  return decisionMade && !tenancyOverrideRequired.value
 })
 
 const canProceedFromStep5 = computed(() => {
@@ -792,8 +905,15 @@ const addressHistoryMeetsRequirement = computed(() => {
   return totalMonths >= 36
 })
 
-const employmentComparisonRows = computed(() => {
+const employmentComparisonRows = computed<ComparisonRow[]>(() => {
   if (!reference.value || !employerReference.value) return []
+
+  const declaredSalary = reference.value.employment_salary_amount
+    ? `£${reference.value.employment_salary_amount}`
+    : null
+  const employerSalary = employerReference.value.annual_salary
+    ? `£${employerReference.value.annual_salary}`
+    : null
 
   return [
     {
@@ -804,55 +924,300 @@ const employmentComparisonRows = computed(() => {
     },
     {
       field: 'position',
-      label: 'Position',
+      label: 'Job Title',
       tenantValue: reference.value.employment_job_title,
       referenceValue: employerReference.value.employee_position
     },
     {
+      field: 'employment_start_date',
+      label: 'Employment Start Date',
+      tenantValue: reference.value.employment_start_date,
+      referenceValue: employerReference.value.employment_start_date
+    },
+    {
+      field: 'employment_status',
+      label: 'Employment Status/Type',
+      tenantValue: reference.value.employment_status,
+      referenceValue: employerReference.value.employment_status || employerReference.value.employment_type
+    },
+    {
       field: 'salary',
       label: 'Annual Salary',
-      tenantValue: reference.value.employment_salary_amount ? `£${reference.value.employment_salary_amount}` : null,
-      referenceValue: employerReference.value.annual_salary ? `£${employerReference.value.annual_salary}` : null
+      tenantValue: declaredSalary,
+      referenceValue: employerSalary,
+      customComparison: (tenant: any, reference: any) => {
+        const tenantValue = parseCurrencyValue(tenant)
+        const referenceValue = parseCurrencyValue(reference)
+        if (tenantValue === null || referenceValue === null) return 'n/a'
+        const diff = Math.abs(tenantValue - referenceValue)
+        if (diff < 1) return 'match'
+        if (diff <= tenantValue * 0.05) return 'minor'
+        return 'mismatch'
+      }
+    },
+    {
+      field: 'salary_frequency',
+      label: 'Salary Frequency',
+      tenantValue: reference.value.employment_salary_frequency,
+      referenceValue: employerReference.value.salary_frequency
+    },
+    {
+      field: 'employer_contact_name',
+      label: 'Reference Contact Name',
+      tenantValue: reference.value.employer_ref_name,
+      referenceValue: employerReference.value.employer_name
+    },
+    {
+      field: 'employer_contact_email',
+      label: 'Reference Contact Email',
+      tenantValue: reference.value.employer_ref_email,
+      referenceValue: employerReference.value.employer_email
+    },
+    {
+      field: 'employer_contact_phone',
+      label: 'Reference Contact Phone',
+      tenantValue: reference.value.employer_ref_phone,
+      referenceValue: employerReference.value.employer_phone
     }
   ]
 })
 
-const landlordComparisonRows = computed(() => {
+const landlordComparisonRows = computed<ComparisonRow[]>(() => {
   if (!reference.value || !landlordReference.value) return []
 
+  const tenantRent = reference.value.previous_monthly_rent ? `£${reference.value.previous_monthly_rent}` : null
+  const landlordRent = landlordReference.value.monthly_rent ? `£${landlordReference.value.monthly_rent}` : null
+
   return [
     {
-      field: 'rent',
-      label: 'Monthly Rent',
-      tenantValue: reference.value.previous_monthly_rent ? `£${reference.value.previous_monthly_rent}` : null,
-      referenceValue: landlordReference.value.monthly_rent ? `£${landlordReference.value.monthly_rent}` : null
+      field: 'property_address',
+      label: 'Property Address',
+      tenantValue: reference.value.previous_rental_address_line1,
+      referenceValue: landlordReference.value.property_address
+    },
+    {
+      field: 'property_city',
+      label: 'Property City',
+      tenantValue: reference.value.previous_rental_city,
+      referenceValue: landlordReference.value.property_city
+    },
+    {
+      field: 'property_postcode',
+      label: 'Property Postcode',
+      tenantValue: reference.value.previous_rental_postcode,
+      referenceValue: landlordReference.value.property_postcode
+    },
+    {
+      field: 'landlord_name',
+      label: 'Landlord Name',
+      tenantValue: reference.value.previous_landlord_name,
+      referenceValue: landlordReference.value.landlord_name
+    },
+    {
+      field: 'landlord_email',
+      label: 'Landlord Email',
+      tenantValue: reference.value.previous_landlord_email,
+      referenceValue: landlordReference.value.landlord_email
+    },
+    {
+      field: 'landlord_phone',
+      label: 'Landlord Phone',
+      tenantValue: reference.value.previous_landlord_phone,
+      referenceValue: landlordReference.value.landlord_phone
     },
     {
       field: 'tenancy_start',
-      label: 'Tenancy Start',
+      label: 'Tenancy Start Date',
       tenantValue: reference.value.previous_tenancy_start_date,
       referenceValue: landlordReference.value.tenancy_start_date
+    },
+    {
+      field: 'tenancy_end',
+      label: 'Tenancy End Date',
+      tenantValue: reference.value.previous_tenancy_end_date,
+      referenceValue: landlordReference.value.tenancy_end_date
+    },
+    {
+      field: 'monthly_rent',
+      label: 'Monthly Rent',
+      tenantValue: tenantRent,
+      referenceValue: landlordRent,
+      customComparison: (tenant: any, reference: any) => {
+        const tenantValue = parseCurrencyValue(tenant)
+        const referenceValue = parseCurrencyValue(reference)
+        if (tenantValue === null || referenceValue === null) return 'n/a'
+        const diff = Math.abs(tenantValue - referenceValue)
+        if (diff < 1) return 'match'
+        if (diff <= tenantValue * 0.05) return 'minor'
+        return 'mismatch'
+      }
+    },
+    {
+      field: 'rent_paid_on_time',
+      label: 'Rent Paid On Time',
+      tenantValue: reference.value.rent_paid_on_time,
+      referenceValue: landlordReference.value.rent_paid_on_time
+    },
+    {
+      field: 'would_rent_again',
+      label: 'Would Rent Again',
+      tenantValue: reference.value.would_rent_again,
+      referenceValue: landlordReference.value.would_rent_again
     }
   ]
 })
 
-const agentComparisonRows = computed(() => {
+const agentComparisonRows = computed<ComparisonRow[]>(() => {
   if (!reference.value || !agentReference.value) return []
+
+  const tenantRent = reference.value.previous_monthly_rent ? `£${reference.value.previous_monthly_rent}` : null
+  const agentRent = agentReference.value.monthly_rent ? `£${agentReference.value.monthly_rent}` : null
 
   return [
     {
-      field: 'rent',
-      label: 'Monthly Rent',
-      tenantValue: reference.value.previous_monthly_rent ? `£${reference.value.previous_monthly_rent}` : null,
-      referenceValue: agentReference.value.monthly_rent ? `£${agentReference.value.monthly_rent}` : null
+      field: 'property_address',
+      label: 'Property Address',
+      tenantValue: reference.value.previous_rental_address_line1,
+      referenceValue: agentReference.value.property_address
+    },
+    {
+      field: 'property_city',
+      label: 'Property City',
+      tenantValue: reference.value.previous_rental_city,
+      referenceValue: agentReference.value.property_city
+    },
+    {
+      field: 'property_postcode',
+      label: 'Property Postcode',
+      tenantValue: reference.value.previous_rental_postcode,
+      referenceValue: agentReference.value.property_postcode
+    },
+    {
+      field: 'agent_name',
+      label: 'Agent Name',
+      tenantValue: reference.value.previous_landlord_name,
+      referenceValue: agentReference.value.agent_name
+    },
+    {
+      field: 'agent_email',
+      label: 'Agent Email',
+      tenantValue: reference.value.previous_landlord_email,
+      referenceValue: agentReference.value.agent_email
+    },
+    {
+      field: 'agent_phone',
+      label: 'Agent Phone',
+      tenantValue: reference.value.previous_landlord_phone,
+      referenceValue: agentReference.value.agent_phone
     },
     {
       field: 'tenancy_start',
-      label: 'Tenancy Start',
+      label: 'Tenancy Start Date',
       tenantValue: reference.value.previous_tenancy_start_date,
       referenceValue: agentReference.value.tenancy_start_date
+    },
+    {
+      field: 'tenancy_end',
+      label: 'Tenancy End Date',
+      tenantValue: reference.value.previous_tenancy_end_date,
+      referenceValue: agentReference.value.tenancy_end_date
+    },
+    {
+      field: 'monthly_rent',
+      label: 'Monthly Rent',
+      tenantValue: tenantRent,
+      referenceValue: agentRent,
+      customComparison: (tenant: any, reference: any) => {
+        const tenantValue = parseCurrencyValue(tenant)
+        const referenceValue = parseCurrencyValue(reference)
+        if (tenantValue === null || referenceValue === null) return 'n/a'
+        const diff = Math.abs(tenantValue - referenceValue)
+        if (diff < 1) return 'match'
+        if (diff <= tenantValue * 0.05) return 'minor'
+        return 'mismatch'
+      }
+    },
+    {
+      field: 'rent_paid_on_time',
+      label: 'Rent Paid On Time',
+      tenantValue: reference.value.rent_paid_on_time,
+      referenceValue: agentReference.value.rent_paid_on_time
+    },
+    {
+      field: 'would_rent_again',
+      label: 'Would Rent Again',
+      tenantValue: reference.value.would_rent_again,
+      referenceValue: agentReference.value.would_rent_again
     }
   ]
+})
+
+const residentialComparisonRows = computed<ComparisonRow[]>(() => {
+  if (landlordComparisonRows.value.length > 0) return landlordComparisonRows.value
+  if (agentComparisonRows.value.length > 0) return agentComparisonRows.value
+  return []
+})
+
+const residentialReferenceLabel = computed(() => {
+  if (landlordReference.value) return 'Landlord'
+  if (agentReference.value) return 'Agent'
+  return 'Reference'
+})
+
+const employmentDiscrepancies = computed(() => {
+  return employmentComparisonRows.value
+    .map(row => ({
+      field: row.field,
+      label: row.label,
+      status: computeComparisonStatus(row)
+    }))
+    .filter(item => isMismatchStatus(item.status))
+})
+
+const residentialDiscrepancies = computed(() => {
+  return residentialComparisonRows.value
+    .map(row => ({
+      field: row.field,
+      label: row.label,
+      status: computeComparisonStatus(row)
+    }))
+    .filter(item => isMismatchStatus(item.status))
+})
+
+const declaredIncomeValue = computed(() => parseCurrencyValue(reference.value?.employment_salary_amount))
+const employerIncomeValue = computed(() => parseCurrencyValue(employerReference.value?.annual_salary))
+const verifiedIncomeValue = computed(() => employerIncomeValue.value ?? declaredIncomeValue.value ?? null)
+const incomeDifferenceValue = computed(() => {
+  if (declaredIncomeValue.value === null || employerIncomeValue.value === null) return null
+  return employerIncomeValue.value - declaredIncomeValue.value
+})
+
+const employmentOverrideRequired = computed(() => {
+  if (employmentDiscrepancies.value.length === 0) return false
+  const notes = verificationCheck.value.employment_notes
+  return !(notes && notes.trim().length > 0)
+})
+
+const tenancyOverrideRequired = computed(() => {
+  if (residentialDiscrepancies.value.length === 0) return false
+  const notes = verificationCheck.value.tenancy_notes
+  return !(notes && notes.trim().length > 0)
+})
+
+const tenantRentValue = computed(() => parseCurrencyValue(reference.value?.previous_monthly_rent))
+const verifiedRentValue = computed(() => {
+  if (landlordReference.value?.monthly_rent) {
+    return parseCurrencyValue(landlordReference.value.monthly_rent)
+  }
+  if (agentReference.value?.monthly_rent) {
+    return parseCurrencyValue(agentReference.value.monthly_rent)
+  }
+  return null
+})
+
+const rentDifferenceValue = computed(() => {
+  if (tenantRentValue.value === null || verifiedRentValue.value === null) return null
+  return verifiedRentValue.value - tenantRentValue.value
 })
 
 const redFlags = computed(() => {
@@ -867,6 +1232,22 @@ const redFlags = computed(() => {
   if (verificationCheck.value.employment_verified === false) flags.push('Employment could not be verified')
   if (verificationCheck.value.tenancy_verified === false) flags.push('Previous tenancy could not be verified')
   if (verificationCheck.value.address_history_complete === false) flags.push('Address history incomplete')
+
+  employmentDiscrepancies.value.forEach(discrepancy => {
+    if (discrepancy.status === 'mismatch') {
+      flags.push(`Employment discrepancy: ${discrepancy.label} does not match employer data`)
+    } else if (discrepancy.status === 'minor') {
+      flags.push(`Employment discrepancy: ${discrepancy.label} differs slightly from employer data`)
+    }
+  })
+
+  residentialDiscrepancies.value.forEach(discrepancy => {
+    if (discrepancy.status === 'mismatch') {
+      flags.push(`Tenancy discrepancy: ${discrepancy.label} conflicts with ${residentialReferenceLabel.value}`)
+    } else if (discrepancy.status === 'minor') {
+      flags.push(`Tenancy discrepancy: ${discrepancy.label} differs slightly from ${residentialReferenceLabel.value}`)
+    }
+  })
 
   return flags
 })

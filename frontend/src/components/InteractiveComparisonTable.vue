@@ -27,13 +27,13 @@
           </td>
           <td class="px-6 py-4 text-sm text-gray-900">
             <span v-if="row.tenantValue !== null && row.tenantValue !== undefined && row.tenantValue !== ''">
-              {{ formatValue(row.tenantValue) }}
+              {{ formatComparisonValue(row.tenantValue) }}
             </span>
             <span v-else class="text-gray-400 italic">Not provided</span>
           </td>
           <td class="px-6 py-4 text-sm text-gray-900">
             <span v-if="row.referenceValue !== null && row.referenceValue !== undefined && row.referenceValue !== ''">
-              {{ formatValue(row.referenceValue) }}
+              {{ formatComparisonValue(row.referenceValue) }}
             </span>
             <span v-else-if="row.isNotApplicable" class="text-gray-400 italic">N/A</span>
             <span v-else class="text-gray-400 italic">Not provided</span>
@@ -99,16 +99,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { formatDate as formatUkDate } from '../utils/date'
-
-interface ComparisonRow {
-  field: string
-  label: string
-  tenantValue: any
-  referenceValue: any
-  isNotApplicable?: boolean
-  customComparison?: (tenant: any, reference: any) => 'match' | 'mismatch' | 'minor' | 'n/a'
-}
+import type { ComparisonRow } from '../utils/comparison'
+import { computeComparisonStatus, formatComparisonValue } from '../utils/comparison'
 
 interface Props {
   rows: ComparisonRow[]
@@ -143,112 +135,7 @@ const markNoMatch = (field: string) => {
   emit('update:modelValue', { ...manualVerifications.value })
 }
 
-const formatValue = (value: any): string => {
-  if (value === null || value === undefined) return ''
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
-  if (typeof value === 'number') return value.toString()
-  if (typeof value === 'string') return value
-  if (value instanceof Date) {
-    return formatUkDate(
-      value,
-      {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      }
-    )
-  }
-  return String(value)
-}
-
-const normalizeString = (value: any): string => {
-  if (!value) return ''
-  return String(value).toLowerCase().trim().replace(/\s+/g, ' ')
-}
-
-const getMatchStatus = (row: ComparisonRow): 'match' | 'mismatch' | 'minor' | 'n/a' => {
-  if (row.customComparison) {
-    return row.customComparison(row.tenantValue, row.referenceValue)
-  }
-
-  if (row.isNotApplicable ||
-      (row.tenantValue === null || row.tenantValue === undefined || row.tenantValue === '') ||
-      (row.referenceValue === null || row.referenceValue === undefined || row.referenceValue === '')) {
-    return 'n/a'
-  }
-
-  if (row.tenantValue instanceof Date || row.referenceValue instanceof Date) {
-    const tenant = new Date(row.tenantValue).toISOString().split('T')[0]
-    const reference = new Date(row.referenceValue).toISOString().split('T')[0]
-    return tenant === reference ? 'match' : 'mismatch'
-  }
-
-  if (typeof row.tenantValue === 'boolean' && typeof row.referenceValue === 'boolean') {
-    return row.tenantValue === row.referenceValue ? 'match' : 'mismatch'
-  }
-
-  if (typeof row.tenantValue === 'number' && typeof row.referenceValue === 'number') {
-    const diff = Math.abs(row.tenantValue - row.referenceValue)
-    if (diff < 0.01) return 'match'
-    if (diff < row.tenantValue * 0.05) return 'minor'
-    return 'mismatch'
-  }
-
-  const tenantNormalized = normalizeString(row.tenantValue)
-  const referenceNormalized = normalizeString(row.referenceValue)
-
-  if (tenantNormalized === referenceNormalized) {
-    return 'match'
-  }
-
-  if (tenantNormalized.includes(referenceNormalized) || referenceNormalized.includes(tenantNormalized)) {
-    return 'minor'
-  }
-
-  if (calculateSimilarity(tenantNormalized, referenceNormalized) > 0.8) {
-    return 'minor'
-  }
-
-  return 'mismatch'
-}
-
-const calculateSimilarity = (str1: string, str2: string): number => {
-  const longer = str1.length > str2.length ? str1 : str2
-  const shorter = str1.length > str2.length ? str2 : str1
-
-  if (longer.length === 0) return 1.0
-
-  const editDistance = levenshtein(longer, shorter)
-  return (longer.length - editDistance) / longer.length
-}
-
-const levenshtein = (str1: string, str2: string): number => {
-  const matrix: number[][] = []
-
-  for (let i = 0; i <= str2.length; i++) {
-    matrix[i] = [i]
-  }
-
-  for (let j = 0; j <= str1.length; j++) {
-    matrix[0]![j] = j
-  }
-
-  for (let i = 1; i <= str2.length; i++) {
-    for (let j = 1; j <= str1.length; j++) {
-      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-        matrix[i]![j] = matrix[i - 1]![j - 1]!
-      } else {
-        matrix[i]![j] = Math.min(
-          matrix[i - 1]![j - 1]! + 1,
-          matrix[i]![j - 1]! + 1,
-          matrix[i - 1]![j]! + 1
-        )
-      }
-    }
-  }
-
-  return matrix[str2.length]![str1.length]!
-}
+const getMatchStatus = (row: ComparisonRow) => computeComparisonStatus(row)
 
 const getRowClass = (row: ComparisonRow): string => {
   const manual = manualVerifications.value[row.field]
