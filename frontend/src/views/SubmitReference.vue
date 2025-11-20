@@ -309,7 +309,7 @@
                         class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary uppercase"
                         @input="formData.rtr_share_code = formData.rtr_share_code.toUpperCase(); rtrVerificationStatus = null"
                       />
-                      <button
+                      <!-- <button
                         type="button"
                         @click="verifyRTRShareCode"
                         :disabled="!formData.rtr_share_code || rtrVerificationStatus === 'checking'"
@@ -318,7 +318,7 @@
                         :style="rtrVerificationStatus === 'verified' ? {} : { color: buttonColor }"
                       >
                         {{ rtrVerificationStatus === 'verified' ? 'Verified ✓' : 'Verify' }}
-                      </button>
+                      </button> -->
                     </div>
                     <p class="mt-1 text-xs text-gray-500">Enter your 8-11 character share code from the Home Office (starts with 'R')</p>
                   </div>
@@ -3494,12 +3494,12 @@ const handlePageSubmit = async () => {
       return
     }
     // Verify RTR share code if not British citizen
-    if (formData.value.is_british_citizen === false && formData.value.rtr_share_code && !formData.value.rtr_verified) {
-      await verifyRTRShareCode()
-      if (!formData.value.rtr_verified) {
-        return // Verification failed, don't proceed
-      }
-    }
+    // if (formData.value.is_british_citizen === false && formData.value.rtr_share_code && !formData.value.rtr_verified) {
+    //   await verifyRTRShareCode()
+    //   if (!formData.value.rtr_verified) {
+    //     return // Verification failed, don't proceed
+    //   }
+    // }
   } else if (currentPage.value === 3) {
     if (!selfie.value && !formData.value.selfie_path) {
       submitError.value = 'Please upload a selfie'
