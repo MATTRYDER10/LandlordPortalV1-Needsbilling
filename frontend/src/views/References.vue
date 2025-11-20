@@ -7,17 +7,16 @@
             <h2 class="text-3xl font-bold text-gray-900">References</h2>
             <p class="mt-2 text-gray-600">Manage all tenant references</p>
           </div>
-          <button
-            @click="showCreateModal = true"
-            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
-          >
+          <button @click="showCreateModal = true"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
             Create New Reference
           </button>
         </div>
 
         <!-- Stats -->
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-5 mb-6">
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = ''">
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+            @click="statusFilter = ''">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
@@ -26,13 +25,15 @@
                 </div>
                 <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
               </div>
             </div>
           </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = 'in_progress'">
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+            @click="statusFilter = 'in_progress'">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
@@ -41,13 +42,15 @@
                 </div>
                 <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
             </div>
           </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = 'pending_verification'">
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+            @click="statusFilter = 'pending_verification'">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
@@ -56,13 +59,15 @@
                 </div>
                 <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                 </div>
               </div>
             </div>
           </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = 'rejected'">
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+            @click="statusFilter = 'rejected'">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
@@ -77,7 +82,8 @@
               </div>
             </div>
           </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow" @click="statusFilter = 'completed'">
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+            @click="statusFilter = 'completed'">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
@@ -86,7 +92,8 @@
                 </div>
                 <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
@@ -100,26 +107,20 @@
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search by tenant name, email, or property address..."
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
-            />
+            <input v-model="searchQuery" type="text" placeholder="Search by tenant name, email, or property address..."
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm" />
           </div>
 
           <!-- Filters -->
           <div class="flex gap-3">
             <div class="flex-1">
               <label for="status-filter" class="sr-only">Filter by Status</label>
-              <select
-                id="status-filter"
-                v-model="statusFilter"
-                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm"
-              >
+              <select id="status-filter" v-model="statusFilter"
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm">
                 <option value="">All Statuses</option>
                 <option value="pending">Pending</option>
                 <option value="in_progress">In Progress</option>
@@ -131,11 +132,8 @@
             </div>
             <div class="flex-1">
               <label for="date-filter" class="sr-only">Filter by Date</label>
-              <select
-                id="date-filter"
-                v-model="dateFilter"
-                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm"
-              >
+              <select id="date-filter" v-model="dateFilter"
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm">
                 <option value="">All Time</option>
                 <option value="today">Today</option>
                 <option value="week">Last 7 Days</option>
@@ -144,11 +142,8 @@
                 <option value="year">Last Year</option>
               </select>
             </div>
-            <button
-              v-if="statusFilter || dateFilter"
-              @click="clearFilters"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
+            <button v-if="statusFilter || dateFilter" @click="clearFilters"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
               Clear Filters
             </button>
           </div>
@@ -165,27 +160,25 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">References</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <button
-                  @click="toggleSort('created_at')"
-                  class="flex items-center gap-1 hover:text-gray-700"
-                  :class="{ 'text-primary': sortBy === 'created_at' }"
-                >
+                <button @click="toggleSort('created_at')" class="flex items-center gap-1 hover:text-gray-700"
+                  :class="{ 'text-primary': sortBy === 'created_at' }">
                   Created
-                  <svg v-if="sortBy === 'created_at'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path v-if="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                  <svg v-if="sortBy === 'created_at'" class="w-4 h-4" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path v-if="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M5 15l7-7 7 7" />
                     <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <button
-                  @click="toggleSort('move_in_date')"
-                  class="flex items-center gap-1 hover:text-gray-700"
-                  :class="{ 'text-primary': sortBy === 'move_in_date' }"
-                >
+                <button @click="toggleSort('move_in_date')" class="flex items-center gap-1 hover:text-gray-700"
+                  :class="{ 'text-primary': sortBy === 'move_in_date' }">
                   Move In Date
-                  <svg v-if="sortBy === 'move_in_date'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path v-if="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                  <svg v-if="sortBy === 'move_in_date'" class="w-4 h-4" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path v-if="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M5 15l7-7 7 7" />
                     <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
@@ -213,7 +206,8 @@
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap" style="width: 120px;">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                <span
+                  class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
                   Pending
                 </span>
               </td>
@@ -241,18 +235,20 @@
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
                   <div class="text-sm text-gray-500">
-                    {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode : '' }}
+                    {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode :
+                      '' }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center gap-2">
-                    <button
-                      v-if="reference.is_group_parent"
-                      @click.stop="toggleExpanded(reference.id)"
-                      class="text-gray-400 hover:text-gray-600 focus:outline-none"
-                    >
-                      <svg class="w-5 h-5 transition-transform" :class="{ 'rotate-90': expandedReference === reference.id }" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                    <button v-if="reference.is_group_parent" @click.stop="toggleExpanded(reference.id)"
+                      class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                      <svg class="w-5 h-5 transition-transform"
+                        :class="{ 'rotate-90': expandedReference === reference.id }" fill="currentColor"
+                        viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                          clip-rule="evenodd" />
                       </svg>
                     </button>
                     <div class="flex-1">
@@ -260,7 +256,8 @@
                         <div class="text-sm font-medium text-gray-900">
                           {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
                         </div>
-                        <span v-if="reference.is_group_parent" class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                        <span v-if="reference.is_group_parent"
+                          class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
                           {{ reference.tenant_count || 0 }} Tenants
                         </span>
                       </div>
@@ -268,297 +265,272 @@
                     </div>
                   </div>
                 </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span
-                  class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                  :class="{
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
                     'bg-yellow-100 text-yellow-800': reference.status === 'pending',
                     'bg-blue-100 text-blue-800': reference.status === 'in_progress',
                     'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
                     'bg-green-100 text-green-800': reference.status === 'completed',
                     'bg-red-100 text-red-800': reference.status === 'rejected',
                     'bg-gray-100 text-gray-800': reference.status === 'cancelled'
-                  }"
-                >
-                  {{ formatStatus(reference.status, reference) }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center gap-3">
-                  <!-- Employment Reference -->
-                  <div class="flex items-center gap-1" :title="reference.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
-                    <svg 
-                      class="w-5 h-5" 
-                      :class="reference.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path v-if="reference.has_employer_reference" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-xs text-gray-600">Emp</span>
-                  </div>
-                  <!-- Credit Check -->
-                  <div class="flex items-center gap-1" :title="reference.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
-                    <svg 
-                      class="w-5 h-5" 
-                      :class="reference.has_credit_check ? 'text-green-600' : 'text-gray-300'"
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path v-if="reference.has_credit_check" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-xs text-gray-600">Credit</span>
-                  </div>
-                  <!-- Residential Reference -->
-                  <div class="flex items-center gap-1" :title="(reference.has_landlord_reference || reference.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
-                    <svg 
-                      class="w-5 h-5" 
-                      :class="(reference.has_landlord_reference || reference.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path v-if="(reference.has_landlord_reference || reference.has_agent_reference)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-xs text-gray-600">Res</span>
-                  </div>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ formatDate(reference.created_at) }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ reference.move_in_date ? formatDate(reference.move_in_date) : '—' }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button
-                  @click="viewReference(reference)"
-                  class="text-primary hover:text-primary/80"
-                >
-                  View
-                </button>
-                <button
-                  @click="createAgreement(reference)"
-                  class="ml-3 text-green-600 hover:text-green-700 font-medium"
-                  title="Create Agreement from this reference"
-                >
-                  Create Agreement
-                </button>
-                <button
-                  @click="confirmDelete(reference)"
-                  class="ml-3 text-red-600 hover:text-red-700 font-medium"
-                  title="Delete reference"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-            <!-- Guarantor Row (if exists) -->
-            <tr v-if="reference.guarantors && reference.guarantors.length > 0" v-for="guarantor in reference.guarantors" :key="`guarantor-${guarantor.id}`" class="bg-purple-50 border-l-4 border-l-purple-500">
-              <td class="px-6 py-3 pl-12">
-                <div class="text-xs text-purple-700 font-medium mb-1">↳ Guarantor for above tenant</div>
-                <div class="text-sm text-gray-900">{{ guarantor.property_address }}</div>
-              </td>
-              <td class="px-6 py-3">
-                <div class="flex items-center gap-2">
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2">
-                      <div class="text-sm font-medium text-gray-900">
-                        {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
-                      </div>
-                      <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                        Guarantor
-                      </span>
+                  }">
+                    {{ formatStatus(reference.status, reference) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center gap-3">
+                    <!-- Employment Reference -->
+                    <div class="flex items-center gap-1"
+                      :title="reference.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                      <svg class="w-5 h-5"
+                        :class="reference.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
+                        fill="currentColor" viewBox="0 0 20 20">
+                        <path v-if="reference.has_employer_reference" fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clip-rule="evenodd" />
+                        <path v-else fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                      </svg>
+                      <span class="text-xs text-gray-600">Emp</span>
                     </div>
-                    <div class="text-sm text-gray-500">{{ guarantor.tenant_email }}</div>
+                    <!-- Credit Check -->
+                    <div class="flex items-center gap-1"
+                      :title="reference.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
+                      <svg class="w-5 h-5" :class="reference.has_credit_check ? 'text-green-600' : 'text-gray-300'"
+                        fill="currentColor" viewBox="0 0 20 20">
+                        <path v-if="reference.has_credit_check" fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clip-rule="evenodd" />
+                        <path v-else fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                      </svg>
+                      <span class="text-xs text-gray-600">Credit</span>
+                    </div>
+                    <!-- Residential Reference -->
+                    <div class="flex items-center gap-1"
+                      :title="(reference.has_landlord_reference || reference.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
+                      <svg class="w-5 h-5"
+                        :class="(reference.has_landlord_reference || reference.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
+                        fill="currentColor" viewBox="0 0 20 20">
+                        <path v-if="(reference.has_landlord_reference || reference.has_agent_reference)"
+                          fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clip-rule="evenodd" />
+                        <path v-else fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                      </svg>
+                      <span class="text-xs text-gray-600">Res</span>
+                    </div>
                   </div>
-                </div>
-              </td>
-              <td class="px-6 py-3">
-                <span
-                  class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                  :class="{
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ formatDate(reference.created_at) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ reference.move_in_date ? formatDate(reference.move_in_date) : '—' }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button @click="viewReference(reference)" class="text-primary hover:text-primary/80">
+                    View
+                  </button>
+                  <button @click="createAgreement(reference)"
+                    class="ml-3 text-green-600 hover:text-green-700 font-medium"
+                    title="Create Agreement from this reference">
+                    Create Agreement
+                  </button>
+                  <button @click="confirmDelete(reference)" class="ml-3 text-red-600 hover:text-red-700 font-medium"
+                    title="Delete reference">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+              <!-- Guarantor Row (if exists) -->
+              <tr v-if="reference.guarantors && reference.guarantors.length > 0"
+                v-for="guarantor in reference.guarantors" :key="`guarantor-${guarantor.id}`"
+                class="bg-purple-50 border-l-4 border-l-purple-500">
+                <td class="px-6 py-3 pl-12">
+                  <div class="text-xs text-purple-700 font-medium mb-1">↳ Guarantor for above tenant</div>
+                  <div class="text-sm text-gray-900">{{ guarantor.property_address }}</div>
+                </td>
+                <td class="px-6 py-3">
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2">
+                        <div class="text-sm font-medium text-gray-900">
+                          {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
+                        </div>
+                        <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                          Guarantor
+                        </span>
+                      </div>
+                      <div class="text-sm text-gray-500">{{ guarantor.tenant_email }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-3">
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
                     'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
                     'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
                     'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
                     'bg-green-100 text-green-800': guarantor.status === 'completed',
                     'bg-red-100 text-red-800': guarantor.status === 'rejected',
                     'bg-gray-100 text-gray-800': guarantor.status === 'cancelled'
-                  }"
-                >
-                  {{ formatStatus(guarantor.status, guarantor) }}
-                </span>
-              </td>
-              <td class="px-6 py-3 whitespace-nowrap">
-                <div class="flex items-center gap-3">
-                  <!-- Employment Reference -->
-                  <div class="flex items-center gap-1" :title="guarantor.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
-                    <svg 
-                      class="w-5 h-5" 
-                      :class="guarantor.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path v-if="guarantor.has_employer_reference" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-xs text-gray-600">Emp</span>
+                  }">
+                    {{ formatStatus(guarantor.status, guarantor) }}
+                  </span>
+                </td>
+                <td class="px-6 py-3 whitespace-nowrap">
+                  <div class="flex items-center gap-3">
+                    <!-- Employment Reference -->
+                    <div class="flex items-center gap-1"
+                      :title="guarantor.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                      <svg class="w-5 h-5"
+                        :class="guarantor.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
+                        fill="currentColor" viewBox="0 0 20 20">
+                        <path v-if="guarantor.has_employer_reference" fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clip-rule="evenodd" />
+                        <path v-else fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                      </svg>
+                      <span class="text-xs text-gray-600">Emp</span>
+                    </div>
+                    <!-- Credit Check -->
+                    <div class="flex items-center gap-1"
+                      :title="guarantor.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
+                      <svg class="w-5 h-5" :class="guarantor.has_credit_check ? 'text-green-600' : 'text-gray-300'"
+                        fill="currentColor" viewBox="0 0 20 20">
+                        <path v-if="guarantor.has_credit_check" fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clip-rule="evenodd" />
+                        <path v-else fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                      </svg>
+                      <span class="text-xs text-gray-600">Credit</span>
+                    </div>
+                    <!-- Residential Reference -->
+                    <div class="flex items-center gap-1"
+                      :title="(guarantor.has_landlord_reference || guarantor.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
+                      <svg class="w-5 h-5"
+                        :class="(guarantor.has_landlord_reference || guarantor.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
+                        fill="currentColor" viewBox="0 0 20 20">
+                        <path v-if="(guarantor.has_landlord_reference || guarantor.has_agent_reference)"
+                          fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clip-rule="evenodd" />
+                        <path v-else fill-rule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                      </svg>
+                      <span class="text-xs text-gray-600">Res</span>
+                    </div>
                   </div>
-                  <!-- Credit Check -->
-                  <div class="flex items-center gap-1" :title="guarantor.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
-                    <svg 
-                      class="w-5 h-5" 
-                      :class="guarantor.has_credit_check ? 'text-green-600' : 'text-gray-300'"
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path v-if="guarantor.has_credit_check" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-xs text-gray-600">Credit</span>
-                  </div>
-                  <!-- Residential Reference -->
-                  <div class="flex items-center gap-1" :title="(guarantor.has_landlord_reference || guarantor.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
-                    <svg 
-                      class="w-5 h-5" 
-                      :class="(guarantor.has_landlord_reference || guarantor.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path v-if="(guarantor.has_landlord_reference || guarantor.has_agent_reference)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-xs text-gray-600">Res</span>
-                  </div>
-                </div>
-              </td>
-              <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
-                {{ formatDate(guarantor.created_at) }}
-              </td>
-              <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
-                {{ guarantor.move_in_date ? formatDate(guarantor.move_in_date) : '—' }}
-              </td>
-              <td class="px-6 py-3 text-right text-sm font-medium">
-                <button
-                  @click="viewReference(guarantor)"
-                  class="text-purple-600 hover:text-purple-800 font-medium"
-                >
-                  View
-                </button>
-                <button
-                  @click="confirmDelete(guarantor)"
-                  class="ml-3 text-red-600 hover:text-red-700 font-medium"
-                  title="Delete guarantor reference"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-            <!-- Expanded Tenant List -->
-            <tr v-if="reference.is_group_parent && expandedReference === reference.id" class="bg-gray-50">
-              <td colspan="5" class="px-6 py-4">
-                <div class="ml-8">
-                  <h4 class="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Individual Tenants</h4>
-                  <div v-if="reference.children" class="space-y-3">
-                    <div v-for="(child, index) in reference.children" :key="child.id"
-                         class="bg-white rounded-lg border border-gray-200">
-                      <!-- Tenant Info -->
-                      <div class="flex items-center justify-between p-3 hover:border-primary transition-colors">
-                        <div class="flex-1">
-                          <div class="flex items-center gap-2">
-                            <span class="text-xs font-medium text-gray-500">Tenant {{ index + 1 }}</span>
-                            <span
-                              class="px-2 py-0.5 text-xs font-semibold rounded-full"
-                              :class="{
+                </td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
+                  {{ formatDate(guarantor.created_at) }}
+                </td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
+                  {{ guarantor.move_in_date ? formatDate(guarantor.move_in_date) : '—' }}
+                </td>
+                <td class="px-6 py-3 text-right text-sm font-medium">
+                  <button @click="viewReference(guarantor)" class="text-purple-600 hover:text-purple-800 font-medium">
+                    View
+                  </button>
+                  <button @click="confirmDelete(guarantor)" class="ml-3 text-red-600 hover:text-red-700 font-medium"
+                    title="Delete guarantor reference">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+              <!-- Expanded Tenant List -->
+              <tr v-if="reference.is_group_parent && expandedReference === reference.id" class="bg-gray-50">
+                <td colspan="5" class="px-6 py-4">
+                  <div class="ml-8">
+                    <h4 class="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Individual Tenants</h4>
+                    <div v-if="reference.children" class="space-y-3">
+                      <div v-for="(child, index) in reference.children" :key="child.id"
+                        class="bg-white rounded-lg border border-gray-200">
+                        <!-- Tenant Info -->
+                        <div class="flex items-center justify-between p-3 hover:border-primary transition-colors">
+                          <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                              <span class="text-xs font-medium text-gray-500">Tenant {{ index + 1 }}</span>
+                              <span class="px-2 py-0.5 text-xs font-semibold rounded-full" :class="{
                                 'bg-yellow-100 text-yellow-800': child.status === 'pending',
                                 'bg-blue-100 text-blue-800': child.status === 'in_progress',
                                 'bg-orange-100 text-orange-800': child.status === 'pending_verification',
                                 'bg-green-100 text-green-800': child.status === 'completed'
-                              }"
-                            >
-                              {{ formatStatus(child.status, child) }}
-                            </span>
+                              }">
+                                {{ formatStatus(child.status, child) }}
+                              </span>
+                            </div>
+                            <p class="text-sm font-medium text-gray-900 mt-1">
+                              {{ child.tenant_first_name }} {{ child.tenant_last_name }}
+                            </p>
+                            <p class="text-xs text-gray-600">{{ child.tenant_email }}</p>
+                            <p class="text-xs text-gray-900 mt-1">
+                              Rent Share: <span class="font-semibold text-primary">£{{ child.rent_share }}</span>
+                            </p>
                           </div>
-                          <p class="text-sm font-medium text-gray-900 mt-1">
-                            {{ child.tenant_first_name }} {{ child.tenant_last_name }}
-                          </p>
-                          <p class="text-xs text-gray-600">{{ child.tenant_email }}</p>
-                          <p class="text-xs text-gray-900 mt-1">
-                            Rent Share: <span class="font-semibold text-primary">£{{ child.rent_share }}</span>
-                          </p>
+                          <div class="ml-4 flex gap-2">
+                            <button @click="viewReference(child)"
+                              class="px-3 py-1.5 text-xs bg-primary text-white rounded-md hover:bg-primary/90">
+                              View
+                            </button>
+                            <button @click="confirmDelete(child)"
+                              class="px-3 py-1.5 text-xs bg-red-600 text-white rounded-md hover:bg-red-700"
+                              title="Delete tenant reference">
+                              Delete
+                            </button>
+                          </div>
                         </div>
-                        <div class="ml-4 flex gap-2">
-                          <button
-                            @click="viewReference(child)"
-                            class="px-3 py-1.5 text-xs bg-primary text-white rounded-md hover:bg-primary/90"
-                          >
-                            View
-                          </button>
-                          <button
-                            @click="confirmDelete(child)"
-                            class="px-3 py-1.5 text-xs bg-red-600 text-white rounded-md hover:bg-red-700"
-                            title="Delete tenant reference"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
 
-                      <!-- Guarantors for this tenant -->
-                      <div v-if="child.guarantors && child.guarantors.length > 0" class="px-3 pb-3 pt-0 border-t border-gray-100">
-                        <div class="pl-4 space-y-2">
-                          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Guarantor</p>
-                          <div v-for="guarantor in child.guarantors" :key="guarantor.id"
-                               class="flex items-center justify-between p-2 bg-purple-50 rounded border border-purple-200">
-                            <div class="flex-1">
-                              <div class="flex items-center gap-2">
-                                <span class="text-xs font-medium text-purple-700">🛡️ Guarantor</span>
-                                <span
-                                  class="px-2 py-0.5 text-xs font-semibold rounded-full"
-                                  :class="{
+                        <!-- Guarantors for this tenant -->
+                        <div v-if="child.guarantors && child.guarantors.length > 0"
+                          class="px-3 pb-3 pt-0 border-t border-gray-100">
+                          <div class="pl-4 space-y-2">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Guarantor</p>
+                            <div v-for="guarantor in child.guarantors" :key="guarantor.id"
+                              class="flex items-center justify-between p-2 bg-purple-50 rounded border border-purple-200">
+                              <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                  <span class="text-xs font-medium text-purple-700">🛡️ Guarantor</span>
+                                  <span class="px-2 py-0.5 text-xs font-semibold rounded-full" :class="{
                                     'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
                                     'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
                                     'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
                                     'bg-green-100 text-green-800': guarantor.status === 'completed'
-                                  }"
-                                >
-                                  {{ formatStatus(guarantor.status, guarantor) }}
-                                </span>
+                                  }">
+                                    {{ formatStatus(guarantor.status, guarantor) }}
+                                  </span>
+                                </div>
+                                <p class="text-xs font-medium text-gray-900 mt-1">
+                                  {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
+                                </p>
+                                <p class="text-xs text-gray-600">{{ guarantor.tenant_email }}</p>
                               </div>
-                              <p class="text-xs font-medium text-gray-900 mt-1">
-                                {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
-                              </p>
-                              <p class="text-xs text-gray-600">{{ guarantor.tenant_email }}</p>
-                            </div>
-                            <div class="ml-2 flex gap-2">
-                              <button
-                                @click="viewReference(guarantor)"
-                                class="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
-                              >
-                                View
-                              </button>
-                              <button
-                                @click="confirmDelete(guarantor)"
-                                class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                                title="Delete guarantor reference"
-                              >
-                                Delete
-                              </button>
+                              <div class="ml-2 flex gap-2">
+                                <button @click="viewReference(guarantor)"
+                                  class="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700">
+                                  View
+                                </button>
+                                <button @click="confirmDelete(guarantor)"
+                                  class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                  title="Delete guarantor reference">
+                                  Delete
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
+                    <div v-else class="flex items-center justify-center py-4">
+                      <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                      <span class="ml-2 text-sm text-gray-600">Loading tenants...</span>
+                    </div>
                   </div>
-                  <div v-else class="flex items-center justify-center py-4">
-                    <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    <span class="ml-2 text-sm text-gray-600">Loading tenants...</span>
-                  </div>
-                </div>
-              </td>
-            </tr>
+                </td>
+              </tr>
             </template>
           </tbody>
         </table>
@@ -567,19 +539,24 @@
       <!-- Empty State -->
       <div v-else class="bg-white rounded-lg shadow p-6">
         <div class="text-center py-12">
-          <svg v-if="!searchQuery" class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <svg v-if="!searchQuery" class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           <svg v-else class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">{{ searchQuery ? 'No references found' : 'No references yet' }}</h3>
-          <p class="mt-1 text-sm text-gray-500">{{ searchQuery ? 'Try adjusting your search terms.' : 'Get started by creating a new tenant reference.' }}</p>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">
+            {{ searchQuery ? 'No references found' : 'No references yet' }}
+          </h3>
+          <p class="mt-1 text-sm text-gray-500">
+            {{ searchQuery ? 'Try adjusting your search terms.' : 'Get started by creating a new tenant reference.' }}
+          </p>
           <div v-if="!searchQuery" class="mt-6">
-            <button
-              @click="showCreateModal = true"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
-            >
+            <button @click="showCreateModal = true"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
               Create New Reference
             </button>
           </div>
@@ -595,389 +572,275 @@
         </div>
         <form @submit.prevent="handleCreate" class="flex flex-col flex-1 min-h-0">
           <div class="px-6 overflow-y-auto flex-1 space-y-4">
-          <!-- Tenant Count Selector -->
-          <div>
-            <label for="tenant-count" class="block text-sm font-medium text-gray-700 mb-2">Number of Tenants *</label>
-            <select
-              id="tenant-count"
-              v-model.number="tenantCount"
-              @change="updateTenantCount(tenantCount)"
-              class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-            >
-              <option :value="1">1 Tenant</option>
-              <option :value="2">2 Tenants</option>
-              <option :value="3">3 Tenants</option>
-              <option :value="4">4 Tenants</option>
-              <option :value="5">5 Tenants</option>
-              <option :value="6">6 Tenants</option>
-            </select>
-          </div>
-
-          <!-- Property Information (shown once) -->
-          <div>
-            <h4 class="text-md font-semibold text-gray-700 mb-3">Property Information</h4>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <AddressAutocomplete
-                  v-model="formData.property_address"
-                  label="Property Address"
-                  :required="true"
-                  id="address"
-                  placeholder="Start typing address..."
-                  @addressSelected="handlePropertyAddressSelected"
-                />
-              </div>
-              <div>
-                <label for="city" class="block text-sm font-medium text-gray-700">City *</label>
-                <input
-                  id="city"
-                  v-model="formData.property_city"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <div>
-                <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
-                <input
-                  id="postcode"
-                  v-model="formData.property_postcode"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <div>
-                <label for="rent" class="block text-sm font-medium text-gray-700">Total Monthly Rent (£) *</label>
-                <input
-                  id="rent"
-                  v-model.number="formData.monthly_rent"
-                  type="number"
-                  step="1"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
+            <!-- Tenant Count Selector -->
+            <div>
+              <label for="tenant-count" class="block text-sm font-medium text-gray-700 mb-2">Number of Tenants *</label>
+              <select id="tenant-count" v-model.number="tenantCount" @change="updateTenantCount(tenantCount)"
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+                <option :value="1">1 Tenant</option>
+                <option :value="2">2 Tenants</option>
+                <option :value="3">3 Tenants</option>
+                <option :value="4">4 Tenants</option>
+                <option :value="5">5 Tenants</option>
+                <option :value="6">6 Tenants</option>
+              </select>
             </div>
-          </div>
 
-          <!-- Single Tenant Information (v-if tenantCount === 1) -->
-          <div v-if="tenantCount === 1">
-            <h4 class="text-md font-semibold text-gray-700 mb-3">Tenant Information</h4>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label for="first-name" class="block text-sm font-medium text-gray-700">First Name *</label>
-                <input
-                  id="first-name"
-                  v-model="formData.tenant_first_name"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <div>
-                <label for="last-name" class="block text-sm font-medium text-gray-700">Last Name *</label>
-                <input
-                  id="last-name"
-                  v-model="formData.tenant_last_name"
-                  type="text"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email *</label>
-                <input
-                  id="email"
-                  v-model="formData.tenant_email"
-                  type="email"
-                  required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <div>
-                <PhoneInput
-                  v-model="formData.tenant_phone"
-                  label="Phone"
-                  id="phone"
-                  :required="true"
-                />
+            <!-- Property Information (shown once) -->
+            <div>
+              <h4 class="text-md font-semibold text-gray-700 mb-3">Property Information</h4>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <AddressAutocomplete v-model="formData.property_address" label="Property Address" :required="true"
+                    id="address" placeholder="Start typing address..."
+                    @addressSelected="handlePropertyAddressSelected" />
+                </div>
+                <div>
+                  <label for="city" class="block text-sm font-medium text-gray-700">City *</label>
+                  <input id="city" v-model="formData.property_city" type="text" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                </div>
+                <div>
+                  <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
+                  <input id="postcode" v-model="formData.property_postcode" type="text" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                </div>
+                <div>
+                  <label for="rent" class="block text-sm font-medium text-gray-700">Total Monthly Rent (£) *</label>
+                  <input id="rent" v-model.number="formData.monthly_rent" type="number" step="1" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                </div>
               </div>
             </div>
 
-            <!-- Guarantor for single tenant -->
-            <div class="mt-4 pt-4 border-t border-gray-200">
-              <div class="flex items-center justify-between mb-3">
-                <h5 class="text-sm font-semibold text-gray-700">Add Guarantor (Optional)</h5>
-                <button
-                  type="button"
-                  @click="showGuarantorFields = !showGuarantorFields"
-                  class="text-sm text-primary hover:underline"
-                >
-                  {{ showGuarantorFields ? 'Hide' : 'Show' }}
-                </button>
-              </div>
-
-              <div v-if="showGuarantorFields" class="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <p class="text-sm text-gray-600">Add guarantor details. They will receive an email to complete the reference form.</p>
-
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label for="guarantor-first-name" class="block text-sm font-medium text-gray-700">First Name</label>
-                    <input
-                      id="guarantor-first-name"
-                      v-model="formData.guarantor_first_name"
-                      type="text"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    />
-                  </div>
-                  <div>
-                    <label for="guarantor-last-name" class="block text-sm font-medium text-gray-700">Last Name</label>
-                    <input
-                      id="guarantor-last-name"
-                      v-model="formData.guarantor_last_name"
-                      type="text"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    />
-                  </div>
-                  <div>
-                    <label for="guarantor-email" class="block text-sm font-medium text-gray-700">Email</label>
-                    <input
-                      id="guarantor-email"
-                      v-model="formData.guarantor_email"
-                      type="email"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    />
-                  </div>
-                  <div>
-                    <PhoneInput
-                      v-model="formData.guarantor_phone"
-                      label="Phone"
-                      id="guarantor-phone"
-                      :required="false"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Multiple Tenants (v-if tenantCount > 1) -->
-          <div v-if="tenantCount > 1">
-            <h4 class="text-md font-semibold text-gray-700 mb-3">Tenants</h4>
-            <div v-for="(tenant, index) in tenants" :key="index" class="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-              <h5 class="text-sm font-semibold text-gray-700 mb-3">Tenant {{ index + 1 }}</h5>
-              <div class="grid grid-cols-2 gap-3">
+            <!-- Single Tenant Information (v-if tenantCount === 1) -->
+            <div v-if="tenantCount === 1">
+              <h4 class="text-md font-semibold text-gray-700 mb-3">Tenant Information</h4>
+              <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label :for="`tenant-${index}-first-name`" class="block text-sm font-medium text-gray-700">First Name *</label>
-                  <input
-                    :id="`tenant-${index}-first-name`"
-                    v-model="tenant.first_name"
-                    type="text"
-                    required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
+                  <label for="first-name" class="block text-sm font-medium text-gray-700">First Name *</label>
+                  <input id="first-name" v-model="formData.tenant_first_name" type="text" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                 </div>
                 <div>
-                  <label :for="`tenant-${index}-last-name`" class="block text-sm font-medium text-gray-700">Last Name *</label>
-                  <input
-                    :id="`tenant-${index}-last-name`"
-                    v-model="tenant.last_name"
-                    type="text"
-                    required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
+                  <label for="last-name" class="block text-sm font-medium text-gray-700">Last Name *</label>
+                  <input id="last-name" v-model="formData.tenant_last_name" type="text" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                 </div>
                 <div>
-                  <label :for="`tenant-${index}-email`" class="block text-sm font-medium text-gray-700">Email *</label>
-                  <input
-                    :id="`tenant-${index}-email`"
-                    v-model="tenant.email"
-                    type="email"
-                    required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  />
+                  <label for="email" class="block text-sm font-medium text-gray-700">Email *</label>
+                  <input id="email" v-model="formData.tenant_email" type="email" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                 </div>
                 <div>
-                  <PhoneInput
-                    v-model="tenant.phone"
-                    :label="`Phone`"
-                    :id="`tenant-${index}-phone`"
-                    :required="true"
-                  />
-                </div>
-                <div class="col-span-2">
-                  <label :for="`tenant-${index}-rent-share`" class="block text-sm font-medium text-gray-700">Rent Share (£) *</label>
-                  <input
-                    :id="`tenant-${index}-rent-share`"
-                    v-model.number="tenant.rent_share"
-                    type="number"
-                    step="0.01"
-                    required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    placeholder="0.00"
-                  />
+                  <PhoneInput v-model="formData.tenant_phone" label="Phone" id="phone" :required="true" />
                 </div>
               </div>
 
-              <!-- Guarantor for this tenant -->
-              <div class="mt-3 pt-3 border-t border-gray-300">
-                <div class="flex items-center justify-between mb-2">
-                  <h6 class="text-sm font-medium text-gray-700">Add Guarantor (Optional)</h6>
-                  <button
-                    type="button"
-                    @click="tenant.showGuarantorFields = !tenant.showGuarantorFields"
-                    class="text-xs text-primary hover:underline"
-                  >
-                    {{ tenant.showGuarantorFields ? 'Hide' : 'Show' }}
+              <!-- Guarantor for single tenant -->
+              <div class="mt-4 pt-4 border-t border-gray-200">
+                <div class="flex items-center justify-between mb-3">
+                  <h5 class="text-sm font-semibold text-gray-700">Add Guarantor (Optional)</h5>
+                  <button type="button" @click="showGuarantorFields = !showGuarantorFields"
+                    class="text-sm text-primary hover:underline">
+                    {{ showGuarantorFields ? 'Hide' : 'Show' }}
                   </button>
                 </div>
 
-                <div v-if="tenant.showGuarantorFields" class="space-y-3 p-3 bg-white rounded-lg border border-gray-200">
-                  <p class="text-xs text-gray-600">Add guarantor details for this tenant. They will receive an email to complete the reference form.</p>
+                <div v-if="showGuarantorFields" class="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <p class="text-sm text-gray-600">Add guarantor details. They will receive an email to complete the
+                    reference form.</p>
 
-                  <div class="grid grid-cols-2 gap-3">
+                  <div class="grid grid-cols-2 gap-4">
                     <div>
-                      <label :for="`tenant-${index}-guarantor-first-name`" class="block text-xs font-medium text-gray-700">First Name</label>
-                      <input
-                        :id="`tenant-${index}-guarantor-first-name`"
-                        :value="tenant.guarantor?.first_name || ''"
-                        @input="(e) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.first_name = (e.target as HTMLInputElement).value }"
-                        type="text"
-                        class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                      />
+                      <label for="guarantor-first-name" class="block text-sm font-medium text-gray-700">First
+                        Name</label>
+                      <input id="guarantor-first-name" v-model="formData.guarantor_first_name" type="text"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                     </div>
                     <div>
-                      <label :for="`tenant-${index}-guarantor-last-name`" class="block text-xs font-medium text-gray-700">Last Name</label>
-                      <input
-                        :id="`tenant-${index}-guarantor-last-name`"
-                        :value="tenant.guarantor?.last_name || ''"
-                        @input="(e) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.last_name = (e.target as HTMLInputElement).value }"
-                        type="text"
-                        class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                      />
+                      <label for="guarantor-last-name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                      <input id="guarantor-last-name" v-model="formData.guarantor_last_name" type="text"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                     </div>
                     <div>
-                      <label :for="`tenant-${index}-guarantor-email`" class="block text-xs font-medium text-gray-700">Email</label>
-                      <input
-                        :id="`tenant-${index}-guarantor-email`"
-                        :value="tenant.guarantor?.email || ''"
-                        @input="(e) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.email = (e.target as HTMLInputElement).value }"
-                        type="email"
-                        class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                      />
+                      <label for="guarantor-email" class="block text-sm font-medium text-gray-700">Email</label>
+                      <input id="guarantor-email" v-model="formData.guarantor_email" type="email"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                     </div>
                     <div>
-                      <label :for="`tenant-${index}-guarantor-phone`" class="block text-xs font-medium text-gray-700">Phone</label>
-                      <PhoneInput
-                        :modelValue="tenant.guarantor?.phone || ''"
-                        @update:modelValue="(val) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.phone = val }"
-                        :id="`tenant-${index}-guarantor-phone`"
-                        :required="false"
-                        input-class="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                        select-class="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                      />
+                      <PhoneInput v-model="formData.guarantor_phone" label="Phone" id="guarantor-phone"
+                        :required="false" />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Rent Calculator -->
-            <div class="p-4 rounded-lg" :class="rentSharesValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
-              <div class="flex justify-between items-center">
-                <span class="text-sm font-medium" :class="rentSharesValid ? 'text-green-900' : 'text-red-900'">
-                  Total Rent Shares:
-                </span>
-                <span class="text-lg font-bold" :class="rentSharesValid ? 'text-green-900' : 'text-red-900'">
-                  £{{ totalRentShare.toFixed(2) }} / £{{ Number(formData.monthly_rent || 0).toFixed(2) }}
-                </span>
-              </div>
-              <p v-if="!rentSharesValid" class="text-xs text-red-700 mt-2">
-                Rent shares must sum exactly to the total monthly rent
-              </p>
-              <p v-else class="text-xs text-green-700 mt-2">
-                ✓ Rent shares match total rent
-              </p>
-            </div>
-          </div>
-
-          <!-- Move-in Date & Term Length Grid -->
-          <div class="grid grid-cols-2 gap-6">
-            <div>
-              <DatePicker
-                v-model="formData.move_in_date"
-                label="Move-in Date"
-                :required="true"
-                year-range-type="move-in"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Term Length</label>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="flex items-center gap-2">
-                  <label for="term-years" class="text-sm text-gray-600 whitespace-nowrap">Years</label>
-                  <input
-                    id="term-years"
-                    v-model.number="formData.term_years"
-                    type="number"
-                    min="0"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    placeholder="0"
-                  />
+            <!-- Multiple Tenants (v-if tenantCount > 1) -->
+            <div v-if="tenantCount > 1">
+              <h4 class="text-md font-semibold text-gray-700 mb-3">Tenants</h4>
+              <div v-for="(tenant, index) in tenants" :key="index"
+                class="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h5 class="text-sm font-semibold text-gray-700 mb-3">Tenant {{ index + 1 }}</h5>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label :for="`tenant-${index}-first-name`" class="block text-sm font-medium text-gray-700">First
+                      Name *</label>
+                    <input :id="`tenant-${index}-first-name`" v-model="tenant.first_name" type="text" required
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                  </div>
+                  <div>
+                    <label :for="`tenant-${index}-last-name`" class="block text-sm font-medium text-gray-700">Last Name
+                      *</label>
+                    <input :id="`tenant-${index}-last-name`" v-model="tenant.last_name" type="text" required
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                  </div>
+                  <div>
+                    <label :for="`tenant-${index}-email`" class="block text-sm font-medium text-gray-700">Email
+                      *</label>
+                    <input :id="`tenant-${index}-email`" v-model="tenant.email" type="email" required
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                  </div>
+                  <div>
+                    <PhoneInput v-model="tenant.phone" :label="`Phone`" :id="`tenant-${index}-phone`"
+                      :required="true" />
+                  </div>
+                  <div class="col-span-2">
+                    <label :for="`tenant-${index}-rent-share`" class="block text-sm font-medium text-gray-700">Rent
+                      Share (£) *</label>
+                    <input :id="`tenant-${index}-rent-share`" v-model.number="tenant.rent_share" type="number"
+                      step="0.01" required
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="0.00" />
+                  </div>
                 </div>
-                <div class="flex items-center gap-2">
-                  <label for="term-months" class="text-sm text-gray-600 whitespace-nowrap">Months</label>
-                  <input
-                    id="term-months"
-                    v-model.number="formData.term_months"
-                    type="number"
-                    min="0"
-                    max="11"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    placeholder="0"
-                  />
+
+                <!-- Guarantor for this tenant -->
+                <div class="mt-3 pt-3 border-t border-gray-300">
+                  <div class="flex items-center justify-between mb-2">
+                    <h6 class="text-sm font-medium text-gray-700">Add Guarantor (Optional)</h6>
+                    <button type="button" @click="tenant.showGuarantorFields = !tenant.showGuarantorFields"
+                      class="text-xs text-primary hover:underline">
+                      {{ tenant.showGuarantorFields ? 'Hide' : 'Show' }}
+                    </button>
+                  </div>
+
+                  <div v-if="tenant.showGuarantorFields"
+                    class="space-y-3 p-3 bg-white rounded-lg border border-gray-200">
+                    <p class="text-xs text-gray-600">Add guarantor details for this tenant. They will receive an email
+                      to complete the reference form.</p>
+
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label :for="`tenant-${index}-guarantor-first-name`"
+                          class="block text-xs font-medium text-gray-700">First Name</label>
+                        <input :id="`tenant-${index}-guarantor-first-name`" :value="tenant.guarantor?.first_name || ''"
+                          @input="(e: Event) => { const target = e.target as HTMLInputElement; if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.first_name = target.value }"
+                          type="text"
+                          class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                      </div>
+                      <div>
+                        <label :for="`tenant-${index}-guarantor-last-name`"
+                          class="block text-xs font-medium text-gray-700">Last Name</label>
+                        <input :id="`tenant-${index}-guarantor-last-name`" :value="tenant.guarantor?.last_name || ''"
+                          @input="(e: Event) => { const target = e.target as HTMLInputElement; if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.last_name = target.value }"
+                          type="text"
+                          class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                      </div>
+                      <div>
+                        <label :for="`tenant-${index}-guarantor-email`"
+                          class="block text-xs font-medium text-gray-700">Email</label>
+                        <input :id="`tenant-${index}-guarantor-email`" :value="tenant.guarantor?.email || ''"
+                          @input="(e: Event) => { const target = e.target as HTMLInputElement; if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.email = target.value }"
+                          type="email"
+                          class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                      </div>
+                      <div>
+                        <label :for="`tenant-${index}-guarantor-phone`"
+                          class="block text-xs font-medium text-gray-700">Phone</label>
+                        <PhoneInput :modelValue="tenant.guarantor?.phone || ''"
+                          @update:modelValue="(val) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.phone = val }"
+                          :id="`tenant-${index}-guarantor-phone`" :required="false"
+                          input-class="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          select-class="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rent Calculator -->
+              <div class="p-4 rounded-lg"
+                :class="rentSharesValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium" :class="rentSharesValid ? 'text-green-900' : 'text-red-900'">
+                    Total Rent Shares:
+                  </span>
+                  <span class="text-lg font-bold" :class="rentSharesValid ? 'text-green-900' : 'text-red-900'">
+                    £{{ totalRentShare.toFixed(2) }} / £{{ Number(formData.monthly_rent || 0).toFixed(2) }}
+                  </span>
+                </div>
+                <p v-if="!rentSharesValid" class="text-xs text-red-700 mt-2">
+                  Rent shares must sum exactly to the total monthly rent
+                </p>
+                <p v-else class="text-xs text-green-700 mt-2">
+                  ✓ Rent shares match total rent
+                </p>
+              </div>
+            </div>
+
+            <!-- Move-in Date & Term Length Grid -->
+            <div class="grid grid-cols-2 gap-6">
+              <div>
+                <DatePicker v-model="formData.move_in_date" label="Move-in Date" :required="true"
+                  year-range-type="move-in" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Term Length</label>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="flex items-center gap-2">
+                    <label for="term-years" class="text-sm text-gray-600 whitespace-nowrap">Years</label>
+                    <input id="term-years" v-model.number="formData.term_years" type="number" min="0"
+                      class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="0" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <label for="term-months" class="text-sm text-gray-600 whitespace-nowrap">Months</label>
+                    <input id="term-months" v-model.number="formData.term_months" type="number" min="0" max="11"
+                      class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="0" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Notes -->
-          <div>
-            <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
-            <textarea
-              id="notes"
-              v-model="formData.notes"
-              rows="2"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              placeholder="Optional notes about this reference..."
-            ></textarea>
-          </div>
+            <!-- Notes -->
+            <div>
+              <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+              <textarea id="notes" v-model="formData.notes" rows="2"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="Optional notes about this reference..."></textarea>
+            </div>
 
-          <div v-if="createError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-            {{ createError }}
-          </div>
+            <div v-if="createError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+              {{ createError }}
+            </div>
 
-          <div v-if="createSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
-            {{ createSuccess }}
-          </div>
+            <div v-if="createSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+              {{ createSuccess }}
+            </div>
           </div>
 
           <!-- Sticky Footer with Buttons -->
           <div class="p-6 pt-4 border-t border-gray-200 bg-white rounded-b-lg">
             <div class="flex justify-end space-x-3">
-              <button
-                type="button"
-                @click="closeCreateModal"
-                class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-              >
+              <button type="button" @click="closeCreateModal"
+                class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
                 Cancel
               </button>
-              <button
-                type="submit"
-                :disabled="createLoading"
-                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
-              >
+              <button type="submit" :disabled="createLoading"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50">
                 {{ createLoading ? 'Creating...' : 'Create Reference' }}
               </button>
             </div>
@@ -987,40 +850,30 @@
     </div>
 
     <!-- Insufficient Credits Modal -->
-    <InsufficientCreditsModal
-      v-if="showInsufficientCreditsModal"
-      @close="showInsufficientCreditsModal = false"
-      @purchased="handleCreditsPurchased"
-    />
+    <InsufficientCreditsModal v-if="showInsufficientCreditsModal" @close="showInsufficientCreditsModal = false"
+      @purchased="handleCreditsPurchased" />
 
     <!-- Payment Method Required Modal -->
-    <PaymentMethodRequiredModal
-      :show="showPaymentMethodModal"
-      @close="showPaymentMethodModal = false"
-    />
+    <PaymentMethodRequiredModal :show="showPaymentMethodModal" @close="showPaymentMethodModal = false" />
 
     <!-- Delete Confirmation Modal -->
     <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-lg max-w-md w-full p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Reference</h3>
         <p class="text-sm text-gray-600 mb-6">
-          Are you sure you want to delete the reference for 
-          <span class="font-medium">{{ referenceToDelete?.tenant_first_name }} {{ referenceToDelete?.tenant_last_name }}</span>
+          Are you sure you want to delete the reference for
+          <span class="font-medium">{{ referenceToDelete?.tenant_first_name }} {{ referenceToDelete?.tenant_last_name
+          }}</span>
           at <span class="font-medium">{{ referenceToDelete?.property_address }}</span>?
           This action cannot be undone.
         </p>
         <div class="flex justify-end space-x-3">
-          <button
-            @click="showDeleteModal = false"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
+          <button @click="showDeleteModal = false"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
             Cancel
           </button>
-          <button
-            @click="handleDelete"
-            :disabled="deleteLoading"
-            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
-          >
+          <button @click="handleDelete" :disabled="deleteLoading"
+            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50">
             {{ deleteLoading ? 'Deleting...' : 'Delete' }}
           </button>
         </div>
@@ -1463,7 +1316,11 @@ const formatStatus = (status: string, reference?: any) => {
 
     // Check for residential reference (landlord or agent)
     // Skip if tenant is a homeowner or is a guarantor (guarantors don't need residential refs)
-    const needsResidential = reference.home_ownership_status !== 'homeowner' && !reference.is_guarantor
+    const needsResidential =
+      !reference.is_guarantor &&
+      reference.reference_type !== 'living_with_family' &&
+      reference.home_ownership_status !== 'homeowner' &&
+      reference.home_ownership_status !== 'living_with_family'
     if (needsResidential && !reference.has_landlord_reference && !reference.has_agent_reference) {
       missing.push('Residential')
     }
