@@ -1103,7 +1103,7 @@
                 <h4 class="font-semibold text-gray-900">Creditsafe Identity Verification</h4>
                 <div class="flex items-center gap-2">
                   <button
-                    v-if="!creditsafeLoading && !creditsafeData"
+                    v-if="!creditsafeLoading"
                     @click="triggerCreditsafeCheck"
                     class="px-3 py-1 text-sm font-medium text-white bg-purple-600 rounded hover:bg-purple-700 transition-colors"
                   >
@@ -1819,19 +1819,9 @@ const loadData = async () => {
         const creditData = await creditResponse.json()
         creditsafeData.value = creditData.verification || null
         console.log('Creditsafe data loaded:', !!creditsafeData.value)
-
-        // If no Creditsafe data exists and reference is submitted, trigger automatic check
-        if (!creditsafeData.value && reference.value?.submitted_at) {
-          console.log('No Creditsafe data found, triggering automatic check...')
-          triggerCreditsafeCheck()
-        }
       }
     } catch (err) {
-      console.log('No Creditsafe data available, will trigger automatic check if on step 4')
-      // If no Creditsafe data exists and reference is submitted, trigger automatic check
-      if (reference.value?.submitted_at) {
-        triggerCreditsafeCheck()
-      }
+      console.log('No Creditsafe data available')
     }
 
     // Load sanctions data

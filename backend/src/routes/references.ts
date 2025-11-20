@@ -2094,78 +2094,8 @@ router.post('/submit/:token', async (req: Request, res) => {
       }
     }
 
-    // Trigger Creditsafe Verify API check (non-blocking)
-    // Checks Electoral Roll, CCJs, Insolvencies for tenant vetting
-    if (creditsafeService.isEnabled()) {
-      console.log('Triggering Creditsafe Verify check for reference:', updatedReference.id)
-
-      // Build full address string for Creditsafe
-      const fullAddress = [
-        data.current_address_line1,
-        data.current_address_line2,
-        data.current_city
-      ].filter(Boolean).join(', ')
-
-      // Run verification in background - don't block the response
-      creditsafeService.verifyIndividual({
-        firstName: data.first_name,
-        lastName: data.last_name,
-        middleName: data.middle_name,
-        dateOfBirth: data.date_of_birth,
-        address: fullAddress,
-        postcode: data.current_postcode
-      }).then(async (verificationResult) => {
-        console.log('Creditsafe verification completed:', verificationResult.status,
-          'Risk:', verificationResult.riskLevel,
-          'Score:', verificationResult.riskScore)
-
-        // Store the verification result
-        await creditsafeService.storeVerificationResult(
-          updatedReference.id,
-          {
-            firstName: data.first_name,
-            lastName: data.last_name,
-            middleName: data.middle_name,
-            dateOfBirth: data.date_of_birth,
-            address: fullAddress,
-            postcode: data.current_postcode
-          },
-          verificationResult
-        )
-
-        // Audit log for verification
-        await auditReferenceAction(
-          reference.company_id,
-          'system', // System-initiated, not by specific user
-          updatedReference.id,
-          'verification.creditsafe_completed',
-          `Creditsafe Verify check completed - Status: ${verificationResult.status}, Risk: ${verificationResult.riskLevel}`,
-          {} as any,
-          {
-            status: verificationResult.status,
-            riskLevel: verificationResult.riskLevel,
-            riskScore: verificationResult.riskScore,
-            ccjMatch: verificationResult.ccjMatch,
-            electoralMatch: verificationResult.electoralRegisterMatch,
-            transactionId: verificationResult.transactionId
-          }
-        )
-      }).catch((error) => {
-        console.error('Creditsafe verification failed:', error)
-        // Log the error but don't fail the submission
-        auditReferenceAction(
-          reference.company_id,
-          'system',
-          updatedReference.id,
-          'verification.creditsafe_failed',
-          `Creditsafe verification failed: ${error.message}`,
-          {} as any,
-          { error: error.message }
-        ).catch(console.error)
-      })
-    } else {
-      console.log('Creditsafe verification is disabled, skipping')
-    }
+    // Note: Creditsafe Verify checks are now triggered manually by staff via the "Run Check" button
+    // in the staff verification interface, rather than automatically on form submission
 
     // Trigger UK Sanctions & Electoral Commission (PEP) screening (non-blocking)
     // Screens against UK Sanctions List (5,656 entities) and Electoral Commission donations (89,358 records)
