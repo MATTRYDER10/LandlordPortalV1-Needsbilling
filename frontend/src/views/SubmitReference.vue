@@ -3407,65 +3407,65 @@ const uploadCurrentPageFiles = async () => {
 }
 
 // Right to Rent verification function
-const verifyRTRShareCode = async () => {
-  if (!formData.value.rtr_share_code) return
+// const verifyRTRShareCode = async () => {
+//   if (!formData.value.rtr_share_code) return
 
-  // Validate required fields
-  if (!formData.value.first_name || !formData.value.last_name) {
-    rtrVerificationStatus.value = 'failed'
-    rtrVerificationMessage.value = 'Please enter your name before verifying Right to Rent'
-    return
-  }
-  if (!dobDay.value || !dobMonth.value || !dobYear.value) {
-    rtrVerificationStatus.value = 'failed'
-    rtrVerificationMessage.value = 'Please enter your date of birth before verifying Right to Rent'
-    return
-  }
+//   // Validate required fields
+//   if (!formData.value.first_name || !formData.value.last_name) {
+//     rtrVerificationStatus.value = 'failed'
+//     rtrVerificationMessage.value = 'Please enter your name before verifying Right to Rent'
+//     return
+//   }
+//   if (!dobDay.value || !dobMonth.value || !dobYear.value) {
+//     rtrVerificationStatus.value = 'failed'
+//     rtrVerificationMessage.value = 'Please enter your date of birth before verifying Right to Rent'
+//     return
+//   }
 
-  rtrVerificationStatus.value = 'checking'
-  rtrVerificationMessage.value = 'Verifying your Right to Rent share code...'
+//   rtrVerificationStatus.value = 'checking'
+//   rtrVerificationMessage.value = 'Verifying your Right to Rent share code...'
 
-  try {
-    // Format date of birth as DD-MM-YYYY
-    const formattedDob = `${dobDay.value.toString().padStart(2, '0')}-${dobMonth.value}-${dobYear.value}`
+//   try {
+//     // Format date of birth as DD-MM-YYYY
+//     const formattedDob = `${dobDay.value.toString().padStart(2, '0')}-${dobMonth.value}-${dobYear.value}`
 
-    // Call backend API which will proxy to UK RTR Checker API
-    const token = route.params.token
-    const response = await fetch(`${API_URL}/api/rtr/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        shareCode: formData.value.rtr_share_code,
-        firstName: formData.value.first_name,
-        lastName: formData.value.last_name,
-        dateOfBirth: formattedDob,
-        referenceToken: token
-      })
-    })
+//     // Call backend API which will proxy to UK RTR Checker API
+//     const token = route.params.token
+//     const response = await fetch(`${API_URL}/api/rtr/verify`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json'
+//       },
+//       body: JSON.stringify({
+//         shareCode: formData.value.rtr_share_code,
+//         firstName: formData.value.first_name,
+//         lastName: formData.value.last_name,
+//         dateOfBirth: formattedDob,
+//         referenceToken: token
+//       })
+//     })
 
-    const data = await response.json()
+//     const data = await response.json()
 
-    if (response.ok && data.verified) {
-      rtrVerificationStatus.value = 'verified'
-      rtrVerificationMessage.value = '✓ Right to Rent verified successfully'
-      formData.value.rtr_verified = true
-      formData.value.rtr_verification_data = data
-    } else {
-      rtrVerificationStatus.value = 'failed'
-      rtrVerificationMessage.value = data.message || 'Unable to verify Right to Rent. Please check your details and share code.'
-      formData.value.rtr_verified = false
-      submitError.value = 'Right to Rent verification failed. Please check your details and share code and try again.'
-    }
-  } catch (error) {
-    console.error('RTR verification error:', error)
-    rtrVerificationStatus.value = 'failed'
-    rtrVerificationMessage.value = 'An error occurred during verification. Please try again.'
-    formData.value.rtr_verified = false
-    submitError.value = 'Unable to verify Right to Rent at this time. Please try again.'
-  }
-}
+//     if (response.ok && data.verified) {
+//       rtrVerificationStatus.value = 'verified'
+//       rtrVerificationMessage.value = '✓ Right to Rent verified successfully'
+//       formData.value.rtr_verified = true
+//       formData.value.rtr_verification_data = data
+//     } else {
+//       rtrVerificationStatus.value = 'failed'
+//       rtrVerificationMessage.value = data.message || 'Unable to verify Right to Rent. Please check your details and share code.'
+//       formData.value.rtr_verified = false
+//       submitError.value = 'Right to Rent verification failed. Please check your details and share code and try again.'
+//     }
+//   } catch (error) {
+//     console.error('RTR verification error:', error)
+//     rtrVerificationStatus.value = 'failed'
+//     rtrVerificationMessage.value = 'An error occurred during verification. Please try again.'
+//     formData.value.rtr_verified = false
+//     submitError.value = 'Unable to verify Right to Rent at this time. Please try again.'
+//   }
+// }
 
 const handlePageSubmit = async () => {
   submitError.value = ''
