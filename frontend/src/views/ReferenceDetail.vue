@@ -2564,7 +2564,12 @@
         </div>
 
         <!-- Previous Landlord Information -->
-        <div v-if="!reference.is_group_parent && !reference.is_guarantor" class="bg-white rounded-lg shadow p-6">
+       
+
+        <div class="grid grid-cols-2 gap-4">
+  <template
+    v-if="reference.reference_type !== 'living_with_family'">
+    <div v-if="!reference.is_group_parent && !reference.is_guarantor" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Previous Landlord Information</h3>
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -2930,6 +2935,16 @@
             </div>
           </div>
         </div>
+  </template>
+
+  <template v-else>
+    <div class="col-span-2 p-4 bg-green-50 border border-green-200 rounded-md">
+      <p class="text-sm text-green-900 font-medium">
+        This tenant indicated they are living with family/friends—no residential reference required.
+      </p>
+    </div>
+  </template>
+</div>
 
         <!-- Rental History Comparison -->
         <div v-if="(landlordReference || agentReference) && !reference.is_guarantor"
@@ -3255,7 +3270,6 @@ onMounted(async () => {
     await fetchScore()
   }
 })
-
 const fetchReference = async () => {
   try {
     const token = authStore.session?.access_token
