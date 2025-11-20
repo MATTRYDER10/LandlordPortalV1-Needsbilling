@@ -57,6 +57,14 @@ class CreditsafeService {
       enabled: process.env.CREDITSAFE_ENABLED === 'true'
     }
 
+    // Debug: Log configuration (hide password)
+    console.log('Creditsafe config:', {
+      apiUrl: this.config.apiUrl,
+      username: this.config.username,
+      passwordLength: this.config.password?.length || 0,
+      enabled: this.config.enabled
+    })
+
     this.axiosInstance = axios.create({
       baseURL: this.config.apiUrl,
       timeout: 30000, // 30 second timeout
