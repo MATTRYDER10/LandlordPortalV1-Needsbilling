@@ -375,6 +375,18 @@ class CreditsafeService {
       const electoralRolls = response?.electoralRolls || []
       const insolvencies = response?.insolvencies || []
 
+      // Parse fraud indicators if present
+      let fraudIndicators = null
+      if (data.fraud_indicators) {
+        try {
+          fraudIndicators = typeof data.fraud_indicators === 'string'
+            ? JSON.parse(data.fraud_indicators)
+            : data.fraud_indicators
+        } catch (e) {
+          console.error('Failed to parse fraud indicators:', e)
+        }
+      }
+
       return {
         ...data,
         verification_request: request,
@@ -383,6 +395,16 @@ class CreditsafeService {
         countyCourtJudgments,
         electoralRolls,
         insolvencies,
+        // Add camelCase fields for frontend compatibility
+        verifyMatch: response?.verifyMatch,
+        electoralRegisterMatch: fraudIndicators?.electoralRollMatch || response?.electoralRegisterMatch,
+        ccjMatch: fraudIndicators?.ccjMatch || response?.ccjMatch,
+        insolvencyMatch: fraudIndicators?.insolvencyMatch || response?.insolvencyMatch,
+        deceasedRegisterMatch: fraudIndicators?.deceasedMatch || response?.deceasedRegisterMatch,
+        riskLevel: data.risk_level,
+        riskScore: data.verification_score,
+        transactionId: data.creditsafe_transaction_id,
+        verified_at: data.verified_at,
         // Remove encrypted fields from response
         verification_request_encrypted: undefined,
         verification_response_encrypted: undefined
