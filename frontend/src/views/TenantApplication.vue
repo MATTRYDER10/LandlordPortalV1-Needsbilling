@@ -314,6 +314,7 @@ import { useAuthStore } from '../stores/auth'
 import PhoneInput from '../components/PhoneInput.vue'
 import DatePicker from '../components/DatePicker.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
+import { isValidEmail } from '../utils/validation'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -419,6 +420,35 @@ const handleSubmit = async () => {
             submitError.value = 'Move-in date is required'
             submitting.value = false
             return
+        }
+
+        // Validate email addresses
+        if (tenantCount.value === 1) {
+            if (!isValidEmail(formData.value.tenant_email)) {
+                submitError.value = 'Please enter a valid tenant email address'
+                submitting.value = false
+                return
+            }
+            if (formData.value.guarantor_email && !isValidEmail(formData.value.guarantor_email)) {
+                submitError.value = 'Please enter a valid guarantor email address'
+                submitting.value = false
+                return
+            }
+        } else {
+            // Validate all tenant emails
+            for (let i = 0; i < tenants.value.length; i++) {
+                const tenant = tenants.value[i]
+                if (!isValidEmail(tenant?.email || '')) {
+                    submitError.value = `Please enter a valid email address for tenant ${i + 1}`
+                    submitting.value = false
+                    return
+                }
+                if (tenant?.guarantor?.email && !isValidEmail(tenant.guarantor.email)) {
+                    submitError.value = `Please enter a valid email address for guarantor of tenant ${i + 1}`
+                    submitting.value = false
+                    return
+                }
+            }
         }
 
         let payload: any

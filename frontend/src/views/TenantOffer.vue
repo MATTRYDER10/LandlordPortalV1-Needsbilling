@@ -320,6 +320,7 @@ import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
+import { isValidEmail } from '../utils/validation'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -434,6 +435,9 @@ const handleSubmit = async () => {
             const tenant = formData.value.tenants[i]
             if (!tenant?.name || !tenant.address || !tenant.phone || !tenant.email || !tenant.annual_income) {
                 throw new Error(`Tenant ${i + 1} is missing required fields`)
+            }
+            if (!isValidEmail(tenant.email)) {
+                throw new Error(`Please enter a valid email address for tenant ${i + 1}`)
             }
             if (!tenant.no_ccj_bankruptcy_iva) {
                 throw new Error(`Tenant ${i + 1} must confirm they have no CCJs, Bankruptcies or IVAs`)

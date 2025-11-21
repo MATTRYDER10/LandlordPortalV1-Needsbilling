@@ -817,6 +817,7 @@ import Sidebar from '../components/Sidebar.vue'
 import Billing from './Billing.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
+import { isValidEmail } from '../utils/validation'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -1171,6 +1172,13 @@ const handleUpdateCompany = async () => {
   companySuccess.value = ''
   companyError.value = ''
 
+  // Validate offer notification email if provided
+  if (companyData.value.offerNotificationEmail && !isValidEmail(companyData.value.offerNotificationEmail)) {
+    companyError.value = 'Please enter a valid offer notification email address'
+    companyLoading.value = false
+    return
+  }
+
   try {
     const token = authStore.session?.access_token
     if (!token) {
@@ -1230,6 +1238,13 @@ const handleInvite = async () => {
   inviteLoading.value = true
   inviteError.value = ''
   inviteSuccess.value = ''
+
+  // Validate email
+  if (!isValidEmail(inviteData.value.email)) {
+    inviteError.value = 'Please enter a valid email address'
+    inviteLoading.value = false
+    return
+  }
 
   try {
     const token = authStore.session?.access_token

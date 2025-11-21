@@ -3184,6 +3184,7 @@ import { getCountryName } from '../utils/countries'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import DatePicker from '../components/DatePicker.vue'
 import ScoreCard from '../components/ScoreCard.vue'
+import { isValidEmail } from '../utils/validation'
 import ReferenceNotes from '../components/ReferenceNotes.vue'
 import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
@@ -3445,6 +3446,13 @@ const addGuarantor = async () => {
     addingGuarantor.value = true
     guarantorError.value = ''
     guarantorSuccess.value = ''
+
+    // Validate email
+    if (!isValidEmail(guarantorForm.value.email)) {
+      guarantorError.value = 'Please enter a valid email address'
+      addingGuarantor.value = false
+      return
+    }
 
     const token = authStore.session?.access_token
     if (!token) {

@@ -1038,6 +1038,7 @@ import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import AgreementPaymentModal from '../components/AgreementPaymentModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
+import { isValidEmail } from '../utils/validation'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -1471,6 +1472,18 @@ const canProceed = computed(() => {
 })
 
 function nextStep() {
+  // Validate emails before proceeding from step 3 (Agreement details)
+  if (currentStep.value === 3) {
+    if (formData.value.tenantEmail && !isValidEmail(formData.value.tenantEmail)) {
+      toast.error('Please enter a valid tenant email address')
+      return
+    }
+    if (formData.value.managementType === 'let_only' && formData.value.landlordEmail && !isValidEmail(formData.value.landlordEmail)) {
+      toast.error('Please enter a valid landlord email address')
+      return
+    }
+  }
+
   if (canProceed.value && currentStep.value < steps.length - 1) {
     currentStep.value++
   }

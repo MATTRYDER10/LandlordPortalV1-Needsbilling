@@ -182,6 +182,7 @@
 import { ref } from 'vue'
 import Sidebar from '../components/Sidebar.vue'
 import { formatDate as formatUkDate } from '../utils/date'
+import { isValidEmail } from '../utils/validation'
 
 const showInviteModal = ref(false)
 const inviteData = ref({
@@ -225,6 +226,13 @@ const handleInvite = async () => {
   inviteLoading.value = true
   inviteError.value = ''
   inviteSuccess.value = ''
+
+  // Validate email
+  if (!isValidEmail(inviteData.value.email)) {
+    inviteError.value = 'Please enter a valid email address'
+    inviteLoading.value = false
+    return
+  }
 
   try {
     // TODO: Send invitation via backend API

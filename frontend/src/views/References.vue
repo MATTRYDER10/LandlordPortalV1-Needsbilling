@@ -893,6 +893,7 @@ import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import InsufficientCreditsModal from '../components/InsufficientCreditsModal.vue'
 import PaymentMethodRequiredModal from '../components/PaymentMethodRequiredModal.vue'
 import { formatDate as formatUkDate } from '../utils/date'
+import { isValidEmail } from '../utils/validation'
 
 const router = useRouter()
 const route = useRoute()
@@ -1195,6 +1196,35 @@ const handleCreate = async () => {
       createError.value = 'Move-in date is required'
       createLoading.value = false
       return
+    }
+
+    // Validate email addresses
+    if (tenantCount.value === 1) {
+      if (!isValidEmail(formData.value.tenant_email)) {
+        createError.value = 'Please enter a valid tenant email address'
+        createLoading.value = false
+        return
+      }
+      if (formData.value.guarantor_email && !isValidEmail(formData.value.guarantor_email)) {
+        createError.value = 'Please enter a valid guarantor email address'
+        createLoading.value = false
+        return
+      }
+    } else {
+      // Validate all tenant emails
+      for (let i = 0; i < tenants.value.length; i++) {
+        const tenant = tenants.value[i];
+        if (!isValidEmail(tenant?.email || '')) {
+          createError.value = `Please enter a valid email address for tenant ${i + 1}`
+          createLoading.value = false
+          return
+        }
+        if (tenant?.guarantor?.email && !isValidEmail(tenant.guarantor.email)) {
+          createError.value = `Please enter a valid email address for guarantor of tenant ${i + 1}`
+          createLoading.value = false
+          return
+        }
+      }
     }
 
     if (tenantCount.value === 1) {

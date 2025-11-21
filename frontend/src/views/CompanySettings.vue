@@ -110,6 +110,7 @@
 import { ref, onMounted } from 'vue'
 import Sidebar from '../components/Sidebar.vue'
 import { useAuthStore } from '../stores/auth'
+import { isValidEmail } from '../utils/validation'
 
 const authStore = useAuthStore()
 
@@ -163,6 +164,13 @@ const handleUpdate = async () => {
   loading.value = true
   successMessage.value = ''
   errorMessage.value = ''
+
+  // Validate email if provided
+  if (companyData.value.email && !isValidEmail(companyData.value.email)) {
+    errorMessage.value = 'Please enter a valid email address'
+    loading.value = false
+    return
+  }
 
   try {
     const token = authStore.session?.access_token

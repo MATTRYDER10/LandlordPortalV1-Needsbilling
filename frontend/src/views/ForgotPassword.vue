@@ -58,6 +58,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { isValidEmail } from '../utils/validation'
 
 const authStore = useAuthStore()
 
@@ -69,6 +70,13 @@ const loading = ref(false)
 const handleSubmit = async () => {
   errorMessage.value = null
   successMessage.value = null
+
+  // Validation
+  if (!isValidEmail(email.value)) {
+    errorMessage.value = 'Please enter a valid email address'
+    return
+  }
+
   loading.value = true
 
   try {

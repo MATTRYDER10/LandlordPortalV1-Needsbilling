@@ -446,6 +446,7 @@ import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
 import DatePicker from '../components/DatePicker.vue'
 import { useGeolocationCapture } from '../composables/useGeolocationCapture'
+import { isValidEmail } from '../utils/validation'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -502,6 +503,13 @@ const handleTenancyStatus = (status: string) => {
 const handleSubmit = async () => {
   submitting.value = true
   error.value = ''
+
+  // Validate email
+  if (!isValidEmail(formData.value.agentEmail)) {
+    error.value = 'Please enter a valid email address'
+    submitting.value = false
+    return
+  }
 
   try {
     // Validate signature

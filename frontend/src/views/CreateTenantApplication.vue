@@ -106,6 +106,7 @@ import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
+import { isValidEmail } from '../utils/validation'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -135,6 +136,11 @@ const handleSubmit = async () => {
 
     if (!formData.value.applicant_email || !formData.value.property_address) {
         errorMessage.value = 'Please fill in all required fields'
+        return
+    }
+
+    if (!isValidEmail(formData.value.applicant_email)) {
+        errorMessage.value = 'Please enter a valid email address'
         return
     }
 

@@ -396,6 +396,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { isValidEmail } from '../utils/validation'
 
 const props = defineProps<{
   show: boolean
@@ -523,6 +524,13 @@ const fetchLandlord = async () => {
 
 const handleSubmit = async () => {
   submitting.value = true
+
+  // Validate email
+  if (!isValidEmail(formData.value.email)) {
+    toast.error('Please enter a valid email address')
+    submitting.value = false
+    return
+  }
 
   try {
     // Combine sort code parts
