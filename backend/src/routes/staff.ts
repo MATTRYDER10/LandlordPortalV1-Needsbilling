@@ -1043,6 +1043,16 @@ router.post('/references/:id/creditsafe/retry', authenticateStaff, async (req: S
       postcode: (reference.current_postcode_encrypted ? decrypt(reference.current_postcode_encrypted) || '' : '') as string
     }
 
+    // Debug: Log the data being sent to Creditsafe
+    console.log('Running Creditsafe test check for:', `${verificationRequest.firstName} ${verificationRequest.lastName}`)
+    console.log('Creditsafe request data:', {
+      firstName: verificationRequest.firstName,
+      lastName: verificationRequest.lastName,
+      dateOfBirth: verificationRequest.dateOfBirth,
+      postcode: verificationRequest.postcode,
+      addressLength: verificationRequest.address?.length || 0
+    })
+
     // Run verification using Creditsafe Verify API
     const verificationResult = await creditsafeService.verifyIndividual(verificationRequest)
 
