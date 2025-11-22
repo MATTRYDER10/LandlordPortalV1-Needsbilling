@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-background">
     <!-- Header -->
     <div class="bg-white shadow">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -10,7 +10,7 @@
           </div>
           <router-link
             to="/admin/staff"
-            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+            class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
           >
             Manage Staff
           </router-link>
@@ -21,20 +21,20 @@
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Date Selector -->
-      <div class="bg-white rounded-lg shadow p-6 mb-8">
+      <div class="bg-white shadow rounded-lg p-4 mb-6">
         <div class="flex items-center gap-4 flex-wrap">
           <label class="text-sm font-medium text-gray-700">Select Date:</label>
           <div class="flex gap-2">
             <button
               @click="setDateFilter('today')"
-              :class="dateFilter === 'today' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+              :class="dateFilter === 'today' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium transition-colors"
             >
               Today
             </button>
             <button
               @click="setDateFilter('yesterday')"
-              :class="dateFilter === 'yesterday' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+              :class="dateFilter === 'yesterday' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium transition-colors"
             >
               Yesterday
@@ -43,7 +43,7 @@
               type="date"
               v-model="customDate"
               @change="setDateFilter('custom')"
-              class="px-4 py-2 border border-gray-300 rounded-md text-sm"
+              class="px-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-primary focus:border-primary"
             />
           </div>
         </div>
@@ -51,75 +51,186 @@
 
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
 
       <!-- Statistics Grid -->
       <div v-else>
         <!-- Quick Stats (Today vs Yesterday) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <!-- References Submitted -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-600">References Submitted</p>
-                <p class="mt-2 text-3xl font-bold text-gray-900">{{ currentStats.referencesSubmitted }}</p>
-                <p class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</p>
-              </div>
-              <div class="p-3 bg-blue-100 rounded-full">
-                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-600">References Submitted</div>
+                  <div class="mt-2 text-3xl font-semibold text-gray-900">{{ currentStats.referencesSubmitted }}</div>
+                  <div class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</div>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- References Completed -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-600">References Completed</p>
-                <p class="mt-2 text-3xl font-bold text-gray-900">{{ currentStats.referencesCompleted }}</p>
-                <p class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</p>
-              </div>
-              <div class="p-3 bg-green-100 rounded-full">
-                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-600">References Completed</div>
+                  <div class="mt-2 text-3xl font-semibold text-green-600">{{ currentStats.referencesCompleted }}</div>
+                  <div class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</div>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- New Businesses -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-600">New Businesses</p>
-                <p class="mt-2 text-3xl font-bold text-gray-900">{{ currentStats.newBusinesses }}</p>
-                <p class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</p>
-              </div>
-              <div class="p-3 bg-purple-100 rounded-full">
-                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                </svg>
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-600">New Businesses</div>
+                  <div class="mt-2 text-3xl font-semibold text-primary">{{ currentStats.newBusinesses }}</div>
+                  <div class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</div>
+                </div>
+                <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Revenue -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p class="mt-2 text-3xl font-bold text-gray-900">£{{ currentStats.revenue }}</p>
-                <p class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</p>
-              </div>
-              <div class="p-3 bg-yellow-100 rounded-full">
-                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-600">Total Revenue</div>
+                  <div class="mt-2 text-3xl font-semibold text-gray-900">£{{ currentStats.revenue }}</div>
+                  <div class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</div>
+                </div>
+                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Staff Performance Leaderboard -->
+        <div class="bg-white shadow rounded-lg mb-8">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-gray-900">Staff Performance Leaderboard</h2>
+                <p class="mt-1 text-sm text-gray-600">Verification progress for {{ dateFilterLabel.toLowerCase() }}</p>
+              </div>
+              <div class="text-right">
+                <div class="text-sm text-gray-600">Total Steps Completed</div>
+                <div class="text-2xl font-bold text-primary">{{ performanceData.totals?.stepsCompleted || 0 }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="loadingPerformance" class="p-6 flex justify-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+
+          <div v-else-if="performanceData.leaderboard && performanceData.leaderboard.length > 0" class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff Member</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Steps Completed</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">References Verified</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pass Rate</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Step Breakdown</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr
+                  v-for="(staff, index) in performanceData.leaderboard"
+                  :key="staff.staffId"
+                  :class="index === 0 && staff.stepsCompleted > 0 ? 'bg-yellow-50' : 'hover:bg-gray-50'"
+                >
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <span
+                        v-if="index === 0 && staff.stepsCompleted > 0"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-400 text-white font-bold text-sm"
+                      >
+                        🏆
+                      </span>
+                      <span
+                        v-else-if="index === 1 && staff.stepsCompleted > 0"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-300 text-white font-bold text-sm"
+                      >
+                        2
+                      </span>
+                      <span
+                        v-else-if="index === 2 && staff.stepsCompleted > 0"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-300 text-white font-bold text-sm"
+                      >
+                        3
+                      </span>
+                      <span
+                        v-else
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 font-medium text-sm"
+                      >
+                        {{ index + 1 }}
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">{{ staff.staffName }}</div>
+                    <div class="text-sm text-gray-500">{{ staff.email }}</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-lg font-semibold text-primary">{{ staff.stepsCompleted }}</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-lg font-semibold text-green-600">{{ staff.referencesVerified }}</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <span
+                        :class="getPassRateColor(staff.passRate)"
+                        class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                      >
+                        {{ staff.passRate }}%
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex gap-2 text-xs">
+                      <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded">S1: {{ staff.stepBreakdown.step1 }}</span>
+                      <span class="px-2 py-1 bg-green-100 text-green-800 rounded">S2: {{ staff.stepBreakdown.step2 }}</span>
+                      <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">S3: {{ staff.stepBreakdown.step3 }}</span>
+                      <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded">S4: {{ staff.stepBreakdown.step4 }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-else class="p-6 text-center text-gray-500">
+            No verification activity for this period
           </div>
         </div>
 
@@ -163,7 +274,7 @@
                 <tr v-if="loadingCompanies">
                   <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                     <div class="flex justify-center">
-                      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                     </div>
                   </td>
                 </tr>
@@ -243,12 +354,38 @@ interface Company {
   } | null
 }
 
+interface StaffPerformance {
+  staffId: string
+  staffName: string
+  email: string
+  stepsCompleted: number
+  referencesVerified: number
+  passRate: number
+  stepBreakdown: {
+    step1: number
+    step2: number
+    step3: number
+    step4: number
+  }
+}
+
+interface PerformanceData {
+  totals?: {
+    stepsCompleted: number
+    referencesVerified: number
+    activeStaff: number
+  }
+  leaderboard: StaffPerformance[]
+}
+
 const dateFilter = ref<'today' | 'yesterday' | 'custom'>('today')
 const customDate = ref('')
 const loading = ref(true)
 const loadingCompanies = ref(true)
+const loadingPerformance = ref(true)
 const dashboardData = ref<DashboardData>({})
 const companies = ref<Company[]>([])
+const performanceData = ref<PerformanceData>({ leaderboard: [] })
 
 const currentStats = computed(() => {
   if (dateFilter.value === 'yesterday') {
@@ -280,6 +417,8 @@ const setDateFilter = (filter: 'today' | 'yesterday' | 'custom') => {
   }
   if (filter === 'custom' && customDate.value) {
     fetchCustomDateStats()
+  } else if (filter !== 'custom') {
+    fetchPerformanceData()
   }
 }
 
@@ -290,6 +429,13 @@ const formatDate = (dateString: string) => {
     month: 'short',
     year: 'numeric'
   }).format(date)
+}
+
+const getPassRateColor = (passRate: number) => {
+  if (passRate >= 90) return 'bg-green-100 text-green-800'
+  if (passRate >= 75) return 'bg-blue-100 text-blue-800'
+  if (passRate >= 60) return 'bg-yellow-100 text-yellow-800'
+  return 'bg-red-100 text-red-800'
 }
 
 const fetchDashboardData = async () => {
@@ -327,6 +473,24 @@ const fetchCompanies = async () => {
   }
 }
 
+const fetchPerformanceData = async () => {
+  loadingPerformance.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const dateParam = dateFilter.value === 'custom' ? customDate.value : dateFilter.value
+    const response = await axios.get(`${API_URL}/api/admin/staff/performance?date=${dateParam}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+    performanceData.value = response.data
+  } catch (error) {
+    console.error('Error fetching performance data:', error)
+  } finally {
+    loadingPerformance.value = false
+  }
+}
+
 const fetchCustomDateStats = async () => {
   if (!customDate.value) return
 
@@ -360,10 +524,14 @@ const fetchCustomDateStats = async () => {
   } finally {
     loading.value = false
   }
+
+  // Also fetch performance data for the custom date
+  fetchPerformanceData()
 }
 
 onMounted(() => {
   fetchDashboardData()
   fetchCompanies()
+  fetchPerformanceData()
 })
 </script>

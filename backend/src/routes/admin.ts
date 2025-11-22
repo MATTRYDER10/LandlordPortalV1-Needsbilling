@@ -529,4 +529,138 @@ router.get('/dashboard', authenticateAdmin, async (req: AdminAuthRequest, res) =
   }
 })
 
+/**
+ * GET /api/admin/staff/performance
+ * Get staff verification performance statistics (leaderboard)
+ * Query params: date (optional, defaults to today)
+ */
+router.get('/staff/performance', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { date } = req.query
+
+    let startDate: Date
+    let endDate: Date
+
+    if (date === 'yesterday') {
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() - 1)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date()
+      endDate.setDate(endDate.getDate() - 1)
+      endDate.setHours(23, 59, 59, 999)
+    } else if (date && date !== 'today') {
+      startDate = new Date(date as string)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date(date as string)
+      endDate.setHours(23, 59, 59, 999)
+    } else {
+      startDate = new Date()
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date()
+      endDate.setHours(23, 59, 59, 999)
+    }
+
+    // Get all active staff members
+    const { data: staffList, error: staffError } = await supabase
+      .from('staff_users')
+      .select('id, full_name, email')
+      .eq('is_active', true)
+
+    if (staffError) {
+      throw staffError
+    }
+
+    // For each staff member, get their verification performance
+    const performanceData = await Promise.all(
+      staffList.map(async (staff) => {
+        // Get verification steps completed by this staff member in the date range
+        const { data: stepsCompleted, error: stepsError } = await supabase
+          .from('verification_steps')
+          .select('id, step_number, step_type, overall_pass, completed_at, reference_id')
+          .eq('completed_by', staff.id)
+          .gte('completed_at', startDate.toISOString())
+          .lte('completed_at', endDate.toISOString())
+
+        if (stepsError) {
+          console.error(`Error fetching steps for staff ${staff.id}:`, stepsError)
+          return {
+            staffId: staff.id,
+            staffName: staff.full_name,
+            email: staff.email,
+            stepsCompleted: 0,
+            referencesVerified: 0,
+            passRate: 0,
+            stepBreakdown: { step1: 0, step2: 0, step3: 0, step4: 0 }
+          }
+        }
+
+        // Count unique references verified (references where all 4 steps completed by this staff)
+        const uniqueReferences = new Set(stepsCompleted?.map(s => s.reference_id) || [])
+
+        // Get references that were fully verified by this staff member (all 4 steps completed)
+        const referencesFullyVerified = await Promise.all(
+          Array.from(uniqueReferences).map(async (refId) => {
+            const { count } = await supabase
+              .from('verification_steps')
+              .select('id', { count: 'exact' })
+              .eq('reference_id', refId)
+              .eq('completed_by', staff.id)
+              .not('completed_at', 'is', null)
+
+            return count === 4 ? 1 : 0
+          })
+        )
+
+        const totalReferencesVerified = referencesFullyVerified.reduce((sum, val) => sum + val, 0)
+
+        // Calculate pass rate (steps with overall_pass = true)
+        const passedSteps = stepsCompleted?.filter(s => s.overall_pass === true).length || 0
+        const passRate = stepsCompleted && stepsCompleted.length > 0
+          ? Math.round((passedSteps / stepsCompleted.length) * 100)
+          : 0
+
+        // Step breakdown
+        const stepBreakdown = {
+          step1: stepsCompleted?.filter(s => s.step_number === 1).length || 0,
+          step2: stepsCompleted?.filter(s => s.step_number === 2).length || 0,
+          step3: stepsCompleted?.filter(s => s.step_number === 3).length || 0,
+          step4: stepsCompleted?.filter(s => s.step_number === 4).length || 0
+        }
+
+        return {
+          staffId: staff.id,
+          staffName: staff.full_name,
+          email: staff.email,
+          stepsCompleted: stepsCompleted?.length || 0,
+          referencesVerified: totalReferencesVerified,
+          passRate,
+          stepBreakdown
+        }
+      })
+    )
+
+    // Sort by steps completed (leaderboard style)
+    const sortedPerformance = performanceData.sort((a, b) => b.stepsCompleted - a.stepsCompleted)
+
+    // Calculate totals
+    const totalStepsCompleted = sortedPerformance.reduce((sum, staff) => sum + staff.stepsCompleted, 0)
+    const totalReferencesVerified = sortedPerformance.reduce((sum, staff) => sum + staff.referencesVerified, 0)
+
+    res.json({
+      date: date || 'today',
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      totals: {
+        stepsCompleted: totalStepsCompleted,
+        referencesVerified: totalReferencesVerified,
+        activeStaff: staffList.length
+      },
+      leaderboard: sortedPerformance
+    })
+  } catch (error) {
+    console.error('Error fetching staff performance:', error)
+    res.status(500).json({ error: 'Failed to fetch staff performance statistics' })
+  }
+})
+
 export default router

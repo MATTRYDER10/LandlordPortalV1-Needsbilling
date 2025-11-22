@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-background">
     <!-- Header -->
     <div class="bg-white shadow">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -17,7 +17,7 @@
             </router-link>
             <button
               @click="showCreateModal = true"
-              class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
             >
               Create Staff Account
             </button>
@@ -30,7 +30,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
 
       <!-- Staff List -->
@@ -115,7 +115,7 @@
                   v-model="newStaff.fullName"
                   type="text"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="John Doe"
                 />
               </div>
@@ -125,7 +125,7 @@
                   v-model="newStaff.email"
                   type="email"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="john@propertygoose.com"
                 />
               </div>
@@ -136,7 +136,7 @@
                   type="password"
                   required
                   minlength="8"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="Minimum 8 characters"
                 />
               </div>
@@ -145,7 +145,7 @@
                   v-model="newStaff.isAdmin"
                   type="checkbox"
                   id="isAdmin"
-                  class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                 />
                 <label for="isAdmin" class="ml-2 block text-sm text-gray-700">
                   Grant admin privileges
@@ -156,7 +156,7 @@
               <button
                 type="submit"
                 :disabled="creatingStaff"
-                class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                class="flex-1 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {{ creatingStaff ? 'Creating...' : 'Create Account' }}
               </button>
