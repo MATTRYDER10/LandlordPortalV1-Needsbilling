@@ -8,6 +8,7 @@ export const useAuthStore = defineStore('auth', () => {
   const session = ref<Session | null>(null)
   const company = ref<{ name: string, role: string } | null>(null)
   const onboardingCompleted = ref<boolean>(true) // Default to true to avoid flashing
+  const isAdmin = ref<boolean>(false) // Admin staff privileges
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -69,10 +70,38 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Fetch user data (includes onboarding check)
+  // Check if user has admin privileges
+  const fetchAdminStatus = async () => {
+    try {
+      const token = session.value?.access_token
+      if (!token) {
+        isAdmin.value = false
+        return
+      }
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      // Try to access admin dashboard endpoint - if successful, user is an admin
+      const response = await fetch(`${API_URL}/api/admin/staff?limit=1`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      // If the request succeeds (status 200), user is an admin
+      // If it fails with 403, user is not an admin
+      isAdmin.value = response.ok
+    } catch (err) {
+      console.error('Failed to fetch admin status:', err)
+      isAdmin.value = false
+    }
+  }
+
+  // Fetch user data (includes onboarding check and admin status)
   const fetchUser = async () => {
     await fetchCompany()
     await fetchOnboardingStatus()
+    await fetchAdminStatus()
   }
 
   // Initialize auth state
@@ -83,10 +112,11 @@ export const useAuthStore = defineStore('auth', () => {
       session.value = currentSession
       user.value = currentSession?.user ?? null
 
-      // Fetch company data and onboarding status if user is logged in
+      // Fetch company data, onboarding status, and admin status if user is logged in
       if (currentSession?.user) {
         await fetchCompany()
         await fetchOnboardingStatus()
+        await fetchAdminStatus()
       }
 
       // Listen for auth changes
@@ -94,13 +124,15 @@ export const useAuthStore = defineStore('auth', () => {
         session.value = newSession
         user.value = newSession?.user ?? null
 
-        // Fetch company data and onboarding status when user signs in
+        // Fetch company data, onboarding status, and admin status when user signs in
         if (newSession?.user) {
           await fetchCompany()
           await fetchOnboardingStatus()
+          await fetchAdminStatus()
         } else {
           company.value = null
           onboardingCompleted.value = true
+          isAdmin.value = false
         }
       })
     } catch (err: any) {
@@ -217,6 +249,7 @@ export const useAuthStore = defineStore('auth', () => {
     session,
     company,
     onboardingCompleted,
+    isAdmin,
     loading,
     error,
     initialize,
@@ -227,6 +260,7 @@ export const useAuthStore = defineStore('auth', () => {
     updatePassword,
     fetchCompany,
     fetchOnboardingStatus,
+    fetchAdminStatus,
     fetchUser
   }
 })

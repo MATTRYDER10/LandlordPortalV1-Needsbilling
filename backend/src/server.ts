@@ -26,6 +26,7 @@ import { startSchedulers } from './services/workQueueScheduler'
 import tenantApplicationRoutes from './routes/tenant-applications'
 import tenantOffersRoutes from './routes/tenant-offers'
 import googlePlaces from './routes/google-places'
+import adminRoutes from './routes/admin'
 
 dotenv.config()
 
@@ -132,6 +133,7 @@ app.use('/api/contact-attempts', contactAttemptsRoutes)
 app.use('/api/verification-steps', verificationStepsRoutes)
 app.use('/api/landlords', landlordsRoutes)
 app.use('/api/tenant-offers', tenantOffersRoutes)
+app.use('/api/admin', adminRoutes)
 
 // Start server
 app.listen(PORT, () => {

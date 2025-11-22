@@ -36,6 +36,8 @@ import LandlordVerification from '../views/LandlordVerification.vue'
 import TenantOffer from '../views/TenantOffer.vue'
 import TenantOffers from '../views/TenantOffers.vue'
 import TenantOfferDetail from '../views/TenantOfferDetail.vue'
+import AdminDashboard from '../views/AdminDashboard.vue'
+import AdminStaffManagement from '../views/AdminStaffManagement.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -302,6 +304,22 @@ const router = createRouter({
       name: 'StaffReferenceView',
       component: StaffReferenceView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      redirect: '/admin/dashboard'
+    },
+    {
+      path: '/admin/dashboard',
+      name: 'AdminDashboard',
+      component: AdminDashboard,
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/staff',
+      name: 'AdminStaffManagement',
+      component: AdminStaffManagement,
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 })
@@ -359,6 +377,13 @@ router.beforeEach(async (to, _from, next) => {
     !skipOnboardingCheck
   ) {
     next('/onboarding')
+    return
+  }
+
+  // Admin access check - redirect to dashboard if user is not an admin
+  const isAdminPath = to.path.startsWith('/admin')
+  if (isAdminPath && !authStore.isAdmin) {
+    next('/dashboard')
     return
   }
 
