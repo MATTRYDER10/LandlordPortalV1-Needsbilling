@@ -10,6 +10,7 @@ The PropertyGoose Admin Panel is a comprehensive administrative interface for ma
 - **Reference Statistics**: Track references submitted and completed (today, yesterday, or custom date)
 - **Business Growth**: Monitor new business signups with date filtering
 - **Revenue Tracking**: View total revenue from credit purchases and agreement payments
+- **Staff Performance Leaderboard**: Real-time leaderboard showing verification progress by staff member
 - **Platform Metrics**: See total companies, references, and active staff at a glance
 - **Recent Companies**: List of newest businesses with owner information and onboarding status
 
@@ -90,6 +91,36 @@ The system automatically detects admin privileges based on the `is_admin` flag i
 2. **References Completed**: References marked as completed by staff
 3. **New Businesses**: Companies that signed up in the date range
 4. **Total Revenue**: Combined revenue from credit purchases and agreement payments
+
+#### Staff Performance Leaderboard
+Real-time performance tracking for your verification team:
+
+**Metrics Displayed:**
+- **Rank**: Position in leaderboard with visual indicators
+  - 🏆 Trophy icon for top performer
+  - Silver medal (2) for second place
+  - Bronze medal (3) for third place
+- **Steps Completed**: Total verification steps completed in the selected period
+- **References Verified**: Count of references fully verified (all 4 steps completed)
+- **Pass Rate**: Percentage of verification steps passed (quality metric)
+  - 90%+ = Green (excellent)
+  - 75-89% = Blue (good)
+  - 60-74% = Yellow (needs improvement)
+  - <60% = Red (requires attention)
+- **Step Breakdown**: Individual counts for each verification step
+  - S1 (Blue): ID & Selfie verification
+  - S2 (Green): Income & Affordability
+  - S3 (Yellow): Residential history
+  - S4 (Purple): Credit & TAS scoring
+
+**What Counts as "Verified":**
+A reference is considered "fully verified" only when the staff member has completed all 4 verification steps for that reference. Partial completions (1-3 steps) count toward "Steps Completed" but not "References Verified".
+
+**Performance Insights:**
+- Identify top performers for recognition or training opportunities
+- Monitor pass rates to ensure quality standards
+- Track individual step performance to identify training needs
+- Compare staff productivity across time periods
 
 #### Platform Totals
 Displays overall metrics regardless of date filter:
@@ -347,6 +378,74 @@ Content-Type: application/json
   }
 }
 ```
+
+#### Get Staff Performance (Leaderboard)
+```http
+GET /api/admin/staff/performance?date=<today|yesterday|YYYY-MM-DD>
+```
+
+**Query Parameters:**
+- `date` (optional): `today`, `yesterday`, or ISO date format (e.g., `2024-03-15`)
+
+**Response:**
+```json
+{
+  "date": "today",
+  "startDate": "2024-03-15T00:00:00.000Z",
+  "endDate": "2024-03-15T23:59:59.999Z",
+  "totals": {
+    "stepsCompleted": 156,
+    "referencesVerified": 38,
+    "activeStaff": 5
+  },
+  "leaderboard": [
+    {
+      "staffId": "uuid-1",
+      "staffName": "Alice Johnson",
+      "email": "alice@propertygoose.com",
+      "stepsCompleted": 68,
+      "referencesVerified": 17,
+      "passRate": 94,
+      "stepBreakdown": {
+        "step1": 17,
+        "step2": 17,
+        "step3": 17,
+        "step4": 17
+      }
+    },
+    {
+      "staffId": "uuid-2",
+      "staffName": "Bob Smith",
+      "email": "bob@propertygoose.com",
+      "stepsCompleted": 52,
+      "referencesVerified": 13,
+      "passRate": 87,
+      "stepBreakdown": {
+        "step1": 13,
+        "step2": 13,
+        "step3": 13,
+        "step4": 13
+      }
+    }
+  ]
+}
+```
+
+**Performance Metrics Explained:**
+- **stepsCompleted**: Total verification steps completed (any step from 1-4)
+- **referencesVerified**: References where staff completed all 4 steps
+- **passRate**: Percentage of steps marked as "pass" (overall_pass = true)
+- **stepBreakdown**: Individual count for each of the 4 verification steps
+  - step1: ID & Selfie verification
+  - step2: Income & Affordability
+  - step3: Residential history
+  - step4: Credit check & TAS scoring
+
+**Use Cases:**
+- Daily performance monitoring
+- Weekly/monthly team reviews
+- Identifying training opportunities
+- Quality assurance tracking
 
 ## Security Features
 
