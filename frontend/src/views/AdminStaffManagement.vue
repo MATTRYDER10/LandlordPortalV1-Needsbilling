@@ -179,7 +179,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { useAuthStore } from '../stores/auth'
 
+const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 interface StaffUser {
@@ -215,7 +217,7 @@ const formatDate = (dateString: string) => {
 const fetchStaffList = async () => {
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
     const response = await axios.get(`${API_URL}/api/admin/staff`, {
       headers: {
         Authorization: `Bearer ${token}`
@@ -233,7 +235,7 @@ const fetchStaffList = async () => {
 const createStaffAccount = async () => {
   creatingStaff.value = true
   try {
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
     await axios.post(
       `${API_URL}/api/admin/staff`,
       {
@@ -266,7 +268,7 @@ const toggleStaffStatus = async (staff: StaffUser) => {
   }
 
   try {
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
     await axios.patch(
       `${API_URL}/api/admin/staff/${staff.id}`,
       {
@@ -293,7 +295,7 @@ const toggleAdminStatus = async (staff: StaffUser) => {
   }
 
   try {
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
     await axios.patch(
       `${API_URL}/api/admin/staff/${staff.id}`,
       {
