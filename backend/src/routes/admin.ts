@@ -1,6 +1,7 @@
 import express from 'express'
 import { supabase } from '../config/supabase'
 import { authenticateAdmin, AdminAuthRequest } from '../middleware/adminAuth'
+import { decrypt } from '../services/encryption'
 
 const router = express.Router()
 
@@ -269,8 +270,8 @@ router.get('/companies/new', authenticateAdmin, async (req: AdminAuthRequest, re
 
         return {
           id: company.id,
-          companyName: company.name_encrypted,
-          companyEmail: company.email_encrypted,
+          companyName: decrypt(company.name_encrypted),
+          companyEmail: decrypt(company.email_encrypted),
           createdAt: company.created_at,
           onboardingCompleted: company.onboarding_completed,
           credits: company.reference_credits,
@@ -445,6 +446,8 @@ router.patch('/staff/:staffId', authenticateAdmin, async (req: AdminAuthRequest,
  */
 router.get('/dashboard', authenticateAdmin, async (req: AdminAuthRequest, res) => {
   try {
+    const { dateRange } = req.query
+
     // Get today's date range
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -459,6 +462,29 @@ router.get('/dashboard', authenticateAdmin, async (req: AdminAuthRequest, res) =
     yesterdayEnd.setDate(yesterdayEnd.getDate() - 1)
     yesterdayEnd.setHours(23, 59, 59, 999)
 
+    // Override today's range if dateRange is specified
+    let actualToday = today
+    let actualTodayEnd = todayEnd
+    if (dateRange === '7days') {
+      actualToday = new Date()
+      actualToday.setDate(actualToday.getDate() - 7)
+      actualToday.setHours(0, 0, 0, 0)
+      actualTodayEnd = new Date()
+      actualTodayEnd.setHours(23, 59, 59, 999)
+    } else if (dateRange === '14days') {
+      actualToday = new Date()
+      actualToday.setDate(actualToday.getDate() - 14)
+      actualToday.setHours(0, 0, 0, 0)
+      actualTodayEnd = new Date()
+      actualTodayEnd.setHours(23, 59, 59, 999)
+    } else if (dateRange === '30days') {
+      actualToday = new Date()
+      actualToday.setDate(actualToday.getDate() - 30)
+      actualToday.setHours(0, 0, 0, 0)
+      actualTodayEnd = new Date()
+      actualTodayEnd.setHours(23, 59, 59, 999)
+    }
+
     // Parallel queries for better performance
     const [
       todayRefsSubmitted,
@@ -466,21 +492,27 @@ router.get('/dashboard', authenticateAdmin, async (req: AdminAuthRequest, res) =
       todayBusinesses,
       todayCreditRevenue,
       todayAgreementRevenue,
+      todayCreditsAdded,
+      todayCreditsUsed,
       yesterdayRefsSubmitted,
       yesterdayRefsCompleted,
       yesterdayBusinesses,
       yesterdayCreditRevenue,
       yesterdayAgreementRevenue,
+      yesterdayCreditsAdded,
+      yesterdayCreditsUsed,
       totalCompanies,
       totalReferences,
       activeStaff
     ] = await Promise.all([
-      // Today's stats
-      supabase.from('tenant_references').select('id', { count: 'exact' }).gte('created_at', today.toISOString()).lte('created_at', todayEnd.toISOString()),
-      supabase.from('tenant_references').select('id', { count: 'exact' }).eq('status', 'completed').gte('updated_at', today.toISOString()).lte('updated_at', todayEnd.toISOString()),
-      supabase.from('companies').select('id', { count: 'exact' }).gte('created_at', today.toISOString()).lte('created_at', todayEnd.toISOString()),
-      supabase.from('credit_transactions').select('amount_gbp').in('type', ['pack_purchase', 'subscription_credit', 'auto_recharge']).gte('created_at', today.toISOString()).lte('created_at', todayEnd.toISOString()),
-      supabase.from('agreement_payments').select('amount_gbp').eq('payment_status', 'succeeded').gte('created_at', today.toISOString()).lte('created_at', todayEnd.toISOString()),
+      // Today's stats (or date range if specified)
+      supabase.from('tenant_references').select('id', { count: 'exact' }).gte('created_at', actualToday.toISOString()).lte('created_at', actualTodayEnd.toISOString()),
+      supabase.from('tenant_references').select('id', { count: 'exact' }).eq('status', 'completed').gte('updated_at', actualToday.toISOString()).lte('updated_at', actualTodayEnd.toISOString()),
+      supabase.from('companies').select('id', { count: 'exact' }).gte('created_at', actualToday.toISOString()).lte('created_at', actualTodayEnd.toISOString()),
+      supabase.from('credit_transactions').select('amount_gbp').in('type', ['pack_purchase', 'subscription_credit', 'auto_recharge']).gte('created_at', actualToday.toISOString()).lte('created_at', actualTodayEnd.toISOString()),
+      supabase.from('agreement_payments').select('amount_gbp').eq('payment_status', 'succeeded').gte('created_at', actualToday.toISOString()).lte('created_at', actualTodayEnd.toISOString()),
+      supabase.from('credit_transactions').select('credits_change').in('type', ['pack_purchase', 'subscription_credit', 'auto_recharge']).gte('created_at', actualToday.toISOString()).lte('created_at', actualTodayEnd.toISOString()),
+      supabase.from('credit_transactions').select('credits_change').eq('type', 'credit_used').gte('created_at', actualToday.toISOString()).lte('created_at', actualTodayEnd.toISOString()),
 
       // Yesterday's stats
       supabase.from('tenant_references').select('id', { count: 'exact' }).gte('created_at', yesterday.toISOString()).lte('created_at', yesterdayEnd.toISOString()),
@@ -488,6 +520,8 @@ router.get('/dashboard', authenticateAdmin, async (req: AdminAuthRequest, res) =
       supabase.from('companies').select('id', { count: 'exact' }).gte('created_at', yesterday.toISOString()).lte('created_at', yesterdayEnd.toISOString()),
       supabase.from('credit_transactions').select('amount_gbp').in('type', ['pack_purchase', 'subscription_credit', 'auto_recharge']).gte('created_at', yesterday.toISOString()).lte('created_at', yesterdayEnd.toISOString()),
       supabase.from('agreement_payments').select('amount_gbp').eq('payment_status', 'succeeded').gte('created_at', yesterday.toISOString()).lte('created_at', yesterdayEnd.toISOString()),
+      supabase.from('credit_transactions').select('credits_change').in('type', ['pack_purchase', 'subscription_credit', 'auto_recharge']).gte('created_at', yesterday.toISOString()).lte('created_at', yesterdayEnd.toISOString()),
+      supabase.from('credit_transactions').select('credits_change').eq('type', 'credit_used').gte('created_at', yesterday.toISOString()).lte('created_at', yesterdayEnd.toISOString()),
 
       // Overall stats
       supabase.from('companies').select('id', { count: 'exact' }),
@@ -504,18 +538,29 @@ router.get('/dashboard', authenticateAdmin, async (req: AdminAuthRequest, res) =
       (yesterdayCreditRevenue.data?.reduce((sum, tx) => sum + (parseFloat(tx.amount_gbp) || 0), 0) || 0) +
       (yesterdayAgreementRevenue.data?.reduce((sum, payment) => sum + (parseFloat(payment.amount_gbp) || 0), 0) || 0)
 
+    // Calculate credits added and used
+    const todayTotalCreditsAdded = todayCreditsAdded.data?.reduce((sum, tx) => sum + Math.abs(tx.credits_change || 0), 0) || 0
+    const todayTotalCreditsUsed = Math.abs(todayCreditsUsed.data?.reduce((sum, tx) => sum + (tx.credits_change || 0), 0) || 0)
+
+    const yesterdayTotalCreditsAdded = yesterdayCreditsAdded.data?.reduce((sum, tx) => sum + Math.abs(tx.credits_change || 0), 0) || 0
+    const yesterdayTotalCreditsUsed = Math.abs(yesterdayCreditsUsed.data?.reduce((sum, tx) => sum + (tx.credits_change || 0), 0) || 0)
+
     res.json({
       today: {
         referencesSubmitted: todayRefsSubmitted.count || 0,
         referencesCompleted: todayRefsCompleted.count || 0,
         newBusinesses: todayBusinesses.count || 0,
-        revenue: todayTotalRevenue.toFixed(2)
+        revenue: todayTotalRevenue.toFixed(2),
+        creditsAdded: todayTotalCreditsAdded,
+        creditsUsed: todayTotalCreditsUsed
       },
       yesterday: {
         referencesSubmitted: yesterdayRefsSubmitted.count || 0,
         referencesCompleted: yesterdayRefsCompleted.count || 0,
         newBusinesses: yesterdayBusinesses.count || 0,
-        revenue: yesterdayTotalRevenue.toFixed(2)
+        revenue: yesterdayTotalRevenue.toFixed(2),
+        creditsAdded: yesterdayTotalCreditsAdded,
+        creditsUsed: yesterdayTotalCreditsUsed
       },
       totals: {
         companies: totalCompanies.count || 0,
@@ -548,12 +593,32 @@ router.get('/staff/performance', authenticateAdmin, async (req: AdminAuthRequest
       endDate = new Date()
       endDate.setDate(endDate.getDate() - 1)
       endDate.setHours(23, 59, 59, 999)
+    } else if (date === '7days') {
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() - 7)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date()
+      endDate.setHours(23, 59, 59, 999)
+    } else if (date === '14days') {
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() - 14)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date()
+      endDate.setHours(23, 59, 59, 999)
+    } else if (date === '30days') {
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() - 30)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date()
+      endDate.setHours(23, 59, 59, 999)
     } else if (date && date !== 'today') {
+      // Custom date provided
       startDate = new Date(date as string)
       startDate.setHours(0, 0, 0, 0)
       endDate = new Date(date as string)
       endDate.setHours(23, 59, 59, 999)
     } else {
+      // Default to today
       startDate = new Date()
       startDate.setHours(0, 0, 0, 0)
       endDate = new Date()
@@ -598,20 +663,19 @@ router.get('/staff/performance', authenticateAdmin, async (req: AdminAuthRequest
         const uniqueReferences = new Set(stepsCompleted?.map(s => s.reference_id) || [])
 
         // Get references that were fully verified by this staff member (all 4 steps completed)
-        const referencesFullyVerified = await Promise.all(
-          Array.from(uniqueReferences).map(async (refId) => {
-            const { count } = await supabase
-              .from('verification_steps')
-              .select('id', { count: 'exact' })
-              .eq('reference_id', refId)
-              .eq('completed_by', staff.id)
-              .not('completed_at', 'is', null)
+        let totalReferencesVerified = 0
+        for (const refId of Array.from(uniqueReferences)) {
+          const { count } = await supabase
+            .from('verification_steps')
+            .select('id', { count: 'exact' })
+            .eq('reference_id', refId)
+            .eq('completed_by', staff.id)
+            .not('completed_at', 'is', null)
 
-            return count === 4 ? 1 : 0
-          })
-        )
-
-        const totalReferencesVerified = referencesFullyVerified.reduce((sum, val) => sum + val, 0)
+          if (count === 4) {
+            totalReferencesVerified++
+          }
+        }
 
         // Calculate pass rate (steps with overall_pass = true)
         const passedSteps = stepsCompleted?.filter(s => s.overall_pass === true).length || 0

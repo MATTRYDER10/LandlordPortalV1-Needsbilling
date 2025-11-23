@@ -24,7 +24,7 @@
       <div class="bg-white shadow rounded-lg p-4 mb-6">
         <div class="flex items-center gap-4 flex-wrap">
           <label class="text-sm font-medium text-gray-700">Select Date:</label>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-wrap">
             <button
               @click="setDateFilter('today')"
               :class="dateFilter === 'today' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
@@ -38,6 +38,27 @@
               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium transition-colors"
             >
               Yesterday
+            </button>
+            <button
+              @click="setDateFilter('7days')"
+              :class="dateFilter === '7days' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium transition-colors"
+            >
+              Last 7 Days
+            </button>
+            <button
+              @click="setDateFilter('14days')"
+              :class="dateFilter === '14days' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium transition-colors"
+            >
+              Last 14 Days
+            </button>
+            <button
+              @click="setDateFilter('30days')"
+              :class="dateFilter === '30days' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium transition-colors"
+            >
+              Last 30 Days
             </button>
             <input
               type="date"
@@ -57,7 +78,7 @@
       <!-- Statistics Grid -->
       <div v-else>
         <!-- Quick Stats (Today vs Yesterday) -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <!-- References Submitted -->
           <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="p-5">
@@ -124,6 +145,42 @@
                 <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Credits Added -->
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-600">Credits Added</div>
+                  <div class="mt-2 text-3xl font-semibold text-purple-600">{{ currentStats.creditsAdded }}</div>
+                  <div class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</div>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Credits Used -->
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-600">Credits Used</div>
+                  <div class="mt-2 text-3xl font-semibold text-red-600">{{ currentStats.creditsUsed }}</div>
+                  <div class="mt-1 text-xs text-gray-500">{{ dateFilterLabel }}</div>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
                   </svg>
                 </div>
               </div>
@@ -318,7 +375,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { useAuthStore } from '../stores/auth'
 
+const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 interface DashboardData {
@@ -327,12 +386,16 @@ interface DashboardData {
     referencesCompleted: number
     newBusinesses: number
     revenue: string
+    creditsAdded: number
+    creditsUsed: number
   }
   yesterday?: {
     referencesSubmitted: number
     referencesCompleted: number
     newBusinesses: number
     revenue: string
+    creditsAdded: number
+    creditsUsed: number
   }
   totals?: {
     companies: number
@@ -378,7 +441,7 @@ interface PerformanceData {
   leaderboard: StaffPerformance[]
 }
 
-const dateFilter = ref<'today' | 'yesterday' | 'custom'>('today')
+const dateFilter = ref<'today' | 'yesterday' | '7days' | '14days' | '30days' | 'custom'>('today')
 const customDate = ref('')
 const loading = ref(true)
 const loadingCompanies = ref(true)
@@ -393,37 +456,48 @@ const currentStats = computed(() => {
       referencesSubmitted: 0,
       referencesCompleted: 0,
       newBusinesses: 0,
-      revenue: '0.00'
+      revenue: '0.00',
+      creditsAdded: 0,
+      creditsUsed: 0
     }
   }
   return dashboardData.value.today || {
     referencesSubmitted: 0,
     referencesCompleted: 0,
     newBusinesses: 0,
-    revenue: '0.00'
+    revenue: '0.00',
+    creditsAdded: 0,
+    creditsUsed: 0
   }
 })
 
 const dateFilterLabel = computed(() => {
   if (dateFilter.value === 'today') return 'Today'
   if (dateFilter.value === 'yesterday') return 'Yesterday'
+  if (dateFilter.value === '7days') return 'Last 7 Days'
+  if (dateFilter.value === '14days') return 'Last 14 Days'
+  if (dateFilter.value === '30days') return 'Last 30 Days'
   return customDate.value
 })
 
-const setDateFilter = (filter: 'today' | 'yesterday' | 'custom') => {
+const setDateFilter = (filter: 'today' | 'yesterday' | '7days' | '14days' | '30days' | 'custom') => {
   dateFilter.value = filter
   if (filter !== 'custom') {
     customDate.value = ''
   }
   if (filter === 'custom' && customDate.value) {
     fetchCustomDateStats()
-  } else if (filter !== 'custom') {
+  } else if (filter === '7days' || filter === '14days' || filter === '30days') {
+    fetchDateRangeStats(filter)
+  } else {
     fetchPerformanceData()
   }
 }
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return 'N/A'
   const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'N/A'
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -438,11 +512,14 @@ const getPassRateColor = (passRate: number) => {
   return 'bg-red-100 text-red-800'
 }
 
-const fetchDashboardData = async () => {
+const fetchDashboardData = async (dateRangeParam?: string) => {
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`${API_URL}/api/admin/dashboard`, {
+    const token = authStore.session?.access_token
+    const url = dateRangeParam
+      ? `${API_URL}/api/admin/dashboard?dateRange=${dateRangeParam}`
+      : `${API_URL}/api/admin/dashboard`
+    const response = await axios.get(url, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -459,7 +536,7 @@ const fetchDashboardData = async () => {
 const fetchCompanies = async () => {
   loadingCompanies.value = true
   try {
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
     const response = await axios.get(`${API_URL}/api/admin/companies/new?limit=20`, {
       headers: {
         Authorization: `Bearer ${token}`
@@ -476,7 +553,7 @@ const fetchCompanies = async () => {
 const fetchPerformanceData = async () => {
   loadingPerformance.value = true
   try {
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
     const dateParam = dateFilter.value === 'custom' ? customDate.value : dateFilter.value
     const response = await axios.get(`${API_URL}/api/admin/staff/performance?date=${dateParam}`, {
       headers: {
@@ -496,7 +573,7 @@ const fetchCustomDateStats = async () => {
 
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
+    const token = authStore.session?.access_token
 
     // Fetch custom date stats (we'll add them to today's stats for display)
     const [refsResponse, businessResponse, revenueResponse] = await Promise.all([
@@ -516,7 +593,9 @@ const fetchCustomDateStats = async () => {
       referencesSubmitted: refsResponse.data.statistics.submitted,
       referencesCompleted: refsResponse.data.statistics.completed,
       newBusinesses: businessResponse.data.statistics.newBusinesses,
-      revenue: revenueResponse.data.statistics.totalRevenue
+      revenue: revenueResponse.data.statistics.totalRevenue,
+      creditsAdded: 0,
+      creditsUsed: 0
     }
   } catch (error) {
     console.error('Error fetching custom date stats:', error)
@@ -526,6 +605,14 @@ const fetchCustomDateStats = async () => {
   }
 
   // Also fetch performance data for the custom date
+  fetchPerformanceData()
+}
+
+const fetchDateRangeStats = async (range: '7days' | '14days' | '30days') => {
+  // Fetch dashboard data for the selected date range
+  await fetchDashboardData(range)
+
+  // Also fetch performance data for the date range
   fetchPerformanceData()
 }
 

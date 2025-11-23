@@ -31,8 +31,11 @@ export const authenticateAdmin = async (
     const { data: { user }, error } = await supabase.auth.getUser(token)
 
     if (error || !user) {
+      console.log('[Admin Auth] Invalid token or user not found')
       return res.status(403).json({ error: 'Invalid token' })
     }
+
+    console.log('[Admin Auth] Checking admin status for user:', user.id)
 
     // Check if user is a staff member with admin privileges
     const { data: adminUser, error: adminError } = await supabase
@@ -43,11 +46,16 @@ export const authenticateAdmin = async (
       .eq('is_admin', true)
       .single()
 
+    console.log('[Admin Auth] Staff user query result:', { adminUser, adminError })
+
     if (adminError || !adminUser) {
+      console.log('[Admin Auth] Access denied for user:', user.id)
       return res.status(403).json({
         error: 'Access denied. Admin privileges required.'
       })
     }
+
+    console.log('[Admin Auth] Access granted for admin user:', adminUser.full_name)
 
     req.user = user
     req.adminUser = {
