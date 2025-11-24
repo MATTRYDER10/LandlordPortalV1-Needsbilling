@@ -295,10 +295,10 @@
                     </div>
                     <!-- Credit Check -->
                     <div class="flex items-center gap-1"
-                      :title="reference.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
-                      <svg class="w-5 h-5" :class="reference.has_credit_check ? 'text-green-600' : 'text-gray-300'"
+                      :title="(reference.has_credit_check && (reference.credit_check_status === 'passed' || reference.credit_check_status === 'refer')) ? 'Credit check completed' : (reference.credit_check_status === 'failed' || reference.credit_check_status === 'error') ? 'Credit check failed' : 'Credit check pending'">
+                      <svg class="w-5 h-5" :class="(reference.has_credit_check && (reference.credit_check_status === 'passed' || reference.credit_check_status === 'refer')) ? 'text-green-600' : (reference.credit_check_status === 'failed' || reference.credit_check_status === 'error') ? 'text-red-600' : 'text-gray-300'"
                         fill="currentColor" viewBox="0 0 20 20">
-                        <path v-if="reference.has_credit_check" fill-rule="evenodd"
+                        <path v-if="reference.has_credit_check && (reference.credit_check_status === 'passed' || reference.credit_check_status === 'refer')" fill-rule="evenodd"
                           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                           clip-rule="evenodd" />
                         <path v-else fill-rule="evenodd"

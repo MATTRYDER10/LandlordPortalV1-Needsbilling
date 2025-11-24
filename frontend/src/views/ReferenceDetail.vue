@@ -1385,6 +1385,65 @@
         <!-- Creditsafe Identity Verification -->
         <CreditsafeVerificationCard v-if="reference.submitted_at" :verification="creditsafeVerification"
           :loading="loadingCreditsafe" :show-retry-button="false" />
+          <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+              <div class="flex items-center justify-between">
+                <h4 class="font-semibold text-gray-900">Creditsafe Identity Verification</h4>
+                <div class="flex items-center gap-2">
+                  
+                </div>
+              </div>
+
+              <div v-if="creditsafeVerification" class="border-l-4 border-purple-500 pl-4">
+                <div class="space-y-2 text-sm">
+                  <p v-if="creditsafeVerification.verifyMatch !== undefined">
+                    <strong>Identity Match:</strong>
+                    <span
+                      :class="creditsafeVerification.verifyMatch ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
+                      {{ creditsafeVerification.verifyMatch ? 'VERIFIED' : 'NOT VERIFIED' }}
+                    </span>
+                  </p>
+                    <p v-if="creditsafeVerification.electoralRegisterMatch !== undefined">
+                    <strong>Electoral Register:</strong>
+                    <span :class="creditsafeVerification.electoralRegisterMatch ? 'text-green-600' : 'text-red-600'">
+                      {{ creditsafeVerification.electoralRegisterMatch ? 'Found' : 'Not Found' }}
+                    </span>
+                  </p>
+                  <p v-if="creditsafeVerification.ccjMatch !== undefined">
+                    <strong>CCJs:</strong>
+                    <span :class="!creditsafeVerification.ccjMatch ? 'text-green-600' : 'text-red-600 font-semibold'">
+                      {{ creditsafeVerification.ccjMatch ? 'FOUND' : 'None Found' }}
+                    </span>
+                  </p>
+                  <p v-if="creditsafeVerification.insolvencyMatch !== undefined">
+                    <strong>Insolvencies:</strong>
+                    <span :class="!creditsafeVerification.insolvencyMatch ? 'text-green-600' : 'text-red-600 font-semibold'">
+                      {{ creditsafeVerification.insolvencyMatch ? 'FOUND' : 'None Found' }}
+                    </span>
+                  </p>
+                  <p v-if="creditsafeVerification.riskLevel">
+                    <strong>Risk Level:</strong>
+                    <span :class="{
+                    'text-green-600': creditsafeVerification.riskLevel === 'low',
+                      'text-yellow-600': creditsafeVerification.riskLevel === 'medium',
+                      'text-orange-600': creditsafeVerification.riskLevel === 'high',
+                      'text-red-600': creditsafeVerification.riskLevel === 'very_high'
+                    }">
+                      {{ creditsafeVerification.riskLevel.toUpperCase().replace('_', ' ') }}
+                    </span>
+                  </p>
+                  <p v-if="creditsafeVerification.riskScore !== undefined">
+                    <strong>Risk Score:</strong> {{ creditsafeVerification.riskScore }}
+                  </p>
+                  <p v-if="creditsafeVerification.verified_at" class="text-gray-500">
+                    <strong>Checked:</strong> {{ formatDate(creditsafeVerification.verified_at) }}
+                  </p>
+                 
+                </div>
+              </div>
+              <div v-else-if="!creditsafeVerification" class="text-gray-500 italic text-sm">
+                No Creditsafe data available yet.
+              </div>
+            </div>
 
         <!-- Property Information (from initial reference creation) -->
         <div v-if="!reference.is_group_parent && !reference.is_guarantor" class="bg-white rounded-lg shadow p-6">

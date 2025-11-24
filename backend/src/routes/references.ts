@@ -92,7 +92,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     ) || []
 
     console.log('Top-level references found:', references?.length || 0)
-
     // For each parent reference, count the children and sync status
     const referencesWithCount = await Promise.all(references.map(async (ref) => {
       // Check which references have been submitted
@@ -101,15 +100,15 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         supabase.from('agent_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('employer_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('accountant_references').select('id').eq('tenant_reference_id', ref.id).maybeSingle(),
-        supabase.from('creditsafe_verifications').select('id, status').eq('reference_id', ref.id).maybeSingle()
+        supabase.from('creditsafe_verifications').select('id, verification_status').eq('reference_id', ref.id).maybeSingle()
       ])
 
       const has_landlord_reference = !!landlordRefCheck.data
       const has_agent_reference = !!agentRefCheck.data
       const has_employer_reference = !!employerRefCheck.data
       const has_accountant_reference = !!accountantRefCheck.data
-      const has_credit_check = !!creditsafeCheck.data
-      const credit_check_status = creditsafeCheck.data?.status || null
+      const has_credit_check = creditsafeCheck.data || null
+      const credit_check_status = creditsafeCheck.data?.verification_status || null
 
       // Check if guarantor reference is complete (for references that require a guarantor)
       let has_guarantor_reference = false
@@ -629,6 +628,11 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     } : null
 
     console.log('[DEBUG] Returning guarantorReferences count:', decryptedGuarantorReferences?.length || 0)
+
+    // const creditsafeVerification = await supabase.from('creditsafe_verifications').select('*').eq('reference_id', reference.id).single()
+    // // if (creditsafeVerification) {
+    // //   creditsafeVerification.verification_request = decrypt(creditsafeVerification.verification_request_encrypted)
+    // // }
 
     res.json({
       reference: decryptedReference,
@@ -1505,6 +1509,7 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 // Tenant submits their information (public route)
 router.post('/submit/:token', async (req: Request, res) => {
   try {
+
     const { token } = req.params
     const data = req.body
     const clientIpAddress = getClientIpAddress(req)
@@ -2096,8 +2101,35 @@ router.post('/submit/:token', async (req: Request, res) => {
       }
     }
 
-    // Note: Creditsafe Verify checks are now triggered manually by staff via the "Run Check" button
-    // in the staff verification interface, rather than automatically on form submission
+    //Check Creditsafe verification
+  debugger
+    const address = [data.current_address_line1, data.current_address_line2, data.current_city, data.current_postcode, data.current_country].filter((add) => !!((add || '').trim())).join(', ')
+
+    const creditSfaePayload = {
+      firstName: data.first_name,
+      lastName: data.last_name,
+      dateOfBirth: data.date_of_birth,
+      postcode: data.current_postcode,
+      address
+    };
+
+    const creditsafeVerification = await creditsafeService.verifyIndividual(creditSfaePayload);
+    //Delete existing verification if it exists
+    const {data:existingVerification} = await supabase.from('creditsafe_verifications').select('id').eq('reference_id', updatedReference.id).single()
+    if (existingVerification) {
+      await supabase
+        .from('creditsafe_verifications')
+        .delete()
+        .eq('id', existingVerification.id)
+    }
+    //Store new verification
+    await creditsafeService.storeVerificationResult(updatedReference.id, creditSfaePayload, creditsafeVerification)
+
+    if (creditsafeVerification.status === 'passed') {
+      console.log('Creditsafe verification passed')
+    } else {
+      console.log('Creditsafe verification failed')
+    }
 
     // Trigger UK Sanctions & Electoral Commission (PEP) screening (non-blocking)
     // Screens against UK Sanctions List (5,656 entities) and Electoral Commission donations (89,358 records)
