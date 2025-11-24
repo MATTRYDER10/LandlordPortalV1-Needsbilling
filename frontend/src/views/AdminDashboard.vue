@@ -1,30 +1,7 @@
 <template>
   <div class="min-h-screen bg-background">
     <!-- Header -->
-    <div class="bg-white shadow">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p class="mt-1 text-sm text-gray-600">PropertyGoose Platform Analytics</p>
-          </div>
-          <div class="flex gap-3">
-            <router-link
-              to="/admin/customers"
-              class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              Manage Customers
-            </router-link>
-            <router-link
-              to="/admin/staff"
-              class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
-            >
-              Manage Staff
-            </router-link>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AdminHeader />
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -487,6 +464,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import AdminHeader from '../components/AdminHeader.vue'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'

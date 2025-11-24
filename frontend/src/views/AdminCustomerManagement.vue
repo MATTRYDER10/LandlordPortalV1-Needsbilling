@@ -1,19 +1,14 @@
 <template>
   <div class="min-h-screen bg-background">
     <!-- Header -->
-    <div class="bg-white shadow">
+    <AdminHeader />
+
+    <!-- Page Header -->
+    <div class="bg-white border-b border-gray-200">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">Customer Management</h1>
-            <p class="mt-1 text-sm text-gray-600">Search and manage customer accounts</p>
-          </div>
-          <router-link
-            to="/admin/dashboard"
-            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-          >
-            Back to Dashboard
-          </router-link>
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Customer Management</h2>
+          <p class="mt-1 text-sm text-gray-600">Search and manage customer accounts</p>
         </div>
       </div>
     </div>
@@ -361,6 +356,7 @@
 import { ref } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import AdminHeader from '../components/AdminHeader.vue'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
