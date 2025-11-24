@@ -22,7 +22,7 @@
             </button>
             <h2 class="text-3xl font-bold text-gray-900">
               {{ reference.tenant_first_name }} {{ reference.middle_name ? reference.middle_name + ' ' : '' }}{{
-              reference.tenant_last_name }}
+                reference.tenant_last_name }}
             </h2>
             <p class="mt-2 text-gray-600">Complete Reference Details</p>
           </div>
@@ -97,9 +97,9 @@
                   clip-rule="evenodd" />
               </svg>
               Credit: {{ creditsafeVerification.verification_status === 'passed' ? 'PASS' :
-              creditsafeVerification.verification_status === 'failed' ? 'FAIL' :
-              creditsafeVerification.verification_status === 'refer' ? 'REVIEW' :
-              creditsafeVerification.verification_status.toUpperCase() }}
+                creditsafeVerification.verification_status === 'failed' ? 'FAIL' :
+                  creditsafeVerification.verification_status === 'refer' ? 'REVIEW' :
+                    creditsafeVerification.verification_status.toUpperCase() }}
             </span>
 
             <!-- Sanctions Screening Status -->
@@ -122,7 +122,7 @@
                   clip-rule="evenodd" />
               </svg>
               Sanctions: {{ sanctionsScreening.risk_level === 'clear' ? 'PASS' :
-              sanctionsScreening.risk_level.toUpperCase() }}
+                sanctionsScreening.risk_level.toUpperCase() }}
             </span>
           </div>
         </div>
@@ -152,7 +152,7 @@
                 <button @click="$router.push(`/references/${parentReference.id}`)"
                   class="text-sm text-purple-600 hover:text-purple-800 hover:underline font-medium">
                   View Parent Tenant Reference: {{ parentReference.tenant_first_name }} {{
-                  parentReference.tenant_last_name }} →
+                    parentReference.tenant_last_name }} →
                 </button>
               </div>
             </div>
@@ -226,7 +226,7 @@
                   <div class="flex-1">
                     <div class="flex items-center gap-3 mb-1">
                       <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Tenant {{ index + 1
-                        }}</span>
+                      }}</span>
                       <span class="px-2 py-0.5 text-xs font-semibold rounded-full" :class="{
                         'bg-yellow-100 text-yellow-800': child.status === 'pending',
                         'bg-blue-100 text-blue-800': child.status === 'in_progress',
@@ -295,7 +295,7 @@
 
                   <!-- Right to Rent Verification -->
                   <div class="bg-white rounded-lg shadow p-6">
-                    <h5 class="text-md font-semibold text-gray-900 mb-4">Right to Rent Verification</h5>
+                    <h5 class="text-md font-semibold text-gray-900 mb-4">Right to Verification</h5>
                     <div class="grid grid-cols-2 gap-4">
                       <div>
                         <label class="block text-sm font-medium text-gray-500">British Citizen</label>
@@ -341,8 +341,8 @@
                           <label class="block text-sm font-medium text-gray-500">Verification Date</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.rtr_verification_date ?
-                            formatDate(childReferenceDetails[child.id].reference.rtr_verification_date) : 'Not provided'
-                            }}</p>
+                              formatDate(childReferenceDetails[child.id].reference.rtr_verification_date) : 'Not provided'
+                          }}</p>
                         </div>
                         <div v-if="childReferenceDetails[child.id].reference.rtr_verification_data.immigrationStatus"
                           class="col-span-2">
@@ -372,8 +372,8 @@
                         <label class="block text-sm font-medium text-gray-500">Document Type</label>
                         <p class="mt-1 text-gray-900 capitalize">{{
                           childReferenceDetails[child.id].reference.id_document_type ?
-                          childReferenceDetails[child.id].reference.id_document_type.replace('_', ' ') : 'Not provided'
-                          }}</p>
+                            childReferenceDetails[child.id].reference.id_document_type.replace('_', ' ') : 'Not provided'
+                        }}</p>
                       </div>
                     </div>
                     <div class="space-y-2">
@@ -445,7 +445,7 @@
                         <label class="block text-sm font-medium text-gray-500">Country</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_country ?
                           getCountryName(childReferenceDetails[child.id].reference.current_country) : 'Not provided yet'
-                          }}</p>
+                        }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Time at Address</label>
@@ -453,9 +453,9 @@
                           <span
                             v-if="childReferenceDetails[child.id].reference.time_at_address_years !== null || childReferenceDetails[child.id].reference.time_at_address_months !== null">
                             {{ childReferenceDetails[child.id].reference.time_at_address_years || 0 }} year{{
-                            childReferenceDetails[child.id].reference.time_at_address_years !== 1 ? 's' : '' }},
+                              childReferenceDetails[child.id].reference.time_at_address_years !== 1 ? 's' : '' }},
                             {{ childReferenceDetails[child.id].reference.time_at_address_months || 0 }} month{{
-                            childReferenceDetails[child.id].reference.time_at_address_months !== 1 ? 's' : '' }}
+                              childReferenceDetails[child.id].reference.time_at_address_months !== 1 ? 's' : '' }}
                           </span>
                           <span v-else>Not provided yet</span>
                         </p>
@@ -528,8 +528,8 @@
                           <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.employment_start_date ?
-                            formatDate(childReferenceDetails[child.id].reference.employment_start_date) : 'Not provided'
-                            }}</p>
+                              formatDate(childReferenceDetails[child.id].reference.employment_start_date) : 'Not provided'
+                          }}</p>
                         </div>
                         <div>
                           <label class="block text-sm font-medium text-gray-500">Job Title</label>
@@ -545,15 +545,15 @@
                           <label class="block text-sm font-medium text-gray-500">Annual Salary</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.employment_salary_amount ?
-                            `£${childReferenceDetails[child.id].reference.employment_salary_amount}` : 'Not provided' }}
+                              `£${childReferenceDetails[child.id].reference.employment_salary_amount}` : 'Not provided' }}
                           </p>
                         </div>
                         <div v-if="childReferenceDetails[child.id].reference.employment_is_hourly">
                           <label class="block text-sm font-medium text-gray-500">Hourly Rate</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.employment_salary_amount ?
-                            `£${childReferenceDetails[child.id].reference.employment_salary_amount}/hour` :
-                            'Notprovided' }}</p>
+                              `£${childReferenceDetails[child.id].reference.employment_salary_amount}/hour` :
+                              'Notprovided' }}</p>
                         </div>
                       </div>
 
@@ -601,16 +601,16 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Company:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].employerReference.company_name }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.company_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Contact:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].employerReference.employer_name }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.employer_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Position:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].employerReference.employer_position }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.employer_position }}</span></div>
                                 <div><span class="text-green-700 font-medium">Email:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].employerReference.employer_email }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.employer_email }}</span></div>
                               </div>
                             </div>
 
@@ -620,21 +620,21 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Position:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].employerReference.employee_position }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.employee_position }}</span></div>
                                 <div><span class="text-green-700 font-medium">Type:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].employerReference.employment_type }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.employment_type }}</span></div>
                                 <div><span class="text-green-700 font-medium">Start Date:</span> <span
                                     class="text-green-900">{{
-                                    formatDate(childReferenceDetails[child.id].employerReference.employment_start_date)
+                                      formatDate(childReferenceDetails[child.id].employerReference.employment_start_date)
                                     }}</span></div>
                                 <div v-if="childReferenceDetails[child.id].employerReference.employment_end_date"><span
                                     class="text-green-700 font-medium">End Date:</span> <span class="text-green-900">{{
-                                    formatDate(childReferenceDetails[child.id].employerReference.employment_end_date)
+                                      formatDate(childReferenceDetails[child.id].employerReference.employment_end_date)
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Currently Employed:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].employerReference.is_current_employee ? 'Yes' : 'No'
+                                      childReferenceDetails[child.id].employerReference.is_current_employee ? 'Yes' : 'No'
                                     }}</span></div>
                               </div>
                             </div>
@@ -645,17 +645,17 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Salary:</span> <span
                                     class="text-green-900">£{{
-                                    childReferenceDetails[child.id].employerReference.annual_salary }} ({{
-                                    childReferenceDetails[child.id].employerReference.salary_frequency }})</span></div>
+                                      childReferenceDetails[child.id].employerReference.annual_salary }} ({{
+                                      childReferenceDetails[child.id].employerReference.salary_frequency }})</span></div>
                                 <div><span class="text-green-700 font-medium">Probation:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].employerReference.is_probation === 'yes' ? 'Yes' :
-                                    'No' }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.is_probation === 'yes' ? 'Yes' :
+                                        'No' }}</span></div>
                                 <div
                                   v-if="childReferenceDetails[child.id].employerReference.is_probation === 'yes' && childReferenceDetails[child.id].employerReference.probation_end_date">
                                   <span class="text-green-700 font-medium">Probation End:</span> <span
                                     class="text-green-900">{{
-                                    formatDate(childReferenceDetails[child.id].employerReference.probation_end_date)
+                                      formatDate(childReferenceDetails[child.id].employerReference.probation_end_date)
                                     }}</span>
                                 </div>
                               </div>
@@ -667,18 +667,18 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Details Verified:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].employerReference.employment_status }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.employment_status }}</span></div>
                                 <div><span class="text-green-700 font-medium">Contract Type:</span> <span
                                     class="text-green-900 capitalize">{{
-                                    childReferenceDetails[child.id].employerReference.contract_type_confirmation ||
-                                    'Notprovided' }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.contract_type_confirmation ||
+                                      'Notprovided' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Income Expectation:</span> <span
                                     class="text-green-900 capitalize">{{
-                                    childReferenceDetails[child.id].employerReference.income_expectation ||
-                                    'Notprovided' }}</span></div>
+                                      childReferenceDetails[child.id].employerReference.income_expectation ||
+                                      'Notprovided' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Position Security:</span> <span
                                     class="text-green-900 capitalize">{{
-                                    childReferenceDetails[child.id].employerReference.employment_stable || 'Notprovided'
+                                      childReferenceDetails[child.id].employerReference.employment_stable || 'Notprovided'
                                     }}</span></div>
                               </div>
 
@@ -718,7 +718,7 @@
                         <div class="flex items-center justify-between">
                           <p class="text-sm text-blue-800">
                             Waiting for employer reference from {{
-                            childReferenceDetails[child.id].reference.employer_ref_email }}
+                              childReferenceDetails[child.id].reference.employer_ref_email }}
                           </p>
                           <button @click="resendEmployerEmail(child.id)" :disabled="resendingEmployer[child.id]"
                             class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
@@ -742,8 +742,8 @@
                           <label class="block text-sm font-medium text-gray-500">Annual Income</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.self_employed_annual_income ?
-                            `£${childReferenceDetails[child.id].reference.self_employed_annual_income}` : 'Not provided'
-                            }}</p>
+                              `£${childReferenceDetails[child.id].reference.self_employed_annual_income}` : 'Not provided'
+                          }}</p>
                         </div>
                       </div>
 
@@ -764,16 +764,16 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Name:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.accountant_name }}</span></div>
+                                      childReferenceDetails[child.id].accountantReference.accountant_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Firm:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.firm_name }}</span></div>
+                                      childReferenceDetails[child.id].accountantReference.firm_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Email:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.accountant_email }}</span></div>
+                                      childReferenceDetails[child.id].accountantReference.accountant_email }}</span></div>
                                 <div><span class="text-green-700 font-medium">Phone:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.accountant_phone }}</span></div>
+                                      childReferenceDetails[child.id].accountantReference.accountant_phone }}</span></div>
                               </div>
                             </div>
 
@@ -783,18 +783,18 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Business:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.business_name }}</span></div>
+                                      childReferenceDetails[child.id].accountantReference.business_name }}</span></div>
                                 <div><span class="text-green-700 font-medium">Trading Status:</span> <span
                                     class="text-green-900 capitalize">{{
-                                    childReferenceDetails[child.id].accountantReference.business_trading_status
+                                      childReferenceDetails[child.id].accountantReference.business_trading_status
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Start Date:</span> <span
                                     class="text-green-900">{{
-                                    formatDate(childReferenceDetails[child.id].accountantReference.business_start_date)
+                                      formatDate(childReferenceDetails[child.id].accountantReference.business_start_date)
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Nature:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.nature_of_business }}</span>
+                                      childReferenceDetails[child.id].accountantReference.nature_of_business }}</span>
                                 </div>
                               </div>
                             </div>
@@ -805,39 +805,39 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Annual Turnover:</span> <span
                                     class="text-green-900">£{{
-                                    childReferenceDetails[child.id].accountantReference.annual_turnover?.toLocaleString()
+                                      childReferenceDetails[child.id].accountantReference.annual_turnover?.toLocaleString()
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Annual Profit:</span> <span
                                     class="text-green-900">£{{
-                                    childReferenceDetails[child.id].accountantReference.annual_profit?.toLocaleString()
+                                      childReferenceDetails[child.id].accountantReference.annual_profit?.toLocaleString()
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Tax Returns Filed:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.tax_returns_filed ? 'Yes' : 'No'
+                                      childReferenceDetails[child.id].accountantReference.tax_returns_filed ? 'Yes' : 'No'
                                     }}</span></div>
                                 <div v-if="childReferenceDetails[child.id].accountantReference.last_tax_return_date">
                                   <span class="text-green-700 font-medium">Last Tax Return:</span> <span
                                     class="text-green-900">{{
-                                    formatDate(childReferenceDetails[child.id].accountantReference.last_tax_return_date)
+                                      formatDate(childReferenceDetails[child.id].accountantReference.last_tax_return_date)
                                     }}</span>
                                 </div>
                                 <div><span class="text-green-700 font-medium">Accounts Prepared:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.accounts_prepared ? 'Yes' : 'No'
+                                      childReferenceDetails[child.id].accountantReference.accounts_prepared ? 'Yes' : 'No'
                                     }}</span></div>
                                 <div v-if="childReferenceDetails[child.id].accountantReference.accounts_year_end"><span
                                     class="text-green-700 font-medium">Accounts Year End:</span> <span
                                     class="text-green-900">{{
-                                    formatDate(childReferenceDetails[child.id].accountantReference.accounts_year_end)
+                                      formatDate(childReferenceDetails[child.id].accountantReference.accounts_year_end)
                                     }}</span></div>
                                 <div><span class="text-green-700 font-medium">Tax Liabilities:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.any_outstanding_tax_liabilities
-                                    ? 'Yes' : 'No' }}</span></div>
+                                      childReferenceDetails[child.id].accountantReference.any_outstanding_tax_liabilities
+                                        ? 'Yes' : 'No' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Financially Stable:</span> <span
                                     class="text-green-900 font-semibold">{{
-                                    childReferenceDetails[child.id].accountantReference.business_financially_stable ?
-                                    'Yes' : 'No' }}</span></div>
+                                      childReferenceDetails[child.id].accountantReference.business_financially_stable ?
+                                        'Yes' : 'No' }}</span></div>
                               </div>
 
                               <div v-if="childReferenceDetails[child.id].accountantReference.tax_liabilities_details"
@@ -854,11 +854,11 @@
                               <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div><span class="text-green-700 font-medium">Income Confirmed:</span> <span
                                     class="text-green-900">{{
-                                    childReferenceDetails[child.id].accountantReference.accountant_confirms_income ?
-                                    'Yes' : 'No' }}</span></div>
+                                      childReferenceDetails[child.id].accountantReference.accountant_confirms_income ?
+                                        'Yes' : 'No' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Would Recommend:</span> <span
                                     class="text-green-900 font-semibold">{{
-                                    childReferenceDetails[child.id].accountantReference.would_recommend ? 'Yes' : 'No'
+                                      childReferenceDetails[child.id].accountantReference.would_recommend ? 'Yes' : 'No'
                                     }}</span></div>
                               </div>
 
@@ -877,7 +877,7 @@
                         <div class="flex items-center justify-between">
                           <p class="text-sm text-blue-800">
                             Waiting for accountant reference from {{
-                            childReferenceDetails[child.id].reference.accountant_email }}
+                              childReferenceDetails[child.id].reference.accountant_email }}
                           </p>
                           <button @click="resendAccountantEmail(child.id)" :disabled="resendingAccountant[child.id]"
                             class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
@@ -940,7 +940,7 @@
                           <label class="block text-sm font-medium text-gray-500">Amount</label>
                           <p class="mt-1 text-gray-900">{{
                             childReferenceDetails[child.id].reference.additional_income_amount ?
-                            `£${childReferenceDetails[child.id].reference.additional_income_amount}` : 'Not provided' }}
+                              `£${childReferenceDetails[child.id].reference.additional_income_amount}` : 'Not provided' }}
                           </p>
                         </div>
                         <div>
@@ -987,7 +987,7 @@
                         <label class="block text-sm font-medium text-gray-500">Smoker</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.is_smoker === true ?
                           'Yes' : childReferenceDetails[child.id].reference.is_smoker === false ? 'No' : 'Not provided'
-                          }}</p>
+                        }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Pets</label>
@@ -1003,7 +1003,7 @@
                         <label class="block text-sm font-medium text-gray-500">Marital Status</label>
                         <p class="mt-1 text-gray-900 capitalize">{{
                           childReferenceDetails[child.id].reference.marital_status?.replace('_', ' ') || 'Not provided'
-                          }}</p>
+                        }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Number of Dependants</label>
@@ -1044,7 +1044,7 @@
                         <p class="mt-1 text-gray-900">
                           {{ [childReferenceDetails[child.id].reference.previous_rental_address_line1,
                           childReferenceDetails[child.id].reference.previous_rental_address_line2].filter(Boolean).join(',')
-                          || 'Not provided yet' }}
+                            || 'Not provided yet' }}
                         </p>
                       </div>
                       <div>
@@ -1062,7 +1062,7 @@
                         <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
                         <p class="mt-1 text-gray-900">{{
                           formatTenancyDuration(childReferenceDetails[child.id].reference.tenancy_years,
-                          childReferenceDetails[child.id].reference.tenancy_months) }}</p>
+                            childReferenceDetails[child.id].reference.tenancy_months) }}</p>
                       </div>
                     </div>
 
@@ -1083,13 +1083,13 @@
                             <h6 class="text-xs font-semibold text-green-800 mb-2">Landlord Contact Information</h6>
                             <div class="grid grid-cols-2 gap-3 text-sm">
                               <div><span class="text-green-700 font-medium">Name:</span> <span class="text-green-900">{{
-                                  childReferenceDetails[child.id].landlordReference.landlord_name }}</span></div>
+                                childReferenceDetails[child.id].landlordReference.landlord_name }}</span></div>
                               <div><span class="text-green-700 font-medium">Email:</span> <span
                                   class="text-green-900">{{
-                                  childReferenceDetails[child.id].landlordReference.landlord_email }}</span></div>
+                                    childReferenceDetails[child.id].landlordReference.landlord_email }}</span></div>
                               <div><span class="text-green-700 font-medium">Phone:</span> <span
                                   class="text-green-900">{{
-                                  childReferenceDetails[child.id].landlordReference.landlord_phone }}</span></div>
+                                    childReferenceDetails[child.id].landlordReference.landlord_phone }}</span></div>
                             </div>
                           </div>
 
@@ -1102,17 +1102,17 @@
                                 <span class="text-green-900">
                                   {{ [childReferenceDetails[child.id].landlordReference.property_address_line1,
                                   childReferenceDetails[child.id].landlordReference.property_address_line2].filter(Boolean).join(',')
-                                  || childReferenceDetails[child.id].landlordReference.property_address }}
+                                    || childReferenceDetails[child.id].landlordReference.property_address }}
                                 </span>
                               </div>
                               <div><span class="text-green-700 font-medium">City:</span> <span class="text-green-900">{{
-                                  childReferenceDetails[child.id].landlordReference.property_city }}</span></div>
+                                childReferenceDetails[child.id].landlordReference.property_city }}</span></div>
                               <div><span class="text-green-700 font-medium">Postcode:</span> <span
                                   class="text-green-900">{{
-                                  childReferenceDetails[child.id].landlordReference.property_postcode }}</span></div>
+                                    childReferenceDetails[child.id].landlordReference.property_postcode }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy Start:</span> <span
                                   class="text-green-900">{{
-                                  formatDate(childReferenceDetails[child.id].landlordReference.tenancy_start_date)
+                                    formatDate(childReferenceDetails[child.id].landlordReference.tenancy_start_date)
                                   }}</span></div>
                               <div>
                                 <span class="text-green-700 font-medium">Tenancy End:</span>
@@ -1120,11 +1120,11 @@
                                   class="text-red-600 font-semibold"> 🚩 STILL IN CONTRACT - No end date</span>
                                 <span v-else class="text-green-900"> {{
                                   formatDate(childReferenceDetails[child.id].landlordReference.tenancy_end_date)
-                                  }}</span>
+                                }}</span>
                               </div>
                               <div><span class="text-green-700 font-medium">Monthly Rent:</span> <span
                                   class="text-green-900">£{{
-                                  childReferenceDetails[child.id].landlordReference.monthly_rent }}</span></div>
+                                    childReferenceDetails[child.id].landlordReference.monthly_rent }}</span></div>
                             </div>
                           </div>
 
@@ -1198,10 +1198,10 @@
                             <h6 class="text-xs font-semibold text-green-800 mb-2">Agent Contact Information</h6>
                             <div class="grid grid-cols-2 gap-3 text-sm">
                               <div><span class="text-green-700 font-medium">Name:</span> <span class="text-green-900">{{
-                                  childReferenceDetails[child.id].agentReference.agent_name }}</span></div>
+                                childReferenceDetails[child.id].agentReference.agent_name }}</span></div>
                               <div v-if="childReferenceDetails[child.id].agentReference.agency_name"><span
                                   class="text-green-700 font-medium">Agency:</span> <span class="text-green-900">{{
-                                  childReferenceDetails[child.id].agentReference.agency_name }}</span></div>
+                                    childReferenceDetails[child.id].agentReference.agency_name }}</span></div>
                               <div><span class="text-green-700 font-medium">Email:</span> <span
                                   class="text-green-900">{{ childReferenceDetails[child.id].agentReference.agent_email
                                   }}</span></div>
@@ -1220,17 +1220,17 @@
                                 <span class="text-green-900">
                                   {{ [childReferenceDetails[child.id].agentReference.property_address_line1,
                                   childReferenceDetails[child.id].agentReference.property_address_line2].filter(Boolean).join(',')
-                                  || childReferenceDetails[child.id].agentReference.property_address }}
+                                    || childReferenceDetails[child.id].agentReference.property_address }}
                                 </span>
                               </div>
                               <div><span class="text-green-700 font-medium">City:</span> <span class="text-green-900">{{
-                                  childReferenceDetails[child.id].agentReference.property_city }}</span></div>
+                                childReferenceDetails[child.id].agentReference.property_city }}</span></div>
                               <div><span class="text-green-700 font-medium">Postcode:</span> <span
                                   class="text-green-900">{{
-                                  childReferenceDetails[child.id].agentReference.property_postcode }}</span></div>
+                                    childReferenceDetails[child.id].agentReference.property_postcode }}</span></div>
                               <div><span class="text-green-700 font-medium">Tenancy Start:</span> <span
                                   class="text-green-900">{{
-                                  formatDate(childReferenceDetails[child.id].agentReference.tenancy_start_date)
+                                    formatDate(childReferenceDetails[child.id].agentReference.tenancy_start_date)
                                   }}</span></div>
                               <div>
                                 <span class="text-green-700 font-medium">Tenancy End:</span>
@@ -1326,7 +1326,7 @@
                       class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <p class="text-sm text-blue-800">
                         Waiting for {{ childReferenceDetails[child.id].reference.reference_type === 'agent' ?
-                        'lettingagent' : 'landlord' }} reference
+                          'lettingagent' : 'landlord' }} reference
                       </p>
                     </div>
                   </div>
@@ -1578,6 +1578,30 @@
               <div v-if="reference.rtr_verification_data.expiryDate">
                 <label class="block text-sm font-medium text-gray-500">Expiry Date</label>
                 <p class="mt-1 text-gray-900">{{ reference.rtr_verification_data.expiryDate }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual Document Upload (Visa / BRP) -->
+          <div v-if="reference.is_british_citizen === false
+            && !reference.rtr_verified
+            && reference.rtr_alternative_document_path"
+            class="mt-4 border-t pt-4">
+            <h6 class="text-sm font-semibold text-gray-900 mb-3">Manual Right to Rent Document</h6>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Document Type</label>
+                <p class="mt-1 text-gray-900">
+                  {{ formatRTRDocType(reference.rtr_alternative_document_type)
+                  }}
+                </p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Document</label>
+                <button @click="viewFile(reference.rtr_alternative_document_path)"
+                  class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
+                  View Document
+                </button>
               </div>
             </div>
           </div>
@@ -1881,7 +1905,7 @@
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-lg font-semibold text-green-900">✓ Employer Reference Completed</h4>
                     <span class="text-xs text-green-700">Submitted {{ formatDateTime(employerReference.submitted_at)
-                      }}</span>
+                    }}</span>
                   </div>
 
                   <div class="space-y-6">
@@ -1890,13 +1914,13 @@
                       <h5 class="text-sm font-semibold text-green-800 mb-2">Company Information</h5>
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-green-700 font-medium">Company:</span> <span class="text-green-900">{{
-                            employerReference.company_name }}</span></div>
+                          employerReference.company_name }}</span></div>
                         <div><span class="text-green-700 font-medium">Contact:</span> <span class="text-green-900">{{
-                            employerReference.employer_name }}</span></div>
+                          employerReference.employer_name }}</span></div>
                         <div><span class="text-green-700 font-medium">Position:</span> <span class="text-green-900">{{
-                            employerReference.employer_position }}</span></div>
+                          employerReference.employer_position }}</span></div>
                         <div><span class="text-green-700 font-medium">Email:</span> <span class="text-green-900">{{
-                            employerReference.employer_email }}</span></div>
+                          employerReference.employer_email }}</span></div>
                       </div>
                     </div>
 
@@ -1905,14 +1929,14 @@
                       <h5 class="text-sm font-semibold text-green-800 mb-2">Employment Details</h5>
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-green-700 font-medium">Position:</span> <span class="text-green-900">{{
-                            employerReference.employee_position }}</span></div>
+                          employerReference.employee_position }}</span></div>
                         <div><span class="text-green-700 font-medium">Type:</span> <span class="text-green-900">{{
-                            employerReference.employment_type }}</span></div>
+                          employerReference.employment_type }}</span></div>
                         <div><span class="text-green-700 font-medium">Start Date:</span> <span class="text-green-900">{{
-                            formatDate(employerReference.employment_start_date) }}</span></div>
+                          formatDate(employerReference.employment_start_date) }}</span></div>
                         <div v-if="employerReference.employment_end_date"><span class="text-green-700 font-medium">End
                             Date:</span> <span class="text-green-900">{{
-                            formatDate(employerReference.employment_end_date) }}</span></div>
+                              formatDate(employerReference.employment_end_date) }}</span></div>
                         <div><span class="text-green-700 font-medium">Currently Employed:</span> <span
                             class="text-green-900">{{ employerReference.is_current_employee ? 'Yes' : 'No' }}</span>
                         </div>
@@ -1924,9 +1948,9 @@
                       <h5 class="text-sm font-semibold text-green-800 mb-2">Compensation</h5>
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-green-700 font-medium">Salary:</span> <span class="text-green-900">£{{
-                            employerReference.annual_salary }} ({{ employerReference.salary_frequency }})</span></div>
+                          employerReference.annual_salary }} ({{ employerReference.salary_frequency }})</span></div>
                         <div><span class="text-green-700 font-medium">Probation:</span> <span class="text-green-900">{{
-                            employerReference.is_probation === 'yes' ? 'Yes' : 'No' }}</span></div>
+                          employerReference.is_probation === 'yes' ? 'Yes' : 'No' }}</span></div>
                         <div v-if="employerReference.is_probation === 'yes' && employerReference.probation_end_date">
                           <span class="text-green-700 font-medium">Probation End Date:</span> <span
                             class="text-green-900">{{ formatDate(employerReference.probation_end_date) }}</span>
@@ -1942,7 +1966,7 @@
                             class="text-green-900">{{ employerReference.employment_status }}</span></div>
                         <div><span class="text-green-700 font-medium">Contract Type:</span> <span
                             class="text-green-900 capitalize">{{ employerReference.contract_type_confirmation ||
-                            'Notprovided' }}</span></div>
+                              'Notprovided' }}</span></div>
                         <div><span class="text-green-700 font-medium">Income Expectation:</span> <span
                             class="text-green-900 capitalize">{{ employerReference.income_expectation || 'Not provided'
                             }}</span></div>
@@ -2032,7 +2056,7 @@
                   reference.guarantor_last_name }}</p>
                 <p><span class="font-medium">Email:</span> {{ reference.guarantor_email }}</p>
                 <p v-if="reference.guarantor_phone"><span class="font-medium">Phone:</span> {{ reference.guarantor_phone
-                  }}</p>
+                }}</p>
                 <p v-if="reference.guarantor_relationship"><span class="font-medium">Relationship:</span> {{
                   reference.guarantor_relationship }}</p>
               </div>
@@ -2044,7 +2068,7 @@
                 <div class="flex items-center justify-between mb-4">
                   <h5 class="text-lg font-semibold text-green-900">✓ Guarantor Reference Completed</h5>
                   <span class="text-xs text-green-700">Submitted {{ formatDateTime(guarantorReference.submitted_at)
-                    }}</span>
+                  }}</span>
                 </div>
 
                 <div class="space-y-6">
@@ -2053,18 +2077,18 @@
                     <h6 class="text-sm font-semibold text-green-800 mb-2">Personal Information</h6>
                     <div class="grid grid-cols-2 gap-3 text-sm">
                       <div><span class="text-green-700 font-medium">Name:</span> <span class="text-green-900">{{
-                          guarantorReference.guarantor_first_name }} {{ guarantorReference.middle_name }} {{
-                          guarantorReference.guarantor_last_name }}</span></div>
+                        guarantorReference.guarantor_first_name }} {{ guarantorReference.middle_name }} {{
+                            guarantorReference.guarantor_last_name }}</span></div>
                       <div v-if="guarantorReference.date_of_birth"><span class="text-green-700 font-medium">Date of
                           Birth:</span> <span class="text-green-900">{{ formatDate(guarantorReference.date_of_birth)
                           }}</span></div>
                       <div><span class="text-green-700 font-medium">Email:</span> <span class="text-green-900">{{
-                          guarantorReference.email }}</span></div>
+                        guarantorReference.email }}</span></div>
                       <div><span class="text-green-700 font-medium">Phone:</span> <span class="text-green-900">{{
-                          guarantorReference.contact_number }}</span></div>
+                        guarantorReference.contact_number }}</span></div>
                       <div v-if="guarantorReference.nationality"><span
                           class="text-green-700 font-medium">Nationality:</span> <span class="text-green-900">{{
-                          guarantorReference.nationality }}</span></div>
+                            guarantorReference.nationality }}</span></div>
                       <div><span class="text-green-700 font-medium">Relationship to Tenant:</span> <span
                           class="text-green-900">{{ guarantorReference.relationship_to_tenant }}</span></div>
                     </div>
@@ -2083,11 +2107,11 @@
                         class="mt-2">
                         <span class="text-green-700 font-medium">Time at Address:</span>
                         {{ guarantorReference.time_at_address_years || 0 }} years, {{
-                        guarantorReference.time_at_address_months || 0 }} months
+                          guarantorReference.time_at_address_months || 0 }} months
                       </p>
                       <p v-if="guarantorReference.home_ownership_status" class="mt-1">
                         <span class="text-green-700 font-medium">Ownership Status:</span> {{
-                        guarantorReference.home_ownership_status }}
+                          guarantorReference.home_ownership_status }}
                       </p>
                     </div>
                   </div>
@@ -2097,24 +2121,24 @@
                     <h6 class="text-sm font-semibold text-green-800 mb-2">Employment & Income</h6>
                     <div class="grid grid-cols-2 gap-3 text-sm">
                       <div><span class="text-green-700 font-medium">Status:</span> <span class="text-green-900">{{
-                          guarantorReference.employment_status }}</span></div>
+                        guarantorReference.employment_status }}</span></div>
 
                       <!-- Employed Details -->
                       <template v-if="guarantorReference.employment_status === 'employed'">
                         <div v-if="guarantorReference.employer_name"><span
                             class="text-green-700 font-medium">Employer:</span> <span class="text-green-900">{{
-                            guarantorReference.employer_name }}</span></div>
+                              guarantorReference.employer_name }}</span></div>
                         <div v-if="guarantorReference.job_title"><span class="text-green-700 font-medium">Job
                             Title:</span> <span class="text-green-900">{{ guarantorReference.job_title }}</span></div>
                         <div v-if="guarantorReference.employment_start_date"><span
                             class="text-green-700 font-medium">Employment Start:</span> <span class="text-green-900">{{
-                            formatDate(guarantorReference.employment_start_date) }}</span></div>
+                              formatDate(guarantorReference.employment_start_date) }}</span></div>
                         <div v-if="guarantorReference.annual_income"><span class="text-green-700 font-medium">Annual
                             Income:</span> <span class="text-green-900">£{{ guarantorReference.annual_income }}</span>
                         </div>
                         <div v-if="guarantorReference.employment_contract_type"><span
                             class="text-green-700 font-medium">Contract Type:</span> <span class="text-green-900">{{
-                            guarantorReference.employment_contract_type }}</span></div>
+                              guarantorReference.employment_contract_type }}</span></div>
                       </template>
 
                       <!-- Self-Employed Details -->
@@ -2137,7 +2161,7 @@
                       <template v-if="guarantorReference.employment_status === 'retired'">
                         <div v-if="guarantorReference.pension_amount"><span class="text-green-700 font-medium">Pension
                             Amount:</span> <span class="text-green-900">£{{ guarantorReference.pension_amount }} ({{
-                            guarantorReference.pension_frequency }})</span></div>
+                              guarantorReference.pension_frequency }})</span></div>
                       </template>
                     </div>
 
@@ -2156,23 +2180,23 @@
                     <div class="grid grid-cols-2 gap-3 text-sm">
                       <div v-if="guarantorReference.savings_amount"><span
                           class="text-green-700 font-medium">Savings:</span> <span class="text-green-900">£{{
-                          guarantorReference.savings_amount }}</span></div>
+                            guarantorReference.savings_amount }}</span></div>
                       <div v-if="guarantorReference.property_value"><span class="text-green-700 font-medium">Property
                           Value:</span> <span class="text-green-900">£{{ guarantorReference.property_value }}</span>
                       </div>
                       <div v-if="guarantorReference.monthly_mortgage_rent"><span
                           class="text-green-700 font-medium">Monthly
                           Mortgage/Rent:</span> <span class="text-green-900">£{{
-                          guarantorReference.monthly_mortgage_rent }}</span></div>
+                            guarantorReference.monthly_mortgage_rent }}</span></div>
                       <div v-if="guarantorReference.other_monthly_commitments"><span
                           class="text-green-700 font-medium">Other Monthly
                           Commitments:</span> <span class="text-green-900">£{{
-                          guarantorReference.other_monthly_commitments }}</span>
+                            guarantorReference.other_monthly_commitments }}</span>
                       </div>
                       <div v-if="guarantorReference.total_monthly_expenditure"><span
                           class="text-green-700 font-medium">Total Monthly
                           Expenditure:</span> <span class="text-green-900">£{{
-                          guarantorReference.total_monthly_expenditure }}</span>
+                            guarantorReference.total_monthly_expenditure }}</span>
                       </div>
                     </div>
 
@@ -2189,10 +2213,10 @@
                     <div class="grid grid-cols-2 gap-3 text-sm">
                       <div><span class="text-green-700 font-medium">Adverse Credit:</span> <span
                           class="text-green-900">{{
-                          guarantorReference.adverse_credit ? 'Yes' : 'No' }}</span></div>
+                            guarantorReference.adverse_credit ? 'Yes' : 'No' }}</span></div>
                       <div><span class="text-green-700 font-medium">Previously Acted as Guarantor:</span> <span
                           class="text-green-900">{{
-                          guarantorReference.previously_acted_as_guarantor ? 'Yes' : 'No'
+                            guarantorReference.previously_acted_as_guarantor ? 'Yes' : 'No'
                           }}</span></div>
                     </div>
 
@@ -2215,15 +2239,15 @@
                     <div class="grid grid-cols-2 gap-3 text-sm">
                       <div><span class="text-green-700 font-medium">Understands Obligations:</span> <span
                           class="text-green-900">{{
-                          guarantorReference.understands_obligations ? 'Yes' : 'No' }}</span>
+                            guarantorReference.understands_obligations ? 'Yes' : 'No' }}</span>
                       </div>
                       <div><span class="text-green-700 font-medium">Willing to Pay Rent:</span> <span
                           class="text-green-900">{{
-                          guarantorReference.willing_to_pay_rent ? 'Yes' : 'No' }}</span>
+                            guarantorReference.willing_to_pay_rent ? 'Yes' : 'No' }}</span>
                       </div>
                       <div><span class="text-green-700 font-medium">Willing to Pay Damages:</span> <span
                           class="text-green-900">{{
-                          guarantorReference.willing_to_pay_damages ? 'Yes' : 'No' }}</span>
+                            guarantorReference.willing_to_pay_damages ? 'Yes' : 'No' }}</span>
                       </div>
                     </div>
 
@@ -2322,7 +2346,7 @@
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-lg font-semibold text-green-900">✓ Accountant Reference Completed</h4>
                     <span class="text-xs text-green-700">Submitted {{ formatDateTime(accountantReference.submitted_at)
-                      }}</span>
+                    }}</span>
                   </div>
 
                   <div class="space-y-4">
@@ -2331,13 +2355,13 @@
                       <h5 class="text-sm font-semibold text-green-800 mb-2">Accountant Information</h5>
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-green-700 font-medium">Name:</span> <span class="text-green-900">{{
-                            accountantReference.accountant_name }}</span></div>
+                          accountantReference.accountant_name }}</span></div>
                         <div><span class="text-green-700 font-medium">Firm:</span> <span class="text-green-900">{{
-                            accountantReference.firm_name }}</span></div>
+                          accountantReference.firm_name }}</span></div>
                         <div><span class="text-green-700 font-medium">Email:</span> <span class="text-green-900">{{
-                            accountantReference.accountant_email }}</span></div>
+                          accountantReference.accountant_email }}</span></div>
                         <div><span class="text-green-700 font-medium">Phone:</span> <span class="text-green-900">{{
-                            accountantReference.accountant_phone }}</span></div>
+                          accountantReference.accountant_phone }}</span></div>
                       </div>
                     </div>
 
@@ -2347,14 +2371,14 @@
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-green-700 font-medium">Business Name:</span> <span
                             class="text-green-900">{{
-                            accountantReference.business_name }}</span></div>
+                              accountantReference.business_name }}</span></div>
                         <div><span class="text-green-700 font-medium">Trading Status:</span> <span
                             class="text-green-900 capitalize">{{ accountantReference.business_trading_status }}</span>
                         </div>
                         <div><span class="text-green-700 font-medium">Start Date:</span> <span class="text-green-900">{{
-                            formatDate(accountantReference.business_start_date) }}</span></div>
+                          formatDate(accountantReference.business_start_date) }}</span></div>
                         <div><span class="text-green-700 font-medium">Nature:</span> <span class="text-green-900">{{
-                            accountantReference.nature_of_business }}</span></div>
+                          accountantReference.nature_of_business }}</span></div>
                       </div>
                     </div>
 
@@ -2364,35 +2388,35 @@
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-green-700 font-medium">Annual Turnover:</span> <span
                             class="text-green-900">£{{
-                            accountantReference.annual_turnover?.toLocaleString() }}</span>
+                              accountantReference.annual_turnover?.toLocaleString() }}</span>
                         </div>
                         <div><span class="text-green-700 font-medium">Annual Profit:</span> <span
                             class="text-green-900">£{{
-                            accountantReference.annual_profit?.toLocaleString() }}</span>
+                              accountantReference.annual_profit?.toLocaleString() }}</span>
                         </div>
                         <div><span class="text-green-700 font-medium">Tax Returns Filed:</span> <span
                             class="text-green-900">{{
-                            accountantReference.tax_returns_filed ? 'Yes' : 'No' }}</span>
+                              accountantReference.tax_returns_filed ? 'Yes' : 'No' }}</span>
                         </div>
                         <div v-if="accountantReference.last_tax_return_date"><span
                             class="text-green-700 font-medium">Last Tax
                             Return:</span> <span class="text-green-900">{{
-                            formatDate(accountantReference.last_tax_return_date) }}</span></div>
+                              formatDate(accountantReference.last_tax_return_date) }}</span></div>
                         <div><span class="text-green-700 font-medium">Accounts Prepared:</span> <span
                             class="text-green-900">{{
-                            accountantReference.accounts_prepared ? 'Yes' : 'No' }}</span>
+                              accountantReference.accounts_prepared ? 'Yes' : 'No' }}</span>
                         </div>
                         <div v-if="accountantReference.accounts_year_end"><span
                             class="text-green-700 font-medium">Accounts Year
                             End:</span> <span class="text-green-900">{{
-                            formatDate(accountantReference.accounts_year_end) }}</span></div>
+                              formatDate(accountantReference.accounts_year_end) }}</span></div>
                         <div><span class="text-green-700 font-medium">Tax Liabilities:</span> <span
                             class="text-green-900">{{
-                            accountantReference.any_outstanding_tax_liabilities ? 'Yes' : 'No'
+                              accountantReference.any_outstanding_tax_liabilities ? 'Yes' : 'No'
                             }}</span></div>
                         <div><span class="text-green-700 font-medium">Financially Stable:</span> <span
                             class="text-green-900 font-semibold">{{ accountantReference.business_financially_stable ?
-                            'Yes' : 'No' }}</span></div>
+                              'Yes' : 'No' }}</span></div>
                       </div>
 
                       <div v-if="accountantReference.tax_liabilities_details"
@@ -2408,10 +2432,10 @@
                       <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-green-700 font-medium">Income Confirmed:</span> <span
                             class="text-green-900 font-semibold">{{ accountantReference.accountant_confirms_income ?
-                            'Yes' : 'No' }}</span></div>
+                              'Yes' : 'No' }}</span></div>
                         <div><span class="text-green-700 font-medium">Est. Monthly Income:</span> <span
                             class="text-green-900">£{{
-                            accountantReference.estimated_monthly_income?.toLocaleString()
+                              accountantReference.estimated_monthly_income?.toLocaleString()
                             }}</span></div>
                         <div class="col-span-2"><span class="text-green-700 font-medium">Would Recommend:</span> <span
                             class="text-green-900 font-semibold">{{ accountantReference.would_recommend ? 'Yes' : 'No'
@@ -2550,7 +2574,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-500">Marital Status</label>
               <p class="mt-1 text-gray-900 capitalize">{{ reference.marital_status?.replace('_', ' ') || 'Not provided'
-                }}</p>
+              }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Number of Dependants</label>
@@ -2564,387 +2588,400 @@
         </div>
 
         <!-- Previous Landlord Information -->
-       
+
 
         <div class="grid grid-cols-2 gap-4">
-  <template
-    v-if="reference.reference_type !== 'living_with_family'">
-    <div v-if="!reference.is_group_parent && !reference.is_guarantor" class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Previous Landlord Information</h3>
-          <div class="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-500">Landlord Name</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_landlord_name || 'Not provided yet' }}</p>
+          <template v-if="reference.reference_type !== 'living_with_family'">
+            <div v-if="!reference.is_group_parent && !reference.is_guarantor" class="bg-white rounded-lg shadow p-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Previous Landlord Information</h3>
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Landlord Name</label>
+                  <p class="mt-1 text-gray-900">{{ reference.previous_landlord_name || 'Not provided yet' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Landlord Email</label>
+                  <p class="mt-1 text-gray-900">{{ reference.previous_landlord_email || 'Not provided yet' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Landlord Phone</label>
+                  <p class="mt-1 text-gray-900">{{ reference.previous_landlord_phone || 'Not provided yet' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Previous Address</label>
+                  <p class="mt-1 text-gray-900">
+                    {{ [reference.previous_rental_address_line1,
+                    reference.previous_rental_address_line2].filter(Boolean).join(', ') || 'Not provided yet' }}
+                  </p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Previous City</label>
+                  <p class="mt-1 text-gray-900">{{ reference.previous_rental_city || 'Not provided yet' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Previous Postcode</label>
+                  <p class="mt-1 text-gray-900">{{ reference.previous_rental_postcode || 'Not provided yet' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
+                  <p class="mt-1 text-gray-900">{{ formatTenancyDuration(reference.tenancy_years,
+                    reference.tenancy_months)
+                  }}</p>
+                </div>
+              </div>
+
+              <!-- Landlord Reference Status -->
+              <div
+                v-if="reference.previous_landlord_email && reference.reference_type === 'landlord' && !landlordReference"
+                class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-sm font-semibold text-purple-900 mb-1">Landlord Reference</h4>
+                    <p class="text-sm text-purple-800">
+                      Waiting for landlord reference to be submitted.
+                    </p>
+                  </div>
+                  <button @click="resendLandlordEmail" :disabled="resendingLandlord"
+                    class="px-3 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ resendingLandlord ? 'Sending...' : 'Resend Email' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Agent Reference Status -->
+              <div v-if="reference.previous_landlord_email && reference.reference_type === 'agent' && !agentReference"
+                class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-sm font-semibold text-purple-900 mb-1">Letting Agent Reference</h4>
+                    <p class="text-sm text-purple-800">
+                      Waiting for letting agent reference to be submitted.
+                    </p>
+                  </div>
+                  <button @click="resendAgentEmail" :disabled="resendingAgent"
+                    class="px-3 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ resendingAgent ? 'Sending...' : 'Resend Email' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Landlord Reference Submitted -->
+              <div v-if="landlordReference && reference.reference_type === 'landlord'"
+                class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div class="flex items-center justify-between mb-4">
+                  <h4 class="text-sm font-semibold text-green-900">✓ Landlord Reference Completed</h4>
+                  <span class="text-xs text-green-700">Submitted {{ formatDateTime(landlordReference.submitted_at)
+                  }}</span>
+                </div>
+
+                <div class="space-y-6 text-sm">
+                  <!-- Landlord Contact Information -->
+                  <div>
+                    <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Landlord Contact
+                      Information</h5>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <span class="text-green-700 font-medium">Full Name:</span>
+                        <span class="ml-2 text-green-900">{{ landlordReference.landlord_name }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Email:</span>
+                        <span class="ml-2 text-green-900">{{ landlordReference.landlord_email }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Phone:</span>
+                        <span class="ml-2 text-green-900">{{ landlordReference.landlord_phone }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Property & Tenancy Details -->
+                  <div>
+                    <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy
+                      Details
+                    </h5>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="col-span-2">
+                        <span class="text-green-700 font-medium">Property Address:</span>
+                        <span class="ml-2 text-green-900">
+                          {{ [landlordReference.property_address_line1,
+                          landlordReference.property_address_line2].filter(Boolean).join(', ') ||
+                            landlordReference.property_address }}
+                        </span>
+                      </div>
+                      <div v-if="landlordReference.property_city">
+                        <span class="text-green-700 font-medium">City:</span>
+                        <span class="ml-2 text-green-900">{{ landlordReference.property_city }}</span>
+                      </div>
+                      <div v-if="landlordReference.property_postcode">
+                        <span class="text-green-700 font-medium">Postcode:</span>
+                        <span class="ml-2 text-green-900">{{ landlordReference.property_postcode }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Tenancy Start:</span>
+                        <span class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_start_date) }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Tenancy End:</span>
+                        <span v-if="landlordReference.tenancy_still_in_progress"
+                          class="ml-2 text-red-600 font-semibold">
+                          🚩 STILL IN CONTRACT - No end date
+                        </span>
+                        <span v-else class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_end_date)
+                        }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Monthly Rent:</span>
+                        <span class="ml-2 text-green-900">£{{ landlordReference.monthly_rent }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Reference Assessment -->
+                  <div>
+                    <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Reference Assessment
+                    </h5>
+                    <div class="space-y-3">
+                      <div v-if="landlordReference.address_correct">
+                        <span class="text-green-700 font-medium">Address Correct:</span>
+                        <span class="ml-2 text-green-900 capitalize">{{ landlordReference.address_correct }}</span>
+                      </div>
+
+                      <div v-if="landlordReference.tenancy_length_months">
+                        <span class="text-green-700 font-medium">Tenancy Length:</span>
+                        <span class="ml-2 text-green-900">{{ landlordReference.tenancy_length_months }} months</span>
+                      </div>
+
+                      <div v-if="landlordReference.monthly_rent_confirm">
+                        <span class="text-green-700 font-medium">Monthly Rent (Confirmed):</span>
+                        <span class="ml-2 text-green-900">£{{ landlordReference.monthly_rent_confirm }}</span>
+                      </div>
+
+                      <div>
+                        <span class="text-green-700 font-medium">Rent Paid On Time:</span>
+                        <span class="ml-2 text-green-900 capitalize">{{ landlordReference.rent_paid_on_time }}</span>
+                      </div>
+
+                      <div v-if="landlordReference.good_tenant">
+                        <span class="text-green-700 font-medium">Good Tenant:</span>
+                        <span class="ml-2 text-green-900 capitalize">{{ landlordReference.good_tenant }}</span>
+                      </div>
+
+                      <div>
+                        <span class="text-green-700 font-medium">Would Rent Again:</span>
+                        <span class="ml-2 text-green-900 capitalize">{{ landlordReference.would_rent_again }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Additional Comments -->
+                  <div v-if="landlordReference.additional_comments">
+                    <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Additional Comments
+                    </h5>
+                    <div class="bg-green-100 p-3 rounded border border-green-300 text-green-900">
+                      {{ landlordReference.additional_comments }}
+                    </div>
+                  </div>
+
+                  <!-- Signature -->
+                  <div class="pt-3 border-t border-green-300">
+                    <div class="space-y-3">
+                      <div>
+                        <span class="text-green-700 font-medium text-sm">Signature:</span>
+                        <div class="mt-2 p-3 bg-white rounded border border-green-200">
+                          <div v-if="landlordReference.signature_name" class="mb-2 text-sm text-gray-700 font-medium">
+                            {{ landlordReference.signature_name }}
+                          </div>
+                          <img :src="landlordReference.signature" alt="Signature" class="max-w-md h-auto" />
+                        </div>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium text-sm">Date:</span>
+                        <span class="ml-2 text-green-900">{{ formatDate(landlordReference.date) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Agent Reference Submitted -->
+              <div v-if="agentReference && reference.reference_type === 'agent'"
+                class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div class="flex items-center justify-between mb-4">
+                  <h4 class="text-sm font-semibold text-green-900">✓ Letting Agent Reference Completed</h4>
+                  <span class="text-xs text-green-700">Submitted {{ formatDateTime(agentReference.submitted_at)
+                  }}</span>
+                </div>
+
+                <div class="space-y-6 text-sm">
+                  <!-- Agent Contact Information -->
+                  <div>
+                    <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Agent Contact
+                      Information
+                    </h5>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <span class="text-green-700 font-medium">Full Name:</span>
+                        <span class="ml-2 text-green-900">{{ agentReference.agent_name }}</span>
+                      </div>
+                      <div v-if="agentReference.agency_name">
+                        <span class="text-green-700 font-medium">Agency:</span>
+                        <span class="ml-2 text-green-900">{{ agentReference.agency_name }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Email:</span>
+                        <span class="ml-2 text-green-900">{{ agentReference.agent_email }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Phone:</span>
+                        <span class="ml-2 text-green-900">{{ agentReference.agent_phone }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Property & Tenancy Details -->
+                  <div>
+                    <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy
+                      Details
+                    </h5>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="col-span-2">
+                        <span class="text-green-700 font-medium">Property Address:</span>
+                        <span class="ml-2 text-green-900">
+                          {{ [agentReference.property_address_line1,
+                          agentReference.property_address_line2].filter(Boolean).join(', ') ||
+                            agentReference.property_address }}
+                        </span>
+                      </div>
+                      <div v-if="agentReference.property_city">
+                        <span class="text-green-700 font-medium">City:</span>
+                        <span class="ml-2 text-green-900">{{ agentReference.property_city }}</span>
+                      </div>
+                      <div v-if="agentReference.property_postcode">
+                        <span class="text-green-700 font-medium">Postcode:</span>
+                        <span class="ml-2 text-green-900">{{ agentReference.property_postcode }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Tenancy Start:</span>
+                        <span class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_start_date) }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Tenancy End:</span>
+                        <span v-if="agentReference.tenancy_still_in_progress" class="ml-2 text-red-600 font-semibold">
+                          🚩 STILL IN CONTRACT - No end date
+                        </span>
+                        <span v-else class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_end_date)
+                        }}</span>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium">Monthly Rent:</span>
+                        <span class="ml-2 text-green-900">£{{ agentReference.monthly_rent }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Reference Assessment -->
+                  <div>
+                    <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Reference Assessment
+                    </h5>
+                    <div class="space-y-3">
+                      <div>
+                        <div class="mb-1">
+                          <span class="text-green-700 font-medium">Rent Paid On Time:</span>
+                          <span class="ml-2 text-green-900 capitalize">{{ agentReference.rent_paid_on_time }}</span>
+                        </div>
+                        <div v-if="agentReference.rent_paid_on_time_details"
+                          class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                          {{ agentReference.rent_paid_on_time_details }}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div class="mb-1">
+                          <span class="text-green-700 font-medium">Property Condition:</span>
+                          <span class="ml-2 text-green-900 capitalize">{{ agentReference.property_condition }}</span>
+                        </div>
+                        <div v-if="agentReference.property_condition_details"
+                          class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                          {{ agentReference.property_condition_details }}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div class="mb-1">
+                          <span class="text-green-700 font-medium">Neighbour Complaints:</span>
+                          <span class="ml-2 text-green-900 capitalize">{{ agentReference.neighbour_complaints }}</span>
+                        </div>
+                        <div v-if="agentReference.neighbour_complaints_details"
+                          class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                          {{ agentReference.neighbour_complaints_details }}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div class="mb-1">
+                          <span class="text-green-700 font-medium">Breach of Tenancy:</span>
+                          <span class="ml-2 text-green-900 capitalize">{{ agentReference.breach_of_tenancy }}</span>
+                        </div>
+                        <div v-if="agentReference.breach_of_tenancy_details"
+                          class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                          {{ agentReference.breach_of_tenancy_details }}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div class="mb-1">
+                          <span class="text-green-700 font-medium">Would Rent Again:</span>
+                          <span class="ml-2 text-green-900 capitalize">{{ agentReference.would_rent_again }}</span>
+                        </div>
+                        <div v-if="agentReference.would_rent_again_details"
+                          class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
+                          {{ agentReference.would_rent_again_details }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Additional Comments -->
+                  <div v-if="agentReference.additional_comments">
+                    <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Additional Comments
+                    </h5>
+                    <div class="bg-green-100 p-3 rounded border border-green-300 text-green-900">
+                      {{ agentReference.additional_comments }}
+                    </div>
+                  </div>
+
+                  <!-- Signature -->
+                  <div class="pt-3 border-t border-green-300">
+                    <div class="space-y-3">
+                      <div>
+                        <span class="text-green-700 font-medium text-sm">Signature:</span>
+                        <div class="mt-2 p-3 bg-white rounded border border-green-200">
+                          <div v-if="agentReference.signature_name" class="mb-2 text-sm text-gray-700 font-medium">
+                            {{ agentReference.signature_name }}
+                          </div>
+                          <img :src="agentReference.signature" alt="Signature" class="max-w-md h-auto" />
+                        </div>
+                      </div>
+                      <div>
+                        <span class="text-green-700 font-medium text-sm">Date:</span>
+                        <span class="ml-2 text-green-900">{{ formatDate(agentReference.date) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-500">Landlord Email</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_landlord_email || 'Not provided yet' }}</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-500">Landlord Phone</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_landlord_phone || 'Not provided yet' }}</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-500">Previous Address</label>
-              <p class="mt-1 text-gray-900">
-                {{ [reference.previous_rental_address_line1,
-                reference.previous_rental_address_line2].filter(Boolean).join(', ') || 'Not provided yet' }}
+          </template>
+
+          <template v-else>
+            <div class="col-span-2 p-4 bg-green-50 border border-green-200 rounded-md">
+              <p class="text-sm text-green-900 font-medium">
+                This tenant indicated they are living with family/friends—no residential reference required.
               </p>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-500">Previous City</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_rental_city || 'Not provided yet' }}</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-500">Previous Postcode</label>
-              <p class="mt-1 text-gray-900">{{ reference.previous_rental_postcode || 'Not provided yet' }}</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
-              <p class="mt-1 text-gray-900">{{ formatTenancyDuration(reference.tenancy_years, reference.tenancy_months)
-                }}</p>
-            </div>
-          </div>
-
-          <!-- Landlord Reference Status -->
-          <div v-if="reference.previous_landlord_email && reference.reference_type === 'landlord' && !landlordReference"
-            class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="text-sm font-semibold text-purple-900 mb-1">Landlord Reference</h4>
-                <p class="text-sm text-purple-800">
-                  Waiting for landlord reference to be submitted.
-                </p>
-              </div>
-              <button @click="resendLandlordEmail" :disabled="resendingLandlord"
-                class="px-3 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                {{ resendingLandlord ? 'Sending...' : 'Resend Email' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Agent Reference Status -->
-          <div v-if="reference.previous_landlord_email && reference.reference_type === 'agent' && !agentReference"
-            class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="text-sm font-semibold text-purple-900 mb-1">Letting Agent Reference</h4>
-                <p class="text-sm text-purple-800">
-                  Waiting for letting agent reference to be submitted.
-                </p>
-              </div>
-              <button @click="resendAgentEmail" :disabled="resendingAgent"
-                class="px-3 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                {{ resendingAgent ? 'Sending...' : 'Resend Email' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Landlord Reference Submitted -->
-          <div v-if="landlordReference && reference.reference_type === 'landlord'"
-            class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div class="flex items-center justify-between mb-4">
-              <h4 class="text-sm font-semibold text-green-900">✓ Landlord Reference Completed</h4>
-              <span class="text-xs text-green-700">Submitted {{ formatDateTime(landlordReference.submitted_at) }}</span>
-            </div>
-
-            <div class="space-y-6 text-sm">
-              <!-- Landlord Contact Information -->
-              <div>
-                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Landlord Contact
-                  Information</h5>
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <span class="text-green-700 font-medium">Full Name:</span>
-                    <span class="ml-2 text-green-900">{{ landlordReference.landlord_name }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Email:</span>
-                    <span class="ml-2 text-green-900">{{ landlordReference.landlord_email }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Phone:</span>
-                    <span class="ml-2 text-green-900">{{ landlordReference.landlord_phone }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Property & Tenancy Details -->
-              <div>
-                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy Details
-                </h5>
-                <div class="grid grid-cols-2 gap-3">
-                  <div class="col-span-2">
-                    <span class="text-green-700 font-medium">Property Address:</span>
-                    <span class="ml-2 text-green-900">
-                      {{ [landlordReference.property_address_line1,
-                      landlordReference.property_address_line2].filter(Boolean).join(', ') ||
-                      landlordReference.property_address }}
-                    </span>
-                  </div>
-                  <div v-if="landlordReference.property_city">
-                    <span class="text-green-700 font-medium">City:</span>
-                    <span class="ml-2 text-green-900">{{ landlordReference.property_city }}</span>
-                  </div>
-                  <div v-if="landlordReference.property_postcode">
-                    <span class="text-green-700 font-medium">Postcode:</span>
-                    <span class="ml-2 text-green-900">{{ landlordReference.property_postcode }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Tenancy Start:</span>
-                    <span class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_start_date) }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Tenancy End:</span>
-                    <span v-if="landlordReference.tenancy_still_in_progress" class="ml-2 text-red-600 font-semibold">
-                      🚩 STILL IN CONTRACT - No end date
-                    </span>
-                    <span v-else class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_end_date) }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Monthly Rent:</span>
-                    <span class="ml-2 text-green-900">£{{ landlordReference.monthly_rent }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Reference Assessment -->
-              <div>
-                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Reference Assessment</h5>
-                <div class="space-y-3">
-                  <div v-if="landlordReference.address_correct">
-                    <span class="text-green-700 font-medium">Address Correct:</span>
-                    <span class="ml-2 text-green-900 capitalize">{{ landlordReference.address_correct }}</span>
-                  </div>
-
-                  <div v-if="landlordReference.tenancy_length_months">
-                    <span class="text-green-700 font-medium">Tenancy Length:</span>
-                    <span class="ml-2 text-green-900">{{ landlordReference.tenancy_length_months }} months</span>
-                  </div>
-
-                  <div v-if="landlordReference.monthly_rent_confirm">
-                    <span class="text-green-700 font-medium">Monthly Rent (Confirmed):</span>
-                    <span class="ml-2 text-green-900">£{{ landlordReference.monthly_rent_confirm }}</span>
-                  </div>
-
-                  <div>
-                    <span class="text-green-700 font-medium">Rent Paid On Time:</span>
-                    <span class="ml-2 text-green-900 capitalize">{{ landlordReference.rent_paid_on_time }}</span>
-                  </div>
-
-                  <div v-if="landlordReference.good_tenant">
-                    <span class="text-green-700 font-medium">Good Tenant:</span>
-                    <span class="ml-2 text-green-900 capitalize">{{ landlordReference.good_tenant }}</span>
-                  </div>
-
-                  <div>
-                    <span class="text-green-700 font-medium">Would Rent Again:</span>
-                    <span class="ml-2 text-green-900 capitalize">{{ landlordReference.would_rent_again }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Additional Comments -->
-              <div v-if="landlordReference.additional_comments">
-                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Additional Comments</h5>
-                <div class="bg-green-100 p-3 rounded border border-green-300 text-green-900">
-                  {{ landlordReference.additional_comments }}
-                </div>
-              </div>
-
-              <!-- Signature -->
-              <div class="pt-3 border-t border-green-300">
-                <div class="space-y-3">
-                  <div>
-                    <span class="text-green-700 font-medium text-sm">Signature:</span>
-                    <div class="mt-2 p-3 bg-white rounded border border-green-200">
-                      <div v-if="landlordReference.signature_name" class="mb-2 text-sm text-gray-700 font-medium">
-                        {{ landlordReference.signature_name }}
-                      </div>
-                      <img :src="landlordReference.signature" alt="Signature" class="max-w-md h-auto" />
-                    </div>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium text-sm">Date:</span>
-                    <span class="ml-2 text-green-900">{{ formatDate(landlordReference.date) }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Agent Reference Submitted -->
-          <div v-if="agentReference && reference.reference_type === 'agent'"
-            class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div class="flex items-center justify-between mb-4">
-              <h4 class="text-sm font-semibold text-green-900">✓ Letting Agent Reference Completed</h4>
-              <span class="text-xs text-green-700">Submitted {{ formatDateTime(agentReference.submitted_at) }}</span>
-            </div>
-
-            <div class="space-y-6 text-sm">
-              <!-- Agent Contact Information -->
-              <div>
-                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Agent Contact Information
-                </h5>
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <span class="text-green-700 font-medium">Full Name:</span>
-                    <span class="ml-2 text-green-900">{{ agentReference.agent_name }}</span>
-                  </div>
-                  <div v-if="agentReference.agency_name">
-                    <span class="text-green-700 font-medium">Agency:</span>
-                    <span class="ml-2 text-green-900">{{ agentReference.agency_name }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Email:</span>
-                    <span class="ml-2 text-green-900">{{ agentReference.agent_email }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Phone:</span>
-                    <span class="ml-2 text-green-900">{{ agentReference.agent_phone }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Property & Tenancy Details -->
-              <div>
-                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Property & Tenancy Details
-                </h5>
-                <div class="grid grid-cols-2 gap-3">
-                  <div class="col-span-2">
-                    <span class="text-green-700 font-medium">Property Address:</span>
-                    <span class="ml-2 text-green-900">
-                      {{ [agentReference.property_address_line1,
-                      agentReference.property_address_line2].filter(Boolean).join(', ') ||
-                      agentReference.property_address }}
-                    </span>
-                  </div>
-                  <div v-if="agentReference.property_city">
-                    <span class="text-green-700 font-medium">City:</span>
-                    <span class="ml-2 text-green-900">{{ agentReference.property_city }}</span>
-                  </div>
-                  <div v-if="agentReference.property_postcode">
-                    <span class="text-green-700 font-medium">Postcode:</span>
-                    <span class="ml-2 text-green-900">{{ agentReference.property_postcode }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Tenancy Start:</span>
-                    <span class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_start_date) }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Tenancy End:</span>
-                    <span v-if="agentReference.tenancy_still_in_progress" class="ml-2 text-red-600 font-semibold">
-                      🚩 STILL IN CONTRACT - No end date
-                    </span>
-                    <span v-else class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_end_date) }}</span>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium">Monthly Rent:</span>
-                    <span class="ml-2 text-green-900">£{{ agentReference.monthly_rent }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Reference Assessment -->
-              <div>
-                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Reference Assessment</h5>
-                <div class="space-y-3">
-                  <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Rent Paid On Time:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.rent_paid_on_time }}</span>
-                    </div>
-                    <div v-if="agentReference.rent_paid_on_time_details"
-                      class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ agentReference.rent_paid_on_time_details }}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Property Condition:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.property_condition }}</span>
-                    </div>
-                    <div v-if="agentReference.property_condition_details"
-                      class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ agentReference.property_condition_details }}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Neighbour Complaints:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.neighbour_complaints }}</span>
-                    </div>
-                    <div v-if="agentReference.neighbour_complaints_details"
-                      class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ agentReference.neighbour_complaints_details }}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Breach of Tenancy:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.breach_of_tenancy }}</span>
-                    </div>
-                    <div v-if="agentReference.breach_of_tenancy_details"
-                      class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ agentReference.breach_of_tenancy_details }}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div class="mb-1">
-                      <span class="text-green-700 font-medium">Would Rent Again:</span>
-                      <span class="ml-2 text-green-900 capitalize">{{ agentReference.would_rent_again }}</span>
-                    </div>
-                    <div v-if="agentReference.would_rent_again_details"
-                      class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                      {{ agentReference.would_rent_again_details }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Additional Comments -->
-              <div v-if="agentReference.additional_comments">
-                <h5 class="text-xs font-semibold text-green-800 mb-2 uppercase tracking-wide">Additional Comments</h5>
-                <div class="bg-green-100 p-3 rounded border border-green-300 text-green-900">
-                  {{ agentReference.additional_comments }}
-                </div>
-              </div>
-
-              <!-- Signature -->
-              <div class="pt-3 border-t border-green-300">
-                <div class="space-y-3">
-                  <div>
-                    <span class="text-green-700 font-medium text-sm">Signature:</span>
-                    <div class="mt-2 p-3 bg-white rounded border border-green-200">
-                      <div v-if="agentReference.signature_name" class="mb-2 text-sm text-gray-700 font-medium">
-                        {{ agentReference.signature_name }}
-                      </div>
-                      <img :src="agentReference.signature" alt="Signature" class="max-w-md h-auto" />
-                    </div>
-                  </div>
-                  <div>
-                    <span class="text-green-700 font-medium text-sm">Date:</span>
-                    <span class="ml-2 text-green-900">{{ formatDate(agentReference.date) }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          </template>
         </div>
-  </template>
-
-  <template v-else>
-    <div class="col-span-2 p-4 bg-green-50 border border-green-200 rounded-md">
-      <p class="text-sm text-green-900 font-medium">
-        This tenant indicated they are living with family/friends—no residential reference required.
-      </p>
-    </div>
-  </template>
-</div>
 
         <!-- Rental History Comparison -->
         <div v-if="(landlordReference || agentReference) && !reference.is_guarantor"
@@ -2999,7 +3036,7 @@
                 'text-green-600': reference.status === 'completed'
               }">
                 {{ reference.status === 'completed' ? 'Verified' : 'Rejected' }} on {{
-                formatDateTime(reference.verified_at) }}
+                  formatDateTime(reference.verified_at) }}
               </p>
             </div>
           </div>
@@ -3510,6 +3547,13 @@ const closeGuarantorModal = () => {
 
 const formatStatus = (status: string) => {
   return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+const formatRTRDocType = (type?: string | null) => {
+  if (!type) return 'Not specified'
+  if (type === 'brp') return 'Biometric Residence Permit (BRP)'
+  if (type === 'visa') return 'Visa'
+  return formatStatus(type)
 }
 
 const formatTenancyDuration = (years: number | null, months: number | null) => {

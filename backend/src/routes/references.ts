@@ -1668,6 +1668,8 @@ router.post('/submit/:token', async (req: Request, res) => {
       rtr_verified: data.rtr_verified || false,
       rtr_verification_date: data.rtr_verification_date || null,
       rtr_verification_data: data.rtr_verification_data || null,
+      rtr_alternative_document_type: data.rtr_alternative_document_type || null,
+      rtr_alternative_document_path: data.rtr_alternative_document_path || null,
 
       // Submission tracking
       submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : reference.submitted_ip_encrypted || null,
@@ -2285,6 +2287,7 @@ router.post('/upload/:token', (req, res, next) => {
     { name: 'proof_of_address', maxCount: 1 },
     { name: 'proof_of_funds', maxCount: 1 },
     { name: 'proof_of_additional_income', maxCount: 1 },
+    { name: 'rtr_alternative_document', maxCount: 1 },
     { name: 'bank_statements', maxCount: 10 },
     { name: 'payslips', maxCount: 10 }
   ])
@@ -2320,6 +2323,7 @@ router.post('/upload/:token', (req, res, next) => {
     let proofOfAddressPath: string | null = null
     let proofOfFundsPath: string | null = null
     let proofOfAdditionalIncomePath: string | null = null
+    let rtrAlternativeDocumentPath: string | null = null
     const bankStatementPaths: string[] = []
     const payslipPaths: string[] = []
 
@@ -2423,6 +2427,25 @@ router.post('/upload/:token', (req, res, next) => {
       proofOfAdditionalIncomePath = fileName
     }
 
+    if (files.rtr_alternative_document && files.rtr_alternative_document[0]) {
+      const file = files.rtr_alternative_document[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/rtr_alternative_document/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload document: ${uploadError.message}`)
+      }
+
+      rtrAlternativeDocumentPath = fileName
+    }
+
     // Upload bank statements
     if (files.bank_statements) {
       for (const file of files.bank_statements) {
@@ -2472,6 +2495,7 @@ router.post('/upload/:token', (req, res, next) => {
       proof_of_address: proofOfAddressPath,
       proof_of_funds: proofOfFundsPath,
       proof_of_additional_income: proofOfAdditionalIncomePath,
+      rtr_alternative_document: rtrAlternativeDocumentPath,
       bank_statements: bankStatementPaths,
       payslips: payslipPaths
     })
