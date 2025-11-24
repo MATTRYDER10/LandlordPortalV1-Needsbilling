@@ -66,6 +66,19 @@
                                 @addressSelected="handlePropertyAddressSelected" />
                         </div>
 
+                        <!-- Rent Amount -->
+                        <div>
+                            <label for="rent-amount" class="block text-sm font-medium text-gray-700 mb-2">
+                                Monthly Rent Amount (£) *
+                            </label>
+                            <input id="rent-amount" v-model.number="formData.rent_amount" type="number" step="0.01"
+                                required min="0" placeholder="e.g., 1200"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm" />
+                            <p class="mt-1 text-sm text-gray-500">
+                                This amount will be pre-filled in the tenant's offer form
+                            </p>
+                        </div>
+
                         <!-- Deposit Replacement Offer -->
                         <div class="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <input id="offer-deposit-replacement" type="checkbox"
@@ -114,6 +127,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const formData = ref({
     applicant_email: '',
     property_address: '',
+    property_city: '',
+    property_postcode: '',
+    rent_amount: null as number | null,
     offer_deposit_replacement: false
 })
 
@@ -125,16 +141,15 @@ const submittedEmail = ref<string>('')
 
 const handlePropertyAddressSelected = (addressData: any) => {
     formData.value.property_address = addressData.addressLine1
-    // Optionally store city and postcode if needed in the future
-    // formData.value.property_city = addressData.city
-    // formData.value.property_postcode = addressData.postcode
+    formData.value.property_city = addressData.city || ''
+    formData.value.property_postcode = addressData.postcode || ''
 }
 
 const handleSubmit = async () => {
     errorMessage.value = null
     successMessage.value = null
 
-    if (!formData.value.applicant_email || !formData.value.property_address) {
+    if (!formData.value.applicant_email || !formData.value.property_address || !formData.value.rent_amount) {
         errorMessage.value = 'Please fill in all required fields'
         return
     }
@@ -163,6 +178,9 @@ const handleSubmit = async () => {
             body: JSON.stringify({
                 tenant_email: formData.value.applicant_email,
                 property_address: formData.value.property_address,
+                property_city: formData.value.property_city,
+                property_postcode: formData.value.property_postcode,
+                rent_amount: formData.value.rent_amount,
                 offer_deposit_replacement: formData.value.offer_deposit_replacement
             })
         })
@@ -182,6 +200,9 @@ const handleSubmit = async () => {
         formData.value = {
             applicant_email: '',
             property_address: '',
+            property_city: '',
+            property_postcode: '',
+            rent_amount: null,
             offer_deposit_replacement: false
         }
     } catch (err: any) {
@@ -199,6 +220,9 @@ const createNewApplication = () => {
     formData.value = {
         applicant_email: '',
         property_address: '',
+        property_city: '',
+        property_postcode: '',
+        rent_amount: null,
         offer_deposit_replacement: false
     }
 }

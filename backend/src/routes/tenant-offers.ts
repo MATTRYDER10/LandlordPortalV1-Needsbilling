@@ -21,6 +21,9 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         const {
             tenant_email,
             property_address,
+            property_city,
+            property_postcode,
+            rent_amount,
             offer_deposit_replacement
         } = req.body
 
@@ -51,9 +54,13 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             ? (decrypt((companyUser as any).companies.email_encrypted) || '')
             : ''
 
-        // Generate offer form link with company ID
+        // Generate offer form link with company ID and pre-filled data
         const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
-        const offerLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}`
+        const propertyAddressQuery = property_address ? `&property_address=${encodeURIComponent(property_address)}` : ''
+        const propertyCityQuery = property_city ? `&property_city=${encodeURIComponent(property_city)}` : ''
+        const propertyPostcodeQuery = property_postcode ? `&property_postcode=${encodeURIComponent(property_postcode)}` : ''
+        const rentAmountQuery = rent_amount ? `&rent_amount=${encodeURIComponent(rent_amount)}` : ''
+        const offerLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
 
         // Send email to tenant with offer form link
         try {

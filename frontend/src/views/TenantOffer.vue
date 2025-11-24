@@ -579,6 +579,28 @@ onMounted(async () => {
             return
         }
 
+        // Pre-populate form data from query parameters
+        const propertyAddress = route.query.property_address as string
+        const propertyCity = route.query.property_city as string
+        const propertyPostcode = route.query.property_postcode as string
+        const rentAmount = route.query.rent_amount as string
+
+        if (propertyAddress) {
+            formData.value.property_address = decodeURIComponent(propertyAddress)
+        }
+        if (propertyCity) {
+            formData.value.property_city = decodeURIComponent(propertyCity)
+        }
+        if (propertyPostcode) {
+            formData.value.property_postcode = decodeURIComponent(propertyPostcode)
+        }
+        if (rentAmount) {
+            const rent = parseFloat(rentAmount)
+            if (!isNaN(rent)) {
+                formData.value.offered_rent_amount = rent
+            }
+        }
+
         // Check for existing submission first
         await checkExistingSubmission()
 
