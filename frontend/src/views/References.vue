@@ -308,11 +308,11 @@
                     </div>
                     <!-- Residential Reference -->
                     <div class="flex items-center gap-1"
-                      :title="(reference.has_landlord_reference || reference.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
+                      :title="reference.reference_type === 'living_with_family' ? 'Tenant is living with family, no residential reference required' : (reference.has_landlord_reference || reference.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
                       <svg class="w-5 h-5"
-                        :class="(reference.has_landlord_reference || reference.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
+                        :class="(reference.reference_type === 'living_with_family' || reference.has_landlord_reference || reference.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
                         fill="currentColor" viewBox="0 0 20 20">
-                        <path v-if="(reference.has_landlord_reference || reference.has_agent_reference)"
+                        <path v-if="(reference.has_landlord_reference || reference.has_agent_reference || reference.reference_type === 'living_with_family')"
                           fill-rule="evenodd"
                           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                           clip-rule="evenodd" />
@@ -1170,6 +1170,7 @@ const fetchReferences = async () => {
     })
 
     references.value = allReferences
+    console.log("refrences::",allReferences)
   } catch (error) {
     console.error('Failed to fetch references:', error)
   } finally {
