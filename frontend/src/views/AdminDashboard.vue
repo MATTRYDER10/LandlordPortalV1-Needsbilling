@@ -8,12 +8,20 @@
             <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
             <p class="mt-1 text-sm text-gray-600">PropertyGoose Platform Analytics</p>
           </div>
-          <router-link
-            to="/admin/staff"
-            class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
-          >
-            Manage Staff
-          </router-link>
+          <div class="flex gap-3">
+            <router-link
+              to="/admin/customers"
+              class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Manage Customers
+            </router-link>
+            <router-link
+              to="/admin/staff"
+              class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Manage Staff
+            </router-link>
+          </div>
         </div>
       </div>
     </div>
@@ -291,6 +299,109 @@
           </div>
         </div>
 
+        <!-- Customer Leaderboard -->
+        <div class="bg-white shadow rounded-lg mb-8">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-gray-900">Customer Leaderboard</h2>
+                <p class="mt-1 text-sm text-gray-600">Top performing companies</p>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="sortCustomersBy('references')"
+                  :class="customerSortBy === 'references' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                  class="px-3 py-1 text-sm rounded border border-gray-300 transition-colors"
+                >
+                  By References
+                </button>
+                <button
+                  @click="sortCustomersBy('spent')"
+                  :class="customerSortBy === 'spent' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                  class="px-3 py-1 text-sm rounded border border-gray-300 transition-colors"
+                >
+                  By Spending
+                </button>
+                <button
+                  @click="sortCustomersBy('teamSize')"
+                  :class="customerSortBy === 'teamSize' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                  class="px-3 py-1 text-sm rounded border border-gray-300 transition-colors"
+                >
+                  By Team Size
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="loadingCustomers" class="p-6 flex justify-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+
+          <div v-else-if="customerLeaderboard.length > 0" class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total References</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Spent</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team Size</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member Since</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr
+                  v-for="(customer, index) in customerLeaderboard"
+                  :key="customer.companyId"
+                  :class="index < 3 ? 'bg-yellow-50' : 'hover:bg-gray-50'"
+                  class="transition-colors"
+                >
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <span v-if="index === 0" class="text-2xl mr-2">🏆</span>
+                      <span class="text-sm font-medium text-gray-900">{{ index + 1 }}</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="text-sm font-medium text-gray-900">{{ customer.companyName }}</div>
+                    <div class="text-sm text-gray-500">{{ customer.companyEmail }}</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-semibold text-blue-600">{{ customer.totalReferences }}</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-semibold text-green-600">£{{ customer.totalSpent }}</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center text-sm text-gray-900">
+                      <svg class="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                      </svg>
+                      {{ customer.teamSize }}
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {{ formatDate(customer.memberSince) }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      :class="customer.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                      class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                    >
+                      {{ customer.isActive ? 'Active' : 'Inactive' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-else class="p-6 text-center text-gray-500">
+            No customer data available
+          </div>
+        </div>
+
         <!-- Overall Platform Stats -->
         <div class="bg-white rounded-lg shadow p-6 mb-8">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Platform Totals</h2>
@@ -441,14 +552,29 @@ interface PerformanceData {
   leaderboard: StaffPerformance[]
 }
 
+interface CustomerLeaderboard {
+  companyId: string
+  companyName: string
+  companyEmail: string
+  totalReferences: number
+  totalSpent: string
+  teamSize: number
+  memberSince: string
+  currentCredits: number
+  isActive: boolean
+}
+
 const dateFilter = ref<'today' | 'yesterday' | '7days' | '14days' | '30days' | 'custom'>('today')
 const customDate = ref('')
 const loading = ref(true)
 const loadingCompanies = ref(true)
 const loadingPerformance = ref(true)
+const loadingCustomers = ref(true)
 const dashboardData = ref<DashboardData>({})
 const companies = ref<Company[]>([])
 const performanceData = ref<PerformanceData>({ leaderboard: [] })
+const customerLeaderboard = ref<CustomerLeaderboard[]>([])
+const customerSortBy = ref<'references' | 'spent' | 'teamSize'>('references')
 
 const currentStats = computed(() => {
   if (dateFilter.value === 'yesterday') {
@@ -568,6 +694,31 @@ const fetchPerformanceData = async () => {
   }
 }
 
+const fetchCustomerLeaderboard = async () => {
+  loadingCustomers.value = true
+  try {
+    const token = authStore.session?.access_token
+    const response = await axios.get(
+      `${API_URL}/api/admin/customers/leaderboard?sortBy=${customerSortBy.value}&limit=50`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+    customerLeaderboard.value = response.data.leaderboard
+  } catch (error) {
+    console.error('Error fetching customer leaderboard:', error)
+  } finally {
+    loadingCustomers.value = false
+  }
+}
+
+const sortCustomersBy = (sortBy: 'references' | 'spent' | 'teamSize') => {
+  customerSortBy.value = sortBy
+  fetchCustomerLeaderboard()
+}
+
 const fetchCustomDateStats = async () => {
   if (!customDate.value) return
 
@@ -620,5 +771,6 @@ onMounted(() => {
   fetchDashboardData()
   fetchCompanies()
   fetchPerformanceData()
+  fetchCustomerLeaderboard()
 })
 </script>

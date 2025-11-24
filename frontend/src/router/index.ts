@@ -38,6 +38,7 @@ import TenantOffers from '../views/TenantOffers.vue'
 import TenantOfferDetail from '../views/TenantOfferDetail.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
 import AdminStaffManagement from '../views/AdminStaffManagement.vue'
+import AdminCustomerManagement from '../views/AdminCustomerManagement.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -319,6 +320,12 @@ const router = createRouter({
       path: '/admin/staff',
       name: 'AdminStaffManagement',
       component: AdminStaffManagement,
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/customers',
+      name: 'AdminCustomerManagement',
+      component: AdminCustomerManagement,
       meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]

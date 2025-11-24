@@ -727,4 +727,336 @@ router.get('/staff/performance', authenticateAdmin, async (req: AdminAuthRequest
   }
 })
 
+// Customer Leaderboard Endpoint
+router.get('/customers/leaderboard', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { sortBy = 'references', limit = 50 } = req.query
+
+    // Get all companies
+    const { data: companies, error } = await supabase
+      .from('companies')
+      .select('id, name_encrypted, email_encrypted, created_at, reference_credits, stripe_customer_id, onboarding_completed')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching companies:', error)
+      throw error
+    }
+
+    // Calculate metrics for each company in parallel
+    const leaderboardData = await Promise.all(
+      companies.map(async (company) => {
+        const [referencesResult, teamSizeResult, creditTxResult, agreementPaymentsResult] = await Promise.all([
+          // Get total references count
+          supabase
+            .from('tenant_references')
+            .select('id', { count: 'exact', head: true })
+            .eq('company_id', company.id),
+
+          // Get team size
+          supabase
+            .from('company_users')
+            .select('id', { count: 'exact', head: true })
+            .eq('company_id', company.id),
+
+          // Get credit transaction amounts
+          supabase
+            .from('credit_transactions')
+            .select('amount_gbp')
+            .eq('company_id', company.id)
+            .in('type', ['pack_purchase', 'subscription_credit', 'auto_recharge'])
+            .not('amount_gbp', 'is', null),
+
+          // Get agreement payment amounts
+          supabase
+            .from('agreement_payments')
+            .select('amount_gbp')
+            .eq('company_id', company.id)
+            .eq('payment_status', 'succeeded')
+        ])
+
+        const totalReferences = referencesResult.count || 0
+        const teamSize = teamSizeResult.count || 0
+
+        // Calculate total spent from credits and agreements
+        const totalCreditsSpent = creditTxResult.data?.reduce((sum, tx) =>
+          sum + (parseFloat(tx.amount_gbp?.toString() || '0') || 0), 0) || 0
+        const totalAgreementsSpent = agreementPaymentsResult.data?.reduce((sum, payment) =>
+          sum + (parseFloat(payment.amount_gbp?.toString() || '0') || 0), 0) || 0
+        const totalSpent = totalCreditsSpent + totalAgreementsSpent
+
+        return {
+          companyId: company.id,
+          companyName: decrypt(company.name_encrypted) || 'Unnamed Company',
+          companyEmail: decrypt(company.email_encrypted) || '',
+          totalReferences,
+          totalSpent: totalSpent.toFixed(2),
+          teamSize,
+          memberSince: company.created_at,
+          currentCredits: company.reference_credits || 0,
+          isActive: company.onboarding_completed && !!company.stripe_customer_id
+        }
+      })
+    )
+
+    // Sort based on sortBy parameter
+    const sortedData = leaderboardData.sort((a, b) => {
+      switch (sortBy) {
+        case 'spent':
+          return parseFloat(b.totalSpent) - parseFloat(a.totalSpent)
+        case 'teamSize':
+          return b.teamSize - a.teamSize
+        case 'memberSince':
+          return new Date(a.memberSince).getTime() - new Date(b.memberSince).getTime()
+        case 'references':
+        default:
+          return b.totalReferences - a.totalReferences
+      }
+    })
+
+    const limitNum = parseInt(limit as string) || 50
+    res.json({
+      leaderboard: sortedData.slice(0, limitNum),
+      total: sortedData.length
+    })
+  } catch (error) {
+    console.error('Error fetching customer leaderboard:', error)
+    res.status(500).json({ error: 'Failed to fetch customer leaderboard' })
+  }
+})
+
+// Customer Search Endpoint
+router.get('/customers/search', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { query } = req.query
+
+    if (!query || typeof query !== 'string' || query.length < 2) {
+      return res.json({ customers: [] })
+    }
+
+    // Get all companies and filter by decrypted name
+    const { data: companies, error } = await supabase
+      .from('companies')
+      .select('id, name_encrypted, email_encrypted, created_at, reference_credits, onboarding_completed')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    // Decrypt and filter companies by search query
+    const searchLower = query.toLowerCase()
+    const matchingCompanies = companies
+      .map(company => ({
+        id: company.id,
+        name: decrypt(company.name_encrypted) || 'Unnamed Company',
+        email: decrypt(company.email_encrypted) || '',
+        created_at: company.created_at,
+        reference_credits: company.reference_credits,
+        onboarding_completed: company.onboarding_completed
+      }))
+      .filter(company =>
+        company.name.toLowerCase().includes(searchLower) ||
+        company.email.toLowerCase().includes(searchLower)
+      )
+      .slice(0, 20) // Limit to 20 results
+
+    res.json({ customers: matchingCompanies })
+  } catch (error) {
+    console.error('Error searching customers:', error)
+    res.status(500).json({ error: 'Failed to search customers' })
+  }
+})
+
+// Customer Details Endpoint
+router.get('/customers/:companyId/details', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { companyId } = req.params
+
+    // Get company details
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('id', companyId)
+      .single()
+
+    if (companyError || !company) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    // Get all related data in parallel
+    const [
+      referencesResult,
+      teamMembersResult,
+      creditTxResult,
+      agreementPaymentsResult,
+      subscriptionResult
+    ] = await Promise.all([
+      // Get references with status breakdown
+      supabase
+        .from('tenant_references')
+        .select('id, status, created_at')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+        .limit(50),
+
+      // Get team members
+      supabase
+        .from('company_users')
+        .select(`
+          id,
+          role,
+          joined_at,
+          user:user_id (
+            id,
+            email
+          )
+        `)
+        .eq('company_id', companyId),
+
+      // Get credit transactions
+      supabase
+        .from('credit_transactions')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+        .limit(50),
+
+      // Get agreement payments
+      supabase
+        .from('agreement_payments')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+        .limit(50),
+
+      // Get active subscription
+      supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('company_id', companyId)
+        .in('status', ['active', 'trialing'])
+        .single()
+    ])
+
+    // Calculate status breakdown
+    const statusBreakdown = referencesResult.data?.reduce((acc, ref) => {
+      acc[ref.status] = (acc[ref.status] || 0) + 1
+      return acc
+    }, {} as Record<string, number>) || {}
+
+    // Calculate total spent
+    const totalCreditsSpent = creditTxResult.data?.reduce((sum, tx) =>
+      sum + (parseFloat(tx.amount_gbp?.toString() || '0') || 0), 0) || 0
+    const totalAgreementsSpent = agreementPaymentsResult.data?.reduce((sum, payment) =>
+      sum + (parseFloat(payment.amount_gbp?.toString() || '0') || 0), 0) || 0
+
+    res.json({
+      company: {
+        id: company.id,
+        name: decrypt(company.name_encrypted) || 'Unnamed Company',
+        email: decrypt(company.email_encrypted) || '',
+        created_at: company.created_at,
+        reference_credits: company.reference_credits,
+        stripe_customer_id: company.stripe_customer_id,
+        onboarding_completed: company.onboarding_completed,
+        auto_recharge_enabled: company.auto_recharge_enabled,
+        auto_recharge_threshold: company.auto_recharge_threshold,
+        auto_recharge_pack_size: company.auto_recharge_pack_size
+      },
+      stats: {
+        totalReferences: referencesResult.count || 0,
+        totalCreditsSpent: totalCreditsSpent.toFixed(2),
+        totalAgreementsSpent: totalAgreementsSpent.toFixed(2),
+        totalSpent: (totalCreditsSpent + totalAgreementsSpent).toFixed(2),
+        teamSize: teamMembersResult.data?.length || 0,
+        statusBreakdown
+      },
+      references: referencesResult.data || [],
+      teamMembers: teamMembersResult.data || [],
+      creditTransactions: creditTxResult.data || [],
+      agreementPayments: agreementPaymentsResult.data || [],
+      subscription: subscriptionResult.data || null
+    })
+  } catch (error) {
+    console.error('Error fetching customer details:', error)
+    res.status(500).json({ error: 'Failed to fetch customer details' })
+  }
+})
+
+// Customer Credit Adjustment Endpoint
+router.post('/customers/:companyId/credits', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { companyId } = req.params
+    const { amount, reason } = req.body
+
+    if (!amount || typeof amount !== 'number' || amount === 0) {
+      return res.status(400).json({ error: 'Valid amount is required' })
+    }
+
+    if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+      return res.status(400).json({ error: 'Reason is required' })
+    }
+
+    // Get current company details
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('id, reference_credits, name_encrypted')
+      .eq('id', companyId)
+      .single()
+
+    if (companyError || !company) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const currentCredits = company.reference_credits || 0
+    const newBalance = currentCredits + amount
+
+    if (newBalance < 0) {
+      return res.status(400).json({
+        error: `Cannot reduce credits below 0. Current balance: ${currentCredits}, Adjustment: ${amount}`
+      })
+    }
+
+    // Update company credits
+    const { error: updateError } = await supabase
+      .from('companies')
+      .update({ reference_credits: newBalance })
+      .eq('id', companyId)
+
+    if (updateError) throw updateError
+
+    // Create credit transaction record
+    const { error: txError } = await supabase
+      .from('credit_transactions')
+      .insert({
+        company_id: companyId,
+        type: 'manual_adjustment',
+        credits_change: amount,
+        credits_balance_after: newBalance,
+        amount_gbp: null,
+        description: `Manual adjustment by admin: ${reason}`,
+        metadata: {
+          adjusted_by: req.adminUser?.id,
+          adjusted_by_name: req.adminUser?.full_name,
+          reason
+        },
+        created_by: req.user?.id
+      })
+
+    if (txError) throw txError
+
+    console.log(`[Admin] Credits adjusted for ${decrypt(company.name_encrypted)}: ${amount} credits (${currentCredits} → ${newBalance}). Reason: ${reason}`)
+
+    res.json({
+      success: true,
+      message: `Credits ${amount > 0 ? 'added' : 'removed'} successfully`,
+      previousBalance: currentCredits,
+      newBalance,
+      adjustment: amount
+    })
+  } catch (error) {
+    console.error('Error adjusting customer credits:', error)
+    res.status(500).json({ error: 'Failed to adjust customer credits' })
+  }
+})
+
 export default router
