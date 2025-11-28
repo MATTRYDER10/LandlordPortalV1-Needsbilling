@@ -1149,7 +1149,7 @@
 
             <!-- Credits and AML UI -->
             <div class="bg-white border rounded-lg p-6">
-              <div class="flex items-center justify-between mb-4">
+              <!-- <div class="flex items-center justify-between mb-4">
                 <h4 class="font-semibold text-gray-900">Credits and AML Verification</h4>
                 <button @click="triggerCreditsafeCheck" :disabled="creditsafeLoading"
                   class="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
@@ -1164,7 +1164,7 @@
                   </span>
                   <span v-else>Re-Check</span>
                 </button>
-              </div>
+              </div> -->
               <CreditsAndAmlUI v-if="reference?.status !== 'pending'"
                 :verification="creditAndAmlVerification?.verification"
                 :compliance-checks="creditAndAmlVerification?.complianceChecks ?? {}" />
@@ -1353,7 +1353,7 @@
 
               <!-- Notes -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes<sup class="text-red-500">*</sup></label>
                 <textarea v-model="steps[3]!.notes" rows="3"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   placeholder="Add notes about credit checks, sanctions screening, etc."></textarea>
@@ -1731,7 +1731,7 @@ const canProceed = computed(() => {
 
 const canFinalize = computed(() => {
   // All steps must have a decision
-  const allStepsDecided = steps.value.every(step => step.overall_pass !== null)
+  const allStepsDecided = steps.value.every(step => (step.overall_pass !== null || step.status === 'amber'))
   // TAS decision must be made
   const tasDecided = tasDecision.value !== null
   // If REFER or FAIL, reason is required
