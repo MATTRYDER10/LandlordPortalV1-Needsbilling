@@ -2,7 +2,7 @@ import { supabase } from "../../config/supabase";
 import { decrypt } from "../encryption";
 import { computeScore, scoringRules, computeIncomeMultiple } from "./computeScore";
 
-export const assessApplicationBySystem = async (referenceId: string) => {
+export const assessApplicationScore = async (referenceId: string,caller: 'System' | 'Staff',scoredBy: string | null = null) => {
     try {
         // FETCH ALL TABLE DATA
         const { data: reference } = await supabase
@@ -103,12 +103,10 @@ export const assessApplicationBySystem = async (referenceId: string) => {
             guarantor_min_ratio: null,
             guarantor_min_tas: null,
             scored_at: new Date().toISOString(),
-            scored_by: null,
-            assessed_by: "System",
+            scored_by: scoredBy,
+            assessed_by: caller,
             scoring_version: scoringRules.scoringVersion
         };
-
-        console.log("Score payload:", payload);
 
         const { error } = await supabase.from("reference_scores").upsert(payload, {
             onConflict: "reference_id"

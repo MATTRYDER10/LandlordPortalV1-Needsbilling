@@ -17,7 +17,7 @@ import { sanctionsService, ScreeningResponse } from '../services/sanctionsServic
 import { generateReferenceReportPDF } from '../services/pdfReportService'
 import * as billingService from '../services/billingService'
 import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/requestMetadata'
-import { assessApplicationBySystem } from '../services/application-assesment/assessApplication'
+import { assessApplicationScore } from '../services/application-assesment/assessApplication'
 
 const router = Router()
 
@@ -2248,7 +2248,7 @@ router.post('/submit/:token', async (req: Request, res) => {
       console.log('Sanctions screening is disabled, skipping')
     }
 
-    await assessApplicationBySystem(updatedReference.id);
+    await assessApplicationScore(updatedReference.id,'System');
     console.log('Application assessed successfully')
 
     res.json({

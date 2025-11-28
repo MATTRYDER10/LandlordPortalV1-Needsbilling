@@ -18,6 +18,7 @@ export const scoringRules = {
 
   residential: {
     fullPassScore: 250,
+    amberPassScore : 100,
     failScore: -300,
     failGate: "RES_REF_FAIL"
   },
@@ -90,7 +91,7 @@ export const computeScore = ({
     sanctions: boolean;
   };
   rtr: boolean;
-  residentialStatus: "PASS" | "SKIPPED" | "FAIL";
+  residentialStatus: "PASS" | "SKIPPED" | "FAIL" | "AMBER";
   incomeMultiple: number;
 }) => {
   const R = scoringRules;
@@ -132,6 +133,8 @@ export const computeScore = ({
   // RESIDENTIAL
   if (residentialStatus === "PASS") {
     residentialScore += R.residential.fullPassScore;
+  } else if (residentialStatus === "AMBER") {
+    residentialScore += R.residential.amberPassScore;
   } else if (residentialStatus === "FAIL") {
     residentialScore += R.residential.failScore;
     gates.push(R.residential.failGate);
