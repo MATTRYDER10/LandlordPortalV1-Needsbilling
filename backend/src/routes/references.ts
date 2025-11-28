@@ -13,7 +13,7 @@ import { logAuditAction } from '../services/auditService'
 import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
 import pdfService from '../services/pdfService'
 import { creditsafeService } from '../services/creditsafeService'
-import { sanctionsService } from '../services/sanctionsService'
+import { sanctionsService, ScreeningResponse } from '../services/sanctionsService'
 import { generateReferenceReportPDF } from '../services/pdfReportService'
 import * as billingService from '../services/billingService'
 import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/requestMetadata'
@@ -2102,7 +2102,6 @@ router.post('/submit/:token', async (req: Request, res) => {
     }
 
     //Check Creditsafe verification
-  debugger
     const address = [data.current_address_line1, data.current_address_line2, data.current_city, data.current_postcode, data.current_country].filter((add) => !!((add || '').trim())).join(', ')
 
     const creditSfaePayload = {
@@ -2115,7 +2114,7 @@ router.post('/submit/:token', async (req: Request, res) => {
 
     const creditsafeVerification = await creditsafeService.verifyIndividual(creditSfaePayload);
     //Delete existing verification if it exists
-    const {data:existingVerification} = await supabase.from('creditsafe_verifications').select('id').eq('reference_id', updatedReference.id).single()
+    const { data: existingVerification } = await supabase.from('creditsafe_verifications').select('id').eq('reference_id', updatedReference.id).single()
     if (existingVerification) {
       await supabase
         .from('creditsafe_verifications')
@@ -2131,6 +2130,7 @@ router.post('/submit/:token', async (req: Request, res) => {
       console.log('Creditsafe verification failed')
     }
 
+    let screeningResult: any = null;
     // Trigger UK Sanctions & Electoral Commission (PEP) screening (non-blocking)
     // Screens against UK Sanctions List (5,656 entities) and Electoral Commission donations (89,358 records)
     if (sanctionsService.isEnabled()) {
@@ -2141,7 +2141,8 @@ router.post('/submit/:token', async (req: Request, res) => {
         name: `${data.first_name} ${data.last_name}`,
         dateOfBirth: data.date_of_birth,
         postcode: data.current_postcode
-      }).then(async (screeningResult) => {
+      }).then(async (result) => {
+        screeningResult = result;
         console.log('Sanctions screening completed:', screeningResult.risk_level,
           'Total matches:', screeningResult.total_matches)
 
@@ -2245,6 +2246,82 @@ router.post('/submit/:token', async (req: Request, res) => {
       })
     } else {
       console.log('Sanctions screening is disabled, skipping')
+    }
+
+    //Calculate CREDIT SCORE
+
+    let credit_score = 0;
+    let fail_count = 0;
+
+    //CCJ
+    if (creditsafeVerification?.ccjMatch || Array.isArray(creditsafeVerification.countyCourtJudgments) && creditsafeVerification.countyCourtJudgments.length > 0) {
+      credit_score -= 120;
+      fail_count++;
+    }
+    else {
+      credit_score += 90;
+    }
+
+    //Electoral Roll
+    if (creditsafeVerification?.electoralRegisterMatch || Array.isArray(creditsafeVerification.electoralRolls) && creditsafeVerification.electoralRolls.length > 0) {
+      credit_score += 30;
+    }
+    else {
+      credit_score += 90;
+      fail_count++;
+    }
+
+    //Deceased Register
+    if (creditsafeVerification?.deceasedRegisterMatch) {
+      credit_score -= 300;
+      fail_count++;
+    }
+    else {
+      credit_score += 90;
+    }
+
+    //Insolvency
+    if (creditsafeVerification?.insolvencyMatch || Array.isArray(creditsafeVerification.insolvencies) && creditsafeVerification.insolvencies.length > 0) {
+      credit_score -= 150;
+      fail_count++;
+    }
+    else {
+      credit_score += 90;
+    }
+
+    //RTR score
+    let rtr_score = 0;
+    if (data.rtr_verified) {
+      rtr_score += 40;
+    }
+    //RTR_FAIL gate will be added at staff portal
+
+    //AML CHECK
+    let aml_score = 0;
+    if (screeningResult?.risk_level !== 'clear' && Array.isArray(screeningResult?.sanctions_matches) && screeningResult.sanctions_matches.length > 0) {
+      aml_score -= 500;
+      fail_count += 2; //PEP and Sanctions
+    } else {
+      aml_score += 160; //PEP and Sanctions checks passed
+    }
+
+    const { data: _, error: scoreError } = await supabase
+      .from('reference_scores')
+      .upsert(
+        {
+          reference_id: updatedReference.id,
+          score_total: credit_score || 0,
+          fail_count: fail_count || 0,
+          rtr_score: rtr_score || 0,
+          aml_score: aml_score || 0
+        },
+        { onConflict: 'reference_id' }
+      )
+      .select()
+      .single();
+
+    if (scoreError) {
+      console.error('Failed to store Creditsafe verification result:', scoreError)
     }
 
     res.json({

@@ -40,7 +40,7 @@ interface DonationMatch {
   donor_type: string
 }
 
-interface ScreeningResponse {
+export interface ScreeningResponse {
   query: string
   screening_date: string
   risk_level: 'clear' | 'low' | 'medium' | 'high'
