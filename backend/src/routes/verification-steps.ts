@@ -3,6 +3,47 @@ import { authenticateStaff as staffAuth, StaffAuthRequest } from '../middleware/
 import { supabase as supabaseAdmin } from '../config/supabase';
 import { generateReferenceReportPDFV2 } from '../services/pdfReportServiceV2';
 
+// Helper function to ensure storage bucket exists
+async function ensureBucketExists(bucketId: string): Promise<boolean> {
+  try {
+    // Check if bucket exists
+    const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
+
+    if (listError) {
+      console.error(`[Bucket] Error listing buckets:`, listError);
+      return false;
+    }
+
+    const bucketExists = buckets?.some(b => b.id === bucketId);
+
+    if (bucketExists) {
+      return true;
+    }
+
+    // Create bucket if it doesn't exist
+    console.log(`[Bucket] Creating bucket "${bucketId}"...`);
+    const { data: newBucket, error: createError } = await supabaseAdmin.storage.createBucket(
+      bucketId,
+      {
+        public: true,
+        fileSizeLimit: 10485760, // 10MB
+        allowedMimeTypes: ['application/pdf'],
+      }
+    );
+
+    if (createError) {
+      console.error(`[Bucket] Error creating bucket "${bucketId}":`, createError);
+      return false;
+    }
+
+    console.log(`[Bucket] Bucket "${bucketId}" created successfully`);
+    return true;
+  } catch (error: any) {
+    console.error(`[Bucket] Error ensuring bucket exists:`, error);
+    return false;
+  }
+}
+
 const router = Router();
 
 // Get evidence source options
@@ -402,30 +443,38 @@ router.post('/reference/:referenceId/finalize', staffAuth, async (req: StaffAuth
       const timestamp = Date.now();
       const fileName = `reference-report-${firstName}-${lastName}-${timestamp}.pdf`;
 
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-        .from('reference-pdfs')
-        .upload(`reports/${referenceId}/${fileName}`, buffer, {
-          contentType: 'application/pdf',
-          upsert: true
-        });
+      // Ensure bucket exists before uploading
+      const bucketId = 'reference-pdfs';
+      const bucketExists = await ensureBucketExists(bucketId);
 
-      if (uploadError) {
-        console.error('[Finalize] PDF upload error:', uploadError);
+      if (!bucketExists) {
+        console.error('[Finalize] Failed to ensure bucket exists, skipping PDF upload');
       } else {
-        pdfGenerated = true;
-        const { data: urlData } = supabaseAdmin.storage
-          .from('reference-pdfs')
-          .getPublicUrl(`reports/${referenceId}/${fileName}`);
-        pdfUrl = urlData.publicUrl;
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+          .from(bucketId)
+          .upload(`reports/${referenceId}/${fileName}`, buffer, {
+            contentType: 'application/pdf',
+            upsert: true
+          });
 
-        // Update reference with PDF URL
-        await supabaseAdmin
-          .from('tenant_references')
-          .update({ report_url: pdfUrl })
-          .eq('id', referenceId);
+        if (uploadError) {
+          console.error('[Finalize] PDF upload error:', uploadError);
+        } else {
+          pdfGenerated = true;
+          const { data: urlData } = supabaseAdmin.storage
+            .from(bucketId)
+            .getPublicUrl(`reports/${referenceId}/${fileName}`);
+          pdfUrl = urlData.publicUrl;
 
-        console.log(`[Finalize] PDF generated and uploaded: ${pdfUrl}`);
+          // Update reference with PDF URL
+          await supabaseAdmin
+            .from('tenant_references')
+            .update({ report_url: pdfUrl })
+            .eq('id', referenceId);
+
+          console.log(`[Finalize] PDF generated and uploaded: ${pdfUrl}`);
+        }
       }
     } catch (pdfError) {
       console.error('[Finalize] PDF generation error:', pdfError);

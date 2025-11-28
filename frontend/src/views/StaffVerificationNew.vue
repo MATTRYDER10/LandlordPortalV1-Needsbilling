@@ -1079,9 +1079,9 @@
               <div class="flex gap-4">
 
                 <!-- PASS -->
-                <button @click="steps[2]!.status = 'pass'" :class="[
+                <button @click="steps[2]!.overall_pass = true" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                  steps[2]!.status === 'pass'
+                  steps[2]!.overall_pass === true
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-green-50'
                 ]">
@@ -1089,9 +1089,9 @@
                 </button>
 
                 <!-- AMBER -->
-                <button @click="steps[2]!.status = 'amber'" :class="[
+                <button @click="steps[2]!.status = 'amber' ,steps[2]!.overall_pass = null" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                  steps[2]!.status === 'amber'
+                  steps[2]!.status === 'amber' && steps[2]!.overall_pass === null
                     ? 'bg-amber-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-green-50'
                 ]">
@@ -1099,9 +1099,9 @@
                 </button>
 
                 <!-- FAIL -->
-                <button @click="steps[2]!.status = 'fail'" :class="[
+                <button @click="steps[2]!.overall_pass = false" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                  steps[2]!.status === 'fail'
+                  steps[2]!.overall_pass === false
                     ? 'bg-red-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-red-50'
                 ]">
@@ -1713,6 +1713,7 @@ const canMakeStep4Decision = computed(() => {
 })
 
 const canProceed = computed(() => {
+  debugger
   const step = steps.value[currentStep.value - 1]
   if (!step) return false
 
@@ -1726,7 +1727,9 @@ const canProceed = computed(() => {
     return step.overall_pass !== null
   }
 
-  return step.overall_pass !== null || step.status === 'amber'
+  console.log("hellow",step.status,step.overall_pass)
+  const a = step.overall_pass !== null || step.status === 'amber'
+  return a
 })
 
 const canFinalize = computed(() => {
@@ -1989,7 +1992,7 @@ const saveProgress = async () => {
         },
         body: JSON.stringify({
           step_type: stepData.step_type,
-          overall_pass: stepData.overall_pass,
+          overall_pass: !!(stepData.overall_pass || stepData.status === 'amber'),
           notes: stepData.notes,
           evidence_sources: stepData.evidence_sources,
           checks: stepData.checks

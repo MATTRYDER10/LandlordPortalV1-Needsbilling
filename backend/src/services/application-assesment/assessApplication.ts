@@ -5,6 +5,7 @@ import { computeScore, scoringRules, computeIncomeMultiple } from "./computeScor
 export const assessApplicationScore = async (referenceId: string,caller: 'System' | 'Staff',scoredBy: string | null = null) => {
     try {
         // FETCH ALL TABLE DATA
+        debugger;
         const { data: reference } = await supabase
             .from("tenant_references")
             .select("*")
@@ -96,6 +97,7 @@ export const assessApplicationScore = async (referenceId: string,caller: 'System
                 income: scoreData.domain_scores.income
             },
             ratio: incomeMultiple,
+            risk_level: scoreData.risk_level,
             caps: scoreData.gates,
             review_flags: [],
             decline_reasons: [],

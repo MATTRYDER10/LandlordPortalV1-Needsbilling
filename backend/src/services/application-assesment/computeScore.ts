@@ -94,6 +94,7 @@ export const computeScore = ({
   residentialStatus: "PASS" | "SKIPPED" | "FAIL" | "AMBER";
   incomeMultiple: number;
 }) => {
+  debugger
   const R = scoringRules;
 
   // Domain Scores

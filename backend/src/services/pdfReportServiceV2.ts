@@ -153,10 +153,64 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
   const additionalIncome = reference.additional_income_amount_encrypted ? parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0') : 0
   totalIncome = employmentSalary + selfEmployedIncome + benefitsAnnual + additionalIncome
 
+  // Extract personal data fields
+  const hasChildren = reference.number_of_dependants ? reference.number_of_dependants > 0 : false
+  const numberOfChildren = reference.number_of_dependants || 0
+  const isSmoker = reference.is_smoker === true
+  const hasPets = reference.has_pets === true
+  const petDetails = reference.pet_details_encrypted ? decrypt(reference.pet_details_encrypted) : ''
+  const numberOfTenants = reference.number_of_tenants || 1
+
+  // Extract affordability data
+  const monthlyRent = reference.monthly_rent || (reference.monthly_rent_encrypted ? parseFloat(decrypt(reference.monthly_rent_encrypted) || '0') : 0)
+  const rentShare = reference.rent_share ? parseFloat(String(reference.rent_share)) : monthlyRent
+  const affordabilityRatio = score?.ratio || (totalIncome > 0 && monthlyRent > 0 ? (totalIncome / 12) / monthlyRent : 0)
+  const verifiedSavings = reference.savings_amount_encrypted ? parseFloat(decrypt(reference.savings_amount_encrypted) || '0') : 0
+  const maxAffordableRent = totalIncome > 0 ? (totalIncome / 12) / 2.5 : 0 // Assuming 2.5x ratio minimum
+
+  // Parse fraud indicators for credit history
+  let ccjCount = 0
+  let bankruptcyCount = 0
+  let adverseCreditFound = false
+  if (creditsafe?.fraud_indicators) {
+    try {
+      const fraudIndicators = typeof creditsafe.fraud_indicators === 'string'
+        ? JSON.parse(creditsafe.fraud_indicators)
+        : creditsafe.fraud_indicators
+      ccjCount = fraudIndicators.ccjCount || 0
+      bankruptcyCount = fraudIndicators.insolvencyCount || 0
+      adverseCreditFound = fraudIndicators.ccjMatch || fraudIndicators.insolvencyMatch || false
+    } catch (e) {
+      console.error('Error parsing fraud indicators:', e)
+    }
+  }
+
+  // Parse sanctions matches
+  let sanctionsMatches: any[] = []
+  if (sanctions?.sanctions_matches) {
+    try {
+      sanctionsMatches = Array.isArray(sanctions.sanctions_matches)
+        ? sanctions.sanctions_matches
+        : JSON.parse(sanctions.sanctions_matches || '[]')
+    } catch (e) {
+      console.error('Error parsing sanctions matches:', e)
+    }
+  }
+
+  // Check if living with family
+  const isLivingWithFamily = reference.reference_type === 'living_with_family'
+  const landlordComments = landlordReference?.additional_comments_encrypted
+    ? decrypt(landlordReference.additional_comments_encrypted)
+    : agentReference?.additional_comments_encrypted
+      ? decrypt(agentReference.additional_comments_encrypted)
+      : ''
+
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margin: 50 })
       const chunks: Buffer[] = []
+      let pageCount = 0
+
       doc.on('data', (chunk) => chunks.push(chunk))
       doc.on('end', () => resolve({
         buffer: Buffer.concat(chunks),
@@ -165,13 +219,53 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
       }))
       doc.on('error', reject)
 
+      // Track page count
+      let currentPage = 1
+
+      // Helper to add footer to current page
+      const addFooter = (totalPages?: number) => {
+        const footerY = 770
+        const pageText = totalPages ? `Page ${currentPage} of ${totalPages}` : `Page ${currentPage}`
+        const generatedDate = new Date().toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })
+        doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+          .text(
+            `Report generated on ${generatedDate}`,
+            50,
+            footerY,
+            { align: 'left', width: 300 }
+          )
+        doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+          .text(
+            pageText,
+            0,
+            footerY,
+            { align: 'right', width: 545 }
+          )
+      }
+
+      // Helper to add new page with footer
+      const addPageWithFooter = () => {
+        doc.addPage()
+        currentPage++
+        addFooter()
+      }
+
+      // Add footer to first page
+      const addFirstPageFooter = () => {
+        addFooter()
+      }
+
       const primaryColor = '#f97316'
       const darkGray = '#1f2937'
       const lightGray = '#6b7280'
       const passGreen = '#10b981'
       const failRed = '#ef4444'
 
-      // ========== PAGE 1: SUMMARY & APPLICANT INFO ==========
+      // ========== PAGE 1: CERTIFICATE OF COMPLETION ==========
 
       // Header
       const logoPath = path.join(__dirname, '../../assets/PropertyGooseIcon.png')
@@ -187,129 +281,216 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
 
       let y = 120
 
-      // TAS Decision Box (prominent)
-      if (verificationCheck?.tas_category) {
-        const tasColors: Record<string, string> = {
-          'PASS_PLUS': passGreen,
-          'PASS': '#3b82f6',
-          'REFER': '#f59e0b',
-          'FAIL': failRed
-        }
-        const tasColor = tasColors[verificationCheck.tas_category] || lightGray
+      // Certificate of Completion Header
+      doc.fontSize(20).fillColor(darkGray).font('Helvetica-Bold')
+        .text('Certificate of Completion', 50, y, { align: 'center', width: 495 })
+      y += 30
 
-        doc.roundedRect(50, y, 495, 60, 5)
-          .fillAndStroke(tasColor, tasColor)
+      // Pass statement
+      doc.fontSize(12).fillColor(darkGray).font('Helvetica')
+        .text('PropertyGoose recognises this reference as a pass.', 50, y, { align: 'center', width: 495 })
+      y += 25
 
-        doc.fontSize(12).fillColor('#ffffff').font('Helvetica-Bold')
-          .text('TAS DECISION', 60, y + 15)
+      // Rental Address
+      const fullPropertyAddress = `${propertyAddress}${propertyCity ? ', ' + propertyCity : ''}${propertyPostcode ? ' ' + propertyPostcode : ''}`
+      doc.fontSize(11).fillColor(darkGray).font('Helvetica-Bold')
+        .text('Rental Address:', 50, y)
+      y += 15
+      doc.fontSize(10).fillColor(darkGray).font('Helvetica')
+        .text(fullPropertyAddress || 'Not provided', 50, y, { width: 495 })
+      y += 20
 
-        doc.fontSize(20).fillColor('#ffffff').font('Helvetica-Bold')
-          .text(verificationCheck.tas_category.replace('_', ' '), 60, y + 32)
+      // Tenant Name
+      const fullTenantName = `${firstName}${middleName ? ' ' + middleName : ''} ${lastName}`
+      doc.fontSize(11).fillColor(darkGray).font('Helvetica-Bold')
+        .text('Tenant Name:', 50, y)
+      y += 15
+      doc.fontSize(10).fillColor(darkGray).font('Helvetica')
+        .text(fullTenantName, 50, y, { width: 495 })
+      y += 30
 
-        if (verificationCheck.tas_reason) {
-          doc.fontSize(9).fillColor('#ffffff').font('Helvetica')
-            .text(`Reason: ${verificationCheck.tas_reason}`, 250, y + 20, { width: 280 })
-        }
-
-        y += 75
+      // Personal Data Section with orange bar
+      if (y > 650) {
+        addPageWithFooter()
+        y = 50
       }
 
-      // Two-column layout: Applicant Info (left) and Property Info (right)
-      const leftColX = 50
-      const rightColX = 310
-      const labelWidth = 80
+      // Orange section bar
+      doc.rect(50, y, 495, 25).fill(primaryColor)
+      doc.fontSize(12).fillColor('#ffffff').font('Helvetica-Bold')
+        .text('Personal Data', 60, y + 7)
+      y += 35
 
-      // Applicant Info (left column)
-      doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Applicant Information', leftColX, y)
-      let leftY = y + 20
-      doc.fontSize(9).fillColor(lightGray).font('Helvetica')
-      const appInfo = [
-        ['Name', `${firstName}${middleName ? ' ' + middleName : ''} ${lastName}`],
-        ['Email', email || 'Not provided'],
-        ['Phone', phone || 'Not provided'],
-        ['Date of Birth', dateOfBirth ? new Date(dateOfBirth).toLocaleDateString('en-GB') : 'Not provided']
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+      const personalDataItems = [
+        ['Has children', hasChildren ? `Yes (${numberOfChildren})` : 'No'],
+        ['Smoker', isSmoker ? 'Yes' : 'No'],
+        ['Pets', hasPets ? (petDetails ? `Yes - ${petDetails}` : 'Yes') : 'No'],
+        ['Number of tenants', numberOfTenants.toString()]
       ]
-      appInfo.forEach(([label, value]) => {
-        doc.font('Helvetica-Bold').text(`${label}:`, leftColX, leftY, { continued: false })
-        doc.font('Helvetica').fillColor(darkGray).text(value, leftColX + labelWidth, leftY, { width: 200 })
-        leftY += 15
+
+      personalDataItems.forEach(([label, value]) => {
+        doc.font('Helvetica-Bold').text(`${label}:`, 60, y, { continued: false })
+        doc.font('Helvetica').fillColor(darkGray).text(value, 150, y, { width: 400 })
+        y += 15
       })
+      y += 10
 
-      // Property Info (right column)
-      doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Property Information', rightColX, y)
-      let rightY = y + 20
-      doc.fontSize(9).fillColor(lightGray).font('Helvetica')
-      const propInfo = [
-        ['Address', propertyAddress || 'Not provided'],
-        ['City', propertyCity || 'Not provided'],
-        ['Postcode', propertyPostcode || 'Not provided'],
-        ['Landlord', companyName]
-      ]
-      propInfo.forEach(([label, value]) => {
-        doc.font('Helvetica-Bold').text(`${label}:`, rightColX, rightY, { continued: false })
-        doc.font('Helvetica').fillColor(darkGray).text(value, rightColX + labelWidth, rightY, { width: 200 })
-        rightY += 15
-      })
-
-      y = Math.max(leftY, rightY) + 20
-
-      // Employment & Income Section
-      if (employerReference || reference.employment_company_name_encrypted || totalIncome > 0) {
+      // Income Check Section
+      const incomeStep = verificationSteps?.find((s: VerificationStep) => s.step_type === 'INCOME_AFFORDABILITY')
+      if (incomeStep || totalIncome > 0) {
         if (y > 650) {
-          doc.addPage()
+          addPageWithFooter()
           y = 50
         }
-        doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Employment & Income Details', 50, y)
-        y += 20
-        
-        if (employerReference) {
-          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Employer Reference:', 60, y)
+
+        // Orange section bar
+        doc.rect(50, y, 495, 25).fill(primaryColor)
+        doc.fontSize(12).fillColor('#ffffff').font('Helvetica-Bold')
+          .text('Income Check', 60, y + 7)
+        y += 35
+
+        // Income verification type
+        if (incomeStep?.evidence_sources && incomeStep.evidence_sources.length > 0) {
+          doc.fontSize(9).fillColor(darkGray).font('Helvetica-Bold')
+            .text('Income verification type:', 60, y)
           y += 15
-          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-          if (employerReference.employer_name) {
-            doc.text(`Company: ${employerReference.employer_name}`, 70, y, { width: 465 })
+          doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+          incomeStep.evidence_sources.forEach((evidenceType: string) => {
+            const label = evidenceLabels[evidenceType] || evidenceType
+            doc.text(`• ${label}`, 70, y, { width: 465 })
             y += 12
-          }
-          if (employerReference.job_title) {
-            doc.text(`Position: ${employerReference.job_title}`, 70, y, { width: 465 })
-            y += 12
-          }
-          if (employerReference.salary_amount) {
-            doc.text(`Salary: £${parseFloat(employerReference.salary_amount).toLocaleString('en-GB')}`, 70, y, { width: 465 })
-            y += 12
-          }
+          })
           y += 5
         }
-        
-        const employmentCompany = reference.employment_company_name_encrypted ? decrypt(reference.employment_company_name_encrypted) : ''
-        const employmentPosition = reference.employment_position_encrypted ? decrypt(reference.employment_position_encrypted) : ''
-        if (employmentCompany || employmentPosition) {
-          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Tenant Provided Employment:', 60, y)
-          y += 15
-          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-          if (employmentCompany) {
-            doc.text(`Company: ${employmentCompany}`, 70, y, { width: 465 })
-            y += 12
-          }
-          if (employmentPosition) {
-            doc.text(`Position: ${employmentPosition}`, 70, y, { width: 465 })
-            y += 12
-          }
+
+        // Remarks (optional)
+        if (incomeStep?.notes && incomeStep.notes.trim().length > 0) {
+          doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+            .text(incomeStep.notes, 60, y, { width: 475 })
+          y += doc.heightOfString(incomeStep.notes, { width: 475 }) + 10
+        } else {
           y += 5
-        }
-        
-        if (totalIncome > 0) {
-          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Total Annual Income:', 60, y)
-          doc.fontSize(10).fillColor(darkGray).font('Helvetica-Bold')
-            .text(`£${totalIncome.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 200, y)
-          y += 20
         }
       }
 
-      // Credit Score & Checks Section
-      if (score || creditsafe || sanctions) {
+      // Affordability Section
+      if (y > 650) {
+        addPageWithFooter()
+        y = 50
+      }
+
+      // Orange section bar
+      doc.rect(50, y, 495, 25).fill(primaryColor)
+      doc.fontSize(12).fillColor('#ffffff').font('Helvetica-Bold')
+        .text('Affordability', 60, y + 7)
+      y += 35
+
+      // Affordability box
+      doc.rect(60, y, 475, 80).stroke(darkGray).lineWidth(1)
+      const boxY = y + 10
+
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica-Bold')
+        .text('Rent share:', 70, boxY)
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+        .text(`£${rentShare.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 200, boxY)
+
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica-Bold')
+        .text('Affordability ratio:', 70, boxY + 20)
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+        .text(affordabilityRatio.toFixed(2) + 'x', 200, boxY + 20)
+
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica-Bold')
+        .text('Verified savings:', 70, boxY + 40)
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+        .text(`£${verifiedSavings.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 200, boxY + 40)
+
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica-Bold')
+        .text('Maximum affordable rent:', 70, boxY + 60)
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+        .text(`£${maxAffordableRent.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 200, boxY + 60)
+
+      y += 95
+
+      // Remarks in light grey under the box
+      const incomeStepForRemarks = verificationSteps?.find((s: VerificationStep) => s.step_type === 'INCOME_AFFORDABILITY')
+      if (incomeStepForRemarks?.notes && incomeStepForRemarks.notes.trim().length > 0) {
+        doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+          .text(incomeStepForRemarks.notes, 60, y, { width: 475 })
+        y += doc.heightOfString(incomeStepForRemarks.notes, { width: 475 }) + 10
+      } else {
+        y += 5
+      }
+
+      // Credit History Section
+      if (y > 650) {
+        addPageWithFooter()
+        y = 50
+      }
+
+      // Orange section bar
+      doc.rect(50, y, 495, 25).fill(primaryColor)
+      doc.fontSize(12).fillColor('#ffffff').font('Helvetica-Bold')
+        .text('Credit History', 60, y + 7)
+      y += 35
+
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+      doc.text(`Adverse credit — ${adverseCreditFound ? 'Found' : 'None found'}`, 60, y, { width: 465 })
+      y += 15
+      doc.text(`CCJs — ${ccjCount}`, 60, y, { width: 465 })
+      y += 15
+      doc.text(`Bankruptcies — ${bankruptcyCount}`, 60, y, { width: 465 })
+      y += 20
+
+      // PEP & Sanctions Checks Section
+      if (y > 650) {
+        addPageWithFooter()
+        y = 50
+      }
+
+      // Orange section bar
+      doc.rect(50, y, 495, 25).fill(primaryColor)
+      doc.fontSize(12).fillColor('#ffffff').font('Helvetica-Bold')
+        .text('PEP & Sanctions Checks', 60, y + 7)
+      y += 35
+
+      // Status
+      const sanctionsStatus = sanctions?.risk_level === 'clear' || sanctionsMatches.length === 0 ? 'Pass' : 'Fail'
+      const sanctionsStatusColor = sanctionsStatus === 'Pass' ? passGreen : failRed
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica-Bold')
+        .text('Status:', 60, y)
+      doc.fontSize(9).fillColor(sanctionsStatusColor).font('Helvetica-Bold')
+        .text(sanctionsStatus, 120, y)
+      y += 20
+
+      // Sanctions: Complete
+      doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+        .text('Sanctions: Complete', 60, y, { width: 465 })
+      y += 20
+
+      // Sanctions list
+      if (sanctionsMatches.length === 0) {
+        doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+          .text('No sanctions found.', 60, y, { width: 465 })
+        y += 15
+      } else {
+        doc.fontSize(9).fillColor(darkGray).font('Helvetica-Bold')
+          .text('Sanctions matches:', 60, y)
+        y += 15
+        sanctionsMatches.forEach((match: any) => {
+          const matchName = match.name || match.entity_name || 'Unknown'
+          const matchReason = match.reason || match.match_reason || 'No reason provided'
+          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
+            .text(`• ${matchName}: ${matchReason}`, 70, y, { width: 455 })
+          y += 12
+        })
+      }
+      y += 10
+
+      // Credit Score & Checks Section (keeping some existing content)
+      if (score || creditsafe) {
         if (y > 650) {
-          doc.addPage()
+          addPageWithFooter()
           y = 50
         }
         doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Credit & Background Checks', 50, y)
@@ -477,58 +658,62 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
         }
       }
 
-      // Landlord/Agent Reference Section
-      if (landlordReference || agentReference) {
-        if (y > 650) {
-          doc.addPage()
-          y = 50
-        }
-        doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Previous Tenancy Reference', 50, y)
+      // Landlord Reference Section
+      if (y > 650) {
+        addPageWithFooter()
+        y = 50
+      }
+
+      // Orange section bar
+      doc.rect(50, y, 495, 25).fill(primaryColor)
+      doc.fontSize(12).fillColor('#ffffff').font('Helvetica-Bold')
+        .text('Landlord Reference', 60, y + 7)
+      y += 35
+
+      if (isLivingWithFamily || (landlordComments && landlordComments.toLowerCase().includes('living with family'))) {
+        doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+          .text('Not applicable — applicant is living with family/friends', 60, y, { width: 475 })
         y += 20
-        
-        if (landlordReference) {
-          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Landlord Reference:', 60, y)
+      } else if (landlordComments && landlordComments.trim().length > 0) {
+        doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+          .text(landlordComments, 60, y, { width: 475 })
+        y += doc.heightOfString(landlordComments, { width: 475 }) + 10
+      } else if (landlordReference || agentReference) {
+        const ref = landlordReference || agentReference
+        if (ref) {
+          const refName = landlordReference ? 'Landlord' : 'Agent'
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold')
+            .text(`${refName} Reference:`, 60, y)
           y += 15
           doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-          if (landlordReference.landlord_name) {
-            doc.text(`Landlord: ${landlordReference.landlord_name}`, 70, y, { width: 465 })
+          if (landlordReference?.landlord_name_encrypted || agentReference?.agent_name_encrypted) {
+            const name = landlordReference?.landlord_name_encrypted
+              ? decrypt(landlordReference.landlord_name_encrypted)
+              : agentReference?.agent_name_encrypted
+                ? decrypt(agentReference.agent_name_encrypted)
+                : 'N/A'
+            doc.text(`Name: ${name}`, 70, y, { width: 465 })
             y += 12
           }
-          if (landlordReference.monthly_rent) {
-            doc.text(`Monthly Rent: £${parseFloat(landlordReference.monthly_rent).toLocaleString('en-GB')}`, 70, y, { width: 465 })
-            y += 12
-          }
-          if (landlordReference.tenancy_start_date) {
-            doc.text(`Tenancy Start: ${new Date(landlordReference.tenancy_start_date).toLocaleDateString('en-GB')}`, 70, y, { width: 465 })
-            y += 12
+          if (ref.monthly_rent_encrypted) {
+            const rent = decrypt(ref.monthly_rent_encrypted)
+            if (rent) {
+              doc.text(`Monthly Rent: £${parseFloat(rent).toLocaleString('en-GB')}`, 70, y, { width: 465 })
+              y += 12
+            }
           }
           y += 5
         }
-        
-        if (agentReference) {
-          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Letting Agent Reference:', 60, y)
-          y += 15
-          doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-          if (agentReference.agent_name) {
-            doc.text(`Agent: ${agentReference.agent_name}`, 70, y, { width: 465 })
-            y += 12
-          }
-          if (agentReference.monthly_rent) {
-            doc.text(`Monthly Rent: £${parseFloat(agentReference.monthly_rent).toLocaleString('en-GB')}`, 70, y, { width: 465 })
-            y += 12
-          }
-          if (agentReference.tenancy_start_date) {
-            doc.text(`Tenancy Start: ${new Date(agentReference.tenancy_start_date).toLocaleDateString('en-GB')}`, 70, y, { width: 465 })
-            y += 12
-          }
-          y += 5
-        }
+      } else {
+        doc.fontSize(9).fillColor(lightGray).font('Helvetica-Oblique')
+          .text('No landlord reference provided', 60, y, { width: 475 })
+        y += 20
       }
 
       // Guarantor Section
       if (decryptedGuarantor && decryptedGuarantor.submitted_at) {
         if (y > 600) {
-          doc.addPage()
+          addPageWithFooter()
           y = 50
         }
         doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Guarantor Information', 50, y)
@@ -590,249 +775,137 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
         }
       }
 
-      // Verification Summary Section
-      if (y > 700) {
-        doc.addPage()
+      // Evidence Section
+      if (y > 650) {
+        addPageWithFooter()
         y = 50
       }
-      doc.fontSize(14).fillColor(darkGray).font('Helvetica-Bold').text('Verification Summary', 50, y)
-      y += 25
 
-      if (verificationSteps && verificationSteps.length > 0) {
-        const stepLabels: Record<string, string> = {
-          'ID_SELFIE': 'Step 1: ID & Selfie Verification',
-          'INCOME_AFFORDABILITY': 'Step 2: Income & Affordability',
-          'RESIDENTIAL': 'Step 3: Residential History',
-          'CREDIT_TAS': 'Step 4: Credit & TAS Check'
-        }
+      // Orange section bar
+      doc.rect(50, y, 495, 25).fill(primaryColor)
+      doc.fontSize(12).fillColor('#ffffff').font('Helvetica-Bold')
+        .text('Evidence', 60, y + 7)
+      y += 35
 
-        verificationSteps.forEach((step: VerificationStep) => {
-          // Check if we need a new page
-          if (y > 700) {
-            doc.addPage()
-            y = 50
-          }
-
-          const stepLabel = stepLabels[step.step_type] || `Step ${step.step_number}`
-          const passColor = step.overall_pass ? passGreen : failRed
-          const passText = step.overall_pass === true ? 'PASS' : step.overall_pass === false ? 'FAIL' : 'PENDING'
-
-          // Step header with pass/fail badge
-          doc.fontSize(11).fillColor(darkGray).font('Helvetica-Bold')
-            .text(stepLabel, 50, y, { continued: true })
-
-          doc.fontSize(9).fillColor(passColor).font('Helvetica-Bold')
-            .text(` [${passText}]`, { continued: false })
-
-          y += 20
-
-          // Evidence sources used
-          if (step.evidence_sources && step.evidence_sources.length > 0) {
-            doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold')
-              .text('Evidence Sources:', 60, y)
-            y += 15
-
-            step.evidence_sources.forEach((evidenceType: string) => {
-              const label = evidenceLabels[evidenceType] || evidenceType
-              doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-                .text(`• ${label}`, 70, y)
-              y += 12
-            })
-          } else if (step.step_type !== 'ID_SELFIE') {
-            doc.fontSize(8).fillColor(lightGray).font('Helvetica-Oblique')
-              .text('No evidence sources recorded', 70, y)
-            y += 12
-          }
-
-          // Notes
-          if (step.notes && step.notes.trim().length > 0) {
-            y += 5
-            doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold')
-              .text('Notes:', 60, y)
-            y += 15
-            doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-              .text(step.notes, 70, y, { width: 465 })
-            y += doc.heightOfString(step.notes, { width: 465 }) + 5
-          }
-
-          y += 15 // Spacing between steps
-        })
-      } else {
-        doc.fontSize(9).fillColor(lightGray).font('Helvetica-Oblique')
-          .text('No verification steps completed', 60, y)
-        y += 20
-      }
-
-      // ========== PAGE 2: DETAILED CHECKS & COMPLIANCE ==========
-      doc.addPage()
-      y = 50
-
-      // Header on second page
-      doc.fontSize(18).fillColor(darkGray).font('Helvetica-Bold')
-        .text('Detailed Verification Checks', 50, y)
-      doc.moveTo(50, y + 25).lineTo(545, y + 25).strokeColor(primaryColor).lineWidth(1).stroke()
-      y += 40
-
-      // Right to Rent Check
-      doc.fontSize(12).fillColor(darkGray).font('Helvetica-Bold')
-        .text('Right to Rent Compliance', 50, y)
-      y += 20
-      doc.fontSize(9).fillColor(darkGray).font('Helvetica')
-        .text('All checks performed in accordance with UK Right to Rent requirements.', 60, y, { width: 475 })
-      y += 15
-      
-      // Right to Rent Status
-      const rightToRentStatus = reference.right_to_rent_status || 'Not Checked'
-      const rightToRentColor = rightToRentStatus === 'PASS' ? passGreen : rightToRentStatus === 'FAIL' ? failRed : lightGray
-      doc.fontSize(9).fillColor(lightGray).font('Helvetica-Bold').text('Right to Rent Status:', 60, y)
-      doc.fontSize(10).fillColor(rightToRentColor).font('Helvetica-Bold')
-        .text(rightToRentStatus, 200, y)
-      y += 20
-      
-      if (reference.id_document_type) {
-        doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-          .text(`ID Document Type: ${reference.id_document_type.replace('_', ' ').toUpperCase()}`, 60, y, { width: 475 })
-        y += 12
-      }
-      if (reference.id_document_path) {
-        doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-          .text('ID Document: Provided and verified', 60, y, { width: 475 })
-        y += 12
-      }
-      if (reference.selfie_path) {
-        doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-          .text('Selfie Verification: Completed', 60, y, { width: 475 })
-        y += 12
-      }
-      y += 10
-
-      // Identity Verification Details
-      const idStep = verificationSteps?.find((s: VerificationStep) => s.step_type === 'ID_SELFIE')
-      if (idStep) {
-        doc.fontSize(11).fillColor(darkGray).font('Helvetica-Bold')
-          .text('Identity Verification', 50, y)
-        y += 20
-        doc.fontSize(9).fillColor(darkGray).font('Helvetica')
-          .text('ID document verified against photo identification and selfie match.', 60, y, { width: 475 })
-        y += 15
-        if (idStep.notes) {
-          doc.fontSize(8).fillColor(lightGray).font('Helvetica')
-            .text(`Notes: ${idStep.notes}`, 60, y, { width: 475 })
-          y += doc.heightOfString(`Notes: ${idStep.notes}`, { width: 475 })
-        }
-        y += 20
-      }
-
-      // Income & Affordability Details
-      const incomeStep = verificationSteps?.find((s: VerificationStep) => s.step_type === 'INCOME_AFFORDABILITY')
-      if (incomeStep) {
-        doc.fontSize(11).fillColor(darkGray).font('Helvetica-Bold')
-          .text('Income & Affordability Assessment', 50, y)
-        y += 20
-
-        if (incomeStep.evidence_sources && incomeStep.evidence_sources.length > 0) {
-          doc.fontSize(9).fillColor(darkGray).font('Helvetica')
-            .text('Verified using the following documentation:', 60, y)
-          y += 15
-          incomeStep.evidence_sources.forEach((evidenceType: string) => {
-            const label = evidenceLabels[evidenceType] || evidenceType
-            doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-              .text(`• ${label}`, 70, y)
-            y += 12
-          })
-        }
-
-        if (incomeStep.notes) {
-          y += 5
-          doc.fontSize(8).fillColor(lightGray).font('Helvetica')
-            .text(`Assessment: ${incomeStep.notes}`, 60, y, { width: 475 })
-          y += doc.heightOfString(`Assessment: ${incomeStep.notes}`, { width: 475 })
-        }
-        y += 20
-      }
-
-      // Residential History Details
+      // Residential Evidence
       const residentialStep = verificationSteps?.find((s: VerificationStep) => s.step_type === 'RESIDENTIAL')
       if (residentialStep) {
-        doc.fontSize(11).fillColor(darkGray).font('Helvetica-Bold')
-          .text('Residential History Verification', 50, y)
-        y += 20
+        doc.fontSize(10).fillColor(darkGray).font('Helvetica-Bold')
+          .text('Residential', 60, y)
+        y += 15
 
-        if (residentialStep.evidence_sources && residentialStep.evidence_sources.length > 0) {
+        if (isLivingWithFamily) {
           doc.fontSize(9).fillColor(darkGray).font('Helvetica')
-            .text('Verified using the following documentation:', 60, y)
-          y += 15
+            .text('Not applicable — applicant is living with family/friends. Address history included instead.', 70, y, { width: 455 })
+          y += 20
+        } else if (residentialStep.evidence_sources && residentialStep.evidence_sources.length > 0) {
           residentialStep.evidence_sources.forEach((evidenceType: string) => {
             const label = evidenceLabels[evidenceType] || evidenceType
-            doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-              .text(`• ${label}`, 70, y)
+            doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+              .text(`• ${label}`, 70, y, { width: 455 })
             y += 12
           })
-        }
-
-        if (residentialStep.notes) {
+          if (residentialStep.notes && residentialStep.notes.trim().length > 0) {
+            doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+              .text(residentialStep.notes, 70, y, { width: 455 })
+            y += doc.heightOfString(residentialStep.notes, { width: 455 }) + 5
+          }
           y += 5
-          doc.fontSize(8).fillColor(lightGray).font('Helvetica')
-            .text(`Assessment: ${residentialStep.notes}`, 60, y, { width: 475 })
-          y += doc.heightOfString(`Assessment: ${residentialStep.notes}`, { width: 475 })
-        }
-        y += 20
-      }
-
-      // Credit & TAS Details
-      const creditStep = verificationSteps?.find((s: VerificationStep) => s.step_type === 'CREDIT_TAS')
-      if (creditStep) {
-        doc.fontSize(11).fillColor(darkGray).font('Helvetica-Bold')
-          .text('Credit & Background Checks', 50, y)
-        y += 20
-
-        if (creditStep.evidence_sources && creditStep.evidence_sources.length > 0) {
-          doc.fontSize(9).fillColor(darkGray).font('Helvetica')
-            .text('Checks performed:', 60, y)
+        } else {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Oblique')
+            .text('No evidence provided', 70, y, { width: 455 })
           y += 15
-          creditStep.evidence_sources.forEach((evidenceType: string) => {
+        }
+      }
+
+      // Income Evidence
+      const incomeStepEvidence = verificationSteps?.find((s: VerificationStep) => s.step_type === 'INCOME_AFFORDABILITY')
+      if (incomeStepEvidence) {
+        doc.fontSize(10).fillColor(darkGray).font('Helvetica-Bold')
+          .text('Income', 60, y)
+        y += 15
+
+        if (incomeStepEvidence.evidence_sources && incomeStepEvidence.evidence_sources.length > 0) {
+          incomeStepEvidence.evidence_sources.forEach((evidenceType: string) => {
             const label = evidenceLabels[evidenceType] || evidenceType
-            doc.fontSize(8).fillColor(darkGray).font('Helvetica')
-              .text(`• ${label}`, 70, y)
+            doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+              .text(`• ${label}`, 70, y, { width: 455 })
             y += 12
           })
-        }
-
-        if (creditStep.notes) {
+          if (incomeStepEvidence.notes && incomeStepEvidence.notes.trim().length > 0) {
+            doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+              .text(incomeStepEvidence.notes, 70, y, { width: 455 })
+            y += doc.heightOfString(incomeStepEvidence.notes, { width: 455 }) + 5
+          }
           y += 5
-          doc.fontSize(8).fillColor(lightGray).font('Helvetica')
-            .text(`Assessment: ${creditStep.notes}`, 60, y, { width: 475 })
-          y += doc.heightOfString(`Assessment: ${creditStep.notes}`, { width: 475 })
+        } else {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Oblique')
+            .text('No evidence provided', 70, y, { width: 455 })
+          y += 15
         }
-        y += 20
       }
 
-      // Footer on all pages
-      const totalPages = doc.bufferedPageRange().count
-      const addFooter = (pageNumber: number) => {
-        const footerY = 770
-        doc.fontSize(8).fillColor(lightGray).font('Helvetica')
-          .text(
-            `PropertyGoose Tenant Reference Report | Generated ${new Date().toLocaleDateString('en-GB')} at ${new Date().toLocaleTimeString('en-GB')}`,
-            50,
-            footerY,
-            { align: 'left', width: 300 }
-          )
-        doc.fontSize(8).fillColor(lightGray).font('Helvetica')
-          .text(
-            `Page ${pageNumber} of ${totalPages}`,
-            0,
-            footerY,
-            { align: 'right', width: 545 }
-          )
+      // Credit Evidence
+      const creditStepEvidence = verificationSteps?.find((s: VerificationStep) => s.step_type === 'CREDIT_TAS')
+      if (creditStepEvidence) {
+        doc.fontSize(10).fillColor(darkGray).font('Helvetica-Bold')
+          .text('Credit', 60, y)
+        y += 15
+
+        if (creditStepEvidence.evidence_sources && creditStepEvidence.evidence_sources.length > 0) {
+          creditStepEvidence.evidence_sources.forEach((evidenceType: string) => {
+            const label = evidenceLabels[evidenceType] || evidenceType
+            doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+              .text(`• ${label}`, 70, y, { width: 455 })
+            y += 12
+          })
+          if (creditStepEvidence.notes && creditStepEvidence.notes.trim().length > 0) {
+            doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+              .text(creditStepEvidence.notes, 70, y, { width: 455 })
+            y += doc.heightOfString(creditStepEvidence.notes, { width: 455 }) + 5
+          }
+          y += 5
+        } else {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Oblique')
+            .text('No evidence provided', 70, y, { width: 455 })
+          y += 15
+        }
       }
 
-      // Add footers to all pages
-      for (let i = 0; i < totalPages; i++) {
-        doc.switchToPage(i)
-        addFooter(i + 1)
+      // RTR (Right to Rent) Evidence
+      const idStep = verificationSteps?.find((s: VerificationStep) => s.step_type === 'ID_SELFIE')
+      if (idStep) {
+        doc.fontSize(10).fillColor(darkGray).font('Helvetica-Bold')
+          .text('RTR', 60, y)
+        y += 15
+
+        if (idStep.evidence_sources && idStep.evidence_sources.length > 0) {
+          idStep.evidence_sources.forEach((evidenceType: string) => {
+            const label = evidenceLabels[evidenceType] || evidenceType
+            doc.fontSize(9).fillColor(darkGray).font('Helvetica')
+              .text(`• ${label}`, 70, y, { width: 455 })
+            y += 12
+          })
+          if (idStep.notes && idStep.notes.trim().length > 0) {
+            doc.fontSize(8).fillColor(lightGray).font('Helvetica')
+              .text(idStep.notes, 70, y, { width: 455 })
+            y += doc.heightOfString(idStep.notes, { width: 455 }) + 5
+          }
+          y += 5
+        } else {
+          doc.fontSize(9).fillColor(lightGray).font('Helvetica-Oblique')
+            .text('No evidence provided', 70, y, { width: 455 })
+          y += 15
+        }
       }
 
+
+      // Add footer to first page if we never added a new page
+      if (currentPage === 1) {
+        addFirstPageFooter()
+      }
+
+      // All footers have been added inline as pages were created
       doc.end()
     } catch (error) {
       console.error('[PDF V2] Generation error:', error)

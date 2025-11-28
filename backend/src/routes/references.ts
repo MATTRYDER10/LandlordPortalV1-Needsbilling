@@ -211,6 +211,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id
     const referenceId = req.params.id
 
+   // await assessApplicationScore(referenceId,'System')
+
     // Get user's company (use limit(1) to handle duplicates)
     const { data: companyUsers } = await supabase
       .from('company_users')
