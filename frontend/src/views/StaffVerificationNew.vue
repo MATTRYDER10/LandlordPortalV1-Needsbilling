@@ -1446,8 +1446,8 @@ const employerReference = ref<any>(null)
 const accountantReference = ref<any>(null)
 const guarantorReference = ref<any>(null)
 const creditCheckData = ref<any>(null)
-const creditsafeData = ref<any>(null)
-const creditsafeLoading = ref(false)
+// const creditsafeData = ref<any>(null)
+// const creditsafeLoading = ref(false)
 
 const stepLabels = ['ID & Selfie', 'Income & Affordability', 'Residential', 'Credit & TAS']
 
@@ -2137,39 +2137,39 @@ const getResidentialCheckValue = (checkName: string): boolean | null => {
 }
 
 // Trigger Creditsafe check
-const triggerCreditsafeCheck = async () => {
-  try {
-    creditsafeLoading.value = true
-    const referenceId = route.params.id as string
+// const triggerCreditsafeCheck = async () => {
+//   try {
+//     creditsafeLoading.value = true
+//     const referenceId = route.params.id as string
 
-    const response = await fetch(
-      `${API_URL}/api/staff/references/${referenceId}/creditsafe/retry`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
+//     const response = await fetch(
+//       `${API_URL}/api/staff/references/${referenceId}/creditsafe/retry`,
+//       {
+//         method: 'POST',
+//         headers: {
+//           'Authorization': `Bearer ${authStore.session?.access_token}`,
+//           'Content-Type': 'application/json'
+//         }
+//       }
+//     )
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to run Creditsafe check')
-    }
+//     if (!response.ok) {
+//       const errorData = await response.json()
+//       throw new Error(errorData.error || 'Failed to run Creditsafe check')
+//     }
 
-    const result = await response.json()
-    creditsafeData.value = result.verification
-    console.log('Creditsafe check completed:', result.verification)
+//     const result = await response.json()
+//     creditsafeData.value = result.verification
+//     console.log('Creditsafe check completed:', result.verification)
 
-    alert('Creditsafe check completed successfully!')
-  } catch (err: any) {
-    alert(`Error running Creditsafe check: ${err.message}`)
-    console.error('Error running Creditsafe check:', err)
-  } finally {
-    creditsafeLoading.value = false
-  }
-}
+//     alert('Creditsafe check completed successfully!')
+//   } catch (err: any) {
+//     alert(`Error running Creditsafe check: ${err.message}`)
+//     console.error('Error running Creditsafe check:', err)
+//   } finally {
+//     creditsafeLoading.value = false
+//   }
+// }
 
 const formatDate = (value?: string | null, fallback = 'N/A') =>
   formatUkDate(
