@@ -62,7 +62,7 @@ class SanctionsService {
 
     this.axiosInstance = axios.create({
       baseURL: this.config.apiUrl,
-      timeout: 10000, // 10 second timeout (API averages ~480ms)
+      timeout: 20000, // 10 second timeout (API averages ~480ms)
       headers: {
         'Content-Type': 'application/json'
       }

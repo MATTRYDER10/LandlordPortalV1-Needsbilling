@@ -16,22 +16,22 @@
                 <div class="flex flex-col gap-4 min-w-[240px]">
                     <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Status</span>
-                        <span :class="badgeClass(verificationData.statusLabel)">
-                            {{ verificationData.statusLabel }}
+                        <span :class="badgeClass(statusLabel)">
+                            {{ statusLabel }}
                         </span>
                     </div>
 
                     <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Identity Match</span>
-                        <span :class="badgeClass(verificationData.identityMatchLabel)">
-                            {{ verificationData.identityMatchLabel }}
+                        <span :class="identityMatchBadgeClass">
+                            {{ identityMatchLabel }}
                         </span>
                     </div>
 
                     <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Risk Level</span>
-                        <span :class="badgeClass(verificationData.riskLevelLabel)">
-                            {{ verificationData.riskLevelLabel }}
+                        <span :class="badgeClass(riskLevelLabel)">
+                            {{ riskLevelLabel }}
                         </span>
                     </div>
                 </div>
@@ -41,8 +41,8 @@
                     <span class="text-sm font-semibold uppercase tracking-wide text-gray-500">
                         Risk Score
                     </span>
-                    <span class="text-5xl font-bold text-emerald-500 leading-none">
-                        {{ verificationData.riskScore }}/{{ verificationData.riskScoreMax ?? 100 }}
+                    <span class="text-5xl font-bold leading-none" :class="riskScoreColorClass">
+                        {{ riskScore }}/999
                     </span>
                 </div>
             </div>
@@ -52,17 +52,100 @@
                 <h3 class="text-base font-semibold text-gray-800">Verification Flags</h3>
 
                 <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div v-for="flag in verificationFlags" :key="flag.id ?? flag.label"
-                        class="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
-                        <span
-                            class="flex h-8 w-8 items-center justify-center rounded-full bg-white text-emerald-500 shadow">
-                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <!-- Electoral Roll -->
+                    <div :class="[
+                        'flex items-center gap-3 rounded-xl border px-4 py-3',
+                        verificationFlags.electoralRollMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
+                    ]">
+                        <span :class="[
+                            'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                            verificationFlags.electoralRollMatch ? 'text-emerald-500' : 'text-rose-500'
+                        ]">
+                            <svg v-if="verificationFlags.electoralRollMatch" class="h-5 w-5" viewBox="0 0 20 20"
+                                fill="currentColor">
                                 <path fill-rule="evenodd"
                                     d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
                                     clip-rule="evenodd" />
                             </svg>
+                            <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                    clip-rule="evenodd" />
+                            </svg>
                         </span>
-                        <span class="text-sm font-semibold text-gray-800">{{ flag.label }}</span>
+                        <span class="text-sm font-semibold text-gray-800">Electoral Roll</span>
+                    </div>
+
+                    <!-- No CCJs -->
+                    <div :class="[
+                        'flex items-center gap-3 rounded-xl border px-4 py-3',
+                        !verificationFlags.ccjMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
+                    ]">
+                        <span :class="[
+                            'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                            !verificationFlags.ccjMatch ? 'text-emerald-500' : 'text-rose-500'
+                        ]">
+                            <svg v-if="!verificationFlags.ccjMatch" class="h-5 w-5" viewBox="0 0 20 20"
+                                fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </span>
+                        <span class="text-sm font-semibold text-gray-800">No CCJs</span>
+                    </div>
+
+                    <!-- No Insolvency -->
+                    <div :class="[
+                        'flex items-center gap-3 rounded-xl border px-4 py-3',
+                        !verificationFlags.insolvencyMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
+                    ]">
+                        <span :class="[
+                            'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                            !verificationFlags.insolvencyMatch ? 'text-emerald-500' : 'text-rose-500'
+                        ]">
+                            <svg v-if="!verificationFlags.insolvencyMatch" class="h-5 w-5" viewBox="0 0 20 20"
+                                fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </span>
+                        <span class="text-sm font-semibold text-gray-800">No Insolvency</span>
+                    </div>
+
+                    <!-- Not Deceased -->
+                    <div :class="[
+                        'flex items-center gap-3 rounded-xl border px-4 py-3',
+                        !verificationFlags.deceasedMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
+                    ]">
+                        <span :class="[
+                            'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                            !verificationFlags.deceasedMatch ? 'text-emerald-500' : 'text-rose-500'
+                        ]">
+                            <svg v-if="!verificationFlags.deceasedMatch" class="h-5 w-5" viewBox="0 0 20 20"
+                                fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </span>
+                        <span class="text-sm font-semibold text-gray-800">Not Deceased</span>
                     </div>
                 </div>
             </div>
@@ -71,29 +154,75 @@
             <div class="mt-10">
                 <h3 class="text-base font-semibold text-gray-800">Compliance Screening</h3>
                 <div class="mt-4 divide-y divide-gray-100">
-                    <div v-for="check in complianceList" :key="check.id ?? check.label"
-                        class="flex items-center justify-between py-4">
+                    <!-- PEP Check -->
+                    <div class="flex items-center justify-between py-4">
                         <div>
-                            <p class="text-sm font-semibold text-gray-800">{{ check.label }}</p>
-                            <p v-if="check.description" class="text-xs text-gray-500">{{ check.description }}</p>
+                            <p class="text-sm font-semibold text-gray-800">Politically Exposed Person (PEP)</p>
                         </div>
-
                         <div class="flex items-center gap-2">
-                            <span :class="statusClass(check.status)">
-                                {{ formatStatus(check.status) }}
+                            <span :class="statusClass(complianceChecks.pep ? 'clear' : 'failed')">
+                                {{ complianceChecks.pep ? 'Clear' : 'Failed' }}
                             </span>
+                            <span :class="statusIconWrapper(complianceChecks.pep ? 'clear' : 'failed')">
+                                <svg v-if="complianceChecks.pep" class="h-4 w-4 text-emerald-600" viewBox="0 0 20 20"
+                                    fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
 
-                            <span :class="statusIconWrapper(check.status)">
-                                <svg v-if="isPositive(check.status)" class="h-4 w-4 text-emerald-600"
+                    <!-- Sanctions Check -->
+                    <div class="flex items-center justify-between py-4">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">Sanctions Screening</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span :class="statusClass(complianceChecks.sanctions ? 'clear' : 'failed')">
+                                {{ complianceChecks.sanctions ? 'Clear' : 'Failed' }}
+                            </span>
+                            <span :class="statusIconWrapper(complianceChecks.sanctions ? 'clear' : 'failed')">
+                                <svg v-if="complianceChecks.sanctions" class="h-4 w-4 text-emerald-600"
                                     viewBox="0 0 20 20" fill="currentColor">
                                     <path fill-rule="evenodd"
                                         d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
                                         clip-rule="evenodd" />
                                 </svg>
-
-                                <svg v-else class="h-4 w-4 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                                <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
                                     <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm-.75-11.5a.75.75 0 011.5 0v4a.75.75 0 01-1.5 0v-4zm.75 7a1 1 0 110-2 1 1 0 010 2z"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Adverse Media Check -->
+                    <div class="flex items-center justify-between py-4">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">Adverse Media</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span :class="statusClass(complianceChecks.adverseMedia ? 'clear' : 'failed')">
+                                {{ complianceChecks.adverseMedia ? 'Clear' : 'Failed' }}
+                            </span>
+                            <span :class="statusIconWrapper(complianceChecks.adverseMedia ? 'clear' : 'failed')">
+                                <svg v-if="complianceChecks.adverseMedia" class="h-4 w-4 text-emerald-600"
+                                    viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                                         clip-rule="evenodd" />
                                 </svg>
                             </span>
@@ -113,59 +242,134 @@ import { computed } from 'vue'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info'
 
-interface VerificationFlag {
-    id?: string | number
-    label: string
+
+interface VerificationFlags {
+    ccjMatch: boolean;
+    insolvencyMatch: boolean;
+    deceasedMatch: boolean;
+    electoralRollMatch: boolean;
 }
 
 interface VerificationData {
-    statusLabel: string
-    identityMatchLabel: string
-    riskLevelLabel: string
-    riskScore: number
-    riskScoreMax?: number
-    flags?: VerificationFlag[]
+    name_match_score: number;
+    application_status: 'Failed' | 'Passed' | 'Yet to be assessed' | 'Passed with gurantor';
+    risk_level: 'low' | 'medium' | 'high' | 'yet_to_be_assessed';
+    risk_score: number;
+    verification_flags: VerificationFlags
 }
 
-interface ComplianceCheck {
-    id?: string | number
-    label: string
-    status: string
-    description?: string
+interface ComplianceChecks {
+    pep?: boolean
+    sanctions?: boolean
+    adverseMedia?: boolean
 }
 
-interface Props {
+export interface Props {
     verification?: VerificationData
-    complianceChecks?: ComplianceCheck[]
+    complianceChecks?: ComplianceChecks
 }
-
-const defaultVerification: VerificationData = {
-    statusLabel: 'Passed',
-    identityMatchLabel: 'Match Found',
-    riskLevelLabel: 'Low',
-    riskScore: 100,
-    riskScoreMax: 100,
-    flags: [
-        { label: 'Electoral Roll' },
-        { label: 'No CCJs' },
-        { label: 'No Insolvency' },
-        { label: 'Not Deceased' }
-    ]
-}
-
-const defaultCompliance: ComplianceCheck[] = [
-    { label: 'Politically Exposed Person (PEP)', status: 'clear' },
-    { label: 'Sanctions Screening', status: 'clear' },
-    { label: 'Adverse Media', status: 'clear' }
-]
 
 const props = defineProps<Props>()
 
-const verificationData = computed(() => props.verification ?? defaultVerification)
-const verificationFlags = computed(() => verificationData.value.flags ?? [])
-const complianceList = computed(
-    () => (props.complianceChecks && props.complianceChecks.length > 0 ? props.complianceChecks : defaultCompliance)
-)
+// Default failed verification data when no props
+const failedVerification: VerificationData = {
+    name_match_score: 0,
+    application_status: 'Failed',
+    risk_level: 'yet_to_be_assessed',
+    risk_score: 0,
+    verification_flags: {
+        ccjMatch: true, // true means CCJ found (bad)
+        insolvencyMatch: true, // true means insolvency found (bad)
+        deceasedMatch: true, // true means deceased (bad)
+        electoralRollMatch: false // false means not found (bad)
+    }
+}
+
+const verificationData = computed(() => props.verification ?? failedVerification)
+
+// Extract status label from application_status
+const statusLabel = computed(() => {
+    if (!verificationData.value) return 'Failed'
+    const status = verificationData.value.application_status
+    switch (status) {
+        case 'Passed':
+            return 'Passed'
+        case 'Failed':
+            return 'Failed'
+        case 'Yet to be assessed':
+            return 'Yet to be assessed'
+        case 'Passed with gurantor':
+            return 'Passed with Guarantor'
+        default:
+            return 'Failed'
+    }
+})
+
+// Extract identity match label from name_match_score
+const identityMatchLabel = computed(() => {
+    if (!verificationData.value) return 'No Match'
+    const score = verificationData.value.name_match_score ?? 0
+    if (score >= 80) return 'Match Found'
+    if (score >= 60) return 'Partial Match'
+    return 'No Match'
+})
+
+// Risk score color based on ranges: 0-350 red, 350-649 yellow, 650+ green
+const riskScoreColorClass = computed(() => {
+    const score = riskScore.value
+    if (score >= 650) return 'text-emerald-500'
+    if (score >= 350) return 'text-yellow-500'
+    return 'text-rose-500'
+})
+
+// Identity match badge color - red if "No Match"
+const identityMatchBadgeClass = computed(() => {
+    const label = identityMatchLabel.value
+    if (label === 'No Match') return badgeClass('failed')
+    return badgeClass(label)
+})
+
+// Extract risk level label
+const riskLevelLabel = computed(() => {
+    if (!verificationData.value) return 'Yet to be assessed'
+    const level = verificationData.value.risk_level
+    switch (level) {
+        case 'low':
+            return 'Low'
+        case 'medium':
+            return 'Medium'
+        case 'high':
+            return 'High'
+        case 'yet_to_be_assessed':
+            return 'Yet to be assessed'
+        default:
+            return 'Yet to be assessed'
+    }
+})
+
+// Extract risk score
+const riskScore = computed(() => {
+    if (!verificationData.value) return 0
+    return verificationData.value.risk_score ?? 0
+})
+
+// Verification flags - extract from verification_flags, default to false (failed) if not provided
+const verificationFlags = computed(() => {
+    const flags = verificationData.value?.verification_flags
+    return {
+        electoralRollMatch: flags?.electoralRollMatch ?? false,
+        ccjMatch: flags?.ccjMatch ?? true, // Default to true (bad) if not provided
+        insolvencyMatch: flags?.insolvencyMatch ?? true, // Default to true (bad) if not provided
+        deceasedMatch: flags?.deceasedMatch ?? true // Default to true (bad) if not provided
+    }
+})
+
+// Compliance checks - default to false (failed) if not provided
+const complianceChecks = computed(() => ({
+    pep: props.complianceChecks?.pep ?? false,
+    sanctions: props.complianceChecks?.sanctions ?? false,
+    adverseMedia: props.complianceChecks?.adverseMedia ?? false
+}))
 
 const toneClasses: Record<Tone, string> = {
     success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -183,13 +387,13 @@ const subtleToneClasses: Record<Tone, string> = {
 
 const detectTone = (value?: string): Tone => {
     const normalized = (value ?? '').toLowerCase()
-    if (['pass', 'match', 'low', 'clear', 'success', 'no'].some((word) => normalized.includes(word))) {
+    if (['pass', 'passed', 'match', 'low', 'clear', 'success', 'no', 'found'].some((word) => normalized.includes(word))) {
         return 'success'
     }
-    if (['fail', 'high', 'risk', 'alert', 'adverse'].some((word) => normalized.includes(word))) {
+    if (['fail', 'failed', 'high', 'risk', 'alert', 'adverse'].some((word) => normalized.includes(word))) {
         return 'danger'
     }
-    if (['pending', 'medium', 'review'].some((word) => normalized.includes(word))) {
+    if (['pending', 'medium', 'review', 'assessed', 'partial'].some((word) => normalized.includes(word))) {
         return 'warning'
     }
     return 'info'
@@ -204,10 +408,4 @@ const statusClass = (value?: string) =>
 const statusIconWrapper = (value?: string) =>
     `flex h-8 w-8 items-center justify-center rounded-full border ${toneClasses[detectTone(value)]}`
 
-const isPositive = (value?: string) => detectTone(value) === 'success'
-
-const formatStatus = (value?: string) => {
-    if (!value) return 'Unknown'
-    return value.charAt(0).toUpperCase() + value.slice(1)
-}
 </script>

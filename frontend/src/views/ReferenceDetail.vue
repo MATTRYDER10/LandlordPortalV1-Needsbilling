@@ -35,7 +35,7 @@
               </svg>
               Add Guarantor
             </button>
-            <button v-if="score || reference.status === 'completed' || reference.status === 'rejected'"
+            <button v-if="reference.status === 'completed' || reference.status === 'rejected'"
               @click="downloadPDFReport" :disabled="downloadingPDF"
               class="flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               <svg v-if="!downloadingPDF" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,21 +71,21 @@
             </span>
 
             <!-- Credit Check Status -->
-            <span v-if="creditsafeVerification"
+            <span
               class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1" :class="{
-                'bg-green-100 text-green-800': creditsafeVerification.verification_status === 'passed',
-                'bg-red-100 text-red-800': creditsafeVerification.verification_status === 'failed',
-                'bg-yellow-100 text-yellow-800': creditsafeVerification.verification_status === 'refer',
-                'bg-gray-100 text-gray-800': creditsafeVerification.verification_status === 'pending' || creditsafeVerification.verification_status === 'error'
+                'bg-green-100 text-green-800': application_flags.credit_check_status === 'passed',
+                'bg-red-100 text-red-800': application_flags.credit_check_status === 'failed',
+                'bg-yellow-100 text-yellow-800': application_flags.credit_check_status === 'refer',
+                'bg-gray-100 text-gray-800': application_flags.credit_check_status === 'pending' || application_flags.credit_check_status === 'error'
               }"
-              :title="creditsafeVerification.verification_status === 'passed' ? 'Credit check passed' : creditsafeVerification.verification_status === 'failed' ? 'Credit check failed' : creditsafeVerification.verification_status === 'refer' ? 'Manual review required' : 'Credit check pending'">
-              <svg v-if="creditsafeVerification.verification_status === 'passed'" class="w-4 h-4" fill="currentColor"
+              :title="application_flags.credit_check_status === 'passed' ? 'Credit check passed' : application_flags.credit_check_status === 'failed' ? 'Credit check failed' : application_flags.credit_check_status === 'refer' ? 'Manual review required' : 'Credit check pending'">
+              <svg v-if="application_flags.credit_check_status === 'passed'" class="w-4 h-4" fill="currentColor"
                 viewBox="0 0 20 20">
                 <path fill-rule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                   clip-rule="evenodd" />
               </svg>
-              <svg v-else-if="creditsafeVerification.verification_status === 'failed'" class="w-4 h-4"
+              <svg v-else-if="application_flags.credit_check_status === 'failed'" class="w-4 h-4"
                 fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -96,21 +96,21 @@
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
                   clip-rule="evenodd" />
               </svg>
-              Credit: {{ creditsafeVerification.verification_status === 'passed' ? 'PASS' :
-                creditsafeVerification.verification_status === 'failed' ? 'FAIL' :
-                  creditsafeVerification.verification_status === 'refer' ? 'REVIEW' :
-                    creditsafeVerification.verification_status.toUpperCase() }}
+              Credit: {{ application_flags.credit_check_status === 'passed' ? 'PASS' :
+                application_flags.credit_check_status === 'failed' ? 'FAIL' :
+                  application_flags.credit_check_status === 'refer' ? 'REVIEW' :
+                    application_flags.credit_check_status.toUpperCase() }}
             </span>
 
             <!-- Sanctions Screening Status -->
-            <span v-if="sanctionsScreening" class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1"
+            <span v-if="application_flags.sanctions_check.show" class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1"
               :class="{
-                'bg-green-100 text-green-800': sanctionsScreening.risk_level === 'clear',
-                'bg-blue-100 text-blue-800': sanctionsScreening.risk_level === 'low',
-                'bg-yellow-100 text-yellow-800': sanctionsScreening.risk_level === 'medium',
-                'bg-red-100 text-red-800': sanctionsScreening.risk_level === 'high'
-              }" :title="sanctionsScreening.summary_message">
-              <svg v-if="sanctionsScreening.risk_level === 'clear'" class="w-4 h-4" fill="currentColor"
+                'bg-green-100 text-green-800': application_flags.sanctions_check.risk_level === 'clear',
+                'bg-blue-100 text-blue-800': application_flags.sanctions_check.risk_level === 'low',
+                'bg-yellow-100 text-yellow-800': application_flags.sanctions_check.risk_level === 'medium',
+                'bg-red-100 text-red-800': application_flags.sanctions_check.risk_level === 'high'
+              }" :title="application_flags.sanctions_check.summary_message">
+              <svg v-if="application_flags.sanctions_check.risk_level === 'clear'" class="w-4 h-4" fill="currentColor"
                 viewBox="0 0 20 20">
                 <path fill-rule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -121,17 +121,17 @@
                   d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                   clip-rule="evenodd" />
               </svg>
-              Sanctions: {{ sanctionsScreening.risk_level === 'clear' ? 'PASS' :
-                sanctionsScreening.risk_level.toUpperCase() }}
+              Sanctions: {{ application_flags.sanctions_check.risk_level === 'clear' ? 'PASS' :
+                application_flags.sanctions_check.risk_level.toUpperCase() }}
             </span>
           </div>
         </div>
 
         <!-- Reference Score (shown when completed) -->
-        <ScoreCard v-if="score && reference.status === 'completed'" :score="score" />
+        <!-- <ScoreCard v-if="score && reference.status === 'completed'" :score="score" />
         <div v-else-if="loadingScore" class="bg-white rounded-lg shadow-md p-6">
           <div class="text-center text-gray-600">Loading score...</div>
-        </div>
+        </div> -->
 
         <!-- Guarantor Reference Context Banner -->
         <div v-if="reference.is_guarantor && parentReference"
@@ -226,7 +226,7 @@
                   <div class="flex-1">
                     <div class="flex items-center gap-3 mb-1">
                       <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Tenant {{ index + 1
-                      }}</span>
+                        }}</span>
                       <span class="px-2 py-0.5 text-xs font-semibold rounded-full" :class="{
                         'bg-yellow-100 text-yellow-800': child.status === 'pending',
                         'bg-blue-100 text-blue-800': child.status === 'in_progress',
@@ -445,7 +445,7 @@
                         <label class="block text-sm font-medium text-gray-500">Country</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_country ?
                           getCountryName(childReferenceDetails[child.id].reference.current_country) : 'Not provided yet'
-                        }}</p>
+                          }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Time at Address</label>
@@ -987,7 +987,7 @@
                         <label class="block text-sm font-medium text-gray-500">Smoker</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.is_smoker === true ?
                           'Yes' : childReferenceDetails[child.id].reference.is_smoker === false ? 'No' : 'Not provided'
-                        }}</p>
+                          }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Pets</label>
@@ -1003,7 +1003,7 @@
                         <label class="block text-sm font-medium text-gray-500">Marital Status</label>
                         <p class="mt-1 text-gray-900 capitalize">{{
                           childReferenceDetails[child.id].reference.marital_status?.replace('_', ' ') || 'Not provided'
-                        }}</p>
+                          }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Number of Dependants</label>
@@ -1120,7 +1120,7 @@
                                   class="text-red-600 font-semibold"> 🚩 STILL IN CONTRACT - No end date</span>
                                 <span v-else class="text-green-900"> {{
                                   formatDate(childReferenceDetails[child.id].landlordReference.tenancy_end_date)
-                                }}</span>
+                                  }}</span>
                               </div>
                               <div><span class="text-green-700 font-medium">Monthly Rent:</span> <span
                                   class="text-green-900">£{{
@@ -1383,67 +1383,16 @@
         </div>
 
         <!-- Creditsafe Identity Verification -->
-        <CreditsafeVerificationCard v-if="reference.submitted_at" :verification="creditsafeVerification"
-          :loading="loadingCreditsafe" :show-retry-button="false" />
-          <div class="bg-gray-50 rounded-lg p-4 space-y-4">
-              <div class="flex items-center justify-between">
-                <h4 class="font-semibold text-gray-900">Creditsafe Identity Verification</h4>
-                <div class="flex items-center gap-2">
-                  
-                </div>
-              </div>
+        <CreditsAndAmlUI v-if="application_flags.credit_check_status !== 'pending'" :verification="creditAndAmlVerification?.verification"
+          :compliance-checks="creditAndAmlVerification?.complianceChecks ?? {}" />
 
-              <div v-if="creditsafeVerification" class="border-l-4 border-purple-500 pl-4">
-                <div class="space-y-2 text-sm">
-                  <p v-if="creditsafeVerification.verifyMatch !== undefined">
-                    <strong>Identity Match:</strong>
-                    <span
-                      :class="creditsafeVerification.verifyMatch ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
-                      {{ creditsafeVerification.verifyMatch ? 'VERIFIED' : 'NOT VERIFIED' }}
-                    </span>
-                  </p>
-                    <p v-if="creditsafeVerification.electoralRegisterMatch !== undefined">
-                    <strong>Electoral Register:</strong>
-                    <span :class="creditsafeVerification.electoralRegisterMatch ? 'text-green-600' : 'text-red-600'">
-                      {{ creditsafeVerification.electoralRegisterMatch ? 'Found' : 'Not Found' }}
-                    </span>
-                  </p>
-                  <p v-if="creditsafeVerification.ccjMatch !== undefined">
-                    <strong>CCJs:</strong>
-                    <span :class="!creditsafeVerification.ccjMatch ? 'text-green-600' : 'text-red-600 font-semibold'">
-                      {{ creditsafeVerification.ccjMatch ? 'FOUND' : 'None Found' }}
-                    </span>
-                  </p>
-                  <p v-if="creditsafeVerification.insolvencyMatch !== undefined">
-                    <strong>Insolvencies:</strong>
-                    <span :class="!creditsafeVerification.insolvencyMatch ? 'text-green-600' : 'text-red-600 font-semibold'">
-                      {{ creditsafeVerification.insolvencyMatch ? 'FOUND' : 'None Found' }}
-                    </span>
-                  </p>
-                  <p v-if="creditsafeVerification.riskLevel">
-                    <strong>Risk Level:</strong>
-                    <span :class="{
-                    'text-green-600': creditsafeVerification.riskLevel === 'low',
-                      'text-yellow-600': creditsafeVerification.riskLevel === 'medium',
-                      'text-orange-600': creditsafeVerification.riskLevel === 'high',
-                      'text-red-600': creditsafeVerification.riskLevel === 'very_high'
-                    }">
-                      {{ creditsafeVerification.riskLevel.toUpperCase().replace('_', ' ') }}
-                    </span>
-                  </p>
-                  <p v-if="creditsafeVerification.riskScore !== undefined">
-                    <strong>Risk Score:</strong> {{ creditsafeVerification.riskScore }}
-                  </p>
-                  <p v-if="creditsafeVerification.verified_at" class="text-gray-500">
-                    <strong>Checked:</strong> {{ formatDate(creditsafeVerification.verified_at) }}
-                  </p>
-                 
-                </div>
-              </div>
-              <div v-else-if="!creditsafeVerification" class="text-gray-500 italic text-sm">
-                No Creditsafe data available yet.
-              </div>
-            </div>
+        <div v-else class="bg-white rounded-lg shadow p-6">
+          <svg class="w-6 h-6 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div class="text-center text-gray-600">Tenant application is yet to be assessed.</div>
+        </div>
 
         <!-- Property Information (from initial reference creation) -->
         <div v-if="!reference.is_group_parent && !reference.is_guarantor" class="bg-white rounded-lg shadow p-6">
@@ -1644,8 +1593,7 @@
           <!-- Manual Document Upload (Visa / BRP) -->
           <div v-if="reference.is_british_citizen === false
             && !reference.rtr_verified
-            && reference.rtr_alternative_document_path"
-            class="mt-4 border-t pt-4">
+            && reference.rtr_alternative_document_path" class="mt-4 border-t pt-4">
             <h6 class="text-sm font-semibold text-gray-900 mb-3">Manual Right to Rent Document</h6>
             <div class="grid grid-cols-2 gap-4">
               <div>
@@ -1964,7 +1912,7 @@
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-lg font-semibold text-green-900">✓ Employer Reference Completed</h4>
                     <span class="text-xs text-green-700">Submitted {{ formatDateTime(employerReference.submitted_at)
-                    }}</span>
+                      }}</span>
                   </div>
 
                   <div class="space-y-6">
@@ -2115,7 +2063,7 @@
                   reference.guarantor_last_name }}</p>
                 <p><span class="font-medium">Email:</span> {{ reference.guarantor_email }}</p>
                 <p v-if="reference.guarantor_phone"><span class="font-medium">Phone:</span> {{ reference.guarantor_phone
-                }}</p>
+                  }}</p>
                 <p v-if="reference.guarantor_relationship"><span class="font-medium">Relationship:</span> {{
                   reference.guarantor_relationship }}</p>
               </div>
@@ -2127,7 +2075,7 @@
                 <div class="flex items-center justify-between mb-4">
                   <h5 class="text-lg font-semibold text-green-900">✓ Guarantor Reference Completed</h5>
                   <span class="text-xs text-green-700">Submitted {{ formatDateTime(guarantorReference.submitted_at)
-                  }}</span>
+                    }}</span>
                 </div>
 
                 <div class="space-y-6">
@@ -2405,7 +2353,7 @@
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-lg font-semibold text-green-900">✓ Accountant Reference Completed</h4>
                     <span class="text-xs text-green-700">Submitted {{ formatDateTime(accountantReference.submitted_at)
-                    }}</span>
+                      }}</span>
                   </div>
 
                   <div class="space-y-4">
@@ -2633,7 +2581,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-500">Marital Status</label>
               <p class="mt-1 text-gray-900 capitalize">{{ reference.marital_status?.replace('_', ' ') || 'Not provided'
-              }}</p>
+                }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Number of Dependants</label>
@@ -2685,7 +2633,7 @@
                   <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
                   <p class="mt-1 text-gray-900">{{ formatTenancyDuration(reference.tenancy_years,
                     reference.tenancy_months)
-                  }}</p>
+                    }}</p>
                 </div>
               </div>
 
@@ -2730,7 +2678,7 @@
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-sm font-semibold text-green-900">✓ Landlord Reference Completed</h4>
                   <span class="text-xs text-green-700">Submitted {{ formatDateTime(landlordReference.submitted_at)
-                  }}</span>
+                    }}</span>
                 </div>
 
                 <div class="space-y-6 text-sm">
@@ -2787,7 +2735,7 @@
                           🚩 STILL IN CONTRACT - No end date
                         </span>
                         <span v-else class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_end_date)
-                        }}</span>
+                          }}</span>
                       </div>
                       <div>
                         <span class="text-green-700 font-medium">Monthly Rent:</span>
@@ -2869,7 +2817,7 @@
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-sm font-semibold text-green-900">✓ Letting Agent Reference Completed</h4>
                   <span class="text-xs text-green-700">Submitted {{ formatDateTime(agentReference.submitted_at)
-                  }}</span>
+                    }}</span>
                 </div>
 
                 <div class="space-y-6 text-sm">
@@ -2930,7 +2878,7 @@
                           🚩 STILL IN CONTRACT - No end date
                         </span>
                         <span v-else class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_end_date)
-                        }}</span>
+                          }}</span>
                       </div>
                       <div>
                         <span class="text-green-700 font-medium">Monthly Rent:</span>
@@ -3279,11 +3227,12 @@ import Sidebar from '../components/Sidebar.vue'
 import { getCountryName } from '../utils/countries'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import DatePicker from '../components/DatePicker.vue'
-import ScoreCard from '../components/ScoreCard.vue'
+// import ScoreCard from '../components/ScoreCard.vue'
 import { isValidEmail } from '../utils/validation'
 import ReferenceNotes from '../components/ReferenceNotes.vue'
 import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
-import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
+// import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
+import CreditsAndAmlUI, { type Props as CreditsAndAmlUIProps } from '../components/CreditsAndAmlUI.vue'
 import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
 
 const route = useRoute()
@@ -3308,12 +3257,20 @@ const loading = ref(true)
 const error = ref('')
 const expandedTenant = ref<string | null>(null)
 const childReferenceDetails = ref<Record<string, any>>({})
-const score = ref<any>(null)
-const loadingScore = ref(false)
+//const score = ref<any>(null)
+const application_flags = ref({
+  credit_check_status : 'pending',
+  sanctions_check : {
+    risk_level : '',
+    summary_message : '',
+    show : false
+  },
+})
 const downloadingPDF = ref(false)
-const sanctionsScreening = ref<any>(null)
-const creditsafeVerification = ref<any>(null)
-const loadingCreditsafe = ref(false)
+//const sanctionsScreening = ref<any>(null)
+//const creditsafeVerification = ref<any>(null)
+
+const creditAndAmlVerification = ref<CreditsAndAmlUIProps>()
 
 // Add Guarantor modal state
 const showAddGuarantorModal = ref(false)
@@ -3357,14 +3314,11 @@ const deleteLoading = ref(false)
 
 onMounted(async () => {
   await fetchReference()
-  // Fetch Creditsafe verification if reference is submitted
+  // Fetch Creditsafe verification and score if reference is submitted
   if (reference.value?.submitted_at) {
-    fetchCreditsafeVerification()
-    fetchSanctionsScreening()
-  }
-  // Fetch score if reference is completed
-  if (reference.value?.status === 'completed') {
-    await fetchScore()
+    // fetchCreditsafeVerification()
+    // fetchSanctionsScreening()
+    // await fetchScore() // Fetch score when submitted, not just when completed
   }
 })
 const fetchReference = async () => {
@@ -3399,6 +3353,39 @@ const fetchReference = async () => {
     siblingReferences.value = data.siblingReferences || []
     previousAddresses.value = data.previousAddresses || []
     documents.value = data.documents || []
+
+    application_flags.value = {
+      credit_check_status : data?.reference?.status === 'pending' ? 'pending' : data?.creditsafeVerification?.verification_status ?? '',
+      sanctions_check : {
+        risk_level : data.sanctionsScreening?.risk_level ?? '',
+        summary_message : data.sanctionsScreening?.summary_message ?? '',
+        show : data.reference?.status !== 'pending'
+      },
+    }
+    //creditsafeVerification.value = data.creditsafeVerification
+    let flags = {}
+    try {
+      flags = JSON.parse(data.creditsafeVerification?.fraud_indicators ?? '{}')
+    } catch (err: any) {
+      console.error('Error parsing fraud indicators:', err)
+    }
+
+    const areSanctionClear = data?.sanctionsScreening?.risk_level === 'clear' || (Array.isArray(data?.sanctionsScreening?.sanctions_matches) && data?.sanctionsScreening?.sanctions_matches.length === 0)
+
+    creditAndAmlVerification.value = {
+      verification: {
+        name_match_score: data.creditsafeVerification?.name_match_score ?? 0,
+        application_status: data?.score?.assessed_by === "System" ? "Yet to be assessed" : data?.score?.decision,
+        risk_level: data?.creditsafeVerification?.risk_level ?? 'yet_to_be_assessed',
+        risk_score: data?.score?.score_total ?? 0,
+        verification_flags: flags as any
+      },
+      complianceChecks: {
+        pep: areSanctionClear,
+        sanctions: areSanctionClear,
+        adverseMedia: areSanctionClear
+      } as any
+    }
   } catch (err: any) {
     error.value = err.message || 'Failed to load reference'
   } finally {
@@ -3406,83 +3393,83 @@ const fetchReference = async () => {
   }
 }
 
-const fetchCreditsafeVerification = async () => {
-  try {
-    loadingCreditsafe.value = true
-    const token = authStore.session?.access_token
-    if (!token) return
+// const fetchCreditsafeVerification = async () => {
+//   try {
+//     loadingCreditsafe.value = true
+//     const token = authStore.session?.access_token
+//     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/references/${route.params.id}/creditsafe`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+//     const response = await fetch(`${API_URL}/api/references/${route.params.id}/creditsafe`, {
+//       headers: {
+//         'Authorization': `Bearer ${token}`,
+//         'Content-Type': 'application/json'
+//       }
+//     })
 
-    if (response.ok) {
-      const data = await response.json()
-      creditsafeVerification.value = data.verification
-    } else if (response.status !== 404) {
-      // 404 is expected if no verification exists yet
-      console.error('Failed to fetch creditsafe verification')
-    }
-  } catch (err: any) {
-    console.error('Error fetching creditsafe verification:', err)
-  } finally {
-    loadingCreditsafe.value = false
-  }
-}
+//     if (response.ok) {
+//       const data = await response.json()
+//       creditsafeVerification.value = data.verification
+//     } else if (response.status !== 404) {
+//       // 404 is expected if no verification exists yet
+//       console.error('Failed to fetch creditsafe verification')
+//     }
+//   } catch (err: any) {
+//     console.error('Error fetching creditsafe verification:', err)
+//   } finally {
+//     loadingCreditsafe.value = false
+//   }
+// }
 
-const fetchSanctionsScreening = async () => {
-  try {
-    const token = authStore.session?.access_token
-    if (!token) return
+// const fetchSanctionsScreening = async () => {
+//   try {
+//     const token = authStore.session?.access_token
+//     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/references/${route.params.id}/sanctions`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+//     const response = await fetch(`${API_URL}/api/references/${route.params.id}/sanctions`, {
+//       headers: {
+//         'Authorization': `Bearer ${token}`,
+//         'Content-Type': 'application/json'
+//       }
+//     })
 
-    if (response.ok) {
-      const data = await response.json()
-      sanctionsScreening.value = data.screening
-    } else if (response.status !== 404) {
-      // 404 is expected if no screening exists yet
-      console.error('Failed to fetch sanctions screening')
-    }
-  } catch (err: any) {
-    console.error('Error fetching sanctions screening:', err)
-  }
-}
+//     if (response.ok) {
+//       const data = await response.json()
+//       sanctionsScreening.value = data.screening
+//     } else if (response.status !== 404) {
+//       // 404 is expected if no screening exists yet
+//       console.error('Failed to fetch sanctions screening')
+//     }
+//   } catch (err: any) {
+//     console.error('Error fetching sanctions screening:', err)
+//   }
+// }
 
-const fetchScore = async () => {
-  try {
-    loadingScore.value = true
-    const token = authStore.session?.access_token
-    if (!token) return
+// const fetchScore = async () => {
+//   try {
+//     loadingScore.value = true
+//     const token = authStore.session?.access_token
+//     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/references/${route.params.id}/score`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+//     const response = await fetch(`${API_URL}/api/references/${route.params.id}/score`, {
+//       headers: {
+//         'Authorization': `Bearer ${token}`,
+//         'Content-Type': 'application/json'
+//       }
+//     })
 
-    if (response.ok) {
-      const data = await response.json()
-      score.value = data.score
-    } else if (response.status === 404) {
-      // Score not yet available
-      console.log('Score not available yet')
-    }
-  } catch (err: any) {
-    console.error('Failed to fetch score:', err)
-  } finally {
-    loadingScore.value = false
-  }
-}
+//     if (response.ok) {
+//       const data = await response.json()
+//       score.value = data.score
+//     } else if (response.status === 404) {
+//       // Score not yet available
+//       console.log('Score not available yet')
+//     }
+//   } catch (err: any) {
+//     console.error('Failed to fetch score:', err)
+//   } finally {
+//     loadingScore.value = false
+//   }
+// }
 
 const downloadPDFReport = async () => {
   try {
