@@ -696,6 +696,10 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       submitted_geolocation: parseEncryptedJsonField(guarantorReference.submitted_geolocation_encrypted)
     } : null
 
+    const { data: creditsafeVerification } = await supabase.from('creditsafe_verifications').select('*').eq('reference_id', reference.id).single()
+    const { data: sanctionsScreening } = await supabase.from('sanctions_screenings').select('*').eq('reference_id', reference.id).single()
+    const { data: score } = await supabase.from('reference_scores').select('*').eq('reference_id', reference.id).single()
+
     res.json({
       reference: decryptedReference,
       landlordReference: decryptedLandlordReference,
@@ -704,7 +708,10 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       accountantReference: decryptedAccountantReference,
       guarantorReference: decryptedGuarantorReference,
       previousAddresses: decryptedPreviousAddresses || [],
-      documents
+      documents,
+      creditsafeVerification: creditsafeVerification,
+      sanctionsScreening: sanctionsScreening,
+      score: score,
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })

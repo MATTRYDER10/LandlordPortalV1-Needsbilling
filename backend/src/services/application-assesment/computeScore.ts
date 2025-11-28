@@ -18,7 +18,7 @@ export const scoringRules = {
 
   residential: {
     fullPassScore: 250,
-    amberPassScore : 100,
+    amberPassScore: 100,
     failScore: -300,
     failGate: "RES_REF_FAIL"
   },
@@ -107,6 +107,7 @@ export const computeScore = ({
   let failCount = 0;
   let gates: string[] = [];
   let incomeBand = "below_2.5x";
+  let risk_level = 'high'
 
   // CREDIT
   creditScore += credit.insolvency ? R.credit.insolvency.fail : R.credit.insolvency.pass;
@@ -116,7 +117,26 @@ export const computeScore = ({
   if (credit.ccj) failCount++;
 
   creditScore += credit.deceased ? R.credit.deceased.fail : R.credit.deceased.pass;
-  if (credit.deceased) failCount++;
+  if (credit.deceased) {
+    failCount++
+    return {
+      score_total: 0,
+      risk_level: 'very_high',
+
+      domain_scores: {
+        credit: 0,
+        aml: 0,
+        rtr: 0,
+        residential: 0,
+        income: 0
+      },
+
+      failCount: 1,
+      incomeBand: 'below_2.5x',
+      gates: [],
+      decision: 'FAIL'
+    };
+  }
 
   creditScore += credit.electoral ? R.credit.electoral.pass : R.credit.electoral.fail;
 
@@ -183,8 +203,22 @@ export const computeScore = ({
     }
   }
 
+  if (totalScore <= 0) {
+    risk_level = 'very_high';
+  }
+  else if (totalScore < 650) {
+    risk_level = 'high';
+  }
+  else if (totalScore < 800) {
+    risk_level = 'medium';
+  }
+  else {
+    risk_level = 'low';
+  }
+
   return {
     score_total: totalScore,
+    risk_level,
 
     // NEW: returning all domain scores separately
     domain_scores: {

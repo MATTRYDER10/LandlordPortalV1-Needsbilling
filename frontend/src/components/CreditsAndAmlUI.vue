@@ -252,8 +252,8 @@ interface VerificationFlags {
 
 interface VerificationData {
     name_match_score: number;
-    application_status: 'Failed' | 'Passed' | 'Yet to be assessed' | 'Passed with gurantor';
-    risk_level: 'low' | 'medium' | 'high' | 'yet_to_be_assessed';
+    application_status: 'Failed' | 'Passed' | 'Yet to be assessed' | 'PASS_WITH_GUARANTOR';
+    risk_level: 'low' | 'medium' | 'high' | 'very_high' | 'yet_to_be_assessed';
     risk_score: number;
     verification_flags: VerificationFlags
 }
@@ -298,7 +298,7 @@ const statusLabel = computed(() => {
             return 'Failed'
         case 'Yet to be assessed':
             return 'Yet to be assessed'
-        case 'Passed with gurantor':
+        case 'PASS_WITH_GUARANTOR':
             return 'Passed with Guarantor'
         default:
             return 'Failed'
@@ -340,6 +340,8 @@ const riskLevelLabel = computed(() => {
             return 'Medium'
         case 'high':
             return 'High'
+        case 'very_high':
+            return 'Very High'
         case 'yet_to_be_assessed':
             return 'Yet to be assessed'
         default:

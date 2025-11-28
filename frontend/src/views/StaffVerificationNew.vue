@@ -130,7 +130,7 @@
       <div v-if="hasTenantDocuments" class="bg-white rounded-lg shadow p-6 mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Tenant Uploaded Documents</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div v-for="doc in tenantDocuments" :key="doc.label"
+          <!-- <div v-for="doc in tenantDocuments" :key="doc.label"
             class="flex items-center justify-between border border-gray-200 rounded-lg p-3 bg-gray-50">
             <div class="pr-4">
               <p class="text-sm font-medium text-gray-900">{{ doc.label }}</p>
@@ -140,6 +140,22 @@
               class="text-sm font-medium text-primary hover:underline">
               View
             </a>
+          </div> -->
+          <div v-if="selfieBlobUrl" class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <p class="text-sm font-medium text-gray-900 mb-2">Tenant Image</p>
+            <!-- Show images for ID, Selfie, and Proof of Address -->
+            <div class="mb-2">
+              <img :src="selfieBlobUrl" alt="Tenant Image"
+                class="w-full h-48 object-contain border border-gray-300 rounded-md bg-white cursor-pointer hover:opacity-90" />
+            </div>
+          </div>
+          <div v-if="idDocumentBlobUrl" class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <p class="text-sm font-medium text-gray-900 mb-2">Tenant Id Document</p>
+            <!-- Show images for ID, Selfie, and Proof of Address -->
+            <div class="mb-2">
+              <img :src="idDocumentBlobUrl" alt="Tenant idDocument"
+                class="w-full h-48 object-contain border border-gray-300 rounded-md bg-white cursor-pointer hover:opacity-90" />
+            </div>
           </div>
         </div>
       </div>
@@ -263,7 +279,7 @@
                     <div>
                       <p class="text-sm font-medium text-gray-700">Full Name</p>
                       <p class="text-sm text-gray-900">{{ reference?.tenant_first_name }} {{ reference?.tenant_last_name
-                        }}</p>
+                      }}</p>
                     </div>
                     <div class="flex gap-2">
                       <button @click="idChecks.nameMatch = true" :class="[
@@ -379,7 +395,8 @@
                   </div>
                   <div>
                     <p class="text-xs text-gray-500 uppercase tracking-wide">Recommendation</p>
-                    <p class="font-medium text-gray-900">{{ formatBooleanDisplay(accountantReference.would_recommend) }}</p>
+                    <p class="font-medium text-gray-900">{{ formatBooleanDisplay(accountantReference.would_recommend) }}
+                    </p>
                   </div>
                 </div>
                 <div v-if="accountantReference.additional_comments" class="mt-3 text-sm text-gray-900">
@@ -388,11 +405,13 @@
                 </div>
                 <div v-if="accountantReference.signature" class="mt-3">
                   <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
-                  <img :src="accountantReference.signature" alt="Accountant signature" class="h-20 object-contain border rounded bg-white p-2" />
+                  <img :src="accountantReference.signature" alt="Accountant signature"
+                    class="h-20 object-contain border rounded bg-white p-2" />
                 </div>
                 <div v-if="accountantReference.submitted_ip_address || accountantReference.submitted_geolocation"
                   class="mt-3 text-xs text-gray-500 space-y-1">
-                  <p v-if="accountantReference.submitted_ip_address">IP: {{ accountantReference.submitted_ip_address }}</p>
+                  <p v-if="accountantReference.submitted_ip_address">IP: {{ accountantReference.submitted_ip_address }}
+                  </p>
                   <p v-if="accountantReference.submitted_geolocation" class="flex items-center gap-2">
                     Location: {{ formatGeolocationText(accountantReference.submitted_geolocation) }}
                     <button type="button" class="text-primary underline"
@@ -408,23 +427,28 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <div class="flex gap-4">
-                <button @click="steps[0]!.overall_pass = true" :class="[
+                <button @click="steps[0]!.overall_pass = true" :disabled="!canMakeStep1Decision" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[0]!.overall_pass === true
                     ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                    : 'bg-gray-100 text-gray-700 hover:bg-green-50',
+                  !canMakeStep1Decision ? 'opacity-50 cursor-not-allowed' : ''
                 ]">
                   Pass
                 </button>
-                <button @click="steps[0]!.overall_pass = false" :class="[
+                <button @click="steps[0]!.overall_pass = false" :disabled="!canMakeStep1Decision" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[0]!.overall_pass === false
                     ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-red-50'
+                    : 'bg-gray-100 text-gray-700 hover:bg-red-50',
+                  !canMakeStep1Decision ? 'opacity-50 cursor-not-allowed' : ''
                 ]">
                   Fail
                 </button>
               </div>
+              <p v-if="!canMakeStep1Decision" class="mt-2 text-sm text-gray-500">
+                Please complete all match/no match decisions above before making a final decision.
+              </p>
             </div>
           </div>
         </div>
@@ -435,6 +459,16 @@
           <p class="text-gray-600 mb-6">Verify income and affordability documentation.</p>
 
           <div class="space-y-6">
+            <!-- Property Details Section (Moved from Income Sources) -->
+            <div v-if="reference?.monthly_rent" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 class="font-semibold text-gray-900 mb-3">Property Details</h4>
+              <div class="space-y-1 text-sm">
+                <p><strong>Monthly Rent:</strong> £{{ reference.monthly_rent }}</p>
+                <p v-if="reference?.property_address"><strong>Property:</strong> {{ reference.property_address }}, {{
+                  reference.property_city }} {{ reference.property_postcode }}</p>
+              </div>
+            </div>
+
             <!-- Income Data Display -->
             <div class="bg-gray-50 rounded-lg p-4 space-y-4">
               <h4 class="font-semibold text-gray-900">Declared Income Sources</h4>
@@ -448,10 +482,10 @@
                     reference.employment_company_name }}
                   </p>
                   <p v-if="reference?.employment_job_title"><strong>Position:</strong> {{ reference.employment_job_title
-                    }}</p>
+                  }}</p>
                   <p v-if="reference?.employment_salary_amount"><strong>Salary:</strong> £{{
                     reference.employment_salary_amount
-                    }} {{ reference.employment_salary_frequency || 'per year' }}</p>
+                  }} {{ reference.employment_salary_frequency || 'per year' }}</p>
                   <p v-if="reference?.employer_ref_name"><strong>Reference Contact:</strong> {{
                     reference.employer_ref_name }}
                   </p>
@@ -470,7 +504,7 @@
                   <p v-if="reference?.self_employed_annual_income"><strong>Annual Income:</strong> £{{
                     reference.self_employed_annual_income }}</p>
                   <p v-if="reference?.accountant_name"><strong>Accountant:</strong> {{ reference.accountant_contact_name
-                    }} ({{
+                  }} ({{
                       reference.accountant_name }})</p>
                   <p v-if="reference?.accountant_email"><strong>Email:</strong> {{ reference.accountant_email }}</p>
                 </div>
@@ -501,28 +535,33 @@
                 <div class="mt-2 space-y-1 text-sm">
                   <p v-if="reference?.additional_income_source"><strong>Source:</strong> {{
                     reference.additional_income_source
-                    }}</p>
+                  }}</p>
                   <p v-if="reference?.additional_income_amount"><strong>Amount:</strong> £{{
                     reference.additional_income_amount
-                    }}</p>
-                </div>
-              </div>
-
-              <!-- Monthly Rent -->
-              <div v-if="reference?.monthly_rent" class="border-l-4 border-red-500 pl-4">
-                <p class="font-medium text-gray-900">Property Details</p>
-                <div class="mt-2 space-y-1 text-sm">
-                  <p><strong>Monthly Rent:</strong> £{{ reference.monthly_rent }}</p>
-                  <p v-if="reference?.property_address"><strong>Property:</strong> {{ reference.property_address }}, {{
-                    reference.property_city }} {{ reference.property_postcode }}</p>
+                  }}</p>
                 </div>
               </div>
 
               <!-- No income declared -->
               <div
                 v-if="!reference?.income_employment && !reference?.income_regular_employment && !reference?.income_self_employed && !reference?.income_benefits && !reference?.income_savings_pension_investments"
-                class="text-gray-500 italic">
-                No income sources declared
+                class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                  <svg class="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <p class="font-semibold text-yellow-900">No Income Sources Declared</p>
+                    <p v-if="!reference?.income_student && !reference?.income_unemployed"
+                      class="text-sm text-yellow-700 mt-1">
+                      The tenant has not declared any income sources. Please
+                      verify this is correct or request additional information.</p>
+                    <p v-else class="text-sm text-yellow-700 mt-1">The tenant has declared itself as {{
+                      reference?.income_student ? 'student' : 'unemployed' }}.</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -539,31 +578,27 @@
                   <thead class="bg-gray-50">
                     <tr>
                       <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Field</th>
-                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Tenant Provided</th>
-                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Employer Confirmed</th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Tenant Provided
+                      </th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Employer
+                        Confirmed</th>
                       <th class="px-4 py-2 text-center font-medium text-gray-600 uppercase tracking-wide">Status</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-100">
-                    <tr
-                      v-for="row in employmentComparisonTable"
-                      :key="row.key"
-                      :class="row.status === 'mismatch'
-                        ? 'bg-red-50'
-                        : row.status === 'unknown'
-                          ? 'bg-gray-50'
-                          : ''"
-                    >
+                    <tr v-for="row in employmentComparisonTable" :key="row.key" :class="row.status === 'mismatch'
+                      ? 'bg-red-50'
+                      : row.status === 'unknown'
+                        ? 'bg-gray-50'
+                        : ''">
                       <td class="px-4 py-2 font-medium text-gray-900">{{ row.label }}</td>
                       <td class="px-4 py-2 text-gray-900">{{ row.tenant }}</td>
                       <td class="px-4 py-2 text-gray-900">{{ row.employer }}</td>
                       <td class="px-4 py-2 text-center">
-                        <span
-                          :class="[
-                            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                            comparisonBadgeClass(row.status)
-                          ]"
-                        >
+                        <span :class="[
+                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                          comparisonBadgeClass(row.status)
+                        ]">
                           {{ comparisonStatusLabel(row.status) }}
                         </span>
                       </td>
@@ -571,7 +606,8 @@
                   </tbody>
                 </table>
               </div>
-              <p v-if="employmentComparisonHasMismatch" class="mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <p v-if="employmentComparisonHasMismatch"
+                class="mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-md p-3">
                 Please add notes in this step explaining how you resolved these differences before proceeding.
               </p>
             </div>
@@ -587,7 +623,7 @@
                     </p>
                     <p v-if="reference?.employer_ref_email" class="text-xs text-gray-500 mt-1">{{
                       reference.employer_ref_email
-                      }}</p>
+                    }}</p>
                   </div>
                   <div class="flex gap-2 ml-4">
                     <button @click="toggleCheck('employerEmailGenuine', true)" :class="[
@@ -690,23 +726,28 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <div class="flex gap-4">
-                <button @click="steps[1]!.overall_pass = true" :class="[
+                <button @click="steps[1]!.overall_pass = true" :disabled="!canMakeStep2Decision" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[1]!.overall_pass === true
                     ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                    : 'bg-gray-100 text-gray-700 hover:bg-green-50',
+                  !canMakeStep2Decision ? 'opacity-50 cursor-not-allowed' : ''
                 ]">
                   Pass
                 </button>
-                <button @click="steps[1]!.overall_pass = false" :class="[
+                <button @click="steps[1]!.overall_pass = false" :disabled="!canMakeStep2Decision" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[1]!.overall_pass === false
                     ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-red-50'
+                    : 'bg-gray-100 text-gray-700 hover:bg-red-50',
+                  !canMakeStep2Decision ? 'opacity-50 cursor-not-allowed' : ''
                 ]">
                   Fail
                 </button>
               </div>
+              <p v-if="!canMakeStep2Decision" class="mt-2 text-sm text-gray-500">
+                Please complete all verification checks above before making a final decision.
+              </p>
             </div>
           </div>
         </div>
@@ -715,6 +756,22 @@
         <div v-if="currentStep === 3">
           <h3 class="text-xl font-bold text-gray-900 mb-4">Step 3: Residential Verification</h3>
           <p class="text-gray-600 mb-6">Verify residential history and landlord references.</p>
+
+          <!-- Living with Family Message -->
+          <div v-if="reference?.reference_type === 'living_with_family'"
+            class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
+            <div class="flex items-start gap-4">
+              <div class="flex-shrink-0">
+                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h4 class="text-lg font-semibold text-blue-900 mb-2">Tenant Living with Family</h4>
+              </div>
+            </div>
+          </div>
 
           <div class="space-y-6">
             <!-- Current Address Display -->
@@ -726,7 +783,8 @@
                     reference.current_address_line1 }}</p>
                   <p v-if="reference?.current_address_line2" class="ml-16">{{ reference.current_address_line2 }}</p>
                   <p v-if="reference?.current_city || reference?.current_postcode">
-                    <span class="ml-16">{{ reference.current_city }}{{ reference.current_city && reference.current_postcode ? ',' : '' }}{{ reference.current_postcode }}</span>
+                    <span class="ml-16">{{ reference.current_city }}{{ reference.current_city &&
+                      reference.current_postcode ? ',' : '' }}{{ reference.current_postcode }}</span>
                   </p>
                   <p v-if="reference?.current_country"><span class="ml-16">{{ reference.current_country }}</span></p>
                   <p v-if="reference?.time_at_address_years || reference?.time_at_address_months">
@@ -739,7 +797,8 @@
             </div>
 
             <!-- Previous Rental History -->
-            <div v-if="reference?.previous_landlord_name || reference?.previous_rental_address_line1"
+            <div
+              v-if="reference?.reference_type !== 'living_with_family' && reference?.previous_landlord_name || reference?.previous_rental_address_line1"
               class="bg-gray-50 rounded-lg p-4 space-y-4">
               <h4 class="font-semibold text-gray-900">Previous Rental History</h4>
               <div class="border-l-4 border-purple-500 pl-4">
@@ -763,7 +822,7 @@
                   </p>
                   <p v-if="reference?.previous_monthly_rent"><strong>Previous Rent:</strong> £{{
                     reference.previous_monthly_rent
-                    }}/month</p>
+                  }}/month</p>
                   <p v-if="reference?.previous_tenancy_start_date || reference?.previous_tenancy_end_date">
                     <strong>Tenancy Period:</strong>
                     {{ formatDate(reference.previous_tenancy_start_date, 'N/A') }}
@@ -776,7 +835,8 @@
             </div>
 
             <!-- Landlord/Agent Reference Response -->
-            <div v-if="landlordReference || agentReference" class="bg-white border rounded-lg p-4">
+            <div v-if="reference?.reference_type !== 'living_with_family' && landlordReference || agentReference"
+              class="bg-white border rounded-lg p-4">
               <h4 class="font-semibold text-gray-900 mb-3">{{ landlordReference ? 'Landlord' : 'Agent' }} Reference
                 Response
               </h4>
@@ -790,7 +850,8 @@
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                     <div>
                       <p class="text-xs text-gray-500 uppercase tracking-wide">Rent Paid On Time</p>
-                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(landlordReference.rent_paid_on_time) }}</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(landlordReference.rent_paid_on_time)
+                        }}</p>
                     </div>
                     <div>
                       <p class="text-xs text-gray-500 uppercase tracking-wide">Good Tenant</p>
@@ -798,7 +859,8 @@
                     </div>
                     <div>
                       <p class="text-xs text-gray-500 uppercase tracking-wide">Would Rent Again</p>
-                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(landlordReference.would_rent_again) }}</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(landlordReference.would_rent_again)
+                        }}</p>
                     </div>
                     <div v-if="landlordReference.monthly_rent">
                       <p class="text-xs text-gray-500 uppercase tracking-wide">Monthly Rent</p>
@@ -811,11 +873,13 @@
                   </div>
                   <div v-if="landlordReference.signature" class="mt-3">
                     <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
-                    <img :src="landlordReference.signature" alt="Landlord signature" class="h-20 object-contain border rounded bg-white p-2" />
+                    <img :src="landlordReference.signature" alt="Landlord signature"
+                      class="h-20 object-contain border rounded bg-white p-2" />
                   </div>
                   <div v-if="landlordReference.submitted_ip_address || landlordReference.submitted_geolocation"
                     class="mt-3 text-xs text-gray-500 space-y-1">
-                    <p v-if="landlordReference.submitted_ip_address">IP: {{ landlordReference.submitted_ip_address }}</p>
+                    <p v-if="landlordReference.submitted_ip_address">IP: {{ landlordReference.submitted_ip_address }}
+                    </p>
                     <p v-if="landlordReference.submitted_geolocation" class="flex items-center gap-2">
                       Location: {{ formatGeolocationText(landlordReference.submitted_geolocation) }}
                       <button type="button" class="text-primary underline"
@@ -835,7 +899,8 @@
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                     <div>
                       <p class="text-xs text-gray-500 uppercase tracking-wide">Rent Paid On Time</p>
-                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(agentReference.rent_paid_on_time) }}</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(agentReference.rent_paid_on_time) }}
+                      </p>
                     </div>
                     <div>
                       <p class="text-xs text-gray-500 uppercase tracking-wide">Good Tenant</p>
@@ -843,7 +908,8 @@
                     </div>
                     <div>
                       <p class="text-xs text-gray-500 uppercase tracking-wide">Would Rent Again</p>
-                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(agentReference.would_rent_again) }}</p>
+                      <p class="font-medium text-gray-900">{{ formatBooleanDisplay(agentReference.would_rent_again) }}
+                      </p>
                     </div>
                   </div>
                   <div v-if="agentReference.additional_comments" class="mt-2">
@@ -852,7 +918,8 @@
                   </div>
                   <div v-if="agentReference.signature" class="mt-3">
                     <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
-                    <img :src="agentReference.signature" alt="Agent signature" class="h-20 object-contain border rounded bg-white p-2" />
+                    <img :src="agentReference.signature" alt="Agent signature"
+                      class="h-20 object-contain border rounded bg-white p-2" />
                   </div>
                   <div v-if="agentReference.submitted_ip_address || agentReference.submitted_geolocation"
                     class="mt-3 text-xs text-gray-500 space-y-1">
@@ -906,7 +973,7 @@
                     <p class="text-sm font-medium text-gray-700">Are contact details verifiable?</p>
                     <p class="text-xs text-gray-500 mt-1">
                       {{ reference?.previous_landlord_email || landlordReference?.landlord_email ||
-                      agentReference?.agent_email
+                        agentReference?.agent_email
                       }}
                     </p>
                   </div>
@@ -985,7 +1052,7 @@
             </div>
 
             <!-- Evidence Source Selection -->
-            <div>
+            <div v-if="reference?.reference_type !== 'living_with_family'">
               <label class="block text-sm font-medium text-gray-700 mb-2">Evidence Sources Used</label>
               <div class="grid grid-cols-2 gap-3">
                 <label v-for="source in evidenceSourceOptions.RESIDENTIAL" :key="source.evidence_type"
@@ -1010,23 +1077,39 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <div class="flex gap-4">
-                <button @click="steps[2]!.overall_pass = true" :class="[
+
+                <!-- PASS -->
+                <button @click="steps[2]!.status = 'pass'" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                  steps[2]!.overall_pass === true
+                  steps[2]!.status === 'pass'
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-green-50'
                 ]">
                   Pass
                 </button>
-                <button @click="steps[2]!.overall_pass = false" :class="[
+
+                <!-- AMBER -->
+                <button @click="steps[2]!.status = 'amber'" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
-                  steps[2]!.overall_pass === false
+                  steps[2]!.status === 'amber'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                ]">
+                  AMBER
+                </button>
+
+                <!-- FAIL -->
+                <button @click="steps[2]!.status = 'fail'" :class="[
+                  'flex-1 py-3 px-4 rounded-md font-medium transition-all',
+                  steps[2]!.status === 'fail'
                     ? 'bg-red-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-red-50'
                 ]">
                   Fail
                 </button>
+
               </div>
+
             </div>
           </div>
         </div>
@@ -1046,7 +1129,7 @@
                     creditCheckData.credit_rating }}
                   </p>
                   <p v-if="creditCheckData.credit_score"><strong>Credit Score:</strong> {{ creditCheckData.credit_score
-                    }}</p>
+                  }}</p>
                   <p v-if="creditCheckData.band_text"><strong>Band:</strong> {{ creditCheckData.band_text }}</p>
                   <p v-if="creditCheckData.adverse_credit !== undefined">
                     <strong>Adverse Credit:</strong>
@@ -1064,111 +1147,33 @@
               </div>
             </div>
 
-            <!-- Sanctions Screening -->
-            <div v-if="sanctionsData" class="bg-gray-50 rounded-lg p-4 space-y-4">
-              <h4 class="font-semibold text-gray-900">Sanctions Screening</h4>
-              <div class="border-l-4 pl-4" :class="{
-                'border-green-500': sanctionsData.risk_level === 'clear',
-                'border-blue-500': sanctionsData.risk_level === 'low',
-                'border-yellow-500': sanctionsData.risk_level === 'medium',
-                'border-red-500': sanctionsData.risk_level === 'high'
-              }">
-                <div class="space-y-2 text-sm">
-                  <p>
-                    <strong>Risk Level:</strong>
-                    <span :class="{
-                      'text-green-600 font-semibold': sanctionsData.risk_level === 'clear',
-                      'text-blue-600 font-semibold': sanctionsData.risk_level === 'low',
-                      'text-yellow-600 font-semibold': sanctionsData.risk_level === 'medium',
-                      'text-red-600 font-semibold': sanctionsData.risk_level === 'high'
-                    }">
-                      {{ sanctionsData.risk_level?.toUpperCase() }}
-                    </span>
-                  </p>
-                  <p v-if="sanctionsData.summary_message"><strong>Summary:</strong> {{ sanctionsData.summary_message }}
-                  </p>
-                  <p v-if="sanctionsData.matches_found > 0" class="text-orange-600">
-                    <strong>Matches Found:</strong> {{ sanctionsData.matches_found }}
-                  </p>
-                  <p v-if="sanctionsData.screened_at" class="text-gray-500">
-                    <strong>Screened:</strong> {{ formatDate(sanctionsData.screened_at) }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Creditsafe Identity Check -->
-            <div class="bg-gray-50 rounded-lg p-4 space-y-4">
-              <div class="flex items-center justify-between">
-                <h4 class="font-semibold text-gray-900">Creditsafe Identity Verification</h4>
-                <div class="flex items-center gap-2">
-                  <button
-                    v-if="!creditsafeLoading"
-                    @click="triggerCreditsafeCheck"
-                    class="px-3 py-1 text-sm font-medium text-white bg-purple-600 rounded hover:bg-purple-700 transition-colors"
-                  >
-                    Run Check
-                  </button>
-                  <span v-if="creditsafeLoading" class="text-sm text-gray-500">
-                    <svg class="inline-block animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+            <!-- Credits and AML UI -->
+            <div class="bg-white border rounded-lg p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-gray-900">Credits and AML Verification</h4>
+                <button @click="triggerCreditsafeCheck" :disabled="creditsafeLoading"
+                  class="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span v-if="creditsafeLoading" class="flex items-center gap-2">
+                    <svg class="inline-block animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor"
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
                       </path>
                     </svg>
-                    Running identity check...
+                    Re-Checking...
                   </span>
-                </div>
+                  <span v-else>Re-Check</span>
+                </button>
               </div>
-
-              <div v-if="creditsafeData" class="border-l-4 border-purple-500 pl-4">
-                <div class="space-y-2 text-sm">
-                  <p v-if="creditsafeData.verifyMatch !== undefined">
-                    <strong>Identity Match:</strong>
-                    <span
-                      :class="creditsafeData.verifyMatch ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
-                      {{ creditsafeData.verifyMatch ? 'VERIFIED' : 'NOT VERIFIED' }}
-                    </span>
-                  </p>
-                  <p v-if="creditsafeData.electoralRegisterMatch !== undefined">
-                    <strong>Electoral Register:</strong>
-                    <span :class="creditsafeData.electoralRegisterMatch ? 'text-green-600' : 'text-red-600'">
-                      {{ creditsafeData.electoralRegisterMatch ? 'Found' : 'Not Found' }}
-                    </span>
-                  </p>
-                  <p v-if="creditsafeData.ccjMatch !== undefined">
-                    <strong>CCJs:</strong>
-                    <span :class="!creditsafeData.ccjMatch ? 'text-green-600' : 'text-red-600 font-semibold'">
-                      {{ creditsafeData.ccjMatch ? 'FOUND' : 'None Found' }}
-                    </span>
-                  </p>
-                  <p v-if="creditsafeData.insolvencyMatch !== undefined">
-                    <strong>Insolvencies:</strong>
-                    <span :class="!creditsafeData.insolvencyMatch ? 'text-green-600' : 'text-red-600 font-semibold'">
-                      {{ creditsafeData.insolvencyMatch ? 'FOUND' : 'None Found' }}
-                    </span>
-                  </p>
-                  <p v-if="creditsafeData.riskLevel">
-                    <strong>Risk Level:</strong>
-                    <span :class="{
-                      'text-green-600': creditsafeData.riskLevel === 'low',
-                      'text-yellow-600': creditsafeData.riskLevel === 'medium',
-                      'text-orange-600': creditsafeData.riskLevel === 'high',
-                      'text-red-600': creditsafeData.riskLevel === 'very_high'
-                    }">
-                      {{ creditsafeData.riskLevel.toUpperCase().replace('_', ' ') }}
-                    </span>
-                  </p>
-                  <p v-if="creditsafeData.riskScore !== undefined">
-                    <strong>Risk Score:</strong> {{ creditsafeData.riskScore }}
-                  </p>
-                  <p v-if="creditsafeData.verified_at" class="text-gray-500">
-                    <strong>Checked:</strong> {{ formatDate(creditsafeData.verified_at) }}
-                  </p>
-                </div>
-              </div>
-              <div v-else-if="!creditsafeLoading" class="text-gray-500 italic text-sm">
-                No Creditsafe data available yet.
+              <CreditsAndAmlUI v-if="reference?.status !== 'pending'"
+                :verification="creditAndAmlVerification?.verification"
+                :compliance-checks="creditAndAmlVerification?.complianceChecks ?? {}" />
+              <div v-else class="bg-white rounded-lg shadow p-6">
+                <svg class="w-6 h-6 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="text-center text-gray-600">Tenant has'nt submitted reference yet.</div>
               </div>
             </div>
 
@@ -1200,23 +1205,25 @@
                   <p class="text-xs text-gray-500 mb-1">Step 3: Residential</p>
                   <p :class="{
                     'text-green-600 font-semibold': steps[2]!.overall_pass === true,
+                    'text-amber-600 font-semibold': steps[2]!.status === 'amber',
                     'text-red-600 font-semibold': steps[2]!.overall_pass === false,
-                    'text-gray-400': steps[2]!.overall_pass === null
+                    'text-gray-400': (steps[2]!.overall_pass === null && steps[2]!.status !== 'amber')
                   }">
-                    {{ steps[2]!.overall_pass === null ? 'Pending' : (steps[2]!.overall_pass ? 'PASS' : 'FAIL') }}
+                    {{ steps[2]!.status === 'amber' ? 'AMBER' : (steps[2]!.overall_pass === null ? 'Pending' :
+                      (steps[2]!.overall_pass ? 'PASS' : 'FAIL')) }}
                   </p>
                 </div>
                 <div class="p-3 bg-gray-50 rounded">
                   <p class="text-xs text-gray-500 mb-1">Credit Checks</p>
                   <p :class="{
-                    'text-green-600 font-semibold': !creditCheckData?.adverse_credit && sanctionsData?.risk_level === 'clear',
-                    'text-yellow-600 font-semibold': sanctionsData?.risk_level === 'low' || sanctionsData?.risk_level === 'medium',
-                    'text-red-600 font-semibold': creditCheckData?.adverse_credit || sanctionsData?.risk_level === 'high',
-                    'text-gray-400': !creditCheckData && !sanctionsData
+                    'text-green-600 font-semibold': credit_status === 'low' || credit_status === 'medium',
+                    'text-yellow-600 font-semibold': credit_status === 'low' || credit_status === 'medium',
+                    'text-red-600 font-semibold': credit_status === 'high',
+                    'text-gray-400': !credit_status
                   }">
-                    {{ !creditCheckData && !sanctionsData ? 'N/A' :
-                      (creditCheckData?.adverse_credit || sanctionsData?.risk_level === 'high' ? 'FAIL' :
-                        (sanctionsData?.risk_level === 'low' || sanctionsData?.risk_level === 'medium' ? 'REFER' : 'PASS'))
+                    {{ !credit_status ? 'N/A' :
+                      (credit_status === 'high' ? 'FAIL' :
+                        (credit_status === 'medium' ? 'REFER' : 'PASS'))
                     }}
                   </p>
                 </div>
@@ -1356,23 +1363,28 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Overall Step Result</label>
                 <div class="flex gap-4">
-                  <button @click="steps[3]!.overall_pass = true" :class="[
+                  <button @click="steps[3]!.overall_pass = true" :disabled="!canMakeStep4Decision" :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                     steps[3]!.overall_pass === true
                       ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                      : 'bg-gray-100 text-gray-700 hover:bg-green-50',
+                    !canMakeStep4Decision ? 'opacity-50 cursor-not-allowed' : ''
                   ]">
                     Pass
                   </button>
-                  <button @click="steps[3]!.overall_pass = false" :class="[
+                  <button @click="steps[3]!.overall_pass = false" :disabled="!canMakeStep4Decision" :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                     steps[3]!.overall_pass === false
                       ? 'bg-red-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-red-50'
+                      : 'bg-gray-100 text-gray-700 hover:bg-red-50',
+                    !canMakeStep4Decision ? 'opacity-50 cursor-not-allowed' : ''
                   ]">
                     Fail
                   </button>
                 </div>
+                <p v-if="!canMakeStep4Decision" class="mt-2 text-sm text-gray-500">
+                  Please make a TAS decision above before making a final step result.
+                </p>
               </div>
             </div>
           </div>
@@ -1411,6 +1423,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import SideBySideViewer from '../components/SideBySideViewer.vue'
+import CreditsAndAmlUI, { type Props as CreditsAndAmlUIProps } from '../components/CreditsAndAmlUI.vue'
 import { formatDate as formatUkDate } from '../utils/date'
 
 const router = useRouter()
@@ -1433,7 +1446,6 @@ const employerReference = ref<any>(null)
 const accountantReference = ref<any>(null)
 const guarantorReference = ref<any>(null)
 const creditCheckData = ref<any>(null)
-const sanctionsData = ref<any>(null)
 const creditsafeData = ref<any>(null)
 const creditsafeLoading = ref(false)
 
@@ -1456,13 +1468,14 @@ interface VerificationStep {
   notes: string
   evidence_sources: any[]
   checks: any[]
+  status?: string
 }
 
 // Step data
 const steps = ref<VerificationStep[]>([
   { step_number: 1, step_type: 'ID_SELFIE', overall_pass: null, notes: '', evidence_sources: [], checks: [] },
   { step_number: 2, step_type: 'INCOME_AFFORDABILITY', overall_pass: null, notes: '', evidence_sources: [], checks: [] },
-  { step_number: 3, step_type: 'RESIDENTIAL', overall_pass: null, notes: '', evidence_sources: [], checks: [] },
+  { step_number: 3, step_type: 'RESIDENTIAL', overall_pass: null, notes: '', evidence_sources: [], checks: [], status: '' },
   { step_number: 4, step_type: 'CREDIT_TAS', overall_pass: null, notes: '', evidence_sources: [], checks: [] }
 ])
 
@@ -1476,6 +1489,8 @@ const idChecks = ref({
 // TAS decision
 const tasDecision = ref<'PASS_PLUS' | 'PASS' | 'REFER' | 'FAIL' | null>(null)
 const tasReason = ref('')
+
+const creditAndAmlVerification = ref<CreditsAndAmlUIProps>()
 
 // Evidence source options
 const evidenceSourceOptions = ref<any>({
@@ -1522,14 +1537,7 @@ const tenantDocuments = computed(() => {
 
 const hasTenantDocuments = computed(() => tenantDocuments.value.length > 0)
 
-const getDocumentDownloadUrl = (storagePath: string) => {
-  if (!storagePath) return ''
-  const segments = storagePath.split('/')
-  if (segments.length < 3) return ''
-  const [referenceId, folder, ...rest] = segments
-  const filename = rest.join('/')
-  return `${API_URL}/api/staff/download/${referenceId}/${folder}/${encodeURIComponent(filename)}`
-}
+
 
 const formatGeolocationText = (geo: any) => {
   if (!geo || typeof geo.latitude !== 'number' || typeof geo.longitude !== 'number') {
@@ -1677,16 +1685,40 @@ const employmentComparisonHasMismatch = computed(() =>
 )
 
 // Computed
+const canMakeStep1Decision = computed(() => {
+  return idChecks.value.nameMatch !== null &&
+    idChecks.value.dobMatch !== null &&
+    idChecks.value.selfieMatch !== null
+})
+
+const canMakeStep2Decision = computed(() => {
+  const checks = steps.value[1]?.checks as any[] || []
+  // Check if all required checks are completed
+  const hasEmploymentIncome = reference.value?.income_employment || reference.value?.income_regular_employment
+  const requiredChecks: string[] = []
+
+  if (hasEmploymentIncome) {
+    requiredChecks.push('employerEmailGenuine', 'businessTrading')
+  }
+  requiredChecks.push('affordability')
+
+  return requiredChecks.every(checkName => {
+    const check = checks.find((c: any) => c.name === checkName)
+    return check && check.pass !== null && check.pass !== undefined
+  })
+})
+
+const canMakeStep4Decision = computed(() => {
+  return tasDecision.value !== null
+})
+
 const canProceed = computed(() => {
   const step = steps.value[currentStep.value - 1]
   if (!step) return false
 
   // For Step 1, all ID checks must be complete before assigning overall pass/fail
   if (currentStep.value === 1) {
-    const allChecksComplete = idChecks.value.nameMatch !== null &&
-      idChecks.value.dobMatch !== null &&
-      idChecks.value.selfieMatch !== null
-    if (allChecksComplete && step.overall_pass === null) {
+    if (canMakeStep1Decision.value && step.overall_pass === null) {
       // Auto-set overall pass based on individual checks
       const allPass = idChecks.value.nameMatch && idChecks.value.dobMatch && idChecks.value.selfieMatch
       step.overall_pass = allPass
@@ -1694,7 +1726,7 @@ const canProceed = computed(() => {
     return step.overall_pass !== null
   }
 
-  return step.overall_pass !== null
+  return step.overall_pass !== null || step.status === 'amber'
 })
 
 const canFinalize = computed(() => {
@@ -1756,6 +1788,8 @@ const loadImageAsBlob = async (filePath: string): Promise<string> => {
   }
 }
 
+
+const credit_status = ref<string | null>(null);
 // Methods
 const loadData = async () => {
   try {
@@ -1785,11 +1819,32 @@ const loadData = async () => {
     accountantReference.value = refData.accountantReference || null
     guarantorReference.value = refData.guarantorReference || null
 
-    console.log('Reference data loaded:', {
-      id: reference.value.id,
-      id_document_path: reference.value.id_document_path,
-      selfie_path: reference.value.selfie_path
-    })
+    credit_status.value = refData?.score?.risk_level ?? null
+
+    //creditsafeVerification.value = data.creditsafeVerification
+    let flags = {}
+    try {
+      flags = JSON.parse(refData.creditsafeVerification?.fraud_indicators ?? '{}')
+    } catch (err: any) {
+      console.error('Error parsing fraud indicators:', err)
+    }
+
+    const areSanctionClear = refData?.sanctionsScreening?.risk_level === 'clear' || (Array.isArray(refData?.sanctionsScreening?.sanctions_matches) && refData?.sanctionsScreening?.sanctions_matches.length === 0)
+
+    creditAndAmlVerification.value = {
+      verification: {
+        name_match_score: refData.creditsafeVerification?.name_match_score ?? 0,
+        application_status: refData?.score?.decision,
+        risk_level: refData?.score?.risk_level,
+        risk_score: refData?.score?.score_total ?? 0,
+        verification_flags: flags as any
+      },
+      complianceChecks: {
+        pep: areSanctionClear,
+        sanctions: areSanctionClear,
+        adverseMedia: areSanctionClear
+      } as any
+    }
 
     // Load ID document and selfie images
     if (reference.value.id_document_path) {
@@ -1807,40 +1862,40 @@ const loadData = async () => {
     }
 
     // Load credit check data
-    try {
-      const creditResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}/creditsafe`, {
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+    // try {
+    //   const creditResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}/creditsafe`, {
+    //     headers: {
+    //       'Authorization': `Bearer ${authStore.session?.access_token}`,
+    //       'Content-Type': 'application/json'
+    //     }
+    //   })
 
-      if (creditResponse.ok) {
-        const creditData = await creditResponse.json()
-        creditsafeData.value = creditData.verification || null
-        console.log('Creditsafe data loaded:', !!creditsafeData.value)
-      }
-    } catch (err) {
-      console.log('No Creditsafe data available')
-    }
+    //   if (creditResponse.ok) {
+    //     const creditData = await creditResponse.json()
+    //     creditsafeData.value = creditData.verification || null
+    //     console.log('Creditsafe data loaded:', !!creditsafeData.value)
+    //   }
+    // } catch (err) {
+    //   console.log('No Creditsafe data available')
+    // }
 
-    // Load sanctions data
-    try {
-      const sanctionsResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}/sanctions`, {
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+    // // Load sanctions data
+    // try {
+    //   const sanctionsResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}/sanctions`, {
+    //     headers: {
+    //       'Authorization': `Bearer ${authStore.session?.access_token}`,
+    //       'Content-Type': 'application/json'
+    //     }
+    //   })
 
-      if (sanctionsResponse.ok) {
-        const sanctionsResponseData = await sanctionsResponse.json()
-        sanctionsData.value = sanctionsResponseData.screening || null
-        console.log('Sanctions data loaded:', !!sanctionsData.value)
-      }
-    } catch (err) {
-      console.log('No sanctions data available')
-    }
+    //   if (sanctionsResponse.ok) {
+    //     const sanctionsResponseData = await sanctionsResponse.json()
+    //     sanctionsData.value = sanctionsResponseData.screening || null
+    //     console.log('Sanctions data loaded:', !!sanctionsData.value)
+    //   }
+    // } catch (err) {
+    //   console.log('No sanctions data available')
+    // }
 
     // Set credit check data from reference
     if (reference.value.adverse_credit !== undefined) {
@@ -1873,37 +1928,38 @@ const loadData = async () => {
     }
 
     // Load existing progress if any
-    const progressResponse = await fetch(`${API_URL}/api/verification-steps/reference/${referenceId}/progress`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    // const progressResponse = await fetch(`${API_URL}/api/verification-steps/reference/${referenceId}/progress`, {
+    //   headers: {
+    //     'Authorization': `Bearer ${authStore.session?.access_token}`,
+    //     'Content-Type': 'application/json'
+    //   }
+    // })
 
-    if (progressResponse.ok) {
-      const progressData = await progressResponse.json()
-      // Populate steps with existing data
-      if (progressData.steps && progressData.steps.length > 0) {
-        progressData.steps.forEach((savedStep: any) => {
-          const stepIndex = savedStep.step_number - 1
-          if (stepIndex >= 0 && stepIndex < 4) {
-            steps.value[stepIndex] = {
-              ...steps.value[stepIndex],
-              ...savedStep,
-              evidence_sources: savedStep.evidence_sources || []
-            }
-          }
-        })
-        // Set TAS decision if exists
-        if (progressData.tas_category) {
-          tasDecision.value = progressData.tas_category
-          tasReason.value = progressData.tas_reason || ''
-        }
-        // Find first incomplete step
-        const firstIncomplete = steps.value.findIndex(s => s.overall_pass === null)
-        currentStep.value = firstIncomplete >= 0 ? firstIncomplete + 1 : 1
-      }
-    }
+    // if (progressResponse.ok) {
+    //   const progressData = await progressResponse.json()
+    //   // Populate steps with existing data
+    //   if (progressData.steps && progressData.steps.length > 0) {
+    //     progressData.steps.forEach((savedStep: any) => {
+    //       const stepIndex = savedStep.step_number - 1
+    //       if (stepIndex >= 0 && stepIndex < 4) {
+    //         steps.value[stepIndex] = {
+    //           ...steps.value[stepIndex],
+    //           ...savedStep,
+    //           evidence_sources: savedStep.evidence_sources || []
+    //         }
+    //       }
+    //     })
+    //     // Set TAS decision if exists
+    //     if (progressData.tas_category) {
+    //       tasDecision.value = progressData.tas_category
+    //       tasReason.value = progressData.tas_reason || ''
+    //     }
+    //     // Find first incomplete step
+    //     const firstIncomplete = steps.value.findIndex(s => s.overall_pass === null)
+    //     currentStep.value = firstIncomplete >= 0 ? firstIncomplete + 1 : 1
+    //   }
+    // }
+    //Not working so I commented @DP
 
   } catch (err: any) {
     error.value = err.message
@@ -1956,6 +2012,7 @@ const saveProgress = async () => {
 }
 
 const nextStep = async () => {
+  debugger
   await saveProgress()
   if (currentStep.value < 4) {
     currentStep.value++
@@ -2121,6 +2178,39 @@ const formatDate = (value?: string | null, fallback = 'N/A') =>
     },
     fallback
   )
+
+// Creditsafe verification data for CreditsAndAmlUI component
+// const creditsafeVerificationData = computed(() => {
+//   if (!creditsafeData.value) return undefined
+
+//   const applicationStatus: 'Passed' | 'Failed' | 'Yet to be assessed' | 'Passed with gurantor' =
+//     creditsafeData.value.verifyMatch ? 'Passed' : 'Failed'
+
+//   const riskLevel: 'low' | 'medium' | 'high' | 'yet_to_be_assessed' =
+//     creditsafeData.value.riskLevel || 'yet_to_be_assessed'
+
+//   return {
+//     name_match_score: creditsafeData.value.verifyMatch ? 100 : 0,
+//     application_status: applicationStatus,
+//     risk_level: riskLevel,
+//     risk_score: creditsafeData.value.riskScore || 0,
+//     verification_flags: {
+//       ccjMatch: creditsafeData.value.ccjMatch || false,
+//       insolvencyMatch: creditsafeData.value.insolvencyMatch || false,
+//       deceasedMatch: false, // Not available from creditsafe
+//       electoralRollMatch: creditsafeData.value.electoralRegisterMatch || false
+//     }
+//   }
+// })
+
+// // Compliance checks data for CreditsAndAmlUI component
+// const complianceChecksData = computed(() => {
+//   return {
+//     pep: sanctionsData.value?.pep_clear || false,
+//     sanctions: sanctionsData.value?.risk_level === 'clear' || false,
+//     adverseMedia: false // Not available from current data
+//   }
+// })
 
 // Lifecycle
 onMounted(() => {

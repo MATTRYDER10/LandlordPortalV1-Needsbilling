@@ -3376,7 +3376,7 @@ const fetchReference = async () => {
       verification: {
         name_match_score: data.creditsafeVerification?.name_match_score ?? 0,
         application_status: data?.score?.assessed_by === "System" ? "Yet to be assessed" : data?.score?.decision,
-        risk_level: data?.creditsafeVerification?.risk_level ?? 'yet_to_be_assessed',
+        risk_level: data?.score?.risk_level ?? 'yet_to_be_assessed',
         risk_score: data?.score?.score_total ?? 0,
         verification_flags: flags as any
       },
