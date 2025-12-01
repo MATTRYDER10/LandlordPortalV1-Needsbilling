@@ -331,8 +331,12 @@
         @click.self="showEditModal = false">
         <div
           class="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
-          <h3 class="text-lg font-bold text-gray-900 mb-4">Accept with Changes</h3>
-          <p class="text-sm text-gray-600 mb-4">Edit the offer details before accepting.</p>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">Accept with Changes</h3>
+          <p class="text-sm text-gray-600 mb-1">Edit the offer details before accepting.</p>
+          <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2 mt-2">
+            Please ensure these changes have been agreed with the tenant(s). After saving, you'll be asked if you want
+            to send them an email with the updated terms and bank details.
+          </p>
 
           <div class="space-y-4">
             <div>
@@ -605,7 +609,7 @@ const acceptWithChanges = async () => {
     const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(editForm.value)
@@ -615,6 +619,27 @@ const acceptWithChanges = async () => {
 
     if (!response.ok) {
       throw new Error(data.error || 'Failed to update offer')
+    }
+
+    // Ask agent whether the changes have been agreed and if we should approve & email tenants
+    const shouldApprove = window.confirm(
+      'Have these changes been agreed with the tenant(s)? Click OK to approve the offer and send them an email with the updated terms and bank details, or Cancel to just save the changes.'
+    )
+
+    if (shouldApprove) {
+      const approveResponse = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}/approve`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      const approveData = await approveResponse.json()
+
+      if (!approveResponse.ok) {
+        throw new Error(approveData.error || 'Failed to approve offer after changes')
+      }
     }
 
     showEditModal.value = false

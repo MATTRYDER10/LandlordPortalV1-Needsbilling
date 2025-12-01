@@ -506,7 +506,7 @@ router.post('/submit', async (req, res) => {
     }
 })
 
-// Approve offer
+// Approve offer (sends email with bank details and, if applicable, updated terms)
 router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => {
     try {
         const userId = req.user?.id
@@ -529,7 +529,7 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
 
         const companyId = companyUsers[0].company_id
 
-        // Get offer
+        // Get offer (with tenants and company for email)
         const { data: offer, error: offerError } = await supabase
             .from('tenant_offers')
             .select(`
@@ -552,7 +552,9 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
             return res.status(404).json({ error: 'Offer not found' })
         }
 
-        if (offer.status !== 'pending' && offer.status !== 'accepted_with_changes') {
+        const wasAcceptedWithChanges = offer.status === 'accepted_with_changes'
+
+        if (offer.status !== 'pending' && !wasAcceptedWithChanges) {
             return res.status(400).json({ error: 'Offer cannot be approved in its current status' })
         }
 
@@ -570,7 +572,7 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
             return res.status(400).json({ error: updateError.message })
         }
 
-        // Get company details
+        // Get company and decrypted details
         const company = (offer as any).companies
         const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
         const companyPhone = company?.phone_encrypted ? (decrypt(company.phone_encrypted) || '') : ''
@@ -582,12 +584,57 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
         // Calculate holding deposit (one week's rent)
         const holdingDeposit = (offer.offered_rent_amount * 12) / 52
 
+        // Decrypt property and terms
+        const propertyAddress = offer.property_address_encrypted ? decrypt(offer.property_address_encrypted) : ''
+        const propertyCity = offer.property_city_encrypted ? decrypt(offer.property_city_encrypted) : ''
+        const propertyPostcode = offer.property_postcode_encrypted ? decrypt(offer.property_postcode_encrypted) : ''
+        const specialConditions = offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : ''
+
+        const tenancyLengthMonths = offer.proposed_tenancy_length_months
+        const moveInDate = offer.proposed_move_in_date
+        const depositAmount = offer.deposit_amount
+
         // Get tenant emails
         const tenantEmails = (offer.tenant_offer_tenants || []).map((tenant: any) =>
             tenant.email_encrypted ? decrypt(tenant.email_encrypted) : ''
         ).filter(Boolean)
 
-        // Send approval email with bank details to all tenants
+        // Build extra details block if the offer was accepted with changes
+        let extraDetailsHtml = ''
+
+        if (wasAcceptedWithChanges) {
+            const addressLine = `${propertyAddress}${propertyCity ? ', ' + propertyCity : ''}${propertyPostcode ? ', ' + propertyPostcode : ''}`
+
+            extraDetailsHtml = `
+        <div style="margin: 0 0 24px; font-size: 15px; line-height: 22px; color: #4b5563;">
+          <p style="margin: 0 0 12px;">
+            <strong>Your offer has been accepted with some minor changes.</strong>
+          </p>
+          <p style="margin: 0 0 12px;">
+            These are the agreed terms now recorded in our system:
+          </p>
+          <ul style="margin: 0 0 12px 18px; padding: 0;">
+            <li style="margin-bottom: 4px;"><strong>Property:</strong> ${addressLine}</li>
+            <li style="margin-bottom: 4px;"><strong>Offered Rent:</strong> £${offer.offered_rent_amount} per month</li>
+            <li style="margin-bottom: 4px;"><strong>Proposed Move-in Date:</strong> ${moveInDate}</li>
+            <li style="margin-bottom: 4px;"><strong>Tenancy Length:</strong> ${tenancyLengthMonths} months</li>
+            ${depositAmount ? `<li style="margin-bottom: 4px;"><strong>Deposit Amount:</strong> £${depositAmount}</li>` : ''}
+          </ul>
+          ${specialConditions ? `
+          <p style="margin: 0 0 12px;">
+            <strong>Special conditions:</strong> ${specialConditions.replace(/\n/g, '<br/>')}
+          </p>
+          ` : ''}
+          <p style="margin: 0;">
+            To proceed, simply pay the holding deposit using the bank details below and then click the
+            <strong>"I've Paid"</strong> button in your offer portal. This will jog your agent to get your references
+            started.
+          </p>
+        </div>
+        `
+        }
+
+        // Send approval email with bank details to all tenants using the shared template
         for (const email of tenantEmails) {
             try {
                 await sendOfferAcceptedEmail(
@@ -598,7 +645,8 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
                     bankSortCode,
                     holdingDeposit,
                     companyPhone || undefined,
-                    companyEmail || undefined
+                    companyEmail || undefined,
+                    extraDetailsHtml
                 )
             } catch (emailError) {
                 console.error(`Failed to send approval email to ${email}:`, emailError)
@@ -830,6 +878,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
         res.status(500).json({ error: error.message })
     }
 })
+
 
 // Delete offer
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {

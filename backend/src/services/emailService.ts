@@ -610,14 +610,20 @@ export async function sendOfferAcceptedEmail(
   bankSortCode: string,
   holdingDepositAmount: number,
   companyPhone?: string | null,
-  companyEmail?: string | null
+  companyEmail?: string | null,
+  extraDetailsHtml?: string
 ): Promise<void> {
+  const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+  const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed`
+
   const html = loadEmailTemplate('offer-accepted', {
     CompanyName: companyName,
     BankAccountName: bankAccountName,
     BankAccountNumber: bankAccountNumber,
     BankSortCode: bankSortCode,
     HoldingDepositAmount: holdingDepositAmount.toFixed(2),
+    ExtraDetailsHtml: extraDetailsHtml || '',
+    PaymentConfirmedUrl: paymentConfirmedUrl
   })
 
   await sendEmail({

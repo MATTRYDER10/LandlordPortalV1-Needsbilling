@@ -36,6 +36,7 @@ import LandlordVerification from '../views/LandlordVerification.vue'
 import TenantOffer from '../views/TenantOffer.vue'
 import TenantOffers from '../views/TenantOffers.vue'
 import TenantOfferDetail from '../views/TenantOfferDetail.vue'
+import TenantOfferPaymentConfirmed from '../views/TenantOfferPaymentConfirmed.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -111,6 +112,11 @@ const router = createRouter({
       path: '/tenant-offer',
       name: 'TenantOffer',
       component: TenantOffer
+    },
+    {
+      path: '/tenant-offer/payment-confirmed',
+      name: 'TenantOfferPaymentConfirmed',
+      component: TenantOfferPaymentConfirmed
     },
     {
       path: '/tenant-offers',

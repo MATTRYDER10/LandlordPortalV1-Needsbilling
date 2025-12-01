@@ -48,9 +48,20 @@
                                 We're delighted to let you know that your offer has been accepted!
                             </p>
 
-                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
-                                To secure the property, please pay the holding deposit (equivalent to one week's rent) to the bank details below:
+                            {{ ExtraDetailsHtml }}
+                            
+                            <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                To secure the property, please pay the holding deposit (equivalent to one week's rent) to
+                                the bank details below. Once you've paid, click the <strong>"I've Paid"</strong> button
+                                below – this will notify your agent to get your references started.
                             </p>
+
+                            <div style="margin: 0 0 24px; text-align: center;">
+                                <a href="{{ PaymentConfirmedUrl }}"
+                                    style="display: inline-block; padding: 12px 24px; background-color: #f97316; color: #ffffff; text-decoration: none; border-radius: 9999px; font-size: 15px; font-weight: 600;">
+                                    I've Paid
+                                </a>
+                            </div>
 
                             <!-- Bank Details Box -->
                             <div
