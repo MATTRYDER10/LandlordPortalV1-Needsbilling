@@ -158,10 +158,14 @@
                       <p><strong>Submitted:</strong> {{ formatDate(offer.created_at) }}</p>
                     </div>
                   </div>
-                  <div class="ml-4 flex-shrink-0">
+                  <div class="ml-4 flex-shrink-0 flex flex-col gap-2 items-end">
                     <button @click="viewOffer(offer.id)"
                       class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-md">
                       View Details
+                    </button>
+                    <button @click="deleteOffer(offer.id)"
+                      class="px-3 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md">
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -189,6 +193,7 @@ const offers = ref<any[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('')
+const deletingId = ref<string | null>(null)
 
 const statusCounts = computed(() => {
   const counts = {
@@ -296,6 +301,42 @@ const clearFilters = () => {
 
 const viewOffer = (offerId: string) => {
   router.push(`/tenant-offers/${offerId}`)
+}
+
+const deleteOffer = async (offerId: string) => {
+  if (!window.confirm('Are you sure you want to delete this offer? This action cannot be undone.')) {
+    return
+  }
+
+  deletingId.value = offerId
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      router.push('/login')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/tenant-offers/${offerId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to delete offer')
+    }
+
+    await fetchOffers()
+  } catch (error: any) {
+    console.error('Error deleting offer:', error)
+    window.alert(error.message || 'Failed to delete offer')
+  } finally {
+    deletingId.value = null
+  }
 }
 
 const fetchOffers = async () => {

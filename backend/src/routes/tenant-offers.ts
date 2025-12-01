@@ -831,6 +831,67 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }
 })
 
+// Delete offer
+router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id } = req.params
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        // Get user's company
+        const { data: companyUsers } = await supabase
+            .from('company_users')
+            .select('company_id')
+            .eq('user_id', userId)
+            .limit(1)
+
+        if (!companyUsers || companyUsers.length === 0) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        const companyId = companyUsers[0].company_id
+
+        // Verify offer belongs to this company
+        const { data: offer, error: offerError } = await supabase
+            .from('tenant_offers')
+            .select('id, company_id')
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (offerError || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Delete tenants first to avoid orphan records
+        await supabase
+            .from('tenant_offer_tenants')
+            .delete()
+            .eq('tenant_offer_id', id)
+
+        // Delete offer
+        const { error: deleteError } = await supabase
+            .from('tenant_offers')
+            .delete()
+            .eq('id', id)
+
+        if (deleteError) {
+            return res.status(400).json({ error: deleteError.message })
+        }
+
+        res.json({
+            success: true,
+            message: 'Offer deleted successfully'
+        })
+    } catch (error: any) {
+        console.error('Error deleting offer:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Mark holding deposit received and create reference
 router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, checkPaymentMethod, async (req: AuthRequest, res) => {
     try {

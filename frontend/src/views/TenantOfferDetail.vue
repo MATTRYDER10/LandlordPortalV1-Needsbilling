@@ -36,6 +36,11 @@
               class="px-3 py-1 text-sm font-semibold rounded-full bg-emerald-100 text-emerald-800 whitespace-nowrap">
               Deposit replacement service applied for
             </span>
+            <button @click="confirmDelete"
+              class="mt-2 px-3 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md"
+              :disabled="processing">
+              Delete Offer
+            </button>
           </div>
         </div>
 
@@ -664,6 +669,41 @@ const markHoldingDepositReceived = async () => {
     alert(`Holding deposit of £${parsedAmount.toFixed(2)} marked as received. References have been created and sent to tenants.`)
   } catch (err: any) {
     error.value = err.message || 'Failed to mark holding deposit as received'
+  } finally {
+    processing.value = false
+  }
+}
+
+const confirmDelete = async () => {
+  if (!window.confirm('Are you sure you want to delete this offer? This action cannot be undone.')) {
+    return
+  }
+
+  processing.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      router.push('/login')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to delete offer')
+    }
+
+    router.push('/tenant-offers')
+  } catch (err: any) {
+    error.value = err.message || 'Failed to delete offer'
   } finally {
     processing.value = false
   }
