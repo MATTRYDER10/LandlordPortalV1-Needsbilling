@@ -163,6 +163,37 @@ class CreditsafeService {
     }
   }
 
+  async verify(payload : {
+    firstName: string,
+    lastName: string,
+    dateOfBirth: string,
+    address: string,
+    postCode: string,
+  }): Promise<VerificationResponse> {
+    const { firstName, lastName, dateOfBirth, address, postCode } = payload
+    
+    const token = await this.authenticate()
+
+    console.log('Sending Verify request to Creditsafe for:', firstName, lastName)
+
+    //Call Creditsafe Verify API - Direct Individual Report endpoint
+    const response = await this.axiosInstance.get('/localSolutions/GB/verify/individual/directReport', {
+      params: {
+        firstName: firstName,
+        lastName: lastName,
+        dateOfBirth: dateOfBirth,
+        address: address,
+        postCode: postCode,
+        reasonForSearch: 'TV'
+      },
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    // Parse and return verification response
+    return this.parseVerificationResponse(response.data)
+  }
+
   /**
    * Parse Creditsafe Verify API response and assess risk
    */

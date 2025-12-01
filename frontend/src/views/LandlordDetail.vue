@@ -22,7 +22,7 @@
             </button>
             <h2 class="text-3xl font-bold text-gray-900">
               {{ landlord.first_name }} {{ landlord.middle_name ? landlord.middle_name + ' ' : '' }}{{
-                landlord.last_name }}
+              landlord.last_name }}
             </h2>
             <p class="mt-2 text-gray-600">Complete Landlord Details</p>
           </div>
@@ -128,7 +128,7 @@
                 <label class="block text-sm font-medium text-gray-500">Name</label>
                 <p class="mt-1 text-sm text-gray-900">
                   {{ landlord.title ? landlord.title + ' ' : '' }}{{ landlord.first_name }} {{ landlord.middle_name ?
-                    landlord.middle_name + ' ' : '' }}{{ landlord.last_name }}
+                  landlord.middle_name + ' ' : '' }}{{ landlord.last_name }}
                 </p>
               </div>
               <div>
@@ -153,7 +153,7 @@
             <div class="space-y-2">
               <p class="text-sm text-gray-900">
                 {{ landlord.residential_address.line1 }}{{ landlord.residential_address.line2 ? ', ' +
-                  landlord.residential_address.line2 : '' }}
+                landlord.residential_address.line2 : '' }}
               </p>
               <p class="text-sm text-gray-900">
                 {{ landlord.residential_address.city }}, {{ landlord.residential_address.postcode }}
@@ -221,48 +221,238 @@
           <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-lg font-semibold text-gray-900">AML Check Status</h3>
-              <button v-if="landlord.aml_status === 'not_requested' || landlord.aml_status === 'requested'"
-                @click="initiateAMLCheck" :disabled="initiatingAML"
+              <button @click="initiateAMLCheck" :disabled="initiatingAML"
                 class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
-                {{ initiatingAML ? 'Initiating...' : 'Initiate AML Check' }}
+                {{ initiatingAML ? 'Initiating...' : landlord.aml_check ? 'Re-initiate AML Check' : 'Initiate AML Check'
+                }}
               </button>
             </div>
 
-            <div v-if="landlord.aml_check" class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Status</label>
-                <p class="mt-1 text-sm text-gray-900">{{ formatAMLStatus(landlord.aml_check.verification_status) }}</p>
-              </div>
-              <div v-if="landlord.aml_check.verification_score !== null">
-                <label class="block text-sm font-medium text-gray-500">Verification Score</label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.aml_check.verification_score }}/100</p>
-              </div>
-              <div v-if="landlord.aml_check.pep_check_result !== null">
-                <label class="block text-sm font-medium text-gray-500">PEP Check</label>
-                <p class="mt-1 text-sm text-gray-900">
-                  {{ landlord.aml_check.pep_check_result ? 'Match Found' : 'No Match' }}
-                </p>
-              </div>
-              <div v-if="landlord.aml_check.sanctions_check_result !== null">
-                <label class="block text-sm font-medium text-gray-500">Sanctions Check</label>
-                <p class="mt-1 text-sm text-gray-900">
-                  {{ landlord.aml_check.sanctions_check_result ? 'Match Found' : 'No Match' }}
-                </p>
-              </div>
-              <div v-if="landlord.aml_check.adverse_media_result !== null">
-                <label class="block text-sm font-medium text-gray-500">Adverse Media</label>
-                <p class="mt-1 text-sm text-gray-900">
-                  {{ landlord.aml_check.adverse_media_result ? 'Match Found' : 'No Match' }}
-                </p>
-              </div>
-              <div v-if="landlord.aml_check.risk_level">
-                <label class="block text-sm font-medium text-gray-500">Risk Level</label>
-                <p class="mt-1 text-sm text-gray-900 capitalize">{{ landlord.aml_check.risk_level }}</p>
-              </div>
-              <div v-if="landlord.aml_check.verified_at">
-                <label class="block text-sm font-medium text-gray-500">Verified At</label>
-                <p class="mt-1 text-sm text-gray-900">{{ formatDateTime(landlord.aml_check.verified_at) }}</p>
-              </div>
+            <div v-if="landlord.aml_check">
+              <!-- Top Summary (Status + Identity Match + Risk Level + Score) -->
+              <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <header class="mb-6 border-b border-gray-100 pb-6">
+                  <h2 class="text-lg font-semibold text-gray-900 mb-1">Verification Result</h2>
+                </header>
+
+                <!-- <div class="flex flex-wrap justify-between gap-6">
+                 
+                  <div class="flex flex-col gap-4 min-w-[240px]">
+                    
+                    <div class="flex items-center gap-3">
+                      <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Status</span>
+                      <span :class="badgeClass(landlord.aml_check.verification_status)">
+                        {{ formatAMLStatus(landlord.aml_check.verification_status) }}
+                      </span>
+                    </div>
+
+                   
+                    <div class="flex items-center gap-3">
+                      <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Identity Match</span>
+                      <span :class="badgeClass(identityMatchLabel)">
+                        {{ identityMatchLabel }}
+                      </span>
+                    </div>
+
+                  </div>
+                </div> -->
+
+                <!-- Verification Flags -->
+                <div class="mt-8">
+                  <h3 class="text-base font-semibold text-gray-800">Verification Flags</h3>
+
+                  <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <!-- Electoral Roll -->
+                    <div :class="[
+                      'flex items-center gap-3 rounded-xl border px-4 py-3',
+                      electoralRollMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
+                    ]">
+                      <span :class="[
+                        'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                        electoralRollMatch ? 'text-emerald-500' : 'text-rose-500'
+                      ]">
+                        <svg v-if="electoralRollMatch" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                            clip-rule="evenodd" />
+                        </svg>
+                        <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                            clip-rule="evenodd" />
+                        </svg>
+                      </span>
+                      <span class="text-sm font-semibold text-gray-800">Electoral Roll</span>
+                    </div>
+
+                    <!-- No CCJs -->
+                    <div :class="[
+                      'flex items-center gap-3 rounded-xl border px-4 py-3',
+                      !ccjMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
+                    ]">
+                      <span :class="[
+                        'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                        !ccjMatch ? 'text-emerald-500' : 'text-rose-500'
+                      ]">
+                        <svg v-if="!ccjMatch" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                            clip-rule="evenodd" />
+                        </svg>
+                        <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                            clip-rule="evenodd" />
+                        </svg>
+                      </span>
+                      <span class="text-sm font-semibold text-gray-800">No CCJs</span>
+                    </div>
+
+                    <!-- No Insolvency -->
+                    <div :class="[
+                      'flex items-center gap-3 rounded-xl border px-4 py-3',
+                      !insolvencyMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
+                    ]">
+                      <span :class="[
+                        'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                        !insolvencyMatch ? 'text-emerald-500' : 'text-rose-500'
+                      ]">
+                        <svg v-if="!insolvencyMatch" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                            clip-rule="evenodd" />
+                        </svg>
+                        <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                            clip-rule="evenodd" />
+                        </svg>
+                      </span>
+                      <span class="text-sm font-semibold text-gray-800">No Insolvency</span>
+                    </div>
+
+                    <!-- Not Deceased -->
+                    <div :class="[
+                      'flex items-center gap-3 rounded-xl border px-4 py-3',
+                      !deceasedMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
+                    ]">
+                      <span :class="[
+                        'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                        !deceasedMatch ? 'text-emerald-500' : 'text-rose-500'
+                      ]">
+                        <svg v-if="!deceasedMatch" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                            clip-rule="evenodd" />
+                        </svg>
+                        <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                            clip-rule="evenodd" />
+                        </svg>
+                      </span>
+                      <span class="text-sm font-semibold text-gray-800">Not Deceased</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Compliance Screening -->
+                <div class="mt-10">
+                  <h3 class="text-base font-semibold text-gray-800">Compliance Screening</h3>
+                  <div class="mt-4 divide-y divide-gray-100">
+                    <!-- PEP Check -->
+                    <div class="flex items-center justify-between py-4">
+                      <div>
+                        <p class="text-sm font-semibold text-gray-800">Politically Exposed Person (PEP)</p>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span :class="statusClass(landlord.aml_check.pep_check_result === false ? 'clear' : 'failed')">
+                          {{ landlord.aml_check.pep_check_result === false ? 'Clear' : 'Failed' }}
+                        </span>
+                        <span
+                          :class="statusIconWrapper(landlord.aml_check.pep_check_result === false ? 'clear' : 'failed')">
+                          <svg v-if="landlord.aml_check.pep_check_result === false" class="h-4 w-4 text-emerald-600"
+                            viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                              d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                              clip-rule="evenodd" />
+                          </svg>
+                          <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                              clip-rule="evenodd" />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Sanctions Check -->
+                    <div class="flex items-center justify-between py-4">
+                      <div>
+                        <p class="text-sm font-semibold text-gray-800">Sanctions Screening</p>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span
+                          :class="statusClass(landlord.aml_check.sanctions_check_result === false ? 'clear' : 'failed')">
+                          {{ landlord.aml_check.sanctions_check_result === false ? 'Clear' : 'Failed' }}
+                        </span>
+                        <span :class="statusIconWrapper(
+                          landlord.aml_check.sanctions_check_result === false ? 'clear' : 'failed'
+                        )
+                          ">
+                          <svg v-if="landlord.aml_check.sanctions_check_result === false"
+                            class="h-4 w-4 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                              d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                              clip-rule="evenodd" />
+                          </svg>
+                          <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                              clip-rule="evenodd" />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Adverse Media Check -->
+                    <div class="flex items-center justify-between py-4">
+                      <div>
+                        <p class="text-sm font-semibold text-gray-800">Adverse Media</p>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span
+                          :class="statusClass(landlord.aml_check.adverse_media_result === false ? 'clear' : 'failed')">
+                          {{ landlord.aml_check.adverse_media_result === false ? 'Clear' : 'Failed' }}
+                        </span>
+                        <span :class="statusIconWrapper(
+                          landlord.aml_check.adverse_media_result === false ? 'clear' : 'failed'
+                        )
+                          ">
+                          <svg v-if="landlord.aml_check.adverse_media_result === false" class="h-4 w-4 text-emerald-600"
+                            viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                              d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
+                              clip-rule="evenodd" />
+                          </svg>
+                          <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                              clip-rule="evenodd" />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="landlord.aml_check.verified_at" class="mt-6 border-t border-gray-100 pt-4">
+                  <label class="block text-sm font-medium text-gray-500">Verified At</label>
+                  <p class="mt-1 text-sm text-gray-900">
+                    {{ formatDateTime(landlord.aml_check.verified_at) }}
+                  </p>
+                </div>
+              </section>
             </div>
             <div v-else class="text-sm text-gray-500">
               No AML check has been initiated yet.
@@ -279,7 +469,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import Sidebar from '../components/Sidebar.vue'
@@ -300,6 +490,61 @@ const activeTab = ref('overview')
 const showEditModal = ref(false)
 const showAddPropertyModal = ref(false)
 const initiatingAML = ref(false)
+
+const electoralRollMatch = computed(() => {
+  // Treat satisfactory status as a positive electoral roll match
+  return landlord.value?.aml_check?.verification_status === 'satisfactory'
+}).value
+
+const ccjMatch = computed(() => {
+  // true means CCJ found (bad)
+  return landlord.value?.aml_check?.fraud_indicators?.includes('ccj') ?? false
+}).value
+
+const insolvencyMatch = computed(() => {
+  // true means insolvency found (bad)
+  return landlord.value?.aml_check?.fraud_indicators?.includes('insolvency') ?? false
+}).value
+
+const deceasedMatch = computed(() => {
+  // true means deceased (bad)
+  return landlord.value?.aml_check?.fraud_indicators?.includes('deceased') ?? false
+}).value
+
+type Tone = 'success' | 'warning' | 'danger' | 'info'
+
+const toneClasses: Record<Tone, string> = {
+  success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  warning: 'border-amber-200 bg-amber-50 text-amber-700',
+  danger: 'border-rose-200 bg-rose-50 text-rose-700',
+  info: 'border-slate-200 bg-slate-50 text-slate-700'
+}
+
+const subtleToneClasses: Record<Tone, string> = {
+  success: 'text-emerald-600',
+  warning: 'text-amber-600',
+  danger: 'text-rose-600',
+  info: 'text-slate-600'
+}
+
+const detectTone = (value?: string): Tone => {
+  const normalized = (value ?? '').toLowerCase()
+  if (['pass', 'passed', 'match', 'low', 'clear', 'success', 'no', 'found'].some((word) => normalized.includes(word))) {
+    return 'success'
+  }
+  if (['fail', 'failed', 'high', 'risk', 'alert', 'adverse'].some((word) => normalized.includes(word))) {
+    return 'danger'
+  }
+  if (['pending', 'medium', 'review', 'assessed', 'partial'].some((word) => normalized.includes(word))) {
+    return 'warning'
+  }
+  return 'info'
+}
+
+const statusClass = (value?: string) => `text-sm font-semibold ${subtleToneClasses[detectTone(value)]}`
+
+const statusIconWrapper = (value?: string) =>
+  `flex h-8 w-8 items-center justify-center rounded-full border ${toneClasses[detectTone(value)]}`
 
 const fetchLandlord = async () => {
   loading.value = true
@@ -353,8 +598,15 @@ const initiateAMLCheck = async () => {
       throw new Error(errorData.error || 'Failed to initiate AML check')
     }
 
-    toast.success('AML check initiated. Verification email sent to landlord.')
+    toast.success('AML check completed successfully.')
+    const aml_check = await response.json()
+    if(aml_check.aml_check) {
+      landlord.value.aml_check = aml_check.aml_check
+      landlord.value.aml_status = aml_check.aml_status
+    }else{
     fetchLandlord()
+    }
+    initiatingAML.value = false
   } catch (err: any) {
     toast.error(err.message || 'Failed to initiate AML check')
   } finally {

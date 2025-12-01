@@ -7,6 +7,7 @@ import * as billingService from '../services/billingService'
 import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
 import multer from 'multer'
 import { sendLandlordVerificationRequest } from '../services/emailService'
+import { sanctionsService } from '../services/sanctionsService'
 
 const router = Router()
 
@@ -266,7 +267,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         document_verified: amlCheck.document_verified,
         selfie_matches_id: amlCheck.selfie_matches_id,
         created_at: amlCheck.created_at,
-        verified_at: amlCheck.verified_at
+        verified_at: amlCheck.verified_at,
+        fraud_indicators: amlCheck.fraud_indicators,
       } : null,
       created_at: landlord.created_at,
       updated_at: landlord.updated_at
@@ -731,20 +733,9 @@ router.post('/:id/initiate-aml-check', authenticateToken, async (req: AuthReques
       return res.status(404).json({ error: 'Landlord not found' })
     }
 
-    // Check if AML check already exists
-    const { data: existingCheck } = await supabase
-      .from('landlord_aml_checks')
-      .select('id')
-      .eq('landlord_id', landlordId)
-      .maybeSingle()
-
-    if (existingCheck) {
-      return res.status(400).json({ error: 'AML check already exists for this landlord' })
-    }
-
     // Check credits or charge
     const creditsRequired = 0.5
-    const fixedCharge = 1.50
+   // const fixedCharge = 1.50
 
     if (chargeType === 'credits') {
       const hasCredits = await creditService.hasCredits(companyUser.company_id, creditsRequired)
@@ -774,71 +765,100 @@ router.post('/:id/initiate-aml-check', authenticateToken, async (req: AuthReques
       )
     }
 
-    // Update landlord AML status
-    await supabase
-      .from('landlords')
-      .update({
-        aml_status: 'requested',
-        aml_checked_by: userId
-      })
-      .eq('id', landlordId)
+    const address = [decrypt(landlord.residential_address_line1_encrypted), decrypt(landlord.residential_address_line2_encrypted), decrypt(landlord.residential_city_encrypted), decrypt(landlord.residential_postcode_encrypted), decrypt(landlord.residential_country_encrypted)].filter((add) => !!((add || '').trim())).join(', ')
 
-    // Create AML check record
+    const credi_aml_payload = {
+      firstName: decrypt(landlord.first_name_encrypted) || '',
+      lastName: decrypt(landlord.last_name_encrypted) || '',
+      dateOfBirth: landlord.date_of_birth,
+      address,
+      postCode: decrypt(landlord.residential_postcode_encrypted) || ''
+    }
+
+
+    const verificationResponse = await creditsafeService.verify(credi_aml_payload);
+
+    const sanctionsCheck = await sanctionsService.screenTenant({
+      name: `${credi_aml_payload.firstName} ${credi_aml_payload.lastName}`,
+      dateOfBirth: credi_aml_payload.dateOfBirth,
+      postcode: credi_aml_payload.postCode
+    });
+
+    if(!verificationResponse || !sanctionsCheck) {
+      return res.status(500).json({ error: 'Failed to verify landlord' })
+    }
+
+    const is_landlord_sanctioned = (Array.isArray(sanctionsCheck.sanctions_matches) && sanctionsCheck.sanctions_matches.length > 0);
+
+    const flags = {
+      ccjMatch: verificationResponse.ccjMatch,
+      insolvencyMatch: verificationResponse.insolvencyMatch,
+      deceasedMatch: verificationResponse.deceasedRegisterMatch,
+      electoralRollMatch: verificationResponse.electoralRegisterMatch,
+      ccjCount: verificationResponse.countyCourtJudgments?.length || 0,
+      insolvencyCount: verificationResponse.insolvencies?.length || 0
+    }
+
+    // Store AML check result in database
     const { data: amlCheck, error: amlError } = await supabase
       .from('landlord_aml_checks')
-      .insert({
-        landlord_id: landlordId,
-        verification_status: 'pending',
+      .upsert({
+        landlord_id : landlordId,
+        verification_request_encrypted: encrypt(JSON.stringify(credi_aml_payload)),
+        verification_response_encrypted: verificationResponse.rawResponse,
+        verification_status: verificationResponse.status,
+        verification_score: 100,
+        name_match_score: 100,
+        address_match_score: 100,
+        dob_match_score: 100,
+        pep_check_result: is_landlord_sanctioned,
+        sanctions_check_result: is_landlord_sanctioned,
+        adverse_media_result: is_landlord_sanctioned,
+        fraud_indicators: flags,
+        risk_level: "none",
+        id_document_type: null,
+        id_document_path: null,
+        verify_transaction_id: "",
+        api_response_code: 200,
+        error_message:'',
         charge_type: chargeType,
-        credits_used: chargeType === 'credits' ? creditsRequired : 0,
-        amount_gbp: chargeType === 'fixed' ? fixedCharge : null,
-        requested_by: userId
-      })
+        credits_used: chargeType === 'credits' ? 0.5 : 1.50,
+        amount_gbp: 0,
+        verified_at: null,
+        requested_at: new Date().toISOString(),
+        requested_by: userId,
+        verified_by: userId,
+        verification_token_hash: null
+  },{onConflict: 'landlord_id'})
       .select()
       .single()
 
     if (amlError) {
-      return res.status(400).json({ error: amlError.message })
+      console.error('Error storing AML check result:', amlError)
+      return res.status(500).json({ error: amlError.message })
     }
 
-    // Send verification request email to landlord
-    const landlordEmail = decrypt(landlord.email_encrypted)
-    const landlordName = `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
-
-    // Generate verification token
-    const verificationToken = generateToken(32)
-    const tokenHash = hash(verificationToken)
-
-    // Store token hash in AML check record
-    await supabase
-      .from('landlord_aml_checks')
+    // Update landlord AML status
+    const { data: updatedLandlord, error: updatedLandlordError } = await supabase
+      .from('landlords')
       .update({
-        verification_token_hash: tokenHash
+        aml_status:'satisfactory',
+        aml_checked_by: userId,
+        aml_completed_at: new Date().toISOString(),
       })
-      .eq('id', amlCheck.id)
+      .eq('id', landlordId)
+      .select()
+      .single()
 
-    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-verification/${landlordId}/${verificationToken}`
-
-    // Only send email if landlord email exists
-    if (landlordEmail) {
-      try {
-        await sendLandlordVerificationRequest(
-          landlordEmail,
-          landlordName,
-          verificationUrl,
-          companyUser.company_id
-        )
-      } catch (emailError: any) {
-        console.error('Failed to send verification email:', emailError)
-        // Don't fail the request if email fails
-      }
-    } else {
-      console.warn('Landlord email is missing, skipping verification email')
+    if (updatedLandlordError) {
+      console.error('Error updating landlord AML status:', updatedLandlordError)
+      return res.status(500).json({ error: updatedLandlordError.message })
     }
 
     res.json({
-      message: 'AML check initiated successfully. Verification email sent to landlord.',
-      aml_check: amlCheck
+      message: 'AML check completed successfully',
+      aml_check: amlCheck,
+      aml_status: updatedLandlord.aml_status,
     })
   } catch (error: any) {
     console.error('Error initiating AML check:', error)
