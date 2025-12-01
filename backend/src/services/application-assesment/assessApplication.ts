@@ -5,7 +5,6 @@ import { computeScore, scoringRules, computeIncomeMultiple } from "./computeScor
 export const assessApplicationScore = async (referenceId: string,caller: 'System' | 'Staff',scoredBy: string | null = null) => {
     try {
         // FETCH ALL TABLE DATA
-        debugger;
         const { data: reference } = await supabase
             .from("tenant_references")
             .select("*")
