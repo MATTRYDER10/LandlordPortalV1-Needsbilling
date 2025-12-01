@@ -56,28 +56,64 @@
           <div class="space-y-4">
             <div>
               <label for="company-name" class="block text-sm font-medium text-gray-700">Company Name *</label>
-              <input id="company-name" v-model="formData.companyName" type="text" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+              <input
+                id="company-name"
+                v-model="formData.companyName"
+                type="text"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.companyName ? 'border-red-300' : 'border-gray-300'
+                ]"
+              />
+              <p v-if="fieldErrors.companyName" class="mt-1 text-sm text-red-600">{{ fieldErrors.companyName }}</p>
             </div>
 
             <div>
               <label for="employer-name" class="block text-sm font-medium text-gray-700">Your Full Name *</label>
-              <input id="employer-name" v-model="formData.employerName" type="text" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+              <input
+                id="employer-name"
+                v-model="formData.employerName"
+                type="text"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.employerName ? 'border-red-300' : 'border-gray-300'
+                ]"
+              />
+              <p v-if="fieldErrors.employerName" class="mt-1 text-sm text-red-600">{{ fieldErrors.employerName }}</p>
             </div>
 
             <div>
               <label for="employer-position" class="block text-sm font-medium text-gray-700">Your Position/Title
                 *</label>
-              <input id="employer-position" v-model="formData.employerPosition" type="text" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+              <input
+                id="employer-position"
+                v-model="formData.employerPosition"
+                type="text"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.employerPosition ? 'border-red-300' : 'border-gray-300'
+                ]"
+              />
+              <p v-if="fieldErrors.employerPosition" class="mt-1 text-sm text-red-600">{{ fieldErrors.employerPosition }}</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label for="employer-email" class="block text-sm font-medium text-gray-700">Your Email Address *</label>
-                <input id="employer-email" v-model="formData.employerEmail" type="email" required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                <input
+                  id="employer-email"
+                  v-model="formData.employerEmail"
+                  type="email"
+                  required
+                  :class="[
+                    'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                    fieldErrors.employerEmail ? 'border-red-300' : 'border-gray-300'
+                  ]"
+                />
+                <p v-if="fieldErrors.employerEmail" class="mt-1 text-sm text-red-600">{{ fieldErrors.employerEmail }}</p>
               </div>
 
               <PhoneInput v-model="formData.employerPhone" label="Your Phone Number" id="employer-phone"
@@ -95,14 +131,30 @@
             <div>
               <label for="employee-position" class="block text-sm font-medium text-gray-700">Employee's Position/Title
                 *</label>
-              <input id="employee-position" v-model="formData.employeePosition" type="text" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+              <input
+                id="employee-position"
+                v-model="formData.employeePosition"
+                type="text"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.employeePosition ? 'border-red-300' : 'border-gray-300'
+                ]"
+              />
+              <p v-if="fieldErrors.employeePosition" class="mt-1 text-sm text-red-600">{{ fieldErrors.employeePosition }}</p>
             </div>
 
             <div>
               <label for="employment-type" class="block text-sm font-medium text-gray-700">Employment Type *</label>
-              <select id="employment-type" v-model="formData.employmentType" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+              <select
+                id="employment-type"
+                v-model="formData.employmentType"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.employmentType ? 'border-red-300' : 'border-gray-300'
+                ]"
+              >
                 <option value="">Select an option</option>
                 <option value="full-time">Full-time</option>
                 <option value="part-time">Part-time</option>
@@ -110,6 +162,7 @@
                 <option value="temporary">Temporary</option>
                 <option value="zero-hours">Zero Hours</option>
               </select>
+              <p v-if="fieldErrors.employmentType" class="mt-1 text-sm text-red-600">{{ fieldErrors.employmentType }}</p>
             </div>
 
             <div class="flex items-center">
@@ -137,31 +190,57 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label for="salary" class="block text-sm font-medium text-gray-700">Salary (£) *</label>
-                <input id="salary" v-model="formData.annualSalary" type="number" step="0.01" required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                <input
+                  id="salary"
+                  v-model="formData.annualSalary"
+                  type="number"
+                  step="0.01"
+                  required
+                  :class="[
+                    'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                    fieldErrors.annualSalary ? 'border-red-300' : 'border-gray-300'
+                  ]"
+                />
+                <p v-if="fieldErrors.annualSalary" class="mt-1 text-sm text-red-600">{{ fieldErrors.annualSalary }}</p>
               </div>
 
               <div>
                 <label for="frequency" class="block text-sm font-medium text-gray-700">Pay Frequency *</label>
-                <select id="frequency" v-model="formData.salaryFrequency" required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <select
+                  id="frequency"
+                  v-model="formData.salaryFrequency"
+                  required
+                  :class="[
+                    'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                    fieldErrors.salaryFrequency ? 'border-red-300' : 'border-gray-300'
+                  ]"
+                >
                   <option value="annual">Annual</option>
                   <option value="monthly">Monthly</option>
                   <option value="weekly">Weekly</option>
                   <option value="hourly">Hourly</option>
                 </select>
+                <p v-if="fieldErrors.salaryFrequency" class="mt-1 text-sm text-red-600">{{ fieldErrors.salaryFrequency }}</p>
               </div>
             </div>
 
             <div>
               <label for="probation" class="block text-sm font-medium text-gray-700">Is the employee in a probationary
                 period? *</label>
-              <select id="probation" v-model="formData.isProbation" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+              <select
+                id="probation"
+                v-model="formData.isProbation"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.isProbation ? 'border-red-300' : 'border-gray-300'
+                ]"
+              >
                 <option value="">Select an option</option>
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
+              <p v-if="fieldErrors.isProbation" class="mt-1 text-sm text-red-600">{{ fieldErrors.isProbation }}</p>
             </div>
 
             <DatePicker v-if="formData.isProbation === 'yes'" v-model="formData.probationEndDate"
@@ -177,54 +256,104 @@
             <div>
               <label for="employment-status" class="block text-sm font-medium text-gray-700">Can you confirm the
                 employment details above are accurate? *</label>
-              <select id="employment-status" v-model="formData.employmentStatus" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+              <select
+                id="employment-status"
+                v-model="formData.employmentStatus"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.employmentStatus ? 'border-red-300' : 'border-gray-300'
+                ]"
+              >
                 <option value="">Select an option</option>
                 <option value="confirmed">All details were correct</option>
                 <option value="partial">I've had to change a few details</option>
                 <option value="cannot-confirm">I cannot confirm / I am the incorrect person</option>
               </select>
+              <p v-if="fieldErrors.employmentStatus" class="mt-1 text-sm text-red-600">{{ fieldErrors.employmentStatus }}</p>
             </div>
 
             <div v-if="formData.employmentStatus === 'partial' || formData.employmentStatus === 'cannot-confirm'">
               <label for="clarification-details" class="block text-sm font-medium text-gray-700">Please provide
                 clarification *</label>
-              <textarea id="clarification-details" v-model="formData.clarificationDetails" rows="3" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Please explain which details need clarification or cannot be confirmed"></textarea>
+              <textarea
+                id="clarification-details"
+                v-model="formData.clarificationDetails"
+                rows="3"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.clarificationDetails ? 'border-red-300' : 'border-gray-300'
+                ]"
+                placeholder="Please explain which details need clarification or cannot be confirmed"
+              ></textarea>
+              <p v-if="fieldErrors.clarificationDetails" class="mt-1 text-sm text-red-600">
+                {{ fieldErrors.clarificationDetails }}
+              </p>
             </div>
 
             <div>
               <label for="contract-type-confirmation" class="block text-sm font-medium text-gray-700">Can you confirm
                 the contract type? *</label>
-              <select id="contract-type-confirmation" v-model="formData.contractTypeConfirmation" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+              <select
+                id="contract-type-confirmation"
+                v-model="formData.contractTypeConfirmation"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.contractTypeConfirmation ? 'border-red-300' : 'border-gray-300'
+                ]"
+              >
                 <option value="">Select an option</option>
                 <option value="permanent">Permanent</option>
                 <option value="fixed-term">Fixed-term contract</option>
                 <option value="temporary">Temporary</option>
                 <option value="zero-hours">Zero hours</option>
               </select>
+              <p v-if="fieldErrors.contractTypeConfirmation" class="mt-1 text-sm text-red-600">
+                {{ fieldErrors.contractTypeConfirmation }}
+              </p>
             </div>
 
             <div>
               <label for="employment-stable" class="block text-sm font-medium text-gray-700">Is the employee's position
                 secure? *</label>
-              <select id="employment-stable" v-model="formData.employmentStable" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+              <select
+                id="employment-stable"
+                v-model="formData.employmentStable"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.employmentStable ? 'border-red-300' : 'border-gray-300'
+                ]"
+              >
                 <option value="">Select an option</option>
                 <option value="yes">Yes, position is secure</option>
                 <option value="at-risk">Position may be at risk</option>
                 <option value="ending">Employment ending soon</option>
               </select>
+              <p v-if="fieldErrors.employmentStable" class="mt-1 text-sm text-red-600">
+                {{ fieldErrors.employmentStable }}
+              </p>
             </div>
 
             <div v-if="formData.employmentStable !== 'yes'">
               <label for="employment-stable-details" class="block text-sm font-medium text-gray-700">Please provide
                 details *</label>
-              <textarea id="employment-stable-details" v-model="formData.employmentStableDetails" rows="3" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Please explain the employment situation"></textarea>
+              <textarea
+                id="employment-stable-details"
+                v-model="formData.employmentStableDetails"
+                rows="3"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.employmentStableDetails ? 'border-red-300' : 'border-gray-300'
+                ]"
+                placeholder="Please explain the employment situation"
+              ></textarea>
+              <p v-if="fieldErrors.employmentStableDetails" class="mt-1 text-sm text-red-600">
+                {{ fieldErrors.employmentStableDetails }}
+              </p>
             </div>
 
             <div>
@@ -251,8 +380,19 @@
           <div class="space-y-4">
             <div>
               <label for="signature-name" class="block text-sm font-medium text-gray-700">Full Name *</label>
-              <input id="signature-name" v-model="formData.signatureName" type="text" required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+              <input
+                id="signature-name"
+                v-model="formData.signatureName"
+                type="text"
+                required
+                :class="[
+                  'mt-1 block w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500',
+                  fieldErrors.signatureName ? 'border-red-300' : 'border-gray-300'
+                ]"
+              />
+              <p v-if="fieldErrors.signatureName" class="mt-1 text-sm text-red-600">
+                {{ fieldErrors.signatureName }}
+              </p>
             </div>
 
             <SignaturePad v-model="formData.signature" label="Signature" />
@@ -333,13 +473,57 @@ const formData = ref({
   date: new Date().toISOString().split('T')[0]
 })
 
+const fieldErrors = ref<Record<string, string>>({})
+
 const handleSubmit = async () => {
   submitting.value = true
   error.value = ''
+  fieldErrors.value = {}
+
+  const errors: Record<string, string> = {}
+
+  if (!formData.value.companyName.trim()) errors.companyName = 'Company name is required'
+  if (!formData.value.employerName.trim()) errors.employerName = 'Your full name is required'
+  if (!formData.value.employerPosition.trim()) errors.employerPosition = 'Your position/title is required'
+  if (!formData.value.employerEmail.trim()) errors.employerEmail = 'Email address is required'
+  if (!formData.value.employeePosition.trim()) errors.employeePosition = "Employee's position is required"
+  if (!formData.value.employmentType) errors.employmentType = 'Employment type is required'
+  if (!formData.value.annualSalary) errors.annualSalary = 'Salary is required'
+  if (!formData.value.salaryFrequency) errors.salaryFrequency = 'Pay frequency is required'
+  if (!formData.value.isProbation) errors.isProbation = 'Please confirm probation status'
+  if (!formData.value.employmentStatus) errors.employmentStatus = 'Please confirm employment details'
+  if (
+    (formData.value.employmentStatus === 'partial' ||
+      formData.value.employmentStatus === 'cannot-confirm') &&
+    !formData.value.clarificationDetails.trim()
+  ) {
+    errors.clarificationDetails = 'Please provide clarification'
+  }
+  if (!formData.value.contractTypeConfirmation) {
+    errors.contractTypeConfirmation = 'Please confirm the contract type'
+  }
+  if (!formData.value.employmentStable) {
+    errors.employmentStable = "Please confirm whether the employee's position is secure"
+  }
+  if (formData.value.employmentStable !== 'yes' && !formData.value.employmentStableDetails.trim()) {
+    errors.employmentStableDetails = 'Please explain the employment situation'
+  }
+  if (!formData.value.signatureName.trim()) {
+    errors.signatureName = 'Your full name is required for the declaration'
+  }
+
+  if (Object.keys(errors).length > 0) {
+    fieldErrors.value = errors
+    submitting.value = false
+    return
+  }
 
   // Validate email
   if (!isValidEmail(formData.value.employerEmail)) {
-    error.value = 'Please enter a valid email address'
+    fieldErrors.value = {
+      ...fieldErrors.value,
+      employerEmail: 'Please enter a valid email address'
+    }
     submitting.value = false
     return
   }

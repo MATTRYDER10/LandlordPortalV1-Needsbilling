@@ -90,12 +90,18 @@
               <select
                 v-model="formData.id_document_type"
                 required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                :class="[
+                  'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                  fieldErrors.id_document_type ? 'border-red-300' : 'border-gray-300'
+                ]"
               >
                 <option value="">Select document type</option>
                 <option value="driving_licence">Driving Licence</option>
                 <option value="passport">Passport</option>
               </select>
+              <p v-if="fieldErrors.id_document_type" class="mt-1 text-sm text-red-600">
+                {{ fieldErrors.id_document_type }}
+              </p>
             </div>
 
             <div>
@@ -151,8 +157,14 @@
                   v-model="formData.first_name"
                   type="text"
                   required
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  :class="[
+                    'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                    fieldErrors.first_name ? 'border-red-300' : 'border-gray-300'
+                  ]"
                 />
+                <p v-if="fieldErrors.first_name" class="mt-1 text-sm text-red-600">
+                  {{ fieldErrors.first_name }}
+                </p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700">Middle Name</label>
@@ -170,8 +182,14 @@
                 v-model="formData.last_name"
                 type="text"
                 required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                :class="[
+                  'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                  fieldErrors.last_name ? 'border-red-300' : 'border-gray-300'
+                ]"
               />
+              <p v-if="fieldErrors.last_name" class="mt-1 text-sm text-red-600">
+                {{ fieldErrors.last_name }}
+              </p>
             </div>
 
             <div>
@@ -181,7 +199,10 @@
                   <select
                     v-model="dobDay"
                     required
-                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    :class="[
+                      'block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                      fieldErrors.dob ? 'border-red-300' : 'border-gray-300'
+                    ]"
                   >
                     <option value="">Day</option>
                     <option v-for="day in 31" :key="day" :value="day">{{ day }}</option>
@@ -191,7 +212,10 @@
                   <select
                     v-model="dobMonth"
                     required
-                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    :class="[
+                      'block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                      fieldErrors.dob ? 'border-red-300' : 'border-gray-300'
+                    ]"
                   >
                     <option value="">Month</option>
                     <option value="01">January</option>
@@ -212,7 +236,10 @@
                   <select
                     v-model="dobYear"
                     required
-                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    :class="[
+                      'block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                      fieldErrors.dob ? 'border-red-300' : 'border-gray-300'
+                    ]"
                   >
                     <option value="">Year</option>
                     <option v-for="year in yearRange" :key="year" :value="year">{{ year }}</option>
@@ -220,6 +247,9 @@
                 </div>
               </div>
             </div>
+            <p v-if="fieldErrors.dob" class="mt-1 text-sm text-red-600">
+              {{ fieldErrors.dob }}
+            </p>
 
             <PhoneInput
               v-model="formData.contact_number"
@@ -227,6 +257,9 @@
               id="contact-number"
               :required="true"
             />
+            <p v-if="fieldErrors.contact_number" class="mt-1 text-sm text-red-600">
+              {{ fieldErrors.contact_number }}
+            </p>
 
             <div class="relative">
               <label class="block text-sm font-medium text-gray-700">Nationality *</label>
@@ -239,7 +272,10 @@
                 required
                 placeholder="Search and select nationality..."
                 autocomplete="off"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                :class="[
+                  'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                  fieldErrors.nationality ? 'border-red-300' : 'border-gray-300'
+                ]"
               />
               <div
                 v-if="showNationalityDropdown && filteredNationalities.length > 0"
@@ -255,6 +291,9 @@
                 </div>
               </div>
             </div>
+            <p v-if="fieldErrors.nationality" class="mt-1 text-sm text-red-600">
+              {{ fieldErrors.nationality }}
+            </p>
           </div>
         </div>
 
@@ -1846,6 +1885,7 @@ const tokenError = ref('')
 const submitting = ref(false)
 const submitError = ref('')
 const justSubmitted = ref(false)
+const fieldErrors = ref<Record<string, string>>({})
 const uploadProgress = ref(0)
 const currentPage = ref(1)
 
@@ -3157,11 +3197,47 @@ const uploadCurrentPageFiles = async () => {
 
 const handlePageSubmit = async () => {
   submitError.value = ''
+  fieldErrors.value = {}
 
-  // Validate current page
+  const errors: Record<string, string> = {}
+
+  // Basic per-page required-checks to drive inline errors
   if (currentPage.value === 1) {
-    if (!formData.value.id_document_type || (!idDocument.value && !formData.value.id_document_path)) {
-      submitError.value = 'Please select document type and upload your ID document'
+    if (!formData.value.id_document_type) {
+      errors.id_document_type = 'Please select a document type'
+    }
+    if (!idDocument.value && !formData.value.id_document_path) {
+      submitError.value = 'Please upload your ID document'
+      // keep going so fieldErrors still show for id_document_type; upload itself is indicated by top error
+    }
+  } else if (currentPage.value === 2) {
+    if (!formData.value.first_name?.trim()) {
+      errors.first_name = 'First name is required'
+    }
+    if (!formData.value.last_name?.trim()) {
+      errors.last_name = 'Last name is required'
+    }
+    if (!dobDay.value || !dobMonth.value || !dobYear.value) {
+      errors.dob = 'Please select your complete date of birth'
+    }
+    if (!formData.value.contact_number) {
+      errors.contact_number = 'Please enter your contact number'
+    }
+    if (!nationalitySearch.value?.trim()) {
+      errors.nationality = 'Please select your nationality'
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    fieldErrors.value = errors
+    // If we already set a top-level submitError above (e.g. missing upload), keep it; otherwise only inline errors show
+    return
+  }
+
+  // Existing per-page validation (uploads, address history, etc.)
+  if (currentPage.value === 1) {
+    if (!idDocument.value && !formData.value.id_document_path) {
+      submitError.value = 'Please upload your ID document'
       return
     }
   } else if (currentPage.value === 2) {

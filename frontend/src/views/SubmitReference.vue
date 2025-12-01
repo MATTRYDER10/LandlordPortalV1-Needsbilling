@@ -130,8 +130,18 @@
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700">First Name *</label>
-                  <input v-model="formData.first_name" type="text" required
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                  <input
+                    v-model="formData.first_name"
+                    type="text"
+                    required
+                    :class="[
+                      'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                      fieldErrors.first_name ? 'border-red-300' : 'border-gray-300'
+                    ]"
+                  />
+                  <p v-if="fieldErrors.first_name" class="mt-1 text-sm text-red-600">
+                    {{ fieldErrors.first_name }}
+                  </p>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700">Middle Name</label>
@@ -142,23 +152,45 @@
 
               <div>
                 <label class="block text-sm font-medium text-gray-700">Last Name *</label>
-                <input v-model="formData.last_name" type="text" required
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                <input
+                  v-model="formData.last_name"
+                  type="text"
+                  required
+                  :class="[
+                    'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                    fieldErrors.last_name ? 'border-red-300' : 'border-gray-300'
+                  ]"
+                />
+                <p v-if="fieldErrors.last_name" class="mt-1 text-sm text-red-600">
+                  {{ fieldErrors.last_name }}
+                </p>
               </div>
 
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
                 <div class="grid grid-cols-3 gap-3">
                   <div>
-                    <select v-model="dobDay" required
-                      class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+                    <select
+                      v-model="dobDay"
+                      required
+                      :class="[
+                        'block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                        fieldErrors.dob ? 'border-red-300' : 'border-gray-300'
+                      ]"
+                    >
                       <option value="">Day</option>
                       <option v-for="day in 31" :key="day" :value="day">{{ day }}</option>
                     </select>
                   </div>
                   <div>
-                    <select v-model="dobMonth" required
-                      class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+                    <select
+                      v-model="dobMonth"
+                      required
+                      :class="[
+                        'block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                        fieldErrors.dob ? 'border-red-300' : 'border-gray-300'
+                      ]"
+                    >
                       <option value="">Month</option>
                       <option value="01">January</option>
                       <option value="02">February</option>
@@ -175,24 +207,50 @@
                     </select>
                   </div>
                   <div>
-                    <select v-model="dobYear" required
-                      class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+                    <select
+                      v-model="dobYear"
+                      required
+                      :class="[
+                        'block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                        fieldErrors.dob ? 'border-red-300' : 'border-gray-300'
+                      ]"
+                    >
                       <option value="">Year</option>
                       <option v-for="year in yearRange" :key="year" :value="year">{{ year }}</option>
                     </select>
                   </div>
                 </div>
+                <p v-if="fieldErrors.dob" class="mt-1 text-sm text-red-600">
+                  {{ fieldErrors.dob }}
+                </p>
               </div>
 
-              <PhoneInput v-model="formData.contact_number" label="Contact Number" id="contact-number"
-                :required="true" />
+              <PhoneInput
+                v-model="formData.contact_number"
+                label="Contact Number"
+                id="contact-number"
+                :required="true"
+              />
+              <p v-if="fieldErrors.contact_number" class="mt-1 text-sm text-red-600">
+                {{ fieldErrors.contact_number }}
+              </p>
 
               <div class="relative">
                 <label class="block text-sm font-medium text-gray-700">Nationality *</label>
-                <input v-model="nationalitySearch" @focus="showNationalityDropdown = true"
-                  @input="showNationalityDropdown = true" @blur="hideNationalityDropdown" type="text" required
-                  placeholder="Search and select nationality..." autocomplete="off"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                <input
+                  v-model="nationalitySearch"
+                  @focus="showNationalityDropdown = true"
+                  @input="showNationalityDropdown = true"
+                  @blur="hideNationalityDropdown"
+                  type="text"
+                  required
+                  placeholder="Search and select nationality..."
+                  autocomplete="off"
+                  :class="[
+                    'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
+                    fieldErrors.nationality ? 'border-red-300' : 'border-gray-300'
+                  ]"
+                />
                 <div v-if="showNationalityDropdown && filteredNationalities.length > 0"
                   class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
                   <div v-for="nationality in filteredNationalities" :key="nationality"
@@ -202,6 +260,9 @@
                   </div>
                 </div>
               </div>
+              <p v-if="fieldErrors.nationality" class="mt-1 text-sm text-red-600">
+                {{ fieldErrors.nationality }}
+              </p>
 
               <!-- British Citizenship & Right to Rent Check -->
               <div class="mt-6 pt-6 border-t border-gray-200">
@@ -1825,6 +1886,8 @@ const justSubmitted = ref(false)
 const uploadProgress = ref(0)
 const currentPage = ref(1)
 
+const fieldErrors = ref<Record<string, string>>({})
+
 // Email validation errors
 const employerEmailError = ref('')
 const accountantEmailError = ref('')
@@ -3143,8 +3206,51 @@ const verifyRTRShareCode = async () => {
 
 const handlePageSubmit = async () => {
   submitError.value = ''
+  fieldErrors.value = {}
 
-  // Validate current page
+  const errors: Record<string, string> = {}
+
+  // Basic per-page required-checks to drive inline field errors
+  if (currentPage.value === 1) {
+    if (!formData.value.id_document_type) {
+      errors.id_document_type = 'Please select a document type'
+    }
+    if (!idDocument.value && !formData.value.id_document_path) {
+      submitError.value = 'Please upload your ID document'
+    }
+  } else if (currentPage.value === 2) {
+    if (!formData.value.first_name?.trim()) {
+      errors.first_name = 'First name is required'
+    }
+    if (!formData.value.last_name?.trim()) {
+      errors.last_name = 'Last name is required'
+    }
+    if (!dobDay.value || !dobMonth.value || !dobYear.value) {
+      errors.dob = 'Please select your complete date of birth'
+    }
+    if (!formData.value.contact_number) {
+      errors.contact_number = 'Please enter your contact number'
+    }
+    if (!nationalitySearch.value?.trim()) {
+      errors.nationality = 'Please select your nationality'
+    }
+    if (formData.value.is_british_citizen === null) {
+      submitError.value = 'Please indicate whether you are a British citizen'
+    }
+    if (formData.value.is_british_citizen === false && !formData.value.rtr_share_code) {
+      submitError.value = 'Please enter your Right to Rent share code'
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    fieldErrors.value = errors
+    // If we already set a top-level submitError (e.g. missing upload), keep it to show both
+    if (submitError.value) {
+      return
+    }
+  }
+
+  // Existing page-specific validation and RTR logic
   if (currentPage.value === 1) {
     if (!formData.value.id_document_type || (!idDocument.value && !formData.value.id_document_path)) {
       submitError.value = 'Please select document type and upload your ID document'
