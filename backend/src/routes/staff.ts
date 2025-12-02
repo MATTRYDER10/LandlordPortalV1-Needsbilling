@@ -636,9 +636,7 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       absence_details: decrypt(employerReference.absence_details_encrypted),
       would_reemploy_details: decrypt(employerReference.would_reemploy_details_encrypted),
       additional_comments: decrypt(employerReference.additional_comments_encrypted),
-      signature: decrypt(employerReference.signature_encrypted),
-      submitted_ip_address: employerReference.submitted_ip_encrypted ? decrypt(employerReference.submitted_ip_encrypted) : null,
-      submitted_geolocation: parseEncryptedJsonField(employerReference.submitted_geolocation_encrypted)
+      signature: decrypt(employerReference.signature_encrypted)
     } : null
 
     const decryptedAccountantReference = accountantReference ? {
