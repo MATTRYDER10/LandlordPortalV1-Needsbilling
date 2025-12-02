@@ -1167,7 +1167,7 @@
               </div> -->
               <CreditsAndAmlUI v-if="reference?.status !== 'pending'"
                 :verification="creditAndAmlVerification?.verification"
-                :compliance-checks="creditAndAmlVerification?.complianceChecks ?? {}" />
+                :compliance-checks="creditAndAmlVerification?.complianceChecks ?? {}" :caller="'Staff'" />
               <div v-else class="bg-white rounded-lg shadow p-6">
                 <svg class="w-6 h-6 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1490,7 +1490,9 @@ const idChecks = ref({
 const tasDecision = ref<'PASS_PLUS' | 'PASS' | 'REFER' | 'FAIL' | null>(null)
 const tasReason = ref('')
 
-const creditAndAmlVerification = ref<CreditsAndAmlUIProps>()
+type CreditAndAmlVerification  = Omit<CreditsAndAmlUIProps,'caller'>
+const creditAndAmlVerification = ref<CreditAndAmlVerification>()
+
 
 // Evidence source options
 const evidenceSourceOptions = ref<any>({

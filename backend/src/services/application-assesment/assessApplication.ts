@@ -54,7 +54,7 @@ export const assessApplicationScore = async (referenceId: string,caller: 'System
         if (reference?.reference_type === "living_with_family") {
             residentialStatus = "PASS";
         } else if (!reference?.time_at_address_years && !reference?.time_at_address_months) {
-            residentialStatus = "FAIL"; // default fail
+            residentialStatus = "SKIPPED"; // default fail
         }
 
         let incomeMultiple = 0;

@@ -37,7 +37,7 @@
                 </div>
 
                 <!-- Risk Score -->
-                <div class="flex flex-col justify-center text-right min-w-[180px]">
+                <div v-if="props.caller === 'Staff'" class="flex flex-col justify-center text-right min-w-[180px]">
                     <span class="text-sm font-semibold uppercase tracking-wide text-gray-500">
                         Risk Score
                     </span>
@@ -53,7 +53,7 @@
 
                 <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <!-- Electoral Roll -->
-                    <div :class="[
+                    <div v-if="props.caller === 'Staff'" :class="[
                         'flex items-center gap-3 rounded-xl border px-4 py-3',
                         verificationFlags.electoralRollMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
                     ]">
@@ -251,7 +251,7 @@ interface VerificationFlags {
 }
 
 interface VerificationData {
-    name_match_score: number;
+    name_match_score: number | 'yet_to_be_assessed';
     application_status: 'Failed' | 'Passed' | 'Yet to be assessed' | 'PASS_WITH_GUARANTOR';
     risk_level: 'low' | 'medium' | 'high' | 'very_high' | 'yet_to_be_assessed';
     risk_score: number;
@@ -267,6 +267,7 @@ interface ComplianceChecks {
 export interface Props {
     verification?: VerificationData
     complianceChecks?: ComplianceChecks
+    caller : "Agent"| "Staff"
 }
 
 const props = defineProps<Props>()
@@ -309,9 +310,12 @@ const statusLabel = computed(() => {
 const identityMatchLabel = computed(() => {
     if (!verificationData.value) return 'No Match'
     const score = verificationData.value.name_match_score ?? 0
-    if (score >= 80) return 'Match Found'
-    if (score >= 60) return 'Partial Match'
-    return 'No Match'
+    if (typeof score === 'number') {
+        if (score >= 80) return 'Match Found'
+        if (score >= 60) return 'Partial Match'
+        return 'No Match'
+    }
+    return 'Yet to be assessed'
 })
 
 // Risk score color based on ranges: 0-350 red, 350-649 yellow, 650+ green

@@ -1384,7 +1384,7 @@
 
         <!-- Creditsafe Identity Verification -->
         <CreditsAndAmlUI v-if="application_flags.credit_check_status !== 'pending'" :verification="creditAndAmlVerification?.verification"
-          :compliance-checks="creditAndAmlVerification?.complianceChecks ?? {}" />
+          :compliance-checks="creditAndAmlVerification?.complianceChecks ?? {}" :caller="'Agent'" />
 
         <div v-else class="bg-white rounded-lg shadow p-6">
           <svg class="w-6 h-6 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3270,7 +3270,8 @@ const downloadingPDF = ref(false)
 //const sanctionsScreening = ref<any>(null)
 //const creditsafeVerification = ref<any>(null)
 
-const creditAndAmlVerification = ref<CreditsAndAmlUIProps>()
+type CreditAndAmlVerification  = Omit<CreditsAndAmlUIProps,'caller'>
+const creditAndAmlVerification = ref<CreditAndAmlVerification>()
 
 // Add Guarantor modal state
 const showAddGuarantorModal = ref(false)
@@ -3374,9 +3375,9 @@ const fetchReference = async () => {
 
     creditAndAmlVerification.value = {
       verification: {
-        name_match_score: data.creditsafeVerification?.name_match_score ?? 0,
+        name_match_score: data?.score?.assessed_by === "System" ? 'yet_to_be_assessed' : data.creditsafeVerification?.name_match_score ?? 0,
         application_status: data?.score?.assessed_by === "System" ? "Yet to be assessed" : data?.score?.decision,
-        risk_level: data?.score?.risk_level ?? 'yet_to_be_assessed',
+        risk_level: data?.score?.assessed_by === "System" ? 'yet_to_be_assessed' : data?.score?.risk_level,
         risk_score: data?.score?.score_total ?? 0,
         verification_flags: flags as any
       },
