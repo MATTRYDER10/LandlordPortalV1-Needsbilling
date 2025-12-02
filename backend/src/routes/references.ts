@@ -3159,6 +3159,7 @@ router.post('/employer/:referenceId', async (req: Request, res) => {
       annual_salary_encrypted: encrypt(formData.annualSalary ? String(formData.annualSalary) : null),
       salary_frequency: formData.salaryFrequency,
       is_probation: formData.isProbation,
+      employment_stable: formData.employmentStable,
       employment_status: formData.employmentStatus,
       performance_rating: formData.performanceRating,
       performance_details_encrypted: encrypt(formData.performanceDetails || ''),

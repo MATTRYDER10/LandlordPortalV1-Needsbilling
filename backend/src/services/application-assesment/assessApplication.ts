@@ -38,7 +38,7 @@ export const assessApplicationScore = async (referenceId: string,caller: 'System
             electoral: flags?.electoralRollMatch || false
         };
 
-        const isAlmlClear = sanctions?.risk_level === 'clear' || Array.isArray(sanctions?.sanctions_matches) && sanctions?.sanctions_matches.length === 0;
+        const isAlmlClear = sanctions?.risk_level === 'clear' || (Array.isArray(sanctions?.sanctions_matches) && !sanctions?.sanctions_matches.length);
 
         const aml = {
             pep: isAlmlClear,
@@ -46,19 +46,13 @@ export const assessApplicationScore = async (referenceId: string,caller: 'System
         };
 
         //RTR
-        const rtrPass = reference?.is_british_citizen;
+        const rtrPass = reference?.rtr_verified || reference?.is_british_citizen;
 
         // RESIDENTIAL
-        let residentialStatus: "PASS" | "SKIPPED" | "FAIL" = "SKIPPED";
-
-        if (reference?.reference_type === "living_with_family") {
-            residentialStatus = "PASS";
-        } else if (!reference?.time_at_address_years && !reference?.time_at_address_months) {
-            residentialStatus = "SKIPPED"; // default fail
-        }
+        const residentialStatus: "PASS" | "SKIPPED" | "FAIL" | "AMBER" = reference?.res_assessment_status || (reference?.reference_type === "living_with_family" ? "PASS" : "SKIPPED");
 
         let incomeMultiple = 0;
-        if (!reference?.income_student && !reference?.income_unemployed) {
+        if (reference?.income_assessment_status !== "FAIL" &&  !reference?.income_student && !reference?.income_unemployed) {
             const salary = reference.employment_salary_amount || 0;
             const benefits = parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0');
             const additional = parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0');
@@ -80,7 +74,8 @@ export const assessApplicationScore = async (referenceId: string,caller: 'System
             aml,
             rtr: rtrPass,
             residentialStatus,
-            incomeMultiple
+            incomeMultiple,
+            caller
         });
 
         // UPDATE OR INSERT INTO reference_scores

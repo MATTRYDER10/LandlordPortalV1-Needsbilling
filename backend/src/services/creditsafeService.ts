@@ -328,7 +328,7 @@ class CreditsafeService {
           // Store individual flags as booleans
           // Note: In Creditsafe, true = match found (which can be bad)
           // We invert for storage where true = passed check
-          name_match_score: response.verifyMatch ? 100 : 0,
+          name_match_score: 0, //Will be checked by staff
           address_match_score: response.electoralRegisterMatch ? 100 : 0,
           dob_match_score: response.verifyMatch ? 100 : 0,
 
