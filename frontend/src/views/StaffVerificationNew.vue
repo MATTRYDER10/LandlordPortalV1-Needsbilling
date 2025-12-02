@@ -171,11 +171,38 @@
             <!-- Decision -->
             <div>
               <p class="text-xs text-gray-500 mb-1">Decision</p>
-              <span :class="getStatusChipClasses('SUPERB')"
+              <span v-if="systemDecision" :class="getStatusChipClasses(systemDecision)"
                 class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold">
-                {{ formatStatusText('SUPERB') }}
+                {{ formatStatusText(systemDecision) }}
+              </span>
+              <span v-else
+                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                Not available
               </span>
             </div>
+            <!-- Risk Score -->
+            <!-- <div>
+              <p class="text-xs text-gray-500 mb-1">Risk Score</p>
+              <p class="text-lg font-semibold text-gray-900">{{ riskScore ?? '—' }}</p>
+            </div> -->
+            <!-- Risk Level -->
+            <!-- <div>
+              <p class="text-xs text-gray-500 mb-1">Risk Level</p>
+              <span v-if="creditAndAmlVerification?.verification?.risk_level" :class="[
+                'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold',
+                creditAndAmlVerification.verification.risk_level === 'very_high' ? 'bg-red-100 text-red-800' :
+                  creditAndAmlVerification.verification.risk_level === 'high' ? 'bg-orange-100 text-orange-800' :
+                    creditAndAmlVerification.verification.risk_level === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                      creditAndAmlVerification.verification.risk_level === 'low' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
+              ]">
+                {{ creditAndAmlVerification.verification.risk_level.toUpperCase().replace('_', ' ') }}
+              </span>
+              <span v-else
+                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                Not available
+              </span>
+            </div> -->
             <!-- Gates -->
             <div>
               <p class="text-xs text-gray-500 mb-1">Gates</p>
@@ -445,7 +472,7 @@
             <h3 class="text-xl font-bold text-gray-900">Step 2: RTR Verification</h3>
             <span
               class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-100">
-              RTR Score: 300 / 300
+              RTR Score: {{ domainScores.rtr ?? '—' }}
             </span>
           </div>
           <p class="text-gray-600 mb-6">Verify the tenant's Right to Rent status.</p>
@@ -585,10 +612,9 @@
         <div v-if="currentStep === 3">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-xl font-bold text-gray-900">Step 3: Income & Affordability</h3>
-            <!-- Static Income Band & Score chip (make dynamic later) -->
             <span
               class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-100">
-              Income Band: 2.5x • Score: 210 / 249
+              Income Score: {{ domainScores.income ?? '—' }}
             </span>
           </div>
           <p class="text-gray-600 mb-6">Review all available financial information to assess income and affordability.
@@ -980,10 +1006,9 @@
         <div v-if="currentStep === 4">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-xl font-bold text-gray-900">Step 4: Residential Verification</h3>
-            <!-- Static score chip (make dynamic later) -->
             <span
               class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-100">
-              Residential Score: 220 / 300
+              Residential Score: {{ domainScores.residential ?? '—' }}
             </span>
           </div>
           <p class="text-gray-600 mb-6">Verify residential history and landlord/letting agent references.</p>
@@ -1102,21 +1127,21 @@
                   <p class="text-gray-500 font-medium">{{ landlordReference ? 'Landlord Name' : 'Agent Name' }}</p>
                   <p class="mt-1 text-gray-900">
                     {{ landlordReference?.landlord_name || agentReference?.agent_name ||
-  reference?.previous_landlord_name || 'Not provided yet' }}
+                    reference?.previous_landlord_name || 'Not provided yet' }}
                   </p>
                 </div>
                 <div>
                   <p class="text-gray-500 font-medium">{{ landlordReference ? 'Email' : 'Agent Email' }}</p>
                   <p class="mt-1 text-gray-900">
                     {{ landlordReference?.landlord_email || agentReference?.agent_email ||
-                      reference?.previous_landlord_email || 'Not provided yet' }}
+                    reference?.previous_landlord_email || 'Not provided yet' }}
                   </p>
                 </div>
                 <div>
                   <p class="text-gray-500 font-medium">Phone</p>
                   <p class="mt-1 text-gray-900">
                     {{ landlordReference?.landlord_phone || agentReference?.agent_phone ||
-                      reference?.previous_landlord_phone || 'Not provided yet' }}
+                    reference?.previous_landlord_phone || 'Not provided yet' }}
                   </p>
                 </div>
                 <div>
@@ -1131,13 +1156,13 @@
                   <p class="mt-1 text-gray-900">
                     {{ reference?.previous_rental_address_line1 || 'Not provided yet' }}
                     <span v-if="reference?.previous_rental_address_line2">, {{ reference.previous_rental_address_line2
-                    }}</span>
+                      }}</span>
                   </p>
                   <p v-if="reference?.previous_rental_city || reference?.previous_rental_postcode"
                     class="mt-1 text-gray-900">
                     {{ reference.previous_rental_city || '' }}<span
                       v-if="reference.previous_rental_city && reference.previous_rental_postcode">, </span>{{
-                        reference.previous_rental_postcode || '' }}
+                    reference.previous_rental_postcode || '' }}
                   </p>
                 </div>
                 <div>
@@ -1147,7 +1172,7 @@
                       {{ formatDate(reference.previous_tenancy_start_date, 'N/A') }}
                       {{ ' to ' }}
                       {{ reference.previous_tenancy_still_in_progress ? 'Present' :
-                        formatDate(reference.previous_tenancy_end_date, 'Still in tenancy') }}
+                      formatDate(reference.previous_tenancy_end_date, 'Still in tenancy') }}
                     </span>
                     <span v-else>Not provided yet</span>
                   </p>
@@ -1158,13 +1183,13 @@
                     {{ formatDate(landlordReference.tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
                     {{ landlordReference.tenancy_still_in_progress ? 'Still in tenancy' :
-                      formatDate(landlordReference.tenancy_end_date, 'N/A') }}
+                    formatDate(landlordReference.tenancy_end_date, 'N/A') }}
                   </p>
                   <p class="mt-1 text-gray-900" v-else-if="agentReference">
                     {{ formatDate(agentReference.tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
                     {{ agentReference.tenancy_still_in_progress ? 'Still in tenancy' :
-                      formatDate(agentReference.tenancy_end_date, 'N/A') }}
+                    formatDate(agentReference.tenancy_end_date, 'N/A') }}
                   </p>
                   <p class="mt-1 text-gray-900" v-else>Not provided yet</p>
                 </div>
@@ -1317,7 +1342,7 @@
                     <p class="text-sm font-medium text-gray-700">Are contact details verifiable?</p>
                     <p class="text-xs text-gray-500 mt-1">
                       {{ reference?.previous_landlord_email || landlordReference?.landlord_email ||
-                        agentReference?.agent_email
+                      agentReference?.agent_email
                       }}
                     </p>
                   </div>
@@ -1476,11 +1501,10 @@
                 <div class="flex items-center justify-between px-3 py-3 rounded-lg bg-blue-50 border border-blue-100">
                   <div>
                     <p class="text-xs font-semibold text-blue-800 uppercase tracking-wide">Credit Score</p>
-                    <p class="text-xs text-blue-700 mt-0.5">Out of 300</p>
                   </div>
                   <div class="text-right">
                     <p class="text-2xl font-bold text-blue-900">
-                      300
+                      {{ domainScores.credit || 0 }}
                     </p>
                   </div>
                 </div>
@@ -1488,11 +1512,10 @@
                   class="flex items-center justify-between px-3 py-3 rounded-lg bg-emerald-50 border border-emerald-100">
                   <div>
                     <p class="text-xs font-semibold text-emerald-800 uppercase tracking-wide">AML Score</p>
-                    <p class="text-xs text-emerald-700 mt-0.5">Out of 160</p>
                   </div>
                   <div class="text-right">
                     <p class="text-2xl font-bold text-emerald-900">
-                      {{ creditAndAmlVerification?.verification?.risk_score ?? '—' }}
+                      {{ domainScores.aml || 0 }}
                     </p>
                   </div>
                 </div>
@@ -1696,7 +1719,7 @@
                 <p :class="[
                   'text-4xl font-bold',
                   riskScoreColor.text
-                ]">560/999</p>
+                ]">{{ riskScore ?? '—' }}</p>
                 <p class="text-xs text-gray-500 mt-1">Total assessment score</p>
               </div>
 
@@ -1713,14 +1736,14 @@
                             'bg-gray-100 text-gray-800 border-2 border-gray-300'
                   ]">
                     {{ creditAndAmlVerification?.verification?.risk_level ?
-                      creditAndAmlVerification.verification.risk_level.toUpperCase().replace('_', ' ') : 'N/A' }}
+                    creditAndAmlVerification.verification.risk_level.toUpperCase().replace('_', ' ') : 'N/A' }}
                   </span>
                 </div>
                 <p v-if="creditAndAmlVerification?.verification?.risk_level" class="text-xs text-gray-500 mt-2">
                   {{ creditAndAmlVerification.verification.risk_level === 'very_high' ? 'Very high risk applicant' :
-                    creditAndAmlVerification.verification.risk_level === 'high' ? 'High risk applicant' :
-                      creditAndAmlVerification.verification.risk_level === 'medium' ? 'Medium risk applicant' :
-                        creditAndAmlVerification.verification.risk_level === 'low' ? 'Low risk applicant' : '' }}
+                  creditAndAmlVerification.verification.risk_level === 'high' ? 'High risk applicant' :
+                  creditAndAmlVerification.verification.risk_level === 'medium' ? 'Medium risk applicant' :
+                  creditAndAmlVerification.verification.risk_level === 'low' ? 'Low risk applicant' : '' }}
                 </p>
               </div>
             </div>
@@ -1749,8 +1772,7 @@
                     <div>
                       <p class="text-xs text-indigo-600 uppercase tracking-wide mb-1">Income Score</p>
                       <p class="text-2xl font-bold text-indigo-900">
-                        60
-                        <span class="text-base font-normal text-indigo-700 ml-2">(2.5x)</span>
+                        {{ domainScores.income ?? '—' }}
                       </p>
                     </div>
                     <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -1767,7 +1789,7 @@
                   <div class="flex items-center justify-between">
                     <div>
                       <p class="text-xs text-blue-600 uppercase tracking-wide mb-1">RTR</p>
-                      <p class="text-2xl font-bold text-blue-900">40</p>
+                      <p class="text-2xl font-bold text-blue-900">{{ domainScores.rtr ?? '—' }}</p>
                     </div>
                     <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                       <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1783,7 +1805,7 @@
                   <div class="flex items-center justify-between">
                     <div>
                       <p class="text-xs text-emerald-600 uppercase tracking-wide mb-1">AML</p>
-                      <p class="text-2xl font-bold text-emerald-900">160</p>
+                      <p class="text-2xl font-bold text-emerald-900">{{ domainScores.aml ?? '—' }}</p>
                     </div>
                     <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
                       <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1794,12 +1816,28 @@
                   </div>
                 </div>
 
+                <!-- Credit -->
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-xs text-blue-600 uppercase tracking-wide mb-1">Credit</p>
+                      <p class="text-2xl font-bold text-blue-900">{{ domainScores.credit ?? '—' }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Residential -->
                 <div class="bg-orange-50 p-4 rounded-lg border border-orange-200 shadow-sm">
                   <div class="flex items-center justify-between">
                     <div>
                       <p class="text-xs text-orange-600 uppercase tracking-wide mb-1">Residential</p>
-                      <p class="text-2xl font-bold text-orange-900">300</p>
+                      <p class="text-2xl font-bold text-orange-900">{{ domainScores.residential ?? '—' }}</p>
                     </div>
                     <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                       <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1863,7 +1901,7 @@
                           'bg-gray-100 text-gray-600'
                   ]">
                     {{ steps[2]!.status === 'GUARANTOR_NEEDED' ? 'GUARANTOR NEEDED' :
-                      steps[2]!.overall_pass === true ? 'PASS' : steps[2]!.overall_pass === false ? 'FAIL' : 'PENDING' }}
+                    steps[2]!.overall_pass === true ? 'PASS' : steps[2]!.overall_pass === false ? 'FAIL' : 'PENDING' }}
                   </span>
                 </div>
                 <p v-if="steps[2]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[2]!.notes }}</p>
@@ -1881,7 +1919,7 @@
                           'bg-gray-100 text-gray-600'
                   ]">
                     {{ steps[3]!.status === 'amber' ? 'AMBER' :
-                      steps[3]!.overall_pass === true ? 'PASS' : steps[3]!.overall_pass === false ? 'FAIL' : 'PENDING' }}
+                    steps[3]!.overall_pass === true ? 'PASS' : steps[3]!.overall_pass === false ? 'FAIL' : 'PENDING' }}
                   </span>
                 </div>
                 <p v-if="steps[3]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[3]!.notes }}</p>
@@ -1922,7 +1960,7 @@
           <div class="flex gap-3">
             <button v-if="currentStep < 6" @click="nextStep" :disabled="!canProceed"
               class="px-6 py-2 text-white bg-primary hover:bg-primary-dark rounded-md font-medium disabled:opacity-50">
-              Next Step
+              {{ currentStep === 5 ? 'Proceed to Preview' : 'Next Step' }}
             </button>
             <template v-else>
               <button @click="handleReject"
@@ -2358,7 +2396,7 @@ const activeGates = computed(() => {
 
 // Risk Score color coding
 const riskScoreColor = computed(() => {
-  const score = 560 // This should be computed from actual scores later
+  const score = riskScore.value ?? 0
   if (score > 799) {
     return {
       text: 'text-green-600',
@@ -2549,6 +2587,24 @@ const clearPayslipPreview = () => {
 
 
 const credit_status = ref<string | null>(null);
+
+// Score data
+const riskScore = ref<number | null>(null)
+const systemDecision = ref<string | null>(null)
+const domainScores = ref<{
+  aml: number | null
+  rtr: number | null
+  credit: number | null
+  income: number | null
+  residential: number | null
+}>({
+  aml: null,
+  rtr: null,
+  credit: null,
+  income: null,
+  residential: null
+})
+
 // Methods
 const loadData = async () => {
   try {
@@ -2579,6 +2635,29 @@ const loadData = async () => {
     guarantorReference.value = refData.guarantorReference || null
 
     credit_status.value = refData?.score?.risk_level ?? null
+
+    // Bind score data
+    riskScore.value = refData?.score?.score_total ?? null
+    systemDecision.value = refData?.score?.decision ?? null
+
+    // Bind domain scores
+    if (refData?.score?.domain_scores) {
+      domainScores.value = {
+        aml: refData.score.domain_scores.aml ?? null,
+        rtr: refData.score.domain_scores.rtr ?? null,
+        credit: refData.score.domain_scores.credit ?? null,
+        income: refData.score.domain_scores.income ?? null,
+        residential: refData.score.domain_scores.residential ?? null
+      }
+    }
+
+    // Bind gates from caps array
+    if (Array.isArray(refData?.score?.caps)) {
+      previewGates.value = previewGates.value.map(gate => ({
+        ...gate,
+        active: refData.score.caps.includes(gate.key)
+      }))
+    }
 
     //creditsafeVerification.value = data.creditsafeVerification
     let flags = {}
