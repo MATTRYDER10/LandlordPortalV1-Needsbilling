@@ -2467,9 +2467,9 @@
               'w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm',
               pendingAction === 'finalize' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
             ]">
-              Proceed
+              {{ processing ? 'Processing...' : 'Proceed' }}
             </button>
-            <button @click="cancelAction"
+            <button @click="cancelAction" :disabled="processing"
               class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
               Cancel
             </button>
@@ -2853,20 +2853,21 @@ const handleFinalize = () => {
   showConfirmationModal.value = true
 }
 
+const processing = ref(false);
 const proceedWithAction = () => {
+  processing.value = true;
   if (pendingAction.value === 'finalize') {
     // Console log the verification report JSON
     console.log('Verification Report JSON:', JSON.stringify(verificationReportJson.value, null, 2))
-    // You can add additional logic here for finalizing (e.g., download PDF, send to API, etc.)
-    alert('Verification report JSON has been logged to console. Check the browser console for details.')
   } else if (pendingAction.value === 'reject') {
     console.log('Verification Rejected (preview only):', JSON.stringify(verificationReportJson.value, null, 2))
-    alert('Application has been marked as rejected (preview only).')
   }
-
-  // Close modal and reset
+  setTimeout(() => {
+    processing.value = false;
+    // Close modal and reset
   showConfirmationModal.value = false
   pendingAction.value = null
+  }, 3000);
 }
 
 const cancelAction = () => {
