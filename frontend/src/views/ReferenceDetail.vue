@@ -3345,9 +3345,7 @@ const viewingDocumentType = ref('') // 'image' or 'pdf'
 const resendingLandlord = ref(false)
 const resendingAgent = ref(false)
 const resendingEmployer = ref<Record<string, boolean>>({})
-const resendingMainEmployer = ref(false)
 const resendingAccountant = ref<Record<string, boolean>>({})
-const resendingGuarantor = ref(false)
 
 // Edit Email Resend Modal state
 const showEditEmailModal = ref(false)
