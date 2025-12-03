@@ -4153,27 +4153,6 @@ const resendEmployerEmail = async (childId: string) => {
   }
 }
 
-const resendMainEmployerEmail = async () => {
-  if (!reference.value?.id) return
-  resendingMainEmployer.value = true
-  try {
-    const response = await fetch(`${API_URL}/api/references/${reference.value.id}/resend-employer-email`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-    if (!response.ok) throw new Error('Failed to resend email')
-    toast.success('Employer reference email resent successfully')
-  } catch (err: any) {
-    console.error('Error resending employer email:', err)
-    toast.error('Failed to resend email: ' + err.message)
-  } finally {
-    resendingMainEmployer.value = false
-  }
-}
-
 const resendAccountantEmail = async (childId: string) => {
   resendingAccountant.value[childId] = true
   try {
@@ -4191,26 +4170,6 @@ const resendAccountantEmail = async (childId: string) => {
     toast.error('Failed to resend email: ' + err.message)
   } finally {
     resendingAccountant.value[childId] = false
-  }
-}
-
-const resendGuarantorEmail = async () => {
-  resendingGuarantor.value = true
-  try {
-    const response = await fetch(`${API_URL}/api/references/${route.params.id}/resend-guarantor-email`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-    if (!response.ok) throw new Error('Failed to resend email')
-    toast.success('Guarantor reference email resent successfully')
-  } catch (err: any) {
-    console.error('Error resending guarantor email:', err)
-    toast.error('Failed to resend email: ' + err.message)
-  } finally {
-    resendingGuarantor.value = false
   }
 }
 

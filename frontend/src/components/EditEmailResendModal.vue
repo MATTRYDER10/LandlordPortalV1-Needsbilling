@@ -80,7 +80,7 @@ import { isValidEmail } from '../utils/validation'
 const props = defineProps<{
   show: boolean
   currentEmail: string
-  referenceType: 'employer' | 'guarantor'
+  referenceType: 'employer' | 'guarantor' | 'guarantor_self'
 }>()
 
 const emit = defineEmits<{
