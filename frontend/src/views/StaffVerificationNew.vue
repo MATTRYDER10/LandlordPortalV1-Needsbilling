@@ -1127,21 +1127,21 @@
                   <p class="text-gray-500 font-medium">{{ landlordReference ? 'Landlord Name' : 'Agent Name' }}</p>
                   <p class="mt-1 text-gray-900">
                     {{ landlordReference?.landlord_name || agentReference?.agent_name ||
-                    reference?.previous_landlord_name || 'Not provided yet' }}
+                      reference?.previous_landlord_name || 'Not provided yet' }}
                   </p>
                 </div>
                 <div>
                   <p class="text-gray-500 font-medium">{{ landlordReference ? 'Email' : 'Agent Email' }}</p>
                   <p class="mt-1 text-gray-900">
                     {{ landlordReference?.landlord_email || agentReference?.agent_email ||
-                    reference?.previous_landlord_email || 'Not provided yet' }}
+                      reference?.previous_landlord_email || 'Not provided yet' }}
                   </p>
                 </div>
                 <div>
                   <p class="text-gray-500 font-medium">Phone</p>
                   <p class="mt-1 text-gray-900">
                     {{ landlordReference?.landlord_phone || agentReference?.agent_phone ||
-                    reference?.previous_landlord_phone || 'Not provided yet' }}
+                      reference?.previous_landlord_phone || 'Not provided yet' }}
                   </p>
                 </div>
                 <div>
@@ -1156,13 +1156,13 @@
                   <p class="mt-1 text-gray-900">
                     {{ reference?.previous_rental_address_line1 || 'Not provided yet' }}
                     <span v-if="reference?.previous_rental_address_line2">, {{ reference.previous_rental_address_line2
-                      }}</span>
+                    }}</span>
                   </p>
                   <p v-if="reference?.previous_rental_city || reference?.previous_rental_postcode"
                     class="mt-1 text-gray-900">
                     {{ reference.previous_rental_city || '' }}<span
                       v-if="reference.previous_rental_city && reference.previous_rental_postcode">, </span>{{
-                    reference.previous_rental_postcode || '' }}
+                        reference.previous_rental_postcode || '' }}
                   </p>
                 </div>
                 <div>
@@ -1172,7 +1172,7 @@
                       {{ formatDate(reference.previous_tenancy_start_date, 'N/A') }}
                       {{ ' to ' }}
                       {{ reference.previous_tenancy_still_in_progress ? 'Present' :
-                      formatDate(reference.previous_tenancy_end_date, 'Still in tenancy') }}
+                        formatDate(reference.previous_tenancy_end_date, 'Still in tenancy') }}
                     </span>
                     <span v-else>Not provided yet</span>
                   </p>
@@ -1183,13 +1183,13 @@
                     {{ formatDate(landlordReference.tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
                     {{ landlordReference.tenancy_still_in_progress ? 'Still in tenancy' :
-                    formatDate(landlordReference.tenancy_end_date, 'N/A') }}
+                      formatDate(landlordReference.tenancy_end_date, 'N/A') }}
                   </p>
                   <p class="mt-1 text-gray-900" v-else-if="agentReference">
                     {{ formatDate(agentReference.tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
                     {{ agentReference.tenancy_still_in_progress ? 'Still in tenancy' :
-                    formatDate(agentReference.tenancy_end_date, 'N/A') }}
+                      formatDate(agentReference.tenancy_end_date, 'N/A') }}
                   </p>
                   <p class="mt-1 text-gray-900" v-else>Not provided yet</p>
                 </div>
@@ -1342,7 +1342,7 @@
                     <p class="text-sm font-medium text-gray-700">Are contact details verifiable?</p>
                     <p class="text-xs text-gray-500 mt-1">
                       {{ reference?.previous_landlord_email || landlordReference?.landlord_email ||
-                      agentReference?.agent_email
+                        agentReference?.agent_email
                       }}
                     </p>
                   </div>
@@ -1448,7 +1448,7 @@
               <div class="flex gap-4">
 
                 <!-- PASS -->
-                <button @click="steps[3]!.overall_pass = true" :class="[
+                <button @click="steps[3]!.overall_pass = true, steps[3]!.status = ''" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[3]!.overall_pass === true
                     ? 'bg-green-600 text-white'
@@ -1468,7 +1468,7 @@
                 </button>
 
                 <!-- FAIL -->
-                <button @click="steps[3]!.overall_pass = false" :class="[
+                <button @click="steps[3]!.overall_pass = false,steps[3]!.status = ''" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[3]!.overall_pass === false
                     ? 'bg-red-600 text-white'
@@ -1493,8 +1493,8 @@
             <div class="bg-white border rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-semibold text-gray-900">Score Overview</h4>
-                <span v-if="creditCheckData?.checked_at" class="text-xs text-gray-500">
-                  Last checked: {{ formatDate(creditCheckData.checked_at) }}
+                <span v-if="domainScores.checked_at" class="text-xs text-gray-500">
+                  Last checked: {{ formatDate(domainScores.checked_at) }}
                 </span>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1699,251 +1699,303 @@
 
         <!-- Step 6: Preview & Finalize -->
         <div v-if="currentStep === 6" class="bg-white rounded-lg shadow-lg p-8">
-          <div class="mb-6 text-center border-b pb-6">
-            <h2 class="text-3xl font-bold text-gray-900 mb-2">Verification Preview</h2>
-            <p class="text-gray-600">Review all verification steps before finalizing</p>
+          <!-- Re-assessment Loading State -->
+          <div v-if="reAssessmentLoading" class="text-center py-20">
+            <div class="inline-block animate-spin rounded-full h-16 w-16 border-b-2 border-primary mb-6"></div>
+            <p class="text-gray-700 text-xl font-semibold mb-2">Re-assessing application score...</p>
+            <p class="text-gray-500 text-sm">Please wait while we calculate the updated scores based on your
+              verification decisions</p>
           </div>
 
-          <!-- Assessment Scores -->
-          <div class="mb-8 border-b pb-6">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">Assessment Scores</h3>
-
-            <!-- Risk Score and Risk Level - Parallel -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <!-- Risk Score -->
-              <div :class="[
-                'p-6 rounded-lg border-2',
-                riskScoreColor.border
-              ]">
-                <p class="text-sm text-gray-600 uppercase tracking-wide mb-2">Risk Score</p>
-                <p :class="[
-                  'text-4xl font-bold',
-                  riskScoreColor.text
-                ]">{{ riskScore ?? '—' }}</p>
-                <p class="text-xs text-gray-500 mt-1">Total assessment score</p>
-              </div>
-
-              <!-- Risk Level -->
-              <div class="p-6 rounded-lg border-2 border-gray-200">
-                <p class="text-sm text-gray-600 uppercase tracking-wide mb-2">Risk Level</p>
-                <div class="flex items-center gap-3">
-                  <span :class="[
-                    'px-4 py-2 rounded-lg text-lg font-bold',
-                    creditAndAmlVerification?.verification?.risk_level === 'very_high' ? 'bg-red-100 text-red-800 border-2 border-red-300' :
-                      creditAndAmlVerification?.verification?.risk_level === 'high' ? 'bg-orange-100 text-orange-800 border-2 border-orange-300' :
-                        creditAndAmlVerification?.verification?.risk_level === 'medium' ? 'bg-yellow-100 text-yellow-800 border-2 border-yellow-300' :
-                          creditAndAmlVerification?.verification?.risk_level === 'low' ? 'bg-green-100 text-green-800 border-2 border-green-300' :
-                            'bg-gray-100 text-gray-800 border-2 border-gray-300'
-                  ]">
-                    {{ creditAndAmlVerification?.verification?.risk_level ?
-                    creditAndAmlVerification.verification.risk_level.toUpperCase().replace('_', ' ') : 'N/A' }}
-                  </span>
-                </div>
-                <p v-if="creditAndAmlVerification?.verification?.risk_level" class="text-xs text-gray-500 mt-2">
-                  {{ creditAndAmlVerification.verification.risk_level === 'very_high' ? 'Very high risk applicant' :
-                  creditAndAmlVerification.verification.risk_level === 'high' ? 'High risk applicant' :
-                  creditAndAmlVerification.verification.risk_level === 'medium' ? 'Medium risk applicant' :
-                  creditAndAmlVerification.verification.risk_level === 'low' ? 'Low risk applicant' : '' }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Gates Section -->
-            <div class="mb-6">
-              <p class="text-sm font-semibold text-gray-700 mb-3">Gates</p>
-              <div v-if="activeGates.length > 0" class="flex flex-wrap gap-2">
-                <span v-for="gate in activeGates" :key="gate.key"
-                  class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-300">
-                  {{ gate.label }}
-                </span>
-              </div>
-              <div v-else class="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
-                No gates
-              </div>
-            </div>
-
-            <!-- Score Breakdown -->
-            <div>
-              <p class="text-sm font-semibold text-gray-700 mb-3">Score Breakdown</p>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <!-- Income Score with Band -->
-                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200 shadow-sm">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-xs text-indigo-600 uppercase tracking-wide mb-1">Income Score</p>
-                      <p class="text-2xl font-bold text-indigo-900">
-                        {{ domainScores.income ?? '—' }}
-                      </p>
-                    </div>
-                    <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                      <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- RTR -->
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-xs text-blue-600 uppercase tracking-wide mb-1">RTR</p>
-                      <p class="text-2xl font-bold text-blue-900">{{ domainScores.rtr ?? '—' }}</p>
-                    </div>
-                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- AML -->
-                <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200 shadow-sm">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-xs text-emerald-600 uppercase tracking-wide mb-1">AML</p>
-                      <p class="text-2xl font-bold text-emerald-900">{{ domainScores.aml ?? '—' }}</p>
-                    </div>
-                    <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Credit -->
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-xs text-blue-600 uppercase tracking-wide mb-1">Credit</p>
-                      <p class="text-2xl font-bold text-blue-900">{{ domainScores.credit ?? '—' }}</p>
-                    </div>
-                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Residential -->
-                <div class="bg-orange-50 p-4 rounded-lg border border-orange-200 shadow-sm">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-xs text-orange-600 uppercase tracking-wide mb-1">Residential</p>
-                      <p class="text-2xl font-bold text-orange-900">{{ domainScores.residential ?? '—' }}</p>
-                    </div>
-                    <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                      <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
+          <!-- Re-assessment Error State -->
+          <div v-else-if="reAssessmentError" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <svg class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h3 class="text-sm font-semibold text-red-800 mb-1">Failed to re-assess application</h3>
+                <p class="text-sm text-red-700">{{ reAssessmentError }}</p>
+                <button @click="triggerReAssessment"
+                  class="mt-3 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md">
+                  Retry
+                </button>
               </div>
             </div>
           </div>
 
-          <!-- Verification Steps Summary -->
-          <div class="mb-8">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">Verification Steps Summary</h3>
-            <div class="space-y-4">
-              <!-- Step 1: ID & Selfie -->
-              <div class="border rounded-lg p-4">
-                <div class="flex items-center justify-between mb-2">
-                  <h4 class="font-semibold text-gray-900">Step 1: Identity Verification</h4>
-                  <span :class="[
-                    'px-3 py-1 rounded-full text-xs font-semibold',
-                    steps[0]!.overall_pass === true ? 'bg-green-100 text-green-800' :
-                      steps[0]!.overall_pass === false ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-600'
-                  ]">
-                    {{ steps[0]!.overall_pass === true ? 'PASS' : steps[0]!.overall_pass === false ? 'FAIL' : 'PENDING'
-                    }}
-                  </span>
+          <!-- Preview Content -->
+          <div v-else>
+            <div class="mb-6 text-center border-b pb-6">
+              <h2 class="text-3xl font-bold text-gray-900 mb-2">Verification Preview</h2>
+              <p class="text-gray-600">Review all verification steps before finalizing</p>
+            </div>
+
+            <!-- Assessment Scores -->
+            <div class="mb-8 border-b pb-6">
+              <h3 class="text-xl font-bold text-gray-900 mb-4">Assessment Scores</h3>
+
+              <!-- Risk Score and Risk Level - Parallel -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- Risk Score -->
+                <div :class="[
+                  'p-6 rounded-lg border-2',
+                  riskScoreColorForPreview.border
+                ]">
+                  <p class="text-sm text-gray-600 uppercase tracking-wide mb-2">Risk Score</p>
+                  <p :class="[
+                    'text-4xl font-bold',
+                    riskScoreColorForPreview.text
+                  ]">{{ reassesmentDataForPreview.risk_score ?? '—' }}</p>
+                  <p class="text-xs text-gray-500 mt-1">Total assessment score</p>
                 </div>
-                <p v-if="steps[0]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[0]!.notes }}</p>
+
+                <!-- Risk Level -->
+                <div class="p-6 rounded-lg border-2 border-gray-200">
+                  <p class="text-sm text-gray-600 uppercase tracking-wide mb-2">Risk Level</p>
+                  <div class="flex items-center gap-3">
+                    <span :class="[
+                      'px-4 py-2 rounded-lg text-lg font-bold',
+                      reassesmentDataForPreview.risk_level === 'very_high' ? 'bg-red-100 text-red-800 border-2 border-red-300' :
+                        reassesmentDataForPreview.risk_level === 'high' ? 'bg-orange-100 text-orange-800 border-2 border-orange-300' :
+                          reassesmentDataForPreview.risk_level === 'medium' ? 'bg-yellow-100 text-yellow-800 border-2 border-yellow-300' :
+                            reassesmentDataForPreview.risk_level === 'low' ? 'bg-green-100 text-green-800 border-2 border-green-300' :
+                              'bg-gray-100 text-gray-800 border-2 border-gray-300'
+                    ]">
+                      {{ reassesmentDataForPreview.risk_level ?
+                        reassesmentDataForPreview.risk_level.toUpperCase().replace('_', ' ') : 'N/A' }}
+                    </span>
+                  </div>
+                  <p v-if="reassesmentDataForPreview.risk_level" class="text-xs text-gray-500 mt-2">
+                    {{ reassesmentDataForPreview.risk_level === 'very_high' ? 'Very high risk applicant' :
+                      reassesmentDataForPreview.risk_level === 'high' ? 'High risk applicant' :
+                        reassesmentDataForPreview.risk_level === 'medium' ? 'Medium risk applicant' :
+                          reassesmentDataForPreview.risk_level === 'low' ? 'Low risk applicant' : '' }}
+                  </p>
+                </div>
               </div>
 
-              <!-- Step 2: RTR Verification -->
-              <div class="border rounded-lg p-4">
-                <div class="flex items-center justify-between mb-2">
-                  <h4 class="font-semibold text-gray-900">Step 2: RTR Verification</h4>
-                  <span :class="[
-                    'px-3 py-1 rounded-full text-xs font-semibold',
-                    steps[1]!.overall_pass === true ? 'bg-green-100 text-green-800' :
-                      steps[1]!.overall_pass === false ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-600'
-                  ]">
-                    {{ steps[1]!.overall_pass === true ? 'PASS' : steps[1]!.overall_pass === false ? 'FAIL' : 'PENDING'
-                    }}
-                  </span>
-                </div>
-                <p v-if="steps[1]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[1]!.notes }}</p>
+              <div class="mb-6">
+                <p class="text-sm font-semibold text-gray-700 mb-3">Decision</p>
+              <span v-if="reassesmentDataForPreview.decision" :class="getStatusChipClasses(reassesmentDataForPreview.decision)"
+                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold">
+                {{ formatStatusText(reassesmentDataForPreview.decision) }}
+              </span>
               </div>
 
-              <!-- Step 3: Income & Affordability -->
-              <div class="border rounded-lg p-4">
-                <div class="flex items-center justify-between mb-2">
-                  <h4 class="font-semibold text-gray-900">Step 3: Income & Affordability</h4>
-                  <span :class="[
-                    'px-3 py-1 rounded-full text-xs font-semibold',
-                    steps[2]!.status === 'GUARANTOR_NEEDED' ? 'bg-amber-100 text-amber-800' :
-                      steps[2]!.overall_pass === true ? 'bg-green-100 text-green-800' :
-                        steps[2]!.overall_pass === false ? 'bg-red-100 text-red-800' :
+              <!-- Gates Section -->
+              <div class="mb-6">
+                <p class="text-sm font-semibold text-gray-700 mb-3">Gates</p>
+                <div v-if="activeGatesForPreview.length > 0" class="flex flex-wrap gap-2">
+                  <span v-for="gate in activeGatesForPreview" :key="gate.key"
+                    class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-300">
+                    {{ gate.label }}
+                  </span>
+                </div>
+                <div v-else class="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+                  No gates
+                </div>
+              </div>
+
+              <!-- Score Breakdown -->
+              <div>
+                <p class="text-sm font-semibold text-gray-700 mb-3">Score Breakdown</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <!-- Income Score with Band -->
+                  <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-xs text-indigo-600 uppercase tracking-wide mb-1">Income Score</p>
+                        <p class="text-2xl font-bold text-indigo-900">
+                          {{ reassesmentDataForPreview.domains.income ?? '—' }}
+                        </p>
+                        <p v-if="reassesmentDataForPreview.domains.income_band" class="text-xs text-gray-500 mt-1">
+                          Income band:
+                          {{
+                            reassesmentDataForPreview.domains.income_band }}</p>
+                      </div>
+                      <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- RTR -->
+                  <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-xs text-blue-600 uppercase tracking-wide mb-1">RTR</p>
+                        <p class="text-2xl font-bold text-blue-900">{{ reassesmentDataForPreview.domains.rtr ?? '—' }}
+                        </p>
+                      </div>
+                      <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- AML -->
+                  <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-xs text-emerald-600 uppercase tracking-wide mb-1">AML</p>
+                        <p class="text-2xl font-bold text-emerald-900">{{ reassesmentDataForPreview.domains.aml ?? '—'
+                          }}</p>
+                      </div>
+                      <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Credit -->
+                  <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-xs text-blue-600 uppercase tracking-wide mb-1">Credit</p>
+                        <p class="text-2xl font-bold text-blue-900">{{ reassesmentDataForPreview.domains.credit ?? '—'
+                          }}</p>
+                      </div>
+                      <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Residential -->
+                  <div class="bg-orange-50 p-4 rounded-lg border border-orange-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-xs text-orange-600 uppercase tracking-wide mb-1">Residential</p>
+                        <p class="text-2xl font-bold text-orange-900">{{ reassesmentDataForPreview.domains.residential
+                          ?? '—' }}
+                        </p>
+                      </div>
+                      <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Verification Steps Summary -->
+            <div class="mb-8">
+              <h3 class="text-xl font-bold text-gray-900 mb-4">Verification Steps Summary</h3>
+              <div class="space-y-4">
+                <!-- Step 1: ID & Selfie -->
+                <div class="border rounded-lg p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-semibold text-gray-900">Step 1: Identity Verification</h4>
+                    <span :class="[
+                      'px-3 py-1 rounded-full text-xs font-semibold',
+                      steps[0]!.overall_pass === true ? 'bg-green-100 text-green-800' :
+                        steps[0]!.overall_pass === false ? 'bg-red-100 text-red-800' :
                           'bg-gray-100 text-gray-600'
-                  ]">
-                    {{ steps[2]!.status === 'GUARANTOR_NEEDED' ? 'GUARANTOR NEEDED' :
-                    steps[2]!.overall_pass === true ? 'PASS' : steps[2]!.overall_pass === false ? 'FAIL' : 'PENDING' }}
-                  </span>
+                    ]">
+                      {{ steps[0]!.overall_pass === true ? 'PASS' : steps[0]!.overall_pass === false ? 'FAIL' :
+                        'PENDING'
+                      }}
+                    </span>
+                  </div>
+                  <p v-if="steps[0]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[0]!.notes }}</p>
                 </div>
-                <p v-if="steps[2]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[2]!.notes }}</p>
-              </div>
 
-              <!-- Step 4: Residential -->
-              <div class="border rounded-lg p-4">
-                <div class="flex items-center justify-between mb-2">
-                  <h4 class="font-semibold text-gray-900">Step 4: Residential Verification</h4>
-                  <span :class="[
-                    'px-3 py-1 rounded-full text-xs font-semibold',
-                    steps[3]!.status === 'amber' ? 'bg-amber-100 text-amber-800' :
-                      steps[3]!.overall_pass === true ? 'bg-green-100 text-green-800' :
-                        steps[3]!.overall_pass === false ? 'bg-red-100 text-red-800' :
+                <!-- Step 2: RTR Verification -->
+                <div class="border rounded-lg p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-semibold text-gray-900">Step 2: RTR Verification</h4>
+                    <span :class="[
+                      'px-3 py-1 rounded-full text-xs font-semibold',
+                      steps[1]!.overall_pass === true ? 'bg-green-100 text-green-800' :
+                        steps[1]!.overall_pass === false ? 'bg-red-100 text-red-800' :
                           'bg-gray-100 text-gray-600'
-                  ]">
-                    {{ steps[3]!.status === 'amber' ? 'AMBER' :
-                    steps[3]!.overall_pass === true ? 'PASS' : steps[3]!.overall_pass === false ? 'FAIL' : 'PENDING' }}
-                  </span>
+                    ]">
+                      {{ steps[1]!.overall_pass === true ? 'PASS' : steps[1]!.overall_pass === false ? 'FAIL' :
+                        'PENDING'
+                      }}
+                    </span>
+                  </div>
+                  <p v-if="steps[1]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[1]!.notes }}</p>
                 </div>
-                <p v-if="steps[3]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[3]!.notes }}</p>
-              </div>
 
-              <!-- Step 5: Credit & TAS -->
-              <div class="border rounded-lg p-4">
-                <div class="flex items-center justify-between mb-2">
-                  <h4 class="font-semibold text-gray-900">Step 5: Credit & TAS Decision</h4>
-                  <span :class="[
-                    'px-3 py-1 rounded-full text-xs font-semibold',
-                    steps[4]!.overall_pass === true ? 'bg-green-100 text-green-800' :
-                      steps[4]!.overall_pass === false ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-600'
-                  ]">
-                    {{ steps[4]!.overall_pass === true ? 'PASS' : steps[4]!.overall_pass === false ? 'FAIL' : 'PENDING'
-                    }}
-                  </span>
+                <!-- Step 3: Income & Affordability -->
+                <div class="border rounded-lg p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-semibold text-gray-900">Step 3: Income & Affordability</h4>
+                    <span :class="[
+                      'px-3 py-1 rounded-full text-xs font-semibold',
+                      steps[2]!.status === 'GUARANTOR_NEEDED' ? 'bg-amber-100 text-amber-800' :
+                        steps[2]!.overall_pass === true ? 'bg-green-100 text-green-800' :
+                          steps[2]!.overall_pass === false ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-600'
+                    ]">
+                      {{ steps[2]!.status === 'GUARANTOR_NEEDED' ? 'GUARANTOR NEEDED' :
+                        steps[2]!.overall_pass === true ? 'PASS' : steps[2]!.overall_pass === false ? 'FAIL' : 'PENDING'
+                      }}
+                    </span>
+                  </div>
+                  <p v-if="steps[2]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[2]!.notes }}</p>
                 </div>
-                <div v-if="tasDecision" class="mt-2">
-                  <p class="text-sm text-gray-600"><strong>TAS Category:</strong> {{ tasDecision }}</p>
-                  <p v-if="tasReason" class="text-sm text-gray-600 mt-1"><strong>Reason:</strong> {{ tasReason }}</p>
+
+                <!-- Step 4: Residential -->
+                <div class="border rounded-lg p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-semibold text-gray-900">Step 4: Residential Verification</h4>
+                    <span :class="[
+                      'px-3 py-1 rounded-full text-xs font-semibold',
+                      steps[3]!.status === 'amber' ? 'bg-amber-100 text-amber-800' :
+                        steps[3]!.overall_pass === true ? 'bg-green-100 text-green-800' :
+                          steps[3]!.overall_pass === false ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-600'
+                    ]">
+                      {{ steps[3]!.status === 'amber' ? 'AMBER' :
+                        steps[3]!.overall_pass === true ? 'PASS' : steps[3]!.overall_pass === false ? 'FAIL' : 'PENDING'
+                      }}
+                    </span>
+                  </div>
+                  <p v-if="steps[3]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[3]!.notes }}</p>
                 </div>
-                <p v-if="steps[4]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[4]!.notes }}</p>
+
+                <!-- Step 5: Credit & TAS -->
+                <div class="border rounded-lg p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-semibold text-gray-900">Step 5: Credit & TAS Decision</h4>
+                    <span :class="[
+                      'px-3 py-1 rounded-full text-xs font-semibold',
+                      steps[4]!.overall_pass === true ? 'bg-green-100 text-green-800' :
+                        steps[4]!.overall_pass === false ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-600'
+                    ]">
+                      {{ steps[4]!.overall_pass === true ? 'PASS' : steps[4]!.overall_pass === false ? 'FAIL' :
+                        'PENDING'
+                      }}
+                    </span>
+                  </div>
+                  <div v-if="tasDecision" class="mt-2">
+                    <p class="text-sm text-gray-600"><strong>TAS Category:</strong> {{ tasDecision }}</p>
+                    <p v-if="tasReason" class="text-sm text-gray-600 mt-1"><strong>Reason:</strong> {{ tasReason }}</p>
+                  </div>
+                  <p v-if="steps[4]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[4]!.notes }}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -2036,7 +2088,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import SideBySideViewer from '../components/SideBySideViewer.vue'
@@ -2063,7 +2115,6 @@ const agentReference = ref<any>(null)
 const employerReference = ref<any>(null)
 const accountantReference = ref<any>(null)
 const guarantorReference = ref<any>(null)
-const creditCheckData = ref<any>(null)
 const payslipPreviewUrl = ref('')
 const selectedPayslipIndex = ref<number | null>(null)
 const proofOfAddressBlobUrl = ref('')
@@ -2074,6 +2125,10 @@ const rtrAlternativeDocumentBlobUrl = ref('')
 // Modal state
 const showConfirmationModal = ref(false)
 const pendingAction = ref<'finalize' | 'reject' | null>(null)
+
+// Re-assessment state
+const reAssessmentLoading = ref(false)
+const reAssessmentError = ref<string | null>(null)
 
 const stepLabels = ['ID & Selfie', 'RTR Verification', 'Income & Affordability', 'Residential', 'Credit & TAS', 'Preview']
 
@@ -2126,37 +2181,6 @@ const formatBooleanDisplay = (value: boolean | null | undefined) => {
   if (value === false) return 'No'
   return 'Not provided'
 }
-
-// const tenantDocumentFieldMap = [
-//   { key: 'id_document_path', label: 'ID Document' },
-//   { key: 'selfie_path', label: 'Selfie' },
-//   { key: 'proof_of_address_path', label: 'Proof of Address' },
-//   { key: 'proof_of_funds_path', label: 'Proof of Funds' },
-//   { key: 'proof_of_additional_income_path', label: 'Additional Income Evidence' },
-//   { key: 'tax_return_path', label: 'Tax Return' }
-// ]
-
-// const tenantDocuments = computed(() => {
-//   if (!reference.value) return []
-//   const docs: Array<{ label: string; path: string }> = []
-
-//   tenantDocumentFieldMap.forEach(({ key, label }) => {
-//     const path = reference.value?.[key]
-//     if (typeof path === 'string' && path.length > 0) {
-//       docs.push({ label, path })
-//     }
-//   })
-
-//   if (Array.isArray(reference.value?.payslip_files)) {
-//     reference.value.payslip_files.forEach((path: string, index: number) => {
-//       if (typeof path === 'string' && path.length > 0) {
-//         docs.push({ label: `Payslip ${index + 1}`, path })
-//       }
-//     })
-//   }
-
-//   return docs
-// })
 
 //const hasTenantDocuments = computed(() => tenantDocuments.value.length > 0)
 
@@ -2361,7 +2385,6 @@ const canMakeStep4Decision = computed(() => {
 })
 
 const canProceed = computed(() => {
-  debugger
   const step = steps.value[currentStep.value - 1]
   if (!step) return false
 
@@ -2384,7 +2407,7 @@ const isBritishCitizen = computed(() => {
 // Gates (preview-only, static data for now)
 const previewGates = ref([
   { key: 'RTR_FAIL', label: 'RTR Verification Failed', active: false },
-  { key: 'RES_REF_FAIL', label: 'Residential Reference Failed', active: true },
+  { key: 'RES_REF_FAIL', label: 'Residential Reference Failed', active: false },
   { key: 'CREDIT_AML_2PLUS_FAILS', label: 'Credit & AML Multiple Failures', active: false },
   { key: 'SCORE_BELOW_MIN', label: 'Score Below Minimum Threshold', active: false }
 ])
@@ -2394,9 +2417,13 @@ const activeGates = computed(() => {
   return previewGates.value.filter(gate => gate.active)
 })
 
+const activeGatesForPreview = computed(() => {
+  return reassesmentDataForPreview.value.gates.filter(gate => gate.active)
+})
+
 // Risk Score color coding
-const riskScoreColor = computed(() => {
-  const score = riskScore.value ?? 0
+const riskScoreColorForPreview = computed(() => {
+  const score = reassesmentDataForPreview.value.risk_score ?? 0
   if (score > 799) {
     return {
       text: 'text-green-600',
@@ -2585,24 +2612,50 @@ const clearPayslipPreview = () => {
   payslipPreviewUrl.value = ''
 }
 
-
-const credit_status = ref<string | null>(null);
-
-// Score data
-const riskScore = ref<number | null>(null)
-const systemDecision = ref<string | null>(null)
-const domainScores = ref<{
+type DomainScores = {
   aml: number | null
   rtr: number | null
   credit: number | null
   income: number | null
   residential: number | null
-}>({
+  checked_at: string | null
+  income_band: '3x' | '2.5x' | 'below_2.5x' | null
+}
+const credit_status = ref<string | null>(null);
+
+// Score data
+const riskScore = ref<number | null>(null)
+const systemDecision = ref<string | null>(null)
+const domainScores = ref<DomainScores>({
   aml: null,
   rtr: null,
   credit: null,
   income: null,
-  residential: null
+  residential: null,
+  checked_at: null,
+  income_band: null
+})
+interface ReassesmentDataForPreview {
+  domains: DomainScores,
+  decision: string | null,
+  risk_score: number | null,
+  risk_level: string | null
+  gates: any[]
+}
+const reassesmentDataForPreview = ref<ReassesmentDataForPreview>({
+  domains: {
+    aml: null,
+    rtr: null,
+    credit: null,
+    income: null,
+    income_band: null,
+    residential: null,
+    checked_at: null
+  },
+  decision: null,
+  risk_score: null,
+  risk_level: null,
+  gates: []
 })
 
 // Methods
@@ -2636,6 +2689,7 @@ const loadData = async () => {
 
     credit_status.value = refData?.score?.risk_level ?? null
 
+
     // Bind score data
     riskScore.value = refData?.score?.score_total ?? null
     systemDecision.value = refData?.score?.decision ?? null
@@ -2647,7 +2701,9 @@ const loadData = async () => {
         rtr: refData.score.domain_scores.rtr ?? null,
         credit: refData.score.domain_scores.credit ?? null,
         income: refData.score.domain_scores.income ?? null,
-        residential: refData.score.domain_scores.residential ?? null
+        residential: refData.score.domain_scores.residential ?? null,
+        checked_at: refData.score.scored_at ?? null,
+        income_band: (refData.score.ratio >= 3) ? '3x' : (refData.score.ratio >= 2.5) ? '2.5x' : 'below_2.5x'
       }
     }
 
@@ -2659,7 +2715,6 @@ const loadData = async () => {
       }))
     }
 
-    //creditsafeVerification.value = data.creditsafeVerification
     let flags = {}
     try {
       flags = JSON.parse(refData.creditsafeVerification?.fraud_indicators ?? '{}')
@@ -2715,54 +2770,6 @@ const loadData = async () => {
       console.warn('No RTR alternative document path found')
     }
 
-    // Load credit check data
-    // try {
-    //   const creditResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}/creditsafe`, {
-    //     headers: {
-    //       'Authorization': `Bearer ${authStore.session?.access_token}`,
-    //       'Content-Type': 'application/json'
-    //     }
-    //   })
-
-    //   if (creditResponse.ok) {
-    //     const creditData = await creditResponse.json()
-    //     creditsafeData.value = creditData.verification || null
-    //     console.log('Creditsafe data loaded:', !!creditsafeData.value)
-    //   }
-    // } catch (err) {
-    //   console.log('No Creditsafe data available')
-    // }
-
-    // // Load sanctions data
-    // try {
-    //   const sanctionsResponse = await fetch(`${API_URL}/api/staff/references/${referenceId}/sanctions`, {
-    //     headers: {
-    //       'Authorization': `Bearer ${authStore.session?.access_token}`,
-    //       'Content-Type': 'application/json'
-    //     }
-    //   })
-
-    //   if (sanctionsResponse.ok) {
-    //     const sanctionsResponseData = await sanctionsResponse.json()
-    //     sanctionsData.value = sanctionsResponseData.screening || null
-    //     console.log('Sanctions data loaded:', !!sanctionsData.value)
-    //   }
-    // } catch (err) {
-    //   console.log('No sanctions data available')
-    // }
-
-    // Set credit check data from reference
-    if (reference.value.adverse_credit !== undefined) {
-      creditCheckData.value = {
-        adverse_credit: reference.value.adverse_credit,
-        adverse_credit_details: reference.value.adverse_credit_details,
-        credit_rating: reference.value.credit_rating,
-        credit_score: reference.value.credit_score,
-        band_text: reference.value.band_text,
-        checked_at: reference.value.created_at
-      }
-    }
-
     // Load evidence source options
     const evidenceResponse = await fetch(`${API_URL}/api/verification-steps/evidence-sources`, {
       headers: {
@@ -2780,40 +2787,6 @@ const loadData = async () => {
     } else {
       console.error('Failed to load evidence sources:', evidenceResponse.status, evidenceResponse.statusText)
     }
-
-    // Load existing progress if any
-    // const progressResponse = await fetch(`${API_URL}/api/verification-steps/reference/${referenceId}/progress`, {
-    //   headers: {
-    //     'Authorization': `Bearer ${authStore.session?.access_token}`,
-    //     'Content-Type': 'application/json'
-    //   }
-    // })
-
-    // if (progressResponse.ok) {
-    //   const progressData = await progressResponse.json()
-    //   // Populate steps with existing data
-    //   if (progressData.steps && progressData.steps.length > 0) {
-    //     progressData.steps.forEach((savedStep: any) => {
-    //       const stepIndex = savedStep.step_number - 1
-    //       if (stepIndex >= 0 && stepIndex < 4) {
-    //         steps.value[stepIndex] = {
-    //           ...steps.value[stepIndex],
-    //           ...savedStep,
-    //           evidence_sources: savedStep.evidence_sources || []
-    //         }
-    //       }
-    //     })
-    //     // Set TAS decision if exists
-    //     if (progressData.tas_category) {
-    //       tasDecision.value = progressData.tas_category
-    //       tasReason.value = progressData.tas_reason || ''
-    //     }
-    //     // Find first incomplete step
-    //     const firstIncomplete = steps.value.findIndex(s => s.overall_pass === null)
-    //     currentStep.value = firstIncomplete >= 0 ? firstIncomplete + 1 : 1
-    //   }
-    // }
-    //Not working so I commented @DP
 
   } catch (err: any) {
     error.value = err.message
@@ -2887,41 +2860,6 @@ const getResidentialCheckValue = (checkName: string): boolean | null => {
   return check ? check.pass : null
 }
 
-// Trigger Creditsafe check
-// const triggerCreditsafeCheck = async () => {
-//   try {
-//     creditsafeLoading.value = true
-//     const referenceId = route.params.id as string
-
-//     const response = await fetch(
-//       `${API_URL}/api/staff/references/${referenceId}/creditsafe/retry`,
-//       {
-//         method: 'POST',
-//         headers: {
-//           'Authorization': `Bearer ${authStore.session?.access_token}`,
-//           'Content-Type': 'application/json'
-//         }
-//       }
-//     )
-
-//     if (!response.ok) {
-//       const errorData = await response.json()
-//       throw new Error(errorData.error || 'Failed to run Creditsafe check')
-//     }
-
-//     const result = await response.json()
-//     creditsafeData.value = result.verification
-//     console.log('Creditsafe check completed:', result.verification)
-
-//     alert('Creditsafe check completed successfully!')
-//   } catch (err: any) {
-//     alert(`Error running Creditsafe check: ${err.message}`)
-//     console.error('Error running Creditsafe check:', err)
-//   } finally {
-//     creditsafeLoading.value = false
-//   }
-// }
-
 const formatDate = (value?: string | null, fallback = 'N/A') =>
   formatUkDate(
     value,
@@ -2933,38 +2871,125 @@ const formatDate = (value?: string | null, fallback = 'N/A') =>
     fallback
   )
 
-// Creditsafe verification data for CreditsAndAmlUI component
-// const creditsafeVerificationData = computed(() => {
-//   if (!creditsafeData.value) return undefined
+// Re-assessment API call
+const buildReAssessmentPayload = () => {
+  // Map step 2 (RTR) to rtr_verified
+  const step2 = steps.value[1]
 
-//   const applicationStatus: 'Passed' | 'Failed' | 'Yet to be assessed' | 'Passed with gurantor' =
-//     creditsafeData.value.verifyMatch ? 'Passed' : 'Failed'
+  const rtr_verified = step2?.overall_pass === true
+  // Map step 3 (Income & Affordability) to financial_status
+  const step3 = steps.value[2]
+  let financial_status: 'PASS' | 'FAIL' | 'GUARANTOR_NEEDED' = 'FAIL'
+  if (step3?.status === 'GUARANTOR_NEEDED') {
+    // For guarantor needed, we'll use FAIL as per GlobalStatus type
+    financial_status = 'GUARANTOR_NEEDED'
+  } else if (step3?.overall_pass === true) {
+    financial_status = 'PASS'
+  } else if (step3?.overall_pass === false) {
+    financial_status = 'FAIL'
+  }
 
-//   const riskLevel: 'low' | 'medium' | 'high' | 'yet_to_be_assessed' =
-//     creditsafeData.value.riskLevel || 'yet_to_be_assessed'
+  // Map step 4 (Residential) to res_assessment_status
+  const step4 = steps.value[3]
+  let res_assessment_status: 'PASS' | 'SKIPPED' | 'FAIL' | 'AMBER' = 'FAIL'
+  if (step4?.status === 'amber') {
+    res_assessment_status = 'AMBER'
+  } else if (step4?.overall_pass === true) {
+    res_assessment_status = 'PASS'
+  } else if (step4?.overall_pass === false) {
+    res_assessment_status = 'FAIL'
+  } else if (reference.value?.reference_type === 'living_with_family') {
+    res_assessment_status = 'SKIPPED'
+  }
 
-//   return {
-//     name_match_score: creditsafeData.value.verifyMatch ? 100 : 0,
-//     application_status: applicationStatus,
-//     risk_level: riskLevel,
-//     risk_score: creditsafeData.value.riskScore || 0,
-//     verification_flags: {
-//       ccjMatch: creditsafeData.value.ccjMatch || false,
-//       insolvencyMatch: creditsafeData.value.insolvencyMatch || false,
-//       deceasedMatch: false, // Not available from creditsafe
-//       electoralRollMatch: creditsafeData.value.electoralRegisterMatch || false
-//     }
-//   }
-// })
+  const step5 = steps.value[4]
+  // Map credit flags from creditAndAmlVerification
+  const credit_flags = {
+    insolvency: !step5?.overall_pass,
+    ccj: !step5?.overall_pass,
+    deceased: !step5?.overall_pass ? creditAndAmlVerification.value?.verification?.verification_flags?.deceasedMatch : false,
+    electoral: step5?.overall_pass
+  }
 
-// // Compliance checks data for CreditsAndAmlUI component
-// const complianceChecksData = computed(() => {
-//   return {
-//     pep: sanctionsData.value?.pep_clear || false,
-//     sanctions: sanctionsData.value?.risk_level === 'clear' || false,
-//     adverseMedia: false // Not available from current data
-//   }
-// })
+  // Map sanctions_clear from complianceChecks
+  const sanctions_clear = step5?.overall_pass === true
+
+  return {
+    financial_status,
+    res_assessment_status,
+    rtr_verified,
+    credit_flags,
+    sanctions_clear
+  }
+}
+
+const triggerReAssessment = async () => {
+  const referenceId = route.params.id as string
+  if (!referenceId) {
+    reAssessmentError.value = 'Reference ID not found'
+    return
+  }
+
+  try {
+    reAssessmentLoading.value = true
+    reAssessmentError.value = null
+
+    const payload = buildReAssessmentPayload()
+
+    const response = await fetch(`${API_URL}/api/staff/references/${referenceId}/re-assess`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || `Failed to re-assess: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    let gates: any[] = []
+
+    if (Array.isArray(data?.result?.caps)) {
+      gates = previewGates.value.map(gate => ({
+        ...gate,
+        active: data?.result?.caps.includes(gate.key)
+      }))
+    }
+
+    reassesmentDataForPreview.value = {
+      domains: {
+        aml: data.result.domain_scores.aml ?? null,
+        rtr: data.result.domain_scores.rtr ?? null,
+        credit: data.result.domain_scores.credit ?? null,
+        income: data.result.domain_scores.income ?? null,
+        residential: data.result.domain_scores.residential ?? null,
+        checked_at: data.result.scored_at ?? null,
+        income_band: (data.result.ratio >= 3) ? '3x' : (data.result.ratio >= 2.5) ? '2.5x' : 'below_2.5x'
+      },
+      decision: data.result.decision,
+      risk_score: data.result.score_total,
+      risk_level: data.result.risk_level,
+      gates
+    }
+  } catch (err: any) {
+    reAssessmentError.value = err.message || 'Failed to re-assess application score'
+    console.error('Error re-assessing application:', err)
+  } finally {
+    reAssessmentLoading.value = false
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+// Watch for step change to trigger re-assessment when reaching preview
+watch(currentStep, (newStep) => {
+  if (newStep === 6) {
+    triggerReAssessment()
+  }
+})
 
 // Lifecycle
 onMounted(() => {

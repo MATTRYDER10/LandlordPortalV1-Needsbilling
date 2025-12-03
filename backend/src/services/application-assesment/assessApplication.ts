@@ -2,7 +2,39 @@ import { supabase } from "../../config/supabase";
 import { decrypt } from "../encryption";
 import { computeScore, scoringRules, computeIncomeMultiple } from "./computeScore";
 
-export const assessApplicationScore = async (referenceId: string,caller: 'System' | 'Staff',scoredBy: string | null = null) => {
+type ResidentialStatus = "PASS" | "SKIPPED" | "FAIL" | "AMBER";
+type Caller = 'System' | 'Staff';
+type GlobalStatus = "PASS" | "FAIL" | "GUARANTOR_NEEDED";
+
+type CreditFlags = { insolvency: boolean, ccj: boolean, deceased: boolean, electoral: boolean };
+export type ReAssessmentPayload = {
+    financial_status: GlobalStatus;
+    res_assessment_status: ResidentialStatus;
+    rtr_verified: boolean;
+    credit_flags: CreditFlags;
+    sanctions_clear: boolean;
+}
+type SanitizedIncome = {
+    salary: string;
+    benefits: string;
+    additional: string;
+    selfAnnual: string;
+    is_hourly: boolean;
+    monthly_rent: number;
+    hours_per_month: number;
+}
+
+const sanitizeIncome = (raw_income: SanitizedIncome) => {
+    const income = parseFloat(decrypt(raw_income.salary) || '0');
+    const benefits = parseFloat(decrypt(raw_income.benefits) || '0');
+    const additional = parseFloat(decrypt(raw_income.additional) || '0');
+    const selfEmployedAnnual = parseFloat(decrypt(raw_income.selfAnnual) || '0');
+    const rent = raw_income.monthly_rent || 0;
+    const salary = raw_income.is_hourly ? Number(raw_income.hours_per_month) * income : income;
+    return computeIncomeMultiple({ salary, benefits, additional, selfEmployedAnnual, rent });
+}
+
+export const assessApplicationScore = async (referenceId: string, caller: Caller, scoredBy: string | null = null) => {
     try {
         // FETCH ALL TABLE DATA
         const { data: reference } = await supabase
@@ -52,20 +84,17 @@ export const assessApplicationScore = async (referenceId: string,caller: 'System
         const residentialStatus: "PASS" | "SKIPPED" | "FAIL" | "AMBER" = reference?.res_assessment_status || (reference?.reference_type === "living_with_family" ? "PASS" : "SKIPPED");
 
         let incomeMultiple = 0;
-        if (reference?.income_assessment_status !== "FAIL" &&  !reference?.income_student && !reference?.income_unemployed) {
-            const salary = reference.employment_salary_amount || 0;
-            const benefits = parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0');
-            const additional = parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0');
-            const selfAnnual = parseFloat(decrypt(reference.self_employed_annual_income_encrypted) || '0');
-            const rent = reference.monthly_rent || 0;
-
-            incomeMultiple = computeIncomeMultiple({
-                salary,
-                benefits,
-                additional,
-                selfEmployedAnnual: selfAnnual,
-                rent
-            });
+        if (reference?.income_assessment_status !== "FAIL" && !reference?.income_student && !reference?.income_unemployed) {
+            const payloadToSanitize: SanitizedIncome = {
+                salary: reference.employment_salary_amount_encrypted,
+                benefits: reference.benefits_annual_amount_encrypted,
+                additional: reference.additional_income_amount_encrypted,
+                selfAnnual: reference.self_employed_annual_income_encrypted,
+                monthly_rent: reference.monthly_rent || 0,
+                is_hourly: reference.is_hourly || false,
+                hours_per_month: reference.employment_hours_per_month || 0,
+            }
+            incomeMultiple = sanitizeIncome(payloadToSanitize);
         }
 
         // FINAL SCORING
@@ -112,10 +141,89 @@ export const assessApplicationScore = async (referenceId: string,caller: 'System
             console.error("Failed to store score result:", error);
             return null;
         }
-   
+
         return true;
     } catch (err) {
         console.error("Failed scoring:", err);
         return null;
     }
 };
+
+export const reAssessApplicationScore = async (referenceId: string, caller: Caller, payload: ReAssessmentPayload) => {
+    try {
+        // FETCH ALL TABLE DATA
+        const { data: reference } = await supabase
+            .from("tenant_references")
+            .select("*")
+            .eq("id", referenceId)
+            .single();
+
+        if (!reference) throw new Error('Reference not found');
+
+
+        const credit: CreditFlags = {
+            insolvency: payload.credit_flags.insolvency || false,
+            ccj: payload.credit_flags.ccj || false,
+            deceased: payload.credit_flags.deceased || false,
+            electoral: payload.credit_flags.electoral || false
+        };
+
+        const isAlmlClear = payload.sanctions_clear || false;
+
+        const aml = {
+            pep: isAlmlClear,
+            sanctions: isAlmlClear
+        };
+
+        //RTR
+        const rtrPass = payload.rtr_verified || false;
+
+        // RESIDENTIAL
+        const residentialStatus: "PASS" | "SKIPPED" | "FAIL" | "AMBER" = payload.res_assessment_status || "FAIL"
+        let incomeMultiple = 0;
+        if (payload.financial_status !== "FAIL" && !reference?.income_student && !reference?.income_unemployed) {
+            const payloadToSanitize: SanitizedIncome = {
+                salary: reference.employment_salary_amount_encrypted,
+                benefits: reference.benefits_annual_amount_encrypted,
+                additional: reference.additional_income_amount_encrypted,
+                selfAnnual: reference.self_employed_annual_income_encrypted,
+                monthly_rent: reference.monthly_rent || 0,
+                is_hourly: reference.employment_is_hourly || false,
+                hours_per_month: reference.employment_hours_per_month || 0,
+            }
+            incomeMultiple = sanitizeIncome(payloadToSanitize);
+        }
+
+        // FINAL SCORING
+        const scoreData = computeScore({
+            credit,
+            aml,
+            rtr: rtrPass,
+            residentialStatus,
+            incomeMultiple,
+            caller
+        });
+
+        return {
+            reference_id: referenceId,
+            decision: scoreData.decision,
+            score_total: scoreData.score_total,
+            domain_scores: {
+                credit: scoreData.domain_scores.credit,
+                aml: scoreData.domain_scores.aml,
+                rtr: scoreData.domain_scores.rtr,
+                residential: scoreData.domain_scores.residential,
+                income: scoreData.domain_scores.income
+            },
+            ratio: incomeMultiple,
+            risk_level: scoreData.risk_level,
+            caps: scoreData.gates,
+            guarantor_required: scoreData.decision === "PASS_WITH_GUARANTOR",
+            scored_at: new Date().toISOString(),
+        }
+
+    } catch (err) {
+        console.error("Failed scoring:", err);
+        return null;
+    }
+}
