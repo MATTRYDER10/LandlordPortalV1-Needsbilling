@@ -213,9 +213,10 @@
                 <input
                   id="website"
                   v-model="companyData.website"
-                  type="url"
+                  type="text"
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="https://example.com"
+                  placeholder="example.com"
+                  @blur="formatWebsiteUrl"
                 />
               </div>
 
@@ -894,6 +895,14 @@ const companyData = ref({
 const companyLoading = ref(false)
 const companySuccess = ref('')
 const companyError = ref('')
+
+// Format website URL - add https:// if missing
+const formatWebsiteUrl = () => {
+  const url = companyData.value.website.trim()
+  if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+    companyData.value.website = 'https://' + url
+  }
+}
 
 // Branding data
 const brandingData = ref({
