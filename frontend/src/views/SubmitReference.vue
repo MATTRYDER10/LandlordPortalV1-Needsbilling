@@ -265,7 +265,7 @@
               </p>
 
               <!-- British Citizenship & Right to Rent Check -->
-              <div v-if="!formData.is_british_citizen" class="mt-6 pt-6 border-t border-gray-200">
+              <div v-if="formData.nationality && formData.nationality.toLowerCase() !== 'british'" class="mt-6 pt-6 border-t border-gray-200">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Right to Rent Verification</h3>
 
                 <div class="space-y-4">

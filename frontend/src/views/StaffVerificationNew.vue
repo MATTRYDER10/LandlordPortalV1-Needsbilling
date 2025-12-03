@@ -1445,9 +1445,9 @@
           </div>
 
           <!-- Case 2: Standard residential references -->
-          <div v-else class="space-y-6">
+          <div class="space-y-6">
             <!-- Current Address (refined UI) -->
-            <div class="bg-white rounded-lg shadow p-4 space-y-4">
+            <div v-if="reference?.reference_type !== 'living_with_family'" class="bg-white rounded-lg shadow p-4 space-y-4">
               <div class="flex items-center justify-between">
                 <h4 class="font-semibold text-gray-900">Current Address</h4>
                 <span
@@ -1558,7 +1558,7 @@
             </div>
 
             <!-- Previous Landlord / Agent Information (summary) -->
-            <div v-if="(landlordReference || agentReference)" class="bg-white rounded-lg shadow p-4 space-y-4">
+            <div v-if="(landlordReference || agentReference) && reference?.reference_type !== 'living_with_family'" class="bg-white rounded-lg shadow p-4 space-y-4">
               <div class="flex items-start justify-between">
                 <div>
                   <h4 class="text-md font-semibold text-gray-900 mb-1">Previous {{ landlordReference ? 'Landlord' :
@@ -1649,7 +1649,7 @@
             </div>
 
             <!-- Landlord/Agent Reference Response (detailed) -->
-            <div v-if="landlordReference || agentReference" class="bg-white border rounded-lg p-4">
+            <div v-if="(landlordReference || agentReference) && reference?.reference_type !== 'living_with_family'" class="bg-white border rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-semibold text-gray-900">
                   {{ landlordReference ? 'Landlord' : 'Agent' }} Reference Response
@@ -1758,7 +1758,7 @@
             </div>
 
             <!-- Verification Checks -->
-            <div class="bg-white border rounded-lg p-4">
+            <div v-if="reference?.reference_type !== 'living_with_family'" class="bg-white border rounded-lg p-4">
               <h4 class="font-semibold text-gray-900 mb-3">Verification Checks</h4>
               <div class="space-y-3">
                 <div class="flex items-start justify-between p-3 bg-gray-50 rounded">
