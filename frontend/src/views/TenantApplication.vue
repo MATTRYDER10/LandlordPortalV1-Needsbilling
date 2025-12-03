@@ -366,25 +366,6 @@ const rentSharesValid = computed(() => {
     return Math.abs(total - monthlyRent) < 0.01 && monthlyRent > 0
 })
 
-const updateTenantCount = (count: number) => {
-    tenantCount.value = count
-    // Adjust tenants array
-    while (tenants.value.length < count) {
-        tenants.value.push({
-            first_name: '',
-            last_name: '',
-            email: '',
-            phone: '',
-            rent_share: null,
-            guarantor: null,
-            showGuarantorFields: false
-        })
-    }
-    while (tenants.value.length > count) {
-        tenants.value.pop()
-    }
-}
-
 const handlePropertyAddressSelected = (addressData: any) => {
     formData.value.property_address = addressData.addressLine1
     formData.value.property_city = addressData.city
