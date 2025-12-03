@@ -2204,10 +2204,10 @@
                         <p class="text-2xl font-bold text-indigo-900">
                           {{ reassesmentDataForPreview.domains.income ?? '—' }}
                         </p>
-                        <p v-if="reassesmentDataForPreview.domains.income_band" class="text-xs text-gray-500 mt-1">
+                        <p v-if="reassesmentDataForPreview.domains.income_band" class="text-xs capitalize text-gray-500 mt-1">
                           Income band:
                           {{
-                          reassesmentDataForPreview.domains.income_band }}</p>
+                          reassesmentDataForPreview.domains.income_band.replace('_', ' ') }}</p>
                       </div>
                       <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
                         <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2794,8 +2794,7 @@ const canProceed = computed(() => {
     return step.overall_pass !== null
   }
 
-  console.log("hellow", step.status, step.overall_pass)
-  const a = step.overall_pass !== null || step.status === 'amber'
+  const a = step.overall_pass !== null || (step.status === 'amber' || step.status === 'GUARANTOR_NEEDED')
   return a
 })
 
@@ -3226,6 +3225,7 @@ const loadData = async () => {
 const nextStep = () => {
   if (currentStep.value < 6) {
     currentStep.value++
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
