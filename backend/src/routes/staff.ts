@@ -5,7 +5,7 @@ import { decrypt, encrypt } from '../services/encryption'
 import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
 import { sanctionsService } from '../services/sanctionsService'
 import { sendReferenceCompletedNotification } from '../services/emailService'
-import { reAssessApplicationScore, ReAssessmentPayload } from '../services/application-assesment/assessApplication'
+import {  reAssessApplicationScore, ReAssessmentPayload } from '../services/application-assesment/assessApplication'
 
 const router = Router()
 
@@ -1218,7 +1218,6 @@ router.post('/references/:id/sanctions/run', authenticateStaff, async (req: Staf
 // Re-assess application score
 router.post('/references/:id/re-assess', authenticateStaff, async (req: StaffAuthRequest, res) => {
   try {
-    debugger
     const referenceId = req.params.id
     const payload: ReAssessmentPayload = req.body
 

@@ -474,12 +474,10 @@
               class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-100">
               RTR Score: {{ domainScores.rtr ?? '—' }}
             </span>
-            <span
-              :class="[
-                'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold',
-                reference?.rtr_verified ? 'bg-green-50 text-green-800 border border-green-100' : 'bg-red-50 text-red-800 border border-red-100'
-              ]"
-            >
+            <span :class="[
+              'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold',
+              reference?.rtr_verified ? 'bg-green-50 text-green-800 border border-green-100' : 'bg-red-50 text-red-800 border border-red-100'
+            ]">
               {{ reference?.rtr_verified ? '✓ Verified' : '✗ Not Verified' }}
             </span>
           </div>
@@ -780,6 +778,351 @@
                     <div class="h-[480px]">
                       <iframe :src="payslipPreviewUrl" class="w-full h-full" frameborder="0"></iframe>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Self-Employed Details -->
+            <div v-if="reference?.income_self_employed" class="border-t pt-6 mt-6">
+              <h5 class="text-md font-semibold text-gray-900 mb-4">Self-Employed Details</h5>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p class="text-gray-500 font-medium">Business Name</p>
+                  <p class="mt-1 text-gray-900">{{ reference?.self_employed_business_name || 'Not provided' }}</p>
+                </div>
+                <div>
+                  <p class="text-gray-500 font-medium">Business Start Date</p>
+                  <p class="mt-1 text-gray-900">{{ reference?.self_employed_start_date ?
+                    formatDate(reference.self_employed_start_date) : 'Not provided' }}</p>
+                </div>
+                <div>
+                  <p class="text-gray-500 font-medium">Nature of Business</p>
+                  <p class="mt-1 text-gray-900">{{ reference?.self_employed_nature_of_business || 'Not provided' }}</p>
+                </div>
+                <div>
+                  <p class="text-gray-500 font-medium">Annual Income</p>
+                  <p class="mt-1 text-gray-900">{{ reference?.self_employed_annual_income ?
+                    `£${parseFloat(reference.self_employed_annual_income || '0').toLocaleString('en-GB')}` : 'Not provided' }}</p>
+                </div>
+              </div>
+
+              <!-- Accountant Contact -->
+              <div class="mt-6 pt-6 border-t">
+                <h5 class="text-sm font-semibold text-gray-700 mb-3">Accountant Contact</h5>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p class="text-gray-500 font-medium">Accountant/Firm Name</p>
+                    <p class="mt-1 text-gray-900">{{ reference?.accountant_name || 'Not provided' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-500 font-medium">Contact Name</p>
+                    <p class="mt-1 text-gray-900">{{ reference?.accountant_contact_name || 'Not provided' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-500 font-medium">Email</p>
+                    <p class="mt-1 text-gray-900">{{ reference?.accountant_email || 'Not provided' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-500 font-medium">Phone</p>
+                    <p class="mt-1 text-gray-900">{{ reference?.accountant_phone || 'Not provided' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tax Return Document -->
+              <div v-if="reference?.tax_return_path" class="mt-6 pt-6 border-t">
+                <p class="block text-sm font-medium text-gray-700 mb-2">Tax Return Proof</p>
+                <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                  <div class="flex items-center">
+                    <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span class="text-sm text-gray-900">Tax Return Document</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button" @click="previewTaxReturn(reference.tax_return_path)"
+                      class="px-3 py-1 text-xs sm:text-sm font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                      Preview
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Embedded tax return viewer -->
+                <div v-if="taxReturnPreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
+                  <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
+                    <p class="text-sm font-medium text-gray-700">
+                      Tax return preview
+                    </p>
+                    <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
+                      @click="clearTaxReturnPreview">
+                      Close preview
+                    </button>
+                  </div>
+                  <div class="h-[480px]">
+                    <iframe :src="taxReturnPreviewUrl" class="w-full h-full" frameborder="0"></iframe>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Accountant Reference Submitted -->
+              <div v-if="accountantReference && accountantReference.submitted_at"
+                class="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-4">
+                  <h4 class="text-lg font-semibold text-green-900">✓ Accountant Reference Completed</h4>
+                  <span class="text-xs text-green-700">Submitted {{ formatDate(accountantReference.submitted_at)
+                    }}</span>
+                </div>
+
+                <div class="space-y-4">
+                  <!-- Accountant Information -->
+                  <div>
+                    <h5 class="text-sm font-semibold text-green-800 mb-2">Accountant Information</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div><span class="text-green-700 font-medium">Name:</span> <span class="text-green-900">{{
+                          accountantReference.accountant_name }}</span></div>
+                      <div><span class="text-green-700 font-medium">Firm:</span> <span class="text-green-900">{{
+                        accountantReference.accountant_firm || accountantReference.firm_name }}</span></div>
+                      <div><span class="text-green-700 font-medium">Email:</span> <span class="text-green-900">{{
+                        accountantReference.accountant_email }}</span></div>
+                      <div v-if="accountantReference.accountant_phone"><span
+                          class="text-green-700 font-medium">Phone:</span> <span class="text-green-900">{{
+                            accountantReference.accountant_phone }}</span></div>
+                    </div>
+                  </div>
+
+                  <!-- Business Details -->
+                  <div>
+                    <h5 class="text-sm font-semibold text-green-800 mb-2">Business Information</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div v-if="accountantReference.business_name"><span class="text-green-700 font-medium">Business
+                          Name:</span>
+                        <span class="text-green-900">{{
+                          accountantReference.business_name }}</span>
+                      </div>
+                      <div v-if="accountantReference.business_trading_status"><span
+                          class="text-green-700 font-medium">Trading Status:</span> <span
+                          class="text-green-900 capitalize">{{ accountantReference.business_trading_status }}</span>
+                      </div>
+                      <div v-if="accountantReference.business_start_date"><span class="text-green-700 font-medium">Start
+                          Date:</span>
+                        <span class="text-green-900">{{
+                          formatDate(accountantReference.business_start_date) }}</span>
+                      </div>
+                      <div v-if="accountantReference.nature_of_business"><span
+                          class="text-green-700 font-medium">Nature:</span>
+                        <span class="text-green-900">{{
+                          accountantReference.nature_of_business }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Financial Details -->
+                  <div class="pt-3 border-t border-green-200">
+                    <h5 class="text-sm font-semibold text-green-800 mb-2">Financial Information</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div v-if="accountantReference.annual_turnover"><span class="text-green-700 font-medium">Annual
+                          Turnover:</span>
+                        <span class="text-green-900">£{{
+                          parseFloat(accountantReference.annual_turnover || '0').toLocaleString('en-GB') }}</span>
+                      </div>
+                      <div v-if="accountantReference.annual_profit"><span class="text-green-700 font-medium">Annual
+                          Profit:</span>
+                        <span class="text-green-900">£{{
+                          parseFloat(accountantReference.annual_profit || '0').toLocaleString('en-GB') }}</span>
+                      </div>
+                      <div v-if="accountantReference.estimated_monthly_income"><span
+                          class="text-green-700 font-medium">Est. Monthly Income:</span> <span
+                          class="text-green-900">£{{
+                            parseFloat(accountantReference.estimated_monthly_income || '0').toLocaleString('en-GB')
+                          }}</span></div>
+                      <div v-if="accountantReference.tax_returns_filed !== undefined"><span
+                          class="text-green-700 font-medium">Tax Returns Filed:</span> <span class="text-green-900">{{
+                            accountantReference.tax_returns_filed ? 'Yes' : 'No' }}</span></div>
+                      <div v-if="accountantReference.last_tax_return_date"><span class="text-green-700 font-medium">Last
+                          Tax
+                          Return:</span> <span class="text-green-900">{{
+                            formatDate(accountantReference.last_tax_return_date) }}</span></div>
+                      <div v-if="accountantReference.accounts_prepared !== undefined"><span
+                          class="text-green-700 font-medium">Accounts Prepared:</span> <span class="text-green-900">{{
+                            accountantReference.accounts_prepared ? 'Yes' : 'No' }}</span></div>
+                      <div v-if="accountantReference.accounts_year_end"><span
+                          class="text-green-700 font-medium">Accounts Year
+                          End:</span> <span class="text-green-900">{{
+                            formatDate(accountantReference.accounts_year_end) }}</span></div>
+                      <div v-if="accountantReference.any_outstanding_tax_liabilities !== undefined"><span
+                          class="text-green-700 font-medium">Tax Liabilities:</span> <span class="text-green-900">{{
+                            accountantReference.any_outstanding_tax_liabilities ? 'Yes' : 'No'
+                          }}</span></div>
+                      <div v-if="accountantReference.business_financially_stable !== undefined"><span
+                          class="text-green-700 font-medium">Financially Stable:</span> <span
+                          class="text-green-900 font-semibold">{{ accountantReference.business_financially_stable ?
+                            'Yes' : 'No' }}</span></div>
+                    </div>
+
+                    <div v-if="accountantReference.tax_liabilities_details"
+                      class="mt-3 p-3 bg-white rounded border border-green-200">
+                      <span class="text-green-700 font-medium text-sm">Tax Liabilities Details:</span>
+                      <p class="text-green-900 text-sm mt-1">{{ accountantReference.tax_liabilities_details }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Assessment -->
+                  <div class="pt-3 border-t border-green-200">
+                    <h5 class="text-sm font-semibold text-green-800 mb-2">Assessment</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div v-if="accountantReference.accountant_confirms_income !== undefined"><span
+                          class="text-green-700 font-medium">Income Confirmed:</span> <span
+                          class="text-green-900 font-semibold">{{ accountantReference.accountant_confirms_income ?
+                            'Yes' : 'No' }}</span></div>
+                      <div v-if="accountantReference.would_recommend !== undefined"><span
+                          class="text-green-700 font-medium">Would Recommend:</span> <span
+                          class="text-green-900 font-semibold">{{ accountantReference.would_recommend ? 'Yes' : 'No'
+                          }}</span></div>
+                    </div>
+
+                    <div v-if="accountantReference.additional_comments || accountantReference.recommendation_comments"
+                      class="mt-3 p-3 bg-white rounded border border-green-200">
+                      <span class="text-green-700 font-medium text-sm">Comments:</span>
+                      <p class="text-green-900 text-sm mt-1">{{ accountantReference.additional_comments ||
+                        accountantReference.recommendation_comments }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Accountant Signature -->
+                  <div v-if="accountantReference.signature" class="pt-3 border-t border-green-200">
+                    <h5 class="text-sm font-semibold text-green-800 mb-2">Signature</h5>
+                    <div class="inline-block bg-white border border-green-200 rounded-md p-2">
+                      <img :src="accountantReference.signature" alt="Accountant signature"
+                        class="max-w-xs sm:max-w-md h-auto" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Savings, Pensions or Investments Details -->
+            <div v-if="reference?.income_savings_pension_investments" class="border-t pt-6 mt-6">
+              <h5 class="text-md font-semibold text-gray-900 mb-4">Savings, Pensions or Investments</h5>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p class="text-gray-500 font-medium">Total Savings Amount</p>
+                  <p class="mt-1 text-gray-900">{{ reference?.savings_amount ?
+                    `£${parseFloat(reference.savings_amount || '0').toLocaleString('en-GB')}` : 'Not provided' }}</p>
+                </div>
+              </div>
+
+              <!-- Proof of Funds Document -->
+              <div class="mt-4">
+                <p class="block text-sm font-medium text-gray-700 mb-2">Proof of Funds</p>
+                <div v-if="reference?.proof_of_funds_path"
+                  class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                  <div class="flex items-center">
+                    <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span class="text-sm text-gray-900">Proof of Funds Document</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button" @click="previewProofOfFunds(reference.proof_of_funds_path)"
+                      class="px-3 py-1 text-xs sm:text-sm font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                      Preview
+                    </button>
+                  </div>
+                </div>
+                <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg text-sm">
+                  Proof of funds not uploaded yet
+                </div>
+
+                <!-- Embedded proof of funds viewer -->
+                <div v-if="proofOfFundsPreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
+                  <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
+                    <p class="text-sm font-medium text-gray-700">
+                      Proof of funds preview
+                    </p>
+                    <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
+                      @click="clearProofOfFundsPreview">
+                      Close preview
+                    </button>
+                  </div>
+                  <div class="h-[480px]">
+                    <iframe :src="proofOfFundsPreviewUrl" class="w-full h-full" frameborder="0"></iframe>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Benefits Details -->
+            <div v-if="reference?.income_benefits" class="border-t pt-6 mt-6">
+              <h5 class="text-md font-semibold text-gray-900 mb-4">Benefits</h5>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div v-if="reference?.benefits_annual_amount">
+                  <p class="text-gray-500 font-medium">Annual Benefits Amount</p>
+                  <p class="mt-1 text-gray-900">£{{ parseFloat(reference.benefits_annual_amount ||
+                    '0').toLocaleString('en-GB') }}</p>
+                </div>
+                <div v-if="reference?.benefits_type">
+                  <p class="text-gray-500 font-medium">Benefits Type</p>
+                  <p class="mt-1 text-gray-900 capitalize">{{ reference.benefits_type }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Additional Income -->
+            <div v-if="reference?.has_additional_income || reference?.additional_income_amount"
+              class="border-t pt-6 mt-6">
+              <h5 class="text-md font-semibold text-gray-900 mb-4">Additional Income</h5>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div v-if="reference?.additional_income_source">
+                  <p class="text-gray-500 font-medium">Source</p>
+                  <p class="mt-1 text-gray-900">{{ reference.additional_income_source }}</p>
+                </div>
+                <div v-if="reference?.additional_income_amount">
+                  <p class="text-gray-500 font-medium">Amount</p>
+                  <p class="mt-1 text-gray-900">£{{ parseFloat(reference.additional_income_amount ||
+                    '0').toLocaleString('en-GB') }}</p>
+                </div>
+                <div v-if="reference?.additional_income_frequency">
+                  <p class="text-gray-500 font-medium">Frequency</p>
+                  <p class="mt-1 text-gray-900 capitalize">{{ reference.additional_income_frequency }}</p>
+                </div>
+              </div>
+
+              <!-- Proof of Additional Income Document -->
+              <div v-if="reference?.proof_of_additional_income_path" class="mt-4">
+                <p class="block text-sm font-medium text-gray-700 mb-2">Proof of Additional Income</p>
+                <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                  <div class="flex items-center">
+                    <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span class="text-sm text-gray-900">Proof of Additional Income Document</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button"
+                      @click="previewProofOfAdditionalIncome(reference.proof_of_additional_income_path)"
+                      class="px-3 py-1 text-xs sm:text-sm font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                      Preview
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Embedded proof of additional income viewer -->
+                <div v-if="proofOfAdditionalIncomePreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
+                  <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
+                    <p class="text-sm font-medium text-gray-700">
+                      Proof of additional income preview
+                    </p>
+                    <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
+                      @click="clearProofOfAdditionalIncomePreview">
+                      Close preview
+                    </button>
+                  </div>
+                  <div class="h-[480px]">
+                    <iframe :src="proofOfAdditionalIncomePreviewUrl" class="w-full h-full" frameborder="0"></iframe>
                   </div>
                 </div>
               </div>
@@ -1111,6 +1454,47 @@
                   Proof of address document not provided.
                 </div>
               </div>
+
+              <!-- Previous Addresses History -->
+              <div v-if="previousAddresses && previousAddresses.length > 0" class="pt-6 border-t mt-6">
+                <h4 class="text-md font-semibold text-gray-900 mb-4">Previous Address History</h4>
+                <p class="text-xs text-gray-500 mb-4">Previous addresses provided to meet 3-year address history
+                  requirement</p>
+
+                <div v-for="(address, index) in previousAddresses" :key="address.id || index"
+                  class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h5 class="text-sm font-semibold text-gray-900 mb-3">Previous Address {{ index + 1 }}</h5>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="md:col-span-2">
+                      <p class="text-gray-500 font-medium">Address</p>
+                      <p class="mt-1 text-gray-900">
+                        {{ address.address_line1 || 'Not provided' }}
+                        <span v-if="address.address_line2">, {{ address.address_line2 }}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-gray-500 font-medium">City</p>
+                      <p class="mt-1 text-gray-900">{{ address.city || 'Not provided' }}</p>
+                    </div>
+                    <div>
+                      <p class="text-gray-500 font-medium">Postcode</p>
+                      <p class="mt-1 text-gray-900">{{ address.postcode || 'Not provided' }}</p>
+                    </div>
+                    <div v-if="address.country">
+                      <p class="text-gray-500 font-medium">Country</p>
+                      <p class="mt-1 text-gray-900">{{ address.country }}</p>
+                    </div>
+                    <div
+                      v-if="address.time_at_address_years !== undefined || address.time_at_address_months !== undefined">
+                      <p class="text-gray-500 font-medium">Time at Address</p>
+                      <p class="mt-1 text-gray-900">
+                        {{ address.time_at_address_years || 0 }} year(s), {{ address.time_at_address_months || 0 }}
+                        month(s)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Previous Landlord / Agent Information (summary) -->
@@ -1164,13 +1548,13 @@
                   <p class="mt-1 text-gray-900">
                     {{ reference?.previous_rental_address_line1 || 'Not provided yet' }}
                     <span v-if="reference?.previous_rental_address_line2">, {{ reference.previous_rental_address_line2
-                    }}</span>
+                      }}</span>
                   </p>
                   <p v-if="reference?.previous_rental_city || reference?.previous_rental_postcode"
                     class="mt-1 text-gray-900">
                     {{ reference.previous_rental_city || '' }}<span
                       v-if="reference.previous_rental_city && reference.previous_rental_postcode">, </span>{{
-                        reference.previous_rental_postcode || '' }}
+                    reference.previous_rental_postcode || '' }}
                   </p>
                 </div>
                 <div>
@@ -1180,7 +1564,7 @@
                       {{ formatDate(reference.previous_tenancy_start_date, 'N/A') }}
                       {{ ' to ' }}
                       {{ reference.previous_tenancy_still_in_progress ? 'Present' :
-                        formatDate(reference.previous_tenancy_end_date, 'Still in tenancy') }}
+                      formatDate(reference.previous_tenancy_end_date, 'Still in tenancy') }}
                     </span>
                     <span v-else>Not provided yet</span>
                   </p>
@@ -1191,13 +1575,13 @@
                     {{ formatDate(landlordReference.tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
                     {{ landlordReference.tenancy_still_in_progress ? 'Still in tenancy' :
-                      formatDate(landlordReference.tenancy_end_date, 'N/A') }}
+                    formatDate(landlordReference.tenancy_end_date, 'N/A') }}
                   </p>
                   <p class="mt-1 text-gray-900" v-else-if="agentReference">
                     {{ formatDate(agentReference.tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
                     {{ agentReference.tenancy_still_in_progress ? 'Still in tenancy' :
-                      formatDate(agentReference.tenancy_end_date, 'N/A') }}
+                    formatDate(agentReference.tenancy_end_date, 'N/A') }}
                   </p>
                   <p class="mt-1 text-gray-900" v-else>Not provided yet</p>
                 </div>
@@ -1350,7 +1734,7 @@
                     <p class="text-sm font-medium text-gray-700">Are contact details verifiable?</p>
                     <p class="text-xs text-gray-500 mt-1">
                       {{ reference?.previous_landlord_email || landlordReference?.landlord_email ||
-                        agentReference?.agent_email
+                      agentReference?.agent_email
                       }}
                     </p>
                   </div>
@@ -1476,7 +1860,7 @@
                 </button>
 
                 <!-- FAIL -->
-                <button @click="steps[3]!.overall_pass = false,steps[3]!.status = ''" :class="[
+                <button @click="steps[3]!.overall_pass = false, steps[3]!.status = ''" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[3]!.overall_pass === false
                     ? 'bg-red-600 text-white'
@@ -1773,24 +2157,25 @@
                               'bg-gray-100 text-gray-800 border-2 border-gray-300'
                     ]">
                       {{ reassesmentDataForPreview.risk_level ?
-                        reassesmentDataForPreview.risk_level.toUpperCase().replace('_', ' ') : 'N/A' }}
+                      reassesmentDataForPreview.risk_level.toUpperCase().replace('_', ' ') : 'N/A' }}
                     </span>
                   </div>
                   <p v-if="reassesmentDataForPreview.risk_level" class="text-xs text-gray-500 mt-2">
                     {{ reassesmentDataForPreview.risk_level === 'very_high' ? 'Very high risk applicant' :
-                      reassesmentDataForPreview.risk_level === 'high' ? 'High risk applicant' :
-                        reassesmentDataForPreview.risk_level === 'medium' ? 'Medium risk applicant' :
-                          reassesmentDataForPreview.risk_level === 'low' ? 'Low risk applicant' : '' }}
+                    reassesmentDataForPreview.risk_level === 'high' ? 'High risk applicant' :
+                    reassesmentDataForPreview.risk_level === 'medium' ? 'Medium risk applicant' :
+                    reassesmentDataForPreview.risk_level === 'low' ? 'Low risk applicant' : '' }}
                   </p>
                 </div>
               </div>
 
               <div class="mb-6">
                 <p class="text-sm font-semibold text-gray-700 mb-3">Decision</p>
-              <span v-if="reassesmentDataForPreview.decision" :class="getStatusChipClasses(reassesmentDataForPreview.decision)"
-                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold">
-                {{ formatStatusText(reassesmentDataForPreview.decision) }}
-              </span>
+                <span v-if="reassesmentDataForPreview.decision"
+                  :class="getStatusChipClasses(reassesmentDataForPreview.decision)"
+                  class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold">
+                  {{ formatStatusText(reassesmentDataForPreview.decision) }}
+                </span>
               </div>
 
               <!-- Gates Section -->
@@ -1822,7 +2207,7 @@
                         <p v-if="reassesmentDataForPreview.domains.income_band" class="text-xs text-gray-500 mt-1">
                           Income band:
                           {{
-                            reassesmentDataForPreview.domains.income_band }}</p>
+                          reassesmentDataForPreview.domains.income_band }}</p>
                       </div>
                       <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
                         <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1920,7 +2305,7 @@
                           'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[0]!.overall_pass === true ? 'PASS' : steps[0]!.overall_pass === false ? 'FAIL' :
-                        'PENDING'
+                      'PENDING'
                       }}
                     </span>
                   </div>
@@ -1938,7 +2323,7 @@
                           'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[1]!.overall_pass === true ? 'PASS' : steps[1]!.overall_pass === false ? 'FAIL' :
-                        'PENDING'
+                      'PENDING'
                       }}
                     </span>
                   </div>
@@ -1957,7 +2342,7 @@
                             'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[2]!.status === 'GUARANTOR_NEEDED' ? 'GUARANTOR NEEDED' :
-                        steps[2]!.overall_pass === true ? 'PASS' : steps[2]!.overall_pass === false ? 'FAIL' : 'PENDING'
+                      steps[2]!.overall_pass === true ? 'PASS' : steps[2]!.overall_pass === false ? 'FAIL' : 'PENDING'
                       }}
                     </span>
                   </div>
@@ -1976,7 +2361,7 @@
                             'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[3]!.status === 'amber' ? 'AMBER' :
-                        steps[3]!.overall_pass === true ? 'PASS' : steps[3]!.overall_pass === false ? 'FAIL' : 'PENDING'
+                      steps[3]!.overall_pass === true ? 'PASS' : steps[3]!.overall_pass === false ? 'FAIL' : 'PENDING'
                       }}
                     </span>
                   </div>
@@ -1994,7 +2379,7 @@
                           'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[4]!.overall_pass === true ? 'PASS' : steps[4]!.overall_pass === false ? 'FAIL' :
-                        'PENDING'
+                      'PENDING'
                       }}
                     </span>
                   </div>
@@ -2115,6 +2500,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const currentStep = ref(1)
 const reference = ref<any>(null)
+const previousAddresses = ref<any[]>([])
 const workItemId = ref<string | null>(null)
 const idDocumentBlobUrl = ref('')
 const selfieBlobUrl = ref('')
@@ -2127,6 +2513,9 @@ const payslipPreviewUrl = ref('')
 const selectedPayslipIndex = ref<number | null>(null)
 const proofOfAddressBlobUrl = ref('')
 const rtrAlternativeDocumentBlobUrl = ref('')
+const taxReturnPreviewUrl = ref('')
+const proofOfFundsPreviewUrl = ref('')
+const proofOfAdditionalIncomePreviewUrl = ref('')
 // const creditsafeData = ref<any>(null)
 // const creditsafeLoading = ref(false)
 
@@ -2625,6 +3014,30 @@ const clearPayslipPreview = () => {
   payslipPreviewUrl.value = ''
 }
 
+const previewTaxReturn = async (filePath: string) => {
+  taxReturnPreviewUrl.value = await loadImageAsBlob(filePath)
+}
+
+const clearTaxReturnPreview = () => {
+  taxReturnPreviewUrl.value = ''
+}
+
+const previewProofOfFunds = async (filePath: string) => {
+  proofOfFundsPreviewUrl.value = await loadImageAsBlob(filePath)
+}
+
+const clearProofOfFundsPreview = () => {
+  proofOfFundsPreviewUrl.value = ''
+}
+
+const previewProofOfAdditionalIncome = async (filePath: string) => {
+  proofOfAdditionalIncomePreviewUrl.value = await loadImageAsBlob(filePath)
+}
+
+const clearProofOfAdditionalIncomePreview = () => {
+  proofOfAdditionalIncomePreviewUrl.value = ''
+}
+
 type DomainScores = {
   aml: number | null
   rtr: number | null
@@ -2699,7 +3112,7 @@ const loadData = async () => {
     employerReference.value = refData.employerReference || null
     accountantReference.value = refData.accountantReference || null
     guarantorReference.value = refData.guarantorReference || null
-
+    previousAddresses.value = refData.previousAddresses || []
     credit_status.value = refData?.score?.risk_level ?? null
 
 
@@ -2782,6 +3195,7 @@ const loadData = async () => {
     } else {
       console.warn('No RTR alternative document path found')
     }
+
 
     // Load evidence source options
     const evidenceResponse = await fetch(`${API_URL}/api/verification-steps/evidence-sources`, {

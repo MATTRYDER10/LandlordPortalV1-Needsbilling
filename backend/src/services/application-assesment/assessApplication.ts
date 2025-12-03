@@ -96,7 +96,7 @@ export const assessApplicationScore = async (referenceId: string, caller: Caller
                 selfAnnual: reference.self_employed_annual_income_encrypted,
                 monthly_rent: reference.monthly_rent || 0,
                 additional_income: reference.additional_income_amount_encrypted,
-                savings : reference.savings_amount_encrypted,
+                savings: reference.savings_amount_encrypted,
                 is_hourly: reference.is_hourly || false,
                 hours_per_month: reference.employment_hours_per_month || 0,
             }
@@ -147,7 +147,7 @@ export const assessApplicationScore = async (referenceId: string, caller: Caller
             console.error("Failed to store score result:", error);
             return null;
         }
-
+        console.log("Score stored successfully", payload.domain_scores);
         return true;
     } catch (err) {
         console.error("Failed scoring:", err);
@@ -195,7 +195,7 @@ export const reAssessApplicationScore = async (referenceId: string, caller: Call
                 selfAnnual: reference.self_employed_annual_income_encrypted,
                 monthly_rent: reference.monthly_rent || 0,
                 additional_income: reference.additional_income_amount_encrypted,
-                savings : reference.savings_amount_encrypted,
+                savings: reference.savings_amount_encrypted,
                 is_hourly: reference.employment_is_hourly || false,
                 hours_per_month: reference.employment_hours_per_month || 0,
             }
