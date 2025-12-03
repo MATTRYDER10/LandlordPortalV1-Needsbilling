@@ -306,7 +306,7 @@ const parseAddressComponents = (
   if ((!postcode || !postcode.includes(' ')) && formattedAddress) {
     const ukPostcodeRegex = /\b([A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2})\b/i
     const match = formattedAddress.match(ukPostcodeRegex)
-    if (match) {
+    if (match && match[1]) {
       // Normalize the postcode format (ensure space between outward and inward parts)
       const rawPostcode = match[1].replace(/\s+/g, '').toUpperCase()
       // Insert space before the last 3 characters (inward code)
