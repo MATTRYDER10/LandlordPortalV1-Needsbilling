@@ -2322,6 +2322,11 @@ const employmentComparisonTable = computed<EmploymentComparisonDisplayRow[]>(() 
 
   const tenant = reference.value
   const employer = employerReference.value
+  const salary = parseFloat(tenant.employment_salary_amount || '0')
+  let annualSalary = salary;
+  if(tenant.employment_is_hourly && tenant.employment_hours_per_month) {
+    annualSalary = salary * tenant.employment_hours_per_month * 12;
+  }
 
   const rows: EmploymentComparisonDisplayRow[] = [
     {
@@ -2348,8 +2353,8 @@ const employmentComparisonTable = computed<EmploymentComparisonDisplayRow[]>(() 
     {
       key: 'salary',
       label: 'Annual Salary',
-      tenant: formatCurrencyDisplay(tenant.employment_salary_amount),
-      employer: formatCurrencyDisplay(employer.annual_salary),
+      tenant: formatCurrencyDisplay(annualSalary),
+      employer: formatCurrencyDisplay(annualSalary),
       status: compareCurrencyValues(tenant.employment_salary_amount, employer.annual_salary)
     },
     {

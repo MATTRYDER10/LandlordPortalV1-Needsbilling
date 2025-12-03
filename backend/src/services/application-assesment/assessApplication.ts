@@ -22,6 +22,8 @@ type SanitizedIncome = {
     is_hourly: boolean;
     monthly_rent: number;
     hours_per_month: number;
+    additional_income: string;
+    savings: string;
 }
 
 const sanitizeIncome = (raw_income: SanitizedIncome) => {
@@ -29,9 +31,11 @@ const sanitizeIncome = (raw_income: SanitizedIncome) => {
     const benefits = parseFloat(decrypt(raw_income.benefits) || '0');
     const additional = parseFloat(decrypt(raw_income.additional) || '0');
     const selfEmployedAnnual = parseFloat(decrypt(raw_income.selfAnnual) || '0');
+    const additionalIncome = parseFloat(decrypt(raw_income.additional_income) || '0');
+    const savings = parseFloat(decrypt(raw_income.savings) || '0') / 12;
     const rent = raw_income.monthly_rent || 0;
-    const salary = raw_income.is_hourly ? Number(raw_income.hours_per_month) * income : income;
-    return computeIncomeMultiple({ salary, benefits, additional, selfEmployedAnnual, rent });
+    const salary = raw_income.is_hourly ? Number(raw_income.hours_per_month) * income : (income / 12);
+    return computeIncomeMultiple({ salary, benefits, additional, selfEmployedAnnual, rent, additionalIncome, savings });
 }
 
 export const assessApplicationScore = async (referenceId: string, caller: Caller, scoredBy: string | null = null) => {
@@ -87,10 +91,12 @@ export const assessApplicationScore = async (referenceId: string, caller: Caller
         if (reference?.income_assessment_status !== "FAIL" && !reference?.income_student && !reference?.income_unemployed) {
             const payloadToSanitize: SanitizedIncome = {
                 salary: reference.employment_salary_amount_encrypted,
-                benefits: reference.benefits_annual_amount_encrypted,
+                benefits: reference.benefits_monthly_amount_encrypted,
                 additional: reference.additional_income_amount_encrypted,
                 selfAnnual: reference.self_employed_annual_income_encrypted,
                 monthly_rent: reference.monthly_rent || 0,
+                additional_income: reference.additional_income_amount_encrypted,
+                savings : reference.savings_amount_encrypted,
                 is_hourly: reference.is_hourly || false,
                 hours_per_month: reference.employment_hours_per_month || 0,
             }
@@ -188,6 +194,8 @@ export const reAssessApplicationScore = async (referenceId: string, caller: Call
                 additional: reference.additional_income_amount_encrypted,
                 selfAnnual: reference.self_employed_annual_income_encrypted,
                 monthly_rent: reference.monthly_rent || 0,
+                additional_income: reference.additional_income_amount_encrypted,
+                savings : reference.savings_amount_encrypted,
                 is_hourly: reference.employment_is_hourly || false,
                 hours_per_month: reference.employment_hours_per_month || 0,
             }

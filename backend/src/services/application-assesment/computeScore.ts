@@ -52,13 +52,17 @@ export const computeIncomeMultiple = ({
   benefits,
   additional,
   selfEmployedAnnual,
-  rent
+  rent,
+  additionalIncome,
+  savings
 }: {
   salary: number;
   benefits: number;
   additional: number;
   selfEmployedAnnual: number;
   rent: number;
+  additionalIncome: number;
+  savings: number;
 }) => {
   if (!rent || rent <= 0) return 0;
 
@@ -68,6 +72,8 @@ export const computeIncomeMultiple = ({
     (salary || 0) +
     (benefits || 0) +
     (additional || 0) +
+    (additionalIncome || 0) +
+    (savings || 0) +
     (monthlySelfEmployed || 0);
 
   return monthlyIncome / rent;
