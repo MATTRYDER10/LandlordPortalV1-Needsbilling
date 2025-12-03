@@ -2335,6 +2335,15 @@
                   <label class="block text-sm font-medium text-gray-500">Phone</label>
                   <p class="mt-1 text-gray-900">{{ reference.accountant_phone || 'Not provided' }}</p>
                 </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Tax Return Proof</label>
+                  <p class="mt-1 text-gray-900">
+                    <button @click="viewFile(reference.tax_return_path)"
+                      class="px-3 py-1 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
+                      View
+                    </button>
+                  </p>
+                </div>
               </div>
 
               <!-- Accountant Reference Status -->
