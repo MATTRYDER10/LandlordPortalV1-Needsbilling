@@ -365,7 +365,7 @@
             </div>
 
             <!-- External Reference Responses -->
-            <div v-if="accountantReference" class="space-y-4">
+            <!-- <div v-if="accountantReference" class="space-y-4">
               <div class="bg-white border rounded-lg p-4">
                 <h4 class="font-semibold text-gray-900 mb-3">Accountant Reference Response</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
@@ -418,7 +418,7 @@
                   </p>
                 </div>
               </div>
-            </div>
+            </div> -->
 
             <!-- Signature -->
             <div v-if="reference?.consent_signature" class="mb-6">
@@ -468,11 +468,19 @@
 
         <!-- Step 2: RTR Verification -->
         <div v-if="currentStep === 2">
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-4 mb-4">
             <h3 class="text-xl font-bold text-gray-900">Step 2: RTR Verification</h3>
             <span
               class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-100">
               RTR Score: {{ domainScores.rtr ?? '—' }}
+            </span>
+            <span
+              :class="[
+                'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold',
+                reference?.rtr_verified ? 'bg-green-50 text-green-800 border border-green-100' : 'bg-red-50 text-red-800 border border-red-100'
+              ]"
+            >
+              {{ reference?.rtr_verified ? '✓ Verified' : '✗ Not Verified' }}
             </span>
           </div>
           <p class="text-gray-600 mb-6">Verify the tenant's Right to Rent status.</p>
@@ -507,7 +515,7 @@
             </div>
 
             <!-- RTR Share Code (if provided and not British) -->
-            <div v-else-if="reference?.rtr_share_code" class="bg-white border rounded-lg p-4">
+            <div v-if="reference?.rtr_share_code" class="bg-white border relative rounded-lg p-4">
               <h4 class="font-semibold text-gray-900 mb-3">Right to Rent Share Code</h4>
               <div class="flex items-center gap-3">
                 <div class="flex-1">
@@ -517,20 +525,20 @@
                       class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md font-mono text-lg font-semibold text-gray-900">
                       {{ reference.rtr_share_code }}
                     </code>
-                    <button type="button"
+                    <!-- <button type="button"
                       class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-md transition-colors">
                       Verify
-                    </button>
+                    </button> -->
                   </div>
-                  <p class="text-xs text-gray-500 mt-2">
+                  <!-- <p class="text-xs text-gray-500 mt-2">
                     Click "Verify" to check the Right to Rent status using the share code.
-                  </p>
+                  </p> -->
                 </div>
               </div>
             </div>
 
             <!-- Alternative Document (if share code not provided and not British) -->
-            <div v-else-if="reference?.rtr_alternative_document_path && reference?.rtr_alternative_document_type"
+            <div v-if="reference?.rtr_alternative_document_path && reference?.rtr_alternative_document_type"
               class="bg-white border rounded-lg p-4">
               <h4 class="font-semibold text-gray-900 mb-3">Alternative Right to Rent Document</h4>
               <div class="space-y-4">

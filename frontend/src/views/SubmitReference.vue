@@ -321,7 +321,7 @@
                         (starts with 'R')</p>
                     </div>
 
-                    <div v-if="rtrVerificationStatus" class="mt-3 p-3 rounded border" :class="{
+                    <div v-if="rtrVerificationStatus && !rtrAlternativeDocument" class="mt-3 p-3 rounded border" :class="{
                     'bg-green-50 border-green-200': rtrVerificationStatus === 'verified',
                     'bg-red-50 border-red-200': rtrVerificationStatus === 'failed',
                     'bg-blue-50 border-blue-200': rtrVerificationStatus === 'checking'
@@ -3190,6 +3190,7 @@ const verifyRTRShareCode = async () => {
       formData.value.rtr_verified = true
       formData.value.rtr_verification_data = data
     } else {
+      formData.value.rtr_share_code = ''
       rtrVerificationStatus.value = 'failed'
       rtrVerificationMessage.value = data.message || 'Unable to verify Right to Rent. Please check your details and share code.'
       formData.value.rtr_verified = false
