@@ -17,6 +17,7 @@ import { sanctionsService, ScreeningResponse } from '../services/sanctionsServic
 import { generateReferenceReportPDF } from '../services/pdfReportService'
 import * as billingService from '../services/billingService'
 import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/requestMetadata'
+import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
 
 const router = Router()
@@ -3658,6 +3659,7 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
   try {
     const referenceId = req.params.id
     const userId = req.user?.id
+    const { newEmail } = req.body
 
     // Get the reference
     const { data: reference, error: refError } = await supabase
@@ -3682,6 +3684,34 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    // Get current email for comparison
+    const currentEmail = decrypt(reference.employer_ref_email_encrypted) || ''
+
+    // If new email provided and different, validate and update it
+    if (newEmail && newEmail !== currentEmail) {
+      if (!isValidEmail(newEmail)) {
+        return res.status(400).json({ error: 'Invalid email format' })
+      }
+
+      // Update the email in database
+      await supabase
+        .from('tenant_references')
+        .update({ employer_ref_email_encrypted: encrypt(newEmail) })
+        .eq('id', referenceId)
+
+      // Log email change in audit
+      await logAuditAction({
+        referenceId,
+        action: 'EMAIL_CHANGED',
+        description: `Employer reference email changed from ${currentEmail} to ${newEmail}`,
+        metadata: { emailType: 'employer', previousEmail: currentEmail, newEmail: newEmail },
+        userId
+      })
+    }
+
+    // Use new email if provided, otherwise use current
+    const employerEmail = newEmail || currentEmail
+
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
@@ -3689,7 +3719,6 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
       .eq('id', reference.company_id)
       .single()
 
-    const employerEmail = decrypt(reference.employer_ref_email_encrypted) || ''
     const employerName = decrypt(reference.employer_ref_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${reference.id}`
@@ -4016,8 +4045,9 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
   try {
     const referenceId = req.params.id
     const userId = req.user?.id
+    const { newEmail } = req.body
 
-    // Get the reference
+    // Get the parent reference
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('*, companies!inner(id)')
@@ -4040,26 +4070,108 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Get guarantor reference to get the token
-    const { data: guarantorRef } = await supabase
+    // First, try to get guarantor from guarantor_references table (legacy)
+    const { data: guarantorRefLegacy } = await supabase
       .from('guarantor_references')
       .select('id, reference_token_hash, guarantor_first_name_encrypted, guarantor_last_name_encrypted, guarantor_email_encrypted')
       .eq('reference_id', referenceId)
       .single()
 
-    if (!guarantorRef) {
+    // If not found, try to get guarantor from tenant_references table (new method)
+    const { data: guarantorRefNew } = await supabase
+      .from('tenant_references')
+      .select('id, reference_token_hash, tenant_first_name_encrypted, tenant_last_name_encrypted, tenant_email_encrypted')
+      .eq('guarantor_for_reference_id', referenceId)
+      .eq('is_guarantor', true)
+      .single()
+
+    if (!guarantorRefLegacy && !guarantorRefNew) {
       return res.status(404).json({ error: 'Guarantor reference not found' })
     }
+
+    // Determine which type of guarantor we're dealing with
+    const isLegacyGuarantor = !!guarantorRefLegacy
+
+    // Get guarantor ID and current email based on type
+    let guarantorId: string
+    let currentEmail: string
+    let guarantorFirstName: string
+    let guarantorLastName: string
+
+    if (isLegacyGuarantor && guarantorRefLegacy) {
+      guarantorId = guarantorRefLegacy.id
+      currentEmail = decrypt(guarantorRefLegacy.guarantor_email_encrypted) || ''
+      guarantorFirstName = decrypt(guarantorRefLegacy.guarantor_first_name_encrypted) || ''
+      guarantorLastName = decrypt(guarantorRefLegacy.guarantor_last_name_encrypted || '') || ''
+    } else if (guarantorRefNew) {
+      guarantorId = guarantorRefNew.id
+      currentEmail = decrypt(guarantorRefNew.tenant_email_encrypted) || ''
+      guarantorFirstName = decrypt(guarantorRefNew.tenant_first_name_encrypted) || ''
+      guarantorLastName = decrypt(guarantorRefNew.tenant_last_name_encrypted || '') || ''
+    } else {
+      return res.status(404).json({ error: 'Guarantor reference not found' })
+    }
+
+    // If new email provided and different, validate and update it
+    if (newEmail && newEmail !== currentEmail) {
+      if (!isValidEmail(newEmail)) {
+        return res.status(400).json({ error: 'Invalid email format' })
+      }
+
+      if (isLegacyGuarantor) {
+        // Update the email in guarantor_references table
+        await supabase
+          .from('guarantor_references')
+          .update({ guarantor_email_encrypted: encrypt(newEmail) })
+          .eq('id', guarantorId)
+      } else {
+        // Update the email in the guarantor's tenant_reference
+        await supabase
+          .from('tenant_references')
+          .update({ tenant_email_encrypted: encrypt(newEmail) })
+          .eq('id', guarantorId)
+      }
+
+      // Also update in parent tenant_reference for display purposes
+      await supabase
+        .from('tenant_references')
+        .update({ guarantor_email_encrypted: encrypt(newEmail) })
+        .eq('id', referenceId)
+
+      // Log email change in audit
+      await logAuditAction({
+        referenceId,
+        action: 'EMAIL_CHANGED',
+        description: `Guarantor email changed from ${currentEmail} to ${newEmail}`,
+        metadata: { emailType: 'guarantor', previousEmail: currentEmail, newEmail: newEmail },
+        userId
+      })
+    }
+
+    // Use new email if provided, otherwise use current
+    const guarantorEmail = newEmail || currentEmail
 
     // Generate new token for the form link
     const guarantorToken = generateToken()
     const guarantorTokenHash = hash(guarantorToken)
+    const tokenExpiresAt = new Date()
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 30)
 
-    // Update the token hash
-    await supabase
-      .from('guarantor_references')
-      .update({ reference_token_hash: guarantorTokenHash })
-      .eq('id', guarantorRef.id)
+    // Update the token hash in the appropriate table
+    if (isLegacyGuarantor) {
+      await supabase
+        .from('guarantor_references')
+        .update({ reference_token_hash: guarantorTokenHash })
+        .eq('id', guarantorId)
+    } else {
+      await supabase
+        .from('tenant_references')
+        .update({
+          reference_token_hash: guarantorTokenHash,
+          token_expires_at: tokenExpiresAt.toISOString()
+        })
+        .eq('id', guarantorId)
+    }
 
     // Get company info
     const { data: companyData } = await supabase
@@ -4068,14 +4180,17 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
       .eq('id', reference.company_id)
       .single()
 
-    const guarantorEmail = decrypt(guarantorRef.guarantor_email_encrypted) || ''
-    const guarantorName = `${decrypt(guarantorRef.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRef.guarantor_last_name_encrypted || '') || ''}`
+    const guarantorName = `${guarantorFirstName} ${guarantorLastName}`.trim()
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     const propertyAddress = decrypt(reference.property_address_encrypted) || 'the property'
     const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) || 'Your agent' : 'Your agent'
     const companyPhone = companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || '') : ''
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
-    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+
+    // Use appropriate form link based on guarantor type
+    const formLink = isLegacyGuarantor
+      ? `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+      : `${process.env.FRONTEND_URL}/tenant-reference/${guarantorToken}`
 
     await sendGuarantorReferenceRequest(
       guarantorEmail,
@@ -4100,6 +4215,145 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     res.json({ message: 'Guarantor reference email resent successfully' })
   } catch (error: any) {
     console.error('Failed to resend guarantor email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Resend email for a guarantor's own reference (when viewing the guarantor's tenant_reference page)
+router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const guarantorReferenceId = req.params.id
+    const userId = req.user?.id
+    const { newEmail } = req.body
+
+    // Get the guarantor reference (which is a tenant_reference with is_guarantor = true)
+    const { data: guarantorRef, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*')
+      .eq('id', guarantorReferenceId)
+      .eq('is_guarantor', true)
+      .single()
+
+    if (refError || !guarantorRef) {
+      return res.status(404).json({ error: 'Guarantor reference not found' })
+    }
+
+    // Verify user has access to this reference's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', guarantorRef.company_id)
+      .single()
+
+    if (!companyUser) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get the parent reference for tenant info
+    const { data: parentRef } = await supabase
+      .from('tenant_references')
+      .select('tenant_first_name_encrypted, tenant_last_name_encrypted, property_address_encrypted')
+      .eq('id', guarantorRef.guarantor_for_reference_id)
+      .single()
+
+    // Current email is stored in tenant_email_encrypted for guarantor references
+    const currentEmail = decrypt(guarantorRef.tenant_email_encrypted) || ''
+
+    // If new email provided and different, validate and update it
+    if (newEmail && newEmail !== currentEmail) {
+      if (!isValidEmail(newEmail)) {
+        return res.status(400).json({ error: 'Invalid email format' })
+      }
+
+      // Update the email in the guarantor's tenant_reference
+      await supabase
+        .from('tenant_references')
+        .update({ tenant_email_encrypted: encrypt(newEmail) })
+        .eq('id', guarantorReferenceId)
+
+      // Also update in parent reference's guarantor_email_encrypted for display
+      if (guarantorRef.guarantor_for_reference_id) {
+        await supabase
+          .from('tenant_references')
+          .update({ guarantor_email_encrypted: encrypt(newEmail) })
+          .eq('id', guarantorRef.guarantor_for_reference_id)
+      }
+
+      // Log email change in audit
+      await logAuditAction({
+        referenceId: guarantorReferenceId,
+        action: 'EMAIL_CHANGED',
+        description: `Guarantor email changed from ${currentEmail} to ${newEmail}`,
+        metadata: { emailType: 'guarantor_self', previousEmail: currentEmail, newEmail: newEmail },
+        userId
+      })
+    }
+
+    // Use new email if provided, otherwise use current
+    const guarantorEmail = newEmail || currentEmail
+
+    // Generate new token for the form link
+    const guarantorToken = generateToken()
+    const guarantorTokenHash = hash(guarantorToken)
+    const tokenExpiresAt = new Date()
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 30)
+
+    // Update the token hash in the guarantor reference
+    await supabase
+      .from('tenant_references')
+      .update({
+        reference_token_hash: guarantorTokenHash,
+        token_expires_at: tokenExpiresAt.toISOString()
+      })
+      .eq('id', guarantorReferenceId)
+
+    // Get company info
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .eq('id', guarantorRef.company_id)
+      .single()
+
+    // Guarantor's own name (stored in tenant fields for guarantor references)
+    const guarantorName = `${decrypt(guarantorRef.tenant_first_name_encrypted) || ''} ${decrypt(guarantorRef.tenant_last_name_encrypted) || ''}`.trim()
+    // Tenant's name (from parent reference)
+    const tenantName = parentRef
+      ? `${decrypt(parentRef.tenant_first_name_encrypted) || ''} ${decrypt(parentRef.tenant_last_name_encrypted) || ''}`.trim()
+      : 'the tenant'
+    const propertyAddress = parentRef?.property_address_encrypted
+      ? decrypt(parentRef.property_address_encrypted) || 'the property'
+      : 'the property'
+    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) || 'Your agent' : 'Your agent'
+    const companyPhone = companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || '') : ''
+    const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
+
+    // Use tenant-reference form link (guarantors fill out a tenant reference form)
+    const formLink = `${process.env.FRONTEND_URL}/tenant-reference/${guarantorToken}`
+
+    await sendGuarantorReferenceRequest(
+      guarantorEmail,
+      guarantorName,
+      tenantName,
+      propertyAddress,
+      companyName,
+      companyPhone,
+      companyEmail,
+      formLink
+    )
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId: guarantorReferenceId,
+      action: 'EMAIL_RESENT',
+      description: `Guarantor reference email resent to ${guarantorEmail}`,
+      metadata: { emailType: 'guarantor_self', recipient: guarantorEmail },
+      userId
+    })
+
+    res.json({ message: 'Guarantor reference email resent successfully' })
+  } catch (error: any) {
+    console.error('Failed to resend guarantor self email:', error)
     res.status(500).json({ error: error.message })
   }
 })

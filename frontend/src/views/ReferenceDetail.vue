@@ -1481,6 +1481,26 @@
           </div>
         </div>
 
+        <!-- Guarantor Reference Status (shown when viewing the guarantor's own reference) -->
+        <div v-if="reference.is_guarantor && reference.status === 'pending'" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Guarantor Reference Status</h3>
+          <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="flex items-center justify-between mb-3">
+              <h5 class="text-sm font-semibold text-blue-900">Reference Pending</h5>
+              <button @click="openGuarantorSelfEditEmailModal()"
+                class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50">
+                Resend Email
+              </button>
+            </div>
+            <p class="text-sm text-blue-800">
+              An email has been sent to the guarantor to complete their reference form.
+            </p>
+            <div class="mt-3 text-sm text-blue-700">
+              <p><span class="font-medium">Email:</span> {{ reference.tenant_email }}</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Identification Documents -->
         <div v-if="!reference.is_group_parent || reference.is_guarantor" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Identification Documents</h3>
@@ -1899,9 +1919,9 @@
                       An email has been sent to the employer to complete their reference.
                     </p>
                   </div>
-                  <button @click="resendMainEmployerEmail" :disabled="resendingMainEmployer"
-                    class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
-                    {{ resendingMainEmployer ? 'Sending...' : 'Resend Email' }}
+                  <button @click="openEmployerEditEmailModal(reference.id, reference.employer_ref_email)"
+                    class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 whitespace-nowrap">
+                    Resend Email
                   </button>
                 </div>
               </div>
@@ -2050,9 +2070,9 @@
             <div v-if="!guarantorReference" class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div class="flex items-center justify-between mb-3">
                 <h5 class="text-sm font-semibold text-blue-900">Guarantor Reference Pending</h5>
-                <button @click="resendGuarantorEmail" :disabled="resendingGuarantor"
-                  class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {{ resendingGuarantor ? 'Sending...' : 'Resend Email' }}
+                <button @click="openGuarantorEditEmailModal()"
+                  class="px-3 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md hover:bg-blue-50">
+                  Resend Email
                 </button>
               </div>
               <p class="text-sm text-blue-800">
@@ -3225,6 +3245,16 @@
       </div>
     </div>
   </Sidebar>
+
+  <!-- Edit Email Resend Modal -->
+  <EditEmailResendModal
+    :show="showEditEmailModal"
+    :currentEmail="editEmailCurrentEmail"
+    :referenceType="editEmailType"
+    ref="editEmailModalRef"
+    @close="closeEditEmailModal"
+    @submit="handleEditEmailSubmit"
+  />
 </template>
 
 <script setup lang="ts">
@@ -3240,6 +3270,7 @@ import DatePicker from '../components/DatePicker.vue'
 import { isValidEmail } from '../utils/validation'
 import ReferenceNotes from '../components/ReferenceNotes.vue'
 import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
+import EditEmailResendModal from '../components/EditEmailResendModal.vue'
 // import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 import CreditsAndAmlUI, { type Props as CreditsAndAmlUIProps } from '../components/CreditsAndAmlUI.vue'
 import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
@@ -3317,6 +3348,13 @@ const resendingEmployer = ref<Record<string, boolean>>({})
 const resendingMainEmployer = ref(false)
 const resendingAccountant = ref<Record<string, boolean>>({})
 const resendingGuarantor = ref(false)
+
+// Edit Email Resend Modal state
+const showEditEmailModal = ref(false)
+const editEmailType = ref<'employer' | 'guarantor' | 'guarantor_self'>('employer')
+const editEmailReferenceId = ref('')
+const editEmailCurrentEmail = ref('')
+const editEmailModalRef = ref<InstanceType<typeof EditEmailResendModal> | null>(null)
 
 // Delete modal state
 const showDeleteModal = ref(false)
@@ -4174,6 +4212,74 @@ const resendGuarantorEmail = async () => {
   } finally {
     resendingGuarantor.value = false
   }
+}
+
+// Edit Email Modal Functions
+const openEmployerEditEmailModal = (referenceId: string, currentEmail: string) => {
+  editEmailType.value = 'employer'
+  editEmailReferenceId.value = referenceId
+  editEmailCurrentEmail.value = currentEmail
+  showEditEmailModal.value = true
+}
+
+const openGuarantorEditEmailModal = () => {
+  editEmailType.value = 'guarantor'
+  editEmailReferenceId.value = route.params.id as string
+  editEmailCurrentEmail.value = reference.value?.guarantor_email || ''
+  showEditEmailModal.value = true
+}
+
+const openGuarantorSelfEditEmailModal = () => {
+  editEmailType.value = 'guarantor_self'
+  editEmailReferenceId.value = route.params.id as string
+  // For guarantor references, the guarantor's email is in tenant_email
+  editEmailCurrentEmail.value = reference.value?.tenant_email || ''
+  showEditEmailModal.value = true
+}
+
+const handleEditEmailSubmit = async (newEmail: string) => {
+  let endpoint: string
+  if (editEmailType.value === 'employer') {
+    endpoint = `${API_URL}/api/references/${editEmailReferenceId.value}/resend-employer-email`
+  } else if (editEmailType.value === 'guarantor_self') {
+    endpoint = `${API_URL}/api/references/${editEmailReferenceId.value}/resend-guarantor-self-email`
+  } else {
+    endpoint = `${API_URL}/api/references/${editEmailReferenceId.value}/resend-guarantor-email`
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ newEmail })
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to resend email')
+    }
+
+    const emailTypeLabel = editEmailType.value === 'employer' ? 'Employer' : 'Guarantor'
+    toast.success(`${emailTypeLabel} reference email sent successfully`)
+    showEditEmailModal.value = false
+
+    // Refresh reference data to show updated email
+    await fetchReference()
+  } catch (err: any) {
+    console.error('Error sending email:', err)
+    toast.error('Failed to send email: ' + err.message)
+  } finally {
+    if (editEmailModalRef.value) {
+      editEmailModalRef.value.sending = false
+    }
+  }
+}
+
+const closeEditEmailModal = () => {
+  showEditEmailModal.value = false
 }
 
 const handleDelete = async () => {
