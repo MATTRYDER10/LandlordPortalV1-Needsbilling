@@ -803,7 +803,8 @@
                 <div>
                   <p class="text-gray-500 font-medium">Annual Income</p>
                   <p class="mt-1 text-gray-900">{{ reference?.self_employed_annual_income ?
-                    `£${parseFloat(reference.self_employed_annual_income || '0').toLocaleString('en-GB')}` : 'Not provided' }}</p>
+                    `£${parseFloat(reference.self_employed_annual_income || '0').toLocaleString('en-GB')}` : 'Not provided' }}
+                  </p>
                 </div>
               </div>
 
@@ -872,7 +873,7 @@
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-lg font-semibold text-green-900">✓ Accountant Reference Completed</h4>
                   <span class="text-xs text-green-700">Submitted {{ formatDate(accountantReference.submitted_at)
-                    }}</span>
+                  }}</span>
                 </div>
 
                 <div class="space-y-4">
@@ -881,14 +882,16 @@
                     <h5 class="text-sm font-semibold text-green-800 mb-2">Accountant Information</h5>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                       <div><span class="text-green-700 font-medium">Name:</span> <span class="text-green-900">{{
-                          accountantReference.accountant_name }}</span></div>
+                        accountantReference.accountant_name }}</span></div>
                       <div><span class="text-green-700 font-medium">Firm:</span> <span class="text-green-900">{{
                         accountantReference.accountant_firm || accountantReference.firm_name }}</span></div>
                       <div><span class="text-green-700 font-medium">Email:</span> <span class="text-green-900">{{
                         accountantReference.accountant_email }}</span></div>
                       <div v-if="accountantReference.accountant_phone"><span
-                          class="text-green-700 font-medium">Phone:</span> <span class="text-green-900">{{
-                            accountantReference.accountant_phone }}</span></div>
+                          class="text-green-700 font-medium">Phone:</span>
+                        <span class="text-green-900">{{
+                          accountantReference.accountant_phone }}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -902,8 +905,10 @@
                           accountantReference.business_name }}</span>
                       </div>
                       <div v-if="accountantReference.business_trading_status"><span
-                          class="text-green-700 font-medium">Trading Status:</span> <span
-                          class="text-green-900 capitalize">{{ accountantReference.business_trading_status }}</span>
+                          class="text-green-700 font-medium">Trading
+                          Status:</span> <span class="text-green-900 capitalize">{{
+                            accountantReference.business_trading_status
+                          }}</span>
                       </div>
                       <div v-if="accountantReference.business_start_date"><span class="text-green-700 font-medium">Start
                           Date:</span>
@@ -933,8 +938,8 @@
                           parseFloat(accountantReference.annual_profit || '0').toLocaleString('en-GB') }}</span>
                       </div>
                       <div v-if="accountantReference.estimated_monthly_income"><span
-                          class="text-green-700 font-medium">Est. Monthly Income:</span> <span
-                          class="text-green-900">£{{
+                          class="text-green-700 font-medium">Est.
+                          Monthly Income:</span> <span class="text-green-900">£{{
                             parseFloat(accountantReference.estimated_monthly_income || '0').toLocaleString('en-GB')
                           }}</span></div>
                       <div v-if="accountantReference.tax_returns_filed !== undefined"><span
@@ -1195,7 +1200,8 @@
             </div>
 
             <!-- Verification Checks -->
-            <div class="bg-white border rounded-lg p-4">
+            <div v-if="!reference?.income_student && !reference?.income_unemployed"
+              class="bg-white border rounded-lg p-4">
               <h4 class="font-semibold text-gray-900 mb-3">Verification Checks</h4>
               <div class="space-y-3">
                 <div v-if="reference?.income_employment || reference?.income_regular_employment"
@@ -1284,7 +1290,7 @@
             </div>
 
             <!-- Evidence Source Selection -->
-            <div>
+            <div v-if="!reference?.income_student && !reference?.income_unemployed">
               <label class="block text-sm font-medium text-gray-700 mb-2">Evidence Sources Used</label>
               <div class="grid grid-cols-2 gap-3">
                 <label v-for="source in evidenceSourceOptions.INCOME_AFFORDABILITY" :key="source.evidence_type"
@@ -1305,6 +1311,60 @@
                 placeholder="Add notes about income verification, affordability calculations, guarantor rationale, etc."></textarea>
             </div>
 
+            <div v-if="!reference?.income_student && !reference?.income_unemployed" class="mx-auto bg-white">
+
+              <h2 class="text-2xl font-bold">Income Breakdown</h2>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-800">
+
+                <div>
+                  <p class="font-medium">Salary (£)</p>
+                  <p class="text-lg text-gray-600">£{{ annualSalary || 0 }}</p>
+                </div>
+
+                <div>
+                  <p class="font-medium">Self-employed (£)</p>
+                  <p class="text-lg text-gray-600">£{{  parseFloat(accountantReference.annual_profit || '0')}}</p>
+                </div>
+
+                <div>
+                  <p class="font-medium">Benefits (£)</p>
+                  <p class="text-lg text-gray-600">£{{ parseFloat(reference.benefits_annual_amount ||
+                    '0')}}</p>
+                </div>
+
+                <div>
+                  <p class="font-medium">Savings / Pension / Investment (£)</p>
+                  <p class="text-lg text-gray-600">£{{ parseFloat(reference.savings_amount || '0')}}</p>
+                </div>
+
+                <div>
+                  <p class="font-medium">Additional Income (£)</p>
+                  <p class="text-lg text-gray-600">£{{parseFloat(reference.additional_income_amount ||
+                    '0')}}</p>
+                </div>
+
+              </div>
+
+              <!-- Gross Total -->
+              <div class="p-4 bg-gray-100 rounded mt-3">
+                <p class="text-lg font-semibold">
+                  Gross Total:
+                  <span class="text-blue-600">£{{annualSalary + parseFloat(accountantReference.annual_profit || '0') + parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') + parseFloat(reference.additional_income_amount || '0')}}</span>
+                </p>
+                <p class="text-lg font-semibold">
+                  Max Affordability (Gross ÷ 30):
+                  <span class="text-green-600">£{{ (annualSalary + parseFloat(accountantReference.annual_profit || '0') + parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') + parseFloat(reference.additional_income_amount || '0'))/30 }} pcm</span>
+                </p>
+                <p class="text-lg font-semibold">
+                  Rent Share:
+                  <span class="text-blue-600">£{{ reference.previous_monthly_rent }}/month</span>
+                </p>
+              </div>
+
+
+            </div>
+
             <!-- Overall Result: Pass / Fail / Guarantor Needed -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
@@ -1321,7 +1381,7 @@
                       : 'bg-gray-100 text-gray-700 hover:bg-green-50',
                     !canMakeStep2Decision ? 'opacity-50 cursor-not-allowed' : ''
                   ]">
-                  Pass - Affordability confirmed
+                  Pass - Affordability supersede the rent share
                 </button>
                 <button @click="steps[2]!.overall_pass = false; steps[2]!.status = ''" :disabled="!canMakeStep2Decision"
                   :class="[
@@ -1548,13 +1608,13 @@
                   <p class="mt-1 text-gray-900">
                     {{ reference?.previous_rental_address_line1 || 'Not provided yet' }}
                     <span v-if="reference?.previous_rental_address_line2">, {{ reference.previous_rental_address_line2
-                      }}</span>
+                    }}</span>
                   </p>
                   <p v-if="reference?.previous_rental_city || reference?.previous_rental_postcode"
                     class="mt-1 text-gray-900">
                     {{ reference.previous_rental_city || '' }}<span
                       v-if="reference.previous_rental_city && reference.previous_rental_postcode">, </span>{{
-                    reference.previous_rental_postcode || '' }}
+                        reference.previous_rental_postcode || '' }}
                   </p>
                 </div>
                 <div>
@@ -1564,7 +1624,7 @@
                       {{ formatDate(reference.previous_tenancy_start_date, 'N/A') }}
                       {{ ' to ' }}
                       {{ reference.previous_tenancy_still_in_progress ? 'Present' :
-                      formatDate(reference.previous_tenancy_end_date, 'Still in tenancy') }}
+                        formatDate(reference.previous_tenancy_end_date, 'Still in tenancy') }}
                     </span>
                     <span v-else>Not provided yet</span>
                   </p>
@@ -1575,13 +1635,13 @@
                     {{ formatDate(landlordReference.tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
                     {{ landlordReference.tenancy_still_in_progress ? 'Still in tenancy' :
-                    formatDate(landlordReference.tenancy_end_date, 'N/A') }}
+                      formatDate(landlordReference.tenancy_end_date, 'N/A') }}
                   </p>
                   <p class="mt-1 text-gray-900" v-else-if="agentReference">
                     {{ formatDate(agentReference.tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
                     {{ agentReference.tenancy_still_in_progress ? 'Still in tenancy' :
-                    formatDate(agentReference.tenancy_end_date, 'N/A') }}
+                      formatDate(agentReference.tenancy_end_date, 'N/A') }}
                   </p>
                   <p class="mt-1 text-gray-900" v-else>Not provided yet</p>
                 </div>
@@ -1734,7 +1794,7 @@
                     <p class="text-sm font-medium text-gray-700">Are contact details verifiable?</p>
                     <p class="text-xs text-gray-500 mt-1">
                       {{ reference?.previous_landlord_email || landlordReference?.landlord_email ||
-                      agentReference?.agent_email
+                        agentReference?.agent_email
                       }}
                     </p>
                   </div>
@@ -2157,14 +2217,14 @@
                               'bg-gray-100 text-gray-800 border-2 border-gray-300'
                     ]">
                       {{ reassesmentDataForPreview.risk_level ?
-                      reassesmentDataForPreview.risk_level.toUpperCase().replace('_', ' ') : 'N/A' }}
+                        reassesmentDataForPreview.risk_level.toUpperCase().replace('_', ' ') : 'N/A' }}
                     </span>
                   </div>
                   <p v-if="reassesmentDataForPreview.risk_level" class="text-xs text-gray-500 mt-2">
                     {{ reassesmentDataForPreview.risk_level === 'very_high' ? 'Very high risk applicant' :
-                    reassesmentDataForPreview.risk_level === 'high' ? 'High risk applicant' :
-                    reassesmentDataForPreview.risk_level === 'medium' ? 'Medium risk applicant' :
-                    reassesmentDataForPreview.risk_level === 'low' ? 'Low risk applicant' : '' }}
+                      reassesmentDataForPreview.risk_level === 'high' ? 'High risk applicant' :
+                        reassesmentDataForPreview.risk_level === 'medium' ? 'Medium risk applicant' :
+                          reassesmentDataForPreview.risk_level === 'low' ? 'Low risk applicant' : '' }}
                   </p>
                 </div>
               </div>
@@ -2204,10 +2264,11 @@
                         <p class="text-2xl font-bold text-indigo-900">
                           {{ reassesmentDataForPreview.domains.income ?? '—' }}
                         </p>
-                        <p v-if="reassesmentDataForPreview.domains.income_band" class="text-xs capitalize text-gray-500 mt-1">
+                        <p v-if="reassesmentDataForPreview.domains.income_band"
+                          class="text-xs capitalize text-gray-500 mt-1">
                           Income band:
                           {{
-                          reassesmentDataForPreview.domains.income_band.replace('_', ' ') }}</p>
+                            reassesmentDataForPreview.domains.income_band.replace('_', ' ') }}</p>
                       </div>
                       <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
                         <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2241,7 +2302,7 @@
                       <div>
                         <p class="text-xs text-emerald-600 uppercase tracking-wide mb-1">AML</p>
                         <p class="text-2xl font-bold text-emerald-900">{{ reassesmentDataForPreview.domains.aml ?? '—'
-                          }}</p>
+                        }}</p>
                       </div>
                       <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
                         <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2258,7 +2319,7 @@
                       <div>
                         <p class="text-xs text-blue-600 uppercase tracking-wide mb-1">Credit</p>
                         <p class="text-2xl font-bold text-blue-900">{{ reassesmentDataForPreview.domains.credit ?? '—'
-                          }}</p>
+                        }}</p>
                       </div>
                       <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2305,7 +2366,7 @@
                           'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[0]!.overall_pass === true ? 'PASS' : steps[0]!.overall_pass === false ? 'FAIL' :
-                      'PENDING'
+                        'PENDING'
                       }}
                     </span>
                   </div>
@@ -2323,7 +2384,7 @@
                           'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[1]!.overall_pass === true ? 'PASS' : steps[1]!.overall_pass === false ? 'FAIL' :
-                      'PENDING'
+                        'PENDING'
                       }}
                     </span>
                   </div>
@@ -2342,7 +2403,7 @@
                             'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[2]!.status === 'GUARANTOR_NEEDED' ? 'GUARANTOR NEEDED' :
-                      steps[2]!.overall_pass === true ? 'PASS' : steps[2]!.overall_pass === false ? 'FAIL' : 'PENDING'
+                        steps[2]!.overall_pass === true ? 'PASS' : steps[2]!.overall_pass === false ? 'FAIL' : 'PENDING'
                       }}
                     </span>
                   </div>
@@ -2361,7 +2422,7 @@
                             'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[3]!.status === 'amber' ? 'AMBER' :
-                      steps[3]!.overall_pass === true ? 'PASS' : steps[3]!.overall_pass === false ? 'FAIL' : 'PENDING'
+                        steps[3]!.overall_pass === true ? 'PASS' : steps[3]!.overall_pass === false ? 'FAIL' : 'PENDING'
                       }}
                     </span>
                   </div>
@@ -2379,7 +2440,7 @@
                           'bg-gray-100 text-gray-600'
                     ]">
                       {{ steps[4]!.overall_pass === true ? 'PASS' : steps[4]!.overall_pass === false ? 'FAIL' :
-                      'PENDING'
+                        'PENDING'
                       }}
                     </span>
                   </div>
@@ -2714,16 +2775,19 @@ const comparisonStatusLabel = (status: SimpleComparisonStatus) => {
   return 'Not Provided'
 }
 
+const annualSalary = ref<number>(0);
+
 const employmentComparisonTable = computed<EmploymentComparisonDisplayRow[]>(() => {
   if (!reference.value || !employerReference.value) return []
 
   const tenant = reference.value
   const employer = employerReference.value
   const salary = parseFloat(tenant.employment_salary_amount || '0')
-  let annualSalary = salary;
-  if(tenant.employment_is_hourly && tenant.employment_hours_per_month) {
-    annualSalary = salary * tenant.employment_hours_per_month * 12;
+  let annualSalaryValue = salary;
+  if (tenant.employment_is_hourly && tenant.employment_hours_per_month) {
+    annualSalaryValue = salary * tenant.employment_hours_per_month * 12;
   }
+  annualSalary.value = annualSalaryValue;
 
   const rows: EmploymentComparisonDisplayRow[] = [
     {
@@ -2750,8 +2814,8 @@ const employmentComparisonTable = computed<EmploymentComparisonDisplayRow[]>(() 
     {
       key: 'salary',
       label: 'Annual Salary',
-      tenant: formatCurrencyDisplay(annualSalary),
-      employer: formatCurrencyDisplay(annualSalary),
+      tenant: formatCurrencyDisplay(annualSalaryValue),
+      employer: formatCurrencyDisplay(annualSalaryValue),
       status: compareCurrencyValues(tenant.employment_salary_amount, employer.annual_salary)
     },
     {
@@ -2858,15 +2922,15 @@ const proceedWithAction = () => {
   processing.value = true;
   if (pendingAction.value === 'finalize') {
     // Console log the verification report JSON
-    console.log('Verification Report JSON:', JSON.stringify(verificationReportJson.value, null, 2))
+    console.log('Verification Report JSON:', JSON.stringify(verificationReportJson.value, null, 2));
   } else if (pendingAction.value === 'reject') {
-    console.log('Verification Rejected (preview only):', JSON.stringify(verificationReportJson.value, null, 2))
+    console.log('Verification Rejected (preview only):', JSON.stringify(verificationReportJson.value, null, 2));
   }
   setTimeout(() => {
     processing.value = false;
     // Close modal and reset
-  showConfirmationModal.value = false
-  pendingAction.value = null
+    showConfirmationModal.value = false
+    pendingAction.value = null
   }, 3000);
 }
 
