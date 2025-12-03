@@ -26,7 +26,6 @@
 </template>
 
 <script setup lang="ts">
-/// <reference types="@types/google.maps" />
 import axios, { type AxiosResponse } from 'axios'
 import { ref, watch } from 'vue'
 
@@ -83,7 +82,6 @@ const justSelected = ref(false)
 // const apiLoaded = ref(false)
 const apiError = ref('')
 const suggestions = ref<any[]>([])
-const sessionToken = ref<google.maps.places.AutocompleteSessionToken | null>(null)
 let fetchTimeout: number | null = null
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -247,8 +245,6 @@ const selectSuggestion = async (suggestion: Predictions) => {
     // Emit the full address details
     emit('addressSelected', addressComponents)
 
-    // Create new session token for next search
-    sessionToken.value = new google.maps.places.AutocompleteSessionToken()
   } catch (error) {
     console.error('Failed to get place details:', error)
   }
@@ -303,6 +299,19 @@ const parseAddressComponents = (
   // Construct full postcode from parts if needed
   if (!postcode && (postcodePrefix || postcodeSuffix)) {
     postcode = [postcodePrefix, postcodeSuffix].filter(Boolean).join(' ')
+  }
+
+  // Fallback: Try to extract full UK postcode from formatted_address
+  // UK postcodes follow pattern: AA9A 9AA, A9A 9AA, A9 9AA, A99 9AA, AA9 9AA, AA99 9AA
+  if ((!postcode || !postcode.includes(' ')) && formattedAddress) {
+    const ukPostcodeRegex = /\b([A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2})\b/i
+    const match = formattedAddress.match(ukPostcodeRegex)
+    if (match) {
+      // Normalize the postcode format (ensure space between outward and inward parts)
+      const rawPostcode = match[1].replace(/\s+/g, '').toUpperCase()
+      // Insert space before the last 3 characters (inward code)
+      postcode = rawPostcode.slice(0, -3) + ' ' + rawPostcode.slice(-3)
+    }
   }
 
   let addressLine1 = [streetNumber, route].filter(Boolean).join(' ')
