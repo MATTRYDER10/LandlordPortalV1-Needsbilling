@@ -5,6 +5,7 @@ import { decrypt, encrypt } from '../services/encryption'
 import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
 import { sanctionsService } from '../services/sanctionsService'
 import { sendReferenceCompletedNotification } from '../services/emailService'
+import {  reAssessApplicationScore, ReAssessmentPayload } from '../services/application-assesment/assessApplication'
 
 const router = Router()
 
@@ -636,9 +637,7 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       absence_details: decrypt(employerReference.absence_details_encrypted),
       would_reemploy_details: decrypt(employerReference.would_reemploy_details_encrypted),
       additional_comments: decrypt(employerReference.additional_comments_encrypted),
-      signature: decrypt(employerReference.signature_encrypted),
-      submitted_ip_address: employerReference.submitted_ip_encrypted ? decrypt(employerReference.submitted_ip_encrypted) : null,
-      submitted_geolocation: parseEncryptedJsonField(employerReference.submitted_geolocation_encrypted)
+      signature: decrypt(employerReference.signature_encrypted)
     } : null
 
     const decryptedAccountantReference = accountantReference ? {
@@ -1216,4 +1215,32 @@ router.post('/references/:id/sanctions/run', authenticateStaff, async (req: Staf
   }
 })
 
+// Re-assess application score
+router.post('/references/:id/re-assess', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const payload: ReAssessmentPayload = req.body
+
+    if(!referenceId) {
+      return res.status(400).json({ error: 'Reference ID is required' })
+    }
+
+    if (!payload) {
+      return res.status(400).json({ error: 'Invalid payload' })
+    }
+
+    const result = await reAssessApplicationScore(referenceId, 'Staff', payload)
+    if (!result) {
+      return res.status(500).json({ error: 'Failed to re-assess application score' })
+    }
+    
+    res.json({
+      message: 'Application score re-assessed successfully',
+      result
+    })
+
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to re-assess application score' })
+  }
+})
 export default router

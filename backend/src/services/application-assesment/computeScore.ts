@@ -52,13 +52,17 @@ export const computeIncomeMultiple = ({
   benefits,
   additional,
   selfEmployedAnnual,
-  rent
+  rent,
+  additionalIncome,
+  savings
 }: {
   salary: number;
   benefits: number;
   additional: number;
   selfEmployedAnnual: number;
   rent: number;
+  additionalIncome: number;
+  savings: number;
 }) => {
   if (!rent || rent <= 0) return 0;
 
@@ -68,18 +72,13 @@ export const computeIncomeMultiple = ({
     (salary || 0) +
     (benefits || 0) +
     (additional || 0) +
+    (additionalIncome || 0) +
+    (savings || 0) +
     (monthlySelfEmployed || 0);
 
   return monthlyIncome / rent;
 };
-
-export const computeScore = ({
-  credit,
-  aml,
-  rtr,
-  residentialStatus,
-  incomeMultiple
-}: {
+interface Input {
   credit: {
     insolvency: boolean;
     ccj: boolean;
@@ -93,7 +92,17 @@ export const computeScore = ({
   rtr: boolean;
   residentialStatus: "PASS" | "SKIPPED" | "FAIL" | "AMBER";
   incomeMultiple: number;
-}) => {
+  caller: "System" | "Staff";
+}
+
+export const computeScore = ({
+  credit,
+  aml,
+  rtr,
+  residentialStatus,
+  incomeMultiple,
+  caller
+}: Input) => {
   const R = scoringRules;
 
   // Domain Scores
@@ -148,7 +157,12 @@ export const computeScore = ({
   if (!aml.sanctions) failCount++;
 
   // RTR (System does not add gate: will be added at staff portal)
-  if (rtr) rtrScore += R.rtr.pass;
+  if (rtr) {
+    rtrScore += R.rtr.pass;
+  }
+  else if (caller === "Staff" && !rtr){
+    gates.push(R.rtr.failGate);
+  }
 
   // RESIDENTIAL
   if (residentialStatus === "PASS") {

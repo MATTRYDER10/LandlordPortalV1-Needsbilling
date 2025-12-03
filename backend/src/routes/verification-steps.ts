@@ -557,4 +557,15 @@ router.get('/reference/:referenceId/progress', staffAuth, async (req: StaffAuthR
   }
 });
 
+router.post('/reference/:referenceId/submit-assessment', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const { assessmentId } = req.body;
+    
+  } catch (error: any) {
+    console.error('Error submitting assessment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

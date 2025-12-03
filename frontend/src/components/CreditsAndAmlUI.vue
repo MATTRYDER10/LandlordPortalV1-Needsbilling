@@ -14,19 +14,19 @@
 
                 <!-- Left Side Labels -->
                 <div class="flex flex-col gap-4 min-w-[240px]">
-                    <div class="flex items-center gap-3">
+                    <div v-if="props.caller === 'Agent'" class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Status</span>
                         <span :class="badgeClass(statusLabel)">
                             {{ statusLabel }}
                         </span>
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <!-- <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Identity Match</span>
                         <span :class="identityMatchBadgeClass">
                             {{ identityMatchLabel }}
                         </span>
-                    </div>
+                    </div> -->
 
                     <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Risk Level</span>
@@ -307,16 +307,16 @@ const statusLabel = computed(() => {
 })
 
 // Extract identity match label from name_match_score
-const identityMatchLabel = computed(() => {
-    if (!verificationData.value) return 'No Match'
-    const score = verificationData.value.name_match_score ?? 0
-    if (typeof score === 'number') {
-        if (score >= 80) return 'Match Found'
-        if (score >= 60) return 'Partial Match'
-        return 'No Match'
-    }
-    return 'Yet to be assessed'
-})
+// const identityMatchLabel = computed(() => {
+//     if (!verificationData.value) return 'No Match'
+//     const score = verificationData.value.name_match_score ?? 0
+//     if (typeof score === 'number') {
+//         if (score >= 80) return 'Match Found'
+//         if (score >= 60) return 'Partial Match'
+//         return 'No Match'
+//     }
+//     return 'Yet to be assessed'
+// })
 
 // Risk score color based on ranges: 0-350 red, 350-649 yellow, 650+ green
 const riskScoreColorClass = computed(() => {
@@ -327,11 +327,11 @@ const riskScoreColorClass = computed(() => {
 })
 
 // Identity match badge color - red if "No Match"
-const identityMatchBadgeClass = computed(() => {
-    const label = identityMatchLabel.value
-    if (label === 'No Match') return badgeClass('failed')
-    return badgeClass(label)
-})
+// const identityMatchBadgeClass = computed(() => {
+//     const label = identityMatchLabel.value
+//     if (label === 'No Match') return badgeClass('failed')
+//     return badgeClass(label)
+// })
 
 // Extract risk level label
 const riskLevelLabel = computed(() => {

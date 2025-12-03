@@ -2325,7 +2325,8 @@ router.post('/upload/:token', (req, res, next) => {
     { name: 'proof_of_additional_income', maxCount: 1 },
     { name: 'rtr_alternative_document', maxCount: 1 },
     { name: 'bank_statements', maxCount: 10 },
-    { name: 'payslips', maxCount: 10 }
+    { name: 'payslips', maxCount: 10 },
+    {name: 'tax_return', maxCount: 1}
   ])
 
   uploadMiddleware(req, res, (err) => {
@@ -2360,6 +2361,7 @@ router.post('/upload/:token', (req, res, next) => {
     let proofOfFundsPath: string | null = null
     let proofOfAdditionalIncomePath: string | null = null
     let rtrAlternativeDocumentPath: string | null = null
+    let taxReturnPath: string | null = null
     const bankStatementPaths: string[] = []
     const payslipPaths: string[] = []
 
@@ -2482,6 +2484,26 @@ router.post('/upload/:token', (req, res, next) => {
       rtrAlternativeDocumentPath = fileName
     }
 
+    // Upload tax return
+
+    if (files.tax_return && files.tax_return[0]) {
+      const file = files.tax_return[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/tax_return/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload tax return: ${uploadError.message}`)
+      }
+
+      taxReturnPath = fileName
+    }
+
     // Upload bank statements
     if (files.bank_statements) {
       for (const file of files.bank_statements) {
@@ -2533,7 +2555,8 @@ router.post('/upload/:token', (req, res, next) => {
       proof_of_additional_income: proofOfAdditionalIncomePath,
       rtr_alternative_document: rtrAlternativeDocumentPath,
       bank_statements: bankStatementPaths,
-      payslips: payslipPaths
+      payslips: payslipPaths,
+      tax_return: taxReturnPath
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -3159,6 +3182,7 @@ router.post('/employer/:referenceId', async (req: Request, res) => {
       annual_salary_encrypted: encrypt(formData.annualSalary ? String(formData.annualSalary) : null),
       salary_frequency: formData.salaryFrequency,
       is_probation: formData.isProbation,
+      employment_stable: formData.employmentStable,
       employment_status: formData.employmentStatus,
       performance_rating: formData.performanceRating,
       performance_details_encrypted: encrypt(formData.performanceDetails || ''),

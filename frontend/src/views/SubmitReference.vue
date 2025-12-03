@@ -265,11 +265,11 @@
               </p>
 
               <!-- British Citizenship & Right to Rent Check -->
-              <div class="mt-6 pt-6 border-t border-gray-200">
+              <div v-if="formData.nationality && formData.nationality.toLowerCase() !== 'british'" class="mt-6 pt-6 border-t border-gray-200">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Right to Rent Verification</h3>
 
                 <div class="space-y-4">
-                  <div>
+                  <!-- <div>
                     <label class="block text-sm font-medium text-gray-700 mb-3">Are you a British citizen? *</label>
                     <div class="flex gap-3">
                       <button type="button"
@@ -288,7 +288,7 @@
                         No
                       </button>
                     </div>
-                  </div>
+                  </div> -->
 
                   <!-- Share Code Input (only if not British citizen) -->
                   <div v-if="formData.is_british_citizen === false" class="pt-4">
@@ -321,7 +321,7 @@
                         (starts with 'R')</p>
                     </div>
 
-                    <div v-if="rtrVerificationStatus" class="mt-3 p-3 rounded border" :class="{
+                    <div v-if="rtrVerificationStatus && !rtrAlternativeDocument" class="mt-3 p-3 rounded border" :class="{
                     'bg-green-50 border-green-200': rtrVerificationStatus === 'verified',
                     'bg-red-50 border-red-200': rtrVerificationStatus === 'failed',
                     'bg-blue-50 border-blue-200': rtrVerificationStatus === 'checking'
@@ -2219,6 +2219,11 @@ const selectNationality = (nationality: string) => {
   nationalitySearch.value = nationality
   formData.value.nationality = nationality
   showNationalityDropdown.value = false
+  if(nationality.toLowerCase() === 'british') {
+    formData.value.is_british_citizen = true
+  } else {
+    formData.value.is_british_citizen = false
+  }
 }
 
 // Hide dropdown with delay to allow click
@@ -3190,6 +3195,7 @@ const verifyRTRShareCode = async () => {
       formData.value.rtr_verified = true
       formData.value.rtr_verification_data = data
     } else {
+      formData.value.rtr_share_code = ''
       rtrVerificationStatus.value = 'failed'
       rtrVerificationMessage.value = data.message || 'Unable to verify Right to Rent. Please check your details and share code.'
       formData.value.rtr_verified = false

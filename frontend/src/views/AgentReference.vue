@@ -493,9 +493,10 @@ const formData = ref({
 })
 
 const handleTenancyStatus = (status: string) => {
-  formData.value.tenancyStatus = status
-  formData.value.tenancyStillInProgress = status === 'still-in-contract'
-  if (status === 'still-in-contract') {
+  formData.value.tenancyStatus = status;
+  const isStillInProgress = (status === 'in-situ') || (status === 'notice-served')
+  formData.value.tenancyStillInProgress = isStillInProgress
+  if (isStillInProgress) {
     formData.value.tenancyEndDate = ''
   }
 }
