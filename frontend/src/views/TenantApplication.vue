@@ -16,20 +16,8 @@
             <!-- Form -->
             <form @submit.prevent="handleSubmit" class="space-y-6">
                 <div class="bg-white rounded-lg shadow p-6">
-                    <!-- Tenant Count Selector -->
-                    <div class="mb-6">
-                        <label for="tenant-count" class="block text-sm font-medium text-gray-700 mb-2">Number of Tenants
-                            *</label>
-                        <select id="tenant-count" v-model.number="tenantCount" @change="updateTenantCount(tenantCount)"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
-                            <option :value="1">1 Tenant</option>
-                            <option :value="2">2 Tenants</option>
-                            <option :value="3">3 Tenants</option>
-                            <option :value="4">4 Tenants</option>
-                            <option :value="5">5 Tenants</option>
-                            <option :value="6">6 Tenants</option>
-                        </select>
-                    </div>
+                    <!-- Tenant Count - Fixed to 1 for tenant-side applications -->
+                    <!-- Multi-tenant references are created by agents only -->
 
                     <!-- Property Information -->
                     <div class="mb-6">
