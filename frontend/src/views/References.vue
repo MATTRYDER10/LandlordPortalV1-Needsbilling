@@ -291,7 +291,7 @@
                         <path v-else fill-rule="evenodd"
                           d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
                       </svg>
-                      <span class="text-xs text-gray-600">Emp</span>
+                      <span class="text-xs text-gray-600">Inc</span>
                     </div>
                     <!-- Credit Check -->
                     <div class="flex items-center gap-1"
@@ -393,7 +393,7 @@
                         <path v-else fill-rule="evenodd"
                           d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
                       </svg>
-                      <span class="text-xs text-gray-600">Emp</span>
+                      <span class="text-xs text-gray-600">Inc</span>
                     </div>
                     <!-- Credit Check -->
                     <div class="flex items-center gap-1"
