@@ -2647,9 +2647,10 @@ const evidenceSourceOptions = ref<any>({
   CREDIT_TAS: [],
   RTR_VERIFICATION: []
 })
-const formatBooleanDisplay = (value: boolean | null | undefined) => {
-  if (value === true) return 'Yes'
-  if (value === false) return 'No'
+const formatBooleanDisplay = (value: boolean | string | null | undefined) => {
+  if (value === true || value === 'yes') return 'Yes'
+  if (value === false || value === 'no') return 'No'
+  if (typeof value === 'string' && value.trim()) return value.charAt(0).toUpperCase() + value.slice(1)
   return 'Not provided'
 }
 
@@ -3421,11 +3422,13 @@ const buildReAssessmentPayload = () => {
 
   const step5 = steps.value[4]
   // Map credit flags from creditAndAmlVerification
+  // Electoral roll is a factual check from creditsafe - always use actual value
+  // Insolvency/CCJ are overridden by staff decision when TAS is not REFER
   const credit_flags = {
     insolvency: tasDecision.value !== 'REFER' ? !step5?.overall_pass : creditAndAmlVerification.value?.verification?.verification_flags?.insolvencyMatch,
     ccj: tasDecision.value !== 'REFER' ? !step5?.overall_pass : creditAndAmlVerification.value?.verification?.verification_flags?.ccjMatch,
     deceased: creditAndAmlVerification.value?.verification?.verification_flags?.deceasedMatch,
-    electoral: tasDecision.value !== 'REFER' ? step5?.overall_pass : creditAndAmlVerification.value?.verification?.verification_flags?.electoralRollMatch,
+    electoral: creditAndAmlVerification.value?.verification?.verification_flags?.electoralRollMatch ?? true,
   }
 
   // Map sanctions_clear from complianceChecks
