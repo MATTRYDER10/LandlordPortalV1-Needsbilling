@@ -1324,7 +1324,7 @@
 
                 <div>
                   <p class="font-medium">Self-employed (£)</p>
-                  <p class="text-lg text-gray-600">£{{ parseFloat(accountantReference.annual_profit || '0') }}</p>
+                  <p class="text-lg text-gray-600">£{{ parseFloat(accountantReference?.annual_profit || '0') }}</p>
                 </div>
 
                 <div>
@@ -1350,13 +1350,13 @@
               <div class="p-4 bg-gray-100 rounded mt-3">
                 <p class="text-lg font-semibold">
                   Gross Total:
-                  <span class="text-blue-600">£{{ annualSalary + parseFloat(accountantReference.annual_profit || '0') +
+                  <span class="text-blue-600">£{{ annualSalary + parseFloat(accountantReference?.annual_profit || '0') +
                     parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') +
                     parseFloat(reference.additional_income_amount || '0')}}</span>
                 </p>
                 <p class="text-lg font-semibold">
                   Max Affordability (Gross ÷ 30):
-                  <span class="text-green-600">£{{ (annualSalary + parseFloat(accountantReference.annual_profit || '0')
+                  <span class="text-green-600">£{{ (annualSalary + parseFloat(accountantReference?.annual_profit || '0')
                     +
                     parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') +
                     parseFloat(reference.additional_income_amount || '0'))/30 }} pcm</span>
