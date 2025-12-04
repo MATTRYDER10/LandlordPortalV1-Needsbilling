@@ -1878,8 +1878,8 @@
               <div class="grid grid-cols-2 gap-3">
                 <label v-for="source in evidenceSourceOptions.RESIDENTIAL" :key="source.evidence_type"
                   class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="steps[2]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'">
-                  <input type="checkbox" :value="source.evidence_type" v-model="steps[2]!.evidence_sources"
+                  :class="steps[3]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'">
+                  <input type="checkbox" :value="source.evidence_type" v-model="steps[3]!.evidence_sources"
                     class="mr-3 h-4 w-4 text-primary focus:ring-primary" />
                   <span class="text-sm">{{ source.display_label }}</span>
                 </label>
@@ -2436,17 +2436,17 @@
                     <span :class="[
                       'px-3 py-1 rounded-full text-xs font-semibold',
                       steps[4]!.overall_pass === true ? 'bg-green-100 text-green-800' :
-                        steps[4]!.overall_pass === false ? 'bg-red-100 text-red-800' :
+                        steps[4]!.overall_pass === false && tasDecision !== 'REFER' ? 'bg-red-100 text-red-800' :
                           'bg-gray-100 text-gray-600'
                     ]">
-                      {{ steps[4]!.overall_pass === true ? 'PASS' : steps[4]!.overall_pass === false ? 'FAIL' :
+                      {{ steps[4]!.overall_pass === true ? 'PASS' : steps[4]!.overall_pass === false && tasDecision !== 'REFER' ? 'FAIL' :
                         'PENDING'
                       }}
                     </span>
                   </div>
                   <div v-if="tasDecision" class="mt-2">
-                    <p class="text-sm text-gray-600"><strong>TAS Category:</strong> {{ tasDecision }}</p>
-                    <p v-if="tasReason" class="text-sm text-gray-600 mt-1"><strong>Reason:</strong> {{ tasReason }}</p>
+                    <p class="text-sm text-gray-600 rounded-md p-2 bg-gray-100 w-full"><strong>TAS Category:</strong> {{ tasDecision }}</p>
+                    <p v-if="tasReason" class="text-sm text-gray-600 mt-1 rounded-md p-2 bg-gray-100 w-"><strong>Reason:</strong> {{ tasReason }}</p>
                   </div>
                   <p v-if="steps[4]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[4]!.notes }}</p>
                 </div>
@@ -2949,10 +2949,7 @@ const verificationReportJson = computed(() => {
     report['id'] = {
       decision: step1.overall_pass === true ? 'PASS' : step1.overall_pass === false ? 'FAIL' : 'PENDING',
       notes: step1.notes || '',
-      Verification_Checks: step1.checks.reduce((acc: any, check: any) => {
-        acc[check.name] = check.pass === true ? 'PASS' : check.pass === false ? 'FAIL' : null
-        return acc
-      }, {}),
+      Verification_Checks:{},
       Evidence_Sources_Used: step1.evidence_sources || []
     }
   }
@@ -2963,10 +2960,7 @@ const verificationReportJson = computed(() => {
     report['rtr'] = {
       decision: step2.overall_pass === true ? 'PASS' : step2.overall_pass === false ? 'FAIL' : 'PENDING',
       notes: step2.notes || '',
-      Verification_Checks: step2.checks.reduce((acc: any, check: any) => {
-        acc[check.name] = check.pass === true ? 'PASS' : check.pass === false ? 'FAIL' : null
-        return acc
-      }, {}),
+      Verification_Checks: {},
       Evidence_Sources_Used: step2.evidence_sources || []
     }
   }
@@ -3306,9 +3300,9 @@ const handleSignOut = async () => {
   router.push('/staff/login')
 }
 
-// Helper functions for verification checks
+// Helper functions for verification checks for income & affordability
 const toggleCheck = (checkName: string, pass: boolean) => {
-  const currentChecks = steps.value[1]!.checks as any[]
+  const currentChecks = steps.value[2]!.checks as any[]
   const existingCheckIndex = currentChecks.findIndex((c: any) => c.name === checkName)
 
   if (existingCheckIndex >= 0) {
@@ -3322,16 +3316,16 @@ const toggleCheck = (checkName: string, pass: boolean) => {
     })
   }
 }
-
+// Helper functions for income & affordability verification checks
 const getCheckValue = (checkName: string): boolean | null => {
-  const currentChecks = steps.value[1]!.checks as any[]
+  const currentChecks = steps.value[2]!.checks as any[]
   const check = currentChecks.find((c: any) => c.name === checkName)
-  return check ? check.pass : null
+  return check ? check.pass : null  
 }
 
 // Helper functions for residential verification checks
 const toggleResidentialCheck = (checkName: string, pass: boolean) => {
-  const currentChecks = steps.value[2]!.checks as any[]
+  const currentChecks = steps.value[3]!.checks as any[]
   const existingCheckIndex = currentChecks.findIndex((c: any) => c.name === checkName)
 
   if (existingCheckIndex >= 0) {
@@ -3346,8 +3340,9 @@ const toggleResidentialCheck = (checkName: string, pass: boolean) => {
   }
 }
 
+// Helper functions for residential verification checks
 const getResidentialCheckValue = (checkName: string): boolean | null => {
-  const currentChecks = steps.value[2]!.checks as any[]
+  const currentChecks = steps.value[3]!.checks as any[]
   const check = currentChecks.find((c: any) => c.name === checkName)
   return check ? check.pass : null
 }
@@ -3397,10 +3392,10 @@ const buildReAssessmentPayload = () => {
   const step5 = steps.value[4]
   // Map credit flags from creditAndAmlVerification
   const credit_flags = {
-    insolvency: !step5?.overall_pass,
-    ccj: !step5?.overall_pass,
-    deceased: !step5?.overall_pass ? creditAndAmlVerification.value?.verification?.verification_flags?.deceasedMatch : false,
-    electoral: step5?.overall_pass
+    insolvency: tasDecision.value !== 'REFER' ? !step5?.overall_pass : creditAndAmlVerification.value?.verification?.verification_flags?.insolvencyMatch,
+    ccj: tasDecision.value !== 'REFER' ? !step5?.overall_pass : creditAndAmlVerification.value?.verification?.verification_flags?.ccjMatch,
+    deceased: creditAndAmlVerification.value?.verification?.verification_flags?.deceasedMatch,
+    electoral: tasDecision.value !== 'REFER' ? step5?.overall_pass : creditAndAmlVerification.value?.verification?.verification_flags?.electoralRollMatch,
   }
 
   // Map sanctions_clear from complianceChecks
