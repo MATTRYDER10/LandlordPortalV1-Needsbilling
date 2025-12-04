@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { authenticateStaff as staffAuth, StaffAuthRequest } from '../middleware/staffAuth';
 import { supabase as supabaseAdmin } from '../config/supabase';
 import { generateReferenceReportPDFV2 } from '../services/pdfReportServiceV2';
