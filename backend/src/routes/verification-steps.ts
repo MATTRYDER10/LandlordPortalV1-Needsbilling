@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticateStaff as staffAuth, StaffAuthRequest } from '../middleware/staffAuth';
 import { supabase as supabaseAdmin } from '../config/supabase';
 import { generateReferenceReportPDFV2 } from '../services/pdfReportServiceV2';
+import { generatePassedPdfService } from '../services/generatePassedPdfService';
 import { validateSubmitAssessmentBody } from '../utils/verification-validation';
 import { assessApplicationScore } from '../services/application-assesment/assessApplication';
 
@@ -690,17 +691,41 @@ router.post(
         return res.status(200).json({ message: 'Assessment submitted successfully' });
       }
 
+      let pdfUrl = null;
       try {
-        const { buffer, firstName, lastName } = await generateReferenceReportPDFV2(referenceId);
-        const timestamp = Date.now();
-        const fileName = `reference-report-${firstName}-${lastName}-${timestamp}.pdf`;
+        pdfUrl = await generatePassedPdfService(referenceId);
+        console.log('[Assessment] Passed certificate PDF generated:', pdfUrl);
+
+        // Update reference with PDF URL
+        await supabaseAdmin
+          .from('tenant_references')
+          .update({ passed_certificate_url: pdfUrl })
+          .eq('id', referenceId);
       } catch (pdfError) {
-        console.error('Error generating PDF:', pdfError);
+        console.error('Error generating passed PDF:', pdfError);
+        // Don't fail the entire request if PDF generation fails
       }
+
+      return res.status(200).json({
+        message: 'Assessment submitted successfully',
+        pdfUrl
+      });
 
     } catch (error: any) {
       console.error("Error submitting assessment:", error);
       res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+router.get('/passed-certificate/:referenceId',async (req: StaffAuthRequest, res: Response) => {
+    try {
+        const { referenceId } = req.params;
+        const pdfUrl = await generatePassedPdfService(referenceId);
+        return res.status(200).json({ pdfUrl });
+    } catch (error: any) {
+        console.error('Error generating passed PDF:', error);
+        return res.status(500).json({ error: error.message });
     }
   }
 );
