@@ -22,7 +22,7 @@
             </button>
             <h2 class="text-3xl font-bold text-gray-900">
               {{ reference.tenant_first_name }} {{ reference.middle_name ? reference.middle_name + ' ' : '' }}{{
-                reference.tenant_last_name }}
+              reference.tenant_last_name }}
             </h2>
             <p class="mt-2 text-gray-600">Complete Reference Details</p>
           </div>
@@ -71,13 +71,12 @@
             </span>
 
             <!-- Credit Check Status -->
-            <span
-              class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1" :class="{
-                'bg-green-100 text-green-800': application_flags.credit_check_status === 'passed',
-                'bg-red-100 text-red-800': application_flags.credit_check_status === 'failed',
-                'bg-yellow-100 text-yellow-800': application_flags.credit_check_status === 'refer',
-                'bg-gray-100 text-gray-800': application_flags.credit_check_status === 'pending' || application_flags.credit_check_status === 'error'
-              }"
+            <span class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1" :class="{
+              'bg-green-100 text-green-800': application_flags.credit_check_status === 'passed',
+              'bg-red-100 text-red-800': application_flags.credit_check_status === 'failed',
+              'bg-yellow-100 text-yellow-800': application_flags.credit_check_status === 'refer',
+              'bg-gray-100 text-gray-800': application_flags.credit_check_status === 'pending' || application_flags.credit_check_status === 'error'
+            }"
               :title="application_flags.credit_check_status === 'passed' ? 'Credit check passed' : application_flags.credit_check_status === 'failed' ? 'Credit check failed' : application_flags.credit_check_status === 'refer' ? 'Manual review required' : 'Credit check pending'">
               <svg v-if="application_flags.credit_check_status === 'passed'" class="w-4 h-4" fill="currentColor"
                 viewBox="0 0 20 20">
@@ -85,8 +84,8 @@
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                   clip-rule="evenodd" />
               </svg>
-              <svg v-else-if="application_flags.credit_check_status === 'failed'" class="w-4 h-4"
-                fill="currentColor" viewBox="0 0 20 20">
+              <svg v-else-if="application_flags.credit_check_status === 'failed'" class="w-4 h-4" fill="currentColor"
+                viewBox="0 0 20 20">
                 <path fill-rule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                   clip-rule="evenodd" />
@@ -103,8 +102,8 @@
             </span>
 
             <!-- Sanctions Screening Status -->
-            <span v-if="application_flags.sanctions_check.show" class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1"
-              :class="{
+            <span v-if="application_flags.sanctions_check.show"
+              class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1" :class="{
                 'bg-green-100 text-green-800': application_flags.sanctions_check.risk_level === 'clear',
                 'bg-blue-100 text-blue-800': application_flags.sanctions_check.risk_level === 'low',
                 'bg-yellow-100 text-yellow-800': application_flags.sanctions_check.risk_level === 'medium',
@@ -127,11 +126,202 @@
           </div>
         </div>
 
-        <!-- Reference Score (shown when completed) -->
-        <!-- <ScoreCard v-if="score && reference.status === 'completed'" :score="score" />
-        <div v-else-if="loadingScore" class="bg-white rounded-lg shadow-md p-6">
-          <div class="text-center text-gray-600">Loading score...</div>
-        </div> -->
+        <!-- Assesment Remarks Section -->
+        <div v-if="(reference.status === 'completed' || reference.status === 'rejected') && reference?.final_remarks"
+          class="bg-white rounded-lg shadow-md p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Assessment Remark
+          </h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- ID Verification -->
+            <div class="border rounded-lg p-4"
+              :class="reference.final_remarks.id.decision === 'PASS' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-semibold text-gray-900">ID Verification</h4>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full"
+                  :class="reference.final_remarks.id.decision === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                  {{ reference.final_remarks.id.decision }}
+                </span>
+              </div>
+              <p v-if="reference.final_remarks.id.notes" class="text-sm text-gray-700 mt-2">
+                {{ reference.final_remarks.id.notes }}
+              </p>
+            </div>
+
+            <!-- Right to Rent -->
+            <div v-if="reference.final_remarks?.rtr" class="border rounded-lg p-4" :class="reference.final_remarks.rtr.decision === 'PASS'
+              ? 'border-green-200 bg-green-50'
+              : 'border-red-200 bg-red-50'">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-semibold text-gray-900">Right to Rent</h4>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full" :class="reference.final_remarks.rtr.decision === 'PASS'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'">
+                  {{ reference.final_remarks.rtr.decision }}
+                </span>
+              </div>
+              <p v-if="reference.final_remarks.rtr.notes" class="text-sm text-gray-700 mt-2">
+                {{ reference.final_remarks.rtr.notes }}
+              </p>
+            </div>
+
+            <!-- Income -->
+            <div v-if="reference?.final_remarks?.income" class="border rounded-lg p-4" :class="reference.final_remarks.income.decision === 'PASS'
+              ? 'border-green-200 bg-green-50'
+              : 'border-red-200 bg-red-50'">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-semibold text-gray-900">Income</h4>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full" :class="reference.final_remarks.income.decision === 'PASS'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'">
+                  {{ reference.final_remarks.income.decision }}
+                </span>
+              </div>
+
+              <p v-if="reference.final_remarks.income.notes" class="text-sm text-gray-700 mt-2">
+                {{ reference.final_remarks.income.notes }}
+              </p>
+
+              <!-- Verification Checks -->
+              <div
+                v-if="reference.final_remarks.income.Verification_Checks && Object.keys(reference.final_remarks.income.Verification_Checks).length"
+                class="mt-3 pt-3 border-t border-gray-200">
+                <p class="text-xs font-medium text-gray-600 mb-2">Verification Checks:</p>
+                <div class="space-y-1">
+                  <div v-for="(value, key) in reference.final_remarks.income.Verification_Checks" :key="key"
+                    class="flex items-center justify-between text-xs">
+                    <span class="text-gray-600">{{ formatCheckName(String(key)) }}:</span>
+                    <span class="font-medium" :class="value === 'PASS'
+                      ? 'text-green-700'
+                      : value === 'FAIL'
+                        ? 'text-red-700'
+                        : 'text-gray-700'">
+                      {{ value }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Evidence Sources -->
+              <div v-if="reference.final_remarks.income.Evidence_Sources_Used?.length"
+                class="mt-3 pt-3 border-t border-gray-200">
+                <p class="text-xs font-medium text-gray-600 mb-2">Evidence Sources:</p>
+                <div class="flex flex-wrap gap-1">
+                  <span v-for="source in reference.final_remarks.income.Evidence_Sources_Used" :key="source"
+                    class="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">
+                    {{ formatEvidenceSource(source) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Residential -->
+            <div v-if="reference?.final_remarks?.residential" class="border rounded-lg p-4" :class="reference.final_remarks.residential.decision === 'PASS'
+              ? 'border-green-200 bg-green-50'
+              : 'border-red-200 bg-red-50'">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-semibold text-gray-900">Residential</h4>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full" :class="reference.final_remarks.residential.decision === 'PASS'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'">
+                  {{ reference.final_remarks.residential.decision }}
+                </span>
+              </div>
+
+              <p v-if="reference.final_remarks.residential.notes" class="text-sm text-gray-700 mt-2">
+                {{ reference.final_remarks.residential.notes }}
+              </p>
+
+              <!-- Verification Checks -->
+              <div
+                v-if="reference.final_remarks.residential.Verification_Checks && Object.keys(reference.final_remarks.residential.Verification_Checks).length"
+                class="mt-3 pt-3 border-t border-gray-200">
+                <p class="text-xs font-medium text-gray-600 mb-2">Verification Checks:</p>
+                <div class="space-y-1">
+                  <div v-for="(value, key) in reference.final_remarks.residential.Verification_Checks" :key="key"
+                    class="flex items-center justify-between text-xs">
+                    <span class="text-gray-600">{{ formatCheckName(String(key)) }}:</span>
+                    <span class="font-medium" :class="value === 'PASS'
+                      ? 'text-green-700'
+                      : value === 'FAIL'
+                        ? 'text-red-700'
+                        : 'text-gray-700'">
+                      {{ value }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Evidence Sources -->
+              <div v-if="reference.final_remarks.residential.Evidence_Sources_Used?.length"
+                class="mt-3 pt-3 border-t border-gray-200">
+                <p class="text-xs font-medium text-gray-600 mb-2">Evidence Sources:</p>
+                <div class="flex flex-wrap gap-1">
+                  <span v-for="source in reference.final_remarks.residential.Evidence_Sources_Used" :key="source"
+                    class="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">
+                    {{ formatEvidenceSource(source) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Credit & TAS (Full Width) -->
+            <div v-if="reference?.final_remarks?.credit_tas" class="md:col-span-2 border rounded-lg p-4" :class="reference.final_remarks.credit_tas.decision === 'PASS'
+              ? 'border-green-200 bg-green-50'
+              : 'border-red-200 bg-red-50'">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-semibold text-gray-900">Credit & TAS</h4>
+                <div class="flex items-center gap-2">
+                  <span v-if="reference.final_remarks.credit_tas.tas_category"
+                    class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                    TAS: {{ reference.final_remarks.credit_tas.tas_category }}
+                  </span>
+
+                  <span class="px-2 py-1 text-xs font-semibold rounded-full" :class="reference.final_remarks.credit_tas.decision === 'PASS'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'">
+                    {{ reference.final_remarks.credit_tas.decision }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- TAS Reason -->
+              <div v-if="reference.final_remarks.credit_tas.tas_reason" class="mb-2">
+                <p class="text-xs font-medium text-gray-600 mb-1">TAS Reason:</p>
+                <p class="text-sm text-gray-700">
+                  {{ reference.final_remarks.credit_tas.tas_reason }}
+                </p>
+              </div>
+
+              <!-- Notes -->
+              <div v-if="reference.final_remarks.credit_tas.notes">
+                <p class="text-xs font-medium text-gray-600 mb-1">Notes:</p>
+                <p class="text-sm text-gray-700">
+                  {{ reference.final_remarks.credit_tas.notes }}
+                </p>
+              </div>
+
+              <!-- Evidence Sources -->
+              <div v-if="reference.final_remarks.credit_tas.Evidence_Sources_Used?.length"
+                class="mt-3 pt-3 border-t border-gray-200">
+                <p class="text-xs font-medium text-gray-600 mb-2">Evidence Sources:</p>
+                <div class="flex flex-wrap gap-1">
+                  <span v-for="source in reference.final_remarks.credit_tas.Evidence_Sources_Used" :key="source"
+                    class="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">
+                    {{ formatEvidenceSource(source) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
 
         <!-- Guarantor Reference Context Banner -->
         <div v-if="reference.is_guarantor && parentReference"
@@ -226,7 +416,7 @@
                   <div class="flex-1">
                     <div class="flex items-center gap-3 mb-1">
                       <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Tenant {{ index + 1
-                        }}</span>
+                      }}</span>
                       <span class="px-2 py-0.5 text-xs font-semibold rounded-full" :class="{
                         'bg-yellow-100 text-yellow-800': child.status === 'pending',
                         'bg-blue-100 text-blue-800': child.status === 'in_progress',
@@ -445,7 +635,7 @@
                         <label class="block text-sm font-medium text-gray-500">Country</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_country ?
                           getCountryName(childReferenceDetails[child.id].reference.current_country) : 'Not provided yet'
-                          }}</p>
+                        }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Time at Address</label>
@@ -987,7 +1177,7 @@
                         <label class="block text-sm font-medium text-gray-500">Smoker</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.is_smoker === true ?
                           'Yes' : childReferenceDetails[child.id].reference.is_smoker === false ? 'No' : 'Not provided'
-                          }}</p>
+                        }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Pets</label>
@@ -1003,7 +1193,7 @@
                         <label class="block text-sm font-medium text-gray-500">Marital Status</label>
                         <p class="mt-1 text-gray-900 capitalize">{{
                           childReferenceDetails[child.id].reference.marital_status?.replace('_', ' ') || 'Not provided'
-                          }}</p>
+                        }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Number of Dependants</label>
@@ -1120,7 +1310,7 @@
                                   class="text-red-600 font-semibold"> 🚩 STILL IN CONTRACT - No end date</span>
                                 <span v-else class="text-green-900"> {{
                                   formatDate(childReferenceDetails[child.id].landlordReference.tenancy_end_date)
-                                  }}</span>
+                                }}</span>
                               </div>
                               <div><span class="text-green-700 font-medium">Monthly Rent:</span> <span
                                   class="text-green-900">£{{
@@ -1383,7 +1573,8 @@
         </div>
 
         <!-- Creditsafe Identity Verification -->
-        <CreditsAndAmlUI v-if="application_flags.credit_check_status !== 'pending'" :verification="creditAndAmlVerification?.verification"
+        <CreditsAndAmlUI v-if="application_flags.credit_check_status !== 'pending'"
+          :verification="creditAndAmlVerification?.verification"
           :compliance-checks="creditAndAmlVerification?.complianceChecks ?? {}" :caller="'Agent'" />
 
         <div v-else class="bg-white rounded-lg shadow p-6">
@@ -1912,7 +2103,7 @@
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-lg font-semibold text-green-900">✓ Employer Reference Completed</h4>
                     <span class="text-xs text-green-700">Submitted {{ formatDateTime(employerReference.submitted_at)
-                      }}</span>
+                    }}</span>
                   </div>
 
                   <div class="space-y-6">
@@ -2063,7 +2254,7 @@
                   reference.guarantor_last_name }}</p>
                 <p><span class="font-medium">Email:</span> {{ reference.guarantor_email }}</p>
                 <p v-if="reference.guarantor_phone"><span class="font-medium">Phone:</span> {{ reference.guarantor_phone
-                  }}</p>
+                }}</p>
                 <p v-if="reference.guarantor_relationship"><span class="font-medium">Relationship:</span> {{
                   reference.guarantor_relationship }}</p>
               </div>
@@ -2075,7 +2266,7 @@
                 <div class="flex items-center justify-between mb-4">
                   <h5 class="text-lg font-semibold text-green-900">✓ Guarantor Reference Completed</h5>
                   <span class="text-xs text-green-700">Submitted {{ formatDateTime(guarantorReference.submitted_at)
-                    }}</span>
+                  }}</span>
                 </div>
 
                 <div class="space-y-6">
@@ -2362,7 +2553,7 @@
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-lg font-semibold text-green-900">✓ Accountant Reference Completed</h4>
                     <span class="text-xs text-green-700">Submitted {{ formatDateTime(accountantReference.submitted_at)
-                      }}</span>
+                    }}</span>
                   </div>
 
                   <div class="space-y-4">
@@ -2590,7 +2781,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-500">Marital Status</label>
               <p class="mt-1 text-gray-900 capitalize">{{ reference.marital_status?.replace('_', ' ') || 'Not provided'
-                }}</p>
+              }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Number of Dependants</label>
@@ -2642,7 +2833,7 @@
                   <label class="block text-sm font-medium text-gray-500">Tenancy Duration</label>
                   <p class="mt-1 text-gray-900">{{ formatTenancyDuration(reference.tenancy_years,
                     reference.tenancy_months)
-                    }}</p>
+                  }}</p>
                 </div>
               </div>
 
@@ -2687,7 +2878,7 @@
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-sm font-semibold text-green-900">✓ Landlord Reference Completed</h4>
                   <span class="text-xs text-green-700">Submitted {{ formatDateTime(landlordReference.submitted_at)
-                    }}</span>
+                  }}</span>
                 </div>
 
                 <div class="space-y-6 text-sm">
@@ -2744,7 +2935,7 @@
                           🚩 STILL IN CONTRACT - No end date
                         </span>
                         <span v-else class="ml-2 text-green-900">{{ formatDate(landlordReference.tenancy_end_date)
-                          }}</span>
+                        }}</span>
                       </div>
                       <div>
                         <span class="text-green-700 font-medium">Monthly Rent:</span>
@@ -2826,7 +3017,7 @@
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-sm font-semibold text-green-900">✓ Letting Agent Reference Completed</h4>
                   <span class="text-xs text-green-700">Submitted {{ formatDateTime(agentReference.submitted_at)
-                    }}</span>
+                  }}</span>
                 </div>
 
                 <div class="space-y-6 text-sm">
@@ -2887,7 +3078,7 @@
                           🚩 STILL IN CONTRACT - No end date
                         </span>
                         <span v-else class="ml-2 text-green-900">{{ formatDate(agentReference.tenancy_end_date)
-                          }}</span>
+                        }}</span>
                       </div>
                       <div>
                         <span class="text-green-700 font-medium">Monthly Rent:</span>
@@ -3268,18 +3459,18 @@ const expandedTenant = ref<string | null>(null)
 const childReferenceDetails = ref<Record<string, any>>({})
 //const score = ref<any>(null)
 const application_flags = ref({
-  credit_check_status : 'pending',
-  sanctions_check : {
-    risk_level : '',
-    summary_message : '',
-    show : false
+  credit_check_status: 'pending',
+  sanctions_check: {
+    risk_level: '',
+    summary_message: '',
+    show: false
   },
 })
 const downloadingPDF = ref(false)
 //const sanctionsScreening = ref<any>(null)
 //const creditsafeVerification = ref<any>(null)
 
-type CreditAndAmlVerification  = Omit<CreditsAndAmlUIProps,'caller'>
+type CreditAndAmlVerification = Omit<CreditsAndAmlUIProps, 'caller'>
 const creditAndAmlVerification = ref<CreditAndAmlVerification>()
 
 // Add Guarantor modal state
@@ -3352,7 +3543,7 @@ const fetchReference = async () => {
     }
 
     const data = await response.json()
-    reference.value = data.reference
+    reference.value = { ...data.reference, ...(data.score?.final_remarks ? { final_remarks: data.score?.final_remarks } : {}) }
     landlordReference.value = data.landlordReference
     agentReference.value = data.agentReference
     employerReference.value = data.employerReference
@@ -3365,11 +3556,11 @@ const fetchReference = async () => {
     documents.value = data.documents || []
 
     application_flags.value = {
-      credit_check_status : data?.reference?.status === 'pending' ? 'pending' : data?.creditsafeVerification?.verification_status ?? '',
-      sanctions_check : {
-        risk_level : data.sanctionsScreening?.risk_level ?? '',
-        summary_message : data.sanctionsScreening?.summary_message ?? '',
-        show : data.reference?.status !== 'pending'
+      credit_check_status: data?.reference?.status === 'pending' ? 'pending' : data?.creditsafeVerification?.verification_status ?? '',
+      sanctions_check: {
+        risk_level: data.sanctionsScreening?.risk_level ?? '',
+        summary_message: data.sanctionsScreening?.summary_message ?? '',
+        show: data.reference?.status !== 'pending'
       },
     }
     //creditsafeVerification.value = data.creditsafeVerification
@@ -3603,6 +3794,22 @@ const closeGuarantorModal = () => {
 
 const formatStatus = (status: string) => {
   return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+const formatCheckName = (key: string) => {
+  // Convert camelCase to Title Case
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, str => str.toUpperCase())
+    .trim()
+}
+
+const formatEvidenceSource = (source: string) => {
+  // Convert SNAKE_CASE to Title Case
+  return source
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
 }
 
 const formatRTRDocType = (type?: string | null) => {
