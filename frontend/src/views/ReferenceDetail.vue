@@ -3563,13 +3563,6 @@ const fetchReference = async () => {
         show: data.reference?.status !== 'pending'
       },
     }
-    //creditsafeVerification.value = data.creditsafeVerification
-    let flags = {}
-    try {
-      flags = JSON.parse(data.creditsafeVerification?.fraud_indicators ?? '{}')
-    } catch (err: any) {
-      console.error('Error parsing fraud indicators:', err)
-    }
 
     const areSanctionClear = data?.sanctionsScreening?.risk_level === 'clear' || (Array.isArray(data?.sanctionsScreening?.sanctions_matches) && data?.sanctionsScreening?.sanctions_matches.length === 0)
 
@@ -3579,7 +3572,7 @@ const fetchReference = async () => {
         application_status: data?.score?.assessed_by === "System" ? "Yet to be assessed" : data?.score?.decision,
         risk_level: data?.score?.assessed_by === "System" ? 'yet_to_be_assessed' : data?.score?.risk_level,
         risk_score: data?.score?.score_total ?? 0,
-        verification_flags: flags as any
+        verification_flags: data.creditsafeVerification?.fraud_indicators as any
       },
       complianceChecks: {
         pep: areSanctionClear,

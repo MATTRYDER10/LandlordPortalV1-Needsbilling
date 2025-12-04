@@ -676,7 +676,7 @@ router.post(
           final_decision: finalDecision,
           all_steps_passed: true
         },
-        performed_by: staffUser.id
+        created_by: staffUser.id
       });
       if (auditError) {
         console.error('Error logging to audit:', auditError);
