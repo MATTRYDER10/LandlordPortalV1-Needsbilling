@@ -2948,8 +2948,8 @@ const proceedWithAction = async () => {
     }
     if (verdict === 'completed') {
       const data = await response.json();
-      if (data.pdf_url) {
-        window.open(data.pdf_url, '_blank');
+      if (data.pdfUrl) {
+        window.open(data.pdfUrl, '_blank');
       } else {
         console.error('No PDF URL found');
       }

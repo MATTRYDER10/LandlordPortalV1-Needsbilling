@@ -3667,49 +3667,11 @@ const fetchReference = async () => {
 
 const downloadPDFReport = async () => {
   try {
-    downloadingPDF.value = true
-    const token = authStore.session?.access_token
-    if (!token) {
-      toast.error('Authentication required')
+    if (!reference.value?.passed_certificate_url) {
+      toast.error('No passed certificate URL found')
       return
     }
-
-    const response = await fetch(`${API_URL}/api/references/${route.params.id}/report`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to generate PDF report')
-    }
-
-    // Get the PDF blob
-    const blob = await response.blob()
-
-    // Extract filename from Content-Disposition header
-    const contentDisposition = response.headers.get('Content-Disposition')
-    let filename = 'PropertyGoose_Reference_Report.pdf'
-
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="(.+)"/)
-      if (filenameMatch && filenameMatch[1]) {
-        filename = filenameMatch[1]
-      }
-    }
-
-    // Create a download link
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
-
-    toast.success('PDF report downloaded successfully')
+    window.open(reference.value?.passed_certificate_url, '_blank')
   } catch (err: any) {
     console.error('Failed to download PDF report:', err)
     toast.error(err.message || 'Failed to download PDF report')
