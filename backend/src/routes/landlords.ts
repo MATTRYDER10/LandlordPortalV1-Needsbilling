@@ -581,6 +581,65 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 /**
+ * POST /api/landlords/bulk-delete
+ * Delete multiple landlords
+ */
+router.post('/bulk-delete', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const { ids } = req.body
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'No landlord IDs provided' })
+    }
+
+    // Get user's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+      .single()
+
+    if (!companyUser) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    // Verify all landlords belong to the company
+    const { data: landlords } = await supabase
+      .from('landlords')
+      .select('id')
+      .in('id', ids)
+      .eq('company_id', companyUser.company_id)
+
+    if (!landlords || landlords.length === 0) {
+      return res.status(404).json({ error: 'No landlords found' })
+    }
+
+    const validIds = landlords.map(l => l.id)
+
+    // Delete landlords (cascade will delete properties and AML checks)
+    const { error } = await supabase
+      .from('landlords')
+      .delete()
+      .in('id', validIds)
+
+    if (error) {
+      return res.status(400).json({ error: error.message })
+    }
+
+    res.json({ message: 'Landlords deleted successfully', deleted: validIds.length })
+  } catch (error: any) {
+    console.error('Error bulk deleting landlords:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * POST /api/landlords/import-csv
  * Import landlords from CSV file with field mapping
  */

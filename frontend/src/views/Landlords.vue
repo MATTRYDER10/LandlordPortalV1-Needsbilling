@@ -64,6 +64,31 @@
           </div>
         </div>
 
+        <!-- Bulk Actions Bar -->
+        <div
+          v-if="selectedLandlords.size > 0"
+          class="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between"
+        >
+          <span class="text-sm font-medium text-gray-700">
+            {{ selectedLandlords.size }} landlord{{ selectedLandlords.size === 1 ? '' : 's' }} selected
+          </span>
+          <div class="flex gap-2">
+            <button
+              @click="clearSelection"
+              class="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800"
+            >
+              Clear selection
+            </button>
+            <button
+              @click="bulkDeleteLandlords"
+              :disabled="bulkDeleting"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
+            >
+              {{ bulkDeleting ? 'Deleting...' : 'Delete Selected' }}
+            </button>
+          </div>
+        </div>
+
         <!-- Loading State -->
         <div v-if="loading" class="bg-white rounded-lg shadow overflow-hidden">
           <div class="p-8 text-center text-gray-600">Loading landlords...</div>
@@ -80,6 +105,15 @@
             <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
+                <th scope="col" class="px-6 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    :checked="filteredLandlords.length > 0 && selectedLandlords.size === filteredLandlords.length"
+                    :indeterminate="selectedLandlords.size > 0 && selectedLandlords.size < filteredLandlords.length"
+                    @change="toggleSelectAll"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Landlords
                 </th>
@@ -96,7 +130,7 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <tr v-if="filteredLandlords.length === 0">
-                <td colspan="4" class="px-6 py-8 text-center text-gray-500">
+                <td colspan="5" class="px-6 py-8 text-center text-gray-500">
                   No landlords found
                 </td>
               </tr>
@@ -104,8 +138,17 @@
                 v-for="landlord in filteredLandlords"
                 :key="landlord.id"
                 class="hover:bg-gray-50 cursor-pointer"
+                :class="{ 'bg-primary/5': selectedLandlords.has(landlord.id) }"
                 @click="viewLandlord(landlord.id)"
               >
+                <td class="px-6 py-4 whitespace-nowrap" @click.stop>
+                  <input
+                    type="checkbox"
+                    :checked="selectedLandlords.has(landlord.id)"
+                    @change="toggleSelectLandlord(landlord.id)"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
                     <div>
@@ -242,6 +285,8 @@ const editingLandlordId = ref<string | null>(null)
 const showImportModal = ref(false)
 const showFilterModal = ref(false)
 const actionsMenuOpen = ref<string | null>(null)
+const selectedLandlords = ref<Set<string>>(new Set())
+const bulkDeleting = ref(false)
 
 const filteredLandlords = computed(() => {
   let filtered = landlords.value
@@ -324,6 +369,62 @@ const deleteLandlord = async (id: string) => {
     toast.error('Failed to delete landlord')
   } finally {
     actionsMenuOpen.value = null
+  }
+}
+
+const toggleSelectAll = () => {
+  if (selectedLandlords.value.size === filteredLandlords.value.length) {
+    selectedLandlords.value.clear()
+  } else {
+    selectedLandlords.value = new Set(filteredLandlords.value.map(l => l.id))
+  }
+}
+
+const toggleSelectLandlord = (id: string) => {
+  if (selectedLandlords.value.has(id)) {
+    selectedLandlords.value.delete(id)
+  } else {
+    selectedLandlords.value.add(id)
+  }
+  // Force reactivity
+  selectedLandlords.value = new Set(selectedLandlords.value)
+}
+
+const clearSelection = () => {
+  selectedLandlords.value.clear()
+  selectedLandlords.value = new Set()
+}
+
+const bulkDeleteLandlords = async () => {
+  const count = selectedLandlords.value.size
+  if (!confirm(`Are you sure you want to delete ${count} landlord${count === 1 ? '' : 's'}? This action cannot be undone.`)) {
+    return
+  }
+
+  bulkDeleting.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/landlords/bulk-delete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ ids: Array.from(selectedLandlords.value) })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to delete landlords')
+    }
+
+    const result = await response.json()
+    toast.success(`${result.deleted} landlord${result.deleted === 1 ? '' : 's'} deleted successfully`)
+    clearSelection()
+    fetchLandlords()
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to delete landlords')
+  } finally {
+    bulkDeleting.value = false
   }
 }
 
