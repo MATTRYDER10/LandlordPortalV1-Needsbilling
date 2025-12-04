@@ -873,7 +873,7 @@
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-lg font-semibold text-green-900">✓ Accountant Reference Completed</h4>
                   <span class="text-xs text-green-700">Submitted {{ formatDate(accountantReference.submitted_at)
-                  }}</span>
+                    }}</span>
                 </div>
 
                 <div class="space-y-4">
@@ -1324,24 +1324,24 @@
 
                 <div>
                   <p class="font-medium">Self-employed (£)</p>
-                  <p class="text-lg text-gray-600">£{{  parseFloat(accountantReference.annual_profit || '0')}}</p>
+                  <p class="text-lg text-gray-600">£{{ parseFloat(accountantReference.annual_profit || '0') }}</p>
                 </div>
 
                 <div>
                   <p class="font-medium">Benefits (£)</p>
                   <p class="text-lg text-gray-600">£{{ parseFloat(reference.benefits_annual_amount ||
-                    '0')}}</p>
+                    '0') }}</p>
                 </div>
 
                 <div>
                   <p class="font-medium">Savings / Pension / Investment (£)</p>
-                  <p class="text-lg text-gray-600">£{{ parseFloat(reference.savings_amount || '0')}}</p>
+                  <p class="text-lg text-gray-600">£{{ parseFloat(reference.savings_amount || '0') }}</p>
                 </div>
 
                 <div>
                   <p class="font-medium">Additional Income (£)</p>
-                  <p class="text-lg text-gray-600">£{{parseFloat(reference.additional_income_amount ||
-                    '0')}}</p>
+                  <p class="text-lg text-gray-600">£{{ parseFloat(reference.additional_income_amount ||
+                    '0') }}</p>
                 </div>
 
               </div>
@@ -1350,11 +1350,16 @@
               <div class="p-4 bg-gray-100 rounded mt-3">
                 <p class="text-lg font-semibold">
                   Gross Total:
-                  <span class="text-blue-600">£{{annualSalary + parseFloat(accountantReference.annual_profit || '0') + parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') + parseFloat(reference.additional_income_amount || '0')}}</span>
+                  <span class="text-blue-600">£{{ annualSalary + parseFloat(accountantReference.annual_profit || '0') +
+                    parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') +
+                    parseFloat(reference.additional_income_amount || '0')}}</span>
                 </p>
                 <p class="text-lg font-semibold">
                   Max Affordability (Gross ÷ 30):
-                  <span class="text-green-600">£{{ (annualSalary + parseFloat(accountantReference.annual_profit || '0') + parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') + parseFloat(reference.additional_income_amount || '0'))/30 }} pcm</span>
+                  <span class="text-green-600">£{{ (annualSalary + parseFloat(accountantReference.annual_profit || '0')
+                    +
+                    parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') +
+                    parseFloat(reference.additional_income_amount || '0'))/30 }} pcm</span>
                 </p>
                 <p class="text-lg font-semibold">
                   Rent Share:
@@ -1447,7 +1452,8 @@
           <!-- Case 2: Standard residential references -->
           <div class="space-y-6">
             <!-- Current Address (refined UI) -->
-            <div v-if="reference?.reference_type !== 'living_with_family'" class="bg-white rounded-lg shadow p-4 space-y-4">
+            <div v-if="reference?.reference_type !== 'living_with_family'"
+              class="bg-white rounded-lg shadow p-4 space-y-4">
               <div class="flex items-center justify-between">
                 <h4 class="font-semibold text-gray-900">Current Address</h4>
                 <span
@@ -1558,7 +1564,8 @@
             </div>
 
             <!-- Previous Landlord / Agent Information (summary) -->
-            <div v-if="(landlordReference || agentReference) && reference?.reference_type !== 'living_with_family'" class="bg-white rounded-lg shadow p-4 space-y-4">
+            <div v-if="(landlordReference || agentReference) && reference?.reference_type !== 'living_with_family'"
+              class="bg-white rounded-lg shadow p-4 space-y-4">
               <div class="flex items-start justify-between">
                 <div>
                   <h4 class="text-md font-semibold text-gray-900 mb-1">Previous {{ landlordReference ? 'Landlord' :
@@ -1608,7 +1615,7 @@
                   <p class="mt-1 text-gray-900">
                     {{ reference?.previous_rental_address_line1 || 'Not provided yet' }}
                     <span v-if="reference?.previous_rental_address_line2">, {{ reference.previous_rental_address_line2
-                    }}</span>
+                      }}</span>
                   </p>
                   <p v-if="reference?.previous_rental_city || reference?.previous_rental_postcode"
                     class="mt-1 text-gray-900">
@@ -1649,7 +1656,8 @@
             </div>
 
             <!-- Landlord/Agent Reference Response (detailed) -->
-            <div v-if="(landlordReference || agentReference) && reference?.reference_type !== 'living_with_family'" class="bg-white border rounded-lg p-4">
+            <div v-if="(landlordReference || agentReference) && reference?.reference_type !== 'living_with_family'"
+              class="bg-white border rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-semibold text-gray-900">
                   {{ landlordReference ? 'Landlord' : 'Agent' }} Reference Response
@@ -2302,7 +2310,7 @@
                       <div>
                         <p class="text-xs text-emerald-600 uppercase tracking-wide mb-1">AML</p>
                         <p class="text-2xl font-bold text-emerald-900">{{ reassesmentDataForPreview.domains.aml ?? '—'
-                        }}</p>
+                          }}</p>
                       </div>
                       <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
                         <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2319,7 +2327,7 @@
                       <div>
                         <p class="text-xs text-blue-600 uppercase tracking-wide mb-1">Credit</p>
                         <p class="text-2xl font-bold text-blue-900">{{ reassesmentDataForPreview.domains.credit ?? '—'
-                        }}</p>
+                          }}</p>
                       </div>
                       <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2439,14 +2447,19 @@
                         steps[4]!.overall_pass === false && tasDecision !== 'REFER' ? 'bg-red-100 text-red-800' :
                           'bg-gray-100 text-gray-600'
                     ]">
-                      {{ steps[4]!.overall_pass === true ? 'PASS' : steps[4]!.overall_pass === false && tasDecision !== 'REFER' ? 'FAIL' :
-                        'PENDING'
+                      {{ steps[4]!.overall_pass === true ? 'PASS' : steps[4]!.overall_pass === false && tasDecision !==
+                        'REFER'
+                        ? 'FAIL' :
+                      'PENDING'
                       }}
                     </span>
                   </div>
                   <div v-if="tasDecision" class="mt-2">
-                    <p class="text-sm text-gray-600 rounded-md p-2 bg-gray-100 w-full"><strong>TAS Category:</strong> {{ tasDecision }}</p>
-                    <p v-if="tasReason" class="text-sm text-gray-600 mt-1 rounded-md p-2 bg-gray-100 w-"><strong>Reason:</strong> {{ tasReason }}</p>
+                    <p class="text-sm text-gray-600 rounded-md p-2 bg-gray-100 w-full"><strong>TAS Category:</strong> {{
+                      tasDecision }}</p>
+                    <p v-if="tasReason" class="text-sm text-gray-600 mt-1 rounded-md p-2 bg-gray-100 w-">
+                      <strong>Reason:</strong> {{ tasReason }}
+                    </p>
                   </div>
                   <p v-if="steps[4]!.notes" class="text-sm text-gray-600 mt-2">{{ steps[4]!.notes }}</p>
                 </div>
@@ -2918,20 +2931,37 @@ const handleFinalize = () => {
 }
 
 const processing = ref(false);
-const proceedWithAction = () => {
+const proceedWithAction = async () => {
   processing.value = true;
-  if (pendingAction.value === 'finalize') {
-    // Console log the verification report JSON
-    console.log('Verification Report JSON:', JSON.stringify(verificationReportJson.value, null, 2));
-  } else if (pendingAction.value === 'reject') {
-    console.log('Verification Rejected (preview only):', JSON.stringify(verificationReportJson.value, null, 2));
-  }
-  setTimeout(() => {
+  try {
+    const verdict = pendingAction.value === 'finalize' ? 'completed' : 'rejected';
+    const response = await fetch(`${API_URL}/api/verification-steps/submit-assessment/${reference.value.id}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ final_remarks: verificationReportJson.value, verdict })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to submit assessment');
+    }
+    if (verdict === 'completed') {
+      const data = await response.json();
+      if (data.pdf_url) {
+        window.open(data.pdf_url, '_blank');
+      } else {
+        console.error('No PDF URL found');
+      }
+    }
+    router.push('/staff/dashboard');
+  } catch (error) {
+    console.error('Error submitting assessment:', error);
+  } finally {
     processing.value = false;
-    // Close modal and reset
     showConfirmationModal.value = false
     pendingAction.value = null
-  }, 3000);
+  }
 }
 
 const cancelAction = () => {
@@ -2949,7 +2979,7 @@ const verificationReportJson = computed(() => {
     report['id'] = {
       decision: step1.overall_pass === true ? 'PASS' : step1.overall_pass === false ? 'FAIL' : 'PENDING',
       notes: step1.notes || '',
-      Verification_Checks:{},
+      Verification_Checks: {},
       Evidence_Sources_Used: step1.evidence_sources || []
     }
   }
@@ -3320,7 +3350,7 @@ const toggleCheck = (checkName: string, pass: boolean) => {
 const getCheckValue = (checkName: string): boolean | null => {
   const currentChecks = steps.value[2]!.checks as any[]
   const check = currentChecks.find((c: any) => c.name === checkName)
-  return check ? check.pass : null  
+  return check ? check.pass : null
 }
 
 // Helper functions for residential verification checks

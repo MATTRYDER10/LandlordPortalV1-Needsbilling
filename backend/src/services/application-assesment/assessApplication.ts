@@ -38,7 +38,7 @@ const sanitizeIncome = (raw_income: SanitizedIncome) => {
     return computeIncomeMultiple({ salary, benefits, additional, selfEmployedAnnual, rent, additionalIncome, savings });
 }
 
-export const assessApplicationScore = async (referenceId: string, caller: Caller, scoredBy: string | null = null) => {
+export const assessApplicationScore = async (referenceId: string, caller: Caller, scoredBy: string | null = null,remarks : Record<string, any> | null = null) => {
     try {
         // FETCH ALL TABLE DATA
         const { data: reference } = await supabase
@@ -49,13 +49,13 @@ export const assessApplicationScore = async (referenceId: string, caller: Caller
 
         const { data: creditsafe } = await supabase
             .from("creditsafe_verifications")
-            .select("*")
+            .select("fraud_indicators")
             .eq("reference_id", referenceId)
             .single();
 
         const { data: sanctions } = await supabase
             .from("sanctions_screenings")
-            .select("*")
+            .select("risk_level,sanctions_matches")
             .eq("reference_id", referenceId)
             .single();
 
@@ -135,6 +135,7 @@ export const assessApplicationScore = async (referenceId: string, caller: Caller
             guarantor_min_tas: null,
             scored_at: new Date().toISOString(),
             scored_by: scoredBy,
+            final_remarks: remarks,
             assessed_by: caller,
             scoring_version: scoringRules.scoringVersion
         };
