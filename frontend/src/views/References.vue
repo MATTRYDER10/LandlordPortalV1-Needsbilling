@@ -279,13 +279,13 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center gap-3">
-                    <!-- Employment Reference -->
+                    <!-- Income Verification -->
                     <div class="flex items-center gap-1"
-                      :title="reference.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                      :title="reference.has_employer_reference ? 'Employment reference received' : reference.income_savings_pension_investments ? 'Income verified (savings/pension)' : 'Employment reference pending'">
                       <svg class="w-5 h-5"
-                        :class="reference.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
+                        :class="(reference.has_employer_reference || reference.income_savings_pension_investments) ? 'text-green-600' : 'text-gray-300'"
                         fill="currentColor" viewBox="0 0 20 20">
-                        <path v-if="reference.has_employer_reference" fill-rule="evenodd"
+                        <path v-if="reference.has_employer_reference || reference.income_savings_pension_investments" fill-rule="evenodd"
                           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                           clip-rule="evenodd" />
                         <path v-else fill-rule="evenodd"
@@ -295,10 +295,10 @@
                     </div>
                     <!-- Credit Check -->
                     <div class="flex items-center gap-1"
-                      :title="(reference.has_credit_check && (reference.credit_check_status === 'passed' || reference.credit_check_status === 'refer')) ? 'Credit check completed' : (reference.credit_check_status === 'failed' || reference.credit_check_status === 'error') ? 'Credit check failed' : 'Credit check pending'">
-                      <svg class="w-5 h-5" :class="(reference.has_credit_check && (reference.credit_check_status === 'passed' || reference.credit_check_status === 'refer')) ? 'text-green-600' : (reference.credit_check_status === 'failed' || reference.credit_check_status === 'error') ? 'text-red-600' : 'text-gray-300'"
+                      :title="(reference.credit_ccj_match || reference.credit_insolvency_match || reference.credit_deceased_match) ? 'Credit issues found (CCJ/Insolvency/Deceased)' : reference.has_credit_check ? 'Credit check clear' : 'Credit check pending'">
+                      <svg class="w-5 h-5" :class="(reference.credit_ccj_match || reference.credit_insolvency_match || reference.credit_deceased_match) ? 'text-red-600' : reference.has_credit_check ? 'text-green-600' : 'text-gray-300'"
                         fill="currentColor" viewBox="0 0 20 20">
-                        <path v-if="reference.has_credit_check && (reference.credit_check_status === 'passed' || reference.credit_check_status === 'refer')" fill-rule="evenodd"
+                        <path v-if="reference.has_credit_check && !reference.credit_ccj_match && !reference.credit_insolvency_match && !reference.credit_deceased_match" fill-rule="evenodd"
                           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                           clip-rule="evenodd" />
                         <path v-else fill-rule="evenodd"
@@ -381,13 +381,13 @@
                 </td>
                 <td class="px-6 py-3 whitespace-nowrap">
                   <div class="flex items-center gap-3">
-                    <!-- Employment Reference -->
+                    <!-- Income Verification -->
                     <div class="flex items-center gap-1"
-                      :title="guarantor.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                      :title="guarantor.has_employer_reference ? 'Employment reference received' : guarantor.income_savings_pension_investments ? 'Income verified (savings/pension)' : 'Employment reference pending'">
                       <svg class="w-5 h-5"
-                        :class="guarantor.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
+                        :class="(guarantor.has_employer_reference || guarantor.income_savings_pension_investments) ? 'text-green-600' : 'text-gray-300'"
                         fill="currentColor" viewBox="0 0 20 20">
-                        <path v-if="guarantor.has_employer_reference" fill-rule="evenodd"
+                        <path v-if="guarantor.has_employer_reference || guarantor.income_savings_pension_investments" fill-rule="evenodd"
                           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                           clip-rule="evenodd" />
                         <path v-else fill-rule="evenodd"
@@ -397,10 +397,10 @@
                     </div>
                     <!-- Credit Check -->
                     <div class="flex items-center gap-1"
-                      :title="guarantor.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
-                      <svg class="w-5 h-5" :class="guarantor.has_credit_check ? 'text-green-600' : 'text-gray-300'"
+                      :title="(guarantor.credit_ccj_match || guarantor.credit_insolvency_match || guarantor.credit_deceased_match) ? 'Credit issues found (CCJ/Insolvency/Deceased)' : guarantor.has_credit_check ? 'Credit check clear' : 'Credit check pending'">
+                      <svg class="w-5 h-5" :class="(guarantor.credit_ccj_match || guarantor.credit_insolvency_match || guarantor.credit_deceased_match) ? 'text-red-600' : guarantor.has_credit_check ? 'text-green-600' : 'text-gray-300'"
                         fill="currentColor" viewBox="0 0 20 20">
-                        <path v-if="guarantor.has_credit_check" fill-rule="evenodd"
+                        <path v-if="guarantor.has_credit_check && !guarantor.credit_ccj_match && !guarantor.credit_insolvency_match && !guarantor.credit_deceased_match" fill-rule="evenodd"
                           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                           clip-rule="evenodd" />
                         <path v-else fill-rule="evenodd"

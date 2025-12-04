@@ -102,7 +102,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         supabase.from('agent_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('employer_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('accountant_references').select('id').eq('tenant_reference_id', ref.id).maybeSingle(),
-        supabase.from('creditsafe_verifications').select('id, verification_status').eq('reference_id', ref.id).maybeSingle()
+        supabase.from('creditsafe_verifications').select('id, verification_status, fraud_indicators').eq('reference_id', ref.id).maybeSingle()
       ])
 
       const has_landlord_reference = !!landlordRefCheck.data
@@ -111,6 +111,10 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       const has_accountant_reference = !!accountantRefCheck.data
       const has_credit_check = creditsafeCheck.data || null
       const credit_check_status = creditsafeCheck.data?.verification_status || null
+      const fraud_indicators = creditsafeCheck.data?.fraud_indicators || null
+      const credit_ccj_match = fraud_indicators?.ccjMatch ?? null
+      const credit_insolvency_match = fraud_indicators?.insolvencyMatch ?? null
+      const credit_deceased_match = fraud_indicators?.deceasedMatch ?? null
 
       // Check if guarantor reference is complete (for references that require a guarantor)
       let has_guarantor_reference = false
@@ -173,7 +177,10 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           has_accountant_reference,
           has_guarantor_reference,
           has_credit_check,
-          credit_check_status
+          credit_check_status,
+          credit_ccj_match,
+          credit_insolvency_match,
+          credit_deceased_match
         }
       }
       return {
@@ -184,7 +191,10 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         has_accountant_reference,
         has_guarantor_reference,
         has_credit_check,
-        credit_check_status
+        credit_check_status,
+        credit_ccj_match,
+        credit_insolvency_match,
+        credit_deceased_match
       }
     }))
 
