@@ -102,10 +102,11 @@
         <input
           id="website"
           v-model="formData.website"
-          type="url"
-          placeholder="https://example.com"
+          type="text"
+          placeholder="example.com"
           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           :class="{ 'border-red-500': errors.website }"
+          @blur="formatWebsiteUrl"
         />
         <p v-if="errors.website" class="mt-1 text-sm text-red-600">{{ errors.website }}</p>
         <p v-else class="mt-1 text-sm text-gray-500">Optional - displayed on your reference forms</p>
@@ -250,6 +251,14 @@ const validateForm = (): boolean => {
   }
 
   return isValid
+}
+
+// Format website URL - add https:// if missing
+const formatWebsiteUrl = () => {
+  const url = formData.value.website.trim()
+  if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+    formData.value.website = 'https://' + url
+  }
 }
 
 const handleSubmit = async () => {
