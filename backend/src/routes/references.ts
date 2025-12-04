@@ -96,12 +96,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     // For each parent reference, count the children and sync status
     const referencesWithCount = await Promise.all(references.map(async (ref) => {
       // Check which references have been submitted
-      const [landlordRefCheck, agentRefCheck, employerRefCheck, accountantRefCheck, creditsafeCheck] = await Promise.all([
+      const [landlordRefCheck, agentRefCheck, employerRefCheck, accountantRefCheck, creditsafeCheck,score] = await Promise.all([
         supabase.from('landlord_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('agent_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('employer_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('accountant_references').select('id').eq('tenant_reference_id', ref.id).maybeSingle(),
-        supabase.from('creditsafe_verifications').select('id, verification_status').eq('reference_id', ref.id).maybeSingle()
+        supabase.from('creditsafe_verifications').select('id, verification_status').eq('reference_id', ref.id).maybeSingle(),
+        supabase.from('reference_scores').select('final_remarks').eq('reference_id', ref.id).maybeSingle()
       ])
 
       const has_landlord_reference = !!landlordRefCheck.data
@@ -110,6 +111,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       const has_accountant_reference = !!accountantRefCheck.data
       const has_credit_check = creditsafeCheck.data || null
       const credit_check_status = creditsafeCheck.data?.verification_status || null
+      const final_remarks = score?.data?.final_remarks || null
 
       // Check if guarantor reference is complete (for references that require a guarantor)
       let has_guarantor_reference = false
@@ -183,7 +185,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         has_accountant_reference,
         has_guarantor_reference,
         has_credit_check,
-        credit_check_status
+        credit_check_status,
+        final_remarks
       }
     }))
 
