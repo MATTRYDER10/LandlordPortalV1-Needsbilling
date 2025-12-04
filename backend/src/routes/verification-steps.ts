@@ -1,7 +1,10 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { authenticateStaff as staffAuth, StaffAuthRequest } from '../middleware/staffAuth';
 import { supabase as supabaseAdmin } from '../config/supabase';
 import { generateReferenceReportPDFV2 } from '../services/pdfReportServiceV2';
+import { generatePassedPdfService } from '../services/generatePassedPdfService';
+import { validateSubmitAssessmentBody } from '../utils/verification-validation';
+import { assessApplicationScore } from '../services/application-assesment/assessApplication';
 
 // Helper function to ensure storage bucket exists
 async function ensureBucketExists(bucketId: string): Promise<boolean> {
@@ -557,15 +560,175 @@ router.get('/reference/:referenceId/progress', staffAuth, async (req: StaffAuthR
   }
 });
 
-router.post('/reference/:referenceId/submit-assessment', staffAuth, async (req: StaffAuthRequest, res: Response) => {
-  try {
-    const { referenceId } = req.params;
-    const { assessmentId } = req.body;
-    
-  } catch (error: any) {
-    console.error('Error submitting assessment:', error);
-    res.status(500).json({ error: error.message });
+router.post(
+  '/submit-assessment/:referenceId',
+  staffAuth,
+  async (req: StaffAuthRequest, res: Response) => {
+    debugger
+    try {
+      const { referenceId } = req.params;
+      const staffUser = req.staffUser;
+
+      if (!referenceId) {
+        return res.status(400).json({ error: 'Reference ID is required' });
+      }
+      if (!staffUser) {
+        return res.status(403).json({ error: 'Access denied. Staff privileges required.' });
+      }
+
+      const { verdict } = req.body;
+      if (!verdict || !['completed', 'rejected'].includes(verdict)) {
+        return res.status(400).json({ error: 'Verdict is required, must be either COMPLETED or REJECTED' });
+      }
+
+      const { final_remarks } = req.body;
+      if (!final_remarks) {
+        return res.status(400).json({ error: 'Final remarks are required' });
+      }
+
+      // ---- Runtime validation ----
+      const { isValid, final_remarks: validatedFinalRemarks } = validateSubmitAssessmentBody(req.body);
+      if (!isValid) {
+        return res.status(400).json({ error: 'Invalid request payload' });
+      }
+      const { residential, credit_tas, income, rtr } = validatedFinalRemarks;
+
+      const tas_category = credit_tas.tas_category
+      const finalDecision = verdict === 'completed' ? 'passed' : 'failed';
+
+      // Not updating verification_checks as we didn't use that in new flow
+
+      // Update reference status
+      const { error: refError } = await supabaseAdmin
+        .from('tenant_references')
+        .update({
+          status: verdict,
+          res_assessment_status: residential.decision,
+          income_assessment_status: income.decision,
+          rtr_verified: rtr.decision === 'PASS'
+        })
+        .eq('id', referenceId);
+
+      if (refError) throw refError;
+
+      // Update creditsafe and sanctions
+      if (credit_tas.tas_category !== 'REFER') {
+        const { data: _, error: creditsafeError } = await supabaseAdmin
+          .from("creditsafe_verifications")
+          .update({
+            fraud_indicators: {
+              "insolvencyMatch": !(credit_tas.decision === 'PASS'),
+              "ccjMatch": !(credit_tas.decision === 'PASS'),
+              "deceasedMatch": !(credit_tas.decision === 'PASS'),
+              "electoralRollMatch": credit_tas.decision === 'PASS'
+            }
+          })
+          .eq("reference_id", referenceId);
+
+        if (creditsafeError) {
+          console.error('Error updating creditsafe:', creditsafeError);
+        }
+
+        const { data: __, error: sanctionsError } = await supabaseAdmin
+          .from("sanctions_screenings")
+          .update({
+            risk_level: credit_tas.decision === 'PASS' ? 'clear' : 'high',
+            sanctions_matches: credit_tas.decision === 'PASS' ? [] : ['sanctions_match']
+          })
+          .eq("reference_id", referenceId);
+
+        if (sanctionsError) {
+          console.error('Error updating sanctions:', sanctionsError);
+        }
+      }
+
+
+      // Complete work item if exists
+      const { data: workItems, error: workItemsError } = await supabaseAdmin
+        .from('work_items')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .eq('work_type', 'VERIFY')
+        .in('status', ['ASSIGNED', 'IN_PROGRESS']);
+
+      if (workItemsError) {
+        console.error('Error fetching work items:', workItemsError);
+      };
+
+      if (workItems && workItems.length > 0) {
+        const { error: workItemError } = await supabaseAdmin
+          .from('work_items')
+          .update({
+            status: 'COMPLETED',
+            completed_at: new Date().toISOString()
+          })
+          .in('id', workItems.map(w => w.id));
+        if (workItemError) {
+          console.error('Error completing work item:', workItemError);
+        };
+      }
+
+      // Log to audit
+      const { error: auditError } = await supabaseAdmin.from('reference_audit_log').insert({
+        reference_id: referenceId,
+        action: 'VERIFICATION_FINALIZED',
+        metadata: {
+          tas_category,
+          final_decision: finalDecision,
+          all_steps_passed: true
+        },
+        created_by: staffUser.id
+      });
+      if (auditError) {
+        console.error('Error logging to audit:', auditError);
+      };
+
+      // Update new score
+      await assessApplicationScore(referenceId, 'Staff', staffUser.id, validatedFinalRemarks);
+
+      //PDF
+      if (verdict !== 'completed') {
+        return res.status(200).json({ message: 'Assessment submitted successfully' });
+      }
+
+      let pdfUrl = null;
+      try {
+        pdfUrl = await generatePassedPdfService(referenceId);
+        console.log('[Assessment] Passed certificate PDF generated:', pdfUrl);
+
+        // Update reference with PDF URL
+        await supabaseAdmin
+          .from('tenant_references')
+          .update({ passed_certificate_url: pdfUrl })
+          .eq('id', referenceId);
+      } catch (pdfError) {
+        console.error('Error generating passed PDF:', pdfError);
+        // Don't fail the entire request if PDF generation fails
+      }
+
+      return res.status(200).json({
+        message: 'Assessment submitted successfully',
+        pdfUrl
+      });
+
+    } catch (error: any) {
+      console.error("Error submitting assessment:", error);
+      res.status(500).json({ error: error.message });
+    }
   }
-});
+);
+
+router.get('/passed-certificate/:referenceId',async (req: StaffAuthRequest, res: Response) => {
+    try {
+        const { referenceId } = req.params;
+        const pdfUrl = await generatePassedPdfService(referenceId);
+        return res.status(200).json({ pdfUrl });
+    } catch (error: any) {
+        console.error('Error generating passed PDF:', error);
+        return res.status(500).json({ error: error.message });
+    }
+  }
+);
+
 
 export default router;

@@ -14,12 +14,12 @@
 
                 <!-- Left Side Labels -->
                 <div class="flex flex-col gap-4 min-w-[240px]">
-                    <div v-if="props.caller === 'Agent'" class="flex items-center gap-3">
+                    <!-- <div v-if="props.caller === 'Agent'" class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Status</span>
                         <span :class="badgeClass(statusLabel)">
                             {{ statusLabel }}
                         </span>
-                    </div>
+                    </div> -->
 
                     <!-- <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Identity Match</span>
@@ -289,22 +289,22 @@ const failedVerification: VerificationData = {
 const verificationData = computed(() => props.verification ?? failedVerification)
 
 // Extract status label from application_status
-const statusLabel = computed(() => {
-    if (!verificationData.value) return 'Failed'
-    const status = verificationData.value.application_status
-    switch (status) {
-        case 'Passed':
-            return 'Passed'
-        case 'Failed':
-            return 'Failed'
-        case 'Yet to be assessed':
-            return 'Yet to be assessed'
-        case 'PASS_WITH_GUARANTOR':
-            return 'Passed with Guarantor'
-        default:
-            return 'Failed'
-    }
-})
+// const statusLabel = computed(() => {
+//     if (!verificationData.value) return 'Failed'
+//     const status = verificationData.value.application_status
+//     switch (status) {
+//         case 'Passed':
+//             return 'Passed'
+//         case 'Failed':
+//             return 'Failed'
+//         case 'Yet to be assessed':
+//             return 'Yet to be assessed'
+//         case 'PASS_WITH_GUARANTOR':
+//             return 'Passed with Guarantor'
+//         default:
+//             return 'Failed'
+//     }
+// })
 
 // Extract identity match label from name_match_score
 // const identityMatchLabel = computed(() => {

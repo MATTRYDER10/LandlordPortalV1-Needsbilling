@@ -97,12 +97,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     // For each parent reference, count the children and sync status
     const referencesWithCount = await Promise.all(references.map(async (ref) => {
       // Check which references have been submitted
-      const [landlordRefCheck, agentRefCheck, employerRefCheck, accountantRefCheck, creditsafeCheck] = await Promise.all([
+      const [landlordRefCheck, agentRefCheck, employerRefCheck, accountantRefCheck, creditsafeCheck, score] = await Promise.all([
         supabase.from('landlord_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('agent_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('employer_references').select('id').eq('reference_id', ref.id).maybeSingle(),
         supabase.from('accountant_references').select('id').eq('tenant_reference_id', ref.id).maybeSingle(),
-        supabase.from('creditsafe_verifications').select('id, verification_status, fraud_indicators').eq('reference_id', ref.id).maybeSingle()
+        supabase.from('creditsafe_verifications').select('id, verification_status').eq('reference_id', ref.id).maybeSingle(),
+        supabase.from('reference_scores').select('final_remarks').eq('reference_id', ref.id).maybeSingle()
       ])
 
       const has_landlord_reference = !!landlordRefCheck.data
@@ -111,10 +112,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       const has_accountant_reference = !!accountantRefCheck.data
       const has_credit_check = creditsafeCheck.data || null
       const credit_check_status = creditsafeCheck.data?.verification_status || null
-      const fraud_indicators = creditsafeCheck.data?.fraud_indicators || null
-      const credit_ccj_match = fraud_indicators?.ccjMatch ?? null
-      const credit_insolvency_match = fraud_indicators?.insolvencyMatch ?? null
-      const credit_deceased_match = fraud_indicators?.deceasedMatch ?? null
+      const final_remarks = score?.data?.final_remarks || null
 
       // Check if guarantor reference is complete (for references that require a guarantor)
       let has_guarantor_reference = false
@@ -192,9 +190,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         has_guarantor_reference,
         has_credit_check,
         credit_check_status,
-        credit_ccj_match,
-        credit_insolvency_match,
-        credit_deceased_match
+        final_remarks
       }
     }))
 
@@ -222,7 +218,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id
     const referenceId = req.params.id
 
-   // await assessApplicationScore(referenceId,'System')
+    // await assessApplicationScore(referenceId,'System')
 
     // Get user's company (use limit(1) to handle duplicates)
     const { data: companyUsers } = await supabase
@@ -2259,7 +2255,7 @@ router.post('/submit/:token', async (req: Request, res) => {
       console.log('Sanctions screening is disabled, skipping')
     }
 
-    await assessApplicationScore(updatedReference.id,'System');
+    await assessApplicationScore(updatedReference.id, 'System');
     console.log('Application assessed successfully')
 
     res.json({
@@ -2337,7 +2333,7 @@ router.post('/upload/:token', (req, res, next) => {
     { name: 'rtr_alternative_document', maxCount: 1 },
     { name: 'bank_statements', maxCount: 10 },
     { name: 'payslips', maxCount: 10 },
-    {name: 'tax_return', maxCount: 1}
+    { name: 'tax_return', maxCount: 1 }
   ])
 
   uploadMiddleware(req, res, (err) => {
