@@ -176,9 +176,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           has_guarantor_reference,
           has_credit_check,
           credit_check_status,
-          credit_ccj_match,
-          credit_insolvency_match,
-          credit_deceased_match
+          final_remarks
         }
       }
       return {
