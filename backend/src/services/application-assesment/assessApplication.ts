@@ -59,27 +59,36 @@ export const assessApplicationScore = async (referenceId: string, caller: Caller
             .eq("reference_id", referenceId)
             .single();
 
-        let flags: any = {};
+        // Parse credit flags - null if no data, true if problem found
+        let flags: any = null;
         try {
-            flags = JSON.parse(creditsafe?.fraud_indicators || '{}');
+            if (creditsafe?.fraud_indicators) {
+                flags = JSON.parse(creditsafe.fraud_indicators);
+            }
         }
         catch (err) {
             console.error("Failed to parse creditsafe fraud indicators:", err);
         }
 
+        // Credit: true = problem found, false = clear, null = no data
         const credit = {
-            insolvency: flags?.insolvencyMatch || false,
-            ccj: flags?.ccjMatch || false,
-            deceased: flags?.deceasedMatch || false,
-            electoral: flags?.electoralRollMatch || false
+            insolvency: flags ? (flags.insolvencyMatch || false) : null,
+            ccj: flags ? (flags.ccjMatch || false) : null,
+            deceased: flags ? (flags.deceasedMatch || false) : null,
+            electoral: flags ? (flags.electoralRollMatch || false) : null
         };
 
-        const isAlmlClear = sanctions?.risk_level === 'clear' || (Array.isArray(sanctions?.sanctions_matches) && !sanctions?.sanctions_matches.length);
-
-        const aml = {
-            pep: isAlmlClear,
-            sanctions: isAlmlClear
-        };
+        // AML: true = problem found (PEP/sanctions match), false = clear, null = no data
+        let aml: { pep: boolean | null, sanctions: boolean | null } = { pep: null, sanctions: null };
+        if (sanctions) {
+            const isClear = sanctions.risk_level === 'clear' ||
+                (Array.isArray(sanctions.sanctions_matches) && sanctions.sanctions_matches.length === 0);
+            // If clear, no problem found (false). If not clear, problem found (true).
+            aml = {
+                pep: !isClear,
+                sanctions: !isClear
+            };
+        }
 
         //RTR
         const rtrPass = reference?.rtr_verified || reference?.is_british_citizen;
@@ -175,11 +184,13 @@ export const reAssessApplicationScore = async (referenceId: string, caller: Call
             electoral: payload.credit_flags.electoral || false
         };
 
-        const isAlmlClear = payload.sanctions_clear || false;
+        // AML: true = problem found, false = clear
+        // If sanctions_clear is true, no problems found (pep/sanctions = false)
+        const isAmlClear = payload.sanctions_clear || false;
 
         const aml = {
-            pep: isAlmlClear,
-            sanctions: isAlmlClear
+            pep: !isAmlClear,
+            sanctions: !isAmlClear
         };
 
         //RTR

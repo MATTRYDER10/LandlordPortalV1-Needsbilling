@@ -1,33 +1,34 @@
 export const scoringRules = {
+  baseScore: 999,
+
   credit: {
-    insolvency: { pass: 90, fail: -150 },
-    ccj: { pass: 90, fail: -120 },
-    deceased: { pass: 90, fail: -300 },
-    electoral: { pass: 30, fail: 0 }
+    insolvency: -150,
+    ccj: -120,
+    deceased: -300,
+    notOnElectoralRoll: -30
   },
 
   aml: {
-    pep: { pass: 80, fail: -200 },
-    sanctions: { pass: 80, fail: -300 }
+    pep: -200,
+    sanctions: -300
   },
 
   rtr: {
-    pass: 40,
+    notVerified: -40,
     failGate: "RTR_FAIL"
   },
 
   residential: {
-    fullPassScore: 250,
-    amberPassScore: 100,
-    failScore: -300,
+    fail: -300,
+    amber: -150,
     failGate: "RES_REF_FAIL"
   },
 
   income: {
     bands: [
-      { min: 3.0, score: 249, band: "3x" },
-      { min: 2.5, score: 180, band: "2.5x" },
-      { min: 0, score: 60, band: "below_2.5x" }
+      { min: 3.0, deduction: 0, band: "3x" },
+      { min: 2.5, deduction: -69, band: "2.5x" },
+      { min: 0, deduction: -189, band: "below_2.5x" }
     ]
   },
 
@@ -43,7 +44,7 @@ export const scoringRules = {
     passBands: ["3x", "2.5x"]
   },
 
-  scoringVersion: "1.0"
+  scoringVersion: "2.0"
 };
 
 
@@ -80,16 +81,16 @@ export const computeIncomeMultiple = ({
 };
 interface Input {
   credit: {
-    insolvency: boolean;
-    ccj: boolean;
-    deceased: boolean;
-    electoral: boolean;
+    insolvency: boolean | null;
+    ccj: boolean | null;
+    deceased: boolean | null;
+    electoral: boolean | null;
   };
   aml: {
-    pep: boolean;
-    sanctions: boolean;
+    pep: boolean | null;
+    sanctions: boolean | null;
   };
-  rtr: boolean;
+  rtr: boolean | null;
   residentialStatus: "PASS" | "SKIPPED" | "FAIL" | "AMBER";
   incomeMultiple: number;
   caller: "System" | "Staff";
@@ -105,91 +106,100 @@ export const computeScore = ({
 }: Input) => {
   const R = scoringRules;
 
-  // Domain Scores
-  let creditScore = 0;
-  let amlScore = 0;
-  let rtrScore = 0;
-  let residentialScore = 0;
-  let incomeScore = 0;
+  // Start at base score (999), deduct for problems
+  let totalScore = R.baseScore;
+
+  // Domain deductions (track separately for reporting)
+  let creditDeductions = 0;
+  let amlDeductions = 0;
+  let rtrDeductions = 0;
+  let residentialDeductions = 0;
+  let incomeDeductions = 0;
 
   // Fail tracking
   let failCount = 0;
   let gates: string[] = [];
   let incomeBand = "below_2.5x";
-  let risk_level = 'high'
+  let risk_level = 'low';
 
-  // CREDIT
-  creditScore += credit.insolvency ? R.credit.insolvency.fail : R.credit.insolvency.pass;
-  if (credit.insolvency) failCount++;
+  // CREDIT - only deduct if problem found (true), skip if null/pending
+  if (credit.insolvency === true) {
+    creditDeductions += R.credit.insolvency;
+    failCount++;
+  }
 
-  creditScore += credit.ccj ? R.credit.ccj.fail : R.credit.ccj.pass;
-  if (credit.ccj) failCount++;
+  if (credit.ccj === true) {
+    creditDeductions += R.credit.ccj;
+    failCount++;
+  }
 
-  creditScore += credit.deceased ? R.credit.deceased.fail : R.credit.deceased.pass;
-  if (credit.deceased) {
-    failCount++
+  if (credit.deceased === true) {
+    // Deceased match is an immediate fail
     return {
       score_total: 0,
       risk_level: 'very_high',
-
       domain_scores: {
-        credit: 0,
+        credit: R.credit.deceased,
         aml: 0,
         rtr: 0,
         residential: 0,
         income: 0
       },
-
       failCount: 1,
       incomeBand: 'below_2.5x',
-      gates: [],
+      gates: ['DECEASED_MATCH'],
       decision: 'FAIL'
     };
   }
 
-  creditScore += credit.electoral ? R.credit.electoral.pass : R.credit.electoral.fail;
-
-  // AML
-  amlScore += aml.pep ? R.aml.pep.pass : R.aml.pep.fail;
-  if (!aml.pep) failCount++;
-
-  amlScore += aml.sanctions ? R.aml.sanctions.pass : R.aml.sanctions.fail;
-  if (!aml.sanctions) failCount++;
-
-  // RTR (System does not add gate: will be added at staff portal)
-  if (rtr) {
-    rtrScore += R.rtr.pass;
+  if (credit.electoral === false) {
+    creditDeductions += R.credit.notOnElectoralRoll;
   }
-  else if (caller === "Staff" && !rtr){
-    gates.push(R.rtr.failGate);
+
+  // AML - only deduct if problem found (true), skip if null/pending
+  if (aml.pep === true) {
+    amlDeductions += R.aml.pep;
+    failCount++;
+  }
+
+  if (aml.sanctions === true) {
+    amlDeductions += R.aml.sanctions;
+    failCount++;
+  }
+
+  // RTR - deduct if explicitly not verified
+  if (rtr === false) {
+    rtrDeductions += R.rtr.notVerified;
+    if (caller === "Staff") {
+      gates.push(R.rtr.failGate);
+    }
   }
 
   // RESIDENTIAL
-  if (residentialStatus === "PASS") {
-    residentialScore += R.residential.fullPassScore;
-  } else if (residentialStatus === "AMBER") {
-    residentialScore += R.residential.amberPassScore;
-  } else if (residentialStatus === "FAIL") {
-    residentialScore += R.residential.failScore;
+  if (residentialStatus === "FAIL") {
+    residentialDeductions += R.residential.fail;
     gates.push(R.residential.failGate);
+  } else if (residentialStatus === "AMBER") {
+    residentialDeductions += R.residential.amber;
   }
+  // PASS and SKIPPED = no deduction
 
   // INCOME
   for (const band of R.income.bands) {
     if (incomeMultiple >= band.min) {
-      incomeScore += band.score;
+      incomeDeductions += band.deduction;
       incomeBand = band.band;
       break;
     }
   }
 
+  // Apply all deductions
+  totalScore += creditDeductions + amlDeductions + rtrDeductions + residentialDeductions + incomeDeductions;
+
   // FAIL CONDITIONS
   if (failCount >= R.failConditions.minAllowedFails) {
     gates.push(R.failConditions.failGate);
   }
-
-  const totalScore =
-    creditScore + amlScore + rtrScore + residentialScore + incomeScore;
 
   if (totalScore < R.failConditions.minScore) {
     gates.push(R.failConditions.lowScoreGate);
@@ -200,8 +210,7 @@ export const computeScore = ({
 
   if (gates.length > 0) {
     decision = "FAIL";
-  }
-  else {
+  } else {
     const d = R.decisions;
 
     if (
@@ -217,16 +226,14 @@ export const computeScore = ({
     }
   }
 
+  // Risk level based on score
   if (totalScore <= 0) {
     risk_level = 'very_high';
-  }
-  else if (totalScore < 650) {
+  } else if (totalScore < 650) {
     risk_level = 'high';
-  }
-  else if (totalScore < 800) {
+  } else if (totalScore < 800) {
     risk_level = 'medium';
-  }
-  else {
+  } else {
     risk_level = 'low';
   }
 
@@ -234,13 +241,13 @@ export const computeScore = ({
     score_total: totalScore,
     risk_level,
 
-    // NEW: returning all domain scores separately
+    // Domain scores (showing deductions applied)
     domain_scores: {
-      credit: creditScore,
-      aml: amlScore,
-      rtr: rtrScore,
-      residential: residentialScore,
-      income: incomeScore
+      credit: creditDeductions,
+      aml: amlDeductions,
+      rtr: rtrDeductions,
+      residential: residentialDeductions,
+      income: incomeDeductions
     },
 
     failCount,
