@@ -103,22 +103,15 @@ const handleSubmit = async () => {
     if (error) {
       errorMessage.value = error
     } else {
-      // Verify staff access by checking staff endpoint
-      const token = authStore.session?.access_token
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      
-      const response = await fetch(`${API_URL}/api/staff/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      // Fetch user data to determine user type and verify staff access
+      await authStore.fetchUser()
 
-      if (!response.ok) {
+      if (authStore.isStaff) {
+        router.push('/staff/dashboard')
+      } else {
+        // Not staff - sign them out
         await authStore.signOut()
         errorMessage.value = 'Access denied. Staff privileges required.'
-      } else {
-        router.push('/staff/dashboard')
       }
     }
   } catch (err: any) {

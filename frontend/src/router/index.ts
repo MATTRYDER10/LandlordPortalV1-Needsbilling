@@ -351,6 +351,9 @@ router.beforeEach(async (to, _from, next) => {
   // Ensure auth is initialized by checking the session
   if (!authStore.session && !authStore.user) {
     await authStore.initialize()
+  } else if (authStore.user && !authStore.company && !authStore.isStaff) {
+    // User is logged in but auth data hasn't been fetched yet (e.g., after code update)
+    await authStore.fetchUser()
   }
 
   const isAuthenticated = !!authStore.user
@@ -362,7 +365,12 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   if (to.meta.requiresGuest && isAuthenticated) {
-    next('/dashboard')
+    // Redirect to appropriate portal based on user type
+    if (authStore.isStaff) {
+      next('/staff/dashboard')
+    } else {
+      next('/dashboard')
+    }
     return
   }
 
@@ -403,7 +411,24 @@ router.beforeEach(async (to, _from, next) => {
   // Admin access check - redirect to dashboard if user is not an admin
   const isAdminPath = to.path.startsWith('/admin')
   if (isAdminPath && !authStore.isAdmin) {
-    next('/dashboard')
+    next(authStore.isStaff ? '/staff/dashboard' : '/dashboard')
+    return
+  }
+
+  // Staff portal access check - only staff can access /staff/* routes (except /staff/login)
+  const isStaffPortalPath = to.path.startsWith('/staff') && to.path !== '/staff/login'
+  if (isStaffPortalPath && !authStore.isStaff) {
+    // Non-staff trying to access staff portal
+    next(authStore.company ? '/dashboard' : '/login')
+    return
+  }
+
+  // Agent portal access check - staff members cannot access agent routes
+  const agentPaths = ['/dashboard', '/references', '/agreements', '/landlords', '/tenant-offers', '/settings', '/onboarding']
+  const isAgentPath = agentPaths.some(path => to.path.startsWith(path))
+  if (isAgentPath && authStore.isStaff && isAuthenticated) {
+    // Staff member trying to access agent portal - redirect to staff dashboard
+    next('/staff/dashboard')
     return
   }
 

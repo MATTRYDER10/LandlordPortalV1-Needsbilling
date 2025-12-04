@@ -109,7 +109,19 @@ const handleSubmit = async () => {
     if (error) {
       errorMessage.value = error
     } else {
-      router.push('/dashboard')
+      // Fetch user data to determine user type
+      await authStore.fetchUser()
+
+      // Redirect based on user type
+      if (authStore.company) {
+        router.push('/dashboard')
+      } else if (authStore.isStaff) {
+        router.push('/staff/dashboard')
+      } else {
+        // User has no access - sign them out
+        await authStore.signOut()
+        errorMessage.value = 'Access denied. Please use the appropriate login portal.'
+      }
     }
   } catch (err: any) {
     errorMessage.value = err.message || 'An error occurred during sign in'
