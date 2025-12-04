@@ -14,12 +14,12 @@
 
                 <!-- Left Side Labels -->
                 <div class="flex flex-col gap-4 min-w-[240px]">
-                    <div v-if="props.caller === 'Agent'" class="flex items-center gap-3">
+                    <!-- <div v-if="props.caller === 'Agent'" class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Status</span>
                         <span :class="badgeClass(statusLabel)">
                             {{ statusLabel }}
                         </span>
-                    </div>
+                    </div> -->
 
                     <!-- <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-500 uppercase tracking-wide">Identity Match</span>

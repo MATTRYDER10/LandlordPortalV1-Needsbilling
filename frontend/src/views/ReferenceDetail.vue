@@ -71,35 +71,39 @@
             </span>
 
             <!-- Credit Check Status -->
-            <span class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1" :class="{
-              'bg-green-100 text-green-800': application_flags.credit_check_status === 'passed',
-              'bg-red-100 text-red-800': application_flags.credit_check_status === 'failed',
-              'bg-yellow-100 text-yellow-800': application_flags.credit_check_status === 'refer',
-              'bg-gray-100 text-gray-800': application_flags.credit_check_status === 'pending' || application_flags.credit_check_status === 'error'
-            }"
-              :title="application_flags.credit_check_status === 'passed' ? 'Credit check passed' : application_flags.credit_check_status === 'failed' ? 'Credit check failed' : application_flags.credit_check_status === 'refer' ? 'Manual review required' : 'Credit check pending'">
-              <svg v-if="application_flags.credit_check_status === 'passed'" class="w-4 h-4" fill="currentColor"
-                viewBox="0 0 20 20">
-                <path fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clip-rule="evenodd" />
-              </svg>
-              <svg v-else-if="application_flags.credit_check_status === 'failed'" class="w-4 h-4" fill="currentColor"
-                viewBox="0 0 20 20">
-                <path fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clip-rule="evenodd" />
-              </svg>
-              <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                  clip-rule="evenodd" />
-              </svg>
-              Credit: {{ application_flags.credit_check_status === 'passed' ? 'PASS' :
-                application_flags.credit_check_status === 'failed' ? 'FAIL' :
-                  application_flags.credit_check_status === 'refer' ? 'REVIEW' :
-                    application_flags.credit_check_status.toUpperCase() }}
-            </span>
+            <span
+  class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1"
+  :class="{
+    'bg-green-100 text-green-800': finalCreditStatus === 'PASS',
+    'bg-red-100 text-red-800': finalCreditStatus === 'FAIL',
+    'bg-yellow-100 text-yellow-800': finalCreditStatus === 'REVIEW',
+    'bg-gray-100 text-gray-800': finalCreditStatus === 'PENDING'
+  }"
+>
+  <!-- PASS -->
+  <svg v-if="finalCreditStatus === 'PASS'" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+    <path fill-rule="evenodd"
+      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+      clip-rule="evenodd" />
+  </svg>
+
+  <!-- FAIL -->
+  <svg v-else-if="finalCreditStatus === 'FAIL'" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+    <path fill-rule="evenodd"
+      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+      clip-rule="evenodd" />
+  </svg>
+
+  <!-- REVIEW, PENDING -->
+  <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+    <path fill-rule="evenodd"
+      d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+      clip-rule="evenodd" />
+  </svg>
+
+  Credit: {{ finalCreditStatus }}
+</span>
+
 
             <!-- Sanctions Screening Status -->
             <span v-if="application_flags.sanctions_check.show"
@@ -3484,6 +3488,28 @@ const guarantorForm = ref({
   email: '',
   phone: ''
 })
+
+const finalCreditStatus = computed(() => {
+  const tasDecision = reference.value?.final_remarks?.credit_tas?.decision;
+
+  if (tasDecision) {
+    return tasDecision.toUpperCase(); // PASS / FAIL / REVIEW / AMBER / etc.
+  }
+
+  // Fallback to application flags
+  const status = application_flags.value?.credit_check_status || 'pending';
+
+  switch (status.toLowerCase()) {
+    case 'passed':
+      return 'PASS';
+    case 'failed':
+      return 'FAIL';
+    case 'refer':
+      return 'REVIEW';
+    default:
+      return 'PENDING';
+  }
+});
 
 const hasGuarantor = computed(() => {
   return guarantorReference.value !== null
