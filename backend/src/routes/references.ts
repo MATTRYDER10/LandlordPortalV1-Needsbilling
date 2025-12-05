@@ -45,28 +45,46 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id
     console.log('=== FETCHING REFERENCES FOR USER:', userId)
 
-    // Get ALL company_users entries to diagnose the issue
-    const { data: allCompanyUsers } = await supabase
-      .from('company_users')
-      .select('id, company_id, role, created_at')
-      .eq('user_id', userId)
+    // Check if user is invited (to handle duplicate company entries from trigger bug)
+    const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
+    const isInvited = user?.user_metadata?.is_invited === true
 
-    console.log('ALL company_users entries for this user:', JSON.stringify(allCompanyUsers, null, 2))
+    // Get user's company - for invited users, prefer non-owner role (they were invited, not original)
+    let companyUser: { company_id: string } | null = null
 
-    // Get user's company (use limit(1) to handle duplicates)
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
+    if (isInvited) {
+      // For invited users, try to get the company where they're NOT an owner
+      const { data: nonOwnerCompanies } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .neq('role', 'owner')
+        .limit(1)
 
-    if (!companyUsers || companyUsers.length === 0) {
+      if (nonOwnerCompanies && nonOwnerCompanies.length > 0) {
+        companyUser = nonOwnerCompanies[0]
+      }
+    }
+
+    // Fallback: get any company association
+    if (!companyUser) {
+      const { data: companyUsers } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (companyUsers && companyUsers.length > 0) {
+        companyUser = companyUsers[0]
+      }
+    }
+
+    if (!companyUser) {
       console.log('ERROR: No company found for user')
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    const companyUser = companyUsers[0]
-    console.log('Using company_id:', companyUser.company_id)
+    console.log('Using company_id:', companyUser.company_id, 'isInvited:', isInvited)
 
     // Count total references for this company
     const { count: totalCount } = await supabase
@@ -865,29 +883,55 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
       guarantor_phone
     } = req.body
 
-    // Get user's company (use limit(1) to handle duplicates)
-    console.log('Looking up company for user:', userId)
-    const { data: companyUsers, error: companyError } = await supabase
-      .from('company_users')
-      .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted)')
-      .eq('user_id', userId)
-      .limit(1)
+    // Check if user is invited (to handle duplicate company entries from trigger bug)
+    const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
+    const isInvited = user?.user_metadata?.is_invited === true
 
-    console.log('Company lookup result:', companyUsers, 'Error:', companyError)
+    // Get user's company - for invited users, prefer non-owner role (they were invited, not original)
+    console.log('Looking up company for user:', userId, 'isInvited:', isInvited)
+    let companyUser: any = null
 
-    if (!companyUsers || companyUsers.length === 0) {
+    if (isInvited) {
+      // For invited users, try to get the company where they're NOT an owner
+      const { data: nonOwnerCompanies } = await supabase
+        .from('company_users')
+        .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted)')
+        .eq('user_id', userId)
+        .neq('role', 'owner')
+        .limit(1)
+
+      if (nonOwnerCompanies && nonOwnerCompanies.length > 0) {
+        companyUser = nonOwnerCompanies[0]
+      }
+    }
+
+    // Fallback: get any company association
+    if (!companyUser) {
+      const { data: companyUsers } = await supabase
+        .from('company_users')
+        .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted)')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (companyUsers && companyUsers.length > 0) {
+        companyUser = companyUsers[0]
+      }
+    }
+
+    console.log('Company lookup result:', companyUser)
+
+    if (!companyUser) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    const companyUser = companyUsers[0]
-    const companyName = (companyUser as any).companies?.name_encrypted
-      ? (decrypt((companyUser as any).companies.name_encrypted) || 'Your agent')
+    const companyName = companyUser.companies?.name_encrypted
+      ? (decrypt(companyUser.companies.name_encrypted) || 'Your agent')
       : 'Your agent'
-    const companyPhone = (companyUser as any).companies?.phone_encrypted
-      ? (decrypt((companyUser as any).companies.phone_encrypted) || '')
+    const companyPhone = companyUser.companies?.phone_encrypted
+      ? (decrypt(companyUser.companies.phone_encrypted) || '')
       : ''
-    const companyEmail = (companyUser as any).companies?.email_encrypted
-      ? (decrypt((companyUser as any).companies.email_encrypted) || '')
+    const companyEmail = companyUser.companies?.email_encrypted
+      ? (decrypt(companyUser.companies.email_encrypted) || '')
       : ''
 
     // Check if this is a multi-tenant reference
