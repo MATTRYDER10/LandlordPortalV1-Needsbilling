@@ -3723,6 +3723,79 @@ router.post('/:id/resend-agent-email', authenticateToken, async (req: AuthReques
   }
 })
 
+// Resend tenant reference form email
+router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const userId = req.user?.id
+
+    // Get the reference
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*, companies!inner(id)')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify user has access to this reference's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', reference.company_id)
+      .single()
+
+    if (!companyUser) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get company info
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .eq('id', reference.company_id)
+      .single()
+
+    const tenantEmail = decrypt(reference.tenant_email_encrypted) || ''
+    const tenantFirstName = decrypt(reference.tenant_first_name_encrypted) || ''
+    const tenantLastName = decrypt(reference.tenant_last_name_encrypted) || ''
+    const tenantName = `${tenantFirstName} ${tenantLastName}`
+    const propertyAddress = decrypt(reference.property_address_encrypted) || ''
+    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-reference/${reference.id}`
+
+    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : ''
+    const companyPhone = companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : ''
+    const companyEmail = companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+
+    await sendTenantReferenceRequest(
+      tenantEmail,
+      tenantName,
+      tenantReferenceUrl,
+      companyName,
+      propertyAddress,
+      companyPhone || undefined,
+      companyEmail || undefined
+    )
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'EMAIL_RESENT',
+      description: `Tenant reference form email resent to ${tenantEmail}`,
+      metadata: { emailType: 'tenant', recipient: tenantEmail },
+      userId
+    })
+
+    res.json({ message: 'Tenant reference form email resent successfully' })
+  } catch (error: any) {
+    console.error('Failed to resend tenant email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Resend employer reference email
 router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthRequest, res) => {
   try {

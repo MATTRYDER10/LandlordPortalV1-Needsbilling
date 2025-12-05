@@ -1680,6 +1680,26 @@
           </div>
         </div>
 
+        <!-- Tenant Reference Status (shown when tenant reference is pending) -->
+        <div v-if="!reference.is_guarantor && reference.status === 'pending'" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Tenant Reference Status</h3>
+          <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div class="flex items-center justify-between mb-3">
+              <h5 class="text-sm font-semibold text-yellow-900">Awaiting Tenant Response</h5>
+              <button @click="resendTenantEmail" :disabled="resendingTenant"
+                class="px-3 py-2 text-sm font-medium text-yellow-700 bg-white border border-yellow-300 rounded-md hover:bg-yellow-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ resendingTenant ? 'Sending...' : 'Resend Form Email' }}
+              </button>
+            </div>
+            <p class="text-sm text-yellow-800">
+              The tenant reference form has been sent to the applicant. They need to complete and submit the form.
+            </p>
+            <div class="mt-3 text-sm text-yellow-700">
+              <p><span class="font-medium">Email:</span> {{ reference.tenant_email }}</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Guarantor Reference Status (shown when viewing the guarantor's own reference) -->
         <div v-if="reference.is_guarantor && reference.status === 'pending'" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Guarantor Reference Status</h3>
@@ -3566,6 +3586,7 @@ const viewingDocumentType = ref('') // 'image' or 'pdf'
 // Resend email loading states
 const resendingLandlord = ref(false)
 const resendingAgent = ref(false)
+const resendingTenant = ref(false)
 const resendingEmployer = ref<Record<string, boolean>>({})
 const resendingAccountant = ref<Record<string, boolean>>({})
 
@@ -4334,6 +4355,26 @@ const resendAgentEmail = async () => {
     toast.error('Failed to resend email: ' + err.message)
   } finally {
     resendingAgent.value = false
+  }
+}
+
+const resendTenantEmail = async () => {
+  resendingTenant.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/resend-tenant-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!response.ok) throw new Error('Failed to resend email')
+    toast.success('Tenant reference form email resent successfully')
+  } catch (err: any) {
+    console.error('Error resending tenant email:', err)
+    toast.error('Failed to resend email: ' + err.message)
+  } finally {
+    resendingTenant.value = false
   }
 }
 
