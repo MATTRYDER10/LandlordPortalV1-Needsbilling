@@ -76,7 +76,7 @@
           <p class="text-sm text-gray-600 mb-6">Pre-fill this agreement with data from a completed reference or landlord, or skip to enter manually</p>
 
           <!-- Toggle Buttons -->
-          <div class="mb-6 flex gap-3">
+          <div class="mb-6 flex gap-3 flex-wrap">
             <button
               @click="toggleReferenceSelector"
               type="button"
@@ -86,7 +86,7 @@
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               "
             >
-              Import from Reference
+              {{ showReferenceSelector ? '✓ Reference Selected' : 'Import from Reference' }}
             </button>
             <button
               @click="toggleLandlordImportSelector"
@@ -97,15 +97,15 @@
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               "
             >
-              Import from Landlord
+              {{ showLandlordImportSelector ? '✓ Landlord Selected' : 'Import from Landlord' }}
             </button>
             <button
               v-if="showReferenceSelector || showLandlordImportSelector"
-              @click="skipImport"
+              @click="closeAllImportSelectors"
               type="button"
               class="px-6 py-3 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
             >
-              Skip - Enter Manually
+              Close All
             </button>
           </div>
 
@@ -1754,7 +1754,7 @@ async function fetchParentReferences() {
 // Toggle reference selector
 function toggleReferenceSelector() {
   showReferenceSelector.value = !showReferenceSelector.value
-  showLandlordImportSelector.value = false // Close landlord selector
+  // Don't close landlord selector - allow both to be open
   if (showReferenceSelector.value && availableReferences.value.length === 0) {
     fetchParentReferences()
   }
@@ -1763,14 +1763,14 @@ function toggleReferenceSelector() {
 // Toggle landlord import selector
 function toggleLandlordImportSelector() {
   showLandlordImportSelector.value = !showLandlordImportSelector.value
-  showReferenceSelector.value = false // Close reference selector
+  // Don't close reference selector - allow both to be open
   if (showLandlordImportSelector.value && availableLandlordsForImport.value.length === 0) {
     fetchLandlordsForImport()
   }
 }
 
-// Skip import and close both selectors
-function skipImport() {
+// Close all import selectors
+function closeAllImportSelectors() {
   showReferenceSelector.value = false
   showLandlordImportSelector.value = false
 }
