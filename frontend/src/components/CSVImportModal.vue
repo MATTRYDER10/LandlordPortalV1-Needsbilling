@@ -34,7 +34,14 @@
             <div v-if="step === 1">
               <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Upload CSV File</label>
-                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-primary transition-colors">
+                <div
+                  class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md transition-colors"
+                  :class="isDragging ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary'"
+                  @dragover.prevent="isDragging = true"
+                  @dragenter.prevent="isDragging = true"
+                  @dragleave.prevent="isDragging = false"
+                  @drop.prevent="handleDrop"
+                >
                   <div class="space-y-1 text-center">
                     <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                       <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -177,6 +184,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const step = ref(1)
 const selectedFile = ref<File | null>(null)
+const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const parsing = ref(false)
 const importing = ref(false)
@@ -193,7 +201,10 @@ const requiredFields = [
   { key: 'phone', label: 'Phone', required: false },
   { key: 'address_line1', label: 'Address Line 1', required: false },
   { key: 'city', label: 'City', required: false },
-  { key: 'postcode', label: 'Postcode', required: false }
+  { key: 'postcode', label: 'Postcode', required: false },
+  { key: 'bank_account_name', label: 'Bank Account Name', required: false },
+  { key: 'bank_account_number', label: 'Bank Account Number', required: false },
+  { key: 'bank_sort_code', label: 'Bank Sort Code', required: false }
 ]
 
 const isMappingValid = computed(() => {
@@ -210,6 +221,82 @@ const handleFileSelect = (event: Event) => {
       selectedFile.value = file
     }
   }
+}
+
+const handleDrop = (event: DragEvent) => {
+  isDragging.value = false
+  const files = event.dataTransfer?.files
+  if (files && files.length > 0) {
+    const file = files[0]
+    if (file && file.name.endsWith('.csv')) {
+      selectedFile.value = file
+    } else {
+      toast.error('Please drop a CSV file')
+    }
+  }
+}
+
+// Field name variations for auto-matching
+const fieldAliases: Record<string, string[]> = {
+  first_name: ['first_name', 'firstname', 'first name', 'forename', 'given name', 'givenname'],
+  last_name: ['last_name', 'lastname', 'last name', 'surname', 'family name', 'familyname'],
+  email: ['email', 'e-mail', 'email_address', 'emailaddress', 'email address'],
+  phone: ['phone', 'telephone', 'tel', 'mobile', 'phone_number', 'phonenumber', 'phone number', 'contact number'],
+  address_line1: ['address_line1', 'address line 1', 'addressline1', 'address1', 'address', 'street', 'street address'],
+  city: ['city', 'town', 'town/city', 'town / city'],
+  postcode: ['postcode', 'post_code', 'post code', 'postal_code', 'postalcode', 'postal code', 'zip', 'zipcode', 'zip code'],
+  bank_account_name: ['bank_account_name', 'account_name', 'accountname', 'account name', 'bank account name', 'name on account'],
+  bank_account_number: ['bank_account_number', 'account_number', 'accountnumber', 'account number', 'bank account number', 'account no'],
+  bank_sort_code: ['bank_sort_code', 'sort_code', 'sortcode', 'sort code', 'sorting code', 'bank sort code']
+}
+
+const autoMatchFields = () => {
+  fieldMapping.value = {}
+
+  for (const field of requiredFields) {
+    const aliases = fieldAliases[field.key] || [field.key]
+
+    // Find a matching header
+    const matchedHeader = csvHeaders.value.find(header => {
+      const normalizedHeader = header.toLowerCase().trim()
+      return aliases.some(alias => normalizedHeader === alias)
+    })
+
+    if (matchedHeader) {
+      fieldMapping.value[field.key] = matchedHeader
+    }
+  }
+}
+
+// Properly parse a CSV line handling quoted fields with commas
+const parseCSVLine = (line: string): string[] => {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+
+    if (char === '"') {
+      // Check for escaped quote (two consecutive quotes)
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i++ // Skip the next quote
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim())
+      current = ''
+    } else {
+      current += char
+    }
+  }
+
+  // Don't forget the last field
+  result.push(current.trim())
+
+  return result
 }
 
 const parseCSV = async () => {
@@ -232,12 +319,12 @@ const parseCSV = async () => {
       toast.error('CSV file is empty')
       return
     }
-    csvHeaders.value = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''))
-    
+    csvHeaders.value = parseCSVLine(headerLine)
+
     // Parse first data row for preview
     const firstDataLine = lines[1]
     if (firstDataLine) {
-      const firstRowValues = firstDataLine.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+      const firstRowValues = parseCSVLine(firstDataLine)
       csvPreview.value = {}
       csvHeaders.value.forEach((header, index) => {
         csvPreview.value[header] = firstRowValues[index] || ''
@@ -249,13 +336,16 @@ const parseCSV = async () => {
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i]
       if (!line) continue
-      const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+      const values = parseCSVLine(line)
       const row: any = {}
       csvHeaders.value.forEach((header, index) => {
         row[header] = values[index] || ''
       })
       csvData.value.push(row)
     }
+
+    // Auto-match fields based on header names
+    autoMatchFields()
 
     step.value = 2
   } catch (err: any) {

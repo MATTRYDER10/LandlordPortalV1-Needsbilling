@@ -167,15 +167,19 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Landlord bank details</h3>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label class="block text-sm font-medium text-gray-500">Account number (optional)</label>
+                <label class="block text-sm font-medium text-gray-500">Account name</label>
+                <p class="mt-1 text-sm text-gray-900">{{ landlord.bank_details.account_name || 'Not provided' }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Account number</label>
                 <p class="mt-1 text-sm text-gray-900">{{ landlord.bank_details.account_number || 'Not provided' }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">Sort code (optional)</label>
+                <label class="block text-sm font-medium text-gray-500">Sort code</label>
                 <p class="mt-1 text-sm text-gray-900">{{ landlord.bank_details.sort_code || 'Not provided' }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">Is this a joint account? (optional)</label>
+                <label class="block text-sm font-medium text-gray-500">Joint account</label>
                 <p class="mt-1 text-sm text-gray-900">{{ landlord.bank_details.is_joint_account ? 'Yes' : 'No' }}</p>
               </div>
             </div>

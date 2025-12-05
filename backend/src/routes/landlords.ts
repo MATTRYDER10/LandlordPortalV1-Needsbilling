@@ -676,13 +676,44 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
     // Get field mapping from request body
     const fieldMapping = req.body.fieldMapping ? JSON.parse(req.body.fieldMapping) : {}
 
+    // Properly parse a CSV line handling quoted fields with commas
+    const parseCSVLine = (line: string): string[] => {
+      const result: string[] = []
+      let current = ''
+      let inQuotes = false
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+
+        if (char === '"') {
+          // Check for escaped quote (two consecutive quotes)
+          if (inQuotes && line[i + 1] === '"') {
+            current += '"'
+            i++ // Skip the next quote
+          } else {
+            inQuotes = !inQuotes
+          }
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim())
+          current = ''
+        } else {
+          current += char
+        }
+      }
+
+      // Don't forget the last field
+      result.push(current.trim())
+
+      return result
+    }
+
     // Parse header row
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+    const headers = parseCSVLine(lines[0])
 
     // Parse data rows
     const csvData: any[] = []
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+      const values = parseCSVLine(lines[i])
       const row: any = {}
       headers.forEach((header, index) => {
         row[header] = values[index] || ''
@@ -720,7 +751,16 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
       if (fieldMapping.postcode && row[fieldMapping.postcode]) {
         landlordData.residential_postcode_encrypted = encrypt(row[fieldMapping.postcode])
       }
-      // Add more field mappings as needed
+      // Bank details
+      if (fieldMapping.bank_account_name && row[fieldMapping.bank_account_name]) {
+        landlordData.bank_account_name_encrypted = encrypt(row[fieldMapping.bank_account_name])
+      }
+      if (fieldMapping.bank_account_number && row[fieldMapping.bank_account_number]) {
+        landlordData.bank_account_number_encrypted = encrypt(row[fieldMapping.bank_account_number])
+      }
+      if (fieldMapping.bank_sort_code && row[fieldMapping.bank_sort_code]) {
+        landlordData.bank_sort_code_encrypted = encrypt(row[fieldMapping.bank_sort_code])
+      }
 
       // Validate required fields
       if (!landlordData.first_name_encrypted || !landlordData.last_name_encrypted || !landlordData.email_encrypted) {
