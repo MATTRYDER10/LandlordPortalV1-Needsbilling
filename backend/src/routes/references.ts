@@ -639,6 +639,13 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const { data: sanctionsScreening } = await supabase.from('sanctions_screenings').select('*').eq('reference_id', reference.id).single()
     const { data: score } = await supabase.from('reference_scores').select('*').eq('reference_id', reference.id).single()
 
+    // Get tenant offer linked to this reference (for holding deposit info)
+    const { data: tenantOffer } = await supabase
+      .from('tenant_offers')
+      .select('holding_deposit_amount_paid, holding_deposit_received_at')
+      .eq('reference_id', referenceId)
+      .single()
+
     res.json({
       reference: decryptedReference,
       documents,
@@ -655,6 +662,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       creditsafeVerification: creditsafeVerification,
       sanctionsScreening: sanctionsScreening,
       score: score,
+      tenantOffer: tenantOffer,
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })

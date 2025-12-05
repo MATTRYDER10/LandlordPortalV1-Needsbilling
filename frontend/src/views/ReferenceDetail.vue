@@ -1616,6 +1616,10 @@
               <p class="mt-1 text-gray-900">{{ reference.monthly_rent ? `£${reference.monthly_rent}` : 'Not provided' }}
               </p>
             </div>
+            <div v-if="tenantOffer?.holding_deposit_amount_paid">
+              <label class="block text-sm font-medium text-gray-500">Holding Deposit Received</label>
+              <p class="mt-1 text-gray-900">£{{ tenantOffer.holding_deposit_amount_paid }}</p>
+            </div>
             <div>
               <label class="block text-sm font-medium text-gray-500">Move-in Date</label>
               <div v-if="editingMoveInDate" class="mt-1">
@@ -3488,6 +3492,7 @@ const parentReference = ref<any>(null)
 const siblingReferences = ref<any[]>([])
 const previousAddresses = ref<any[]>([])
 const documents = ref<any[]>([])
+const tenantOffer = ref<any>(null)
 const loading = ref(true)
 const error = ref('')
 const expandedTenant = ref<string | null>(null)
@@ -3616,6 +3621,7 @@ const fetchReference = async () => {
     siblingReferences.value = data.siblingReferences || []
     previousAddresses.value = data.previousAddresses || []
     documents.value = data.documents || []
+    tenantOffer.value = data.tenantOffer || null
 
     application_flags.value = {
       credit_check_status: data?.reference?.status === 'pending' ? 'pending' : data?.creditsafeVerification?.verification_status ?? '',
