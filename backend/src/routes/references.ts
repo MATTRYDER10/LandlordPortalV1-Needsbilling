@@ -107,10 +107,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: allRefsError.message })
     }
 
-    // Filter to get only top-level references (no parent) OR guarantors
-    const references = allRefs?.filter(ref =>
-      ref.parent_reference_id === null || ref.is_guarantor === true
-    ) || []
+    // Filter out group parent placeholders - they are just containers for multi-tenant properties
+    // Show: single tenant refs, multi-tenant child refs, and guarantors
+    const references = allRefs?.filter(ref => ref.is_group_parent !== true) || []
 
     console.log('Top-level references found:', references?.length || 0)
     // For each parent reference, count the children and sync status

@@ -236,67 +236,195 @@
               </tr>
             </tbody>
             <tbody v-else class="bg-white divide-y divide-gray-200">
-              <template v-for="reference in filteredReferences" :key="reference.id">
-                <tr class="hover:bg-gray-50">
-                  <td class="px-6 py-4">
-                    <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
-                    <div class="text-sm text-gray-500">
-                      {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode :
-                        '' }}
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center gap-2">
-                      <button v-if="reference.is_group_parent" @click.stop="toggleExpanded(reference.id)"
-                        class="text-gray-400 hover:text-gray-600 focus:outline-none">
-                        <svg class="w-5 h-5 transition-transform"
-                          :class="{ 'rotate-90': expandedReference === reference.id }" fill="currentColor"
-                          viewBox="0 0 20 20">
-                          <path fill-rule="evenodd"
-                            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                            clip-rule="evenodd" />
+              <template v-for="item in groupedReferences" :key="item.id">
+                <!-- Multi-tenant Property Group Header -->
+                <template v-if="item.isPropertyGroup">
+                  <tr class="bg-purple-50 hover:bg-purple-100 cursor-pointer" @click="toggleGroupExpanded(item.id)">
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-purple-600 transition-transform" :class="{ 'rotate-90': expandedGroups.has(item.id) }" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                         </svg>
-                      </button>
-                      <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                          <div class="text-sm font-medium text-gray-900">
-                            {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
-                          </div>
-                          <span v-if="reference.is_group_parent"
-                            class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                            {{ reference.tenant_count || 0 }} Tenants
-                          </span>
+                        <div>
+                          <div class="text-sm font-medium text-gray-900">{{ item.property_address }}</div>
+                          <div class="text-sm text-gray-500">{{ item.property_city }}{{ item.property_postcode ? ', ' + item.property_postcode : '' }}</div>
                         </div>
-                        <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                        {{ item.tenantCount }} Tenants
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
+                        'bg-green-100 text-green-800': getGroupStatus(item.children) === 'completed',
+                        'bg-blue-100 text-blue-800': getGroupStatus(item.children) === 'in_progress',
+                        'bg-yellow-100 text-yellow-800': getGroupStatus(item.children) === 'pending',
+                        'bg-orange-100 text-orange-800': getGroupStatus(item.children) === 'mixed'
+                      }">
+                        {{ getGroupStatus(item.children) === 'completed' ? 'All Completed' : getGroupStatus(item.children) === 'in_progress' ? 'In Progress' : getGroupStatus(item.children) === 'mixed' ? 'Mixed Status' : 'Pending' }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="text-xs text-gray-500">{{ item.children.filter((c: any) => c.status === 'completed').length }}/{{ item.tenantCount }} completed</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">—</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.created_at) }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.move_in_date ? formatDate(item.move_in_date) : '—' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <span class="text-gray-400 text-xs">{{ expandedGroups.has(item.id) ? 'Click to collapse' : 'Click to expand' }}</span>
+                    </td>
+                  </tr>
+                  <!-- Expanded Child Tenant Rows -->
+                  <template v-if="expandedGroups.has(item.id)">
+                    <tr v-for="(child, childIndex) in item.children" :key="child.id" class="bg-gray-50 border-l-4 border-l-purple-400">
+                      <td class="px-6 py-3 pl-12">
+                        <div class="text-xs text-purple-600 font-medium mb-1">Tenant {{ child.tenant_position || childIndex + 1 }}/{{ item.tenantCount }}</div>
+                        <div class="text-sm text-gray-500">Rent share: £{{ child.rent_share || '—' }}/month</div>
+                      </td>
+                      <td class="px-6 py-3 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ child.tenant_first_name }} {{ child.tenant_last_name }}</div>
+                        <div class="text-sm text-gray-500">{{ child.tenant_email }}</div>
+                      </td>
+                      <td class="px-6 py-3 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
+                          'bg-yellow-100 text-yellow-800': child.status === 'pending',
+                          'bg-blue-100 text-blue-800': child.status === 'in_progress',
+                          'bg-orange-100 text-orange-800': child.status === 'pending_verification',
+                          'bg-green-100 text-green-800': child.status === 'completed',
+                          'bg-red-100 text-red-800': child.status === 'rejected',
+                          'bg-gray-100 text-gray-800': child.status === 'cancelled'
+                        }">{{ formatStatus(child.status, child) }}</span>
+                      </td>
+                      <td class="px-6 py-3 whitespace-nowrap">
+                        <div v-if="child.status === 'rejected'" class="flex items-start gap-2 text-sm text-red-700">
+                          <svg class="w-4 h-4 mt-0.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L2.82 18a1 1 0 00.9 1.5h16.56a1 1 0 00.9-1.5L13.71 3.86a1 1 0 00-1.72 0z" />
+                          </svg>
+                          <span>{{ findReason(child?.final_remarks) }}</span>
+                        </div>
+                        <div v-else-if="child.status === 'completed'" class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-100">
+                          <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>Verified</span>
+                        </div>
+                        <div v-else class="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-100">
+                          <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>Awaiting outcome</span>
+                        </div>
+                      </td>
+                      <td class="px-6 py-3 whitespace-nowrap">
+                        <div class="flex items-center gap-3">
+                          <div class="flex items-center gap-1" :title="child.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                            <svg class="w-5 h-5" :class="child.has_employer_reference ? 'text-green-600' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
+                              <path v-if="child.has_employer_reference" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                              <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="text-xs text-gray-600">Emp</span>
+                          </div>
+                          <div class="flex items-center gap-1" :title="child.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
+                            <svg class="w-5 h-5" :class="(child.has_credit_check && (child.credit_check_status === 'passed' || child.credit_check_status === 'refer')) ? 'text-green-600' : (child.credit_check_status === 'failed' || child.credit_check_status === 'error') ? 'text-red-600' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
+                              <path v-if="child.has_credit_check && (child.credit_check_status === 'passed' || child.credit_check_status === 'refer')" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                              <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="text-xs text-gray-600">Credit</span>
+                          </div>
+                          <div class="flex items-center gap-1" :title="(child.has_landlord_reference || child.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
+                            <svg class="w-5 h-5" :class="(child.reference_type === 'living_with_family' || child.has_landlord_reference || child.has_agent_reference) ? 'text-green-600' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
+                              <path v-if="(child.has_landlord_reference || child.has_agent_reference || child.reference_type === 'living_with_family')" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                              <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="text-xs text-gray-600">Res</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{ formatDate(child.created_at) }}</td>
+                      <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{ child.move_in_date ? formatDate(child.move_in_date) : '—' }}</td>
+                      <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
+                        <button @click.stop="viewReference(child)" class="text-primary hover:text-primary/80">View</button>
+                        <button @click.stop="createAgreement(child)" class="ml-3 text-green-600 hover:text-green-700 font-medium">Create Agreement</button>
+                        <button @click.stop="confirmDelete(child)" class="ml-3 text-red-600 hover:text-red-700 font-medium">Delete</button>
+                      </td>
+                    </tr>
+                    <!-- Guarantors for each child tenant in expanded view -->
+                    <template v-for="child in item.children" :key="`guarantors-${child.id}`">
+                      <tr v-for="guarantor in (child.guarantors || [])" :key="`guarantor-${guarantor.id}`" class="bg-purple-50/50 border-l-4 border-l-purple-300">
+                        <td class="px-6 py-2 pl-16">
+                          <div class="text-xs text-purple-600 font-medium">Guarantor for {{ child.tenant_first_name }}</div>
+                        </td>
+                        <td class="px-6 py-2 whitespace-nowrap">
+                          <div class="text-sm font-medium text-gray-900">{{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}</div>
+                          <div class="text-sm text-gray-500">{{ guarantor.tenant_email }}</div>
+                        </td>
+                        <td class="px-6 py-2 whitespace-nowrap">
+                          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
+                            'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
+                            'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
+                            'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
+                            'bg-green-100 text-green-800': guarantor.status === 'completed',
+                            'bg-red-100 text-red-800': guarantor.status === 'rejected'
+                          }">{{ formatStatus(guarantor.status, guarantor) }}</span>
+                        </td>
+                        <td class="px-6 py-2 whitespace-nowrap" colspan="4"></td>
+                        <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
+                          <button @click.stop="viewReference(guarantor)" class="text-purple-600 hover:text-purple-800">View</button>
+                          <button @click.stop="confirmDelete(guarantor)" class="ml-3 text-red-600 hover:text-red-700">Delete</button>
+                        </td>
+                      </tr>
+                    </template>
+                  </template>
+                </template>
+                <!-- Single Tenant Reference (original row) -->
+                <template v-else>
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                      <div class="text-sm text-gray-900">{{ item.property_address }}</div>
+                      <div class="text-sm text-gray-500">
+                        {{ item.property_city }}{{ item.property_postcode ? ', ' + item.property_postcode : '' }}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <div class="flex items-center gap-2">
+                            <div class="text-sm font-medium text-gray-900">
+                              {{ item.tenant_first_name }} {{ item.tenant_last_name }}
+                            </div>
+                          </div>
+                          <div class="text-sm text-gray-500">{{ item.tenant_email }}</div>
+                        </div>
+                      </div>
+                    </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
-                      'bg-yellow-100 text-yellow-800': reference.status === 'pending',
-                      'bg-blue-100 text-blue-800': reference.status === 'in_progress',
-                      'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
-                      'bg-green-100 text-green-800': reference.status === 'completed',
-                      'bg-red-100 text-red-800': reference.status === 'rejected',
-                      'bg-gray-100 text-gray-800': reference.status === 'cancelled'
+                      'bg-yellow-100 text-yellow-800': item.status === 'pending',
+                      'bg-blue-100 text-blue-800': item.status === 'in_progress',
+                      'bg-orange-100 text-orange-800': item.status === 'pending_verification',
+                      'bg-green-100 text-green-800': item.status === 'completed',
+                      'bg-red-100 text-red-800': item.status === 'rejected',
+                      'bg-gray-100 text-gray-800': item.status === 'cancelled'
                     }">
-                      {{ formatStatus(reference.status, reference) }}
+                      {{ formatStatus(item.status, item) }}
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap" style="width: 220px;">
                     <!-- Rejected: show clear rejection message -->
-                    <div v-if="reference.status === 'rejected'" class="flex items-start gap-2 text-sm text-red-700">
+                    <div v-if="item.status === 'rejected'" class="flex items-start gap-2 text-sm text-red-700">
                       <svg class="w-4 h-4 mt-0.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M12 9v4m0 4h.01M10.29 3.86L2.82 18a1 1 0 00.9 1.5h16.56a1 1 0 00.9-1.5L13.71 3.86a1 1 0 00-1.72 0z" />
                       </svg>
                       <span>
-                        {{ findReason(reference?.final_remarks) }}
+                        {{ findReason(item?.final_remarks) }}
                       </span>
                     </div>
 
                     <!-- Completed: green verified pill -->
-                    <div v-else-if="reference.status === 'completed'"
+                    <div v-else-if="item.status === 'completed'"
                       class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-100">
                       <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -319,11 +447,11 @@
                     <div class="flex items-center gap-3">
                       <!-- Employment Reference -->
                       <div class="flex items-center gap-1"
-                        :title="reference.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                        :title="item.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
                         <svg class="w-5 h-5"
-                          :class="reference.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
+                          :class="item.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
                           fill="currentColor" viewBox="0 0 20 20">
-                          <path v-if="reference.has_employer_reference" fill-rule="evenodd"
+                          <path v-if="item.has_employer_reference" fill-rule="evenodd"
                             d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                             clip-rule="evenodd" />
                           <path v-else fill-rule="evenodd"
@@ -334,12 +462,12 @@
                       </div>
                       <!-- Credit Check -->
                       <div class="flex items-center gap-1"
-                        :title="(reference.has_credit_check && (reference.credit_check_status === 'passed' || reference.credit_check_status === 'refer')) ? 'Credit check completed' : (reference.credit_check_status === 'failed' || reference.credit_check_status === 'error') ? 'Credit check failed' : 'Credit check pending'">
+                        :title="(item.has_credit_check && (item.credit_check_status === 'passed' || item.credit_check_status === 'refer')) ? 'Credit check completed' : (item.credit_check_status === 'failed' || item.credit_check_status === 'error') ? 'Credit check failed' : 'Credit check pending'">
                         <svg class="w-5 h-5"
-                          :class="(reference.has_credit_check && (reference.credit_check_status === 'passed' || reference.credit_check_status === 'refer')) ? 'text-green-600' : (reference.credit_check_status === 'failed' || reference.credit_check_status === 'error') ? 'text-red-600' : 'text-gray-300'"
+                          :class="(item.has_credit_check && (item.credit_check_status === 'passed' || item.credit_check_status === 'refer')) ? 'text-green-600' : (item.credit_check_status === 'failed' || item.credit_check_status === 'error') ? 'text-red-600' : 'text-gray-300'"
                           fill="currentColor" viewBox="0 0 20 20">
                           <path
-                            v-if="reference.has_credit_check && (reference.credit_check_status === 'passed' || reference.credit_check_status === 'refer')"
+                            v-if="item.has_credit_check && (item.credit_check_status === 'passed' || item.credit_check_status === 'refer')"
                             fill-rule="evenodd"
                             d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                             clip-rule="evenodd" />
@@ -351,12 +479,12 @@
                       </div>
                       <!-- Residential Reference -->
                       <div class="flex items-center gap-1"
-                        :title="reference.reference_type === 'living_with_family' ? 'Tenant is living with family, no residential reference required' : (reference.has_landlord_reference || reference.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
+                        :title="item.reference_type === 'living_with_family' ? 'Tenant is living with family, no residential reference required' : (item.has_landlord_reference || item.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
                         <svg class="w-5 h-5"
-                          :class="(reference.reference_type === 'living_with_family' || reference.has_landlord_reference || reference.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
+                          :class="(item.reference_type === 'living_with_family' || item.has_landlord_reference || item.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
                           fill="currentColor" viewBox="0 0 20 20">
                           <path
-                            v-if="(reference.has_landlord_reference || reference.has_agent_reference || reference.reference_type === 'living_with_family')"
+                            v-if="(item.has_landlord_reference || item.has_agent_reference || item.reference_type === 'living_with_family')"
                             fill-rule="evenodd"
                             d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                             clip-rule="evenodd" />
@@ -369,29 +497,29 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ formatDate(reference.created_at) }}
+                    {{ formatDate(item.created_at) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ reference.move_in_date ? formatDate(reference.move_in_date) : '—' }}
+                    {{ item.move_in_date ? formatDate(item.move_in_date) : '—' }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button @click="viewReference(reference)" class="text-primary hover:text-primary/80">
+                    <button @click="viewReference(item)" class="text-primary hover:text-primary/80">
                       View
                     </button>
-                    <button @click="createAgreement(reference)"
+                    <button @click="createAgreement(item)"
                       class="ml-3 text-green-600 hover:text-green-700 font-medium"
                       title="Create Agreement from this reference">
                       Create Agreement
                     </button>
-                    <button @click="confirmDelete(reference)" class="ml-3 text-red-600 hover:text-red-700 font-medium"
+                    <button @click="confirmDelete(item)" class="ml-3 text-red-600 hover:text-red-700 font-medium"
                       title="Delete reference">
                       Delete
                     </button>
                   </td>
                 </tr>
                 <!-- Guarantor Row (if exists) -->
-                <tr v-if="reference.guarantors && reference.guarantors.length > 0"
-                  v-for="guarantor in reference.guarantors" :key="`guarantor-${guarantor.id}`"
+                <tr v-if="item.guarantors && item.guarantors.length > 0"
+                  v-for="guarantor in item.guarantors" :key="`guarantor-${guarantor.id}`"
                   class="bg-purple-50 border-l-4 border-l-purple-500">
                   <td class="px-6 py-3 pl-12">
                     <div class="text-xs text-purple-700 font-medium mb-1">↳ Guarantor for above tenant</div>
@@ -521,97 +649,7 @@
                     </button>
                   </td>
                 </tr>
-                <!-- Expanded Tenant List -->
-                <tr v-if="reference.is_group_parent && expandedReference === reference.id" class="bg-gray-50">
-                  <td colspan="8" class="px-6 py-4">
-                    <div class="ml-8">
-                      <h4 class="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Individual Tenants
-                      </h4>
-                      <div v-if="reference.children" class="space-y-3">
-                        <div v-for="(child, index) in reference.children" :key="child.id"
-                          class="bg-white rounded-lg border border-gray-200">
-                          <!-- Tenant Info -->
-                          <div class="flex items-center justify-between p-3 hover:border-primary transition-colors">
-                            <div class="flex-1">
-                              <div class="flex items-center gap-2">
-                                <span class="text-xs font-medium text-gray-500">Tenant {{ index + 1 }}</span>
-                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full" :class="{
-                                  'bg-yellow-100 text-yellow-800': child.status === 'pending',
-                                  'bg-blue-100 text-blue-800': child.status === 'in_progress',
-                                  'bg-orange-100 text-orange-800': child.status === 'pending_verification',
-                                  'bg-green-100 text-green-800': child.status === 'completed'
-                                }">
-                                  {{ formatStatus(child.status, child) }}
-                                </span>
-                              </div>
-                              <p class="text-sm font-medium text-gray-900 mt-1">
-                                {{ child.tenant_first_name }} {{ child.tenant_last_name }}
-                              </p>
-                              <p class="text-xs text-gray-600">{{ child.tenant_email }}</p>
-                              <p class="text-xs text-gray-900 mt-1">
-                                Rent Share: <span class="font-semibold text-primary">£{{ child.rent_share }}</span>
-                              </p>
-                            </div>
-                            <div class="ml-4 flex gap-2">
-                              <button @click="viewReference(child)"
-                                class="px-3 py-1.5 text-xs bg-primary text-white rounded-md hover:bg-primary/90">
-                                View
-                              </button>
-                              <button @click="confirmDelete(child)"
-                                class="px-3 py-1.5 text-xs bg-red-600 text-white rounded-md hover:bg-red-700"
-                                title="Delete tenant reference">
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-
-                          <!-- Guarantors for this tenant -->
-                          <div v-if="child.guarantors && child.guarantors.length > 0"
-                            class="px-3 pb-3 pt-0 border-t border-gray-100">
-                            <div class="pl-4 space-y-2">
-                              <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Guarantor</p>
-                              <div v-for="guarantor in child.guarantors" :key="guarantor.id"
-                                class="flex items-center justify-between p-2 bg-purple-50 rounded border border-purple-200">
-                                <div class="flex-1">
-                                  <div class="flex items-center gap-2">
-                                    <span class="text-xs font-medium text-purple-700">🛡️ Guarantor</span>
-                                    <span class="px-2 py-0.5 text-xs font-semibold rounded-full" :class="{
-                                      'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
-                                      'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
-                                      'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
-                                      'bg-green-100 text-green-800': guarantor.status === 'completed'
-                                    }">
-                                      {{ formatStatus(guarantor.status, guarantor) }}
-                                    </span>
-                                  </div>
-                                  <p class="text-xs font-medium text-gray-900 mt-1">
-                                    {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
-                                  </p>
-                                  <p class="text-xs text-gray-600">{{ guarantor.tenant_email }}</p>
-                                </div>
-                                <div class="ml-2 flex gap-2">
-                                  <button @click="viewReference(guarantor)"
-                                    class="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700">
-                                    View
-                                  </button>
-                                  <button @click="confirmDelete(guarantor)"
-                                    class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                                    title="Delete guarantor reference">
-                                    Delete
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div v-else class="flex items-center justify-center py-4">
-                        <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                        <span class="ml-2 text-sm text-gray-600">Loading tenants...</span>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
+                </template>
               </template>
             </tbody>
           </table>
@@ -1159,6 +1197,88 @@ const filteredReferences = computed(() => {
   })
   return sorted
 })
+
+// Group multi-tenant references by parent_reference_id
+const groupedReferences = computed(() => {
+  const filtered = filteredReferences.value
+  const groups: any[] = []
+  const processedIds = new Set<string>()
+
+  // First, identify all multi-tenant children (those with parent_reference_id)
+  const childrenByParent = new Map<string, any[]>()
+
+  filtered.forEach(ref => {
+    if (ref.parent_reference_id) {
+      const children = childrenByParent.get(ref.parent_reference_id) || []
+      children.push(ref)
+      childrenByParent.set(ref.parent_reference_id, children)
+    }
+  })
+
+  // Sort children by tenant_position
+  childrenByParent.forEach((children) => {
+    children.sort((a, b) => (a.tenant_position || 0) - (b.tenant_position || 0))
+  })
+
+  // Create property groups for each multi-tenant group
+  childrenByParent.forEach((children, parentId) => {
+    if (children.length > 0) {
+      const firstChild = children[0]
+      groups.push({
+        isPropertyGroup: true,
+        id: parentId + '_group',
+        property_address: firstChild.property_address,
+        property_city: firstChild.property_city,
+        property_postcode: firstChild.property_postcode,
+        monthly_rent: firstChild.monthly_rent,
+        move_in_date: firstChild.move_in_date,
+        created_at: firstChild.created_at,
+        children: children,
+        tenantCount: children.length
+      })
+      children.forEach(c => processedIds.add(c.id))
+    }
+  })
+
+  // Add single tenant references (those without parent_reference_id)
+  filtered.forEach(ref => {
+    if (!ref.parent_reference_id && !processedIds.has(ref.id)) {
+      groups.push(ref)
+      processedIds.add(ref.id)
+    }
+  })
+
+  // Sort groups by created_at descending
+  groups.sort((a, b) => {
+    const aDate = new Date(a.created_at || 0).getTime()
+    const bDate = new Date(b.created_at || 0).getTime()
+    return bDate - aDate
+  })
+
+  return groups
+})
+
+// Track expanded property groups
+const expandedGroups = ref<Set<string>>(new Set())
+
+const toggleGroupExpanded = (groupId: string) => {
+  if (expandedGroups.value.has(groupId)) {
+    expandedGroups.value.delete(groupId)
+  } else {
+    expandedGroups.value.add(groupId)
+  }
+  // Trigger reactivity
+  expandedGroups.value = new Set(expandedGroups.value)
+}
+
+const getGroupStatus = (children: any[]) => {
+  // Determine overall status for a multi-tenant group
+  const statuses = children.map(c => c.status)
+  if (statuses.every(s => s === 'completed')) return 'completed'
+  if (statuses.some(s => s === 'rejected')) return 'mixed'
+  if (statuses.some(s => s === 'in_progress' || s === 'pending_verification')) return 'in_progress'
+  return 'pending'
+}
 
 const updateTenantCount = (count: number) => {
   tenantCount.value = count
