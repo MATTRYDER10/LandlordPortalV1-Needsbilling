@@ -198,6 +198,21 @@
               </div>
             </div>
           </div>
+
+          <!-- Deposit Scheme Type - only show for schemes that need it -->
+          <div v-if="formData.templateType !== 'no_deposit' && formData.templateType !== 'reposit'" class="mt-6">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Scheme Type *</label>
+            <select
+              v-model="formData.depositSchemeType"
+              :required="formData.templateType !== 'no_deposit' && formData.templateType !== 'reposit'"
+              class="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            >
+              <option value="" disabled>Please Select</option>
+              <option value="Custodial">Custodial Scheme</option>
+              <option value="Insured">Insured Scheme</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">Custodial: Deposit held by scheme. Insured: You hold deposit as stakeholder.</p>
+          </div>
         </div>
 
         <!-- Step 2: Property Address -->
@@ -358,19 +373,6 @@
                 <option value="30th">30th of each month</option>
                 <option value="Last">Last day of each month</option>
               </select>
-            </div>
-
-            <div v-if="formData.templateType !== 'no_deposit' && formData.templateType !== 'reposit'">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Scheme Type *</label>
-              <select
-                v-model="formData.depositSchemeType"
-                :required="formData.templateType !== 'no_deposit' && formData.templateType !== 'reposit'"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              >
-                <option value="Custodial">Custodial Scheme</option>
-                <option value="Insured">Insured Scheme</option>
-              </select>
-              <p class="text-xs text-gray-500 mt-1">Custodial: Deposit held by scheme. Insured: You hold deposit as stakeholder.</p>
             </div>
 
             <div>
@@ -1150,7 +1152,7 @@ const formData = ref<{
   tenancyStartDate: '',
   tenancyTerm: 12,
   rentDueDay: '1st',
-  depositSchemeType: 'Custodial',
+  depositSchemeType: '',
   permittedOccupiers: '',
   managementType: 'let_only',
   tenantEmail: '',
@@ -1413,7 +1415,10 @@ const canProceed = computed(() => {
     case 0: // Import from reference (always can proceed - it's optional)
       return true
     case 1: // Template selection
-      return formData.value.templateType !== ''
+      const templateSelected = formData.value.templateType !== ''
+      const needsSchemeType = formData.value.templateType !== 'no_deposit' && formData.value.templateType !== 'reposit'
+      const schemeTypeValid = !needsSchemeType || formData.value.depositSchemeType !== ''
+      return templateSelected && schemeTypeValid
     case 2: // Property address
       return (
         formData.value.propertyAddress.line1 !== '' &&
