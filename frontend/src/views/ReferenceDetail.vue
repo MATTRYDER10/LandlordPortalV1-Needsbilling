@@ -3634,13 +3634,25 @@ const fetchReference = async () => {
 
     const areSanctionClear = data?.sanctionsScreening?.risk_level === 'clear' || (Array.isArray(data?.sanctionsScreening?.sanctions_matches) && data?.sanctionsScreening?.sanctions_matches.length === 0)
 
+    // Parse fraud_indicators - it may be a JSON string from the database
+    let parsedFraudIndicators = null
+    if (data.creditsafeVerification?.fraud_indicators) {
+      try {
+        parsedFraudIndicators = typeof data.creditsafeVerification.fraud_indicators === 'string'
+          ? JSON.parse(data.creditsafeVerification.fraud_indicators)
+          : data.creditsafeVerification.fraud_indicators
+      } catch (e) {
+        console.error('Failed to parse fraud_indicators:', e)
+      }
+    }
+
     creditAndAmlVerification.value = {
       verification: {
         name_match_score: data?.score?.assessed_by === "System" ? 'yet_to_be_assessed' : data.creditsafeVerification?.name_match_score ?? 0,
         application_status: data?.score?.assessed_by === "System" ? "Yet to be assessed" : data?.score?.decision,
         risk_level: data?.score?.assessed_by === "System" ? 'yet_to_be_assessed' : data?.score?.risk_level,
         risk_score: data?.score?.score_total ?? 0,
-        verification_flags: data.creditsafeVerification?.fraud_indicators as any
+        verification_flags: parsedFraudIndicators
       },
       complianceChecks: {
         pep: areSanctionClear,
