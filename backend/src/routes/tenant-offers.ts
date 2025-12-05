@@ -581,8 +581,8 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
         const bankAccountNumber = company?.bank_account_number || ''
         const bankSortCode = company?.bank_sort_code || ''
 
-        // Calculate holding deposit (one week's rent)
-        const holdingDeposit = (offer.offered_rent_amount * 12) / 52
+        // Calculate holding deposit (one week's rent, rounded down to nearest pound)
+        const holdingDeposit = Math.floor((offer.offered_rent_amount * 12) / 52)
 
         // Decrypt property and terms
         const propertyAddress = offer.property_address_encrypted ? decrypt(offer.property_address_encrypted) : ''

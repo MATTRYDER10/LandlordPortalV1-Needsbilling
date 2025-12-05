@@ -1263,8 +1263,8 @@ const calculatedDeposit = computed(() => {
   // Formula: (monthly rent * 12 / 52) * 5 = 5 weeks rent
   const weeklyRent = (formData.value.rentAmount * 12) / 52
   const fiveWeeksDeposit = weeklyRent * 5
-  // Round to 2 decimal places
-  return Math.round(fiveWeeksDeposit * 100) / 100
+  // Round down to nearest whole pound
+  return Math.floor(fiveWeeksDeposit)
 })
 
 // Track whether user has manually edited the deposit
@@ -1687,10 +1687,10 @@ function mapReferenceToForm(
   // Financial details
   if (reference.monthly_rent) {
     formData.value.rentAmount = parseFloat(reference.monthly_rent)
-    // Auto-calculate deposit as 5 weeks rent
+    // Auto-calculate deposit as 5 weeks rent (rounded down to nearest pound)
     const weeklyRent = (formData.value.rentAmount * 12) / 52
     const fiveWeeksDeposit = weeklyRent * 5
-    formData.value.depositAmount = Math.round(fiveWeeksDeposit * 100) / 100
+    formData.value.depositAmount = Math.floor(fiveWeeksDeposit)
     // Reset manual edit flag since this is auto-imported
     depositManuallyEdited.value = false
   }

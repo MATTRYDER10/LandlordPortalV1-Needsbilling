@@ -437,7 +437,8 @@ const editForm = ref({
 
 const holdingDepositAmount = computed(() => {
   if (!offer.value?.offered_rent_amount) return 0
-  return (offer.value.offered_rent_amount * 12) / 52
+  // Round down to nearest whole pound
+  return Math.floor((offer.value.offered_rent_amount * 12) / 52)
 })
 
 const statusColorMap: Record<string, string> = {
