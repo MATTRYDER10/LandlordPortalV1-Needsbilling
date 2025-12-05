@@ -793,13 +793,13 @@ router.post('/:id/initiate-aml-check', authenticateToken, async (req: AuthReques
     }
 
     // Check credits or charge
-    const creditsRequired = 0.5
+    const creditsRequired = 0.25
    // const fixedCharge = 1.50
 
     if (chargeType === 'credits') {
       const hasCredits = await creditService.hasCredits(companyUser.company_id, creditsRequired)
       if (!hasCredits) {
-        return res.status(400).json({ error: 'Insufficient credits. 0.5 credits required for AML check.' })
+        return res.status(400).json({ error: 'Insufficient credits. 0.25 credits required for AML check.' })
       }
     }
 
