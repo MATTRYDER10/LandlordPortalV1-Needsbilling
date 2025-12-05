@@ -81,23 +81,27 @@
               @click="toggleReferenceSelector"
               type="button"
               class="px-6 py-3 text-sm font-medium rounded-md transition-colors"
-              :class="showReferenceSelector
-                ? 'bg-primary text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              :class="importedFromReference
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : showReferenceSelector
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               "
             >
-              {{ showReferenceSelector ? '✓ Reference Selected' : 'Import from Reference' }}
+              {{ importedFromReference ? '✓ Reference Imported' : 'Import from Reference' }}
             </button>
             <button
               @click="toggleLandlordImportSelector"
               type="button"
               class="px-6 py-3 text-sm font-medium rounded-md transition-colors"
-              :class="showLandlordImportSelector
-                ? 'bg-primary text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              :class="importedFromLandlord
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : showLandlordImportSelector
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               "
             >
-              {{ showLandlordImportSelector ? '✓ Landlord Selected' : 'Import from Landlord' }}
+              {{ importedFromLandlord ? '✓ Landlord Imported' : 'Import from Landlord' }}
             </button>
             <button
               v-if="showReferenceSelector || showLandlordImportSelector"
@@ -1857,6 +1861,9 @@ function selectLandlordForImport(landlord: any) {
     })
   }
 
+  // Auto-collapse the landlord selector after selection
+  showLandlordImportSelector.value = false
+
   toast.success('Landlord details imported successfully')
 }
 
@@ -1906,6 +1913,9 @@ async function selectReference(referenceId: string) {
 
     // Map reference data to form
     mapReferenceToForm(reference, childReferences, guarantorReferences, landlordReference)
+
+    // Auto-collapse the reference selector after selection
+    showReferenceSelector.value = false
 
     toast.success('Reference data imported successfully!')
   } catch (err) {
