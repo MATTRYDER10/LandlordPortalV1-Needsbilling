@@ -97,6 +97,10 @@
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
               Create Reference
             </router-link>
+            <router-link to="/agreements/generate"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
+              Create Agreement
+            </router-link>
             <router-link to="/landlords?add=true"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
               Add Landlord
