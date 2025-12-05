@@ -305,7 +305,7 @@
                       <label class="block text-sm font-medium text-gray-700 mb-2">Right to Rent Share Code *</label>
                       <div class="flex gap-2">
                         <input v-model="formData.rtr_share_code" type="text"
-                          :required="formData.is_british_citizen === false" placeholder="e.g., RABC1234DEF"
+                          placeholder="e.g., RABC1234DEF"
                           maxlength="20"
                           class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary uppercase"
                           @input="formData.rtr_share_code = formData.rtr_share_code.toUpperCase(); rtrVerificationStatus = null" />
@@ -350,7 +350,7 @@
                       </div>
                     </div>
 
-                    <div v-if="rtrVerificationStatus === 'failed'"
+                    <div
                       class="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
                       <div class="flex items-start gap-3">
                         <svg class="w-5 h-5 text-orange-500 mt-0.5" fill="none" stroke="currentColor"
@@ -359,7 +359,7 @@
                             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <p class="text-sm text-orange-900">
-                          We couldn't verify your share code automatically. Please upload either your Visa or Biometric
+                          Or you can upload either your Visa or Biometric
                           Residence Permit (BRP) so we can manually confirm your Right to Rent.
                         </p>
                       </div>
@@ -2230,6 +2230,7 @@ const selectNationality = (nationality: string) => {
 const hideNationalityDropdown = () => {
   setTimeout(() => {
     showNationalityDropdown.value = false
+    submitError.value = ''
   }, 200)
 }
 
@@ -3243,8 +3244,8 @@ const handlePageSubmit = async () => {
     if (formData.value.is_british_citizen === null) {
       submitError.value = 'Please indicate whether you are a British citizen'
     }
-    if (formData.value.is_british_citizen === false && !formData.value.rtr_share_code) {
-      submitError.value = 'Please enter your Right to Rent share code'
+    if (formData.value.is_british_citizen === false && (!formData.value.rtr_alternative_document_type || !formData.value.rtr_alternative_document_path) && ((formData.value.rtr_share_code && !formData.value.rtr_verified)) ){
+      submitError.value = 'Please enter your Right to Rent share code and upload your Visa or Biometric Residence Permit'
     }
   }
 
@@ -3275,12 +3276,9 @@ const handlePageSubmit = async () => {
       submitError.value = 'Please indicate whether you are a British citizen'
       return
     }
-    if (formData.value.is_british_citizen === false && !formData.value.rtr_share_code) {
-      submitError.value = 'Please enter your Right to Rent share code'
-      return
-    }
+
     //Verify RTR share code if not British citizen
-    if (formData.value.is_british_citizen === false && formData.value.rtr_share_code && !formData.value.rtr_verified) {
+    if (formData.value.is_british_citizen === false && formData.value.rtr_share_code && !formData.value.rtr_verified && (!formData.value.rtr_alternative_document_type || !formData.value.rtr_alternative_document_path)) {
       await verifyRTRShareCode()
     }
     if (formData.value.is_british_citizen === false && !formData.value.rtr_verified) {
@@ -3382,6 +3380,7 @@ const handlePageSubmit = async () => {
 
       uploadProgress.value = 0
       submitting.value = false
+      submitError.value = ''
 
       // Move to next page
       currentPage.value++

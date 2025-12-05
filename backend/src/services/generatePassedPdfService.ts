@@ -2,6 +2,11 @@ import PDFDocument from 'pdfkit'
 import { supabase } from '../config/supabase'
 import { decrypt } from './encryption'
 import path from 'path'
+import fs from "fs";
+import axios from 'axios'
+
+const cloudConvertApiKey = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiM2Y5NzFlNGJlZGJjMDNiNzVlNmRhMTA5NGMxMzMwMGM5N2JjMDdmYmY4ZTUwODg4ZjNlZDRiODgzZmU3ZGZjNTg3NTY4YzAwYmE5YTk2OTEiLCJpYXQiOjE3NjQ5NDI5MDMuMTg5Mjc4LCJuYmYiOjE3NjQ5NDI5MDMuMTg5Mjc5LCJleHAiOjQ5MjA2MTY1MDMuMTc5MTU3LCJzdWIiOiI2MzA0MzU2NSIsInNjb3BlcyI6WyJ0YXNrLnJlYWQiLCJ1c2VyLnJlYWQiLCJ3ZWJob29rLndyaXRlIiwid2ViaG9vay5yZWFkIiwidGFzay53cml0ZSIsInVzZXIud3JpdGUiLCJwcmVzZXQucmVhZCIsInByZXNldC53cml0ZSJdfQ.m8fwR_lTIPvEl4h3yf5EgsbdbT0LNLGVdENd3EFs0A6wnlPzKgcVKsW8WfA6Yz4QpZoqQswH1Pud7ynIw8_HWviz5tw4OaFITF7thA1xYBvfeqlj0E0xR5V-IhMg2uiG3PE44HBFYDcp0MTDU8JJiae2eBCTMJUGVj2Vds0QDeTYnYcr41Hx2XHZqOHLdNWtLSpEC4iIrc1zcNdaXs8Ftu0TUnjI8fj6AfimopdBVYe3sZtpVroqm9QSYsIKIe_BPNOIKP4M_HVs1PltP2thZ-YPzCp-zzsqkwnsTXrGEx6CBWS-lWBJrn4MRRaVhVumzo2mWIubPmBFWNq3fGLase-P5lbuqS_r0Qy5hRqckGgsDCyD30qWJ_mua1nA5WaR10ZQmx9PFgy0O_bO1SEFcopmmtIZsG40a9vxWHriw7oYjLkrc5KFjmpOfeTIY-lsET7yxuuMEkruE6hL5-6m5avj9-i38QgeGmyd8Q7zjQPTtXqupFJ_ejukdLUb8esL-xmr5qpo3lhfTaPCAyOPYgkjc44L6vNrKrsmXX9IPdwzCsNxV3nTJNPqONlZLIR5jHI6mZYBWw-WF-vUr6FOvJMgNy1CkOF5i6LkFwnJwsMvDQQR5kq2WWu0Zbu6AM8dkDwHpip9sdhHMGia44ooZe-zsa5OitpUWIMsqGo7N60';
+
 
 export async function generatePassedPdfService(referenceId: string): Promise<string> {
     // Fetch reference data
@@ -153,10 +158,10 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
     const agentSignatureName = agentReference?.signature_name_encrypted ? decrypt(agentReference.signature_name_encrypted) : null
 
     const employerSignature = employerReference?.signature_encrypted ? decrypt(employerReference.signature_encrypted) : null
-    const employerSignatureName = employerReference?.signature_name_encrypted ? decrypt(employerReference.signature_name_encrypted) : null
+    const employerSignatureName = reference?.employer_ref_name_encrypted ? decrypt(reference.employer_ref_name_encrypted) : null
 
     const accountantSignature = accountantReference?.signature_encrypted ? decrypt(accountantReference.signature_encrypted) : null
-    const accountantSignatureName = accountantReference?.accountant_name_encrypted ? decrypt(accountantReference.accountant_name_encrypted) : null
+    const accountantSignatureName = reference?.accountant_name_encrypted ? decrypt(reference.accountant_name_encrypted) : null
 
     // Helper function to convert base64 signature to buffer
     const base64ToBuffer = (base64String: string | null): Buffer | null => {
@@ -195,10 +200,136 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
         }
     }
 
+    // Download document file for rendering (check rtr_alternative_document_path first, then id_document_path)
+    let documentBuffer: Buffer | null = null
+    let documentIsPdf = false
+    const documentPath = reference.proof_of_funds_path || reference.id_document_path
+    if (documentPath) {
+        try {
+            const { data: fileData, error: downloadError } = await supabase.storage
+                .from('tenant-documents')
+                .download(documentPath)
+
+            if (!downloadError && fileData) {
+                documentBuffer = Buffer.from(await fileData.arrayBuffer())
+                // Check if it's a PDF by checking file extension or magic bytes
+                const fileExtension = documentPath.split('.').pop()?.toLowerCase()
+                documentIsPdf = fileExtension === 'pdf' || documentBuffer.slice(0, 4).toString() === '%PDF'
+
+                // If it's a PDF, convert first page to image using CloudConvert API
+                if (documentIsPdf) {
+                    try {
+
+                        if (!cloudConvertApiKey) {
+                            console.warn('[Passed PDF] CLOUDCONVERT_API_KEY not set, skipping PDF conversion');
+                            documentBuffer = null;
+                        } else {
+
+                            const base64Pdf = documentBuffer.toString('base64');
+
+                            //Create job
+                            const jobResponse = await axios.post(
+                                "https://api.cloudconvert.com/v2/jobs",
+                                {
+                                    tasks: {
+                                        upload_file: {
+                                            operation: "import/base64",
+                                            file: base64Pdf,
+                                            filename: "document.pdf"
+                                        },
+                                        convert_pdf: {
+                                            operation: "convert",
+                                            input: ["upload_file"],
+                                            input_format: "pdf",
+                                            output_format: "png",
+                                            page_range: "1"
+                                        },
+                                        export_result: {
+                                            operation: "export/url",
+                                            input: ["convert_pdf"]
+                                        }
+                                    }
+                                },
+                                {
+                                    headers: {
+                                        Authorization: `Bearer ${cloudConvertApiKey}`,
+                                        "Content-Type": "application/json"
+                                    }
+                                }
+                            );
+
+                            const jobId = jobResponse.data?.data?.id;
+                            if (!jobId) throw new Error("CloudConvert did not return a job ID.");
+
+                            //Poll job status until finished
+                            let jobCompleted = false;
+                            let exportTask = null;
+
+                            for (let i = 0; i < 20; i++) { // wait up to ~20 seconds
+                                await new Promise(res => setTimeout(res, 1000));
+
+                                const poll = await axios.get(
+                                    `https://api.cloudconvert.com/v2/jobs/${jobId}`,
+                                    {
+                                        headers: { Authorization: `Bearer ${cloudConvertApiKey}` }
+                                    }
+                                );
+
+                                const tasks = poll.data?.data?.tasks || [];
+
+                                // Look for export task
+                                exportTask = tasks.find((t: any) => t.name === "export_result");
+
+                                // Check if all tasks are finished
+                                const allFinished =
+                                    tasks.every((t: any) => t.status === "finished");
+
+                                if (allFinished && exportTask) {
+                                    jobCompleted = true;
+                                    break;
+                                }
+                            }
+
+                            if (!jobCompleted || !exportTask?.result?.files?.length) {
+                                throw new Error("CloudConvert did not return output image URL (job not finished).");
+                            }
+
+                            //Get file URL
+                            const fileUrl = exportTask.result.files[0].url;
+
+                            //Download PNG
+                            const imgResponse = await axios.get(fileUrl, { responseType: "arraybuffer" });
+                            documentBuffer = Buffer.from(imgResponse.data);
+                            documentIsPdf = false; //It's now an image
+                        }
+
+                    } catch (pdfError: any) {
+                        const errorMessage = pdfError.response?.data
+                            ? JSON.stringify(pdfError.response.data)
+                            : pdfError.message;
+
+                        console.warn('[Passed PDF] Could not convert PDF to image via CloudConvert:', errorMessage);
+
+                        if (pdfError.response?.status) {
+                            console.warn(`[Passed PDF] CloudConvert API status: ${pdfError.response.status}`);
+                        }
+
+                        documentBuffer = null;
+                    }
+                }
+
+            }
+        } catch (error) {
+            console.error('[Passed PDF] Error downloading document:', error)
+        }
+    }
+
     return new Promise((resolve, reject) => {
         try {
             const doc = new PDFDocument({ size: 'A4', margins: { top: 100, bottom: 100, left: 72, right: 72 } })
             const chunks: Buffer[] = []
+            // const stream = fs.createWriteStream("output.pdf");
+            // doc.pipe(stream);
 
             doc.on('data', (chunk) => chunks.push(chunk))
             doc.on('end', async () => {
@@ -231,6 +362,11 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     reject(error)
                 }
             })
+
+            // stream.on('finish', () => {
+            //     console.log("\x1b[32mPDF created → output.pdf\x1b[0m");
+            //     resolve('Please check the output.pdf file for the generated PDF');
+            // })
             doc.on('error', reject)
 
             const pageWidth = doc.page.width
@@ -292,10 +428,109 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             // ========== PAGE 1: Certificate of Completion ==========
             let yPos = 100
 
+            // Page background color (light beige/off-white)
+            doc.rect(0, 0, pageWidth, pageHeight)
+                .fillColor('#ffffff') // Light beige/off-white
+                .fill();
+
+            // Outer border (light beige)
+            const borderWidth = 20;
+            doc.rect(borderWidth / 2, borderWidth / 2, pageWidth - borderWidth, pageHeight - borderWidth)
+                .strokeColor('#F8F0DB')
+                .lineWidth(borderWidth)
+                .stroke();
+
+            // Inner border (thicker dark brown)
+            const innerBorderWidth = 4;
+            const innerBorderMargin = 15;
+            doc.rect(innerBorderMargin, innerBorderMargin, pageWidth - (innerBorderMargin * 2), pageHeight - (innerBorderMargin * 2))
+                .strokeColor('#F8F0DB') // Dark brown
+                .lineWidth(innerBorderWidth)
+                .stroke();
+
+            // Corner decorative logos (mongobuffet_logo-topleft.png) on all four corners
+            const decorativeCornerSize = 180;
+            try {
+                const cornerLogoPath = path.join(__dirname, '../../assets/mongobuffet_logo-topleft.png');
+                if (fs.existsSync(cornerLogoPath)) {
+                    const cornerSize = decorativeCornerSize; // size of the decorative corner
+
+                    // Top-left (original orientation)
+                    doc.image(cornerLogoPath, 0, 0, { width: cornerSize, height: cornerSize });
+
+                    // Top-right (flip horizontally)
+                    doc.save();
+                    doc.translate(pageWidth, 0);
+                    doc.scale(-1, 1);
+                    doc.image(cornerLogoPath, 0, 0, { width: cornerSize, height: cornerSize });
+                    doc.restore();
+
+                    // Bottom-left (flip vertically)
+                    doc.save();
+                    doc.translate(0, pageHeight);
+                    doc.scale(1, -1);
+                    doc.image(cornerLogoPath, 0, 0, { width: cornerSize, height: cornerSize });
+                    doc.restore();
+
+                    // Bottom-right (flip both horizontally and vertically)
+                    doc.save();
+                    doc.translate(pageWidth, pageHeight);
+                    doc.scale(-1, -1);
+                    doc.image(cornerLogoPath, 0, 0, { width: cornerSize, height: cornerSize });
+                    doc.restore();
+                }
+            } catch (error: unknown) {
+                console.log('Could not load mongobuffet_logo-topleft.png image:', error instanceof Error ? error.message : 'Unknown error');
+            }
+
+            // Delicate corner accent lines near the decorative logos
+            const cornerLineColor = '#E8D7A8';
+            const cornerLineWidth = 1.2;
+            const cornerLineLength = 130;
+            const cornerLineInset = 30; // distance from outer edge
+
+            // Top-left corner lines
+            doc.moveTo(cornerLineInset, decorativeCornerSize + 5)
+                .lineTo(cornerLineInset, decorativeCornerSize + 5 + cornerLineLength)
+                .strokeColor(cornerLineColor)
+                .lineWidth(cornerLineWidth)
+                .stroke();
+
+            doc.moveTo(decorativeCornerSize + 5, cornerLineInset)
+                .lineTo(decorativeCornerSize + 5 + cornerLineLength, cornerLineInset)
+                .stroke();
+
+            // Top-right corner lines
+            doc.moveTo(pageWidth - cornerLineInset, decorativeCornerSize + 5)
+                .lineTo(pageWidth - cornerLineInset, decorativeCornerSize + 5 + cornerLineLength)
+                .stroke();
+
+            doc.moveTo(pageWidth - decorativeCornerSize - 5, cornerLineInset)
+                .lineTo(pageWidth - decorativeCornerSize - 5 - cornerLineLength, cornerLineInset)
+                .stroke();
+
+            // Bottom-left corner lines
+            doc.moveTo(cornerLineInset, pageHeight - decorativeCornerSize - 5)
+                .lineTo(cornerLineInset, pageHeight - decorativeCornerSize - 5 - cornerLineLength)
+                .stroke();
+
+            doc.moveTo(decorativeCornerSize + 5, pageHeight - cornerLineInset)
+                .lineTo(decorativeCornerSize + 5 + cornerLineLength, pageHeight - cornerLineInset)
+                .stroke();
+
+            // Bottom-right corner lines
+            doc.moveTo(pageWidth - cornerLineInset, pageHeight - decorativeCornerSize - 5)
+                .lineTo(pageWidth - cornerLineInset, pageHeight - decorativeCornerSize - 5 - cornerLineLength)
+                .stroke();
+
+            doc.moveTo(pageWidth - decorativeCornerSize - 5, pageHeight - cornerLineInset)
+                .lineTo(pageWidth - decorativeCornerSize - 5 - cornerLineLength, pageHeight - cornerLineInset)
+                .stroke();
+
             // Add PASSED stamp image
             try {
                 const imagePath = path.join(__dirname, '../../assets/passed.png')
-                if (require('fs').existsSync(imagePath)) {
+                if (fs.existsSync(imagePath)) {
                     const imageWidth = 350
                     const imageHeight = 150
                     const imageX = centerX - imageWidth / 2
@@ -393,7 +628,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             // Add badge image
             try {
                 const badgePath = path.join(__dirname, '../../assets/badge.png')
-                if (require('fs').existsSync(badgePath)) {
+                if (fs.existsSync(badgePath)) {
                     const badgeWidth = 70
                     const badgeHeight = 100
                     const badgeY = nameLineY + 20
@@ -648,7 +883,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 ['Has children', hasChildren ? 'Yes' : 'No', false],
                 ['Smoker', isSmoker ? 'Yes' : 'No', false],
                 ['Pets', hasPets ? 'Yes' : 'No', false],
-                ['Number of tenants in application', String(numberOfTenants), false]
+                ['No. of tenants ', String(numberOfTenants), false]
             ]
             leftY += drawSection(leftColumnX, leftY, 'Personal Data', personalData, false, '#FF8C00', true)
 
@@ -676,7 +911,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 incomeData.push(['  Benefits', `£${benefitsAnnual.toLocaleString('en-GB')} pa`, false])
             }
             if (savingsAmount > 0) {
-                incomeData.push(['  Savings / Pension / Investment', `£${savingsAmount.toLocaleString('en-GB')} pa`, false])
+                incomeData.push(['  Sav. /Pen. /Inv.  ', ` £${savingsAmount.toLocaleString('en-GB')} pa`, false])
             }
             if (additionalIncome > 0) {
                 incomeData.push(['  Additional income', `£${additionalIncome.toLocaleString('en-GB')} pa`, false])
@@ -851,9 +1086,9 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     .text('PROPERTY & TENANCY DETAILS', resLabelColX, resY)
                 resY += 20
 
-                const tenancyStart = referenceData.previous_tenancy_start_date ? formatDate(referenceData.previous_tenancy_start_date) : 'N/A'
-                const tenancyEnd = referenceData.previous_tenancy_end_date ? formatDate(referenceData.previous_tenancy_end_date) : 'Ongoing'
-                const previousRent = referenceData.previous_monthly_rent_encrypted ? decrypt(referenceData.previous_monthly_rent_encrypted) : (referenceData.previous_monthly_rent ? `£${referenceData.previous_monthly_rent}` : 'N/A')
+                const tenancyStart = reference.previous_tenancy_start_date ? formatDate(reference.previous_tenancy_start_date) : 'N/A'
+                const tenancyEnd = reference.previous_tenancy_end_date ? formatDate(reference.previous_tenancy_end_date) : 'Ongoing'
+                const previousRent = reference.previous_monthly_rent_encrypted ? decrypt(reference.previous_monthly_rent_encrypted) : (reference.previous_monthly_rent ? `£${reference.previous_monthly_rent}` : 'N/A')
 
                 const propertyData: Array<[string, string]> = [
                     ['Property Address:', propertyAddress],
@@ -1193,7 +1428,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     const employmentStatus = employerReference.employment_status || 'N/A'
                     const performanceRating = employerReference.performance_rating || 'N/A'
                     const performanceDetails = employerReference.performance_details_encrypted ? decrypt(employerReference.performance_details_encrypted) : (employerReference.performance_details || '—')
-                    const wouldReemploy = employerReference.would_reemploy === 'yes' || employerReference.would_reemploy === true ? 'Yes' : employerReference.would_reemploy === 'no' || employerReference.would_reemploy === false ? 'No' : 'N/A'
+                    const wouldReemploy = employerReference.would_reemploy_details_encrypted ? decrypt(employerReference.would_reemploy_details_encrypted) : 'N/A'
 
                     const statusData: Array<[string, string]> = [
                         ['Employment Status:', employmentStatus],
@@ -1458,62 +1693,25 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             doc.fillColor('#F5F5DC')
                 .fill()
 
-            // Document type
-            const docType = reference.id_document_type || 'Passport'
-            doc.font('Helvetica-Bold')
-                .fontSize(12)
-                .fillColor('#333333')
-                .text(docType, passportX + 15, passportY + 15)
+            // Render document image if available
+            if (documentBuffer) {
+                try {
+                    // Render image document (PDFs are already converted to images above if possible)
+                    const imagePadding = 15
+                    const imageX = passportX + imagePadding
+                    const imageY = passportY + imagePadding
+                    const imageWidth = passportWidth - (imagePadding * 2)
+                    const imageHeight = passportHeight - (imagePadding * 2)
 
-            // Document details
-            doc.font('Helvetica')
-                .fontSize(9)
-                .fillColor('#333333')
-
-            let passportTextY = passportY + 40
-
-            // Extract document details if available
-            const documentNumber = reference.id_document_number_encrypted ? decrypt(reference.id_document_number_encrypted) : (reference.id_document_number || 'N/A')
-            const nationality = reference.nationality || 'N/A'
-            const placeOfBirth = reference.place_of_birth_encrypted ? decrypt(reference.place_of_birth_encrypted) : (reference.place_of_birth || 'N/A')
-            const issueDate = reference.id_document_issue_date ? formatDate(reference.id_document_issue_date) : 'N/A'
-            const expiryDate = reference.id_document_expiry_date ? formatDate(reference.id_document_expiry_date) : 'N/A'
-
-            if (docType.toLowerCase().includes('passport')) {
-                doc.text('UNITED KINGDOM OF GREAT BRITAIN', passportX + 15, passportTextY)
-                passportTextY += 15
-                doc.text('AND NORTHERN IRELAND', passportX + 15, passportTextY)
-                passportTextY += 20
-                doc.font('Helvetica-Bold').text('PASSPORT', passportX + 15, passportTextY)
-                passportTextY += 30
+                    doc.image(documentBuffer, imageX, imageY, {
+                        width: imageWidth,
+                        height: imageHeight,
+                        fit: [imageWidth, imageHeight]
+                    })
+                } catch (error) {
+                    console.error('[Passed PDF] Error rendering document image:', error)
+                }
             }
-
-            doc.font('Helvetica').text(`Surname: ${lastName.toUpperCase()}`, passportX + 15, passportTextY)
-            passportTextY += 15
-            doc.text(`Given Name: ${firstName.toUpperCase()}${middleName ? ' ' + middleName.toUpperCase() : ''}`, passportX + 15, passportTextY)
-            passportTextY += 15
-            doc.text(`Nationality: ${nationality.toUpperCase()}`, passportX + 15, passportTextY)
-            passportTextY += 15
-            doc.text(`Date of Birth: ${dateOfBirth ? formatDate(dateOfBirth).toUpperCase() : 'N/A'}`, passportX + 15, passportTextY)
-            passportTextY += 15
-            if (placeOfBirth !== 'N/A') {
-                doc.text(`Place of Birth: ${placeOfBirth.toUpperCase()}`, passportX + 15, passportTextY)
-                passportTextY += 15
-            }
-            if (issueDate !== 'N/A') {
-                doc.text(`Date of Issue: ${issueDate}`, passportX + 15, passportTextY)
-                passportTextY += 15
-            }
-            if (expiryDate && expiryDate !== 'N/A') {
-                doc.text(`Date of Expiry: ${expiryDate}`, passportX + 15, passportTextY)
-                passportTextY += 15
-            }
-            if (documentNumber && documentNumber !== 'N/A') {
-                doc.text(`Document Number: ${documentNumber}`, passportX + 15, passportTextY)
-                passportTextY += 15
-            }
-            passportTextY += 20
-            doc.font('Helvetica').fontSize(8).text('[Photo Placeholder]', passportX + 15, passportTextY)
 
             // Footer for page 5
             const page5FooterY = pageHeight - 30

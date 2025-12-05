@@ -605,7 +605,9 @@ router.post(
           status: verdict,
           res_assessment_status: residential.decision,
           income_assessment_status: income.decision,
-          rtr_verified: rtr.decision === 'PASS'
+          rtr_verified: rtr.decision === 'PASS',
+          verified_by : staffUser.id,
+          verified_at : new Date().toISOString()
         })
         .eq('id', referenceId);
 
