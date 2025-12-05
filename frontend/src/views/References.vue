@@ -906,12 +906,12 @@
               </div>
             </div>
 
-            <!-- Notes -->
+            <!-- Internal Notes -->
             <div>
-              <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+              <label for="notes" class="block text-sm font-medium text-gray-700">Internal Notes</label>
               <textarea id="notes" v-model="formData.notes" rows="2"
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                placeholder="Optional notes about this reference..."></textarea>
+                placeholder="Optional internal notes about this reference..."></textarea>
             </div>
 
             <div v-if="createError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
