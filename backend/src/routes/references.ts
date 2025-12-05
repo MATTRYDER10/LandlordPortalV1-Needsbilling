@@ -3764,7 +3764,18 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
     const tenantLastName = decrypt(reference.tenant_last_name_encrypted) || ''
     const tenantName = `${tenantFirstName} ${tenantLastName}`
     const propertyAddress = decrypt(reference.property_address_encrypted) || ''
-    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${reference.id}`
+
+    // Generate a new token for this resend (original token is not stored, only hash)
+    const newToken = generateToken()
+    const newTokenHash = hash(newToken)
+
+    // Update the reference with the new token hash
+    await supabase
+      .from('tenant_references')
+      .update({ reference_token_hash: newTokenHash })
+      .eq('id', referenceId)
+
+    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${newToken}`
 
     const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : ''
     const companyPhone = companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : ''
