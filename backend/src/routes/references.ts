@@ -132,8 +132,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       const credit_check_status = creditsafeCheck.data?.verification_status || null
       const final_remarks = score?.data?.final_remarks || null
 
-      // Check if guarantor reference is complete (for references that require a guarantor)
+      // Check if guarantor reference exists and its status
       let has_guarantor_reference = false
+      let has_guarantor_assigned = false
       if (ref.requires_guarantor) {
         const { data: guarantorRef } = await supabase
           .from('tenant_references')
@@ -142,6 +143,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           .eq('is_guarantor', true)
           .maybeSingle()
 
+        // Guarantor is assigned if a guarantor reference exists at all
+        has_guarantor_assigned = !!guarantorRef
         // Guarantor is considered "complete" if status is 'completed' or 'pending_verification'
         has_guarantor_reference = !!guarantorRef && (guarantorRef.status === 'completed' || guarantorRef.status === 'pending_verification')
       }
@@ -192,6 +195,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           has_employer_reference,
           has_accountant_reference,
           has_guarantor_reference,
+          has_guarantor_assigned,
           has_credit_check,
           credit_check_status,
           final_remarks
@@ -204,6 +208,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         has_employer_reference,
         has_accountant_reference,
         has_guarantor_reference,
+        has_guarantor_assigned,
         has_credit_check,
         credit_check_status,
         final_remarks

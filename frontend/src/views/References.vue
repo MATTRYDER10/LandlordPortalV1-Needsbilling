@@ -319,9 +319,9 @@
                       </td>
                       <td class="px-6 py-3 whitespace-nowrap">
                         <div class="flex items-center gap-3">
-                          <div class="flex items-center gap-1" :title="child.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
-                            <svg class="w-5 h-5" :class="child.has_employer_reference ? 'text-green-600' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
-                              <path v-if="child.has_employer_reference" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                          <div class="flex items-center gap-1" :title="getEmploymentTitle(child)">
+                            <svg class="w-5 h-5" :class="hasEmploymentSatisfied(child) ? 'text-green-600' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
+                              <path v-if="hasEmploymentSatisfied(child)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                               <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
                             </svg>
                             <span class="text-xs text-gray-600">Emp</span>
@@ -447,11 +447,11 @@
                     <div class="flex items-center gap-3">
                       <!-- Employment Reference -->
                       <div class="flex items-center gap-1"
-                        :title="item.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                        :title="getEmploymentTitle(item)">
                         <svg class="w-5 h-5"
-                          :class="item.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
+                          :class="hasEmploymentSatisfied(item) ? 'text-green-600' : 'text-gray-300'"
                           fill="currentColor" viewBox="0 0 20 20">
-                          <path v-if="item.has_employer_reference" fill-rule="evenodd"
+                          <path v-if="hasEmploymentSatisfied(item)" fill-rule="evenodd"
                             d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                             clip-rule="evenodd" />
                           <path v-else fill-rule="evenodd"
@@ -588,11 +588,11 @@
                     <div class="flex items-center gap-3">
                       <!-- Employment Reference -->
                       <div class="flex items-center gap-1"
-                        :title="guarantor.has_employer_reference ? 'Employment reference received' : 'Employment reference pending'">
+                        :title="getEmploymentTitle(guarantor)">
                         <svg class="w-5 h-5"
-                          :class="guarantor.has_employer_reference ? 'text-green-600' : 'text-gray-300'"
+                          :class="hasEmploymentSatisfied(guarantor) ? 'text-green-600' : 'text-gray-300'"
                           fill="currentColor" viewBox="0 0 20 20">
-                          <path v-if="guarantor.has_employer_reference" fill-rule="evenodd"
+                          <path v-if="hasEmploymentSatisfied(guarantor)" fill-rule="evenodd"
                             d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                             clip-rule="evenodd" />
                           <path v-else fill-rule="evenodd"
@@ -1042,7 +1042,6 @@ const loading = ref(true)
 const createLoading = ref(false)
 const createError = ref('')
 const createSuccess = ref('')
-const expandedReference = ref<string | null>(null)
 const searchQuery = ref('')
 const statusFilter = ref('')
 const dateFilter = ref('')
@@ -1278,6 +1277,22 @@ const getGroupStatus = (children: any[]) => {
   if (statuses.some(s => s === 'rejected')) return 'mixed'
   if (statuses.some(s => s === 'in_progress' || s === 'pending_verification')) return 'in_progress'
   return 'pending'
+}
+
+// Check if employment reference requirement is satisfied
+// Green tick if: has employer reference OR (is student AND has guarantor assigned)
+const hasEmploymentSatisfied = (ref: any) => {
+  if (ref.has_employer_reference) return true
+  // For students, having a guarantor assigned means no employer reference needed
+  if (ref.income_student && ref.has_guarantor_assigned) return true
+  return false
+}
+
+const getEmploymentTitle = (ref: any) => {
+  if (ref.has_employer_reference) return 'Employment reference received'
+  if (ref.income_student && ref.has_guarantor_assigned) return 'Student with guarantor - no employment reference required'
+  if (ref.income_student) return 'Student - awaiting guarantor assignment'
+  return 'Employment reference pending'
 }
 
 const updateTenantCount = (count: number) => {
@@ -1639,43 +1654,6 @@ const createAgreement = (reference: any) => {
     path: '/agreements/generate',
     query: { referenceId: reference.id }
   })
-}
-
-const toggleExpanded = async (referenceId: string) => {
-  if (expandedReference.value === referenceId) {
-    expandedReference.value = null
-  } else {
-    expandedReference.value = referenceId
-    // Fetch children if not already loaded
-    const reference = references.value.find(r => r.id === referenceId)
-    if (reference && reference.is_group_parent && !reference.children) {
-      await fetchChildren(referenceId)
-    }
-  }
-}
-
-const fetchChildren = async (parentId: string) => {
-  try {
-    const token = authStore.session?.access_token
-    if (!token) return
-
-    const response = await fetch(`${API_URL}/api/references/${parentId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-
-    if (response.ok) {
-      const data = await response.json()
-      const reference = references.value.find(r => r.id === parentId)
-      if (reference && data.childReferences) {
-        reference.children = data.childReferences
-      }
-    }
-  } catch (error) {
-    console.error('Failed to fetch children:', error)
-  }
 }
 
 const handlePropertyAddressSelected = (addressData: any) => {
