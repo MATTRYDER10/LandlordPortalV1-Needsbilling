@@ -53,7 +53,7 @@ export async function checkPaymentMethod(
 
       res.status(402).json({
         error: 'Payment Method Required',
-        message: 'Please add a payment method to your account before creating references. This ensures seamless processing if you need to add a guarantor (£9.99 per guarantor).',
+        message: 'Please add a payment method to your account before creating references.',
         requires_payment_method: true,
         action: 'add_payment_method',
         redirect_to: '/billing',

@@ -196,7 +196,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         const token = generateToken()
         const tokenHash = hash(token)
         const expiresAt = new Date()
-        expiresAt.setDate(expiresAt.getDate() + 30) // 30 days expiry
+        expiresAt.setDate(expiresAt.getDate() + 21) // 21 days expiry
 
         // Create application record
         const { data: application, error } = await supabase

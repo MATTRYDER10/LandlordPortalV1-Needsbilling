@@ -16,6 +16,7 @@ import { creditsafeService } from '../services/creditsafeService'
 import { sanctionsService, ScreeningResponse } from '../services/sanctionsService'
 import { generateReferenceReportPDF } from '../services/pdfReportService'
 import * as billingService from '../services/billingService'
+import * as creditService from '../services/creditService'
 import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/requestMetadata'
 import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
@@ -911,9 +912,9 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
         }
       }
 
-      // Token expires in 30 days
+      // Token expires in 21 days
       const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 30)
+      expiresAt.setDate(expiresAt.getDate() + 21)
 
       // Create parent reference (placeholder for the property)
       const parentToken = generateToken()
@@ -1014,7 +1015,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
             const guarantorToken = generateToken()
             const guarantorTokenHash = hash(guarantorToken)
             const guarantorExpiresAt = new Date()
-            guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 30)
+            guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 21)
 
             // Encrypt parent tenant name for storage
             const parentFirstNameEncrypted = encrypt(tenant.first_name)
@@ -1072,34 +1073,25 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
               )
               console.log('✅ Guarantor email sent to:', tenant.guarantor.email)
 
-              // Charge £9.99 for guarantor reference processing
-              console.log('💳 Charging £9.99 for guarantor reference...')
+              // Deduct 0.5 credits for guarantor reference
+              console.log('💳 Deducting 0.5 credits for guarantor reference...')
               try {
-                const chargeResult = await billingService.chargeForGuarantorReference(
+                await creditService.deductCredits(
                   companyUser.company_id,
+                  0.5,
                   guarantorRef.id,
+                  'Guarantor reference creation',
                   userId
                 )
-
-                if (chargeResult.success) {
-                  console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
-                } else {
-                  console.error('❌ Guarantor reference charge failed:', chargeResult.error)
-                  // Delete the guarantor reference if payment failed
-                  await supabase
-                    .from('tenant_references')
-                    .delete()
-                    .eq('id', guarantorRef.id)
-                  console.log('🗑️  Deleted guarantor reference due to payment failure')
-                }
-              } catch (chargeError: any) {
-                console.error('❌ Failed to charge for guarantor reference:', chargeError)
-                // Delete the guarantor reference if charging fails
+                console.log('✅ Guarantor reference credit deduction successful')
+              } catch (creditError: any) {
+                console.error('❌ Failed to deduct credits for guarantor reference:', creditError)
+                // Delete the guarantor reference if credit deduction fails
                 await supabase
                   .from('tenant_references')
                   .delete()
                   .eq('id', guarantorRef.id)
-                console.log('🗑️  Deleted guarantor reference due to charge error')
+                console.log('🗑️  Deleted guarantor reference due to insufficient credits')
               }
             }
           } catch (guarantorError: any) {
@@ -1154,9 +1146,9 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
       const token = generateToken()
       const tokenHash = hash(token)
 
-      // Token expires in 30 days
+      // Token expires in 21 days
       const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 30)
+      expiresAt.setDate(expiresAt.getDate() + 21)
 
       // Create reference
       const { data: reference, error } = await supabase
@@ -1213,7 +1205,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           const guarantorToken = generateToken()
           const guarantorTokenHash = hash(guarantorToken)
           const guarantorExpiresAt = new Date()
-          guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 30)
+          guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 21)
 
           // Encrypt parent tenant name for storage
           const parentFirstNameEncrypted = encrypt(tenant_first_name)
@@ -1273,35 +1265,25 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
             )
             console.log('✅ Guarantor email sent to:', guarantor_email)
 
-            // Charge £9.99 for guarantor reference processing
-            console.log('💳 Charging £9.99 for guarantor reference...')
+            // Deduct 0.5 credits for guarantor reference
+            console.log('💳 Deducting 0.5 credits for guarantor reference...')
             try {
-              const chargeResult = await billingService.chargeForGuarantorReference(
+              await creditService.deductCredits(
                 companyUser.company_id,
+                0.5,
                 guarantorRef.id,
+                'Guarantor reference creation',
                 userId
               )
-
-              if (chargeResult.success) {
-                console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
-              } else {
-                console.error('❌ Guarantor reference charge failed:', chargeResult.error)
-                // Delete the guarantor reference if payment failed
-                await supabase
-                  .from('tenant_references')
-                  .delete()
-                  .eq('id', guarantorRef.id)
-                console.log('🗑️  Deleted guarantor reference due to payment failure')
-                guarantorReference = null
-              }
-            } catch (chargeError: any) {
-              console.error('❌ Failed to charge for guarantor reference:', chargeError)
-              // Delete the guarantor reference if charging fails
+              console.log('✅ Guarantor reference credit deduction successful')
+            } catch (creditError: any) {
+              console.error('❌ Failed to deduct credits for guarantor reference:', creditError)
+              // Delete the guarantor reference if credit deduction fails
               await supabase
                 .from('tenant_references')
                 .delete()
                 .eq('id', guarantorRef.id)
-              console.log('🗑️  Deleted guarantor reference due to charge error')
+              console.log('🗑️  Deleted guarantor reference due to insufficient credits')
               guarantorReference = null
             }
           }
@@ -1480,15 +1462,40 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Insufficient permissions' })
     }
 
-    // Get reference details for audit log before deletion
+    // Get reference details for audit log and refund check before deletion
     const { data: reference } = await supabase
       .from('tenant_references')
-      .select('tenant_first_name, tenant_last_name, property_address')
+      .select('tenant_first_name, tenant_last_name, property_address, status, is_guarantor')
       .eq('id', referenceId)
       .eq('company_id', companyUser.company_id)
       .single()
 
-    // Delete reference
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Check for linked guarantor references that are also pending
+    const { data: guarantorRefs } = await supabase
+      .from('tenant_references')
+      .select('id, status')
+      .eq('guarantor_for_reference_id', referenceId)
+      .eq('is_guarantor', true)
+
+    // Calculate credits to refund
+    let creditsToRefund = 0
+
+    // Refund 1 credit for main reference if status is 'pending' (tenant hasn't filled it out)
+    if (reference.status === 'pending' && !reference.is_guarantor) {
+      creditsToRefund += 1
+    }
+
+    // Refund 0.5 credits for each pending guarantor reference
+    if (guarantorRefs && guarantorRefs.length > 0) {
+      const pendingGuarantorCount = guarantorRefs.filter(g => g.status === 'pending').length
+      creditsToRefund += pendingGuarantorCount * 0.5
+    }
+
+    // Delete reference (this will cascade delete linked guarantor references)
     const { error } = await supabase
       .from('tenant_references')
       .delete()
@@ -1499,24 +1506,43 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: error.message })
     }
 
-    // Audit log
-    if (reference) {
-      await auditReferenceAction(
-        companyUser.company_id,
-        userId!,
-        referenceId,
-        'reference.deleted',
-        `Deleted reference for ${reference.tenant_first_name} ${reference.tenant_last_name} at ${reference.property_address}`,
-        req,
-        {
-          tenant_first_name: reference.tenant_first_name,
-          tenant_last_name: reference.tenant_last_name,
-          property_address: reference.property_address
-        }
-      )
+    // Refund credits if any are due
+    if (creditsToRefund > 0) {
+      try {
+        await creditService.refundCredits(
+          companyUser.company_id,
+          creditsToRefund,
+          referenceId,
+          'Refund for deleted unfilled reference',
+          userId
+        )
+        console.log(`[Delete Reference] Refunded ${creditsToRefund} credit(s) for reference ${referenceId}`)
+      } catch (refundError: any) {
+        console.error(`[Delete Reference] Failed to refund credits for reference ${referenceId}:`, refundError)
+        // Don't fail the delete operation if refund fails - just log it
+      }
     }
 
-    res.json({ message: 'Reference deleted successfully' })
+    // Audit log
+    await auditReferenceAction(
+      companyUser.company_id,
+      userId!,
+      referenceId,
+      'reference.deleted',
+      `Deleted reference for ${reference.tenant_first_name} ${reference.tenant_last_name} at ${reference.property_address}${creditsToRefund > 0 ? ` (${creditsToRefund} credit(s) refunded)` : ''}`,
+      req,
+      {
+        tenant_first_name: reference.tenant_first_name,
+        tenant_last_name: reference.tenant_last_name,
+        property_address: reference.property_address,
+        credits_refunded: creditsToRefund
+      }
+    )
+
+    res.json({
+      message: 'Reference deleted successfully',
+      credits_refunded: creditsToRefund
+    })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -1861,7 +1887,7 @@ router.post('/submit/:token', async (req: Request, res) => {
       }
     }
 
-    // Create guarantor reference if requested and charge £9.99
+    // Create guarantor reference if requested (costs 0.5 credits)
     if (data.requires_guarantor && data.guarantor_first_name && data.guarantor_email) {
       console.log(`=== GUARANTOR CREATION START ===`)
       console.log(`GUARANTOR REQUIRED: Tenant ${data.first_name} ${data.last_name} has requested a guarantor: ${data.guarantor_first_name} ${data.guarantor_last_name || ''} (${data.guarantor_email})`)
@@ -1886,7 +1912,7 @@ router.post('/submit/:token', async (req: Request, res) => {
           const guarantorToken = generateToken()
           const guarantorTokenHash = hash(guarantorToken)
           const guarantorExpiresAt = new Date()
-          guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 30)
+          guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 21)
 
           // Create guarantor reference as a full tenant_reference
           const { data: guarantorRef, error: guarantorError } = await supabase
@@ -1981,43 +2007,26 @@ router.post('/submit/:token', async (req: Request, res) => {
 
             console.log('✅ Guarantor reference email sent to:', data.guarantor_email)
 
-            // Charge £9.99 for guarantor reference processing
-            console.log('💳 Charging £9.99 for guarantor reference...')
+            // Deduct 0.5 credits for guarantor reference
+            console.log('💳 Deducting 0.5 credits for guarantor reference...')
             try {
-              const chargeResult = await billingService.chargeForGuarantorReference(
+              await creditService.deductCredits(
                 reference.company_id,
+                0.5,
                 guarantorRef.id,
+                'Guarantor reference creation',
                 undefined // No userId for public tenant submission
               )
-
-              if (chargeResult.success) {
-                console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
-              } else {
-                console.error('❌ Guarantor reference charge failed:', chargeResult.error)
-                // Delete the guarantor reference if payment failed
-                await supabase
-                  .from('tenant_references')
-                  .delete()
-                  .eq('id', guarantorRef.id)
-
-                return res.status(402).json({
-                  error: 'Payment Required',
-                  message: chargeResult.error || 'Failed to charge for guarantor reference. Please add a payment method to your account.',
-                  requires_payment_method: true,
-                })
-              }
-            } catch (chargeError: any) {
-              console.error('❌ Failed to charge for guarantor reference:', chargeError)
-              // Delete the guarantor reference if charging fails
+              console.log('✅ Guarantor reference credit deduction successful')
+            } catch (creditError: any) {
+              console.error('❌ Failed to deduct credits for guarantor reference:', creditError)
+              // Delete the guarantor reference if credit deduction fails
               await supabase
                 .from('tenant_references')
                 .delete()
                 .eq('id', guarantorRef.id)
-
-              return res.status(500).json({
-                error: 'Payment Error',
-                message: 'Failed to process payment for guarantor reference. Please contact support.',
-              })
+              // Don't fail the tenant submission - just log the error
+              // The agency may need to add credits and request the guarantor manually
             }
           }
         } catch (error: any) {
@@ -3909,7 +3918,7 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     const guarantorToken = generateToken()
     const guarantorTokenHash = hash(guarantorToken)
     const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 30) // 30-day expiry
+    expiresAt.setDate(expiresAt.getDate() + 21) // 21-day expiry
 
     // Create guarantor reference as a tenant_reference
     const { data: guarantorReference, error: createError } = await supabase
@@ -3991,42 +4000,28 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
 
     console.log('Guarantor reference email sent to:', guarantor_email)
 
-    // Charge £9.99 for guarantor reference processing
-    console.log('💳 Charging £9.99 for guarantor reference...')
+    // Deduct 0.5 credits for guarantor reference
+    console.log('💳 Deducting 0.5 credits for guarantor reference...')
     try {
-      const chargeResult = await billingService.chargeForGuarantorReference(
+      await creditService.deductCredits(
         parentReference.company_id,
+        0.5,
         guarantorReference.id,
+        'Guarantor reference creation',
         userId
       )
-
-      if (!chargeResult.success) {
-        console.error('❌ Guarantor reference charge failed:', chargeResult.error)
-        // Delete the guarantor reference if payment failed
-        await supabase
-          .from('tenant_references')
-          .delete()
-          .eq('id', guarantorReference.id)
-
-        return res.status(402).json({
-          error: 'Payment Required',
-          message: chargeResult.error || 'Failed to charge for guarantor reference. Please add a payment method to your account.',
-          requires_payment_method: true,
-        })
-      }
-
-      console.log('✅ Guarantor reference charge successful:', chargeResult.payment_intent_id)
-    } catch (chargeError: any) {
-      console.error('❌ Failed to charge for guarantor reference:', chargeError)
-      // Delete the guarantor reference if charging fails
+      console.log('✅ Guarantor reference credit deduction successful')
+    } catch (creditError: any) {
+      console.error('❌ Failed to deduct credits for guarantor reference:', creditError)
+      // Delete the guarantor reference if credit deduction fails
       await supabase
         .from('tenant_references')
         .delete()
         .eq('id', guarantorReference.id)
 
-      return res.status(500).json({
-        error: 'Payment Error',
-        message: 'Failed to process payment for guarantor reference. Please contact support.',
+      return res.status(402).json({
+        error: 'Insufficient Credits',
+        message: 'Not enough credits to create guarantor reference. Please purchase more credits.',
       })
     }
 
@@ -4167,7 +4162,7 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     const guarantorToken = generateToken()
     const guarantorTokenHash = hash(guarantorToken)
     const tokenExpiresAt = new Date()
-    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 30)
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21)
 
     // Update the token hash in the appropriate table
     if (isLegacyGuarantor) {
@@ -4309,7 +4304,7 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
     const guarantorToken = generateToken()
     const guarantorTokenHash = hash(guarantorToken)
     const tokenExpiresAt = new Date()
-    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 30)
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21)
 
     // Update the token hash in the guarantor reference
     await supabase

@@ -30,7 +30,7 @@
             </h3>
             <div class="mt-4">
               <p class="text-base text-gray-600 leading-relaxed">
-                Please add a payment method to your account before creating references. This ensures seamless processing if you need to add a guarantor.
+                Please add a payment method to your account before creating references.
               </p>
 
               <!-- Pricing info box -->
@@ -40,8 +40,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div class="text-sm text-orange-800">
-                    <p class="font-semibold mb-1">Auto-billing for guarantors</p>
-                    <p>When a tenant adds a guarantor, you'll be automatically charged <strong>£9.99 per guarantor</strong> using your saved payment method.</p>
+                    <p class="font-semibold mb-1">Credit costs</p>
+                    <p>References cost <strong>1 credit</strong> each. Guarantor references cost <strong>0.5 credits</strong> each.</p>
                   </div>
                 </div>
               </div>
@@ -52,19 +52,19 @@
                   <svg class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>No manual payment forms for guarantor references</span>
+                  <span>Purchase credits via subscription or credit packs</span>
                 </div>
                 <div class="flex items-start text-sm text-gray-600">
                   <svg class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>Seamless process when tenants need guarantors</span>
+                  <span>Enable auto-recharge to never run out of credits</span>
                 </div>
                 <div class="flex items-start text-sm text-gray-600">
                   <svg class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>Only charged when guarantor is actually added</span>
+                  <span>Unused credits never expire</span>
                 </div>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { supabase as supabaseAdmin } from '../config/supabase';
+import * as creditService from './creditService';
 
 /**
  * Work Queue Scheduler Service
@@ -14,6 +15,7 @@ const COOLDOWN_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const IDLE_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const VERIFY_SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const URGENCY_THRESHOLD_HOURS = 8;
+const EXPIRED_REFERENCE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Auto-unassign CHASE work items that have been idle for 4+ hours
@@ -285,6 +287,120 @@ export async function syncMissingVerifyItems() {
 }
 
 /**
+ * Auto-delete expired unfilled references and refund credits
+ * References are considered expired if:
+ * - Status is 'pending' (tenant hasn't started filling it out)
+ * - Token has expired (token_expires_at is in the past)
+ */
+export async function autoDeleteExpiredReferences() {
+  try {
+    const now = new Date().toISOString();
+
+    // Find expired pending references
+    const { data: expiredReferences, error: fetchError } = await supabaseAdmin
+      .from('tenant_references')
+      .select('id, company_id, parent_reference_id')
+      .eq('status', 'pending')
+      .lt('token_expires_at', now);
+
+    if (fetchError) {
+      console.error('Error fetching expired references:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    if (!expiredReferences || expiredReferences.length === 0) {
+      console.log('[Scheduler] No expired unfilled references found');
+      return { success: true, deletedCount: 0, refundedCredits: 0 };
+    }
+
+    console.log(`[Scheduler] Found ${expiredReferences.length} expired unfilled references`);
+
+    let deletedCount = 0;
+    let refundedCredits = 0;
+
+    for (const reference of expiredReferences) {
+      try {
+        // Only refund for main references (not guarantor references which are linked to parents)
+        const isMainReference = !reference.parent_reference_id;
+
+        if (isMainReference) {
+          // Check for any linked guarantor references that are also pending
+          const { data: guarantorRefs } = await supabaseAdmin
+            .from('tenant_references')
+            .select('id, status')
+            .eq('parent_reference_id', reference.id);
+
+          // Calculate credits to refund: 1 for main + 0.5 for each pending guarantor
+          let creditsToRefund = 1;
+          const pendingGuarantors = guarantorRefs?.filter(g => g.status === 'pending') || [];
+          creditsToRefund += pendingGuarantors.length * 0.5;
+
+          // Delete guarantor references first
+          if (guarantorRefs && guarantorRefs.length > 0) {
+            const { error: deleteGuarantorsError } = await supabaseAdmin
+              .from('tenant_references')
+              .delete()
+              .in('id', guarantorRefs.map(g => g.id));
+
+            if (deleteGuarantorsError) {
+              console.error(`Error deleting guarantor references for ${reference.id}:`, deleteGuarantorsError);
+              continue;
+            }
+          }
+
+          // Refund credits (1 for main reference + 0.5 for each pending guarantor)
+          try {
+            await creditService.refundCredits(
+              reference.company_id,
+              creditsToRefund,
+              reference.id,
+              `Auto-refund: Reference expired (unfilled after 21 days)${pendingGuarantors.length > 0 ? ` + ${pendingGuarantors.length} guarantor(s)` : ''}`
+            );
+            refundedCredits += creditsToRefund;
+            console.log(`[Scheduler] Refunded ${creditsToRefund} credit(s) for expired reference ${reference.id}`);
+          } catch (refundError: any) {
+            console.error(`Error refunding credits for ${reference.id}:`, refundError);
+          }
+        }
+
+        // Delete the reference
+        const { error: deleteError } = await supabaseAdmin
+          .from('tenant_references')
+          .delete()
+          .eq('id', reference.id);
+
+        if (deleteError) {
+          console.error(`Error deleting expired reference ${reference.id}:`, deleteError);
+          continue;
+        }
+
+        deletedCount++;
+
+        // Log to audit
+        await supabaseAdmin.from('reference_audit_log').insert({
+          reference_id: reference.id,
+          action: 'AUTO_DELETED_EXPIRED',
+          details: {
+            reason: 'Reference expired without tenant filling it out (21 days)',
+            was_main_reference: isMainReference
+          },
+          performed_by: null // System action
+        });
+
+      } catch (refError: any) {
+        console.error(`Error processing expired reference ${reference.id}:`, refError);
+      }
+    }
+
+    console.log(`[Scheduler] Successfully deleted ${deletedCount} expired references, refunded ${refundedCredits} credits`);
+    return { success: true, deletedCount, refundedCredits };
+  } catch (error: any) {
+    console.error('[Scheduler] Error in autoDeleteExpiredReferences:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Start all background schedulers
  */
 export function startSchedulers() {
@@ -314,6 +430,12 @@ export function startSchedulers() {
     await syncMissingVerifyItems();
   }, VERIFY_SYNC_INTERVAL_MS);
 
+  // Expired reference cleanup (every 1 hour)
+  setInterval(async () => {
+    console.log('[Scheduler] Running expired reference cleanup...');
+    await autoDeleteExpiredReferences();
+  }, EXPIRED_REFERENCE_CHECK_INTERVAL_MS);
+
   // Run immediately on startup
   setTimeout(async () => {
     console.log('[Scheduler] Running initial checks...');
@@ -321,6 +443,7 @@ export function startSchedulers() {
     await autoUnassignIdleChaseItems();
     await escalateUrgentItems();
     await syncMissingVerifyItems();
+    await autoDeleteExpiredReferences();
   }, 5000); // Wait 5 seconds after startup
 
   console.log('[Scheduler] Background schedulers started successfully');
@@ -335,7 +458,8 @@ export async function runAllScheduledTasks() {
   const results = {
     cooldown: await processCooldownExpiry(),
     idle: await autoUnassignIdleChaseItems(),
-    urgent: await escalateUrgentItems()
+    urgent: await escalateUrgentItems(),
+    expiredReferences: await autoDeleteExpiredReferences()
   };
 
   console.log('[Scheduler] Manual run complete:', results);
