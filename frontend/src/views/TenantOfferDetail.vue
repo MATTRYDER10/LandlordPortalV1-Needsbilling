@@ -399,6 +399,76 @@
           </div>
         </div>
       </div>
+
+      <!-- Holding Deposit Modal -->
+      <div v-if="showHoldingDepositModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        @click.self="closeHoldingDepositModal">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <!-- Step 1: Input Amount -->
+          <template v-if="holdingDepositStep === 'input'">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Enter Holding Deposit Amount</h3>
+            <div class="mb-4">
+              <label for="holding-deposit-amount" class="block text-sm font-medium text-gray-700 mb-2">
+                Amount Received (£)
+              </label>
+              <input id="holding-deposit-amount" v-model="holdingDepositInput" type="number" step="0.01" min="0"
+                placeholder="Enter amount..."
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+              <p v-if="holdingDepositError" class="mt-2 text-sm text-red-600">{{ holdingDepositError }}</p>
+            </div>
+            <div class="flex gap-3">
+              <button @click="proceedToConfirmHoldingDeposit"
+                class="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                Continue
+              </button>
+              <button @click="closeHoldingDepositModal"
+                class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-400">
+                Cancel
+              </button>
+            </div>
+          </template>
+
+          <!-- Step 2: Confirm -->
+          <template v-else-if="holdingDepositStep === 'confirm'">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Confirm Holding Deposit</h3>
+            <p class="text-sm text-gray-600 mb-4">
+              Mark holding deposit of <strong>£{{ parseFloat(holdingDepositInput).toFixed(2) }}</strong> as received and create references?
+            </p>
+            <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2 mb-4">
+              This will send reference forms to all tenants.
+            </p>
+            <div class="flex gap-3">
+              <button @click="confirmHoldingDepositReceived" :disabled="processing"
+                class="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-50">
+                {{ processing ? 'Processing...' : 'Confirm' }}
+              </button>
+              <button @click="holdingDepositStep = 'input'" :disabled="processing"
+                class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-400">
+                Back
+              </button>
+            </div>
+          </template>
+
+          <!-- Step 3: Success -->
+          <template v-else-if="holdingDepositStep === 'success'">
+            <div class="text-center">
+              <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-bold text-gray-900 mb-2">Success!</h3>
+              <p class="text-sm text-gray-600 mb-4">
+                Holding deposit of £{{ parseFloat(holdingDepositInput).toFixed(2) }} marked as received. References have been created and sent to tenants.
+              </p>
+              <button @click="closeHoldingDepositModal"
+                class="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                Close
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
     </div>
   </Sidebar>
 </template>
@@ -423,6 +493,12 @@ const showApproveModal = ref(false)
 const showDeclineModal = ref(false)
 const showEditModal = ref(false)
 const declineReason = ref('')
+
+// Holding deposit modal state
+const showHoldingDepositModal = ref(false)
+const holdingDepositInput = ref('')
+const holdingDepositStep = ref<'input' | 'confirm' | 'success'>('input')
+const holdingDepositError = ref('')
 
 const editForm = ref({
   property_address: '',
@@ -652,21 +728,32 @@ const acceptWithChanges = async () => {
   }
 }
 
-const markHoldingDepositReceived = async () => {
-  const amountInput = window.prompt('Enter the holding deposit amount received (£)')
-  if (amountInput === null) {
-    return
-  }
+const openHoldingDepositModal = () => {
+  holdingDepositInput.value = ''
+  holdingDepositError.value = ''
+  holdingDepositStep.value = 'input'
+  showHoldingDepositModal.value = true
+}
 
-  const parsedAmount = parseFloat(amountInput)
+const closeHoldingDepositModal = () => {
+  showHoldingDepositModal.value = false
+  holdingDepositInput.value = ''
+  holdingDepositError.value = ''
+  holdingDepositStep.value = 'input'
+}
+
+const proceedToConfirmHoldingDeposit = () => {
+  const parsedAmount = parseFloat(holdingDepositInput.value)
   if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-    alert('Please enter a valid amount greater than zero.')
+    holdingDepositError.value = 'Please enter a valid amount greater than zero.'
     return
   }
+  holdingDepositError.value = ''
+  holdingDepositStep.value = 'confirm'
+}
 
-  if (!confirm('Mark holding deposit as received and create references? This will send reference forms to all tenants.')) {
-    return
-  }
+const confirmHoldingDepositReceived = async () => {
+  const parsedAmount = parseFloat(holdingDepositInput.value)
 
   processing.value = true
   try {
@@ -692,12 +779,18 @@ const markHoldingDepositReceived = async () => {
     }
 
     await fetchOffer()
-    alert(`Holding deposit of £${parsedAmount.toFixed(2)} marked as received. References have been created and sent to tenants.`)
+    holdingDepositStep.value = 'success'
   } catch (err: any) {
     error.value = err.message || 'Failed to mark holding deposit as received'
+    closeHoldingDepositModal()
   } finally {
     processing.value = false
   }
+}
+
+// Keep for backwards compatibility - now opens modal
+const markHoldingDepositReceived = () => {
+  openHoldingDepositModal()
 }
 
 const confirmDelete = async () => {
