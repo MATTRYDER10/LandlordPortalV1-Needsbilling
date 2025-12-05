@@ -3764,7 +3764,7 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
     const tenantLastName = decrypt(reference.tenant_last_name_encrypted) || ''
     const tenantName = `${tenantFirstName} ${tenantLastName}`
     const propertyAddress = decrypt(reference.property_address_encrypted) || ''
-    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-reference/${reference.id}`
+    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${reference.id}`
 
     const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : ''
     const companyPhone = companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : ''
@@ -4318,7 +4318,7 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     // Use appropriate form link based on guarantor type
     const formLink = isLegacyGuarantor
       ? `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
-      : `${process.env.FRONTEND_URL}/tenant-reference/${guarantorToken}`
+      : `${process.env.FRONTEND_URL}/submit-reference/${guarantorToken}`
 
     await sendGuarantorReferenceRequest(
       guarantorEmail,
@@ -4456,8 +4456,8 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
     const companyPhone = companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || '') : ''
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
 
-    // Use tenant-reference form link (guarantors fill out a tenant reference form)
-    const formLink = `${process.env.FRONTEND_URL}/tenant-reference/${guarantorToken}`
+    // Use submit-reference form link (guarantors fill out a tenant reference form)
+    const formLink = `${process.env.FRONTEND_URL}/submit-reference/${guarantorToken}`
 
     await sendGuarantorReferenceRequest(
       guarantorEmail,
