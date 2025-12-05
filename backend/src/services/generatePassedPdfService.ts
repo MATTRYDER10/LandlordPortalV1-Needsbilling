@@ -2,11 +2,11 @@ import PDFDocument from 'pdfkit'
 import { supabase } from '../config/supabase'
 import { decrypt } from './encryption'
 import path from 'path'
-// import fs from "fs";
+import fs from "fs";
 
 export async function generatePassedPdfService(referenceId: string): Promise<string> {
     // Fetch reference data
-    //debugger
+    debugger
     console.log(`[Passed PDF] Fetching reference ${referenceId}...`)
     const { data: reference, error: refError } = await supabase
         .from('tenant_references')
@@ -235,6 +235,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     reject(error)
                 }
             })
+
             // stream.on('finish', () => {
             //     console.log("\x1b[32mPDF created → output.pdf\x1b[0m");
             //     resolve('Please check the output.pdf file for the generated PDF');
@@ -300,10 +301,109 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             // ========== PAGE 1: Certificate of Completion ==========
             let yPos = 100
 
+            // Page background color (light beige/off-white)
+            doc.rect(0, 0, pageWidth, pageHeight)
+                .fillColor('#ffffff') // Light beige/off-white
+                .fill();
+
+            // Outer border (light beige)
+            const borderWidth = 20;
+            doc.rect(borderWidth / 2, borderWidth / 2, pageWidth - borderWidth, pageHeight - borderWidth)
+                .strokeColor('#F8F0DB')
+                .lineWidth(borderWidth)
+                .stroke();
+
+            // Inner border (thicker dark brown)
+            const innerBorderWidth = 4;
+            const innerBorderMargin = 15;
+            doc.rect(innerBorderMargin, innerBorderMargin, pageWidth - (innerBorderMargin * 2), pageHeight - (innerBorderMargin * 2))
+                .strokeColor('#F8F0DB') // Dark brown
+                .lineWidth(innerBorderWidth)
+                .stroke();
+
+            // Corner decorative logos (mongobuffet_logo-topleft.png) on all four corners
+            const decorativeCornerSize = 180;
+            try {
+                const cornerLogoPath = path.join(__dirname, '../../assets/mongobuffet_logo-topleft.png');
+                if (fs.existsSync(cornerLogoPath)) {
+                    const cornerSize = decorativeCornerSize; // size of the decorative corner
+
+                    // Top-left (original orientation)
+                    doc.image(cornerLogoPath, 0, 0, { width: cornerSize, height: cornerSize });
+
+                    // Top-right (flip horizontally)
+                    doc.save();
+                    doc.translate(pageWidth, 0);
+                    doc.scale(-1, 1);
+                    doc.image(cornerLogoPath, 0, 0, { width: cornerSize, height: cornerSize });
+                    doc.restore();
+
+                    // Bottom-left (flip vertically)
+                    doc.save();
+                    doc.translate(0, pageHeight);
+                    doc.scale(1, -1);
+                    doc.image(cornerLogoPath, 0, 0, { width: cornerSize, height: cornerSize });
+                    doc.restore();
+
+                    // Bottom-right (flip both horizontally and vertically)
+                    doc.save();
+                    doc.translate(pageWidth, pageHeight);
+                    doc.scale(-1, -1);
+                    doc.image(cornerLogoPath, 0, 0, { width: cornerSize, height: cornerSize });
+                    doc.restore();
+                }
+            } catch (error: unknown) {
+                console.log('Could not load mongobuffet_logo-topleft.png image:', error instanceof Error ? error.message : 'Unknown error');
+            }
+
+            // Delicate corner accent lines near the decorative logos
+            const cornerLineColor = '#E8D7A8';
+            const cornerLineWidth = 1.2;
+            const cornerLineLength = 130;
+            const cornerLineInset = 30; // distance from outer edge
+
+            // Top-left corner lines
+            doc.moveTo(cornerLineInset, decorativeCornerSize + 5)
+                .lineTo(cornerLineInset, decorativeCornerSize + 5 + cornerLineLength)
+                .strokeColor(cornerLineColor)
+                .lineWidth(cornerLineWidth)
+                .stroke();
+
+            doc.moveTo(decorativeCornerSize + 5, cornerLineInset)
+                .lineTo(decorativeCornerSize + 5 + cornerLineLength, cornerLineInset)
+                .stroke();
+
+            // Top-right corner lines
+            doc.moveTo(pageWidth - cornerLineInset, decorativeCornerSize + 5)
+                .lineTo(pageWidth - cornerLineInset, decorativeCornerSize + 5 + cornerLineLength)
+                .stroke();
+
+            doc.moveTo(pageWidth - decorativeCornerSize - 5, cornerLineInset)
+                .lineTo(pageWidth - decorativeCornerSize - 5 - cornerLineLength, cornerLineInset)
+                .stroke();
+
+            // Bottom-left corner lines
+            doc.moveTo(cornerLineInset, pageHeight - decorativeCornerSize - 5)
+                .lineTo(cornerLineInset, pageHeight - decorativeCornerSize - 5 - cornerLineLength)
+                .stroke();
+
+            doc.moveTo(decorativeCornerSize + 5, pageHeight - cornerLineInset)
+                .lineTo(decorativeCornerSize + 5 + cornerLineLength, pageHeight - cornerLineInset)
+                .stroke();
+
+            // Bottom-right corner lines
+            doc.moveTo(pageWidth - cornerLineInset, pageHeight - decorativeCornerSize - 5)
+                .lineTo(pageWidth - cornerLineInset, pageHeight - decorativeCornerSize - 5 - cornerLineLength)
+                .stroke();
+
+            doc.moveTo(pageWidth - decorativeCornerSize - 5, pageHeight - cornerLineInset)
+                .lineTo(pageWidth - decorativeCornerSize - 5 - cornerLineLength, pageHeight - cornerLineInset)
+                .stroke();
+
             // Add PASSED stamp image
             try {
                 const imagePath = path.join(__dirname, '../../assets/passed.png')
-                if (require('fs').existsSync(imagePath)) {
+                if (fs.existsSync(imagePath)) {
                     const imageWidth = 350
                     const imageHeight = 150
                     const imageX = centerX - imageWidth / 2
@@ -401,7 +501,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             // Add badge image
             try {
                 const badgePath = path.join(__dirname, '../../assets/badge.png')
-                if (require('fs').existsSync(badgePath)) {
+                if (fs.existsSync(badgePath)) {
                     const badgeWidth = 70
                     const badgeHeight = 100
                     const badgeY = nameLineY + 20
@@ -656,7 +756,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 ['Has children', hasChildren ? 'Yes' : 'No', false],
                 ['Smoker', isSmoker ? 'Yes' : 'No', false],
                 ['Pets', hasPets ? 'Yes' : 'No', false],
-                ['Number of tenants in application', String(numberOfTenants), false]
+                ['No. of tenants ', String(numberOfTenants), false]
             ]
             leftY += drawSection(leftColumnX, leftY, 'Personal Data', personalData, false, '#FF8C00', true)
 
@@ -684,7 +784,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 incomeData.push(['  Benefits', `£${benefitsAnnual.toLocaleString('en-GB')} pa`, false])
             }
             if (savingsAmount > 0) {
-                incomeData.push(['  Savings / Pension / Investment', `£${savingsAmount.toLocaleString('en-GB')} pa`, false])
+                incomeData.push(['  Sav. /Pen. /Inv.  ', ` £${savingsAmount.toLocaleString('en-GB')} pa`, false])
             }
             if (additionalIncome > 0) {
                 incomeData.push(['  Additional income', `£${additionalIncome.toLocaleString('en-GB')} pa`, false])
