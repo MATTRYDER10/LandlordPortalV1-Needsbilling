@@ -2,9 +2,11 @@ import PDFDocument from 'pdfkit'
 import { supabase } from '../config/supabase'
 import { decrypt } from './encryption'
 import path from 'path'
+// import fs from "fs";
 
 export async function generatePassedPdfService(referenceId: string): Promise<string> {
     // Fetch reference data
+    //debugger
     console.log(`[Passed PDF] Fetching reference ${referenceId}...`)
     const { data: reference, error: refError } = await supabase
         .from('tenant_references')
@@ -153,10 +155,10 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
     const agentSignatureName = agentReference?.signature_name_encrypted ? decrypt(agentReference.signature_name_encrypted) : null
 
     const employerSignature = employerReference?.signature_encrypted ? decrypt(employerReference.signature_encrypted) : null
-    const employerSignatureName = employerReference?.signature_name_encrypted ? decrypt(employerReference.signature_name_encrypted) : null
+    const employerSignatureName = reference?.employer_ref_name_encrypted ? decrypt(reference.employer_ref_name_encrypted) : null
 
     const accountantSignature = accountantReference?.signature_encrypted ? decrypt(accountantReference.signature_encrypted) : null
-    const accountantSignatureName = accountantReference?.accountant_name_encrypted ? decrypt(accountantReference.accountant_name_encrypted) : null
+    const accountantSignatureName = reference?.accountant_name_encrypted ? decrypt(reference.accountant_name_encrypted) : null
 
     // Helper function to convert base64 signature to buffer
     const base64ToBuffer = (base64String: string | null): Buffer | null => {
@@ -199,6 +201,8 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
         try {
             const doc = new PDFDocument({ size: 'A4', margins: { top: 100, bottom: 100, left: 72, right: 72 } })
             const chunks: Buffer[] = []
+            // const stream = fs.createWriteStream("output.pdf");
+            // doc.pipe(stream);
 
             doc.on('data', (chunk) => chunks.push(chunk))
             doc.on('end', async () => {
@@ -231,6 +235,10 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     reject(error)
                 }
             })
+            // stream.on('finish', () => {
+            //     console.log("\x1b[32mPDF created → output.pdf\x1b[0m");
+            //     resolve('Please check the output.pdf file for the generated PDF');
+            // })
             doc.on('error', reject)
 
             const pageWidth = doc.page.width
@@ -851,9 +859,9 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     .text('PROPERTY & TENANCY DETAILS', resLabelColX, resY)
                 resY += 20
 
-                const tenancyStart = referenceData.previous_tenancy_start_date ? formatDate(referenceData.previous_tenancy_start_date) : 'N/A'
-                const tenancyEnd = referenceData.previous_tenancy_end_date ? formatDate(referenceData.previous_tenancy_end_date) : 'Ongoing'
-                const previousRent = referenceData.previous_monthly_rent_encrypted ? decrypt(referenceData.previous_monthly_rent_encrypted) : (referenceData.previous_monthly_rent ? `£${referenceData.previous_monthly_rent}` : 'N/A')
+                const tenancyStart = reference.previous_tenancy_start_date ? formatDate(reference.previous_tenancy_start_date) : 'N/A'
+                const tenancyEnd = reference.previous_tenancy_end_date ? formatDate(reference.previous_tenancy_end_date) : 'Ongoing'
+                const previousRent = reference.previous_monthly_rent_encrypted ? decrypt(reference.previous_monthly_rent_encrypted) : (reference.previous_monthly_rent ? `£${reference.previous_monthly_rent}` : 'N/A')
 
                 const propertyData: Array<[string, string]> = [
                     ['Property Address:', propertyAddress],
@@ -1193,7 +1201,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     const employmentStatus = employerReference.employment_status || 'N/A'
                     const performanceRating = employerReference.performance_rating || 'N/A'
                     const performanceDetails = employerReference.performance_details_encrypted ? decrypt(employerReference.performance_details_encrypted) : (employerReference.performance_details || '—')
-                    const wouldReemploy = employerReference.would_reemploy === 'yes' || employerReference.would_reemploy === true ? 'Yes' : employerReference.would_reemploy === 'no' || employerReference.would_reemploy === false ? 'No' : 'N/A'
+                    const wouldReemploy = employerReference.would_reemploy_details_encrypted ? decrypt(employerReference.would_reemploy_details_encrypted) : 'N/A'
 
                     const statusData: Array<[string, string]> = [
                         ['Employment Status:', employmentStatus],
