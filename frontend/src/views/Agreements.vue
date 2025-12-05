@@ -51,25 +51,65 @@
         </button>
       </div>
 
+      <!-- Imported From Landlord Banner -->
+      <div v-if="importedFromLandlord && selectedLandlordId" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+        <div class="flex items-center">
+          <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span class="text-sm font-medium text-green-900">Imported landlord details and bank information</span>
+        </div>
+        <button
+          @click="clearLandlordImport"
+          type="button"
+          class="text-sm text-green-700 hover:text-green-900 font-medium"
+        >
+          Clear Import
+        </button>
+      </div>
+
       <!-- Form Container -->
       <div class="bg-white rounded-lg shadow p-6">
-        <!-- Step 0: Import from Reference -->
+        <!-- Step 0: Import from Reference or Landlord -->
         <div v-if="currentStep === 0">
-          <h3 class="text-xl font-semibold text-gray-900 mb-4">Import from Reference (Optional)</h3>
-          <p class="text-sm text-gray-600 mb-6">Pre-fill this agreement with data from a completed reference, or skip to enter manually</p>
+          <h3 class="text-xl font-semibold text-gray-900 mb-4">Import Data (Optional)</h3>
+          <p class="text-sm text-gray-600 mb-6">Pre-fill this agreement with data from a completed reference or landlord, or skip to enter manually</p>
 
-          <!-- Toggle Button -->
-          <div class="mb-6">
+          <!-- Toggle Buttons -->
+          <div class="mb-6 flex gap-3 flex-wrap">
             <button
               @click="toggleReferenceSelector"
               type="button"
               class="px-6 py-3 text-sm font-medium rounded-md transition-colors"
-              :class="showReferenceSelector
-                ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                : 'bg-primary text-white hover:bg-primary/90'
+              :class="importedFromReference
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : showReferenceSelector
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               "
             >
-              {{ showReferenceSelector ? 'Skip - Enter Manually' : 'Import from Reference' }}
+              {{ importedFromReference ? '✓ Reference Imported' : 'Import from Reference' }}
+            </button>
+            <button
+              @click="toggleLandlordImportSelector"
+              type="button"
+              class="px-6 py-3 text-sm font-medium rounded-md transition-colors"
+              :class="importedFromLandlord
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : showLandlordImportSelector
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              "
+            >
+              {{ importedFromLandlord ? '✓ Landlord Imported' : 'Import from Landlord' }}
+            </button>
+            <button
+              v-if="showReferenceSelector || showLandlordImportSelector"
+              @click="closeAllImportSelectors"
+              type="button"
+              class="px-6 py-3 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+            >
+              Close All
             </button>
           </div>
 
@@ -156,6 +196,85 @@
                     "
                   >
                     <div v-if="selectedReferenceId === reference.id" class="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Landlord Selector for Import -->
+          <div v-if="showLandlordImportSelector" class="space-y-4">
+            <!-- Search -->
+            <div class="flex gap-4">
+              <div class="flex-1">
+                <input
+                  v-model="landlordImportSearchQuery"
+                  type="text"
+                  placeholder="Search by landlord name or email..."
+                  class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <button
+                @click="fetchLandlordsForImport"
+                type="button"
+                :disabled="loadingLandlordsImport"
+                class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50"
+              >
+                {{ loadingLandlordsImport ? 'Loading...' : 'Search' }}
+              </button>
+            </div>
+
+            <!-- Loading State -->
+            <div v-if="loadingLandlordsImport" class="text-center py-12">
+              <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p class="mt-2 text-gray-600">Loading landlords...</p>
+            </div>
+
+            <!-- No Landlords -->
+            <div v-else-if="!loadingLandlordsImport && filteredLandlordsForImport.length === 0" class="text-center py-12">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <p class="mt-2 text-gray-600">{{ landlordImportSearchQuery ? 'No landlords match your search' : 'No landlords found. Click "Skip" to enter manually.' }}</p>
+            </div>
+
+            <!-- Landlord Cards -->
+            <div v-else class="grid grid-cols-1 gap-4 max-h-96 overflow-y-auto">
+              <div
+                v-for="landlord in filteredLandlordsForImport"
+                :key="landlord.id"
+                @click="selectLandlordForImport(landlord)"
+                class="border-2 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md"
+                :class="
+                  selectedLandlordId === landlord.id
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-primary/50'
+                "
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                      <h4 class="font-semibold text-gray-900">
+                        {{ landlord.first_name }} {{ landlord.last_name }}
+                      </h4>
+                      <span v-if="landlord.bank_details?.account_number" class="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded">
+                        Bank Details Available
+                      </span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-1">{{ landlord.email }}</p>
+                    <p v-if="landlord.residential_address?.line1" class="text-sm text-gray-500">
+                      {{ landlord.residential_address.line1 }}, {{ landlord.residential_address.city }} {{ landlord.residential_address.postcode }}
+                    </p>
+                  </div>
+                  <div
+                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                    :class="
+                      selectedLandlordId === landlord.id
+                        ? 'border-primary bg-primary'
+                        : 'border-gray-300'
+                    "
+                  >
+                    <div v-if="selectedLandlordId === landlord.id" class="w-2 h-2 bg-white rounded-full"></div>
                   </div>
                 </div>
               </div>
@@ -1066,11 +1185,19 @@ const selectedReferenceId = ref<string | null>(null)
 const importedFromReference = ref(false)
 const showReferenceSelector = ref(false)
 
-// Landlord selection state
+// Landlord selection state (for Step 4)
 const availableLandlords = ref<any[]>([])
 const loadingLandlords = ref(false)
 const landlordSearchQuery = ref('')
 const showLandlordSelector = ref(false)
+
+// Landlord import state (for Step 0)
+const availableLandlordsForImport = ref<any[]>([])
+const loadingLandlordsImport = ref(false)
+const landlordImportSearchQuery = ref('')
+const showLandlordImportSelector = ref(false)
+const selectedLandlordId = ref<string | null>(null)
+const importedFromLandlord = ref(false)
 
 const templateOptions = [
   {
@@ -1311,6 +1438,18 @@ const filteredReferences = computed(() => {
     const tenantName = `${ref.tenant_first_name} ${ref.tenant_last_name}`.toLowerCase()
     const propertyAddress = `${ref.property_address} ${ref.property_city}`.toLowerCase()
     return tenantName.includes(query) || propertyAddress.includes(query)
+  })
+})
+
+// Filter landlords for import by search query
+const filteredLandlordsForImport = computed(() => {
+  if (!landlordImportSearchQuery.value) return availableLandlordsForImport.value
+
+  const query = landlordImportSearchQuery.value.toLowerCase()
+  return availableLandlordsForImport.value.filter((landlord: any) => {
+    const name = `${landlord.first_name} ${landlord.last_name}`.toLowerCase()
+    const email = (landlord.email || '').toLowerCase()
+    return name.includes(query) || email.includes(query)
   })
 })
 
@@ -1619,9 +1758,120 @@ async function fetchParentReferences() {
 // Toggle reference selector
 function toggleReferenceSelector() {
   showReferenceSelector.value = !showReferenceSelector.value
+  // Don't close landlord selector - allow both to be open
   if (showReferenceSelector.value && availableReferences.value.length === 0) {
     fetchParentReferences()
   }
+}
+
+// Toggle landlord import selector
+function toggleLandlordImportSelector() {
+  showLandlordImportSelector.value = !showLandlordImportSelector.value
+  // Don't close reference selector - allow both to be open
+  if (showLandlordImportSelector.value && availableLandlordsForImport.value.length === 0) {
+    fetchLandlordsForImport()
+  }
+}
+
+// Close all import selectors
+function closeAllImportSelectors() {
+  showReferenceSelector.value = false
+  showLandlordImportSelector.value = false
+}
+
+// Fetch landlords for import
+async function fetchLandlordsForImport() {
+  loadingLandlordsImport.value = true
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const token = authStore.session?.access_token
+
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/landlords`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch landlords')
+    }
+
+    const data = await response.json()
+    availableLandlordsForImport.value = data.landlords || []
+  } catch (err) {
+    console.error('Error fetching landlords:', err)
+    toast.error('Failed to load landlords')
+  } finally {
+    loadingLandlordsImport.value = false
+  }
+}
+
+// Select landlord for import and auto-fill form
+function selectLandlordForImport(landlord: any) {
+  selectedLandlordId.value = landlord.id
+  importedFromLandlord.value = true
+
+  // Auto-fill landlord email (Step 3)
+  if (landlord.email) {
+    formData.value.landlordEmail = landlord.email
+  }
+
+  // Auto-fill bank details (Step 3)
+  if (landlord.bank_details) {
+    if (landlord.bank_details.account_number) {
+      formData.value.bankAccountNumber = landlord.bank_details.account_number
+    }
+    if (landlord.bank_details.sort_code) {
+      formData.value.bankSortCode = landlord.bank_details.sort_code
+    }
+  }
+
+  // Add landlord to landlords array (Step 4)
+  const landlordName = landlord.full_name_displayed_on_contracts || `${landlord.first_name} ${landlord.last_name}`
+  const existingIndex = formData.value.landlords.findIndex(
+    (l: any) => l.name === landlordName
+  )
+
+  if (existingIndex >= 0) {
+    // Update existing
+    formData.value.landlords[existingIndex] = {
+      name: landlordName,
+      address: {
+        line1: landlord.residential_address?.line1 || '',
+        line2: landlord.residential_address?.line2 || '',
+        city: landlord.residential_address?.city || '',
+        county: landlord.residential_address?.county || '',
+        postcode: landlord.residential_address?.postcode || ''
+      }
+    }
+  } else {
+    // Add new
+    formData.value.landlords.push({
+      name: landlordName,
+      address: {
+        line1: landlord.residential_address?.line1 || '',
+        line2: landlord.residential_address?.line2 || '',
+        city: landlord.residential_address?.city || '',
+        county: landlord.residential_address?.county || '',
+        postcode: landlord.residential_address?.postcode || ''
+      }
+    })
+  }
+
+  // Auto-collapse the landlord selector after selection
+  showLandlordImportSelector.value = false
+
+  toast.success('Landlord details imported successfully')
+}
+
+// Clear landlord import
+function clearLandlordImport() {
+  selectedLandlordId.value = null
+  importedFromLandlord.value = false
+  // Don't clear form data as user might want to keep it
 }
 
 // Helper function to get ordinal suffix for rent due day
@@ -1663,6 +1913,9 @@ async function selectReference(referenceId: string) {
 
     // Map reference data to form
     mapReferenceToForm(reference, childReferences, guarantorReferences, landlordReference)
+
+    // Auto-collapse the reference selector after selection
+    showReferenceSelector.value = false
 
     toast.success('Reference data imported successfully!')
   } catch (err) {
