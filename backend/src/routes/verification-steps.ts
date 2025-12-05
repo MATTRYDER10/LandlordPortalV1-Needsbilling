@@ -611,6 +611,16 @@ router.post(
 
       if (refError) throw refError;
 
+      const getCCJAndInsCount = (decision: "PASS" | "FAIL") => {
+          return decision === 'PASS' ? {
+            "ccjCount": 0,
+            "insolvencyCount": 0,
+          } : {
+            "ccjCount": 1,
+            "insolvencyCount": 1,
+          }
+      }
+
       // Update creditsafe and sanctions
       if (credit_tas.tas_category !== 'REFER') {
         const { data: _, error: creditsafeError } = await supabaseAdmin
@@ -620,8 +630,10 @@ router.post(
               "insolvencyMatch": !(credit_tas.decision === 'PASS'),
               "ccjMatch": !(credit_tas.decision === 'PASS'),
               "deceasedMatch": !(credit_tas.decision === 'PASS'),
-              "electoralRollMatch": credit_tas.decision === 'PASS'
-            }
+              "electoralRollMatch": credit_tas.decision === 'PASS',
+              ...(getCCJAndInsCount(credit_tas.decision as "PASS" | "FAIL"))
+            },
+            verification_status: credit_tas.decision === 'PASS' ? 'passed' : 'failed'
           })
           .eq("reference_id", referenceId);
 
@@ -718,16 +730,16 @@ router.post(
   }
 );
 
-router.get('/passed-certificate/:referenceId',async (req: StaffAuthRequest, res: Response) => {
-    try {
-        const { referenceId } = req.params;
-        const pdfUrl = await generatePassedPdfService(referenceId);
-        return res.status(200).json({ pdfUrl });
-    } catch (error: any) {
-        console.error('Error generating passed PDF:', error);
-        return res.status(500).json({ error: error.message });
-    }
+router.get('/passed-certificate/:referenceId', async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const pdfUrl = await generatePassedPdfService(referenceId);
+    return res.status(200).json({ pdfUrl });
+  } catch (error: any) {
+    console.error('Error generating passed PDF:', error);
+    return res.status(500).json({ error: error.message });
   }
+}
 );
 
 

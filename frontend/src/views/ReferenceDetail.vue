@@ -35,7 +35,7 @@
               </svg>
               Add Guarantor
             </button>
-            <button v-if="reference.status === 'completed' || reference.status === 'rejected'"
+            <button v-if="reference.status === 'completed'"
               @click="downloadPDFReport" :disabled="downloadingPDF"
               class="flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               <svg v-if="!downloadingPDF" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
