@@ -768,7 +768,7 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
         // Only send email if all required fields are present
         if (companyEmail && companyName && tenantName) {
           // Construct dashboard link
-          const dashboardLink = `${process.env.FRONTEND_URL || 'https://frontend-production-bbe3.up.railway.app'}/dashboard/references/${reference.id}`
+          const dashboardLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/dashboard/references/${reference.id}`
 
           await sendReferenceCompletedNotification(
             companyEmail,
