@@ -11,16 +11,32 @@ router.get('/status', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser, error: companyUserError } = await supabase
+    // Check if user is invited FIRST (should skip onboarding regardless of company status)
+    const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
+    const isInvited = user?.user_metadata?.is_invited === true
+
+    // If user is invited, skip onboarding entirely - no need to check company
+    if (isInvited) {
+      return res.json({
+        onboardingCompleted: true,
+        currentStep: 5,
+        shouldSkipOnboarding: true,
+        role: 'member' // Will be overridden if we need actual role
+      })
+    }
+
+    // Get user's company (use limit(1) to handle potential duplicates from trigger bug)
+    const { data: companyUsers, error: companyUserError } = await supabase
       .from('company_users')
       .select('company_id, role')
       .eq('user_id', userId!)
-      .single()
+      .limit(1)
 
-    if (companyUserError || !companyUser) {
+    if (companyUserError || !companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
     }
+
+    const companyUser = companyUsers[0]
 
     // Get company onboarding status
     const { data: company, error: companyError } = await supabase
@@ -33,14 +49,11 @@ router.get('/status', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Check if user is invited (should skip onboarding)
-    const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
-    const isInvited = user?.user_metadata?.is_invited === true
-
+    // If we get here, user is not invited - return actual company status
     res.json({
-      onboardingCompleted: company.onboarding_completed || isInvited,
+      onboardingCompleted: company.onboarding_completed,
       currentStep: company.onboarding_step || 0,
-      shouldSkipOnboarding: isInvited,
+      shouldSkipOnboarding: false,
       role: companyUser.role
     })
   } catch (error: any) {
