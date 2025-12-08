@@ -346,8 +346,22 @@
                       <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{ child.move_in_date ? formatDate(child.move_in_date) : '—' }}</td>
                       <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                         <button @click.stop="viewReference(child)" class="text-primary hover:text-primary/80">View</button>
-                        <button @click.stop="createAgreement(child)" class="ml-3 text-green-600 hover:text-green-700 font-medium">Create Agreement</button>
-                        <button @click.stop="confirmDelete(child)" class="ml-3 text-red-600 hover:text-red-700 font-medium">Delete</button>
+                        <div class="relative inline-block ml-3">
+                          <button @click.stop="toggleActionMenu(child.id, $event)" class="text-gray-600 hover:text-gray-800 font-medium">
+                            Actions
+                            <svg class="w-4 h-4 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          <div v-if="openActionMenuId === child.id" class="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                            <button @click.stop="createAgreement(child); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
+                              Create Agreement
+                            </button>
+                            <button @click.stop="confirmDelete(child); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
+                              Delete
+                            </button>
+                          </div>
+                        </div>
                       </td>
                     </tr>
                     <!-- Guarantors for each child tenant in expanded view -->
@@ -506,15 +520,22 @@
                     <button @click="viewReference(item)" class="text-primary hover:text-primary/80">
                       View
                     </button>
-                    <button @click="createAgreement(item)"
-                      class="ml-3 text-green-600 hover:text-green-700 font-medium"
-                      title="Create Agreement from this reference">
-                      Create Agreement
-                    </button>
-                    <button @click="confirmDelete(item)" class="ml-3 text-red-600 hover:text-red-700 font-medium"
-                      title="Delete reference">
-                      Delete
-                    </button>
+                    <div class="relative inline-block ml-3">
+                      <button @click="toggleActionMenu(item.id, $event)" class="text-gray-600 hover:text-gray-800 font-medium">
+                        Actions
+                        <svg class="w-4 h-4 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      <div v-if="openActionMenuId === item.id" class="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                        <button @click="createAgreement(item); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
+                          Create Agreement
+                        </button>
+                        <button @click="confirmDelete(item); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
                   </td>
                 </tr>
                 <!-- Guarantor Row (if exists) -->
@@ -1036,6 +1057,16 @@ const showInsufficientCreditsModal = ref(false)
 const showPaymentMethodModal = ref(false)
 const showDeleteModal = ref(false)
 const referenceToDelete = ref<any>(null)
+const openActionMenuId = ref<string | null>(null)
+
+const toggleActionMenu = (referenceId: string, event: Event) => {
+  event.stopPropagation()
+  openActionMenuId.value = openActionMenuId.value === referenceId ? null : referenceId
+}
+
+const closeActionMenu = () => {
+  openActionMenuId.value = null
+}
 const deleteLoading = ref(false)
 const references = ref<any[]>([])
 const loading = ref(true)
@@ -1319,6 +1350,11 @@ const handleOpenCreateModal = () => {
   showCreateModal.value = true
 }
 
+// Handler to close action menu when clicking outside
+const handleDocumentClick = () => {
+  openActionMenuId.value = null
+}
+
 onMounted(() => {
   fetchReferences()
 
@@ -1336,11 +1372,14 @@ onMounted(() => {
 
   // Listen for custom event from sidebar
   window.addEventListener('open-create-reference-modal', handleOpenCreateModal)
+  // Close action menu when clicking anywhere on document
+  document.addEventListener('click', handleDocumentClick)
 })
 
 onUnmounted(() => {
-  // Clean up event listener
+  // Clean up event listeners
   window.removeEventListener('open-create-reference-modal', handleOpenCreateModal)
+  document.removeEventListener('click', handleDocumentClick)
 })
 
 const fetchReferences = async () => {
@@ -1650,9 +1689,11 @@ const viewReference = (reference: any) => {
 }
 
 const createAgreement = (reference: any) => {
+  // For multi-tenant properties, use parent ID to load all tenants
+  const referenceId = reference.parent_reference_id || reference.id
   router.push({
     path: '/agreements/generate',
-    query: { referenceId: reference.id }
+    query: { referenceId }
   })
 }
 
