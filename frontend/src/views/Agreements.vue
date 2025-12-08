@@ -1583,7 +1583,7 @@ const canProceed = computed(() => {
         formData.value.rentAmount !== undefined && formData.value.rentAmount > 0 &&
         formData.value.depositAmount !== undefined && formData.value.depositAmount >= 0 &&
         formData.value.tenancyStartDate !== '' &&
-        formData.value.tenancyTerm !== undefined && formData.value.tenancyTerm !== '' && !isNaN(formData.value.tenancyTerm) &&
+        formData.value.tenancyTerm !== undefined && formData.value.tenancyTerm !== '' && !isNaN(Number(formData.value.tenancyTerm)) &&
         formData.value.rentDueDay !== '' &&
         depositSchemeValid &&
         (formData.value.managementType === 'managed' || formData.value.managementType === 'let_only') &&
