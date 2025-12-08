@@ -9,6 +9,22 @@
                 <h2 class="text-lg font-semibold text-gray-900 mb-1">Verification Result</h2>
             </header>
 
+            <!-- Failure Reason Banner -->
+            <div v-if="failureReasonMessage"
+                class="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <svg class="h-5 w-5 flex-shrink-0 text-amber-500 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                        clip-rule="evenodd" />
+                </svg>
+                <div>
+                    <p class="text-sm font-semibold text-amber-800">{{ failureReasonMessage }}</p>
+                    <p v-if="isIdentityNotMatched" class="text-xs text-amber-700 mt-1">
+                        The checks below could not be performed as identity verification failed.
+                    </p>
+                </div>
+            </div>
+
             <!-- Top Summary (Status + Identity Match + Risk Level + Score) -->
             <div class="flex flex-wrap justify-between gap-6">
 
@@ -55,13 +71,19 @@
                     <!-- Electoral Roll -->
                     <div v-if="props.caller === 'Staff'" :class="[
                         'flex items-center gap-3 rounded-xl border px-4 py-3',
+                        isIdentityNotMatched ? 'border-gray-200 bg-gray-50' :
                         verificationFlags.electoralRollMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
                     ]">
                         <span :class="[
                             'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                            isIdentityNotMatched ? 'text-gray-400' :
                             verificationFlags.electoralRollMatch ? 'text-emerald-500' : 'text-rose-500'
                         ]">
-                            <svg v-if="verificationFlags.electoralRollMatch" class="h-5 w-5" viewBox="0 0 20 20"
+                            <!-- Question mark icon for not verified -->
+                            <svg v-if="isIdentityNotMatched" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                            <svg v-else-if="verificationFlags.electoralRollMatch" class="h-5 w-5" viewBox="0 0 20 20"
                                 fill="currentColor">
                                 <path fill-rule="evenodd"
                                     d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
@@ -73,19 +95,28 @@
                                     clip-rule="evenodd" />
                             </svg>
                         </span>
-                        <span class="text-sm font-semibold text-gray-800">Electoral Roll</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            Electoral Roll
+                            <span v-if="isIdentityNotMatched" class="text-xs text-gray-500 font-normal">(Not verified)</span>
+                        </span>
                     </div>
 
                     <!-- No CCJs -->
                     <div :class="[
                         'flex items-center gap-3 rounded-xl border px-4 py-3',
+                        isIdentityNotMatched ? 'border-gray-200 bg-gray-50' :
                         !verificationFlags.ccjMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
                     ]">
                         <span :class="[
                             'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                            isIdentityNotMatched ? 'text-gray-400' :
                             !verificationFlags.ccjMatch ? 'text-emerald-500' : 'text-rose-500'
                         ]">
-                            <svg v-if="!verificationFlags.ccjMatch" class="h-5 w-5" viewBox="0 0 20 20"
+                            <!-- Question mark icon for not verified -->
+                            <svg v-if="isIdentityNotMatched" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                            <svg v-else-if="!verificationFlags.ccjMatch" class="h-5 w-5" viewBox="0 0 20 20"
                                 fill="currentColor">
                                 <path fill-rule="evenodd"
                                     d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
@@ -97,19 +128,28 @@
                                     clip-rule="evenodd" />
                             </svg>
                         </span>
-                        <span class="text-sm font-semibold text-gray-800">No CCJs</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            No CCJs
+                            <span v-if="isIdentityNotMatched" class="text-xs text-gray-500 font-normal">(Not verified)</span>
+                        </span>
                     </div>
 
                     <!-- No Insolvency -->
                     <div :class="[
                         'flex items-center gap-3 rounded-xl border px-4 py-3',
+                        isIdentityNotMatched ? 'border-gray-200 bg-gray-50' :
                         !verificationFlags.insolvencyMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
                     ]">
                         <span :class="[
                             'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                            isIdentityNotMatched ? 'text-gray-400' :
                             !verificationFlags.insolvencyMatch ? 'text-emerald-500' : 'text-rose-500'
                         ]">
-                            <svg v-if="!verificationFlags.insolvencyMatch" class="h-5 w-5" viewBox="0 0 20 20"
+                            <!-- Question mark icon for not verified -->
+                            <svg v-if="isIdentityNotMatched" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                            <svg v-else-if="!verificationFlags.insolvencyMatch" class="h-5 w-5" viewBox="0 0 20 20"
                                 fill="currentColor">
                                 <path fill-rule="evenodd"
                                     d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
@@ -121,19 +161,28 @@
                                     clip-rule="evenodd" />
                             </svg>
                         </span>
-                        <span class="text-sm font-semibold text-gray-800">No Insolvency</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            No Insolvency
+                            <span v-if="isIdentityNotMatched" class="text-xs text-gray-500 font-normal">(Not verified)</span>
+                        </span>
                     </div>
 
                     <!-- Not Deceased -->
                     <div :class="[
                         'flex items-center gap-3 rounded-xl border px-4 py-3',
+                        isIdentityNotMatched ? 'border-gray-200 bg-gray-50' :
                         !verificationFlags.deceasedMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
                     ]">
                         <span :class="[
                             'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
+                            isIdentityNotMatched ? 'text-gray-400' :
                             !verificationFlags.deceasedMatch ? 'text-emerald-500' : 'text-rose-500'
                         ]">
-                            <svg v-if="!verificationFlags.deceasedMatch" class="h-5 w-5" viewBox="0 0 20 20"
+                            <!-- Question mark icon for not verified -->
+                            <svg v-if="isIdentityNotMatched" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                            <svg v-else-if="!verificationFlags.deceasedMatch" class="h-5 w-5" viewBox="0 0 20 20"
                                 fill="currentColor">
                                 <path fill-rule="evenodd"
                                     d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
@@ -145,7 +194,10 @@
                                     clip-rule="evenodd" />
                             </svg>
                         </span>
-                        <span class="text-sm font-semibold text-gray-800">Not Deceased</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            Not Deceased
+                            <span v-if="isIdentityNotMatched" class="text-xs text-gray-500 font-normal">(Not verified)</span>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -255,7 +307,10 @@ interface VerificationData {
     application_status: 'Failed' | 'Passed' | 'Yet to be assessed' | 'PASS_WITH_GUARANTOR';
     risk_level: 'low' | 'medium' | 'high' | 'very_high' | 'yet_to_be_assessed';
     risk_score: number;
-    verification_flags: VerificationFlags
+    verification_flags: VerificationFlags;
+    // New fields to detect "not matched" state
+    verification_status?: 'pending' | 'passed' | 'failed' | 'refer' | 'error';
+    verify_match?: boolean;
 }
 
 interface ComplianceChecks {
@@ -357,6 +412,51 @@ const riskLevelLabel = computed(() => {
 const riskScore = computed(() => {
     if (!verificationData.value) return 0
     return verificationData.value.risk_score ?? 0
+})
+
+// Detect if verification failed because identity couldn't be matched
+const isIdentityNotMatched = computed(() => {
+    const v = verificationData.value
+    return v?.verification_status === 'failed' && v?.verify_match === false
+})
+
+// Get failure reason message
+const failureReasonMessage = computed(() => {
+    const v = verificationData.value
+    if (!v) return null
+
+    if (v.verification_status === 'failed') {
+        // Check if verify_match is explicitly false (identity not found)
+        if (v.verify_match === false) {
+            return 'Identity could not be verified - person not found in credit records'
+        }
+        // If high/very_high risk, that's the failure reason
+        if (v.risk_level === 'high' || v.risk_level === 'very_high') {
+            return 'Verification failed due to high risk indicators'
+        }
+        // Check fraud indicators to determine specific failure reason
+        const flags = v.verification_flags
+        if (flags) {
+            const issues: string[] = []
+            if (flags.ccjMatch) issues.push('CCJ records found')
+            if (flags.insolvencyMatch) issues.push('Insolvency records found')
+            if (flags.deceasedMatch) issues.push('Deceased register match')
+            if (flags.electoralRollMatch === false) issues.push('Not found on Electoral Roll')
+
+            if (issues.length > 0) {
+                return `Verification failed: ${issues.join(', ')}`
+            }
+        }
+        // If all flags are clear but still failed, it may be a staff decision or identity match issue
+        return 'Credit verification failed - review required'
+    }
+    if (v.verification_status === 'refer') {
+        return 'Manual review required'
+    }
+    if (v.verification_status === 'error') {
+        return 'Verification error occurred - please retry'
+    }
+    return null
 })
 
 // Verification flags - extract from verification_flags, default to false (failed) if not provided

@@ -658,7 +658,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       consent_printed_name: guarantorReference.consent_printed_name_encrypted ? decrypt(guarantorReference.consent_printed_name_encrypted) : null
     } : null
 
-    const { data: creditsafeVerification } = await supabase.from('creditsafe_verifications').select('*').eq('reference_id', reference.id).single()
+    // Use service method to get decrypted verification data including verifyMatch
+    const creditsafeVerification = await creditsafeService.getVerificationResult(reference.id)
     const { data: sanctionsScreening } = await supabase.from('sanctions_screenings').select('*').eq('reference_id', reference.id).single()
     const { data: score } = await supabase.from('reference_scores').select('*').eq('reference_id', reference.id).single()
 

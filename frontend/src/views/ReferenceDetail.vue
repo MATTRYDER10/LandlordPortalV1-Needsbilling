@@ -3671,9 +3671,14 @@ const fetchReference = async () => {
       verification: {
         name_match_score: data?.score?.assessed_by === "System" ? 'yet_to_be_assessed' : data.creditsafeVerification?.name_match_score ?? 0,
         application_status: data?.score?.assessed_by === "System" ? "Yet to be assessed" : data?.score?.decision,
-        risk_level: data?.score?.assessed_by === "System" ? 'yet_to_be_assessed' : data?.score?.risk_level,
+        // Use Creditsafe risk_level if available, otherwise fall back to score-based assessment
+        risk_level: data.creditsafeVerification?.risk_level ||
+                    (data?.score?.assessed_by === "System" ? 'yet_to_be_assessed' : data?.score?.risk_level),
         risk_score: data?.score?.score_total ?? 0,
-        verification_flags: parsedFraudIndicators
+        verification_flags: parsedFraudIndicators,
+        // Pass verification status to detect "not matched" state
+        verification_status: data.creditsafeVerification?.verification_status,
+        verify_match: data.creditsafeVerification?.verifyMatch
       },
       complianceChecks: {
         pep: areSanctionClear,
