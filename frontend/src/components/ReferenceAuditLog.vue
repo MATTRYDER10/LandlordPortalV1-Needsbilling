@@ -79,6 +79,8 @@ const formatAction = (action: string) => {
     'NOTE_DELETED': 'Note Deleted',
     'STATUS_CHANGED': 'Status Changed',
     'SCORE_UPDATED': 'Score Updated',
+    'SMS_SENT': 'SMS Sent',
+    'SMS_FAILED': 'SMS Failed',
   }
   return actionMap[action] || action
 }
@@ -89,6 +91,8 @@ const getActionClass = (action: string) => {
   if (action.includes('NOTE')) return 'action-note'
   if (action.includes('STATUS')) return 'action-status'
   if (action.includes('SCORE')) return 'action-score'
+  if (action === 'SMS_SENT') return 'action-sms'
+  if (action === 'SMS_FAILED') return 'action-sms-failed'
   return 'action-default'
 }
 
@@ -201,6 +205,14 @@ onMounted(() => {
 
 .action-score {
   background-color: #f59e0b;
+}
+
+.action-sms {
+  background-color: #06b6d4;
+}
+
+.action-sms-failed {
+  background-color: #ef4444;
 }
 
 .action-default {

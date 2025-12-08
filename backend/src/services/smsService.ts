@@ -107,6 +107,38 @@ async function logSMSDelivery(data: {
 }
 
 /**
+ * Log SMS event to reference_audit_log for Activity Log UI
+ */
+async function logSMSToAuditLog(
+  referenceId: string,
+  referenceType?: string,
+  status: 'sent' | 'failed' = 'sent',
+  errorMessage?: string
+): Promise<void> {
+  try {
+    const typeLabel = referenceType
+      ? referenceType.charAt(0).toUpperCase() + referenceType.slice(1)
+      : 'Reference';
+
+    const action = status === 'sent' ? 'SMS_SENT' : 'SMS_FAILED';
+    const description =
+      status === 'sent'
+        ? `SMS notification sent to ${typeLabel.toLowerCase()}`
+        : `SMS notification failed: ${errorMessage || 'Unknown error'}`;
+
+    await supabase.from('reference_audit_log').insert({
+      reference_id: referenceId,
+      action,
+      description,
+      metadata: { reference_type: referenceType, status, error_message: errorMessage },
+      created_by: null, // System action
+    });
+  } catch (error) {
+    console.error('Failed to log SMS to audit log:', error);
+  }
+}
+
+/**
  * Send an SMS using Twilio
  * Non-blocking: logs and continues on failure
  */
@@ -153,6 +185,11 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResult> {
       numSegments: typeof message.numSegments === 'number' ? message.numSegments : 1,
     });
 
+    // Log to reference audit log for Activity Log UI
+    if (options.referenceId) {
+      await logSMSToAuditLog(options.referenceId, options.referenceType, 'sent');
+    }
+
     return { success: true, messageSid: message.sid };
   } catch (error: any) {
     console.error('SMS send error:', error);
@@ -168,6 +205,11 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResult> {
       errorCode: error.code?.toString(),
       errorMessage: error.message,
     });
+
+    // Log to reference audit log for Activity Log UI
+    if (options.referenceId) {
+      await logSMSToAuditLog(options.referenceId, options.referenceType, 'failed', error.message);
+    }
 
     return { success: false, error: error.message };
   }
