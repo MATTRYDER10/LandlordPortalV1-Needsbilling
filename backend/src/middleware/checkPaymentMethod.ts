@@ -32,10 +32,10 @@ export async function checkPaymentMethod(
       return;
     }
 
-    // Check if company has a payment method
+    // Check if company has a payment method and credits
     const { data: company, error: paymentError } = await supabase
       .from('companies')
-      .select('stripe_payment_method_id, payment_method_required')
+      .select('stripe_payment_method_id, payment_method_required, reference_credits')
       .eq('id', companyUser.company_id)
       .single();
 
@@ -45,11 +45,16 @@ export async function checkPaymentMethod(
       return;
     }
 
-    // If no payment method exists, block the request
-    if (!company.stripe_payment_method_id || company.payment_method_required) {
-      console.log('[checkPaymentMethod] No payment method found for company:', companyUser.company_id);
+    // Only require payment method if credits are depleted
+    // If user has credits, allow them to create references without a payment method
+    const hasCredits = (company.reference_credits || 0) > 0;
+    const hasPaymentMethod = company.stripe_payment_method_id && !company.payment_method_required;
+
+    if (!hasPaymentMethod && !hasCredits) {
+      console.log('[checkPaymentMethod] No payment method and no credits for company:', companyUser.company_id);
       console.log('[checkPaymentMethod] stripe_payment_method_id:', company.stripe_payment_method_id);
       console.log('[checkPaymentMethod] payment_method_required:', company.payment_method_required);
+      console.log('[checkPaymentMethod] reference_credits:', company.reference_credits);
 
       res.status(402).json({
         error: 'Payment Method Required',
@@ -61,8 +66,9 @@ export async function checkPaymentMethod(
       return;
     }
 
-    // Payment method exists, continue
-    console.log('[checkPaymentMethod] ✅ Payment method verified for company:', companyUser.company_id);
+    // Payment method exists OR user has credits, continue
+    console.log('[checkPaymentMethod] ✅ Passed for company:', companyUser.company_id,
+      '(hasPaymentMethod:', hasPaymentMethod, ', hasCredits:', hasCredits, ')');
     next();
   } catch (error: any) {
     console.error('Payment method check error:', error);
