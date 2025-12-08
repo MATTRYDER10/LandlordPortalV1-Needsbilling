@@ -1686,7 +1686,7 @@
           <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div class="flex items-center justify-between mb-3">
               <h5 class="text-sm font-semibold text-yellow-900">Awaiting Tenant Response</h5>
-              <button @click="resendTenantEmail" :disabled="resendingTenant"
+              <button @click="openTenantEditEmailModal" :disabled="resendingTenant"
                 class="px-3 py-2 text-sm font-medium text-yellow-700 bg-white border border-yellow-300 rounded-md hover:bg-yellow-50 disabled:opacity-50 disabled:cursor-not-allowed">
                 {{ resendingTenant ? 'Sending...' : 'Resend Form Email' }}
               </button>
@@ -3592,7 +3592,7 @@ const resendingAccountant = ref<Record<string, boolean>>({})
 
 // Edit Email Resend Modal state
 const showEditEmailModal = ref(false)
-const editEmailType = ref<'employer' | 'guarantor' | 'guarantor_self'>('employer')
+const editEmailType = ref<'tenant' | 'employer' | 'guarantor' | 'guarantor_self'>('employer')
 const editEmailReferenceId = ref('')
 const editEmailCurrentEmail = ref('')
 const editEmailModalRef = ref<InstanceType<typeof EditEmailResendModal> | null>(null)
@@ -4419,6 +4419,13 @@ const resendAccountantEmail = async (childId: string) => {
 }
 
 // Edit Email Modal Functions
+const openTenantEditEmailModal = () => {
+  editEmailType.value = 'tenant'
+  editEmailReferenceId.value = route.params.id as string
+  editEmailCurrentEmail.value = reference.value?.tenant_email || ''
+  showEditEmailModal.value = true
+}
+
 const openEmployerEditEmailModal = (referenceId: string, currentEmail: string) => {
   editEmailType.value = 'employer'
   editEmailReferenceId.value = referenceId
@@ -4443,7 +4450,9 @@ const openGuarantorSelfEditEmailModal = () => {
 
 const handleEditEmailSubmit = async (newEmail: string) => {
   let endpoint: string
-  if (editEmailType.value === 'employer') {
+  if (editEmailType.value === 'tenant') {
+    endpoint = `${API_URL}/api/references/${editEmailReferenceId.value}/resend-tenant-email`
+  } else if (editEmailType.value === 'employer') {
     endpoint = `${API_URL}/api/references/${editEmailReferenceId.value}/resend-employer-email`
   } else if (editEmailType.value === 'guarantor_self') {
     endpoint = `${API_URL}/api/references/${editEmailReferenceId.value}/resend-guarantor-self-email`
@@ -4466,7 +4475,13 @@ const handleEditEmailSubmit = async (newEmail: string) => {
       throw new Error(data.error || 'Failed to resend email')
     }
 
-    const emailTypeLabel = editEmailType.value === 'employer' ? 'Employer' : 'Guarantor'
+    const emailTypeLabels: Record<string, string> = {
+      tenant: 'Tenant',
+      employer: 'Employer',
+      guarantor: 'Guarantor',
+      guarantor_self: 'Guarantor'
+    }
+    const emailTypeLabel = emailTypeLabels[editEmailType.value] || 'Reference'
     toast.success(`${emailTypeLabel} reference email sent successfully`)
     showEditEmailModal.value = false
 

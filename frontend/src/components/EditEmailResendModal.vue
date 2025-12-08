@@ -19,7 +19,7 @@
         <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold text-gray-900">
-              Resend {{ referenceType === 'employer' ? 'Employer' : 'Guarantor' }} Reference Email
+              Resend {{ referenceType === 'tenant' ? 'Tenant' : referenceType === 'employer' ? 'Employer' : 'Guarantor' }} Reference Email
             </h3>
             <button
               @click="close"
@@ -80,7 +80,7 @@ import { isValidEmail } from '../utils/validation'
 const props = defineProps<{
   show: boolean
   currentEmail: string
-  referenceType: 'employer' | 'guarantor' | 'guarantor_self'
+  referenceType: 'tenant' | 'employer' | 'guarantor' | 'guarantor_self'
 }>()
 
 const emit = defineEmits<{

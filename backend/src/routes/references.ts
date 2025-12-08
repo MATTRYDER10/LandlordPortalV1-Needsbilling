@@ -3728,6 +3728,7 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
   try {
     const referenceId = req.params.id
     const userId = req.user?.id
+    const { newEmail } = req.body
 
     // Get the reference
     const { data: reference, error: refError } = await supabase
@@ -3759,11 +3760,40 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
       .eq('id', reference.company_id)
       .single()
 
-    const tenantEmail = decrypt(reference.tenant_email_encrypted) || ''
+    const currentEmail = decrypt(reference.tenant_email_encrypted) || ''
     const tenantFirstName = decrypt(reference.tenant_first_name_encrypted) || ''
     const tenantLastName = decrypt(reference.tenant_last_name_encrypted) || ''
     const tenantName = `${tenantFirstName} ${tenantLastName}`
     const propertyAddress = decrypt(reference.property_address_encrypted) || ''
+
+    // Determine which email to use - new email if provided and different, otherwise current
+    let tenantEmail = currentEmail
+    let emailChanged = false
+
+    if (newEmail && newEmail !== currentEmail) {
+      // Validate new email
+      if (!isValidEmail(newEmail)) {
+        return res.status(400).json({ error: 'Invalid email address' })
+      }
+
+      // Update the email in the database
+      await supabase
+        .from('tenant_references')
+        .update({ tenant_email_encrypted: encrypt(newEmail) })
+        .eq('id', referenceId)
+
+      tenantEmail = newEmail
+      emailChanged = true
+
+      // Log email change to audit trail
+      await logAuditAction({
+        referenceId,
+        action: 'EMAIL_CHANGED',
+        description: `Tenant email changed from ${currentEmail} to ${newEmail}`,
+        metadata: { emailType: 'tenant', oldEmail: currentEmail, newEmail },
+        userId
+      })
+    }
 
     // Generate a new token for this resend (original token is not stored, only hash)
     const newToken = generateToken()
@@ -3800,7 +3830,11 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
       userId
     })
 
-    res.json({ message: 'Tenant reference form email resent successfully' })
+    res.json({
+      message: 'Tenant reference form email resent successfully',
+      emailChanged,
+      email: tenantEmail
+    })
   } catch (error: any) {
     console.error('Failed to resend tenant email:', error)
     res.status(500).json({ error: error.message })
