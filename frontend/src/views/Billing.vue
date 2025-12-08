@@ -377,7 +377,8 @@ function formatTransactionType(type: string): string {
     pack_purchase: 'Purchase',
     credit_used: 'Used',
     auto_recharge: 'Auto-recharge',
-    refund: 'Refund'
+    refund: 'Refund',
+    signup_bonus: 'Signup Bonus'
   }
   return types[type] || type
 }
@@ -737,7 +738,8 @@ async function deletePaymentMethod(paymentMethodId: string) {
 }
 
 .type-subscription_credit,
-.type-pack_purchase {
+.type-pack_purchase,
+.type-signup_bonus {
   background: #dcfce7;
   color: #166534;
 }
