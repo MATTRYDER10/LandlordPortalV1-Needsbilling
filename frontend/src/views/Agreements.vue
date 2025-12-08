@@ -1576,13 +1576,16 @@ const canProceed = computed(() => {
         formData.value.propertyAddress.postcode !== ''
       )
     case 3: // Agreement details
+      // depositSchemeType only required for standard deposit templates
+      const needsDepositScheme = formData.value.templateType !== 'no_deposit' && formData.value.templateType !== 'reposit'
+      const depositSchemeValid = !needsDepositScheme || formData.value.depositSchemeType !== ''
       const baseValid = (
         formData.value.rentAmount !== undefined && formData.value.rentAmount > 0 &&
         formData.value.depositAmount !== undefined && formData.value.depositAmount >= 0 &&
         formData.value.tenancyStartDate !== '' &&
-        formData.value.tenancyTerm !== '' &&
+        formData.value.tenancyTerm !== undefined && formData.value.tenancyTerm !== '' && !isNaN(formData.value.tenancyTerm) &&
         formData.value.rentDueDay !== '' &&
-        formData.value.depositSchemeType !== '' &&
+        depositSchemeValid &&
         (formData.value.managementType === 'managed' || formData.value.managementType === 'let_only') &&
         formData.value.tenantEmail !== ''
       )
