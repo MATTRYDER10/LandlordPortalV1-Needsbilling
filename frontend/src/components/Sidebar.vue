@@ -1,7 +1,39 @@
 <template>
-  <div class="flex h-screen bg-background">
+  <div class="flex flex-col md:flex-row h-screen bg-background">
+    <!-- Mobile top header bar -->
+    <div class="md:hidden fixed top-0 left-0 right-0 z-30 h-14 bg-white shadow-sm flex items-center px-4">
+      <button
+        @click="isMobileMenuOpen = true"
+        class="p-2 -ml-2 rounded-md text-gray-700 hover:bg-gray-100"
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <div class="flex items-center ml-3">
+        <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="w-7 h-7 mr-2" />
+        <h1 class="text-xl font-bold">
+          <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- Mobile overlay backdrop -->
+    <div
+      v-if="isMobileMenuOpen"
+      @click="isMobileMenuOpen = false"
+      class="md:hidden fixed inset-0 z-30 bg-black bg-opacity-50"
+    ></div>
+
     <!-- Sidebar -->
-    <aside class="w-64 bg-white shadow-lg">
+    <aside
+      :class="[
+        'w-64 bg-white shadow-lg flex-shrink-0',
+        'md:relative md:translate-x-0',
+        'fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out',
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      ]"
+    >
       <div class="flex flex-col h-full">
         <!-- Logo -->
         <div class="flex items-center justify-center h-16 px-4 border-b border-gray-200">
@@ -79,6 +111,7 @@
             <router-link
               v-if="!item.children"
               :to="item.path"
+              @click="closeMobileMenu"
               class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
               :class="isActive(item.path)
                 ? 'bg-primary text-white'
@@ -122,6 +155,7 @@
                   v-for="child in item.children"
                   :key="child.name"
                   :to="child.path"
+                  @click="closeMobileMenu"
                   class="flex items-center px-4 py-2 text-sm rounded-lg transition-colors"
                   :class="isActive(child.path)
                     ? 'bg-primary text-white font-medium'
@@ -170,7 +204,7 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-auto">
+    <main class="flex-1 overflow-auto pt-14 md:pt-0">
       <slot />
     </main>
   </div>
@@ -187,9 +221,14 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const showCreateMenu = ref(false)
+const isMobileMenuOpen = ref(false)
 const openMenus = ref<Record<string, boolean>>({
   Agreements: true // Open by default
 })
+
+const closeMobileMenu = () => {
+  isMobileMenuOpen.value = false
+}
 
 const navigation = [
   {
@@ -271,6 +310,7 @@ const handleSignOut = async () => {
 
 const handleCreateReference = () => {
   showCreateMenu.value = false
+  closeMobileMenu()
   // If already on references page, emit event to open modal directly
   if (route.path === '/references') {
     // Use a custom event to trigger the modal
@@ -283,16 +323,19 @@ const handleCreateReference = () => {
 
 const handleCreateAgreement = () => {
   showCreateMenu.value = false
+  closeMobileMenu()
   router.push('/agreements/generate')
 }
 
 const handleAddLandlord = () => {
   showCreateMenu.value = false
+  closeMobileMenu()
   router.push('/landlords?add=true')
 }
 
 const handleSendApplication = () => {
   showCreateMenu.value = false
+  closeMobileMenu()
   router.push('/tenant-applications/create')
 }
 </script>
