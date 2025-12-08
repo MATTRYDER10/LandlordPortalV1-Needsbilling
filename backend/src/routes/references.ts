@@ -8,6 +8,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant, sendGuarantorRequestNotification, sendGuarantorReferenceRequest, sendSanctionsAlert } from '../services/emailService'
+import { sendTenantReferenceRequestSMS, sendGuarantorReferenceRequestSMS, sendLandlordReferenceRequestSMS, sendEmployerReferenceRequestSMS, sendAccountantReferenceRequestSMS, sendAgentReferenceRequestSMS } from '../services/smsService'
 import { auditReferenceAction } from '../services/auditLog'
 import { logAuditAction } from '../services/auditService'
 import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
@@ -1058,6 +1059,18 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           console.error('Failed to send email to', tenant.email, emailError)
         }
 
+        // Send SMS to tenant (non-blocking)
+        if (tenant.phone) {
+          sendTenantReferenceRequestSMS(
+            tenant.phone,
+            `${tenant.first_name} ${tenant.last_name}`,
+            tenantUrl,
+            companyName,
+            property_address,
+            childReference.id
+          ).catch(err => console.error('Failed to send SMS to', tenant.phone, err))
+        }
+
         // Create guarantor reference if guarantor details provided for this tenant
         if (tenant.guarantor?.first_name && tenant.guarantor?.last_name && tenant.guarantor?.email) {
           try {
@@ -1121,6 +1134,17 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 guarantorUrl
               )
               console.log('✅ Guarantor email sent to:', tenant.guarantor.email)
+
+              // Send SMS to guarantor (non-blocking)
+              if (tenant.guarantor.phone) {
+                sendGuarantorReferenceRequestSMS(
+                  tenant.guarantor.phone,
+                  `${tenant.guarantor.first_name} ${tenant.guarantor.last_name}`,
+                  tenantFullName,
+                  guarantorUrl,
+                  guarantorRef.id
+                ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+              }
 
               // Deduct 0.5 credits for guarantor reference
               console.log('💳 Deducting 0.5 credits for guarantor reference...')
@@ -1247,6 +1271,18 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
         // Don't fail the request if email fails, just log it
       }
 
+      // Send SMS to tenant (non-blocking)
+      if (tenant_phone) {
+        sendTenantReferenceRequestSMS(
+          tenant_phone,
+          `${tenant_first_name} ${tenant_last_name}`,
+          tenantUrl,
+          companyName,
+          property_address,
+          reference.id
+        ).catch(err => console.error('Failed to send SMS to tenant:', err))
+      }
+
       // Create guarantor reference if guarantor details provided
       let guarantorReference = null
       if (guarantor_first_name && guarantor_last_name && guarantor_email) {
@@ -1313,6 +1349,17 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
               guarantorUrl
             )
             console.log('✅ Guarantor email sent to:', guarantor_email)
+
+            // Send SMS to guarantor (non-blocking)
+            if (guarantor_phone) {
+              sendGuarantorReferenceRequestSMS(
+                guarantor_phone,
+                `${guarantor_first_name} ${guarantor_last_name}`,
+                tenantFullName,
+                guarantorUrl,
+                guarantorRef.id
+              ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+            }
 
             // Deduct 0.5 credits for guarantor reference
             console.log('💳 Deducting 0.5 credits for guarantor reference...')
@@ -1836,6 +1883,17 @@ router.post('/submit/:token', async (req: Request, res) => {
           companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
         )
         console.log('Employer reference email sent successfully to:', data.employer_ref_email)
+
+        // Send SMS to employer (non-blocking)
+        if (data.employer_ref_phone) {
+          sendEmployerReferenceRequestSMS(
+            data.employer_ref_phone,
+            data.employer_ref_name,
+            `${data.first_name} ${data.last_name}`,
+            employerReferenceUrl,
+            updatedReference.id
+          ).catch(err => console.error('Failed to send SMS to employer:', err))
+        }
       } catch (emailError: any) {
         console.error('Failed to send employer reference email:', emailError)
         // Don't fail the request if email fails, just log it
@@ -1867,6 +1925,17 @@ router.post('/submit/:token', async (req: Request, res) => {
             companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
           )
           console.log('Agent reference email sent successfully to:', data.previous_landlord_email)
+
+          // Send SMS to agent (non-blocking)
+          if (data.previous_landlord_phone) {
+            sendAgentReferenceRequestSMS(
+              data.previous_landlord_phone,
+              data.previous_landlord_name,
+              `${data.first_name} ${data.last_name}`,
+              agentReferenceUrl,
+              updatedReference.id
+            ).catch(err => console.error('Failed to send SMS to agent:', err))
+          }
         } else {
           const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${updatedReference.id}`
 
@@ -1880,6 +1949,17 @@ router.post('/submit/:token', async (req: Request, res) => {
             companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
           )
           console.log('Landlord reference email sent successfully to:', data.previous_landlord_email)
+
+          // Send SMS to landlord (non-blocking)
+          if (data.previous_landlord_phone) {
+            sendLandlordReferenceRequestSMS(
+              data.previous_landlord_phone,
+              data.previous_landlord_name,
+              `${data.first_name} ${data.last_name}`,
+              landlordReferenceUrl,
+              updatedReference.id
+            ).catch(err => console.error('Failed to send SMS to landlord:', err))
+          }
         }
       } catch (emailError: any) {
         console.error('Failed to send landlord/agent reference email:', emailError)
@@ -1929,6 +2009,17 @@ router.post('/submit/:token', async (req: Request, res) => {
             companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
           )
           console.log('Accountant reference email sent successfully to:', data.accountant_email)
+
+          // Send SMS to accountant (non-blocking)
+          if (data.accountant_phone) {
+            sendAccountantReferenceRequestSMS(
+              data.accountant_phone,
+              data.accountant_contact_name,
+              `${data.first_name} ${data.last_name}`,
+              accountantReferenceUrl,
+              accountantRef.id
+            ).catch(err => console.error('Failed to send SMS to accountant:', err))
+          }
         }
       } catch (emailError: any) {
         console.error('Failed to send accountant reference email:', emailError)
@@ -2055,6 +2146,17 @@ router.post('/submit/:token', async (req: Request, res) => {
             )
 
             console.log('✅ Guarantor reference email sent to:', data.guarantor_email)
+
+            // Send SMS to guarantor (non-blocking)
+            if (data.guarantor_phone) {
+              sendGuarantorReferenceRequestSMS(
+                data.guarantor_phone,
+                `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`,
+                tenantName,
+                formLink,
+                guarantorRef.id
+              ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+            }
 
             // Deduct 0.5 credits for guarantor reference
             console.log('💳 Deducting 0.5 credits for guarantor reference...')
@@ -3641,6 +3743,18 @@ router.post('/:id/resend-landlord-email', authenticateToken, async (req: AuthReq
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
     )
 
+    // Send SMS to landlord (non-blocking)
+    const landlordPhone = decrypt(reference.previous_landlord_phone_encrypted)
+    if (landlordPhone) {
+      sendLandlordReferenceRequestSMS(
+        landlordPhone,
+        landlordName,
+        tenantName,
+        landlordReferenceUrl,
+        referenceId
+      ).catch(err => console.error('Failed to send SMS to landlord:', err))
+    }
+
     // Log to audit trail
     await logAuditAction({
       referenceId,
@@ -3707,6 +3821,18 @@ router.post('/:id/resend-agent-email', authenticateToken, async (req: AuthReques
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
     )
+
+    // Send SMS to agent (non-blocking)
+    const agentPhone = decrypt(reference.previous_landlord_phone_encrypted)
+    if (agentPhone) {
+      sendAgentReferenceRequestSMS(
+        agentPhone,
+        agentName,
+        tenantName,
+        agentReferenceUrl,
+        referenceId
+      ).catch(err => console.error('Failed to send SMS to agent:', err))
+    }
 
     // Log to audit trail
     await logAuditAction({
@@ -3822,6 +3948,19 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
       companyEmail || undefined
     )
 
+    // Send SMS to tenant (non-blocking)
+    const tenantPhone = decrypt(reference.tenant_phone_encrypted)
+    if (tenantPhone) {
+      sendTenantReferenceRequestSMS(
+        tenantPhone,
+        tenantName,
+        tenantReferenceUrl,
+        companyName,
+        propertyAddress,
+        referenceId
+      ).catch(err => console.error('Failed to send SMS to tenant:', err))
+    }
+
     // Log to audit trail
     await logAuditAction({
       referenceId,
@@ -3921,6 +4060,18 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
     )
 
+    // Send SMS to employer (non-blocking)
+    const employerPhone = decrypt(reference.employer_ref_phone_encrypted)
+    if (employerPhone) {
+      sendEmployerReferenceRequestSMS(
+        employerPhone,
+        employerName,
+        tenantName,
+        employerReferenceUrl,
+        referenceId
+      ).catch(err => console.error('Failed to send SMS to employer:', err))
+    }
+
     // Log to audit trail
     await logAuditAction({
       referenceId,
@@ -4008,6 +4159,18 @@ router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthR
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
     )
+
+    // Send SMS to accountant (non-blocking)
+    const accountantPhone = decrypt(reference.accountant_phone_encrypted)
+    if (accountantPhone) {
+      sendAccountantReferenceRequestSMS(
+        accountantPhone,
+        accountantName,
+        tenantName,
+        formLink,
+        accountantRef.id
+      ).catch(err => console.error('Failed to send SMS to accountant:', err))
+    }
 
     // Log to audit trail
     await logAuditAction({
@@ -4166,6 +4329,17 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     )
 
     console.log('Guarantor reference email sent to:', guarantor_email)
+
+    // Send SMS to guarantor (non-blocking)
+    if (guarantor_phone) {
+      sendGuarantorReferenceRequestSMS(
+        guarantor_phone,
+        `${guarantor_first_name} ${guarantor_last_name}`,
+        tenantName,
+        formLink,
+        guarantorReference.id
+      ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+    }
 
     // Deduct 0.5 credits for guarantor reference
     console.log('💳 Deducting 0.5 credits for guarantor reference...')
@@ -4377,6 +4551,18 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
       formLink
     )
 
+    // Send SMS to guarantor (non-blocking)
+    const guarantorPhone = decrypt(reference.guarantor_phone_encrypted)
+    if (guarantorPhone) {
+      sendGuarantorReferenceRequestSMS(
+        guarantorPhone,
+        guarantorName,
+        tenantName,
+        formLink,
+        guarantorId
+      ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+    }
+
     // Log to audit trail
     await logAuditAction({
       referenceId,
@@ -4515,6 +4701,18 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
       companyEmail,
       formLink
     )
+
+    // Send SMS to guarantor (non-blocking)
+    const guarantorPhoneValue = decrypt(guarantorRef.tenant_phone_encrypted)
+    if (guarantorPhoneValue) {
+      sendGuarantorReferenceRequestSMS(
+        guarantorPhoneValue,
+        guarantorName,
+        tenantName,
+        formLink,
+        guarantorReferenceId
+      ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+    }
 
     // Log to audit trail
     await logAuditAction({

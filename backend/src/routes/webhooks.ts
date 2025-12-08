@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
+import Twilio from 'twilio';
 import * as stripeService from '../services/stripeService';
 import * as billingService from '../services/billingService';
 import * as creditService from '../services/creditService';
 import { supabase } from '../config/supabase';
+import { updateSMSDeliveryStatus } from '../services/smsService';
 
 const router = Router();
 
@@ -102,6 +104,75 @@ router.post('/stripe', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error(`Error handling webhook ${event.type}:`, error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// TWILIO WEBHOOK HANDLER
+// ============================================================================
+
+/**
+ * Twilio SMS Status Webhook Handler
+ *
+ * Receives delivery status updates from Twilio for SMS messages.
+ * Updates the sms_delivery_logs table with the current status.
+ *
+ * Status values from Twilio:
+ * - queued: Message is queued to be sent
+ * - sent: Message has been sent to carrier
+ * - delivered: Carrier confirmed delivery to recipient
+ * - undelivered: Carrier could not deliver the message
+ * - failed: Message failed to send
+ */
+router.post('/twilio', async (req: Request, res: Response) => {
+  const {
+    MessageSid,
+    MessageStatus,
+    ErrorCode,
+    ErrorMessage,
+  } = req.body;
+
+  console.log(`Twilio webhook received: SID=${MessageSid}, Status=${MessageStatus}`);
+
+  // Validate Twilio signature (optional but recommended for production)
+  const twilioSignature = req.headers['x-twilio-signature'] as string;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+  if (authToken && twilioSignature && process.env.BACKEND_URL) {
+    const webhookUrl = `${process.env.BACKEND_URL}/api/webhooks/twilio`;
+    const isValid = Twilio.validateRequest(
+      authToken,
+      twilioSignature,
+      webhookUrl,
+      req.body
+    );
+
+    if (!isValid) {
+      console.warn('Invalid Twilio signature - request may be spoofed');
+      // In production, you might want to reject invalid signatures:
+      // return res.status(403).send('Invalid signature');
+    }
+  }
+
+  if (!MessageSid) {
+    return res.status(400).send('Missing MessageSid');
+  }
+
+  try {
+    // Update delivery status in database
+    await updateSMSDeliveryStatus(
+      MessageSid,
+      MessageStatus,
+      ErrorCode,
+      ErrorMessage
+    );
+
+    // Return 200 to acknowledge receipt (Twilio requires this)
+    res.status(200).send('OK');
+  } catch (error: any) {
+    console.error('Error handling Twilio webhook:', error);
+    // Still return 200 to prevent Twilio from retrying
+    res.status(200).send('OK');
   }
 });
 

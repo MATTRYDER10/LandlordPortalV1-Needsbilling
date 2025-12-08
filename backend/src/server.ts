@@ -99,9 +99,17 @@ app.use(cors({
   exposedHeaders: ['Content-Disposition'] // Allow frontend to read this header
 }))
 
-// IMPORTANT: Stripe webhook must use raw body for signature verification
-// This route must come BEFORE express.json() middleware
-app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes)
+// IMPORTANT: Webhook routes require special body parsing
+// These must come BEFORE express.json() middleware
+
+// Stripe webhook needs raw body for signature verification
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }))
+
+// Twilio webhook sends URL-encoded data
+app.use('/api/webhooks/twilio', express.urlencoded({ extended: false }))
+
+// Mount webhook routes
+app.use('/api/webhooks', webhookRoutes)
 
 // Middleware
 app.use(express.json())

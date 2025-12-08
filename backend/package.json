@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
-    "build": "tsc && cp -r email-templates dist/email-templates && cp -r assets dist/assets",
+    "build": "tsc && cp -r email-templates dist/email-templates && cp -r sms-templates dist/sms-templates && cp -r assets dist/assets",
     "start": "node dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -31,7 +31,8 @@
     "pizzip": "^3.2.0",
     "resend": "^6.2.1",
     "stripe": "^19.2.0",
-    "tslib": "^2.8.1"
+    "tslib": "^2.8.1",
+    "twilio": "^5.10.7"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
