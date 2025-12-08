@@ -1239,9 +1239,9 @@ const groupedReferences = computed(() => {
     }
   })
 
-  // Add single tenant references (those without parent_reference_id)
+  // Add single tenant references (those without parent_reference_id and not group parents)
   filtered.forEach(ref => {
-    if (!ref.parent_reference_id && !processedIds.has(ref.id)) {
+    if (!ref.parent_reference_id && !ref.is_group_parent && !processedIds.has(ref.id)) {
       groups.push(ref)
       processedIds.add(ref.id)
     }

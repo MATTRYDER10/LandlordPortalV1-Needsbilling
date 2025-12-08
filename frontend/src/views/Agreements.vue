@@ -1431,13 +1431,24 @@ const generatedBreakClause = computed(() => {
 
 // Filter references by search query
 const filteredReferences = computed(() => {
-  if (!referenceSearchQuery.value) return availableReferences.value
+  let refs = availableReferences.value
 
-  const query = referenceSearchQuery.value.toLowerCase()
-  return availableReferences.value.filter((ref: any) => {
-    const tenantName = `${ref.tenant_first_name} ${ref.tenant_last_name}`.toLowerCase()
-    const propertyAddress = `${ref.property_address} ${ref.property_city}`.toLowerCase()
-    return tenantName.includes(query) || propertyAddress.includes(query)
+  if (referenceSearchQuery.value) {
+    const query = referenceSearchQuery.value.toLowerCase()
+    refs = refs.filter((ref: any) => {
+      const tenantName = `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.toLowerCase()
+      const propertyAddress = `${ref.property_address || ''} ${ref.property_city || ''} ${ref.property_postcode || ''}`.toLowerCase()
+      return tenantName.includes(query) || propertyAddress.includes(query)
+    })
+  }
+
+  // Sort: group parents (full properties) first, then by created_at
+  return [...refs].sort((a, b) => {
+    // Group parents first
+    if (a.is_group_parent && !b.is_group_parent) return -1
+    if (!a.is_group_parent && b.is_group_parent) return 1
+    // Then by created_at descending
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 })
 
@@ -1742,10 +1753,8 @@ async function fetchParentReferences() {
 
     if (response.ok) {
       const { references } = await response.json()
-      // Filter for parent references only (not guarantors, not children)
-      availableReferences.value = references.filter((ref: any) =>
-        !ref.is_guarantor && !ref.parent_reference_id
-      )
+      // Filter out guarantors only - include both single tenant refs and multi-tenant child refs
+      availableReferences.value = references.filter((ref: any) => !ref.is_guarantor)
     }
   } catch (err) {
     console.error('Error fetching references:', err)
@@ -1931,20 +1940,28 @@ function mapReferenceToForm(
   guarantorReferences: any[] = [],
   landlordReference: any = null
 ) {
-  // Property address
-  if (reference.property_address) {
+  // Property address - use reference address, or first child's address for group parents
+  const addressSource = reference.property_address
+    ? reference
+    : (childReferences && childReferences.length > 0 ? childReferences[0] : null)
+
+  if (addressSource?.property_address) {
     formData.value.propertyAddress = {
-      line1: reference.property_address,
+      line1: addressSource.property_address,
       line2: '',
-      city: reference.property_city || '',
+      city: addressSource.property_city || '',
       county: '',
-      postcode: reference.property_postcode || ''
+      postcode: addressSource.property_postcode || ''
     }
   }
 
+  // Use first child as fallback data source for group parents
+  const dataSource = childReferences && childReferences.length > 0 ? childReferences[0] : reference
+
   // Financial details
-  if (reference.monthly_rent) {
-    formData.value.rentAmount = parseFloat(reference.monthly_rent)
+  const monthlyRent = reference.monthly_rent || dataSource.monthly_rent
+  if (monthlyRent) {
+    formData.value.rentAmount = parseFloat(monthlyRent)
     // Auto-calculate deposit as 5 weeks rent (rounded down to nearest pound)
     const weeklyRent = (formData.value.rentAmount * 12) / 52
     const fiveWeeksDeposit = weeklyRent * 5
@@ -1954,24 +1971,28 @@ function mapReferenceToForm(
   }
 
   // Tenancy dates
-  if (reference.move_in_date) {
-    formData.value.tenancyStartDate = reference.move_in_date
+  const moveInDate = reference.move_in_date || dataSource.move_in_date
+  if (moveInDate) {
+    formData.value.tenancyStartDate = moveInDate
 
     // Auto-set rent due day from move-in date
-    const moveInDate = new Date(reference.move_in_date)
-    const day = moveInDate.getDate()
+    const moveInDateObj = new Date(moveInDate)
+    const day = moveInDateObj.getDate()
     const suffix = getOrdinalSuffixForDay(day)
     formData.value.rentDueDay = `${day}${suffix}`
   }
 
   // Tenancy term (convert years + months to total months)
-  if (reference.term_years !== undefined && reference.term_months !== undefined) {
-    formData.value.tenancyTerm = (reference.term_years * 12) + reference.term_months
+  const termYears = reference.term_years ?? dataSource.term_years
+  const termMonths = reference.term_months ?? dataSource.term_months
+  if (termYears !== undefined && termMonths !== undefined) {
+    formData.value.tenancyTerm = (termYears * 12) + termMonths
   }
 
-  // Tenant email
-  if (reference.tenant_email) {
-    formData.value.tenantEmail = reference.tenant_email
+  // Tenant email (use first child for group parents)
+  const tenantEmail = reference.tenant_email || dataSource.tenant_email
+  if (tenantEmail) {
+    formData.value.tenantEmail = tenantEmail
   }
 
   // Build tenants array

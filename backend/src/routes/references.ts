@@ -107,9 +107,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: allRefsError.message })
     }
 
-    // Filter out group parent placeholders - they are just containers for multi-tenant properties
-    // Show: single tenant refs, multi-tenant child refs, and guarantors
-    const references = allRefs?.filter(ref => ref.is_group_parent !== true) || []
+    // Include all references - group parents are needed for agreement imports
+    // The frontend can filter based on context (e.g., hide group parents in References list)
+    const references = allRefs || []
 
     console.log('Top-level references found:', references?.length || 0)
     // For each parent reference, count the children and sync status
