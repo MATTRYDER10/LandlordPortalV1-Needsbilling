@@ -149,6 +149,118 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }
 })
 
+// Resend application email
+router.post('/:id/resend', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id } = req.params
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        // Get user's company
+        const { data: companyUsers } = await supabase
+            .from('company_users')
+            .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted)')
+            .eq('user_id', userId)
+            .limit(1)
+
+        if (!companyUsers || companyUsers.length === 0) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        const companyUser = companyUsers[0]
+        const companyId = companyUser.company_id
+
+        // Get application
+        const { data: application, error: fetchError } = await supabase
+            .from('tenant_applications')
+            .select('*')
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (fetchError || !application) {
+            return res.status(404).json({ error: 'Application not found' })
+        }
+
+        // Check if already submitted
+        if (application.status === 'submitted' || application.submitted_at) {
+            return res.status(400).json({ error: 'Cannot resend - application has already been submitted' })
+        }
+
+        // Generate new token
+        const token = generateToken()
+        const tokenHash = hash(token)
+        const expiresAt = new Date()
+        expiresAt.setDate(expiresAt.getDate() + 21) // 21 days expiry
+
+        // Update token in database
+        const { error: updateError } = await supabase
+            .from('tenant_applications')
+            .update({
+                application_token_hash: tokenHash,
+                token_expires_at: expiresAt.toISOString()
+            })
+            .eq('id', id)
+
+        if (updateError) {
+            return res.status(400).json({ error: updateError.message })
+        }
+
+        // Get company details for email
+        const companyName = (companyUser as any).companies?.name_encrypted
+            ? (decrypt((companyUser as any).companies.name_encrypted) || 'Your agent')
+            : 'Your agent'
+        const companyPhone = (companyUser as any).companies?.phone_encrypted
+            ? (decrypt((companyUser as any).companies.phone_encrypted) || '')
+            : ''
+        const companyEmail = (companyUser as any).companies?.email_encrypted
+            ? (decrypt((companyUser as any).companies.email_encrypted) || '')
+            : ''
+
+        // Get applicant details
+        const applicantEmail = application.applicant_email_encrypted
+            ? decrypt(application.applicant_email_encrypted) || ''
+            : ''
+        const propertyAddress = application.property_address_encrypted
+            ? decrypt(application.property_address_encrypted) || ''
+            : ''
+
+        if (!applicantEmail) {
+            return res.status(400).json({ error: 'Applicant email not found' })
+        }
+
+        // Send email
+        const applicationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-application/${token}`
+
+        try {
+            await sendTenantApplicationRequest(
+                applicantEmail,
+                applicationUrl,
+                companyName,
+                propertyAddress,
+                companyPhone || undefined,
+                companyEmail || undefined
+            )
+            console.log('Application email resent successfully to:', applicantEmail)
+        } catch (emailError: any) {
+            console.error('Failed to resend application email:', emailError)
+            return res.status(500).json({ error: 'Failed to send email' })
+        }
+
+        res.json({
+            success: true,
+            message: 'Application email resent successfully',
+            email: applicantEmail
+        })
+    } catch (error: any) {
+        console.error('Error resending application:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Create new application request (only email and property address required)
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     try {

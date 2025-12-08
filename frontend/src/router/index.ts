@@ -36,6 +36,7 @@ import LandlordVerification from '../views/LandlordVerification.vue'
 import TenantOffer from '../views/TenantOffer.vue'
 import TenantOffers from '../views/TenantOffers.vue'
 import TenantOfferDetail from '../views/TenantOfferDetail.vue'
+import TenantApplications from '../views/TenantApplications.vue'
 import TenantOfferPaymentConfirmed from '../views/TenantOfferPaymentConfirmed.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
 import AdminStaffManagement from '../views/AdminStaffManagement.vue'
@@ -126,6 +127,12 @@ const router = createRouter({
       path: '/tenant-offers',
       name: 'TenantOffers',
       component: TenantOffers,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/sent-applications',
+      name: 'TenantApplications',
+      component: TenantApplications,
       meta: { requiresAuth: true }
     },
     {
@@ -424,7 +431,7 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   // Agent portal access check - staff members cannot access agent routes
-  const agentPaths = ['/dashboard', '/references', '/agreements', '/landlords', '/tenant-offers', '/settings', '/onboarding']
+  const agentPaths = ['/dashboard', '/references', '/agreements', '/landlords', '/tenant-offers', '/sent-applications', '/settings', '/onboarding']
   const isAgentPath = agentPaths.some(path => to.path.startsWith(path))
   if (isAgentPath && authStore.isStaff && isAuthenticated) {
     // Staff member trying to access agent portal - redirect to staff dashboard
