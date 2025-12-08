@@ -11,6 +11,8 @@ const apiKeySid = process.env.TWILIO_API_KEY_SID;
 const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+// Alphanumeric Sender ID for UK (max 11 chars) - recipients cannot reply
+const twilioSenderId = process.env.TWILIO_SENDER_ID || 'PROPGOOSE';
 
 // Initialize client - prefer API Key if provided, otherwise use Auth Token
 let twilioClient: Twilio.Twilio | null = null;
@@ -144,7 +146,7 @@ async function logSMSToAuditLog(
  */
 export async function sendSMS(options: SMSOptions): Promise<SMSResult> {
   // Check if Twilio is configured
-  if (!twilioClient || !twilioPhoneNumber) {
+  if (!twilioClient) {
     console.warn('Twilio not configured - SMS not sent');
     return { success: false, error: 'Twilio not configured' };
   }
@@ -165,13 +167,13 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResult> {
     const message = await twilioClient.messages.create({
       body: options.body,
       to: options.to,
-      from: twilioPhoneNumber,
+      from: twilioSenderId,
       statusCallback: process.env.BACKEND_URL
         ? `${process.env.BACKEND_URL}/api/webhooks/twilio`
         : undefined,
     });
 
-    console.log(`SMS sent successfully to ${options.to}, SID: ${message.sid}`);
+    console.log(`SMS sent successfully to ${options.to} from ${twilioSenderId}, SID: ${message.sid}`);
 
     // Log to database
     await logSMSDelivery({
@@ -181,7 +183,7 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResult> {
       phoneNumberEncrypted: encrypt(options.to) || '',
       messageBody: options.body,
       status: 'sent',
-      fromNumber: twilioPhoneNumber,
+      fromNumber: twilioSenderId,
       numSegments: typeof message.numSegments === 'number' ? message.numSegments : 1,
     });
 
