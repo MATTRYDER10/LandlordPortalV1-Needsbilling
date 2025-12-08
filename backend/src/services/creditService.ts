@@ -68,7 +68,7 @@ export async function hasCredits(companyId: string, required: number = 1): Promi
 export async function addCredits(
   companyId: string,
   credits: number,
-  type: 'subscription_credit' | 'pack_purchase' | 'auto_recharge' | 'manual_adjustment' | 'refund',
+  type: 'subscription_credit' | 'pack_purchase' | 'auto_recharge' | 'manual_adjustment' | 'refund' | 'signup_bonus',
   description: string,
   userId?: string,
   metadata?: {

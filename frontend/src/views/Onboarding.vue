@@ -1,14 +1,6 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
     <div class="w-full max-w-4xl">
-      <!-- Logo Header -->
-      <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-gray-900 mb-2">
-          <span class="text-primary">Property</span>Goose
-        </h1>
-        <p class="text-gray-600">Complete your account setup</p>
-      </div>
-
       <!-- Progress Bar -->
       <div v-if="currentStep > 0" class="mb-8">
         <div class="flex items-center justify-between mb-2">
