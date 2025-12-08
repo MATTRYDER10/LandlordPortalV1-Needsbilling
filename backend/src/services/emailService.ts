@@ -1,9 +1,39 @@
 import { Resend } from 'resend';
 import * as fs from 'fs';
 import * as path from 'path';
+import { supabase } from '../config/supabase';
 
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY || '');
+
+/**
+ * Log email event to reference_audit_log for Activity Log UI
+ */
+async function logEmailToAuditLog(
+  referenceId: string,
+  referenceType: string,
+  status: 'sent' | 'failed' = 'sent',
+  errorMessage?: string
+): Promise<void> {
+  try {
+    const typeLabel = referenceType.charAt(0).toUpperCase() + referenceType.slice(1);
+    const action = status === 'sent' ? 'EMAIL_SENT' : 'EMAIL_FAILED';
+    const description =
+      status === 'sent'
+        ? `Email notification sent to ${typeLabel.toLowerCase()}`
+        : `Email notification failed: ${errorMessage || 'Unknown error'}`;
+
+    await supabase.from('reference_audit_log').insert({
+      reference_id: referenceId,
+      action,
+      description,
+      metadata: { reference_type: referenceType, status, error_message: errorMessage },
+      created_by: null, // System action
+    });
+  } catch (error) {
+    console.error('Failed to log email to audit log:', error);
+  }
+}
 
 interface EmailOptions {
   to: string;
@@ -132,7 +162,8 @@ export async function sendTenantReferenceRequest(
   companyName: string,
   propertyAddress?: string,
   companyPhone?: string,
-  companyEmail?: string | null
+  companyEmail?: string | null,
+  referenceId?: string
 ): Promise<void> {
   const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
 
@@ -144,16 +175,27 @@ export async function sendTenantReferenceRequest(
     ContactInfo: contactInfo,
   });
 
-  await sendEmail({
-    to: tenantEmail,
-    subject: 'Complete Your Tenant Reference - PropertyGoose',
-    html,
-    contactDetails: {
-      companyName,
-      phone: companyPhone,
-      email: companyEmail || undefined
+  try {
+    await sendEmail({
+      to: tenantEmail,
+      subject: 'Complete Your Tenant Reference - PropertyGoose',
+      html,
+      contactDetails: {
+        companyName,
+        phone: companyPhone,
+        email: companyEmail || undefined
+      }
+    });
+
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'tenant', 'sent');
     }
-  });
+  } catch (error: any) {
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'tenant', 'failed', error.message);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -166,7 +208,8 @@ export async function sendEmployerReferenceRequest(
   referenceLink: string,
   agentCompanyName?: string | null,
   agentPhone?: string | null,
-  agentEmail?: string | null
+  agentEmail?: string | null,
+  referenceId?: string
 ): Promise<void> {
   const html = loadEmailTemplate('employer-reference-request', {
     EmployerName: employerName,
@@ -177,16 +220,27 @@ export async function sendEmployerReferenceRequest(
     AgentEmail: agentEmail || '',
   });
 
-  await sendEmail({
-    to: employerEmail,
-    subject: 'Employment Reference Request - PropertyGoose',
-    html,
-    contactDetails: {
-      companyName: agentCompanyName || undefined,
-      phone: agentPhone || undefined,
-      email: agentEmail || undefined
+  try {
+    await sendEmail({
+      to: employerEmail,
+      subject: 'Employment Reference Request - PropertyGoose',
+      html,
+      contactDetails: {
+        companyName: agentCompanyName || undefined,
+        phone: agentPhone || undefined,
+        email: agentEmail || undefined
+      }
+    });
+
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'employer', 'sent');
     }
-  });
+  } catch (error: any) {
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'employer', 'failed', error.message);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -199,7 +253,8 @@ export async function sendLandlordReferenceRequest(
   referenceLink: string,
   agentCompanyName?: string | null,
   agentPhone?: string | null,
-  agentEmail?: string | null
+  agentEmail?: string | null,
+  referenceId?: string
 ): Promise<void> {
   const html = loadEmailTemplate('landlord-reference-request', {
     LandlordName: landlordName,
@@ -210,16 +265,27 @@ export async function sendLandlordReferenceRequest(
     AgentEmail: agentEmail || '',
   });
 
-  await sendEmail({
-    to: landlordEmail,
-    subject: 'Landlord Reference Request - PropertyGoose',
-    html,
-    contactDetails: {
-      companyName: agentCompanyName || undefined,
-      phone: agentPhone || undefined,
-      email: agentEmail || undefined
+  try {
+    await sendEmail({
+      to: landlordEmail,
+      subject: 'Landlord Reference Request - PropertyGoose',
+      html,
+      contactDetails: {
+        companyName: agentCompanyName || undefined,
+        phone: agentPhone || undefined,
+        email: agentEmail || undefined
+      }
+    });
+
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'landlord', 'sent');
     }
-  });
+  } catch (error: any) {
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'landlord', 'failed', error.message);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -232,7 +298,8 @@ export async function sendAccountantReferenceRequest(
   referenceLink: string,
   agentCompanyName?: string | null,
   agentPhone?: string | null,
-  agentEmail?: string | null
+  agentEmail?: string | null,
+  referenceId?: string
 ): Promise<void> {
   const html = loadEmailTemplate('accountant-reference-request', {
     AccountantName: accountantName,
@@ -244,16 +311,27 @@ export async function sendAccountantReferenceRequest(
     AgentEmail: agentEmail || '',
   });
 
-  await sendEmail({
-    to: accountantEmail,
-    subject: 'Accountant Reference Request - PropertyGoose',
-    html,
-    contactDetails: {
-      companyName: agentCompanyName || undefined,
-      phone: agentPhone || undefined,
-      email: agentEmail || undefined
+  try {
+    await sendEmail({
+      to: accountantEmail,
+      subject: 'Accountant Reference Request - PropertyGoose',
+      html,
+      contactDetails: {
+        companyName: agentCompanyName || undefined,
+        phone: agentPhone || undefined,
+        email: agentEmail || undefined
+      }
+    });
+
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'accountant', 'sent');
     }
-  });
+  } catch (error: any) {
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'accountant', 'failed', error.message);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -266,7 +344,8 @@ export async function sendAgentReferenceRequest(
   referenceLink: string,
   agentCompanyName?: string | null,
   agentPhone?: string | null,
-  agentEmailContact?: string | null
+  agentEmailContact?: string | null,
+  referenceId?: string
 ): Promise<void> {
   const html = loadEmailTemplate('agent-reference-request', {
     AgentName: agentName,
@@ -277,16 +356,27 @@ export async function sendAgentReferenceRequest(
     AgentEmail: agentEmailContact || '',
   });
 
-  await sendEmail({
-    to: agentEmail,
-    subject: 'Agent Reference Request - PropertyGoose',
-    html,
-    contactDetails: {
-      companyName: agentCompanyName || undefined,
-      phone: agentPhone || undefined,
-      email: agentEmailContact || undefined
+  try {
+    await sendEmail({
+      to: agentEmail,
+      subject: 'Agent Reference Request - PropertyGoose',
+      html,
+      contactDetails: {
+        companyName: agentCompanyName || undefined,
+        phone: agentPhone || undefined,
+        email: agentEmailContact || undefined
+      }
+    });
+
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'agent', 'sent');
     }
-  });
+  } catch (error: any) {
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'agent', 'failed', error.message);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -360,7 +450,8 @@ export async function sendGuarantorReferenceRequest(
   agentName: string,
   agentPhone: string,
   agentEmail: string,
-  formLink: string
+  formLink: string,
+  referenceId?: string
 ): Promise<void> {
   const html = loadEmailTemplate('guarantor-reference-request', {
     GuarantorName: guarantorName,
@@ -372,16 +463,27 @@ export async function sendGuarantorReferenceRequest(
     FormLink: formLink
   });
 
-  await sendEmail({
-    to: guarantorEmail,
-    subject: `Guarantor Reference Request - ${tenantName} - PropertyGoose`,
-    html,
-    contactDetails: {
-      companyName: agentName,
-      phone: agentPhone,
-      email: agentEmail
+  try {
+    await sendEmail({
+      to: guarantorEmail,
+      subject: `Guarantor Reference Request - ${tenantName} - PropertyGoose`,
+      html,
+      contactDetails: {
+        companyName: agentName,
+        phone: agentPhone,
+        email: agentEmail
+      }
+    });
+
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'guarantor', 'sent');
     }
-  });
+  } catch (error: any) {
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'guarantor', 'failed', error.message);
+    }
+    throw error;
+  }
 }
 
 /**

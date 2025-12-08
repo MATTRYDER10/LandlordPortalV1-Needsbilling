@@ -73,6 +73,8 @@ const loadAuditLog = async () => {
 const formatAction = (action: string) => {
   // Convert action codes to readable text
   const actionMap: Record<string, string> = {
+    'EMAIL_SENT': 'Email Sent',
+    'EMAIL_FAILED': 'Email Failed',
     'EMAIL_RESENT': 'Email Resent',
     'NOTE_ADDED': 'Note Added',
     'NOTE_UPDATED': 'Note Updated',
@@ -87,7 +89,8 @@ const formatAction = (action: string) => {
 
 const getActionClass = (action: string) => {
   // Return CSS class for different action types
-  if (action === 'EMAIL_RESENT') return 'action-email'
+  if (action === 'EMAIL_SENT' || action === 'EMAIL_RESENT') return 'action-email'
+  if (action === 'EMAIL_FAILED') return 'action-email-failed'
   if (action.includes('NOTE')) return 'action-note'
   if (action.includes('STATUS')) return 'action-status'
   if (action.includes('SCORE')) return 'action-score'
@@ -193,6 +196,10 @@ onMounted(() => {
 
 .action-email {
   background-color: #3b82f6;
+}
+
+.action-email-failed {
+  background-color: #ef4444;
 }
 
 .action-note {

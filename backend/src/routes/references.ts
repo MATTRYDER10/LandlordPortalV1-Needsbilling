@@ -1052,7 +1052,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
             companyName,
             property_address,
             companyPhone || undefined,
-            companyEmail || undefined
+            companyEmail || undefined,
+            childReference.id
           )
           console.log('Email sent successfully to tenant:', tenant.email)
         } catch (emailError: any) {
@@ -1131,7 +1132,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 companyName,
                 companyPhone,
                 companyEmail,
-                guarantorUrl
+                guarantorUrl,
+                childReference.id
               )
               console.log('✅ Guarantor email sent to:', tenant.guarantor.email)
 
@@ -1263,7 +1265,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           companyName,
           property_address,
           companyPhone || undefined,
-          companyEmail || undefined
+          companyEmail || undefined,
+          reference.id
         )
         console.log('Email sent successfully to tenant:', tenant_email)
       } catch (emailError: any) {
@@ -1346,7 +1349,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
               companyName,
               companyPhone,
               companyEmail,
-              guarantorUrl
+              guarantorUrl,
+              reference.id
             )
             console.log('✅ Guarantor email sent to:', guarantor_email)
 
@@ -1880,7 +1884,8 @@ router.post('/submit/:token', async (req: Request, res) => {
           employerReferenceUrl,
           companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
           companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
-          companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+          companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+          updatedReference.id
         )
         console.log('Employer reference email sent successfully to:', data.employer_ref_email)
 
@@ -1922,7 +1927,8 @@ router.post('/submit/:token', async (req: Request, res) => {
             agentReferenceUrl,
             companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
             companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
-            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+            updatedReference.id
           )
           console.log('Agent reference email sent successfully to:', data.previous_landlord_email)
 
@@ -1946,7 +1952,8 @@ router.post('/submit/:token', async (req: Request, res) => {
             landlordReferenceUrl,
             companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
             companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
-            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+            updatedReference.id
           )
           console.log('Landlord reference email sent successfully to:', data.previous_landlord_email)
 
@@ -2006,7 +2013,8 @@ router.post('/submit/:token', async (req: Request, res) => {
             accountantReferenceUrl,
             companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
             companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
-            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+            accountantRef.id
           )
           console.log('Accountant reference email sent successfully to:', data.accountant_email)
 
@@ -2142,7 +2150,8 @@ router.post('/submit/:token', async (req: Request, res) => {
               companyName,
               companyPhone,
               companyEmail,
-              formLink
+              formLink,
+              guarantorRef.id
             )
 
             console.log('✅ Guarantor reference email sent to:', data.guarantor_email)
@@ -3740,7 +3749,8 @@ router.post('/:id/resend-landlord-email', authenticateToken, async (req: AuthReq
       landlordReferenceUrl,
       companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
-      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+      reference.id
     )
 
     // Send SMS to landlord (non-blocking)
@@ -3819,7 +3829,8 @@ router.post('/:id/resend-agent-email', authenticateToken, async (req: AuthReques
       agentReferenceUrl,
       companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
-      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+      reference.id
     )
 
     // Send SMS to agent (non-blocking)
@@ -3945,7 +3956,8 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
       companyName,
       propertyAddress,
       companyPhone || undefined,
-      companyEmail || undefined
+      companyEmail || undefined,
+      referenceId
     )
 
     // Send SMS to tenant (non-blocking)
@@ -4057,7 +4069,8 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
       employerReferenceUrl,
       companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
-      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+      reference.id
     )
 
     // Send SMS to employer (non-blocking)
@@ -4157,7 +4170,8 @@ router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthR
       formLink,
       companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
-      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+      accountantRef.id
     )
 
     // Send SMS to accountant (non-blocking)
@@ -4325,7 +4339,8 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
       companyName,
       companyPhone,
       companyEmail,
-      formLink
+      formLink,
+      guarantorReference.id
     )
 
     console.log('Guarantor reference email sent to:', guarantor_email)
@@ -4548,7 +4563,8 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
       companyName,
       companyPhone,
       companyEmail,
-      formLink
+      formLink,
+      guarantorId
     )
 
     // Send SMS to guarantor (non-blocking)
@@ -4699,7 +4715,8 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
       companyName,
       companyPhone,
       companyEmail,
-      formLink
+      formLink,
+      guarantorRef.id
     )
 
     // Send SMS to guarantor (non-blocking)
