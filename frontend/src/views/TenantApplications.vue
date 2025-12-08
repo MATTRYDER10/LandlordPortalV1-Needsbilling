@@ -7,10 +7,10 @@
             <h2 class="text-3xl font-bold text-gray-900">Sent Applications</h2>
             <p class="mt-2 text-gray-600">Track application forms sent to tenants</p>
           </div>
-          <router-link to="/tenant-applications/create"
-            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
+          <button @click="showSendModal = true"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
             Send New Application
-          </router-link>
+          </button>
         </div>
 
         <!-- Stats -->
@@ -150,6 +150,12 @@
         </div>
       </div>
     </div>
+    <!-- Send Application Modal -->
+    <SendApplicationModal
+      :show="showSendModal"
+      @close="showSendModal = false"
+      @sent="fetchApplications"
+    />
   </Sidebar>
 </template>
 
@@ -159,6 +165,7 @@ import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
+import SendApplicationModal from '../components/SendApplicationModal.vue'
 import { formatDate } from '../utils/date'
 
 const router = useRouter()
@@ -171,6 +178,7 @@ const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('')
 const resendingId = ref<string | null>(null)
+const showSendModal = ref(false)
 
 const statusCounts = computed(() => {
   const counts = {

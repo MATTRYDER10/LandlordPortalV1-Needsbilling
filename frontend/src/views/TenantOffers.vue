@@ -7,10 +7,10 @@
             <h2 class="text-3xl font-bold text-gray-900">Tenant Offers</h2>
             <p class="mt-2 text-gray-600">Manage rental property offers from tenants</p>
           </div>
-          <router-link to="/tenant-applications/create"
-            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
+          <button @click="showSendModal = true"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
             Send Application Form
-          </router-link>
+          </button>
         </div>
 
         <!-- Stats -->
@@ -175,6 +175,12 @@
         </div>
       </div>
     </div>
+    <!-- Send Application Modal -->
+    <SendApplicationModal
+      :show="showSendModal"
+      @close="showSendModal = false"
+      @sent="fetchOffers"
+    />
   </Sidebar>
 </template>
 
@@ -183,6 +189,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
+import SendApplicationModal from '../components/SendApplicationModal.vue'
 import { formatDate } from '../utils/date'
 
 const router = useRouter()
@@ -194,6 +201,7 @@ const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('')
 const deletingId = ref<string | null>(null)
+const showSendModal = ref(false)
 
 const statusCounts = computed(() => {
   const counts = {
