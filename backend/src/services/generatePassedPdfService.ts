@@ -33,6 +33,10 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
     const propertyCity = reference.property_city || (reference.property_city_encrypted ? decrypt(reference.property_city_encrypted) : '')
     const propertyPostcode = reference.property_postcode || (reference.property_postcode_encrypted ? decrypt(reference.property_postcode_encrypted) : '')
 
+    // Determine if this is a guarantor reference
+    const isGuarantor = reference.is_guarantor === true
+    const personLabel = isGuarantor ? 'Guarantor' : 'Tenant'
+
     // Fetch reference score
     const { data: score } = await supabase
         .from('reference_scores')
@@ -597,20 +601,16 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             doc.font('Helvetica')
                 .fontSize(12)
                 .fillColor('#666666')
-            const checksText = 'We have carried out all necessary checks needed and the tenant is clear to start this'
-            const tenancyText = 'tenancy.'
-            const checksTextWidth = doc.widthOfString(checksText)
-            const tenancyTextWidth = doc.widthOfString(tenancyText)
-            doc.text(checksText, centerX - checksTextWidth / 2, yPos)
-            yPos += 20
-            doc.text(tenancyText, centerX - tenancyTextWidth / 2, yPos)
+            const actionWord = isGuarantor ? 'guarantee' : 'start'
+            const checksText = `We have carried out all necessary checks needed and the ${personLabel.toLowerCase()} is clear to ${actionWord} this tenancy.`
+            doc.text(checksText, margin, yPos, { align: 'center', width: pageWidth - (2 * margin) })
 
             // Tenant Name Field
             yPos = pageHeight - 150
             doc.font('Helvetica')
                 .fontSize(12)
                 .fillColor('#666666')
-                .text('Tenant Name:', margin, yPos)
+                .text(`${personLabel} Name:`, margin, yPos)
 
             const fullName = `${firstName}${middleName ? ' ' + middleName : ''} ${lastName}`
             doc.font('Helvetica')
@@ -660,7 +660,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 .fillColor('white')
             const referenceNumber = reference.reference_number || `REF-${referenceId.substring(0, 8).toUpperCase()}`
             const headerLine1 = `Reference Number - ${referenceNumber}`
-            const headerLine2 = `Tenant Name - ${fullName}`
+            const headerLine2 = `${personLabel} Name - ${fullName}`
             const line1Width = doc.widthOfString(headerLine1)
             const line2Width = doc.widthOfString(headerLine2)
             const maxWidth = Math.max(line1Width, line2Width)
