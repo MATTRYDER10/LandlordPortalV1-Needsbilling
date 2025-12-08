@@ -4358,26 +4358,6 @@ const resendAgentEmail = async () => {
   }
 }
 
-const resendTenantEmail = async () => {
-  resendingTenant.value = true
-  try {
-    const response = await fetch(`${API_URL}/api/references/${route.params.id}/resend-tenant-email`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-    if (!response.ok) throw new Error('Failed to resend email')
-    toast.success('Tenant reference form email resent successfully')
-  } catch (err: any) {
-    console.error('Error resending tenant email:', err)
-    toast.error('Failed to resend email: ' + err.message)
-  } finally {
-    resendingTenant.value = false
-  }
-}
-
 const resendEmployerEmail = async (childId: string) => {
   resendingEmployer.value[childId] = true
   try {
