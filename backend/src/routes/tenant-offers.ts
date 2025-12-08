@@ -412,7 +412,7 @@ router.post('/submit', async (req, res) => {
         // Verify company exists and get details for email
         const { data: companyData, error: companyError } = await supabase
             .from('companies')
-            .select('id, name_encrypted, offer_notification_email')
+            .select('id, name_encrypted, email_encrypted, offer_notification_email')
             .eq('id', companyId)
             .single()
 
@@ -488,7 +488,8 @@ router.post('/submit', async (req, res) => {
 
         // Get company details for email notification (already fetched above)
         const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : 'PropertyGoose'
-        const notificationEmail = companyData?.offer_notification_email || (companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : null)
+        const companyEmail = companyData?.email_encrypted ? decrypt(companyData.email_encrypted) : null
+        const notificationEmail = companyData?.offer_notification_email || companyEmail
 
         // Send notification email to agent
         if (notificationEmail) {
