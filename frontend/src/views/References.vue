@@ -369,6 +369,20 @@
                               class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
                               Create Agreement
                             </router-link>
+                            <a v-if="child.passed_certificate_url"
+                              :href="child.passed_certificate_url"
+                              target="_blank"
+                              @click="closeActionMenu()"
+                              class="block w-full text-left px-4 py-2 text-sm text-purple-600 hover:bg-gray-50">
+                              View Certificate
+                            </a>
+                            <a v-if="child.report_url"
+                              :href="child.report_url"
+                              target="_blank"
+                              @click="closeActionMenu()"
+                              class="block w-full text-left px-4 py-2 text-sm text-purple-600 hover:bg-gray-50">
+                              View Full Report
+                            </a>
                             <button @click.stop="confirmDelete(child); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
                               Delete
                             </button>
@@ -549,6 +563,20 @@
                           class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
                           Create Agreement
                         </router-link>
+                        <a v-if="item.passed_certificate_url"
+                          :href="item.passed_certificate_url"
+                          target="_blank"
+                          @click="closeActionMenu()"
+                          class="block w-full text-left px-4 py-2 text-sm text-purple-600 hover:bg-gray-50">
+                          View Certificate
+                        </a>
+                        <a v-if="item.report_url"
+                          :href="item.report_url"
+                          target="_blank"
+                          @click="closeActionMenu()"
+                          class="block w-full text-left px-4 py-2 text-sm text-purple-600 hover:bg-gray-50">
+                          View Full Report
+                        </a>
                         <button @click="confirmDelete(item); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
                           Delete
                         </button>
