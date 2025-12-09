@@ -268,14 +268,25 @@ const fetchReferences = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/references`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    // Fetch stats and recent references in parallel for better performance
+    const [statsResponse, refsResponse] = await Promise.all([
+      // Fetch stats from dedicated endpoint (6 COUNT queries instead of fetching all data)
+      fetch(`${API_URL}/api/references/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }),
+      // Fetch only 5 most recent references (with limit param)
+      fetch(`${API_URL}/api/references?page=1&limit=10`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+    ])
 
-    if (response.status === 404) {
+    if (statsResponse.status === 404 || refsResponse.status === 404) {
       // User no longer has access to company (likely removed from team)
       console.log('User no longer has access, logging out...')
       await authStore.signOut()
@@ -283,48 +294,43 @@ const fetchReferences = async () => {
       return
     }
 
-    if (!response.ok) return
+    // Process stats
+    if (statsResponse.ok) {
+      const stats = await statsResponse.json()
+      totalReferences.value = stats.total || 0
+      inProgressReferences.value = stats.inProgress || 0
+      pendingVerificationReferences.value = stats.pendingVerification || 0
+      completedReferences.value = stats.completed || 0
+      rejectedReferences.value = stats.rejected || 0
+    }
 
-    const data = await response.json()
-    const allReferences = data.references || []
+    // Process recent references
+    if (refsResponse.ok) {
+      const data = await refsResponse.json()
+      const allReferences = data.references || []
 
-    // Attach guarantors to their parent references
-    const guarantorMap = new Map()
-    allReferences.forEach((ref: any) => {
-      if (ref.is_guarantor && ref.guarantor_for_reference_id) {
-        if (!guarantorMap.has(ref.guarantor_for_reference_id)) {
-          guarantorMap.set(ref.guarantor_for_reference_id, [])
+      // Attach guarantors to their parent references
+      const guarantorMap = new Map()
+      allReferences.forEach((ref: any) => {
+        if (ref.is_guarantor && ref.guarantor_for_reference_id) {
+          if (!guarantorMap.has(ref.guarantor_for_reference_id)) {
+            guarantorMap.set(ref.guarantor_for_reference_id, [])
+          }
+          guarantorMap.get(ref.guarantor_for_reference_id).push(ref)
         }
-        guarantorMap.get(ref.guarantor_for_reference_id).push(ref)
-      }
-    })
+      })
 
-    // Attach guarantors array to parent references and filter out standalone guarantors
-    const references = allReferences
-      .filter((ref: any) => !ref.is_guarantor)
-      .map((ref: any) => ({
-        ...ref,
-        guarantors: guarantorMap.get(ref.id) || []
-      }))
+      // Attach guarantors array to parent references and filter out standalone guarantors
+      const references = allReferences
+        .filter((ref: any) => !ref.is_guarantor)
+        .map((ref: any) => ({
+          ...ref,
+          guarantors: guarantorMap.get(ref.id) || []
+        }))
 
-    totalReferences.value = references.length
-    inProgressReferences.value = references.filter((ref: any) =>
-      ref.status === 'in_progress'
-    ).length
-    pendingVerificationReferences.value = references.filter((ref: any) =>
-      ref.status === 'pending_verification'
-    ).length
-    rejectedReferences.value = references.filter((ref: any) =>
-      ref.status === 'rejected'
-    ).length
-    completedReferences.value = references.filter((ref: any) =>
-      ref.status === 'completed'
-    ).length
-
-    // Show 5 most recent references
-    recentReferences.value = references
-      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 5)
+      // Already sorted by created_at desc from backend, just take first 5
+      recentReferences.value = references.slice(0, 5)
+    }
   } catch (error) {
     console.error('Failed to fetch references:', error)
   }

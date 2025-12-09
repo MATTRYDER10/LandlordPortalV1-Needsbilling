@@ -40,11 +40,58 @@ const upload = multer({
   }
 })
 
+// Get dashboard stats (efficient counts without fetching all data)
+router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyId = companyUsers[0].company_id
+
+    // Run all COUNT queries in parallel (much faster than fetching all data)
+    const [total, inProgress, pendingVerification, completed, rejected, pending] = await Promise.all([
+      supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_guarantor', false),
+      supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'in_progress').eq('is_guarantor', false),
+      supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending_verification').eq('is_guarantor', false),
+      supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'completed').eq('is_guarantor', false),
+      supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'rejected').eq('is_guarantor', false),
+      supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending').eq('is_guarantor', false)
+    ])
+
+    res.json({
+      total: total.count || 0,
+      inProgress: inProgress.count || 0,
+      pendingVerification: pendingVerification.count || 0,
+      completed: completed.count || 0,
+      rejected: rejected.count || 0,
+      pending: pending.count || 0
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Get all references for company
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
-    console.log('=== FETCHING REFERENCES FOR USER:', userId)
+
+    // Pagination params (optional - defaults to all results for backward compatibility)
+    const page = parseInt(req.query.page as string) || 0 // 0 means no pagination
+    const limit = parseInt(req.query.limit as string) || 0 // 0 means no limit
+    const offset = page > 0 && limit > 0 ? (page - 1) * limit : 0
+
+    console.log('=== FETCHING REFERENCES FOR USER:', userId, page > 0 ? `(page ${page}, limit ${limit})` : '(all)')
 
     // Check if user is invited (to handle duplicate company entries from trigger bug)
     const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
@@ -98,11 +145,18 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     // Get all references for the company (excluding child references, but including guarantors)
     // Note: Guarantors are included so they can be nested under parent tenants in the UI
     // Get top-level references (parent_reference_id is null) OR guarantors
-    const { data: allRefs, error: allRefsError } = await supabase
+    let refsQuery = supabase
       .from('tenant_references')
       .select('*')
       .eq('company_id', companyUser.company_id)
       .order('created_at', { ascending: false })
+
+    // Apply pagination if specified
+    if (page > 0 && limit > 0) {
+      refsQuery = refsQuery.range(offset, offset + limit - 1)
+    }
+
+    const { data: allRefs, error: allRefsError } = await refsQuery
 
     if (allRefsError) {
       return res.status(400).json({ error: allRefsError.message })
@@ -113,51 +167,86 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     const references = allRefs || []
 
     console.log('Top-level references found:', references?.length || 0)
-    // For each parent reference, count the children and sync status
-    const referencesWithCount = await Promise.all(references.map(async (ref) => {
-      // Check which references have been submitted
-      const [landlordRefCheck, agentRefCheck, employerRefCheck, accountantRefCheck, creditsafeCheck, score] = await Promise.all([
-        supabase.from('landlord_references').select('id').eq('reference_id', ref.id).maybeSingle(),
-        supabase.from('agent_references').select('id').eq('reference_id', ref.id).maybeSingle(),
-        supabase.from('employer_references').select('id').eq('reference_id', ref.id).maybeSingle(),
-        supabase.from('accountant_references').select('id').eq('tenant_reference_id', ref.id).maybeSingle(),
-        supabase.from('creditsafe_verifications').select('id, verification_status').eq('reference_id', ref.id).maybeSingle(),
-        supabase.from('reference_scores').select('final_remarks').eq('reference_id', ref.id).maybeSingle()
+
+    // BATCH QUERIES - Fix N+1 problem by fetching all related data in single queries
+    const refIds = references.map(r => r.id)
+
+    // Only run batch queries if there are references
+    let landlordMap = new Map<string, boolean>()
+    let agentMap = new Map<string, boolean>()
+    let employerMap = new Map<string, boolean>()
+    let accountantMap = new Map<string, boolean>()
+    let creditsafeMap = new Map<string, { id: string; verification_status: string } | null>()
+    let scoresMap = new Map<string, string | null>()
+    let guarantorMap = new Map<string, { id: string; status: string }>()
+    let childrenCountMap = new Map<string, number>()
+    let childrenByParent = new Map<string, any[]>()
+
+    if (refIds.length > 0) {
+      // Fetch all related data in parallel batch queries
+      const [landlordRefs, agentRefs, employerRefs, accountantRefs, creditsafeRefs, scores, guarantorRefs, childRefs] = await Promise.all([
+        supabase.from('landlord_references').select('reference_id').in('reference_id', refIds),
+        supabase.from('agent_references').select('reference_id').in('reference_id', refIds),
+        supabase.from('employer_references').select('reference_id').in('reference_id', refIds),
+        supabase.from('accountant_references').select('tenant_reference_id').in('tenant_reference_id', refIds),
+        supabase.from('creditsafe_verifications').select('id, reference_id, verification_status').in('reference_id', refIds),
+        supabase.from('reference_scores').select('reference_id, final_remarks').in('reference_id', refIds),
+        // Get all guarantor references for refs that require them
+        supabase.from('tenant_references').select('id, status, guarantor_for_reference_id').in('guarantor_for_reference_id', refIds).eq('is_guarantor', true),
+        // Get all child references for group parents
+        supabase.from('tenant_references').select('id, status, parent_reference_id').in('parent_reference_id', refIds)
       ])
 
-      const has_landlord_reference = !!landlordRefCheck.data
-      const has_agent_reference = !!agentRefCheck.data
-      const has_employer_reference = !!employerRefCheck.data
-      const has_accountant_reference = !!accountantRefCheck.data
-      const has_credit_check = creditsafeCheck.data || null
-      const credit_check_status = creditsafeCheck.data?.verification_status || null
-      const final_remarks = score?.data?.final_remarks || null
+      // Build lookup maps
+      landlordRefs.data?.forEach(r => landlordMap.set(r.reference_id, true))
+      agentRefs.data?.forEach(r => agentMap.set(r.reference_id, true))
+      employerRefs.data?.forEach(r => employerMap.set(r.reference_id, true))
+      accountantRefs.data?.forEach(r => accountantMap.set(r.tenant_reference_id, true))
+      creditsafeRefs.data?.forEach(r => creditsafeMap.set(r.reference_id, { id: r.id, verification_status: r.verification_status }))
+      scores.data?.forEach(r => scoresMap.set(r.reference_id, r.final_remarks))
+      guarantorRefs.data?.forEach(r => {
+        if (r.guarantor_for_reference_id) {
+          guarantorMap.set(r.guarantor_for_reference_id, { id: r.id, status: r.status })
+        }
+      })
 
-      // Check if guarantor reference exists and its status
+      // Group children by parent and count
+      childRefs.data?.forEach(child => {
+        if (child.parent_reference_id) {
+          const existing = childrenByParent.get(child.parent_reference_id) || []
+          existing.push(child)
+          childrenByParent.set(child.parent_reference_id, existing)
+          childrenCountMap.set(child.parent_reference_id, existing.length)
+        }
+      })
+    }
+
+    // Map references with pre-fetched data (no additional queries needed)
+    const referencesWithCount = await Promise.all(references.map(async (ref) => {
+      const has_landlord_reference = landlordMap.has(ref.id)
+      const has_agent_reference = agentMap.has(ref.id)
+      const has_employer_reference = employerMap.has(ref.id)
+      const has_accountant_reference = accountantMap.has(ref.id)
+      const creditData = creditsafeMap.get(ref.id)
+      const has_credit_check = creditData || null
+      const credit_check_status = creditData?.verification_status || null
+      const final_remarks = scoresMap.get(ref.id) || null
+
+      // Check guarantor status from pre-fetched data
       let has_guarantor_reference = false
       let has_guarantor_assigned = false
       if (ref.requires_guarantor) {
-        const { data: guarantorRef } = await supabase
-          .from('tenant_references')
-          .select('id, status')
-          .eq('guarantor_for_reference_id', ref.id)
-          .eq('is_guarantor', true)
-          .maybeSingle()
-
-        // Guarantor is assigned if a guarantor reference exists at all
+        const guarantorRef = guarantorMap.get(ref.id)
         has_guarantor_assigned = !!guarantorRef
-        // Guarantor is considered "complete" if status is 'completed' or 'pending_verification'
         has_guarantor_reference = !!guarantorRef && (guarantorRef.status === 'completed' || guarantorRef.status === 'pending_verification')
       }
 
       if (ref.is_group_parent) {
-        const { data: children, count } = await supabase
-          .from('tenant_references')
-          .select('*', { count: 'exact' })
-          .eq('parent_reference_id', ref.id)
+        const children = childrenByParent.get(ref.id) || []
+        const count = childrenCountMap.get(ref.id) || 0
 
         // Sync parent status with children's statuses
-        if (children && children.length > 0) {
+        if (children.length > 0) {
           const statuses = children.map(child => child.status)
           let parentStatus = ref.status
 
@@ -190,7 +279,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
         return {
           ...ref,
-          tenant_count: count || 0,
+          tenant_count: count,
           has_landlord_reference,
           has_agent_reference,
           has_employer_reference,
@@ -228,7 +317,20 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       property_postcode: decrypt(ref.property_postcode_encrypted)
     }))
 
-    res.json({ references: decryptedReferences })
+    // Return with pagination metadata if pagination was requested
+    if (page > 0 && limit > 0) {
+      res.json({
+        references: decryptedReferences,
+        pagination: {
+          page,
+          limit,
+          total: totalCount || 0,
+          totalPages: Math.ceil((totalCount || 0) / limit)
+        }
+      })
+    } else {
+      res.json({ references: decryptedReferences })
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
