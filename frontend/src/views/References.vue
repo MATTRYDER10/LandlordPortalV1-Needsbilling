@@ -152,7 +152,7 @@
 
       <!-- References List -->
       <div v-if="loading || filteredReferences.length > 0" class="bg-white rounded-lg shadow">
-        <div class="overflow-x-auto">
+        <div class="overflow-visible">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
