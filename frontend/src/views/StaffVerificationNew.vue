@@ -546,9 +546,9 @@
                 </div>
                 <div>
                   <p class="text-sm text-gray-600 mb-2">Document Preview</p>
-                  <div class="h-96 border rounded-md overflow-hidden bg-gray-50">
+                  <div class="h-96 border rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
                     <template v-if="rtrAlternativeDocumentBlobUrl">
-                      <iframe :src="rtrAlternativeDocumentBlobUrl" class="w-full h-full" frameborder="0"></iframe>
+                      <img :src="rtrAlternativeDocumentBlobUrl" class="max-w-full max-h-full object-contain" alt="RTR Alternative Document" />
                     </template>
                     <div v-else class="flex items-center justify-center h-full text-xs text-gray-500">
                       Loading document preview...
@@ -1506,9 +1506,9 @@
                       <span class="text-sm text-gray-900">Document Preview</span>
                     </div>
                   </div>
-                  <div class="h-64 border rounded-md overflow-hidden bg-gray-50">
+                  <div class="h-96 border rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
                     <template v-if="proofOfAddressBlobUrl">
-                      <iframe :src="proofOfAddressBlobUrl" class="w-full h-full" frameborder="0"></iframe>
+                      <img :src="proofOfAddressBlobUrl" class="max-w-full max-h-full object-contain" alt="Proof of Address" />
                     </template>
                     <div v-else class="flex items-center justify-center h-full text-xs text-gray-500">
                       Preview not available yet. Use &quot;Open in new tab&quot; above.
