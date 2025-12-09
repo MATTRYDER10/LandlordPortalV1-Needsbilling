@@ -163,9 +163,9 @@
                   <span
                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
                     :class="{
-                      'bg-green-100 text-green-800': landlord.aml_status === 'satisfactory',
-                      'bg-red-100 text-red-800': landlord.aml_status === 'unsatisfactory',
-                      'bg-blue-100 text-blue-800': landlord.aml_status === 'requested',
+                      'bg-green-100 text-green-800': landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed',
+                      'bg-red-100 text-red-800': landlord.aml_status === 'unsatisfactory' || landlord.aml_status === 'failed',
+                      'bg-blue-100 text-blue-800': landlord.aml_status === 'requested' || landlord.aml_status === 'pending' || landlord.aml_status === 'submitted',
                       'bg-gray-100 text-gray-800': landlord.aml_status === 'not_requested'
                     }"
                   >
@@ -206,10 +206,10 @@
                           </button>
                           <button
                             v-if="landlord.aml_status === 'not_requested' || landlord.aml_status === 'requested'"
-                            @click.stop="initiateAMLCheck(landlord.id)"
+                            @click.stop="requestIdVerification(landlord.id)"
                             class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
-                            Initiate AML Check
+                            Request ID Verification
                           </button>
                           <button
                             @click.stop="deleteLandlord(landlord.id)"
@@ -428,26 +428,25 @@ const bulkDeleteLandlords = async () => {
   }
 }
 
-const initiateAMLCheck = async (id: string) => {
+const requestIdVerification = async (id: string) => {
   try {
-    const response = await fetch(`${API_URL}/api/landlords/${id}/initiate-aml-check`, {
+    const response = await fetch(`${API_URL}/api/landlords/${id}/request-id-verification`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ chargeType: 'credits' })
+      }
     })
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to initiate AML check')
+      throw new Error(errorData.error || 'Failed to send verification request')
     }
 
-    toast.success('AML check initiated. Verification email sent to landlord.')
+    toast.success('Verification request sent to landlord.')
     fetchLandlords()
   } catch (err: any) {
-    toast.error(err.message || 'Failed to initiate AML check')
+    toast.error(err.message || 'Failed to send verification request')
   } finally {
     actionsMenuOpen.value = null
   }
@@ -473,10 +472,14 @@ const formatAMLStatus = (status: string) => {
   const statusMap: Record<string, string> = {
     'not_requested': 'Not Requested',
     'requested': 'Requested',
-    'satisfactory': 'AML satisfactory',
-    'unsatisfactory': 'AML unsatisfactory'
+    'pending': 'Pending',
+    'submitted': 'Submitted',
+    'passed': 'Passed',
+    'failed': 'Failed',
+    'satisfactory': 'AML Satisfactory',
+    'unsatisfactory': 'AML Unsatisfactory'
   }
-  return statusMap[status] || status
+  return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 const formatDate = (dateString?: string | null, fallback = 'n/a') =>

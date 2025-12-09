@@ -36,9 +36,9 @@
               Edit
             </button>
             <span class="px-3 py-1 text-sm font-semibold rounded-full" :class="{
-              'bg-green-100 text-green-800': landlord.aml_status === 'satisfactory',
-              'bg-red-100 text-red-800': landlord.aml_status === 'unsatisfactory',
-              'bg-blue-100 text-blue-800': landlord.aml_status === 'requested',
+              'bg-green-100 text-green-800': landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed',
+              'bg-red-100 text-red-800': landlord.aml_status === 'unsatisfactory' || landlord.aml_status === 'failed',
+              'bg-blue-100 text-blue-800': landlord.aml_status === 'requested' || landlord.aml_status === 'pending' || landlord.aml_status === 'submitted',
               'bg-gray-100 text-gray-800': landlord.aml_status === 'not_requested'
             }">
               {{ formatAMLStatus(landlord.aml_status) }}
@@ -77,12 +77,12 @@
             </div>
             <div>
               <span class="px-3 py-1 text-sm font-semibold rounded-full inline-flex items-center gap-2" :class="{
-                'bg-green-100 text-green-800': landlord.aml_status === 'satisfactory',
-                'bg-red-100 text-red-800': landlord.aml_status === 'unsatisfactory',
-                'bg-blue-100 text-blue-800': landlord.aml_status === 'requested',
+                'bg-green-100 text-green-800': landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed',
+                'bg-red-100 text-red-800': landlord.aml_status === 'unsatisfactory' || landlord.aml_status === 'failed',
+                'bg-blue-100 text-blue-800': landlord.aml_status === 'requested' || landlord.aml_status === 'pending' || landlord.aml_status === 'submitted',
                 'bg-gray-100 text-gray-800': landlord.aml_status === 'not_requested'
               }">
-                <svg v-if="landlord.aml_status === 'satisfactory'" class="w-4 h-4" fill="currentColor"
+                <svg v-if="landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed'" class="w-4 h-4" fill="currentColor"
                   viewBox="0 0 20 20">
                   <path fill-rule="evenodd"
                     d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -225,9 +225,9 @@
           <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-lg font-semibold text-gray-900">AML Check Status</h3>
-              <button @click="initiateAMLCheck" :disabled="initiatingAML"
+              <button @click="requestIdVerification" :disabled="initiatingAML"
                 class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
-                {{ initiatingAML ? 'Initiating...' : landlord.aml_check ? 'Re-initiate AML Check' : 'Initiate AML Check'
+                {{ initiatingAML ? 'Sending...' : landlord.aml_check ? 'Resend Verification Request' : 'Request ID Verification'
                 }}
               </button>
             </div>
@@ -456,6 +456,77 @@
                     {{ formatDateTime(landlord.aml_check.verified_at) }}
                   </p>
                 </div>
+
+                <!-- ID Document and Selfie -->
+                <div v-if="landlord.aml_check.id_document_path || landlord.aml_check.selfie_path" class="mt-10">
+                  <h3 class="text-base font-semibold text-gray-800">Uploaded Documents</h3>
+                  <div class="mt-4 grid gap-6 sm:grid-cols-2">
+                    <!-- ID Document -->
+                    <div v-if="landlord.aml_check.id_document_path" class="rounded-lg border border-gray-200 p-4">
+                      <div class="flex items-center justify-between mb-3">
+                        <span class="text-sm font-medium text-gray-700">ID Document</span>
+                        <span v-if="landlord.aml_check.id_document_type" class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {{ landlord.aml_check.id_document_type === 'driving_licence' ? 'Driving Licence' : 'Passport' }}
+                        </span>
+                      </div>
+                      <div class="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
+                        <img
+                          v-if="idDocumentUrl"
+                          :src="idDocumentUrl"
+                          alt="ID Document"
+                          class="w-full h-full object-contain"
+                        />
+                        <div v-else class="flex items-center justify-center h-full">
+                          <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                      </div>
+                      <a
+                        v-if="idDocumentUrl"
+                        :href="idDocumentUrl"
+                        target="_blank"
+                        class="mt-2 inline-flex items-center text-sm text-primary hover:text-primary/80"
+                      >
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        View Full Size
+                      </a>
+                    </div>
+
+                    <!-- Selfie -->
+                    <div v-if="landlord.aml_check.selfie_path" class="rounded-lg border border-gray-200 p-4">
+                      <div class="flex items-center justify-between mb-3">
+                        <span class="text-sm font-medium text-gray-700">Selfie</span>
+                      </div>
+                      <div class="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
+                        <img
+                          v-if="selfieUrl"
+                          :src="selfieUrl"
+                          alt="Selfie"
+                          class="w-full h-full object-contain"
+                        />
+                        <div v-else class="flex items-center justify-center h-full">
+                          <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                      <a
+                        v-if="selfieUrl"
+                        :href="selfieUrl"
+                        target="_blank"
+                        class="mt-2 inline-flex items-center text-sm text-primary hover:text-primary/80"
+                      >
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        View Full Size
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </section>
             </div>
             <div v-else class="text-sm text-gray-500">
@@ -515,6 +586,35 @@ const deceasedMatch = computed(() => {
   return landlord.value?.aml_check?.fraud_indicators?.includes('deceased') ?? false
 }).value
 
+// Document blob URLs for displaying images
+const idDocumentBlobUrl = ref<string | null>(null)
+const selfieBlobUrl = ref<string | null>(null)
+
+const idDocumentUrl = computed(() => idDocumentBlobUrl.value)
+const selfieUrl = computed(() => selfieBlobUrl.value)
+
+const loadDocumentAsBlob = async (landlordId: string, docType: 'id' | 'selfie'): Promise<string | null> => {
+  const token = authStore.session?.access_token
+  if (!token) return null
+
+  try {
+    const url = `${API_URL}/api/landlords/${landlordId}/document/${docType}`
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) return null
+
+    const blob = await response.blob()
+    return URL.createObjectURL(blob)
+  } catch (error) {
+    console.error(`Error loading ${docType} document:`, error)
+    return null
+  }
+}
+
 type Tone = 'success' | 'warning' | 'danger' | 'info'
 
 const toneClasses: Record<Tone, string> = {
@@ -570,6 +670,14 @@ const fetchLandlord = async () => {
     const data = await response.json()
     landlord.value = data.landlord
 
+    // Load document images if available
+    if (landlord.value?.aml_check?.id_document_path) {
+      idDocumentBlobUrl.value = await loadDocumentAsBlob(landlord.value.id, 'id')
+    }
+    if (landlord.value?.aml_check?.selfie_path) {
+      selfieBlobUrl.value = await loadDocumentAsBlob(landlord.value.id, 'selfie')
+    }
+
     // Check if edit mode
     if (route.query.edit === 'true') {
       showEditModal.value = true
@@ -582,37 +690,30 @@ const fetchLandlord = async () => {
   }
 }
 
-const initiateAMLCheck = async () => {
+const requestIdVerification = async () => {
   if (!landlord.value) return
 
   initiatingAML.value = true
 
   try {
-    const response = await fetch(`${API_URL}/api/landlords/${landlord.value.id}/initiate-aml-check`, {
+    const response = await fetch(`${API_URL}/api/landlords/${landlord.value.id}/request-id-verification`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ chargeType: 'credits' })
+      }
     })
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to initiate AML check')
+      throw new Error(errorData.error || 'Failed to send verification request')
     }
 
-    toast.success('AML check completed successfully.')
-    const aml_check = await response.json()
-    if(aml_check.aml_check) {
-      landlord.value.aml_check = aml_check.aml_check
-      landlord.value.aml_status = aml_check.aml_status
-    }else{
+    toast.success('Verification request sent to landlord.')
     fetchLandlord()
-    }
     initiatingAML.value = false
   } catch (err: any) {
-    toast.error(err.message || 'Failed to initiate AML check')
+    toast.error(err.message || 'Failed to send verification request')
   } finally {
     initiatingAML.value = false
   }
@@ -627,10 +728,15 @@ const formatAMLStatus = (status: string) => {
   const statusMap: Record<string, string> = {
     'not_requested': 'Not Requested',
     'requested': 'Requested',
-    'satisfactory': 'AML satisfactory',
-    'unsatisfactory': 'AML unsatisfactory'
+    'pending': 'Pending',
+    'submitted': 'Submitted',
+    'passed': 'Passed',
+    'failed': 'Failed',
+    'verified': 'Verified',
+    'satisfactory': 'AML Satisfactory',
+    'unsatisfactory': 'AML Unsatisfactory'
   }
-  return statusMap[status] || status
+  return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 const formatDate = (dateString?: string | null, fallback = 'n/a') =>

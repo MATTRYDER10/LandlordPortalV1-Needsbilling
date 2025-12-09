@@ -266,6 +266,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         risk_level: amlCheck.risk_level,
         document_verified: amlCheck.document_verified,
         selfie_matches_id: amlCheck.selfie_matches_id,
+        id_document_type: amlCheck.id_document_type,
+        id_document_path: amlCheck.id_document_path,
+        selfie_path: amlCheck.selfie_path,
         created_at: amlCheck.created_at,
         verified_at: amlCheck.verified_at,
         fraud_indicators: amlCheck.fraud_indicators,
@@ -795,14 +798,14 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
 })
 
 /**
- * POST /api/landlords/:id/initiate-aml-check
- * Initiate AML check for a landlord
+ * POST /api/landlords/:id/request-id-verification
+ * Request ID verification for a landlord - sends email with verification link
+ * Does NOT call Creditsafe - that happens when landlord submits the form
  */
-router.post('/:id/initiate-aml-check', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/:id/request-id-verification', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     const landlordId = req.params.id
-    const { chargeType = 'credits' } = req.body // 'credits' or 'fixed'
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -832,137 +835,79 @@ router.post('/:id/initiate-aml-check', authenticateToken, async (req: AuthReques
       return res.status(404).json({ error: 'Landlord not found' })
     }
 
-    // Check credits or charge
-    const creditsRequired = 0.25
-   // const fixedCharge = 1.50
+    // Generate verification token
+    const verificationToken = generateToken()
+    const verificationTokenHash = hash(verificationToken)
 
-    if (chargeType === 'credits') {
-      const hasCredits = await creditService.hasCredits(companyUser.company_id, creditsRequired)
-      if (!hasCredits) {
-        return res.status(400).json({ error: 'Insufficient credits. 0.25 credits required for AML check.' })
-      }
-    }
-
-    // Deduct credits or charge
-    if (chargeType === 'credits') {
-      await creditService.deductCredits(
-        companyUser.company_id,
-        creditsRequired,
-        null, // No tenant reference ID for landlord AML checks
-        `AML check for landlord ${landlordId}`,
-        userId
-      )
-    } else {
-      // For fixed charge, you would integrate with Stripe here
-      // For now, we'll just deduct credits as well
-      await creditService.deductCredits(
-        companyUser.company_id,
-        creditsRequired,
-        null, // No tenant reference ID for landlord AML checks
-        `AML check for landlord ${landlordId} (fixed charge)`,
-        userId
-      )
-    }
-
-    const address = [decrypt(landlord.residential_address_line1_encrypted), decrypt(landlord.residential_address_line2_encrypted), decrypt(landlord.residential_city_encrypted), decrypt(landlord.residential_postcode_encrypted), decrypt(landlord.residential_country_encrypted)].filter((add) => !!((add || '').trim())).join(', ')
-
-    const credi_aml_payload = {
-      firstName: decrypt(landlord.first_name_encrypted) || '',
-      lastName: decrypt(landlord.last_name_encrypted) || '',
-      dateOfBirth: landlord.date_of_birth,
-      address,
-      postCode: decrypt(landlord.residential_postcode_encrypted) || ''
-    }
-
-
-    const verificationResponse = await creditsafeService.verify(credi_aml_payload);
-
-    const sanctionsCheck = await sanctionsService.screenTenant({
-      name: `${credi_aml_payload.firstName} ${credi_aml_payload.lastName}`,
-      dateOfBirth: credi_aml_payload.dateOfBirth,
-      postcode: credi_aml_payload.postCode
-    });
-
-    if(!verificationResponse || !sanctionsCheck) {
-      return res.status(500).json({ error: 'Failed to verify landlord' })
-    }
-
-    const is_landlord_sanctioned = (Array.isArray(sanctionsCheck.sanctions_matches) && sanctionsCheck.sanctions_matches.length > 0);
-
-    const flags = {
-      ccjMatch: verificationResponse.ccjMatch,
-      insolvencyMatch: verificationResponse.insolvencyMatch,
-      deceasedMatch: verificationResponse.deceasedRegisterMatch,
-      electoralRollMatch: verificationResponse.electoralRegisterMatch,
-      ccjCount: verificationResponse.countyCourtJudgments?.length || 0,
-      insolvencyCount: verificationResponse.insolvencies?.length || 0
-    }
-
-    // Store AML check result in database
+    // Create or update landlord_aml_checks record with token (no Creditsafe data yet)
     const { data: amlCheck, error: amlError } = await supabase
       .from('landlord_aml_checks')
       .upsert({
-        landlord_id : landlordId,
-        verification_request_encrypted: encrypt(JSON.stringify(credi_aml_payload)),
-        verification_response_encrypted: verificationResponse.rawResponse,
-        verification_status: verificationResponse.status,
-        verification_score: 100,
-        name_match_score: 100,
-        address_match_score: 100,
-        dob_match_score: 100,
-        pep_check_result: is_landlord_sanctioned,
-        sanctions_check_result: is_landlord_sanctioned,
-        adverse_media_result: is_landlord_sanctioned,
-        fraud_indicators: flags,
-        risk_level: "none",
-        id_document_type: null,
-        id_document_path: null,
-        verify_transaction_id: "",
-        api_response_code: 200,
-        error_message:'',
-        charge_type: chargeType,
-        credits_used: chargeType === 'credits' ? 0.5 : 1.50,
-        amount_gbp: 0,
-        verified_at: null,
+        landlord_id: landlordId,
+        verification_status: 'pending',
+        verification_token_hash: verificationTokenHash,
         requested_at: new Date().toISOString(),
-        requested_by: userId,
-        verified_by: userId,
-        verification_token_hash: null
-  },{onConflict: 'landlord_id'})
+        requested_by: userId
+      }, { onConflict: 'landlord_id' })
       .select()
       .single()
 
     if (amlError) {
-      console.error('Error storing AML check result:', amlError)
+      console.error('Error creating AML check record:', amlError)
       return res.status(500).json({ error: amlError.message })
     }
 
-    // Update landlord AML status
-    const { data: updatedLandlord, error: updatedLandlordError } = await supabase
+    // Update landlord status to indicate verification requested
+    await supabase
       .from('landlords')
       .update({
-        aml_status:'satisfactory',
-        aml_checked_by: userId,
-        aml_completed_at: new Date().toISOString(),
+        aml_status: 'requested',
+        aml_checked_by: userId
       })
       .eq('id', landlordId)
-      .select()
-      .single()
 
-    if (updatedLandlordError) {
-      console.error('Error updating landlord AML status:', updatedLandlordError)
-      return res.status(500).json({ error: updatedLandlordError.message })
+    // Get landlord email for sending verification request
+    const landlordEmail = decrypt(landlord.email_encrypted) || ''
+    const landlordName = `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
+
+    // Build verification link
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+    const verificationLink = `${frontendUrl}/landlord-verification/${landlordId}/${verificationToken}`
+
+    // Send verification email
+    try {
+      await sendLandlordVerificationRequest(
+        landlordEmail,
+        landlordName,
+        verificationLink,
+        companyUser.company_id
+      )
+      console.log(`Landlord verification email sent to ${landlordEmail}`)
+    } catch (emailError) {
+      console.error('Failed to send landlord verification email:', emailError)
+      return res.status(500).json({ error: 'Failed to send verification email' })
     }
 
     res.json({
-      message: 'AML check completed successfully',
-      aml_check: amlCheck,
-      aml_status: updatedLandlord.aml_status,
+      message: 'Verification request sent to landlord',
+      verification_sent: true
     })
   } catch (error: any) {
-    console.error('Error initiating AML check:', error)
+    console.error('Error requesting ID verification:', error)
     res.status(500).json({ error: error.message })
   }
+})
+
+/**
+ * @deprecated Use request-id-verification instead
+ * POST /api/landlords/:id/initiate-aml-check
+ * Kept for backwards compatibility - returns deprecation notice
+ */
+router.post('/:id/initiate-aml-check', authenticateToken, async (req: AuthRequest, res) => {
+  return res.status(400).json({
+    error: 'This endpoint is deprecated. Please use /request-id-verification instead.',
+    redirect: `/api/landlords/${req.params.id}/request-id-verification`
+  })
 })
 
 /**
@@ -1047,7 +992,8 @@ router.get('/:id/verification/:token', async (req, res) => {
 
 /**
  * POST /api/landlords/:id/submit-verification
- * Submit landlord verification (ID + selfie) - public route
+ * Submit landlord verification (ID + selfie + personal details) - public route
+ * Calls Creditsafe API and sanctions check after form submission
  */
 router.post('/:id/submit-verification', upload.fields([
   { name: 'id_document', maxCount: 1 },
@@ -1055,10 +1001,26 @@ router.post('/:id/submit-verification', upload.fields([
 ]), async (req: any, res) => {
   try {
     const landlordId = req.params.id
-    const { token, id_document_type } = req.body
+    const {
+      token,
+      id_document_type,
+      first_name,
+      last_name,
+      date_of_birth,
+      address_line1,
+      address_line2,
+      city,
+      postcode,
+      country
+    } = req.body
 
     if (!token) {
       return res.status(400).json({ error: 'Verification token is required' })
+    }
+
+    // Validate required fields
+    if (!first_name || !last_name || !date_of_birth || !address_line1 || !city || !postcode) {
+      return res.status(400).json({ error: 'Personal details (name, date of birth, address) are required' })
     }
 
     // Verify token
@@ -1067,7 +1029,7 @@ router.post('/:id/submit-verification', upload.fields([
     // Get AML check with token hash
     const { data: amlCheck, error: amlError } = await supabase
       .from('landlord_aml_checks')
-      .select('id, landlord_id, verification_status, verification_token_hash')
+      .select('id, landlord_id, verification_status, verification_token_hash, requested_by')
       .eq('landlord_id', landlordId)
       .eq('verification_token_hash', tokenHash)
       .maybeSingle()
@@ -1095,42 +1057,268 @@ router.post('/:id/submit-verification', upload.fields([
       return res.status(400).json({ error: 'ID document and selfie are required' })
     }
 
-    // Upload files (you'll need to implement file upload to Supabase Storage)
-    // For now, we'll just store the file info
-    const idDocumentPath = `landlords/${landlordId}/id_document/${Date.now()}_${idDocumentFile.originalname}`
-    const selfiePath = `landlords/${landlordId}/selfie/${Date.now()}_${selfieFile.originalname}`
+    // Upload ID document to Supabase Storage
+    const idDocExt = idDocumentFile.mimetype.split('/')[1] || 'pdf'
+    const idDocFilename = `${landlordId}_id_${Date.now()}.${idDocExt}`
+    const idDocumentPath = `landlord-documents/${landlordId}/${idDocFilename}`
 
-    // Update AML check with document paths (amlCheck already fetched above)
-    if (amlCheck) {
-      await supabase
-        .from('landlord_aml_checks')
-        .update({
-          id_document_type: id_document_type || null,
-          id_document_path: idDocumentPath,
-          selfie_path: selfiePath,
-          verification_status: 'submitted',
-          verification_submitted_at: new Date().toISOString()
-        })
-        .eq('id', amlCheck.id)
+    const { error: idUploadError } = await supabase.storage
+      .from('reference-documents')
+      .upload(idDocumentPath, idDocumentFile.buffer, {
+        contentType: idDocumentFile.mimetype
+      })
+
+    if (idUploadError) {
+      console.error('Error uploading ID document:', idUploadError)
+      return res.status(500).json({ error: 'Failed to upload ID document' })
     }
 
-    // Update landlord verification status
+    // Upload selfie to Supabase Storage
+    const selfieExt = selfieFile.mimetype.split('/')[1] || 'jpg'
+    const selfieFilename = `${landlordId}_selfie_${Date.now()}.${selfieExt}`
+    const selfiePath = `landlord-documents/${landlordId}/${selfieFilename}`
+
+    const { error: selfieUploadError } = await supabase.storage
+      .from('reference-documents')
+      .upload(selfiePath, selfieFile.buffer, {
+        contentType: selfieFile.mimetype
+      })
+
+    if (selfieUploadError) {
+      console.error('Error uploading selfie:', selfieUploadError)
+      return res.status(500).json({ error: 'Failed to upload selfie' })
+    }
+
+    // Update landlord with submitted personal details
+    const landlordUpdateData: any = {
+      verification_status: 'submitted',
+      verification_submitted_at: new Date().toISOString()
+    }
+
+    // Update name if not already set or if changed
+    if (first_name) landlordUpdateData.first_name_encrypted = encrypt(first_name)
+    if (last_name) landlordUpdateData.last_name_encrypted = encrypt(last_name)
+    if (date_of_birth) landlordUpdateData.date_of_birth = date_of_birth
+    if (address_line1) landlordUpdateData.residential_address_line1_encrypted = encrypt(address_line1)
+    if (address_line2) landlordUpdateData.residential_address_line2_encrypted = encrypt(address_line2)
+    if (city) landlordUpdateData.residential_city_encrypted = encrypt(city)
+    if (postcode) landlordUpdateData.residential_postcode_encrypted = encrypt(postcode)
+    if (country) landlordUpdateData.residential_country_encrypted = encrypt(country || 'GB')
+
+    await supabase
+      .from('landlords')
+      .update(landlordUpdateData)
+      .eq('id', landlordId)
+
+    // Deduct credits (0.25 for landlord ID check)
+    const companyId = landlord.company_id
+    const creditCost = 0.25
+
+    try {
+      await creditService.deductCredits(companyId, creditCost, landlordId, `Landlord ID verification for ${first_name} ${last_name}`)
+    } catch (creditError: any) {
+      console.error('Error deducting credits:', creditError)
+      // Continue anyway - don't block verification due to credit issues
+    }
+
+    // Call Creditsafe API
+    let creditsafeResult: any = null
+    let verificationPassed = false
+    let riskLevel = 'unknown'
+
+    try {
+      creditsafeResult = await creditsafeService.verify({
+        firstName: first_name,
+        lastName: last_name,
+        dateOfBirth: date_of_birth,
+        address: address_line1 + (address_line2 ? `, ${address_line2}` : ''),
+        postCode: postcode
+      })
+
+      if (creditsafeResult) {
+        verificationPassed = creditsafeResult.status === 'passed'
+        riskLevel = creditsafeResult.riskLevel || (verificationPassed ? 'low' : 'high')
+      }
+    } catch (creditsafeError: any) {
+      console.error('Creditsafe verification error:', creditsafeError)
+      // Store the error but don't fail the entire submission
+      creditsafeResult = { error: creditsafeError.message }
+    }
+
+    // Run sanctions check
+    let sanctionsResult: any = null
+    let pepCheckResult: boolean | null = null  // true = flagged (bad), false = clear (good), null = not checked
+    let sanctionsCheckResult: boolean | null = null
+
+    try {
+      sanctionsResult = await sanctionsService.screenTenant({
+        name: `${first_name} ${last_name}`,
+        dateOfBirth: date_of_birth,
+        postcode: postcode
+      })
+
+      if (sanctionsResult) {
+        // Check if there are any sanctions matches (includes PEP list matches)
+        const hasSanctionsMatches = sanctionsResult.sanctions_matches && sanctionsResult.sanctions_matches.length > 0
+        const hasDonationMatches = sanctionsResult.donation_matches && sanctionsResult.donation_matches.length > 0
+
+        // true = flagged (bad), false = clear (good)
+        pepCheckResult = hasDonationMatches
+        sanctionsCheckResult = hasSanctionsMatches
+
+        // If sanctions found, increase risk level
+        if (hasSanctionsMatches) {
+          riskLevel = 'high'
+          verificationPassed = false
+        } else if (hasDonationMatches) {
+          // Donation matches suggest PEP - medium risk
+          riskLevel = sanctionsResult.risk_level === 'clear' ? 'medium' : sanctionsResult.risk_level
+        }
+      }
+    } catch (sanctionsError: any) {
+      console.error('Sanctions screening error:', sanctionsError)
+      sanctionsResult = { error: sanctionsError.message }
+    }
+
+    // Update AML check with results
+    const amlCheckUpdate: any = {
+      id_document_type: id_document_type || null,
+      id_document_path: idDocumentPath,
+      selfie_path: selfiePath,
+      verification_status: verificationPassed ? 'passed' : 'failed',
+      verification_submitted_at: new Date().toISOString(),
+      verified_at: new Date().toISOString(),
+      verification_score: creditsafeResult?.score || null,
+      pep_check_result: pepCheckResult,
+      sanctions_check_result: sanctionsCheckResult,
+      risk_level: riskLevel,
+      creditsafe_response: creditsafeResult ? JSON.stringify(creditsafeResult) : null,
+      sanctions_response: sanctionsResult ? JSON.stringify(sanctionsResult) : null
+    }
+
+    console.log('Updating AML check with:', amlCheckUpdate)
+    const { error: amlUpdateError } = await supabase
+      .from('landlord_aml_checks')
+      .update(amlCheckUpdate)
+      .eq('id', amlCheck.id)
+
+    if (amlUpdateError) {
+      console.error('Error updating AML check:', amlUpdateError)
+    }
+
+    // Update landlord AML status
     await supabase
       .from('landlords')
       .update({
-        verification_status: 'submitted',
-        verification_submitted_at: new Date().toISOString()
+        aml_status: verificationPassed ? 'passed' : 'failed',
+        aml_completed_at: new Date().toISOString(),
+        verification_status: verificationPassed ? 'verified' : 'failed',
+        verification_verified_at: new Date().toISOString()
       })
       .eq('id', landlordId)
 
-    // TODO: Send to verify list for selfie comparison
-    // This would integrate with your verification service
-
     res.json({
-      message: 'Verification submitted successfully. Your documents are being reviewed.'
+      message: verificationPassed
+        ? 'Verification completed successfully. Your identity has been verified.'
+        : 'Verification completed. Some checks may require manual review.',
+      verification_passed: verificationPassed,
+      risk_level: riskLevel
     })
   } catch (error: any) {
     console.error('Error submitting verification:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * GET /api/landlords/:id/document/:type
+ * Download landlord verification document (ID or selfie)
+ */
+router.get('/:id/document/:type', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const landlordId = req.params.id
+    const docType = req.params.type // 'id' or 'selfie'
+
+    if (!['id', 'selfie'].includes(docType)) {
+      return res.status(400).json({ error: 'Invalid document type. Use "id" or "selfie"' })
+    }
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyUser = companyUsers[0]
+
+    // Verify landlord belongs to user's company
+    const { data: landlord, error: landlordError } = await supabase
+      .from('landlords')
+      .select('id, company_id')
+      .eq('id', landlordId)
+      .eq('company_id', companyUser.company_id)
+      .single()
+
+    if (landlordError || !landlord) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get the AML check with document paths
+    const { data: amlCheck, error: amlError } = await supabase
+      .from('landlord_aml_checks')
+      .select('id_document_path, selfie_path')
+      .eq('landlord_id', landlordId)
+      .maybeSingle()
+
+    if (amlError || !amlCheck) {
+      return res.status(404).json({ error: 'No verification documents found' })
+    }
+
+    const filePath = docType === 'id' ? amlCheck.id_document_path : amlCheck.selfie_path
+
+    if (!filePath) {
+      return res.status(404).json({ error: `No ${docType} document found` })
+    }
+
+    // Download file from storage
+    const { data, error: downloadError } = await supabase.storage
+      .from('reference-documents')
+      .download(filePath)
+
+    if (downloadError) {
+      console.error('Error downloading file:', downloadError)
+      return res.status(404).json({ error: 'File not found' })
+    }
+
+    // Get file extension to set correct content type
+    const ext = filePath.split('.').pop()?.toLowerCase()
+    const contentTypes: { [key: string]: string } = {
+      'pdf': 'application/pdf',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp'
+    }
+
+    const contentType = contentTypes[ext || ''] || 'application/octet-stream'
+
+    // Convert blob to buffer
+    const arrayBuffer = await data.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    // Set headers and send file
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Disposition', `inline; filename="${filePath.split('/').pop()}"`)
+    res.send(buffer)
+  } catch (error: any) {
+    console.error('Error downloading landlord document:', error)
     res.status(500).json({ error: error.message })
   }
 })

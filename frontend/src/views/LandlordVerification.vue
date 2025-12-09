@@ -59,6 +59,76 @@
           @proceed="handleDeviceGateProceed"
         />
         <form v-else @submit.prevent="handleSubmit" class="space-y-6">
+        <!-- Personal Details Section -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Personal Details</h2>
+          <p class="text-sm text-gray-600 mb-6">Please confirm your personal details for identity verification.</p>
+
+          <div class="space-y-4">
+            <!-- Name Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                <input v-model="formData.first_name" type="text" required
+                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="Enter your first name" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                <input v-model="formData.last_name" type="text" required
+                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="Enter your last name" />
+              </div>
+            </div>
+
+            <!-- Date of Birth -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
+              <input v-model="formData.date_of_birth" type="date" required
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Address Section -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Address</h2>
+          <p class="text-sm text-gray-600 mb-6">Please provide your current residential address.</p>
+
+          <div class="space-y-4">
+            <div>
+              <AddressAutocomplete
+                v-model="formData.address_line1"
+                label="Address Line 1"
+                :required="true"
+                placeholder="Start typing address..."
+                @addressSelected="handleAddressSelected"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Address Line 2</label>
+              <input v-model="formData.address_line2" type="text"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="Apartment, suite, etc. (optional)" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">City *</label>
+                <input v-model="formData.city" type="text" required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="City" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Postcode *</label>
+                <input v-model="formData.postcode" type="text" required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="Postcode" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Identity Verification Section -->
         <div class="bg-white rounded-lg shadow p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Identity Verification</h2>
           <p class="text-sm text-gray-600 mb-6">Please upload a clear photo of your ID document and take a selfie for
@@ -90,25 +160,62 @@
               <p class="mt-1 text-xs text-gray-500">Upload PDF or image (max 10MB)</p>
             </div>
 
-            <!-- Selfie Upload -->
+            <!-- Selfie Capture -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Upload Selfie *</label>
-              <input ref="selfieInput" type="file" @change="handleSelfieUpload" accept=".jpg,.jpeg,.png" class="hidden"
-                required />
-              <button type="button" @click="($refs.selfieInput as any).click()"
-                class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
-                :style="{ color: buttonColor }">
-                {{ selfie ? 'Change File' : 'Choose File' }}
-              </button>
-              <p v-if="selfie" class="mt-2 text-sm text-gray-600">{{ selfie.name }}</p>
-              <p class="mt-1 text-xs text-gray-500">Upload a clear selfie photo (max 10MB)</p>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Take Selfie *</label>
+
+              <!-- Camera stream view -->
+              <div v-if="showCameraStream" class="space-y-4">
+                <div class="relative bg-black rounded-lg overflow-hidden" style="max-width: 640px;">
+                  <video ref="videoElement" autoplay playsinline class="w-full h-auto"
+                    style="transform: scaleX(-1);"></video>
+                  <canvas ref="canvasElement" class="hidden"></canvas>
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" @click="capturePhoto"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    :style="{ color: buttonColor }">
+                    Capture Photo
+                  </button>
+                  <button type="button" @click="stopCamera"
+                    class="px-4 py-2 text-sm font-semibold bg-gray-100 rounded-md hover:bg-gray-200 text-gray-700">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              <!-- Camera start button or preview -->
+              <div v-else>
+                <div v-if="selfie && selfiePreview" class="space-y-4">
+                  <img :src="selfiePreview" alt="Selfie preview"
+                    class="w-48 h-48 object-cover rounded-lg border-2 border-gray-300" />
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-700">Photo captured ({{ formatFileSize(selfie.size) }})</span>
+                    <button type="button" @click="removeSelfie" class="text-red-600 hover:text-red-800 text-sm">
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                <div v-else>
+                  <button type="button" @click="startCamera"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    :style="{ color: buttonColor }">
+                    Take Photo
+                  </button>
+                </div>
+              </div>
+
+              <p v-if="cameraError" class="mt-2 text-sm text-red-600">{{ cameraError }}</p>
+              <p v-else class="mt-1 text-xs text-gray-500">Please open this on your mobile phone. A photo
+                must be taken using your device's camera for AML compliance.</p>
             </div>
           </div>
         </div>
 
         <!-- Submit Button -->
         <div class="flex justify-end gap-3">
-          <button type="submit" :disabled="submitting || !formData.id_document_type || !idDocument || !selfie"
+          <button type="submit" :disabled="submitting || !isFormValid"
             class="px-6 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
             {{ submitting ? 'Submitting...' : 'Submit Verification' }}
           </button>
@@ -124,6 +231,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import DeviceHandoffGate from '../components/DeviceHandoffGate.vue'
+import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 
 const route = useRoute()
 const toast = useToast()
@@ -146,11 +254,26 @@ const showDeviceGate = ref(true)
 const deviceLink = ref('')
 
 const formData = ref({
-  id_document_type: ''
+  id_document_type: '',
+  first_name: '',
+  last_name: '',
+  date_of_birth: '',
+  address_line1: '',
+  address_line2: '',
+  city: '',
+  postcode: '',
+  country: 'GB'
 })
 
 const idDocumentInput = ref<HTMLInputElement | null>(null)
-const selfieInput = ref<HTMLInputElement | null>(null)
+
+// Camera capture for selfie
+const showCameraStream = ref(false)
+const videoElement = ref<HTMLVideoElement | null>(null)
+const canvasElement = ref<HTMLCanvasElement | null>(null)
+const cameraStream = ref<MediaStream | null>(null)
+const cameraError = ref<string>('')
+const selfiePreview = ref<string | null>(null)
 
 const fetchLandlord = async () => {
   loading.value = true
@@ -185,6 +308,18 @@ const fetchLandlord = async () => {
       buttonColor.value = data.company.button_color || buttonColor.value
     }
 
+    // Pre-populate form data with existing landlord details
+    if (landlord.value) {
+      formData.value.first_name = landlord.value.first_name || ''
+      formData.value.last_name = landlord.value.last_name || ''
+      formData.value.date_of_birth = landlord.value.date_of_birth || ''
+      formData.value.address_line1 = landlord.value.address_line1 || ''
+      formData.value.address_line2 = landlord.value.address_line2 || ''
+      formData.value.city = landlord.value.city || ''
+      formData.value.postcode = landlord.value.postcode || ''
+      formData.value.country = landlord.value.country || 'GB'
+    }
+
     // Check if already submitted
     if (landlord.value.verification_status === 'submitted' || landlord.value.verification_status === 'verified') {
       submitted.value = true
@@ -207,14 +342,99 @@ const handleIdDocumentUpload = (event: Event) => {
   }
 }
 
-const handleSelfieUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (target.files && target.files.length > 0) {
-    const file = target.files[0]
-    if (file) {
-      selfie.value = file
+const handleAddressSelected = (addressData: any) => {
+  formData.value.address_line1 = addressData.addressLine1
+  formData.value.city = addressData.city
+  formData.value.postcode = addressData.postcode
+
+  // Update country if available
+  if (addressData.country?.code) {
+    formData.value.country = addressData.country.code
+  }
+}
+
+// Camera capture functions for selfie
+const startCamera = async () => {
+  cameraError.value = ''
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' }, // Front-facing camera
+      audio: false
+    })
+    cameraStream.value = stream
+    showCameraStream.value = true
+
+    // Wait for next tick to ensure video element is rendered
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    if (videoElement.value) {
+      videoElement.value.srcObject = stream
+    }
+  } catch (error: any) {
+    console.error('Camera access error:', error)
+    if (error.name === 'NotAllowedError') {
+      cameraError.value = 'Camera access denied. Please allow camera access to take a selfie.'
+    } else if (error.name === 'NotFoundError') {
+      cameraError.value = 'No camera found on this device.'
+    } else {
+      cameraError.value = 'Unable to access camera. Please try again.'
     }
   }
+}
+
+const stopCamera = () => {
+  if (cameraStream.value) {
+    cameraStream.value.getTracks().forEach(track => track.stop())
+    cameraStream.value = null
+  }
+  showCameraStream.value = false
+}
+
+const capturePhoto = () => {
+  if (!videoElement.value || !canvasElement.value) return
+
+  const video = videoElement.value
+  const canvas = canvasElement.value
+  const context = canvas.getContext('2d')
+  if (!context) return
+
+  // Set canvas size to match video
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+
+  // Flip horizontally to match the mirrored video display
+  context.translate(canvas.width, 0)
+  context.scale(-1, 1)
+
+  // Draw the video frame to the canvas
+  context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+  // Convert to blob
+  canvas.toBlob((blob) => {
+    if (blob) {
+      const timestamp = Date.now()
+      const file = new File([blob], `selfie-${timestamp}.jpg`, { type: 'image/jpeg' })
+      selfie.value = file
+      selfiePreview.value = canvas.toDataURL('image/jpeg')
+
+      // Stop camera and hide stream
+      stopCamera()
+    }
+  }, 'image/jpeg', 0.9)
+}
+
+const removeSelfie = () => {
+  selfie.value = null
+  selfiePreview.value = null
+  stopCamera()
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 const agentCompanyName = computed(() => companyDetails.value?.name || 'your letting agent')
@@ -248,6 +468,20 @@ const deviceGateDescription = computed(
     `${agentCompanyName.value} needs to verify your identity to progress with compliance checks. Use the QR code to open this form on your phone, or continue on this device if it has a working camera.`
 )
 
+const isFormValid = computed(() => {
+  return (
+    formData.value.first_name.trim() &&
+    formData.value.last_name.trim() &&
+    formData.value.date_of_birth &&
+    formData.value.address_line1.trim() &&
+    formData.value.city.trim() &&
+    formData.value.postcode.trim() &&
+    formData.value.id_document_type &&
+    idDocument.value &&
+    selfie.value
+  )
+})
+
 const handleDeviceGateProceed = () => {
   showDeviceGate.value = false
   if (typeof window !== 'undefined') {
@@ -256,8 +490,8 @@ const handleDeviceGateProceed = () => {
 }
 
 const handleSubmit = async () => {
-  if (!idDocument.value || !selfie.value || !formData.value.id_document_type) {
-    toast.error('Please upload both ID document and selfie')
+  if (!isFormValid.value) {
+    toast.error('Please fill in all required fields and upload both ID document and selfie')
     return
   }
 
@@ -268,10 +502,23 @@ const handleSubmit = async () => {
     const token = route.params.token as string
 
     const formDataToSend = new FormData()
-    formDataToSend.append('id_document', idDocument.value)
-    formDataToSend.append('selfie', selfie.value)
-    formDataToSend.append('id_document_type', formData.value.id_document_type)
+    // Files
+    formDataToSend.append('id_document', idDocument.value!)
+    formDataToSend.append('selfie', selfie.value!)
+    // Personal details
     formDataToSend.append('token', token)
+    formDataToSend.append('id_document_type', formData.value.id_document_type)
+    formDataToSend.append('first_name', formData.value.first_name.trim())
+    formDataToSend.append('last_name', formData.value.last_name.trim())
+    formDataToSend.append('date_of_birth', formData.value.date_of_birth)
+    // Address
+    formDataToSend.append('address_line1', formData.value.address_line1.trim())
+    if (formData.value.address_line2) {
+      formDataToSend.append('address_line2', formData.value.address_line2.trim())
+    }
+    formDataToSend.append('city', formData.value.city.trim())
+    formDataToSend.append('postcode', formData.value.postcode.trim())
+    formDataToSend.append('country', formData.value.country || 'GB')
 
     const response = await fetch(`${API_URL}/api/landlords/${landlordId}/submit-verification`, {
       method: 'POST',
