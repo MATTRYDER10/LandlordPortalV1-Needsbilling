@@ -86,16 +86,11 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
 
-    // Pagination params (optional - defaults to all results for backward compatibility)
-    const page = parseInt(req.query.page as string) || 0 // 0 means no pagination
-    const limit = parseInt(req.query.limit as string) || 0 // 0 means no limit
-    const offset = page > 0 && limit > 0 ? (page - 1) * limit : 0
-
     // Search and filter params
     const search = req.query.search as string | undefined
     const statusFilter = req.query.status as string | undefined
 
-    console.log('=== FETCHING REFERENCES FOR USER:', userId, page > 0 ? `(page ${page}, limit ${limit})` : '(all)', search ? `search: "${search}"` : '', statusFilter ? `status: ${statusFilter}` : '')
+    console.log('=== FETCHING REFERENCES FOR USER:', userId, search ? `search: "${search}"` : '', statusFilter ? `status: ${statusFilter}` : '')
 
     // Check if user is invited (to handle duplicate company entries from trigger bug)
     const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
@@ -138,47 +133,44 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     console.log('Using company_id:', companyUser.company_id, 'isInvited:', isInvited)
 
-    // Count total references for this company (with status filter if specified)
-    let countQuery = supabase
+    // Get status counts for all references (unfiltered) for stat cards display
+    const { data: statusCountsData } = await supabase
       .from('tenant_references')
-      .select('*', { count: 'exact', head: true })
+      .select('status')
       .eq('company_id', companyUser.company_id)
+      .neq('is_guarantor', true)
+      .limit(10000)
 
-    if (statusFilter) {
-      countQuery = countQuery.eq('status', statusFilter)
+    const statusCounts = {
+      total: 0,
+      pending: 0,
+      in_progress: 0,
+      pending_verification: 0,
+      completed: 0,
+      rejected: 0,
+      cancelled: 0
     }
+    statusCountsData?.forEach(ref => {
+      statusCounts.total++
+      if (statusCounts.hasOwnProperty(ref.status)) {
+        statusCounts[ref.status as keyof typeof statusCounts]++
+      }
+    })
 
-    const { count: totalCount } = await countQuery
-
-    console.log('Total references in this company:', totalCount, statusFilter ? `(filtered by status: ${statusFilter})` : '')
-
-    // Get all references for the company (excluding child references, but including guarantors)
-    // Note: Guarantors are included so they can be nested under parent tenants in the UI
-    // Get top-level references (parent_reference_id is null) OR guarantors
-    let refsQuery = supabase
+    // Get all references for the company (excluding guarantors - they're fetched separately in batch queries)
+    // Note: Guarantors are fetched separately and nested under their parent tenants
+    const { data: allRefs, error: allRefsError } = await supabase
       .from('tenant_references')
       .select('*')
       .eq('company_id', companyUser.company_id)
+      .neq('is_guarantor', true)
       .order('created_at', { ascending: false })
-
-    // Apply status filter if specified (can be done at DB level)
-    if (statusFilter) {
-      refsQuery = refsQuery.eq('status', statusFilter)
-    }
-
-    // Apply pagination if specified AND no search (search requires full dataset for encrypted field filtering)
-    if (page > 0 && limit > 0 && !search) {
-      refsQuery = refsQuery.range(offset, offset + limit - 1)
-    }
-
-    const { data: allRefs, error: allRefsError } = await refsQuery
+      .limit(10000)
 
     if (allRefsError) {
       return res.status(400).json({ error: allRefsError.message })
     }
 
-    // Include all references - group parents are needed for agreement imports
-    // The frontend can filter based on context (e.g., hide group parents in References list)
     const references = allRefs || []
 
     console.log('Top-level references found:', references?.length || 0)
@@ -275,7 +267,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
             parentStatus = 'completed'
           } else if (statuses.every(s => s === 'pending_verification' || s === 'completed')) {
             parentStatus = 'pending_verification'
-          } else if (statuses.some(s => s === 'in_progress' || s === 'pending_verification')) {
+          } else if (statuses.some(s => s === 'in_progress' || s === 'pending_verification' || s === 'awaiting_guarantor')) {
             parentStatus = 'in_progress'
           } else if (statuses.every(s => s === 'pending')) {
             parentStatus = 'pending'
@@ -351,28 +343,10 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       })
     }
 
-    // Apply pagination to search results if searching
-    let paginatedReferences = filteredReferences
-    let finalTotal = search ? filteredReferences.length : (totalCount || 0)
+    // Status filtering is now done on the frontend after grouping
+    // This allows filtering based on computed group status (from children)
 
-    if (search && page > 0 && limit > 0) {
-      paginatedReferences = filteredReferences.slice(offset, offset + limit)
-    }
-
-    // Return with pagination metadata if pagination was requested
-    if (page > 0 && limit > 0) {
-      res.json({
-        references: paginatedReferences,
-        pagination: {
-          page,
-          limit,
-          total: finalTotal,
-          totalPages: Math.ceil(finalTotal / limit)
-        }
-      })
-    } else {
-      res.json({ references: filteredReferences })
-    }
+    res.json({ references: filteredReferences, statusCounts })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

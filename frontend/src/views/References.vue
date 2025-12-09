@@ -21,7 +21,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">Total References</div>
-                  <div class="mt-1 text-3xl font-semibold text-gray-900">{{ references.length }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-gray-900">{{ serverStatusCounts.total }}</div>
                 </div>
                 <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,7 +38,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">In Progress</div>
-                  <div class="mt-1 text-3xl font-semibold text-blue-600">{{ statusCounts.in_progress }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-blue-600">{{ serverStatusCounts.in_progress }}</div>
                 </div>
                 <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +55,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">Pending Verification</div>
-                  <div class="mt-1 text-3xl font-semibold text-primary">{{ statusCounts.pending_verification }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-primary">{{ serverStatusCounts.pending_verification }}</div>
                 </div>
                 <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +72,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">Rejected</div>
-                  <div class="mt-1 text-3xl font-semibold text-red-600">{{ statusCounts.rejected }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-red-600">{{ serverStatusCounts.rejected }}</div>
                 </div>
                 <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +88,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">Completed</div>
-                  <div class="mt-1 text-3xl font-semibold text-green-600">{{ statusCounts.completed }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-green-600">{{ serverStatusCounts.completed }}</div>
                 </div>
                 <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -722,20 +722,6 @@
           </table>
         </div>
 
-        <!-- Load More / Pagination Info -->
-        <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-          <span class="text-sm text-gray-600">
-            Showing {{ references.filter(r => !r.is_guarantor).length }} of {{ totalCount }} reference{{ totalCount === 1 ? '' : 's' }}
-          </span>
-          <button
-            v-if="hasMorePages"
-            @click="loadMore"
-            :disabled="loadingMore"
-            class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-md disabled:opacity-50"
-          >
-            {{ loadingMore ? 'Loading...' : 'Load More' }}
-          </button>
-        </div>
       </div>
 
       <!-- Empty State -->
@@ -1165,12 +1151,16 @@ const dateFilter = ref('')
 const sortBy = ref<'created_at' | 'move_in_date'>('created_at')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
-// Pagination state
-const loadingMore = ref(false)
-const currentPage = ref(1)
-const totalPages = ref(1)
-const totalCount = ref(0)
-const pageSize = 50
+// Server-side status counts for stat cards
+const serverStatusCounts = ref({
+  total: 0,
+  pending: 0,
+  in_progress: 0,
+  pending_verification: 0,
+  completed: 0,
+  rejected: 0,
+  cancelled: 0
+})
 
 const tenantCount = ref(1)
 const previousTenantCount = ref(1)
@@ -1378,6 +1368,18 @@ const groupedReferences = computed(() => {
     return bDate - aDate
   })
 
+  // Apply status filter based on computed group status
+  if (statusFilter.value) {
+    return groups.filter(group => {
+      if (group.isPropertyGroup) {
+        // For multi-tenant groups, filter by computed status from children
+        return getGroupStatus(group.children) === statusFilter.value
+      }
+      // For individual refs, filter by their actual status
+      return group.status === statusFilter.value
+    })
+  }
+
   return groups
 })
 
@@ -1398,9 +1400,10 @@ const getGroupStatus = (children: any[]) => {
   // Determine overall status for a multi-tenant group
   const statuses = children.map(c => c.status)
   if (statuses.every(s => s === 'completed')) return 'completed'
-  if (statuses.some(s => s === 'rejected')) return 'mixed'
-  if (statuses.some(s => s === 'in_progress' || s === 'pending_verification')) return 'in_progress'
-  return 'pending'
+  if (statuses.some(s => s === 'rejected')) return 'rejected'
+  if (statuses.some(s => s === 'in_progress' || s === 'pending_verification' || s === 'awaiting_guarantor')) return 'in_progress'
+  if (statuses.every(s => s === 'pending')) return 'pending'
+  return 'in_progress' // Default for mixed statuses
 }
 
 // Check if employment reference requirement is satisfied
@@ -1520,13 +1523,9 @@ onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick)
 })
 
-const fetchReferences = async (page = 1, append = false) => {
+const fetchReferences = async () => {
   try {
-    if (page === 1) {
-      loading.value = true
-    } else {
-      loadingMore.value = true
-    }
+    loading.value = true
 
     const token = authStore.session?.access_token
     if (!token) {
@@ -1535,10 +1534,7 @@ const fetchReferences = async (page = 1, append = false) => {
     }
 
     // Build query params
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: pageSize.toString()
-    })
+    const params = new URLSearchParams()
 
     // Send search and status filter to backend
     if (searchQuery.value.trim()) {
@@ -1590,33 +1586,18 @@ const fetchReferences = async (page = 1, append = false) => {
       }
     })
 
-    if (append) {
-      references.value = [...references.value, ...allReferences]
-    } else {
-      references.value = allReferences
-    }
+    references.value = allReferences
 
-    // Update pagination state
-    if (data.pagination) {
-      currentPage.value = data.pagination.page
-      totalPages.value = data.pagination.totalPages
-      totalCount.value = data.pagination.total
+    // Update server-side status counts for stat cards
+    if (data.statusCounts) {
+      serverStatusCounts.value = data.statusCounts
     }
   } catch (error) {
     console.error('Failed to fetch references:', error)
   } finally {
     loading.value = false
-    loadingMore.value = false
   }
 }
-
-const loadMore = () => {
-  if (currentPage.value < totalPages.value && !loadingMore.value) {
-    fetchReferences(currentPage.value + 1, true)
-  }
-}
-
-const hasMorePages = computed(() => currentPage.value < totalPages.value)
 
 // Debounce timer for search
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -1628,16 +1609,12 @@ watch(searchQuery, () => {
     clearTimeout(searchDebounceTimer)
   }
   searchDebounceTimer = setTimeout(() => {
-    currentPage.value = 1
-    fetchReferences(1, false)
+    fetchReferences()
   }, 300)
 })
 
-// Watch for status filter changes and re-fetch from server
-watch(statusFilter, () => {
-  currentPage.value = 1
-  fetchReferences(1, false)
-})
+// Status filter is now applied client-side in groupedReferences computed
+// No need to re-fetch from server when status filter changes
 
 const handleCreate = async () => {
   createLoading.value = true
