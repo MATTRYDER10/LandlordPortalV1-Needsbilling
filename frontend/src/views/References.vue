@@ -1401,6 +1401,8 @@ const getGroupStatus = (children: any[]) => {
   const statuses = children.map(c => c.status)
   if (statuses.every(s => s === 'completed')) return 'completed'
   if (statuses.some(s => s === 'rejected')) return 'rejected'
+  // All pending_verification or completed = pending_verification
+  if (statuses.every(s => s === 'pending_verification' || s === 'completed')) return 'pending_verification'
   if (statuses.some(s => s === 'in_progress' || s === 'pending_verification' || s === 'awaiting_guarantor')) return 'in_progress'
   if (statuses.every(s => s === 'pending')) return 'pending'
   return 'in_progress' // Default for mixed statuses
