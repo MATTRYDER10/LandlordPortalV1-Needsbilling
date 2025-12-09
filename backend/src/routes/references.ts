@@ -91,7 +91,11 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     const limit = parseInt(req.query.limit as string) || 0 // 0 means no limit
     const offset = page > 0 && limit > 0 ? (page - 1) * limit : 0
 
-    console.log('=== FETCHING REFERENCES FOR USER:', userId, page > 0 ? `(page ${page}, limit ${limit})` : '(all)')
+    // Search and filter params
+    const search = req.query.search as string | undefined
+    const statusFilter = req.query.status as string | undefined
+
+    console.log('=== FETCHING REFERENCES FOR USER:', userId, page > 0 ? `(page ${page}, limit ${limit})` : '(all)', search ? `search: "${search}"` : '', statusFilter ? `status: ${statusFilter}` : '')
 
     // Check if user is invited (to handle duplicate company entries from trigger bug)
     const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
@@ -134,13 +138,19 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     console.log('Using company_id:', companyUser.company_id, 'isInvited:', isInvited)
 
-    // Count total references for this company
-    const { count: totalCount } = await supabase
+    // Count total references for this company (with status filter if specified)
+    let countQuery = supabase
       .from('tenant_references')
       .select('*', { count: 'exact', head: true })
       .eq('company_id', companyUser.company_id)
 
-    console.log('Total references in this company:', totalCount)
+    if (statusFilter) {
+      countQuery = countQuery.eq('status', statusFilter)
+    }
+
+    const { count: totalCount } = await countQuery
+
+    console.log('Total references in this company:', totalCount, statusFilter ? `(filtered by status: ${statusFilter})` : '')
 
     // Get all references for the company (excluding child references, but including guarantors)
     // Note: Guarantors are included so they can be nested under parent tenants in the UI
@@ -151,8 +161,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       .eq('company_id', companyUser.company_id)
       .order('created_at', { ascending: false })
 
-    // Apply pagination if specified
-    if (page > 0 && limit > 0) {
+    // Apply status filter if specified (can be done at DB level)
+    if (statusFilter) {
+      refsQuery = refsQuery.eq('status', statusFilter)
+    }
+
+    // Apply pagination if specified AND no search (search requires full dataset for encrypted field filtering)
+    if (page > 0 && limit > 0 && !search) {
       refsQuery = refsQuery.range(offset, offset + limit - 1)
     }
 
@@ -317,19 +332,46 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       property_postcode: decrypt(ref.property_postcode_encrypted)
     }))
 
+    // Apply search filter if provided (after decryption since fields are encrypted)
+    let filteredReferences = decryptedReferences
+    if (search) {
+      const searchLower = search.toLowerCase().trim()
+      filteredReferences = decryptedReferences.filter(ref => {
+        const tenantName = `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.toLowerCase()
+        const tenantEmail = (ref.tenant_email || '').toLowerCase()
+        const propertyAddress = (ref.property_address || '').toLowerCase()
+        const propertyCity = (ref.property_city || '').toLowerCase()
+        const propertyPostcode = (ref.property_postcode || '').toLowerCase()
+
+        return tenantName.includes(searchLower) ||
+          tenantEmail.includes(searchLower) ||
+          propertyAddress.includes(searchLower) ||
+          propertyCity.includes(searchLower) ||
+          propertyPostcode.includes(searchLower)
+      })
+    }
+
+    // Apply pagination to search results if searching
+    let paginatedReferences = filteredReferences
+    let finalTotal = search ? filteredReferences.length : (totalCount || 0)
+
+    if (search && page > 0 && limit > 0) {
+      paginatedReferences = filteredReferences.slice(offset, offset + limit)
+    }
+
     // Return with pagination metadata if pagination was requested
     if (page > 0 && limit > 0) {
       res.json({
-        references: decryptedReferences,
+        references: paginatedReferences,
         pagination: {
           page,
           limit,
-          total: totalCount || 0,
-          totalPages: Math.ceil((totalCount || 0) / limit)
+          total: finalTotal,
+          totalPages: Math.ceil(finalTotal / limit)
         }
       })
     } else {
-      res.json({ references: decryptedReferences })
+      res.json({ references: filteredReferences })
     }
   } catch (error: any) {
     res.status(500).json({ error: error.message })

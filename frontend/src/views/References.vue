@@ -721,6 +721,21 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Load More / Pagination Info -->
+        <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+          <span class="text-sm text-gray-600">
+            Showing {{ references.filter(r => !r.is_guarantor).length }} of {{ totalCount }} reference{{ totalCount === 1 ? '' : 's' }}
+          </span>
+          <button
+            v-if="hasMorePages"
+            @click="loadMore"
+            :disabled="loadingMore"
+            class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-md disabled:opacity-50"
+          >
+            {{ loadingMore ? 'Loading...' : 'Load More' }}
+          </button>
+        </div>
       </div>
 
       <!-- Empty State -->
@@ -1150,6 +1165,13 @@ const dateFilter = ref('')
 const sortBy = ref<'created_at' | 'move_in_date'>('created_at')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
+// Pagination state
+const loadingMore = ref(false)
+const currentPage = ref(1)
+const totalPages = ref(1)
+const totalCount = ref(0)
+const pageSize = 50
+
 const tenantCount = ref(1)
 const previousTenantCount = ref(1)
 const tenants = ref<Array<{
@@ -1247,32 +1269,10 @@ const statusCounts = computed(() => {
 
 const filteredReferences = computed(() => {
   // Filter out guarantor references - they should only appear nested under their parent
+  // Note: search and status filters are now applied server-side
   let filtered = references.value.filter(ref => !ref.is_guarantor)
 
-  // Apply search filter
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase().trim()
-    filtered = filtered.filter(ref => {
-      const tenantName = `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.toLowerCase()
-      const tenantEmail = (ref.tenant_email || '').toLowerCase()
-      const propertyAddress = (ref.property_address || '').toLowerCase()
-      const propertyCity = (ref.property_city || '').toLowerCase()
-      const propertyPostcode = (ref.property_postcode || '').toLowerCase()
-
-      return tenantName.includes(query) ||
-        tenantEmail.includes(query) ||
-        propertyAddress.includes(query) ||
-        propertyCity.includes(query) ||
-        propertyPostcode.includes(query)
-    })
-  }
-
-  // Apply status filter
-  if (statusFilter.value) {
-    filtered = filtered.filter(ref => ref.status === statusFilter.value)
-  }
-
-  // Apply date filter
+  // Apply date filter (still client-side as it's a UI convenience filter)
   if (dateFilter.value) {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -1520,16 +1520,35 @@ onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick)
 })
 
-const fetchReferences = async () => {
+const fetchReferences = async (page = 1, append = false) => {
   try {
-    loading.value = true
+    if (page === 1) {
+      loading.value = true
+    } else {
+      loadingMore.value = true
+    }
+
     const token = authStore.session?.access_token
     if (!token) {
       console.error('No auth token available')
       return
     }
 
-    const response = await fetch(`${API_URL}/api/references`, {
+    // Build query params
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: pageSize.toString()
+    })
+
+    // Send search and status filter to backend
+    if (searchQuery.value.trim()) {
+      params.set('search', searchQuery.value.trim())
+    }
+    if (statusFilter.value) {
+      params.set('status', statusFilter.value)
+    }
+
+    const response = await fetch(`${API_URL}/api/references?${params}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -1571,13 +1590,54 @@ const fetchReferences = async () => {
       }
     })
 
-    references.value = allReferences
+    if (append) {
+      references.value = [...references.value, ...allReferences]
+    } else {
+      references.value = allReferences
+    }
+
+    // Update pagination state
+    if (data.pagination) {
+      currentPage.value = data.pagination.page
+      totalPages.value = data.pagination.totalPages
+      totalCount.value = data.pagination.total
+    }
   } catch (error) {
     console.error('Failed to fetch references:', error)
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
+
+const loadMore = () => {
+  if (currentPage.value < totalPages.value && !loadingMore.value) {
+    fetchReferences(currentPage.value + 1, true)
+  }
+}
+
+const hasMorePages = computed(() => currentPage.value < totalPages.value)
+
+// Debounce timer for search
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+// Watch for search changes and re-fetch from server
+watch(searchQuery, () => {
+  // Debounce search to avoid too many requests
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+  searchDebounceTimer = setTimeout(() => {
+    currentPage.value = 1
+    fetchReferences(1, false)
+  }, 300)
+})
+
+// Watch for status filter changes and re-fetch from server
+watch(statusFilter, () => {
+  currentPage.value = 1
+  fetchReferences(1, false)
+})
 
 const handleCreate = async () => {
   createLoading.value = true
