@@ -157,13 +157,12 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       }
     })
 
-    // Get all references for the company (excluding guarantors - they're fetched separately in batch queries)
-    // Note: Guarantors are fetched separately and nested under their parent tenants
+    // Get all references for the company (including guarantors)
+    // Note: Frontend will nest guarantors under their parent tenants
     const { data: allRefs, error: allRefsError } = await supabase
       .from('tenant_references')
       .select('*')
       .eq('company_id', companyUser.company_id)
-      .neq('is_guarantor', true)
       .order('created_at', { ascending: false })
       .limit(10000)
 
