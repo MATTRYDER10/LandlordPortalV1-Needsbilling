@@ -288,8 +288,27 @@ defineEmits<{
   retry: []
 }>()
 
+// Helper to parse fraud indicators JSON
+const parseFraudIndicators = () => {
+  if (!props.verification?.fraud_indicators) return null
+  try {
+    return typeof props.verification.fraud_indicators === 'string'
+      ? JSON.parse(props.verification.fraud_indicators)
+      : props.verification.fraud_indicators
+  } catch {
+    return null
+  }
+}
+
 const statusLabel = computed(() => {
   if (!props.verification) return 'No Verification'
+
+  // Check for "not found" case - person has no credit history
+  const indicators = parseFraudIndicators()
+  if (props.verification.verification_status === 'refer' && indicators?.notFound) {
+    return 'No Credit History Found'
+  }
+
   switch (props.verification.verification_status) {
     case 'passed': return 'Verification Passed'
     case 'failed': return 'Verification Failed'
@@ -370,23 +389,26 @@ const hasComplianceChecks = computed(() => {
 })
 
 const fraudIndicators = computed(() => {
-  if (!props.verification?.fraud_indicators) return []
-  try {
-    const indicators = typeof props.verification.fraud_indicators === 'string'
-      ? JSON.parse(props.verification.fraud_indicators)
-      : props.verification.fraud_indicators
+  const indicators = parseFraudIndicators()
+  if (!indicators) return []
 
-    // Convert object to array of strings
-    const result: string[] = []
-    if (indicators.ccjMatch) result.push(`${indicators.ccjCount || 0} County Court Judgment(s) found`)
-    if (indicators.insolvencyMatch) result.push(`${indicators.insolvencyCount || 0} Insolvency record(s) found`)
-    if (indicators.deceasedMatch) result.push('Deceased register match')
-    if (indicators.electoralRollMatch === false) result.push('Not found on Electoral Roll')
+  // Convert object to array of strings
+  const result: string[] = []
 
-    return result
-  } catch {
-    return []
+  // Show "not found" message prominently if applicable
+  if (indicators.notFound) {
+    result.push('Person not found on credit file - may be a student or young person with no credit history')
   }
+
+  if (indicators.ccjMatch) result.push(`${indicators.ccjCount || 0} County Court Judgment(s) found`)
+  if (indicators.insolvencyMatch) result.push(`${indicators.insolvencyCount || 0} Insolvency record(s) found`)
+  if (indicators.deceasedMatch) result.push('Deceased register match')
+  // Don't show "not on electoral roll" if person wasn't found at all
+  if (indicators.electoralRollMatch === false && !indicators.notFound) {
+    result.push('Not found on Electoral Roll')
+  }
+
+  return result
 })
 
 const countyCourtJudgments = computed(() => {

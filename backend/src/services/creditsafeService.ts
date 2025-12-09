@@ -21,6 +21,7 @@ interface VerificationRequest {
 interface VerificationResponse {
   status: 'passed' | 'failed' | 'refer' | 'error'
   verifyMatch: boolean
+  notFound?: boolean  // True when person not found in Creditsafe (no credit history)
 
   // Flags from Creditsafe
   ccjMatch?: boolean
@@ -226,7 +227,8 @@ class CreditsafeService {
 
       // Determine overall status
       if (!apiResponse.verifyMatch) {
-        result.status = 'failed' // No match found
+        result.status = 'refer' // No match found - requires manual review
+        result.notFound = true  // Flag to distinguish from regular "refer"
       } else if (riskAssessment.level === 'low') {
         result.status = 'passed' // Low risk, good tenant
       } else if (riskAssessment.level === 'medium') {
@@ -344,7 +346,8 @@ class CreditsafeService {
             deceasedMatch: response.deceasedRegisterMatch,
             electoralRollMatch: response.electoralRegisterMatch,
             ccjCount: response.countyCourtJudgments?.length || 0,
-            insolvencyCount: response.insolvencies?.length || 0
+            insolvencyCount: response.insolvencies?.length || 0,
+            notFound: response.notFound || false
           }),
           risk_level: response.riskLevel,
 
