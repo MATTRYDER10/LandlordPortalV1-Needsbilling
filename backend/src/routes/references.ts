@@ -2556,6 +2556,22 @@ router.post('/submit/:token', async (req: Request, res) => {
     await assessApplicationScore(updatedReference.id, 'System');
     console.log('Application assessed successfully')
 
+    // Check if tenant requires any third-party references
+    // If not, move directly to pending_verification so they enter the verification queue
+    const requiresEmployerRef = !!data.employer_ref_email
+    const requiresAccountantRef = data.income_self_employed && !!data.accountant_email
+    const requiresResidentialRef = !!data.previous_landlord_email
+
+    if (!requiresEmployerRef && !requiresAccountantRef && !requiresResidentialRef) {
+      // No third-party references required - move to pending_verification
+      await supabase
+        .from('tenant_references')
+        .update({ status: 'pending_verification' })
+        .eq('id', updatedReference.id)
+
+      console.log('No third-party references required - moved to pending_verification')
+    }
+
     res.json({
       message: 'Reference submitted successfully',
       reference: updatedReference
