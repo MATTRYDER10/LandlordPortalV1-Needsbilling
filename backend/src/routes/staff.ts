@@ -1336,54 +1336,109 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
     // Handle each contact type
     switch (contactType) {
       case 'Guarantor': {
-        // Get guarantor reference
+        // Try to get guarantor from guarantor_references table first
         const { data: guarantorRef } = await supabase
           .from('guarantor_references')
           .select('id, reference_token_hash, guarantor_first_name_encrypted, guarantor_last_name_encrypted, email_encrypted, contact_number_encrypted')
           .eq('reference_id', referenceId)
-          .single()
+          .maybeSingle()
 
-        if (!guarantorRef) {
-          return res.status(404).json({ error: 'Guarantor reference not found' })
-        }
+        if (guarantorRef) {
+          // Use guarantor_references table data
+          contactEmail = decrypt(guarantorRef.email_encrypted) || ''
+          contactPhone = decrypt(guarantorRef.contact_number_encrypted) || ''
+          contactName = `${decrypt(guarantorRef.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRef.guarantor_last_name_encrypted) || ''}`.trim()
 
-        contactEmail = decrypt(guarantorRef.email_encrypted) || ''
-        contactPhone = decrypt(guarantorRef.contact_number_encrypted) || ''
-        contactName = `${decrypt(guarantorRef.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRef.guarantor_last_name_encrypted) || ''}`.trim()
+          // Generate new token
+          const guarantorToken = generateToken()
+          const guarantorTokenHash = hash(guarantorToken)
+          await supabase
+            .from('guarantor_references')
+            .update({ reference_token_hash: guarantorTokenHash })
+            .eq('id', guarantorRef.id)
 
-        // Generate new token
-        const guarantorToken = generateToken()
-        const guarantorTokenHash = hash(guarantorToken)
-        await supabase
-          .from('guarantor_references')
-          .update({ reference_token_hash: guarantorTokenHash })
-          .eq('id', guarantorRef.id)
+          formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
 
-        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
-
-        if (method === 'email') {
-          await sendGuarantorReferenceRequest(
-            contactEmail,
-            contactName,
-            tenantName,
-            propertyAddress,
-            companyName,
-            companyPhone,
-            companyEmail,
-            formLink,
-            guarantorRef.id
-          )
-        } else {
-          if (!contactPhone) {
-            return res.status(400).json({ error: 'No phone number available for SMS' })
+          if (method === 'email') {
+            await sendGuarantorReferenceRequest(
+              contactEmail,
+              contactName,
+              tenantName,
+              propertyAddress,
+              companyName,
+              companyPhone,
+              companyEmail,
+              formLink,
+              guarantorRef.id
+            )
+          } else {
+            if (!contactPhone) {
+              return res.status(400).json({ error: 'No phone number available for SMS' })
+            }
+            smsResult = await sendGuarantorReferenceRequestSMS(
+              contactPhone,
+              contactName,
+              tenantName,
+              formLink,
+              guarantorRef.id
+            )
           }
-          smsResult = await sendGuarantorReferenceRequestSMS(
-            contactPhone,
-            contactName,
-            tenantName,
-            formLink,
-            guarantorRef.id
-          )
+        } else if (reference.guarantor_first_name_encrypted && reference.guarantor_email_encrypted) {
+          // Guarantor details stored on tenant_references table (no guarantor_reference record yet)
+          contactEmail = decrypt(reference.guarantor_email_encrypted) || ''
+          contactPhone = decrypt(reference.guarantor_phone_encrypted) || ''
+          contactName = `${decrypt(reference.guarantor_first_name_encrypted) || ''} ${decrypt(reference.guarantor_last_name_encrypted) || ''}`.trim()
+
+          // Create a new guarantor_reference record with token
+          const guarantorToken = generateToken()
+          const guarantorTokenHash = hash(guarantorToken)
+
+          const { data: newGuarantorRef, error: createError } = await supabase
+            .from('guarantor_references')
+            .insert({
+              reference_id: referenceId,
+              guarantor_first_name_encrypted: reference.guarantor_first_name_encrypted,
+              guarantor_last_name_encrypted: reference.guarantor_last_name_encrypted,
+              email_encrypted: reference.guarantor_email_encrypted,
+              contact_number_encrypted: reference.guarantor_phone_encrypted,
+              reference_token_hash: guarantorTokenHash
+            })
+            .select('id')
+            .single()
+
+          if (createError) {
+            console.error('Failed to create guarantor reference:', createError)
+            return res.status(500).json({ error: 'Failed to create guarantor reference' })
+          }
+
+          formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
+
+          if (method === 'email') {
+            await sendGuarantorReferenceRequest(
+              contactEmail,
+              contactName,
+              tenantName,
+              propertyAddress,
+              companyName,
+              companyPhone,
+              companyEmail,
+              formLink,
+              newGuarantorRef.id
+            )
+          } else {
+            if (!contactPhone) {
+              return res.status(400).json({ error: 'No phone number available for SMS' })
+            }
+            smsResult = await sendGuarantorReferenceRequestSMS(
+              contactPhone,
+              contactName,
+              tenantName,
+              formLink,
+              newGuarantorRef.id
+            )
+          }
+        } else {
+          return res.status(404).json({ error: 'Guarantor reference not found' })
         }
         break
       }
