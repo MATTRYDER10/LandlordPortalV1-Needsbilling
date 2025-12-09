@@ -1565,7 +1565,7 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     // Get reference details for audit log and refund check before deletion
     const { data: reference } = await supabase
       .from('tenant_references')
-      .select('tenant_first_name, tenant_last_name, property_address, status, is_guarantor')
+      .select('tenant_first_name_encrypted, tenant_last_name_encrypted, property_address_encrypted, status, is_guarantor')
       .eq('id', referenceId)
       .eq('company_id', companyUser.company_id)
       .single()
@@ -1573,6 +1573,11 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     if (!reference) {
       return res.status(404).json({ error: 'Reference not found' })
     }
+
+    // Decrypt for audit logging
+    const tenantFirstName = decrypt(reference.tenant_first_name_encrypted)
+    const tenantLastName = decrypt(reference.tenant_last_name_encrypted)
+    const propertyAddress = decrypt(reference.property_address_encrypted)
 
     // Check for linked guarantor references that are also pending
     const { data: guarantorRefs } = await supabase
@@ -1629,12 +1634,12 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       userId!,
       referenceId,
       'reference.deleted',
-      `Deleted reference for ${reference.tenant_first_name} ${reference.tenant_last_name} at ${reference.property_address}${creditsToRefund > 0 ? ` (${creditsToRefund} credit(s) refunded)` : ''}`,
+      `Deleted reference for ${tenantFirstName} ${tenantLastName} at ${propertyAddress}${creditsToRefund > 0 ? ` (${creditsToRefund} credit(s) refunded)` : ''}`,
       req,
       {
-        tenant_first_name: reference.tenant_first_name,
-        tenant_last_name: reference.tenant_last_name,
-        property_address: reference.property_address,
+        tenant_first_name: tenantFirstName,
+        tenant_last_name: tenantLastName,
+        property_address: propertyAddress,
         credits_refunded: creditsToRefund
       }
     )
