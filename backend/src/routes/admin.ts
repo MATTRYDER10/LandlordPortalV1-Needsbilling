@@ -785,6 +785,16 @@ router.get('/customers/leaderboard', authenticateAdmin, async (req: AdminAuthReq
           sum + (parseFloat(payment.amount_gbp?.toString() || '0') || 0), 0) || 0
         const totalSpent = totalCreditsSpent + totalAgreementsSpent
 
+        // Determine status
+        let status: 'active' | 'no_payment_method' | 'onboarding_incomplete'
+        if (company.onboarding_completed && company.stripe_customer_id) {
+          status = 'active'
+        } else if (!company.onboarding_completed) {
+          status = 'onboarding_incomplete'
+        } else {
+          status = 'no_payment_method'
+        }
+
         return {
           companyId: company.id,
           companyName: decrypt(company.name_encrypted) || 'Unnamed Company',
@@ -794,13 +804,24 @@ router.get('/customers/leaderboard', authenticateAdmin, async (req: AdminAuthReq
           teamSize,
           memberSince: company.created_at,
           currentCredits: company.reference_credits || 0,
-          isActive: company.onboarding_completed && !!company.stripe_customer_id
+          isActive: status === 'active',
+          status
         }
       })
     )
 
+    // Filter out orphaned companies (0 references, £0 spent, 1 team member, no stripe)
+    // These were created by a bug where invited users got their own company
+    const filteredData = leaderboardData.filter(company => {
+      const isOrphaned = company.totalReferences === 0 &&
+        parseFloat(company.totalSpent) === 0 &&
+        company.teamSize === 1 &&
+        company.status === 'onboarding_incomplete'
+      return !isOrphaned
+    })
+
     // Sort based on sortBy parameter
-    const sortedData = leaderboardData.sort((a, b) => {
+    const sortedData = filteredData.sort((a, b) => {
       switch (sortBy) {
         case 'spent':
           return parseFloat(b.totalSpent) - parseFloat(a.totalSpent)
@@ -834,29 +855,74 @@ router.get('/customers/search', authenticateAdmin, async (req: AdminAuthRequest,
       return res.json({ customers: [] })
     }
 
-    // Get all companies and filter by decrypted name
+    const searchLower = query.toLowerCase()
+
+    // Get all companies with their team members
     const { data: companies, error } = await supabase
       .from('companies')
-      .select('id, name_encrypted, email_encrypted, created_at, reference_credits, onboarding_completed')
+      .select(`
+        id,
+        name_encrypted,
+        email_encrypted,
+        created_at,
+        reference_credits,
+        onboarding_completed,
+        company_users (
+          user_id
+        )
+      `)
       .order('created_at', { ascending: false })
 
     if (error) throw error
 
-    // Decrypt and filter companies by search query
-    const searchLower = query.toLowerCase()
+    // Get all user IDs from company_users
+    const allUserIds = new Set<string>()
+    companies.forEach(company => {
+      company.company_users?.forEach((cu: any) => {
+        if (cu.user_id) allUserIds.add(cu.user_id)
+      })
+    })
+
+    // Fetch user emails in bulk for searching
+    const userEmailMap = new Map<string, string>()
+    if (allUserIds.size > 0) {
+      const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers({
+        perPage: 1000
+      })
+
+      if (!usersError && users) {
+        users.forEach(user => {
+          if (user.email) {
+            userEmailMap.set(user.id, user.email)
+          }
+        })
+      }
+    }
+
+    // Decrypt and filter companies by search query (company name, company email, or team member email)
     const matchingCompanies = companies
-      .map(company => ({
-        id: company.id,
-        name: decrypt(company.name_encrypted) || 'Unnamed Company',
-        email: decrypt(company.email_encrypted) || '',
-        created_at: company.created_at,
-        reference_credits: company.reference_credits,
-        onboarding_completed: company.onboarding_completed
-      }))
+      .map(company => {
+        // Get all team member emails for this company
+        const teamEmails = company.company_users
+          ?.map((cu: any) => userEmailMap.get(cu.user_id) || '')
+          .filter((email: string) => email) || []
+
+        return {
+          id: company.id,
+          name: decrypt(company.name_encrypted) || 'Unnamed Company',
+          email: decrypt(company.email_encrypted) || '',
+          created_at: company.created_at,
+          reference_credits: company.reference_credits,
+          onboarding_completed: company.onboarding_completed,
+          teamEmails
+        }
+      })
       .filter(company =>
         company.name.toLowerCase().includes(searchLower) ||
-        company.email.toLowerCase().includes(searchLower)
+        company.email.toLowerCase().includes(searchLower) ||
+        company.teamEmails.some((email: string) => email.toLowerCase().includes(searchLower))
       )
+      .map(({ teamEmails, ...company }) => company) // Remove teamEmails from response
       .slice(0, 20) // Limit to 20 results
 
     res.json({ customers: matchingCompanies })
@@ -885,7 +951,7 @@ router.get('/customers/:companyId/details', authenticateAdmin, async (req: Admin
     // Get all related data in parallel
     const [
       referencesResult,
-      teamMembersResult,
+      companyUsersResult,
       creditTxResult,
       agreementPaymentsResult,
       subscriptionResult
@@ -898,18 +964,10 @@ router.get('/customers/:companyId/details', authenticateAdmin, async (req: Admin
         .order('created_at', { ascending: false })
         .limit(50),
 
-      // Get team members
+      // Get company_users (without the join since auth.users can't be joined directly)
       supabase
         .from('company_users')
-        .select(`
-          id,
-          role,
-          joined_at,
-          user:user_id (
-            id,
-            email
-          )
-        `)
+        .select('*')
         .eq('company_id', companyId),
 
       // Get credit transactions
@@ -936,6 +994,22 @@ router.get('/customers/:companyId/details', authenticateAdmin, async (req: Admin
         .in('status', ['active', 'trialing'])
         .single()
     ])
+
+    // Fetch user emails from auth.users using admin API
+    const teamMembers = await Promise.all(
+      (companyUsersResult.data || []).map(async (cu: any) => {
+        const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(cu.user_id)
+        return {
+          id: cu.id,
+          role: cu.role,
+          joined_at: cu.joined_at || cu.created_at,
+          user: userError ? null : {
+            id: cu.user_id,
+            email: user?.email || 'Unknown'
+          }
+        }
+      })
+    )
 
     // Calculate status breakdown
     const statusBreakdown = referencesResult.data?.reduce((acc, ref) => {
@@ -967,11 +1041,11 @@ router.get('/customers/:companyId/details', authenticateAdmin, async (req: Admin
         totalCreditsSpent: totalCreditsSpent.toFixed(2),
         totalAgreementsSpent: totalAgreementsSpent.toFixed(2),
         totalSpent: (totalCreditsSpent + totalAgreementsSpent).toFixed(2),
-        teamSize: teamMembersResult.data?.length || 0,
+        teamSize: teamMembers.length,
         statusBreakdown
       },
       references: referencesResult.data || [],
-      teamMembers: teamMembersResult.data || [],
+      teamMembers,
       creditTransactions: creditTxResult.data || [],
       agreementPayments: agreementPaymentsResult.data || [],
       subscription: subscriptionResult.data || null
@@ -979,6 +1053,243 @@ router.get('/customers/:companyId/details', authenticateAdmin, async (req: Admin
   } catch (error) {
     console.error('Error fetching customer details:', error)
     res.status(500).json({ error: 'Failed to fetch customer details' })
+  }
+})
+
+/**
+ * DELETE /api/admin/staff/:staffId
+ * Permanently delete a staff account
+ * Body: { confirmEmail: string } - Must match staff email for confirmation
+ */
+router.delete('/staff/:staffId', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { staffId } = req.params
+    const { confirmEmail } = req.body
+
+    // 1. Get staff user details
+    const { data: staffUser, error: fetchError } = await supabase
+      .from('staff_users')
+      .select('id, user_id, email, full_name')
+      .eq('id', staffId)
+      .single()
+
+    if (fetchError || !staffUser) {
+      return res.status(404).json({ error: 'Staff user not found' })
+    }
+
+    // 2. Verify confirmation email matches
+    if (!confirmEmail || confirmEmail.toLowerCase() !== staffUser.email.toLowerCase()) {
+      return res.status(400).json({
+        error: 'Confirmation email does not match. Please type the email exactly.'
+      })
+    }
+
+    // 3. Prevent self-deletion
+    if (staffUser.user_id === req.user?.id) {
+      return res.status(403).json({ error: 'Cannot delete your own account' })
+    }
+
+    // 4. Delete from auth.users first (this will cascade to staff_users due to ON DELETE CASCADE)
+    const { error: authDeleteError } = await supabase.auth.admin.deleteUser(staffUser.user_id)
+
+    if (authDeleteError) {
+      console.error('Error deleting from auth.users:', authDeleteError)
+      return res.status(500).json({ error: 'Failed to delete user from authentication system' })
+    }
+
+    console.log(`[Admin] Staff user deleted: ${staffUser.email} by ${req.adminUser?.email}`)
+
+    res.json({
+      message: 'Staff account deleted successfully',
+      deletedUser: {
+        id: staffUser.id,
+        email: staffUser.email,
+        fullName: staffUser.full_name
+      }
+    })
+  } catch (error) {
+    console.error('Error deleting staff account:', error)
+    res.status(500).json({ error: 'Failed to delete staff account' })
+  }
+})
+
+/**
+ * DELETE /api/admin/customers/:companyId/users/:userId
+ * Delete a customer user from a company (and from auth if no other companies)
+ * Body: { confirmEmail: string } - Must match user email for confirmation
+ */
+router.delete('/customers/:companyId/users/:userId', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { companyId, userId } = req.params
+    const { confirmEmail } = req.body
+
+    // 1. Get user details from auth
+    const { data: { user: authUser }, error: userError } = await supabase.auth.admin.getUserById(userId)
+
+    if (userError || !authUser) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // 2. Verify confirmation email matches
+    if (!confirmEmail || confirmEmail.toLowerCase() !== authUser.email?.toLowerCase()) {
+      return res.status(400).json({
+        error: 'Confirmation email does not match. Please type the email exactly.'
+      })
+    }
+
+    // 3. Verify user belongs to the specified company
+    const { data: companyUser, error: companyUserError } = await supabase
+      .from('company_users')
+      .select('id, role')
+      .eq('user_id', userId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (companyUserError || !companyUser) {
+      return res.status(404).json({ error: 'User not found in this company' })
+    }
+
+    // 4. Remove user from this company
+    const { error: removeError } = await supabase
+      .from('company_users')
+      .delete()
+      .eq('user_id', userId)
+      .eq('company_id', companyId)
+
+    if (removeError) {
+      throw removeError
+    }
+
+    // 5. Check if user belongs to any other companies
+    const { data: otherCompanies } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+
+    let deletedFromAuth = false
+
+    // 6. If no other companies, delete from auth.users entirely
+    if (!otherCompanies || otherCompanies.length === 0) {
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(userId)
+
+      if (authDeleteError) {
+        console.error('Error deleting from auth.users:', authDeleteError)
+      } else {
+        deletedFromAuth = true
+      }
+    }
+
+    console.log(`[Admin] Customer user deleted: ${authUser.email} from company ${companyId} by ${req.adminUser?.email}. Deleted from auth: ${deletedFromAuth}`)
+
+    res.json({
+      message: deletedFromAuth ? 'User deleted permanently' : 'User removed from company',
+      deletedUser: {
+        userId: userId,
+        email: authUser.email,
+        role: companyUser.role,
+        deletedFromAuth
+      }
+    })
+  } catch (error) {
+    console.error('Error deleting customer user:', error)
+    res.status(500).json({ error: 'Failed to delete customer user' })
+  }
+})
+
+/**
+ * DELETE /api/admin/customers/:companyId
+ * Permanently delete a company and all associated data
+ * Body: { confirmName: string } - Must match company name for confirmation
+ */
+router.delete('/customers/:companyId', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { companyId } = req.params
+    const { confirmName } = req.body
+
+    // 1. Get company details
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('id, name_encrypted, email_encrypted')
+      .eq('id', companyId)
+      .single()
+
+    if (companyError || !company) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyName = decrypt(company.name_encrypted) || ''
+
+    // 2. Verify confirmation name matches
+    if (!confirmName || confirmName.toLowerCase() !== companyName.toLowerCase()) {
+      return res.status(400).json({
+        error: 'Confirmation name does not match. Please type the company name exactly.'
+      })
+    }
+
+    // 3. Get all users who belong to this company
+    const { data: companyUsers, error: usersError } = await supabase
+      .from('company_users')
+      .select('user_id')
+      .eq('company_id', companyId)
+
+    if (usersError) {
+      console.error('Error fetching company users:', usersError)
+    }
+
+    const userIds = companyUsers?.map(cu => cu.user_id) || []
+
+    // 4. Delete the company (this will CASCADE delete most related data)
+    const { error: deleteError } = await supabase
+      .from('companies')
+      .delete()
+      .eq('id', companyId)
+
+    if (deleteError) {
+      console.error('Error deleting company:', deleteError)
+      return res.status(500).json({ error: 'Failed to delete company: ' + deleteError.message })
+    }
+
+    // 5. For each user, check if they belong to any other companies
+    // If not, delete them from auth.users
+    let usersDeleted = 0
+    let usersKept = 0
+
+    for (const userId of userIds) {
+      const { data: otherCompanies } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+
+      if (!otherCompanies || otherCompanies.length === 0) {
+        // User doesn't belong to any other company, delete from auth
+        const { error: authDeleteError } = await supabase.auth.admin.deleteUser(userId)
+
+        if (authDeleteError) {
+          console.error(`Error deleting user ${userId} from auth:`, authDeleteError)
+          usersKept++
+        } else {
+          usersDeleted++
+        }
+      } else {
+        usersKept++
+      }
+    }
+
+    console.log(`[Admin] Company deleted: ${companyName} by ${req.adminUser?.email}. Users deleted: ${usersDeleted}, Users kept (in other companies): ${usersKept}`)
+
+    res.json({
+      message: 'Company deleted successfully',
+      deletedCompany: {
+        id: companyId,
+        name: companyName,
+        email: decrypt(company.email_encrypted)
+      },
+      usersDeleted,
+      usersKept
+    })
+  } catch (error) {
+    console.error('Error deleting company:', error)
+    res.status(500).json({ error: 'Failed to delete company' })
   }
 })
 

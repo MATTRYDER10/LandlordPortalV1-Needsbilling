@@ -88,6 +88,13 @@
                     >
                       {{ staff.is_admin ? 'Remove Admin' : 'Make Admin' }}
                     </button>
+                    <span class="text-gray-300">|</span>
+                    <button
+                      @click="openDeleteModal(staff)"
+                      class="text-red-600 hover:text-red-900 transition-colors"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -168,6 +175,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <DeleteConfirmModal
+      v-if="showDeleteModal && staffToDelete"
+      :title="'Delete Staff Account?'"
+      :subtitle="`You are about to permanently delete ${staffToDelete.full_name}'s account.`"
+      :confirm-value="staffToDelete.email"
+      :deleting="deletingStaff"
+      @close="closeDeleteModal"
+      @confirm="deleteStaffAccount"
+    />
   </div>
 </template>
 
@@ -176,6 +194,7 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import AdminHeader from '../components/AdminHeader.vue'
+import DeleteConfirmModal from '../components/DeleteConfirmModal.vue'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -200,6 +219,11 @@ const newStaff = ref({
   password: '',
   isAdmin: false
 })
+
+// Delete functionality
+const showDeleteModal = ref(false)
+const staffToDelete = ref<StaffUser | null>(null)
+const deletingStaff = ref(false)
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
@@ -318,6 +342,40 @@ const closeCreateModal = () => {
     email: '',
     password: '',
     isAdmin: false
+  }
+}
+
+const openDeleteModal = (staff: StaffUser) => {
+  staffToDelete.value = staff
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  staffToDelete.value = null
+}
+
+const deleteStaffAccount = async (confirmEmail: string) => {
+  if (!staffToDelete.value) return
+
+  deletingStaff.value = true
+  try {
+    const token = authStore.session?.access_token
+    await axios.delete(
+      `${API_URL}/api/admin/staff/${staffToDelete.value.id}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { confirmEmail }
+      }
+    )
+    alert('Staff account deleted successfully!')
+    closeDeleteModal()
+    fetchStaffList()
+  } catch (error: any) {
+    console.error('Error deleting staff account:', error)
+    alert(error.response?.data?.error || 'Failed to delete staff account')
+  } finally {
+    deletingStaff.value = false
   }
 }
 

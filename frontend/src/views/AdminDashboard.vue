@@ -363,10 +363,14 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
-                      :class="customer.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                      :class="{
+                        'bg-green-100 text-green-800': customer.status === 'active',
+                        'bg-yellow-100 text-yellow-800': customer.status === 'no_payment_method',
+                        'bg-red-100 text-red-800': customer.status === 'onboarding_incomplete'
+                      }"
                       class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
                     >
-                      {{ customer.isActive ? 'Active' : 'Inactive' }}
+                      {{ customer.status === 'active' ? 'Active' : customer.status === 'no_payment_method' ? 'No Payment Method' : 'Onboarding Incomplete' }}
                     </span>
                   </td>
                 </tr>
@@ -540,6 +544,7 @@ interface CustomerLeaderboard {
   memberSince: string
   currentCredits: number
   isActive: boolean
+  status: 'active' | 'no_payment_method' | 'onboarding_incomplete'
 }
 
 const dateFilter = ref<'today' | 'yesterday' | '7days' | '14days' | '30days' | 'custom'>('today')

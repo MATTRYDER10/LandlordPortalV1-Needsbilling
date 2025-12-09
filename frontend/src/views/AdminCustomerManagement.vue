@@ -54,6 +54,7 @@
                 <div>
                   <p class="text-sm font-medium text-gray-900">{{ company.name }}</p>
                   <p class="text-sm text-gray-500">{{ company.email }}</p>
+                  <p class="text-xs text-gray-400 font-mono">{{ company.id }}</p>
                 </div>
                 <div class="text-right">
                   <p class="text-sm text-gray-600">{{ company.reference_credits }} credits</p>
@@ -81,16 +82,24 @@
                 Member since {{ formatDate(selectedCompanyDetails.company.created_at) }}
               </p>
             </div>
-            <span
-              :class="
-                selectedCompanyDetails.company.onboarding_completed
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-yellow-100 text-yellow-800'
-              "
-              class="px-3 py-1 text-sm font-semibold rounded-full"
-            >
-              {{ selectedCompanyDetails.company.onboarding_completed ? 'Active' : 'Onboarding' }}
-            </span>
+            <div class="flex items-center gap-3">
+              <span
+                :class="
+                  selectedCompanyDetails.company.onboarding_completed
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-yellow-100 text-yellow-800'
+                "
+                class="px-3 py-1 text-sm font-semibold rounded-full"
+              >
+                {{ selectedCompanyDetails.company.onboarding_completed ? 'Active' : 'Onboarding' }}
+              </span>
+              <button
+                @click="openDeleteCompanyModal"
+                class="px-3 py-1 text-sm font-medium text-red-600 border border-red-300 rounded-md hover:bg-red-50 transition-colors"
+              >
+                Delete Company
+              </button>
+            </div>
           </div>
         </div>
 
@@ -326,6 +335,7 @@
                       <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                       <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
                       <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
@@ -340,6 +350,14 @@
                         </span>
                       </td>
                       <td class="px-4 py-3 text-sm text-gray-500">{{ formatDate(member.joined_at) }}</td>
+                      <td class="px-4 py-3 text-sm">
+                        <button
+                          @click="openDeleteUserModal(member)"
+                          class="text-red-600 hover:text-red-900 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -349,6 +367,28 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete User Confirmation Modal -->
+    <DeleteConfirmModal
+      v-if="showDeleteUserModal && userToDelete"
+      :title="'Delete User?'"
+      :subtitle="`You are about to delete ${userToDelete.user?.email || 'this user'} from this company.`"
+      :confirm-value="userToDelete.user?.email || ''"
+      :deleting="deletingUser"
+      @close="closeDeleteUserModal"
+      @confirm="deleteCustomerUser"
+    />
+
+    <!-- Delete Company Confirmation Modal -->
+    <DeleteConfirmModal
+      v-if="showDeleteCompanyModal && selectedCompanyDetails"
+      :title="'Delete Company?'"
+      :subtitle="`You are about to permanently delete ${selectedCompanyDetails.company.name} and all associated data.`"
+      :confirm-value="selectedCompanyDetails.company.name"
+      :deleting="deletingCompany"
+      @close="closeDeleteCompanyModal"
+      @confirm="deleteCompany"
+    />
   </div>
 </template>
 
@@ -357,6 +397,7 @@ import { ref } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import AdminHeader from '../components/AdminHeader.vue'
+import DeleteConfirmModal from '../components/DeleteConfirmModal.vue'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -369,6 +410,15 @@ const activeTab = ref<'credits' | 'references' | 'team'>('credits')
 const creditAdjustment = ref<number | null>(null)
 const creditReason = ref('')
 const adjustingCredits = ref(false)
+
+// Delete user functionality
+const showDeleteUserModal = ref(false)
+const userToDelete = ref<any>(null)
+const deletingUser = ref(false)
+
+// Delete company functionality
+const showDeleteCompanyModal = ref(false)
+const deletingCompany = ref(false)
 
 let searchTimeout: NodeJS.Timeout | null = null
 
@@ -492,5 +542,78 @@ const getStatusColor = (status: string) => {
     failed: 'bg-red-100 text-red-800'
   }
   return colors[status] || 'bg-gray-100 text-gray-800'
+}
+
+const openDeleteUserModal = (member: any) => {
+  userToDelete.value = member
+  showDeleteUserModal.value = true
+}
+
+const closeDeleteUserModal = () => {
+  showDeleteUserModal.value = false
+  userToDelete.value = null
+}
+
+const deleteCustomerUser = async (confirmEmail: string) => {
+  if (!userToDelete.value || !selectedCompanyDetails.value) return
+
+  deletingUser.value = true
+  try {
+    const token = authStore.session?.access_token
+    await axios.delete(
+      `${API_URL}/api/admin/customers/${selectedCompanyDetails.value.company.id}/users/${userToDelete.value.user.id}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { confirmEmail }
+      }
+    )
+    alert('User deleted successfully!')
+    closeDeleteUserModal()
+    // Reload company details to refresh team members list
+    await selectCompany(selectedCompanyDetails.value.company.id)
+  } catch (error: any) {
+    console.error('Error deleting customer user:', error)
+    alert(error.response?.data?.error || 'Failed to delete user')
+  } finally {
+    deletingUser.value = false
+  }
+}
+
+const openDeleteCompanyModal = () => {
+  showDeleteCompanyModal.value = true
+}
+
+const closeDeleteCompanyModal = () => {
+  showDeleteCompanyModal.value = false
+}
+
+const deleteCompany = async (confirmName: string) => {
+  if (!selectedCompanyDetails.value) return
+
+  deletingCompany.value = true
+  try {
+    const token = authStore.session?.access_token
+    const response = await axios.delete(
+      `${API_URL}/api/admin/customers/${selectedCompanyDetails.value.company.id}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { confirmName }
+      }
+    )
+
+    const { usersDeleted, usersKept } = response.data
+    alert(`Company deleted successfully!\n\nUsers deleted: ${usersDeleted}\nUsers kept (in other companies): ${usersKept}`)
+
+    closeDeleteCompanyModal()
+    // Clear the selected company and search results
+    selectedCompanyDetails.value = null
+    searchResults.value = []
+    searchQuery.value = ''
+  } catch (error: any) {
+    console.error('Error deleting company:', error)
+    alert(error.response?.data?.error || 'Failed to delete company')
+  } finally {
+    deletingCompany.value = false
+  }
 }
 </script>
