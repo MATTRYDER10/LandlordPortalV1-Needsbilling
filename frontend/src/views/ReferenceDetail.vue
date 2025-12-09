@@ -177,13 +177,17 @@
             <!-- Income -->
             <div v-if="reference?.final_remarks?.income" class="border rounded-lg p-4" :class="reference.final_remarks.income.decision === 'PASS'
               ? 'border-green-200 bg-green-50'
-              : 'border-red-200 bg-red-50'">
+              : reference.final_remarks.income.decision === 'GUARANTOR_NEEDED'
+                ? 'border-amber-200 bg-amber-50'
+                : 'border-red-200 bg-red-50'">
               <div class="flex items-center justify-between mb-2">
                 <h4 class="font-semibold text-gray-900">Income</h4>
                 <span class="px-2 py-1 text-xs font-semibold rounded-full" :class="reference.final_remarks.income.decision === 'PASS'
                   ? 'bg-green-100 text-green-800'
-                  : 'bg-red-100 text-red-800'">
-                  {{ reference.final_remarks.income.decision }}
+                  : reference.final_remarks.income.decision === 'GUARANTOR_NEEDED'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-red-100 text-red-800'">
+                  {{ reference.final_remarks.income.decision === 'GUARANTOR_NEEDED' ? 'GUARANTOR NEEDED' : reference.final_remarks.income.decision }}
                 </span>
               </div>
 
