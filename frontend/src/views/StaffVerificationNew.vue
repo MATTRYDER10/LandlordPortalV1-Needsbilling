@@ -431,6 +431,7 @@
 
             <!-- Notes -->
             <div>
+              <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea v-model="steps[0]!.notes" rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
@@ -583,6 +584,7 @@
 
             <!-- Notes -->
             <div class="bg-white border rounded-lg p-4">
+              <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea v-model="steps[1]!.notes" rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
@@ -1305,6 +1307,7 @@
 
             <!-- Notes -->
             <div>
+              <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea v-model="steps[2]!.notes" rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
@@ -1896,6 +1899,7 @@
 
             <!-- Notes -->
             <div>
+              <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
               <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea v-model="steps[3]!.notes" rows="3"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
@@ -2119,6 +2123,7 @@
 
               <!-- Notes -->
               <div>
+                <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes<sup
                     class="text-red-500">*</sup></label>
                 <textarea v-model="steps[4]!.notes" rows="3"

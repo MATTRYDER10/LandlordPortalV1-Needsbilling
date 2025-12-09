@@ -2479,7 +2479,7 @@ router.post('/submit/:token', async (req: Request, res) => {
           updatedReference.id,
           'verification.sanctions_screening_completed',
           `UK Sanctions & PEP screening completed - Risk: ${screeningResult.risk_level}, Matches: ${screeningResult.total_matches}`,
-          {} as any,
+          undefined,
           {
             risk_level: screeningResult.risk_level,
             total_matches: screeningResult.total_matches,
@@ -2535,7 +2535,7 @@ router.post('/submit/:token', async (req: Request, res) => {
                 updatedReference.id,
                 'verification.sanctions_alert_sent',
                 `High-risk sanctions screening alert sent to company`,
-                {} as any,
+                undefined,
                 { company_email: companyEmail }
               )
             } else {
@@ -2555,7 +2555,7 @@ router.post('/submit/:token', async (req: Request, res) => {
           updatedReference.id,
           'verification.sanctions_screening_failed',
           `Sanctions screening failed: ${error.message}`,
-          {} as any,
+          undefined,
           { error: error.message }
         ).catch(console.error)
       })
