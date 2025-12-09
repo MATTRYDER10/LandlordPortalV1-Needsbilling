@@ -1336,18 +1336,30 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
     // Handle each contact type
     switch (contactType) {
       case 'Guarantor': {
-        // Try to get guarantor from guarantor_references table first
-        const { data: guarantorRef } = await supabase
+        // Try to get guarantor from guarantor_references table (legacy)
+        const { data: guarantorRefLegacy } = await supabase
           .from('guarantor_references')
           .select('id, reference_token_hash, guarantor_first_name_encrypted, guarantor_last_name_encrypted, email_encrypted, contact_number_encrypted')
           .eq('reference_id', referenceId)
           .maybeSingle()
 
-        if (guarantorRef) {
-          // Use guarantor_references table data
-          contactEmail = decrypt(guarantorRef.email_encrypted) || ''
-          contactPhone = decrypt(guarantorRef.contact_number_encrypted) || ''
-          contactName = `${decrypt(guarantorRef.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRef.guarantor_last_name_encrypted) || ''}`.trim()
+        // Try to get guarantor from tenant_references table (new method)
+        const { data: guarantorRefNew } = await supabase
+          .from('tenant_references')
+          .select('id, reference_token_hash, tenant_first_name_encrypted, tenant_last_name_encrypted, tenant_email_encrypted, tenant_phone_encrypted')
+          .eq('guarantor_for_reference_id', referenceId)
+          .eq('is_guarantor', true)
+          .maybeSingle()
+
+        const isLegacyGuarantor = !!guarantorRefLegacy
+        let guarantorId: string
+
+        if (guarantorRefLegacy) {
+          // Use guarantor_references table data (legacy)
+          guarantorId = guarantorRefLegacy.id
+          contactEmail = decrypt(guarantorRefLegacy.email_encrypted) || ''
+          contactPhone = decrypt(guarantorRefLegacy.contact_number_encrypted) || ''
+          contactName = `${decrypt(guarantorRefLegacy.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRefLegacy.guarantor_last_name_encrypted) || ''}`.trim()
 
           // Generate new token
           const guarantorToken = generateToken()
@@ -1355,7 +1367,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
           await supabase
             .from('guarantor_references')
             .update({ reference_token_hash: guarantorTokenHash })
-            .eq('id', guarantorRef.id)
+            .eq('id', guarantorRefLegacy.id)
 
           formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
 
@@ -1369,7 +1381,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
               companyPhone,
               companyEmail,
               formLink,
-              guarantorRef.id
+              guarantorRefLegacy.id
             )
           } else {
             if (!contactPhone) {
@@ -1380,37 +1392,29 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
               contactName,
               tenantName,
               formLink,
-              guarantorRef.id
+              guarantorRefLegacy.id
             )
           }
-        } else if (reference.guarantor_first_name_encrypted && reference.guarantor_email_encrypted) {
-          // Guarantor details stored on tenant_references table (no guarantor_reference record yet)
-          contactEmail = decrypt(reference.guarantor_email_encrypted) || ''
-          contactPhone = decrypt(reference.guarantor_phone_encrypted) || ''
-          contactName = `${decrypt(reference.guarantor_first_name_encrypted) || ''} ${decrypt(reference.guarantor_last_name_encrypted) || ''}`.trim()
+        } else if (guarantorRefNew) {
+          // Use tenant_references table data (new method)
+          guarantorId = guarantorRefNew.id
+          contactEmail = decrypt(guarantorRefNew.tenant_email_encrypted) || ''
+          contactPhone = decrypt(guarantorRefNew.tenant_phone_encrypted) || ''
+          contactName = `${decrypt(guarantorRefNew.tenant_first_name_encrypted) || ''} ${decrypt(guarantorRefNew.tenant_last_name_encrypted) || ''}`.trim()
 
-          // Create a new guarantor_reference record with token
+          // Generate new token
           const guarantorToken = generateToken()
           const guarantorTokenHash = hash(guarantorToken)
+          const tokenExpiresAt = new Date()
+          tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21)
 
-          const { data: newGuarantorRef, error: createError } = await supabase
-            .from('guarantor_references')
-            .insert({
-              reference_id: referenceId,
-              guarantor_first_name_encrypted: reference.guarantor_first_name_encrypted,
-              guarantor_last_name_encrypted: reference.guarantor_last_name_encrypted,
-              email_encrypted: reference.guarantor_email_encrypted,
-              contact_number_encrypted: reference.guarantor_phone_encrypted,
+          await supabase
+            .from('tenant_references')
+            .update({
               reference_token_hash: guarantorTokenHash,
-              relationship_to_tenant: 'other'
+              token_expires_at: tokenExpiresAt.toISOString()
             })
-            .select('id')
-            .single()
-
-          if (createError) {
-            console.error('Failed to create guarantor reference:', createError)
-            return res.status(500).json({ error: 'Failed to create guarantor reference' })
-          }
+            .eq('id', guarantorRefNew.id)
 
           formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
 
@@ -1424,7 +1428,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
               companyPhone,
               companyEmail,
               formLink,
-              newGuarantorRef.id
+              guarantorRefNew.id
             )
           } else {
             if (!contactPhone) {
@@ -1435,7 +1439,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
               contactName,
               tenantName,
               formLink,
-              newGuarantorRef.id
+              guarantorRefNew.id
             )
           }
         } else {

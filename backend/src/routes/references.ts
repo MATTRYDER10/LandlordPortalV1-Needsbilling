@@ -4833,10 +4833,8 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     const companyPhone = companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || '') : ''
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
 
-    // Use appropriate form link based on guarantor type
-    const formLink = isLegacyGuarantor
-      ? `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
-      : `${process.env.FRONTEND_URL}/submit-reference/${guarantorToken}`
+    // Use guarantor-reference form link for both legacy and new method
+    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
 
     await sendGuarantorReferenceRequest(
       guarantorEmail,
