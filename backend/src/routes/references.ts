@@ -1537,6 +1537,134 @@ router.patch('/:id', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+// Delete entire property reference (parent + all child tenant references)
+router.delete('/property/:parentId', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const parentId = req.params.parentId
+
+    // Get user's company and role
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id, role')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyUser = companyUsers[0]
+
+    // Check if user has permission
+    const allowedRoles = ['owner', 'admin', 'agent', 'landlord']
+    if (!allowedRoles.includes(companyUser.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' })
+    }
+
+    // Get all child references for this property (those with parent_reference_id matching)
+    const { data: childRefs, error: childError } = await supabase
+      .from('tenant_references')
+      .select('id, status, is_guarantor, tenant_first_name_encrypted, tenant_last_name_encrypted, property_address_encrypted')
+      .eq('parent_reference_id', parentId)
+      .eq('company_id', companyUser.company_id)
+
+    if (childError) {
+      return res.status(400).json({ error: childError.message })
+    }
+
+    if (!childRefs || childRefs.length === 0) {
+      return res.status(404).json({ error: 'Property reference not found or has no tenant references' })
+    }
+
+    // Get property address from first child for audit log
+    const propertyAddress = decrypt(childRefs[0].property_address_encrypted)
+    const tenantCount = childRefs.length
+
+    // Get all guarantor references for these children
+    const childIds = childRefs.map(c => c.id)
+    const { data: guarantorRefs } = await supabase
+      .from('tenant_references')
+      .select('id, status')
+      .in('guarantor_for_reference_id', childIds)
+      .eq('is_guarantor', true)
+
+    // Calculate credits to refund
+    let creditsToRefund = 0
+
+    // 1 credit for each pending tenant reference
+    childRefs.forEach(child => {
+      if (child.status === 'pending' && !child.is_guarantor) {
+        creditsToRefund += 1
+      }
+    })
+
+    // 0.5 credits for each pending guarantor
+    if (guarantorRefs && guarantorRefs.length > 0) {
+      const pendingGuarantorCount = guarantorRefs.filter(g => g.status === 'pending').length
+      creditsToRefund += pendingGuarantorCount * 0.5
+    }
+
+    // Delete all child references (this will cascade delete guarantors via FK)
+    const { error: deleteError } = await supabase
+      .from('tenant_references')
+      .delete()
+      .eq('parent_reference_id', parentId)
+      .eq('company_id', companyUser.company_id)
+
+    if (deleteError) {
+      return res.status(400).json({ error: deleteError.message })
+    }
+
+    // Also delete the parent reference if it exists
+    await supabase
+      .from('tenant_references')
+      .delete()
+      .eq('id', parentId)
+      .eq('company_id', companyUser.company_id)
+
+    // Refund credits if any are due
+    if (creditsToRefund > 0) {
+      try {
+        await creditService.refundCredits(
+          companyUser.company_id,
+          creditsToRefund,
+          parentId,
+          `Refund for deleted property reference (${tenantCount} tenants)`,
+          userId
+        )
+        console.log(`[Delete Property Reference] Refunded ${creditsToRefund} credit(s) for property ${parentId}`)
+      } catch (refundError: any) {
+        console.error(`[Delete Property Reference] Failed to refund credits:`, refundError)
+      }
+    }
+
+    // Audit log
+    await auditReferenceAction(
+      companyUser.company_id,
+      userId!,
+      parentId,
+      'reference.deleted',
+      `Deleted property reference for ${tenantCount} tenant(s) at ${propertyAddress}${creditsToRefund > 0 ? ` (${creditsToRefund} credit(s) refunded)` : ''}`,
+      req,
+      {
+        property_address: propertyAddress,
+        tenants_deleted: tenantCount,
+        credits_refunded: creditsToRefund
+      }
+    )
+
+    res.json({
+      message: 'Property reference deleted successfully',
+      tenants_deleted: tenantCount,
+      credits_refunded: creditsToRefund
+    })
+  } catch (error: any) {
+    console.error('Error deleting property reference:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Delete reference
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {

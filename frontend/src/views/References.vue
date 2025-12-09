@@ -273,7 +273,13 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.created_at) }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.move_in_date ? formatDate(item.move_in_date) : '—' }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <span class="text-gray-400 text-xs">{{ expandedGroups.has(item.id) ? 'Click to collapse' : 'Click to expand' }}</span>
+                      <span class="text-gray-400 text-xs mr-4">{{ expandedGroups.has(item.id) ? 'Click to collapse' : 'Click to expand' }}</span>
+                      <button
+                        @click.stop="confirmDeletePropertyGroup(item)"
+                        class="text-red-600 hover:text-red-800 text-xs font-medium"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                   <!-- Expanded Child Tenant Rows -->
@@ -1038,6 +1044,29 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Property Group Confirmation Modal -->
+    <div v-if="showDeletePropertyGroupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg max-w-md w-full p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Property Reference</h3>
+        <p class="text-sm text-gray-600 mb-6">
+          Are you sure you want to delete the property reference for
+          <span class="font-medium">{{ propertyGroupToDelete?.tenantCount }} tenant(s)</span>
+          at <span class="font-medium">{{ propertyGroupToDelete?.property_address }}</span>?
+          This will delete all tenant references for this property. This action cannot be undone.
+        </p>
+        <div class="flex justify-end space-x-3">
+          <button @click="showDeletePropertyGroupModal = false"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            Cancel
+          </button>
+          <button @click="handleDeletePropertyGroup" :disabled="deletePropertyGroupLoading"
+            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50">
+            {{ deletePropertyGroupLoading ? 'Deleting...' : 'Delete All' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </Sidebar>
 </template>
 
@@ -1068,6 +1097,9 @@ const showInsufficientCreditsModal = ref(false)
 const showPaymentMethodModal = ref(false)
 const showDeleteModal = ref(false)
 const referenceToDelete = ref<any>(null)
+const showDeletePropertyGroupModal = ref(false)
+const propertyGroupToDelete = ref<any>(null)
+const deletePropertyGroupLoading = ref(false)
 const openActionMenuId = ref<string | null>(null)
 
 const toggleActionMenu = (referenceId: string, event: Event) => {
@@ -1744,6 +1776,58 @@ const handleDelete = async () => {
     alert(error.message || 'Failed to delete reference')
   } finally {
     deleteLoading.value = false
+  }
+}
+
+const confirmDeletePropertyGroup = (group: any) => {
+  propertyGroupToDelete.value = group
+  showDeletePropertyGroupModal.value = true
+}
+
+const handleDeletePropertyGroup = async () => {
+  if (!propertyGroupToDelete.value) return
+
+  deletePropertyGroupLoading.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      console.error('No auth token available')
+      return
+    }
+
+    // Extract parent reference ID from the group
+    // The group.id is in format "parentId_group", so we need the actual parent ID
+    // Get it from the first child's parent_reference_id
+    const parentId = propertyGroupToDelete.value.children?.[0]?.parent_reference_id
+    if (!parentId) {
+      throw new Error('Could not determine parent reference ID')
+    }
+
+    const response = await fetch(`${API_URL}/api/references/property/${parentId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to delete property reference')
+    }
+
+    const result = await response.json()
+    toast.success(`Property reference deleted. ${result.credits_refunded > 0 ? `${result.credits_refunded} credit(s) refunded.` : ''}`)
+
+    // Close modal and refresh list
+    showDeletePropertyGroupModal.value = false
+    propertyGroupToDelete.value = null
+    await fetchReferences()
+  } catch (error: any) {
+    console.error('Failed to delete property reference:', error)
+    toast.error(error.message || 'Failed to delete property reference')
+  } finally {
+    deletePropertyGroupLoading.value = false
   }
 }
 
