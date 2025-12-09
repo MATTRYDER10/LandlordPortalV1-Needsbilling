@@ -1123,6 +1123,7 @@ const sortBy = ref<'created_at' | 'move_in_date'>('created_at')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
 const tenantCount = ref(1)
+const previousTenantCount = ref(1)
 const tenants = ref<Array<{
   first_name: string
   last_name: string
@@ -1370,8 +1371,47 @@ const getEmploymentTitle = (ref: any) => {
 }
 
 const updateTenantCount = (count: number) => {
+  const previousCount = previousTenantCount.value
   tenantCount.value = count
-  // Adjust tenants array
+
+  // Switching from single tenant (1) to multiple tenants (2+)
+  // Copy formData tenant fields into tenants[0]
+  if (previousCount === 1 && count > 1) {
+    tenants.value[0] = {
+      first_name: formData.value.tenant_first_name,
+      last_name: formData.value.tenant_last_name,
+      email: formData.value.tenant_email,
+      phone: formData.value.tenant_phone,
+      rent_share: null,
+      guarantor: (formData.value.guarantor_first_name || formData.value.guarantor_email) ? {
+        first_name: formData.value.guarantor_first_name,
+        last_name: formData.value.guarantor_last_name,
+        email: formData.value.guarantor_email,
+        phone: formData.value.guarantor_phone
+      } : null,
+      showGuarantorFields: showGuarantorFields.value
+    }
+  }
+
+  // Switching from multiple tenants (2+) to single tenant (1)
+  // Copy tenants[0] fields into formData tenant fields
+  if (previousCount > 1 && count === 1) {
+    formData.value.tenant_first_name = tenants.value[0]?.first_name || ''
+    formData.value.tenant_last_name = tenants.value[0]?.last_name || ''
+    formData.value.tenant_email = tenants.value[0]?.email || ''
+    formData.value.tenant_phone = tenants.value[0]?.phone || ''
+
+    // Also sync guarantor if present
+    if (tenants.value[0]?.guarantor) {
+      formData.value.guarantor_first_name = tenants.value[0].guarantor.first_name || ''
+      formData.value.guarantor_last_name = tenants.value[0].guarantor.last_name || ''
+      formData.value.guarantor_email = tenants.value[0].guarantor.email || ''
+      formData.value.guarantor_phone = tenants.value[0].guarantor.phone || ''
+      showGuarantorFields.value = true
+    }
+  }
+
+  // Adjust tenants array size
   while (tenants.value.length < count) {
     tenants.value.push({
       first_name: '',
@@ -1386,6 +1426,9 @@ const updateTenantCount = (count: number) => {
   while (tenants.value.length > count) {
     tenants.value.pop()
   }
+
+  // Update previous count for next change
+  previousTenantCount.value = count
 }
 
 // Handler for custom event from sidebar
@@ -1607,6 +1650,7 @@ const handleCreate = async () => {
 const closeCreateModal = () => {
   showCreateModal.value = false
   tenantCount.value = 1
+  previousTenantCount.value = 1
   tenants.value = [{
     first_name: '',
     last_name: '',
