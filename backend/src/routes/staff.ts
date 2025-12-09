@@ -1401,7 +1401,8 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
               guarantor_last_name_encrypted: reference.guarantor_last_name_encrypted,
               email_encrypted: reference.guarantor_email_encrypted,
               contact_number_encrypted: reference.guarantor_phone_encrypted,
-              reference_token_hash: guarantorTokenHash
+              reference_token_hash: guarantorTokenHash,
+              relationship_to_tenant: 'other'
             })
             .select('id')
             .single()
