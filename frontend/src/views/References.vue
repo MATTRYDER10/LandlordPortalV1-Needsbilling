@@ -261,9 +261,10 @@
                         'bg-green-100 text-green-800': getGroupStatus(item.children) === 'completed',
                         'bg-blue-100 text-blue-800': getGroupStatus(item.children) === 'in_progress',
                         'bg-yellow-100 text-yellow-800': getGroupStatus(item.children) === 'pending',
-                        'bg-orange-100 text-orange-800': getGroupStatus(item.children) === 'mixed'
+                        'bg-orange-100 text-orange-800': getGroupStatus(item.children) === 'pending_verification',
+                        'bg-red-100 text-red-800': getGroupStatus(item.children) === 'rejected'
                       }">
-                        {{ getGroupStatus(item.children) === 'completed' ? 'All Completed' : getGroupStatus(item.children) === 'in_progress' ? 'In Progress' : getGroupStatus(item.children) === 'mixed' ? 'Mixed Status' : 'Pending' }}
+                        {{ getGroupStatus(item.children) === 'completed' ? 'All Completed' : getGroupStatus(item.children) === 'in_progress' ? 'In Progress' : getGroupStatus(item.children) === 'pending_verification' ? 'Pending Verification' : getGroupStatus(item.children) === 'rejected' ? 'Rejected' : 'Pending' }}
                       </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -1236,25 +1237,6 @@ const distributeRentEvenly = () => {
 // Watch monthly rent to auto-distribute among tenants
 watch(() => formData.value.monthly_rent, () => {
   distributeRentEvenly()
-})
-
-const statusCounts = computed(() => {
-  const counts = {
-    pending: 0,
-    in_progress: 0,
-    pending_verification: 0,
-    rejected: 0,
-    completed: 0,
-    cancelled: 0
-  }
-
-  references.value.forEach(ref => {
-    if (counts.hasOwnProperty(ref.status)) {
-      counts[ref.status as keyof typeof counts]++
-    }
-  })
-
-  return counts
 })
 
 const filteredReferences = computed(() => {
