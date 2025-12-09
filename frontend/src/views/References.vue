@@ -345,7 +345,7 @@
                       <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{ formatDate(child.created_at) }}</td>
                       <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{ child.move_in_date ? formatDate(child.move_in_date) : '—' }}</td>
                       <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                        <button @click.stop="viewReference(child)" class="text-primary hover:text-primary/80">View</button>
+                        <router-link :to="`/references/${child.id}`" class="text-primary hover:text-primary/80">View</router-link>
                         <div class="relative inline-block ml-3">
                           <button @click.stop="toggleActionMenu(child.id, $event)" class="text-gray-600 hover:text-gray-800 font-medium">
                             Actions
@@ -357,9 +357,12 @@
                             <button @click.stop="resendForm(child)" :disabled="resendingFormId === child.id" class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-50 disabled:opacity-50">
                               {{ resendingFormId === child.id ? 'Sending...' : 'Resend Form' }}
                             </button>
-                            <button @click.stop="createAgreement(child); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
+                            <router-link
+                              :to="{ path: '/agreements/generate', query: { referenceId: child.parent_reference_id || child.id } }"
+                              @click="closeActionMenu()"
+                              class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
                               Create Agreement
-                            </button>
+                            </router-link>
                             <button @click.stop="confirmDelete(child); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
                               Delete
                             </button>
@@ -388,7 +391,7 @@
                         </td>
                         <td class="px-6 py-2 whitespace-nowrap" colspan="4"></td>
                         <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
-                          <button @click.stop="viewReference(guarantor)" class="text-purple-600 hover:text-purple-800">View</button>
+                          <router-link :to="`/references/${guarantor.id}`" class="text-purple-600 hover:text-purple-800">View</router-link>
                           <button @click.stop="confirmDelete(guarantor)" class="ml-3 text-red-600 hover:text-red-700">Delete</button>
                         </td>
                       </tr>
@@ -520,9 +523,9 @@
                     {{ item.move_in_date ? formatDate(item.move_in_date) : '—' }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button @click="viewReference(item)" class="text-primary hover:text-primary/80">
+                    <router-link :to="`/references/${item.id}`" class="text-primary hover:text-primary/80">
                       View
-                    </button>
+                    </router-link>
                     <div class="relative inline-block ml-3">
                       <button @click="toggleActionMenu(item.id, $event)" class="text-gray-600 hover:text-gray-800 font-medium">
                         Actions
@@ -534,9 +537,12 @@
                         <button @click="resendForm(item)" :disabled="resendingFormId === item.id" class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-50 disabled:opacity-50">
                           {{ resendingFormId === item.id ? 'Sending...' : 'Resend Form' }}
                         </button>
-                        <button @click="createAgreement(item); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
+                        <router-link
+                          :to="{ path: '/agreements/generate', query: { referenceId: item.parent_reference_id || item.id } }"
+                          @click="closeActionMenu()"
+                          class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
                           Create Agreement
-                        </button>
+                        </router-link>
                         <button @click="confirmDelete(item); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
                           Delete
                         </button>
@@ -667,9 +673,9 @@
                     {{ guarantor.move_in_date ? formatDate(guarantor.move_in_date) : '—' }}
                   </td>
                   <td class="px-6 py-3 text-right text-sm font-medium">
-                    <button @click="viewReference(guarantor)" class="text-purple-600 hover:text-purple-800 font-medium">
+                    <router-link :to="`/references/${guarantor.id}`" class="text-purple-600 hover:text-purple-800 font-medium">
                       View
-                    </button>
+                    </router-link>
                     <button @click="confirmDelete(guarantor)" class="ml-3 text-red-600 hover:text-red-700 font-medium"
                       title="Delete guarantor reference">
                       Delete
@@ -1686,18 +1692,6 @@ const formatDate = (date?: string | null, fallback = 'N/A') =>
     fallback
   )
 
-const viewReference = (reference: any) => {
-  router.push(`/references/${reference.id}`)
-}
-
-const createAgreement = (reference: any) => {
-  // For multi-tenant properties, use parent ID to load all tenants
-  const referenceId = reference.parent_reference_id || reference.id
-  router.push({
-    path: '/agreements/generate',
-    query: { referenceId }
-  })
-}
 
 const handlePropertyAddressSelected = (addressData: any) => {
   console.log('Property address selected:', addressData)
