@@ -1921,14 +1921,14 @@
                   Pass
                 </button>
 
-                <!-- AMBER -->
+                <!-- Pass with Minor Issue (AMBER) -->
                 <button @click="steps[3]!.status = 'amber', steps[3]!.overall_pass = null" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[3]!.status === 'amber' && steps[3]!.overall_pass === null
                     ? 'bg-amber-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-green-50'
                 ]">
-                  AMBER
+                  Pass with Minor Issue
                 </button>
 
                 <!-- FAIL -->
@@ -2434,7 +2434,7 @@
                           steps[3]!.overall_pass === false ? 'bg-red-100 text-red-800' :
                             'bg-gray-100 text-gray-600'
                     ]">
-                      {{ steps[3]!.status === 'amber' ? 'AMBER' :
+                      {{ steps[3]!.status === 'amber' ? 'Pass with Minor Issue' :
                         steps[3]!.overall_pass === true ? 'PASS' : steps[3]!.overall_pass === false ? 'FAIL' : 'PENDING'
                       }}
                     </span>
