@@ -2564,7 +2564,7 @@
                   </div>
                   <div v-if="tasDecision" class="mt-2">
                     <p class="text-sm text-gray-600 rounded-md p-2 bg-gray-100 w-full"><strong>TAS Category:</strong> {{
-                      tasDecision }}</p>
+                      formatTasCategory(tasDecision) }}</p>
                     <p v-if="tasReason" class="text-sm text-gray-600 mt-1 rounded-md p-2 bg-gray-100 w-">
                       <strong>Reason:</strong> {{ tasReason }}
                     </p>
@@ -2777,6 +2777,14 @@ const formatBooleanDisplay = (value: boolean | string | null | undefined) => {
   if (value === false || value === 'no') return 'No'
   if (typeof value === 'string' && value.trim()) return value.charAt(0).toUpperCase() + value.slice(1)
   return 'Not provided'
+}
+
+const formatTasCategory = (category: string | null): string => {
+  if (!category) return ''
+  return category
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
 }
 
 //const hasTenantDocuments = computed(() => tenantDocuments.value.length > 0)
