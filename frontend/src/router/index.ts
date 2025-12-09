@@ -22,8 +22,6 @@ import AgreementsLayout from '../views/AgreementsLayout.vue'
 import AgreementHistory from '../views/AgreementHistory.vue'
 import Onboarding from '../views/Onboarding.vue'
 import StaffLogin from '../views/StaffLogin.vue'
-import StaffDashboard from '../views/StaffDashboard.vue'
-import StaffChaseList from '../views/StaffChaseList.vue'
 import StaffReferenceDetail from '../views/StaffReferenceDetail.vue'
 import StaffVerification from '../views/StaffVerification.vue'
 import StaffVerificationNew from '../views/StaffVerificationNew.vue'
@@ -263,7 +261,7 @@ const router = createRouter({
       path: '/staff',
       redirect: () => {
         const authStore = useAuthStore()
-        return authStore.user ? '/staff/dashboard' : '/staff/login'
+        return authStore.user ? '/staff/work-queue' : '/staff/login'
       }
     },
     {
@@ -274,15 +272,7 @@ const router = createRouter({
     },
     {
       path: '/staff/dashboard',
-      name: 'StaffDashboard',
-      component: StaffDashboard,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/staff/chase-list',
-      name: 'StaffChaseList',
-      component: StaffChaseList,
-      meta: { requiresAuth: true }
+      redirect: '/staff/work-queue'
     },
     {
       path: '/staff/work-queue',
@@ -374,7 +364,7 @@ router.beforeEach(async (to, _from, next) => {
   if (to.meta.requiresGuest && isAuthenticated) {
     // Redirect to appropriate portal based on user type
     if (authStore.isStaff) {
-      next('/staff/dashboard')
+      next('/staff/work-queue')
     } else {
       next('/dashboard')
     }
@@ -418,7 +408,7 @@ router.beforeEach(async (to, _from, next) => {
   // Admin access check - redirect to dashboard if user is not an admin
   const isAdminPath = to.path.startsWith('/admin')
   if (isAdminPath && !authStore.isAdmin) {
-    next(authStore.isStaff ? '/staff/dashboard' : '/dashboard')
+    next(authStore.isStaff ? '/staff/work-queue' : '/dashboard')
     return
   }
 
@@ -434,8 +424,8 @@ router.beforeEach(async (to, _from, next) => {
   const agentPaths = ['/dashboard', '/references', '/agreements', '/landlords', '/tenant-offers', '/sent-applications', '/settings', '/onboarding']
   const isAgentPath = agentPaths.some(path => to.path.startsWith(path))
   if (isAgentPath && authStore.isStaff && isAuthenticated) {
-    // Staff member trying to access agent portal - redirect to staff dashboard
-    next('/staff/dashboard')
+    // Staff member trying to access agent portal - redirect to staff work queue
+    next('/staff/work-queue')
     return
   }
 

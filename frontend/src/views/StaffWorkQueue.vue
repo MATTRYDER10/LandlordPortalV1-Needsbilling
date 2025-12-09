@@ -3,6 +3,30 @@
     <!-- Header -->
     <StaffHeader />
 
+    <!-- Toast Notification -->
+    <Transition
+      enter-active-class="transition ease-out duration-300"
+      enter-from-class="transform opacity-0 translate-y-2"
+      enter-to-class="transform opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-200"
+      leave-from-class="transform opacity-100 translate-y-0"
+      leave-to-class="transform opacity-0 translate-y-2"
+    >
+      <div
+        v-if="toast.show"
+        class="fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+        :class="toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'"
+      >
+        <svg v-if="toast.type === 'success'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        {{ toast.message }}
+      </div>
+    </Transition>
+
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="header">
@@ -11,20 +35,6 @@
           <div class="stat-card chase">
             <div class="stat-label">Chase Queue</div>
             <div class="stat-value">{{ stats.chase.total }}</div>
-            <div class="stat-breakdown">
-              <span class="stat-chip available">
-                <span class="dot"></span>
-                {{ stats.chase.available }} Available
-              </span>
-              <span class="stat-chip assigned">
-                <span class="dot"></span>
-                {{ stats.chase.assigned }} Assigned
-              </span>
-              <span class="stat-chip in-progress">
-                <span class="dot"></span>
-                {{ stats.chase.inProgress }} In Progress
-              </span>
-            </div>
           </div>
           <div class="stat-card verify">
             <div class="stat-label">Verify Queue</div>
@@ -46,7 +56,7 @@
           </div>
           <div class="stat-card my-items">
             <div class="stat-label">My Active Cases</div>
-            <div class="stat-value">{{ stats.chase.myItems + stats.verify.myItems }}</div>
+            <div class="stat-value">{{ stats.verify.myItems }}</div>
           </div>
         </div>
       </div>
@@ -60,12 +70,15 @@
           Chase Queue ({{ stats.chase.total }})
         </button>
         <button :class="['tab', { active: activeTab === 'my-cases' }]" @click="activeTab = 'my-cases'">
-          My Cases ({{ stats.chase.myItems + stats.verify.myItems }})
+          My Cases ({{ stats.verify.myItems }})
         </button>
       </div>
-      <p class="tab-help">
+      <p v-if="activeTab !== 'chase'" class="tab-help">
         You can hold up to {{ MAX_ACTIVE_ITEMS }} active cases. Items idle for 2 hours are automatically returned and
         escalated.
+      </p>
+      <p v-else class="tab-help">
+        References awaiting responses from landlords, agents, employers, accountants, or guarantors. Use Email/SMS to send reminders with form links.
       </p>
 
       <!-- Loading State -->
@@ -80,7 +93,115 @@
         <button @click="fetchWorkQueue" class="btn btn-primary">Retry</button>
       </div>
 
-      <!-- Work Queue Table -->
+      <!-- Chase Queue (card-based layout) -->
+      <div v-else-if="activeTab === 'chase'" class="chase-list">
+        <div v-if="chaseItems.length === 0" class="empty-state">
+          <svg class="mx-auto h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="mt-2">All caught up! No references waiting for responses.</p>
+        </div>
+
+        <div v-else class="space-y-4">
+          <div v-for="item in chaseItems" :key="item.id" class="chase-card">
+            <div class="chase-card-header">
+              <div class="chase-card-info">
+                <router-link :to="`/staff/references/${item.id}`" class="chase-tenant-name">
+                  {{ item.tenant_name }}
+                </router-link>
+                <span :class="['days-badge', item.days_pending >= 7 ? 'urgent' : item.days_pending >= 3 ? 'warning' : 'normal']">
+                  {{ item.days_pending }} days since requested
+                </span>
+              </div>
+            </div>
+            <div class="chase-card-details">
+              <div class="chase-property">{{ item.property_address }}</div>
+              <div class="chase-meta">Company: {{ item.company?.name || 'Unknown' }} • Submitted: {{ formatDate(item.submitted_at) }}</div>
+            </div>
+
+            <div class="chase-missing">
+              <h4 class="chase-section-title">Missing Responses:</h4>
+              <div class="chase-tags">
+                <span v-for="response in item.missing_responses" :key="response" class="chase-tag missing">
+                  {{ response }}
+                </span>
+              </div>
+            </div>
+
+            <div v-if="item.contacts_to_chase.length > 0" class="chase-contacts">
+              <h4 class="chase-section-title">Contacts to Chase:</h4>
+              <div v-for="(contact, idx) in item.contacts_to_chase" :key="idx" class="chase-contact">
+                <div class="chase-contact-info">
+                  <div class="chase-contact-header">
+                    <span class="chase-contact-type">{{ contact.type }}</span>
+                    <span class="chase-contact-name">{{ contact.name }}</span>
+                  </div>
+                  <div class="chase-contact-details">
+                    <a :href="`mailto:${contact.email}`" class="chase-contact-email">{{ contact.email }}</a>
+                    <span v-if="contact.phone" class="chase-contact-phone">• {{ contact.phone }}</span>
+                  </div>
+                  <div v-if="contact.sentDate" class="chase-contact-sent">
+                    Request sent: {{ formatDate(contact.sentDate) }}
+                  </div>
+                  <div v-else class="chase-contact-warning">
+                    ⚠️ Awaiting response - contact if needed
+                  </div>
+                </div>
+                <div class="chase-contact-actions">
+                  <button
+                    @click="sendReminder(item.id, contact.type, 'email')"
+                    :disabled="isSending(`${item.id}-${contact.type}-email`)"
+                    class="btn btn-sm btn-primary"
+                    title="Send chase email with form link"
+                  >
+                    <svg v-if="isSending(`${item.id}-${contact.type}-email`)" class="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <svg v-else class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    {{ isSending(`${item.id}-${contact.type}-email`) ? 'Sending...' : 'Email' }}
+                  </button>
+                  <button
+                    v-if="contact.phone"
+                    @click="sendReminder(item.id, contact.type, 'sms')"
+                    :disabled="isSending(`${item.id}-${contact.type}-sms`)"
+                    class="btn btn-sm btn-sms"
+                    title="Send SMS with form link"
+                  >
+                    <svg v-if="isSending(`${item.id}-${contact.type}-sms`)" class="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <svg v-else class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    {{ isSending(`${item.id}-${contact.type}-sms`) ? 'Sending...' : 'SMS' }}
+                  </button>
+                  <a
+                    v-if="contact.phone"
+                    :href="`tel:${contact.phone}`"
+                    class="btn btn-sm btn-secondary"
+                    title="Call contact"
+                  >
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    Call
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="chase-no-contacts">
+              <p>No contact information available yet. The emails have not been sent or contacts haven't been created.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Work Queue Table (Verify & My Cases) -->
       <div v-else class="work-queue-table">
         <table v-if="filteredWorkItems.length > 0">
           <thead>
@@ -171,12 +292,15 @@ import StaffHeader from '../components/StaffHeader.vue'
 const router = useRouter()
 const authStore = useAuthStore()
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 // State
 const MAX_ACTIVE_ITEMS = 10
 const AUTO_RETURN_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours
 
 const activeTab = ref<'chase' | 'verify' | 'my-cases'>('verify')
 const workItems = ref<any[]>([])
+const chaseItems = ref<any[]>([])
 const stats = ref({
   chase: { available: 0, assigned: 0, inProgress: 0, myItems: 0, total: 0 },
   verify: { available: 0, assigned: 0, inProgress: 0, myItems: 0, total: 0 }
@@ -186,6 +310,12 @@ const error = ref<string | null>(null)
 const claiming = ref<string | null>(null)
 const releasing = ref<string | null>(null)
 const refreshInterval = ref<number | null>(null)
+const sendingStatus = ref<Record<string, boolean>>({})
+const toast = ref<{ show: boolean; message: string; type: 'success' | 'error' }>({
+  show: false,
+  message: '',
+  type: 'success'
+})
 
 // Computed
 const myActiveItems = computed(() => workItems.value.filter(item => isMyItem(item)))
@@ -249,10 +379,105 @@ const fetchStats = async () => {
     }
 
     const data = await response.json()
-    stats.value = data.stats
+    // Update verify stats from work queue, chase stats come from chase list
+    stats.value.verify = data.stats.verify
   } catch (err) {
     console.error('Error fetching stats:', err)
   }
+}
+
+const fetchChaseList = async () => {
+  try {
+    const token = authStore.session?.access_token
+    const response = await fetch(`${API_URL}/api/staff/chase-list`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch chase list')
+    }
+
+    const data = await response.json()
+    chaseItems.value = data.chase_items || []
+    // Update chase stats
+    stats.value.chase = {
+      available: chaseItems.value.length,
+      assigned: 0,
+      inProgress: 0,
+      myItems: 0,
+      total: chaseItems.value.length
+    }
+  } catch (err) {
+    console.error('Error fetching chase list:', err)
+  }
+}
+
+const isSending = (key: string) => sendingStatus.value[key] || false
+
+const showToast = (message: string, type: 'success' | 'error') => {
+  toast.value = { show: true, message, type }
+  setTimeout(() => {
+    toast.value.show = false
+  }, 3000)
+}
+
+const sendReminder = async (referenceId: string, contactType: string, method: 'email' | 'sms') => {
+  const key = `${referenceId}-${contactType}-${method}`
+  sendingStatus.value[key] = true
+
+  try {
+    const token = authStore.session?.access_token
+    const response = await fetch(`${API_URL}/api/staff/chase/${referenceId}/send-reminder`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ contactType, method })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to send reminder')
+    }
+
+    showToast(`${method === 'email' ? 'Email' : 'SMS'} sent successfully to ${contactType}`, 'success')
+
+    // If SMS was sent, remove the contact from the list immediately (12-hour cooldown)
+    if (method === 'sms') {
+      chaseItems.value = chaseItems.value.map(item => {
+        if (item.id === referenceId) {
+          const filteredContacts = item.contacts_to_chase.filter(
+            (c: { type: string }) => c.type !== contactType
+          )
+          // If no contacts left, return null to filter out the whole item
+          if (filteredContacts.length === 0) return null
+          return { ...item, contacts_to_chase: filteredContacts }
+        }
+        return item
+      }).filter(item => item !== null)
+      // Update stats
+      stats.value.chase.total = chaseItems.value.length
+      stats.value.chase.available = chaseItems.value.length
+    }
+  } catch (err: any) {
+    console.error('Error sending reminder:', err)
+    showToast(err.message || 'Failed to send reminder', 'error')
+  } finally {
+    sendingStatus.value[key] = false
+  }
+}
+
+const formatDate = (dateString?: string | null) => {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  })
 }
 
 const claimWorkItem = async (item: any) => {
@@ -392,6 +617,7 @@ const startAutoRefresh = () => {
   refreshInterval.value = window.setInterval(() => {
     fetchWorkQueue()
     fetchStats()
+    fetchChaseList()
   }, 30000)
 }
 
@@ -406,12 +632,14 @@ const stopAutoRefresh = () => {
 onMounted(() => {
   fetchWorkQueue()
   fetchStats()
+  fetchChaseList()
   startAutoRefresh()
 })
 
 onActivated(() => {
   fetchWorkQueue()
   fetchStats()
+  fetchChaseList()
 })
 
 onUnmounted(() => {
@@ -771,5 +999,230 @@ td {
   padding: 3rem;
   text-align: center;
   color: #6b7280;
+}
+
+/* Chase List Styles */
+.chase-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chase-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+.chase-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.chase-card-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.chase-tenant-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #f97316;
+  text-decoration: none;
+}
+
+.chase-tenant-name:hover {
+  color: #ea580c;
+  text-decoration: underline;
+}
+
+.days-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.days-badge.urgent {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.days-badge.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.days-badge.normal {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.chase-card-details {
+  margin-bottom: 1rem;
+}
+
+.chase-property {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.chase-meta {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.25rem;
+}
+
+.chase-missing {
+  margin-bottom: 1rem;
+}
+
+.chase-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.chase-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chase-tag {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.chase-tag.missing {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.chase-contacts {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+}
+
+.chase-contact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-top: 0.75rem;
+}
+
+.chase-contact:first-of-type {
+  margin-top: 0.5rem;
+}
+
+.chase-contact-info {
+  flex: 1;
+}
+
+.chase-contact-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.chase-contact-type {
+  padding: 0.25rem 0.5rem;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.chase-contact-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.chase-contact-details {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.chase-contact-email {
+  color: #f97316;
+  text-decoration: none;
+}
+
+.chase-contact-email:hover {
+  text-decoration: underline;
+}
+
+.chase-contact-phone {
+  color: #6b7280;
+}
+
+.chase-contact-sent {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.chase-contact-warning {
+  font-size: 0.75rem;
+  color: #d97706;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.chase-contact-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: 1rem;
+}
+
+.btn-sms {
+  background: #10b981;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-sms:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+}
+
+.chase-no-contacts {
+  padding: 0.75rem;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.chase-no-contacts p {
+  font-size: 0.875rem;
+  color: #92400e;
+  margin: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 </style>
