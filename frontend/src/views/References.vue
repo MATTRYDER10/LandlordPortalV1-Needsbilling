@@ -159,7 +159,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remark</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ statusFilter === 'completed' ? 'Decision' : 'Remark' }}</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">References
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -311,11 +311,17 @@
                           </svg>
                           <span>{{ findReason(child?.final_remarks) }}</span>
                         </div>
+                        <div v-else-if="child.status === 'completed' && (child.decision === 'DECLINE' || child.decision === 'MANUAL_REVIEW')" class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-800 border border-red-100">
+                          <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          <span>FAIL</span>
+                        </div>
                         <div v-else-if="child.status === 'completed'" class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-100">
                           <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span>Verified</span>
+                          <span>{{ child.decision === 'PASS_WITH_GUARANTOR' ? 'PASS with guarantor' : 'PASS' }}</span>
                         </div>
                         <div v-else class="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-100">
                           <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -464,14 +470,24 @@
                       </span>
                     </div>
 
-                    <!-- Completed: green verified pill -->
+                    <!-- Completed with DECLINE/MANUAL_REVIEW: red FAIL pill -->
+                    <div v-else-if="item.status === 'completed' && (item.decision === 'DECLINE' || item.decision === 'MANUAL_REVIEW')"
+                      class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-800 border border-red-100">
+                      <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      <span>FAIL</span>
+                    </div>
+
+                    <!-- Completed: green PASS pill -->
                     <div v-else-if="item.status === 'completed'"
                       class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-100">
                       <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span>Verified</span>
+                      <span>{{ item.decision === 'PASS_WITH_GUARANTOR' ? 'PASS with guarantor' : 'PASS' }}</span>
                     </div>
 
                     <!-- In progress / pending etc: subtle "in progress" with clock icon -->

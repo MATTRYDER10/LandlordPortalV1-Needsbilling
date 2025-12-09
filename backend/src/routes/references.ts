@@ -184,7 +184,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     let employerMap = new Map<string, boolean>()
     let accountantMap = new Map<string, boolean>()
     let creditsafeMap = new Map<string, { id: string; verification_status: string } | null>()
-    let scoresMap = new Map<string, string | null>()
+    let scoresMap = new Map<string, { final_remarks: string | null, decision: string | null }>()
     let guarantorMap = new Map<string, { id: string; status: string }>()
     let childrenCountMap = new Map<string, number>()
     let childrenByParent = new Map<string, any[]>()
@@ -197,7 +197,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         supabase.from('employer_references').select('reference_id').in('reference_id', refIds),
         supabase.from('accountant_references').select('tenant_reference_id').in('tenant_reference_id', refIds),
         supabase.from('creditsafe_verifications').select('id, reference_id, verification_status').in('reference_id', refIds),
-        supabase.from('reference_scores').select('reference_id, final_remarks').in('reference_id', refIds),
+        supabase.from('reference_scores').select('reference_id, final_remarks, decision').in('reference_id', refIds),
         // Get all guarantor references for refs that require them
         supabase.from('tenant_references').select('id, status, guarantor_for_reference_id').in('guarantor_for_reference_id', refIds).eq('is_guarantor', true),
         // Get all child references for group parents
@@ -210,7 +210,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       employerRefs.data?.forEach(r => employerMap.set(r.reference_id, true))
       accountantRefs.data?.forEach(r => accountantMap.set(r.tenant_reference_id, true))
       creditsafeRefs.data?.forEach(r => creditsafeMap.set(r.reference_id, { id: r.id, verification_status: r.verification_status }))
-      scores.data?.forEach(r => scoresMap.set(r.reference_id, r.final_remarks))
+      scores.data?.forEach(r => scoresMap.set(r.reference_id, { final_remarks: r.final_remarks, decision: r.decision }))
       guarantorRefs.data?.forEach(r => {
         if (r.guarantor_for_reference_id) {
           guarantorMap.set(r.guarantor_for_reference_id, { id: r.id, status: r.status })
@@ -237,7 +237,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       const creditData = creditsafeMap.get(ref.id)
       const has_credit_check = creditData || null
       const credit_check_status = creditData?.verification_status || null
-      const final_remarks = scoresMap.get(ref.id) || null
+      const scoreData = scoresMap.get(ref.id)
+      const final_remarks = scoreData?.final_remarks || null
+      const decision = scoreData?.decision || null
 
       // Check guarantor status from pre-fetched data
       let has_guarantor_reference = false
@@ -295,7 +297,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           has_guarantor_assigned,
           has_credit_check,
           credit_check_status,
-          final_remarks
+          final_remarks,
+          decision
         }
       }
       return {
@@ -308,7 +311,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         has_guarantor_assigned,
         has_credit_check,
         credit_check_status,
-        final_remarks
+        final_remarks,
+        decision
       }
     }))
 
