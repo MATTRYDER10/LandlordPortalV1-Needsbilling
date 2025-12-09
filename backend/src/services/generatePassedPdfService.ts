@@ -605,6 +605,35 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             const checksText = `We have carried out all necessary checks needed and the ${personLabel.toLowerCase()} is clear to ${actionWord} this tenancy.`
             doc.text(checksText, margin, yPos, { align: 'center', width: pageWidth - (2 * margin) })
 
+            // Disclaimer for Pass with Guarantor
+            if (score?.decision === 'PASS_WITH_GUARANTOR') {
+                yPos += 35
+                const disclaimerBoxWidth = pageWidth - (2 * margin) - 40
+                const disclaimerBoxX = margin + 20
+                const disclaimerBoxHeight = 50
+
+                // Yellow warning box background
+                doc.rect(disclaimerBoxX, yPos, disclaimerBoxWidth, disclaimerBoxHeight)
+                    .fillColor('#FFF3CD')
+                    .fill()
+
+                // Border
+                doc.rect(disclaimerBoxX, yPos, disclaimerBoxWidth, disclaimerBoxHeight)
+                    .strokeColor('#856404')
+                    .lineWidth(1.5)
+                    .stroke()
+
+                // Warning text
+                doc.font('Helvetica-Bold')
+                    .fontSize(11)
+                    .fillColor('#856404')
+                const disclaimerText = 'THIS PASS IS ONLY ACCEPTABLE WITH A REFERENCED GUARANTOR OR RENT UPFRONT'
+                doc.text(disclaimerText, disclaimerBoxX, yPos + 18, {
+                    align: 'center',
+                    width: disclaimerBoxWidth
+                })
+            }
+
             // Tenant Name Field
             yPos = pageHeight - 150
             doc.font('Helvetica')
