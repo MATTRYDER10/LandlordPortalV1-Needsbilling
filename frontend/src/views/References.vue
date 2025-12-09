@@ -354,6 +354,9 @@
                             </svg>
                           </button>
                           <div v-if="openActionMenuId === child.id" class="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                            <button @click.stop="resendForm(child)" :disabled="resendingFormId === child.id" class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-50 disabled:opacity-50">
+                              {{ resendingFormId === child.id ? 'Sending...' : 'Resend Form' }}
+                            </button>
                             <button @click.stop="createAgreement(child); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
                               Create Agreement
                             </button>
@@ -528,6 +531,9 @@
                         </svg>
                       </button>
                       <div v-if="openActionMenuId === item.id" class="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                        <button @click="resendForm(item)" :disabled="resendingFormId === item.id" class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-50 disabled:opacity-50">
+                          {{ resendingFormId === item.id ? 'Sending...' : 'Resend Form' }}
+                        </button>
                         <button @click="createAgreement(item); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
                           Create Agreement
                         </button>
@@ -977,9 +983,6 @@
               {{ createError }}
             </div>
 
-            <div v-if="createSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
-              {{ createSuccess }}
-            </div>
           </div>
 
           <!-- Sticky Footer with Buttons -->
@@ -1035,6 +1038,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 import PhoneInput from '../components/PhoneInput.vue'
@@ -1047,6 +1051,7 @@ import { isValidEmail } from '../utils/validation'
 
 const router = useRouter()
 const route = useRoute()
+const toast = useToast()
 const authStore = useAuthStore()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -1068,11 +1073,11 @@ const closeActionMenu = () => {
   openActionMenuId.value = null
 }
 const deleteLoading = ref(false)
+const resendingFormId = ref<string | null>(null)
 const references = ref<any[]>([])
 const loading = ref(true)
 const createLoading = ref(false)
 const createError = ref('')
-const createSuccess = ref('')
 const searchQuery = ref('')
 const statusFilter = ref('')
 const dateFilter = ref('')
@@ -1444,7 +1449,6 @@ const fetchReferences = async () => {
 const handleCreate = async () => {
   createLoading.value = true
   createError.value = ''
-  createSuccess.value = ''
 
   try {
     const token = authStore.session?.access_token
@@ -1548,14 +1552,13 @@ const handleCreate = async () => {
     }
 
     await response.json()
-    createSuccess.value = tenantCount.value > 1
+    const successMessage = tenantCount.value > 1
       ? `Reference created successfully for ${tenantCount.value} tenants!`
       : 'Reference created successfully!'
+    toast.success(successMessage)
 
-    setTimeout(() => {
-      closeCreateModal()
-      fetchReferences()
-    }, 2000)
+    closeCreateModal()
+    fetchReferences()
   } catch (error: any) {
     createError.value = error.message || 'Failed to create reference'
   } finally {
@@ -1595,7 +1598,6 @@ const closeCreateModal = () => {
   }
   showGuarantorFields.value = false
   createError.value = ''
-  createSuccess.value = ''
 }
 
 const clearFilters = () => {
@@ -1748,6 +1750,42 @@ const handleDelete = async () => {
     alert(error.message || 'Failed to delete reference')
   } finally {
     deleteLoading.value = false
+  }
+}
+
+const resendForm = async (reference: any) => {
+  if (resendingFormId.value) return
+
+  resendingFormId.value = reference.id
+  closeActionMenu()
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      console.error('No auth token available')
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/references/${reference.id}/resend-tenant-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to resend form')
+    }
+
+    toast.success('Form email sent successfully')
+  } catch (error: any) {
+    console.error('Failed to resend form:', error)
+    toast.error(error.message || 'Failed to resend form')
+  } finally {
+    resendingFormId.value = null
   }
 }
 
