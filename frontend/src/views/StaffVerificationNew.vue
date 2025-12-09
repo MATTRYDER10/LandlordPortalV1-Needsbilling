@@ -1311,8 +1311,11 @@
                 <div class="flex items-start justify-between p-3 bg-gray-50 rounded">
                   <div class="flex-1">
                     <p class="text-sm font-medium text-gray-700">Income sufficient for rent affordability?</p>
-                    <p v-if="reference?.monthly_rent" class="text-xs text-gray-500 mt-1">Monthly rent: £{{
-                      reference.monthly_rent }}</p>
+                    <p v-if="reference?.rent_share" class="text-xs text-gray-500 mt-1">
+                      Rent share: £{{ reference.rent_share }}
+                      <span v-if="reference.monthly_rent"> (of £{{ reference.monthly_rent }} total)</span>
+                    </p>
+                    <p v-else-if="reference?.monthly_rent" class="text-xs text-gray-500 mt-1">Monthly rent: £{{ reference.monthly_rent }}</p>
                   </div>
                   <div class="flex gap-2 ml-4">
                     <button @click="toggleCheck('affordability', true)" :class="[
@@ -1409,9 +1412,15 @@
                     parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') +
                     parseFloat(reference.additional_income_amount || '0'))/30 }} pcm</span>
                 </p>
-                <p class="text-lg font-semibold">
+                <p v-if="reference.rent_share" class="text-lg font-semibold">
                   Rent Share:
-                  <span class="text-blue-600">£{{ reference.previous_monthly_rent }}/month</span>
+                  <span class="text-blue-600">£{{ reference.rent_share }}</span>
+                  <span v-if="reference.monthly_rent" class="text-sm text-gray-600"> (of £{{ reference.monthly_rent }} total)</span>
+                  <span>/month</span>
+                </p>
+                <p v-else-if="reference.monthly_rent" class="text-lg font-semibold">
+                  Monthly Rent:
+                  <span class="text-blue-600">£{{ reference.monthly_rent }}/month</span>
                 </p>
               </div>
 
