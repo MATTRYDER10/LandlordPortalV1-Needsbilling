@@ -277,6 +277,21 @@ const sendReminder = async (referenceId: string, contactType: string, method: 'e
     }
 
     showToast(`${method === 'email' ? 'Email' : 'SMS'} sent successfully to ${contactType}`, 'success')
+
+    // If SMS was sent, remove the contact from the list immediately (12-hour cooldown)
+    if (method === 'sms') {
+      chaseItems.value = chaseItems.value.map(item => {
+        if (item.id === referenceId) {
+          const filteredContacts = item.contacts_to_chase.filter(
+            (c: { type: string }) => c.type !== contactType
+          )
+          // If no contacts left, return null to filter out the whole item
+          if (filteredContacts.length === 0) return null
+          return { ...item, contacts_to_chase: filteredContacts }
+        }
+        return item
+      }).filter(item => item !== null)
+    }
   } catch (error: any) {
     console.error('Error sending reminder:', error)
     showToast(error.message || 'Failed to send reminder', 'error')
