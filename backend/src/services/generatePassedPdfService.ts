@@ -846,7 +846,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                             .fillColor('#555555')
                             .text(labelText.replace(/^  /, ''), labelX, textY)
 
-                        const valueX = x + contentPadding + 130
+                        const valueX = x + contentPadding + 175
                         doc.font('Helvetica')
                             .fontSize(10)
                             .fillColor('#777777')
