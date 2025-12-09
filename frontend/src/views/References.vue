@@ -21,7 +21,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">Total References</div>
-                  <div class="mt-1 text-3xl font-semibold text-gray-900">{{ serverStatusCounts.total }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-gray-900">{{ references.length }}</div>
                 </div>
                 <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,7 +38,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">In Progress</div>
-                  <div class="mt-1 text-3xl font-semibold text-blue-600">{{ serverStatusCounts.in_progress }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-blue-600">{{ statusCounts.in_progress }}</div>
                 </div>
                 <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +55,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">Pending Verification</div>
-                  <div class="mt-1 text-3xl font-semibold text-primary">{{ serverStatusCounts.pending_verification }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-primary">{{ statusCounts.pending_verification }}</div>
                 </div>
                 <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +72,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">Rejected</div>
-                  <div class="mt-1 text-3xl font-semibold text-red-600">{{ serverStatusCounts.rejected }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-red-600">{{ statusCounts.rejected }}</div>
                 </div>
                 <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +88,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="text-sm font-medium text-gray-500">Completed</div>
-                  <div class="mt-1 text-3xl font-semibold text-green-600">{{ serverStatusCounts.completed }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-green-600">{{ statusCounts.completed }}</div>
                 </div>
                 <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,7 +159,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ statusFilter === 'completed' ? 'Decision' : 'Remark' }}</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remark</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">References
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -261,10 +261,9 @@
                         'bg-green-100 text-green-800': getGroupStatus(item.children) === 'completed',
                         'bg-blue-100 text-blue-800': getGroupStatus(item.children) === 'in_progress',
                         'bg-yellow-100 text-yellow-800': getGroupStatus(item.children) === 'pending',
-                        'bg-orange-100 text-orange-800': getGroupStatus(item.children) === 'pending_verification',
-                        'bg-red-100 text-red-800': getGroupStatus(item.children) === 'rejected'
+                        'bg-orange-100 text-orange-800': getGroupStatus(item.children) === 'mixed'
                       }">
-                        {{ getGroupStatus(item.children) === 'completed' ? 'All Completed' : getGroupStatus(item.children) === 'in_progress' ? 'In Progress' : getGroupStatus(item.children) === 'pending_verification' ? 'Pending Verification' : getGroupStatus(item.children) === 'rejected' ? 'Rejected' : 'Pending' }}
+                        {{ getGroupStatus(item.children) === 'completed' ? 'All Completed' : getGroupStatus(item.children) === 'in_progress' ? 'In Progress' : getGroupStatus(item.children) === 'mixed' ? 'Mixed Status' : 'Pending' }}
                       </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -311,17 +310,11 @@
                           </svg>
                           <span>{{ findReason(child?.final_remarks) }}</span>
                         </div>
-                        <div v-else-if="child.status === 'completed' && (child.decision === 'DECLINE' || child.decision === 'MANUAL_REVIEW')" class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-800 border border-red-100">
-                          <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                          <span>FAIL</span>
-                        </div>
                         <div v-else-if="child.status === 'completed'" class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-100">
                           <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span>{{ child.decision === 'PASS_WITH_GUARANTOR' ? 'PASS with guarantor' : 'PASS' }}</span>
+                          <span>Verified</span>
                         </div>
                         <div v-else class="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-100">
                           <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -470,24 +463,14 @@
                       </span>
                     </div>
 
-                    <!-- Completed with DECLINE/MANUAL_REVIEW: red FAIL pill -->
-                    <div v-else-if="item.status === 'completed' && (item.decision === 'DECLINE' || item.decision === 'MANUAL_REVIEW')"
-                      class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-800 border border-red-100">
-                      <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      <span>FAIL</span>
-                    </div>
-
-                    <!-- Completed: green PASS pill -->
+                    <!-- Completed: green verified pill -->
                     <div v-else-if="item.status === 'completed'"
                       class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-100">
                       <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span>{{ item.decision === 'PASS_WITH_GUARANTOR' ? 'PASS with guarantor' : 'PASS' }}</span>
+                      <span>Verified</span>
                     </div>
 
                     <!-- In progress / pending etc: subtle "in progress" with clock icon -->
@@ -738,7 +721,6 @@
             </tbody>
           </table>
         </div>
-
       </div>
 
       <!-- Empty State -->
@@ -1168,17 +1150,6 @@ const dateFilter = ref('')
 const sortBy = ref<'created_at' | 'move_in_date'>('created_at')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
-// Server-side status counts for stat cards
-const serverStatusCounts = ref({
-  total: 0,
-  pending: 0,
-  in_progress: 0,
-  pending_verification: 0,
-  completed: 0,
-  rejected: 0,
-  cancelled: 0
-})
-
 const tenantCount = ref(1)
 const previousTenantCount = ref(1)
 const tenants = ref<Array<{
@@ -1255,12 +1226,53 @@ watch(() => formData.value.monthly_rent, () => {
   distributeRentEvenly()
 })
 
+const statusCounts = computed(() => {
+  const counts = {
+    pending: 0,
+    in_progress: 0,
+    pending_verification: 0,
+    rejected: 0,
+    completed: 0,
+    cancelled: 0
+  }
+
+  references.value.forEach(ref => {
+    if (counts.hasOwnProperty(ref.status)) {
+      counts[ref.status as keyof typeof counts]++
+    }
+  })
+
+  return counts
+})
+
 const filteredReferences = computed(() => {
   // Filter out guarantor references - they should only appear nested under their parent
-  // Note: search and status filters are now applied server-side
   let filtered = references.value.filter(ref => !ref.is_guarantor)
 
-  // Apply date filter (still client-side as it's a UI convenience filter)
+  // Apply search filter
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim()
+    filtered = filtered.filter(ref => {
+      const tenantName = `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.toLowerCase()
+      const tenantEmail = (ref.tenant_email || '').toLowerCase()
+      const propertyAddress = (ref.property_address || '').toLowerCase()
+      const propertyCity = (ref.property_city || '').toLowerCase()
+      const propertyPostcode = (ref.property_postcode || '').toLowerCase()
+
+      return tenantName.includes(query) ||
+        tenantEmail.includes(query) ||
+        propertyAddress.includes(query) ||
+        propertyCity.includes(query) ||
+        propertyPostcode.includes(query)
+    })
+  }
+
+  // Apply status filter
+  if (statusFilter.value) {
+    filtered = filtered.filter(ref => ref.status === statusFilter.value)
+  }
+
+  // Apply date filter
   if (dateFilter.value) {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -1366,18 +1378,6 @@ const groupedReferences = computed(() => {
     return bDate - aDate
   })
 
-  // Apply status filter based on computed group status
-  if (statusFilter.value) {
-    return groups.filter(group => {
-      if (group.isPropertyGroup) {
-        // For multi-tenant groups, filter by computed status from children
-        return getGroupStatus(group.children) === statusFilter.value
-      }
-      // For individual refs, filter by their actual status
-      return group.status === statusFilter.value
-    })
-  }
-
   return groups
 })
 
@@ -1398,12 +1398,9 @@ const getGroupStatus = (children: any[]) => {
   // Determine overall status for a multi-tenant group
   const statuses = children.map(c => c.status)
   if (statuses.every(s => s === 'completed')) return 'completed'
-  if (statuses.some(s => s === 'rejected')) return 'rejected'
-  // All pending_verification or completed = pending_verification
-  if (statuses.every(s => s === 'pending_verification' || s === 'completed')) return 'pending_verification'
-  if (statuses.some(s => s === 'in_progress' || s === 'pending_verification' || s === 'awaiting_guarantor')) return 'in_progress'
-  if (statuses.every(s => s === 'pending')) return 'pending'
-  return 'in_progress' // Default for mixed statuses
+  if (statuses.some(s => s === 'rejected')) return 'mixed'
+  if (statuses.some(s => s === 'in_progress' || s === 'pending_verification')) return 'in_progress'
+  return 'pending'
 }
 
 // Check if employment reference requirement is satisfied
@@ -1526,25 +1523,13 @@ onUnmounted(() => {
 const fetchReferences = async () => {
   try {
     loading.value = true
-
     const token = authStore.session?.access_token
     if (!token) {
       console.error('No auth token available')
       return
     }
 
-    // Build query params
-    const params = new URLSearchParams()
-
-    // Send search and status filter to backend
-    if (searchQuery.value.trim()) {
-      params.set('search', searchQuery.value.trim())
-    }
-    if (statusFilter.value) {
-      params.set('status', statusFilter.value)
-    }
-
-    const response = await fetch(`${API_URL}/api/references?${params}`, {
+    const response = await fetch(`${API_URL}/api/references`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -1587,34 +1572,12 @@ const fetchReferences = async () => {
     })
 
     references.value = allReferences
-
-    // Update server-side status counts for stat cards
-    if (data.statusCounts) {
-      serverStatusCounts.value = data.statusCounts
-    }
   } catch (error) {
     console.error('Failed to fetch references:', error)
   } finally {
     loading.value = false
   }
 }
-
-// Debounce timer for search
-let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
-
-// Watch for search changes and re-fetch from server
-watch(searchQuery, () => {
-  // Debounce search to avoid too many requests
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-  }
-  searchDebounceTimer = setTimeout(() => {
-    fetchReferences()
-  }, 300)
-})
-
-// Status filter is now applied client-side in groupedReferences computed
-// No need to re-fetch from server when status filter changes
 
 const handleCreate = async () => {
   createLoading.value = true
