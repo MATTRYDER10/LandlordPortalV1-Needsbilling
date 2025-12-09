@@ -24,9 +24,9 @@
         </div>
 
         <!-- Search and Filters -->
-        <div class="space-y-3 mb-6">
+        <div class="flex gap-3 mb-6">
           <!-- Search Box -->
-          <div class="relative">
+          <div class="relative flex-1">
             <input
               v-model="searchQuery"
               type="text"
@@ -40,28 +40,17 @@
             </div>
           </div>
 
-          <!-- Filters -->
-          <div class="flex gap-3">
-            <select
-              v-model="amlStatusFilter"
-              class="block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
-            >
-              <option value="">All AML Status</option>
-              <option value="not_requested">Not Requested</option>
-              <option value="requested">Requested</option>
-              <option value="satisfactory">AML Satisfactory</option>
-              <option value="unsatisfactory">AML Unsatisfactory</option>
-            </select>
-            <button
-              @click="showFilterModal = true"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              Filter
-            </button>
-          </div>
+          <!-- AML Status Filter -->
+          <select
+            v-model="amlStatusFilter"
+            class="block pl-3 pr-10 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+          >
+            <option value="">All AML Status</option>
+            <option value="not_requested">Not Requested</option>
+            <option value="requested">Requested</option>
+            <option value="satisfactory">AML Satisfactory</option>
+            <option value="unsatisfactory">AML Unsatisfactory</option>
+          </select>
         </div>
 
         <!-- Bulk Actions Bar -->
@@ -283,7 +272,6 @@ const showAddModal = ref(false)
 const showEditModal = ref(false)
 const editingLandlordId = ref<string | null>(null)
 const showImportModal = ref(false)
-const showFilterModal = ref(false)
 const actionsMenuOpen = ref<string | null>(null)
 const selectedLandlords = ref<Set<string>>(new Set())
 const bulkDeleting = ref(false)
