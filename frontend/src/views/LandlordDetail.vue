@@ -261,105 +261,6 @@
                   </div>
                 </div> -->
 
-                <!-- Verification Flags -->
-                <div class="mt-8">
-                  <h3 class="text-base font-semibold text-gray-800">Verification Flags</h3>
-
-                  <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <!-- Electoral Roll -->
-                    <div :class="[
-                      'flex items-center gap-3 rounded-xl border px-4 py-3',
-                      electoralRollMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
-                    ]">
-                      <span :class="[
-                        'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
-                        electoralRollMatch ? 'text-emerald-500' : 'text-rose-500'
-                      ]">
-                        <svg v-if="electoralRollMatch" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd"
-                            d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                            clip-rule="evenodd" />
-                        </svg>
-                      </span>
-                      <span class="text-sm font-semibold text-gray-800">Electoral Roll</span>
-                    </div>
-
-                    <!-- No CCJs -->
-                    <div :class="[
-                      'flex items-center gap-3 rounded-xl border px-4 py-3',
-                      !ccjMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
-                    ]">
-                      <span :class="[
-                        'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
-                        !ccjMatch ? 'text-emerald-500' : 'text-rose-500'
-                      ]">
-                        <svg v-if="!ccjMatch" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd"
-                            d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                            clip-rule="evenodd" />
-                        </svg>
-                      </span>
-                      <span class="text-sm font-semibold text-gray-800">No CCJs</span>
-                    </div>
-
-                    <!-- No Insolvency -->
-                    <div :class="[
-                      'flex items-center gap-3 rounded-xl border px-4 py-3',
-                      !insolvencyMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
-                    ]">
-                      <span :class="[
-                        'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
-                        !insolvencyMatch ? 'text-emerald-500' : 'text-rose-500'
-                      ]">
-                        <svg v-if="!insolvencyMatch" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd"
-                            d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                            clip-rule="evenodd" />
-                        </svg>
-                      </span>
-                      <span class="text-sm font-semibold text-gray-800">No Insolvency</span>
-                    </div>
-
-                    <!-- Not Deceased -->
-                    <div :class="[
-                      'flex items-center gap-3 rounded-xl border px-4 py-3',
-                      !deceasedMatch ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60'
-                    ]">
-                      <span :class="[
-                        'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow',
-                        !deceasedMatch ? 'text-emerald-500' : 'text-rose-500'
-                      ]">
-                        <svg v-if="!deceasedMatch" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd"
-                            d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                            clip-rule="evenodd" />
-                        </svg>
-                      </span>
-                      <span class="text-sm font-semibold text-gray-800">Not Deceased</span>
-                    </div>
-                  </div>
-                </div>
-
                 <!-- Compliance Screening -->
                 <div class="mt-10">
                   <h3 class="text-base font-semibold text-gray-800">Compliance Screening</h3>
@@ -565,26 +466,6 @@ const activeTab = ref('overview')
 const showEditModal = ref(false)
 const showAddPropertyModal = ref(false)
 const initiatingAML = ref(false)
-
-const electoralRollMatch = computed(() => {
-  // Treat satisfactory status as a positive electoral roll match
-  return landlord.value?.aml_check?.verification_status === 'satisfactory'
-}).value
-
-const ccjMatch = computed(() => {
-  // true means CCJ found (bad)
-  return landlord.value?.aml_check?.fraud_indicators?.includes('ccj') ?? false
-}).value
-
-const insolvencyMatch = computed(() => {
-  // true means insolvency found (bad)
-  return landlord.value?.aml_check?.fraud_indicators?.includes('insolvency') ?? false
-}).value
-
-const deceasedMatch = computed(() => {
-  // true means deceased (bad)
-  return landlord.value?.aml_check?.fraud_indicators?.includes('deceased') ?? false
-}).value
 
 // Document blob URLs for displaying images
 const idDocumentBlobUrl = ref<string | null>(null)

@@ -4,7 +4,6 @@ import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption'
 import * as creditService from '../services/creditService'
 import * as billingService from '../services/billingService'
-import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
 import multer from 'multer'
 import { sendLandlordVerificationRequest } from '../services/emailService'
 import { sanctionsService } from '../services/sanctionsService'
@@ -800,7 +799,6 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
 /**
  * POST /api/landlords/:id/request-id-verification
  * Request ID verification for a landlord - sends email with verification link
- * Does NOT call Creditsafe - that happens when landlord submits the form
  */
 router.post('/:id/request-id-verification', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -839,7 +837,7 @@ router.post('/:id/request-id-verification', authenticateToken, async (req: AuthR
     const verificationToken = generateToken()
     const verificationTokenHash = hash(verificationToken)
 
-    // Create or update landlord_aml_checks record with token (no Creditsafe data yet)
+    // Create or update landlord_aml_checks record with token
     const { data: amlCheck, error: amlError } = await supabase
       .from('landlord_aml_checks')
       .upsert({
@@ -993,7 +991,7 @@ router.get('/:id/verification/:token', async (req, res) => {
 /**
  * POST /api/landlords/:id/submit-verification
  * Submit landlord verification (ID + selfie + personal details) - public route
- * Calls Creditsafe API and sanctions check after form submission
+ * Runs PEP and sanctions check after form submission
  */
 router.post('/:id/submit-verification', upload.fields([
   { name: 'id_document', maxCount: 1 },
@@ -1121,34 +1119,12 @@ router.post('/:id/submit-verification', upload.fields([
       // Continue anyway - don't block verification due to credit issues
     }
 
-    // Call Creditsafe API
-    let creditsafeResult: any = null
-    let verificationPassed = false
-    let riskLevel = 'unknown'
-
-    try {
-      creditsafeResult = await creditsafeService.verify({
-        firstName: first_name,
-        lastName: last_name,
-        dateOfBirth: date_of_birth,
-        address: address_line1 + (address_line2 ? `, ${address_line2}` : ''),
-        postCode: postcode
-      })
-
-      if (creditsafeResult) {
-        verificationPassed = creditsafeResult.status === 'passed'
-        riskLevel = creditsafeResult.riskLevel || (verificationPassed ? 'low' : 'high')
-      }
-    } catch (creditsafeError: any) {
-      console.error('Creditsafe verification error:', creditsafeError)
-      // Store the error but don't fail the entire submission
-      creditsafeResult = { error: creditsafeError.message }
-    }
-
-    // Run sanctions check
+    // Run sanctions check - pass/fail is based solely on PEP and Sanctions results
     let sanctionsResult: any = null
     let pepCheckResult: boolean | null = null  // true = flagged (bad), false = clear (good), null = not checked
     let sanctionsCheckResult: boolean | null = null
+    let verificationPassed = true  // Default to passed, will be set to false if any flags found
+    let riskLevel = 'low'
 
     try {
       sanctionsResult = await sanctionsService.screenTenant({
@@ -1166,13 +1142,14 @@ router.post('/:id/submit-verification', upload.fields([
         pepCheckResult = hasDonationMatches
         sanctionsCheckResult = hasSanctionsMatches
 
-        // If sanctions found, increase risk level
+        // Determine pass/fail based on PEP and Sanctions only
         if (hasSanctionsMatches) {
           riskLevel = 'high'
           verificationPassed = false
         } else if (hasDonationMatches) {
-          // Donation matches suggest PEP - medium risk
-          riskLevel = sanctionsResult.risk_level === 'clear' ? 'medium' : sanctionsResult.risk_level
+          // Donation matches suggest PEP - medium risk, still fails
+          riskLevel = 'medium'
+          verificationPassed = false
         }
       }
     } catch (sanctionsError: any) {
@@ -1188,11 +1165,9 @@ router.post('/:id/submit-verification', upload.fields([
       verification_status: verificationPassed ? 'passed' : 'failed',
       verification_submitted_at: new Date().toISOString(),
       verified_at: new Date().toISOString(),
-      verification_score: creditsafeResult?.score || null,
       pep_check_result: pepCheckResult,
       sanctions_check_result: sanctionsCheckResult,
       risk_level: riskLevel,
-      creditsafe_response: creditsafeResult ? JSON.stringify(creditsafeResult) : null,
       sanctions_response: sanctionsResult ? JSON.stringify(sanctionsResult) : null
     }
 
