@@ -3,6 +3,30 @@
     <!-- Header -->
     <StaffHeader />
 
+    <!-- Toast Notification -->
+    <Transition
+      enter-active-class="transition ease-out duration-300"
+      enter-from-class="transform opacity-0 translate-y-2"
+      enter-to-class="transform opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-200"
+      leave-from-class="transform opacity-100 translate-y-0"
+      leave-to-class="transform opacity-0 translate-y-2"
+    >
+      <div
+        v-if="toast.show"
+        class="fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+        :class="toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'"
+      >
+        <svg v-if="toast.type === 'success'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        {{ toast.message }}
+      </div>
+    </Transition>
+
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Info Banner -->
@@ -119,16 +143,37 @@
                     </div>
                   </div>
                   <div class="flex gap-2 ml-4">
-                    <a
-                      :href="`mailto:${contact.email}?subject=Follow-up: Reference Request for ${item.tenant_name}&body=Dear ${contact.name},%0D%0A%0D%0AWe are following up on the reference request for ${item.tenant_name} at ${item.property_address}.%0D%0A%0D%0ACould you please complete the reference form at your earliest convenience?%0D%0A%0D%0AThank you,%0D%0APropertyGoose Team`"
-                      class="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-primary hover:bg-primary-dark rounded-md"
-                      title="Send chase email"
+                    <button
+                      @click="sendReminder(item.id, contact.type, 'email')"
+                      :disabled="isSending(`${item.id}-${contact.type}-email`)"
+                      class="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-primary hover:bg-primary-dark rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Send chase email with form link"
                     >
-                      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg v-if="isSending(`${item.id}-${contact.type}-email`)" class="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <svg v-else class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
-                      Email
-                    </a>
+                      {{ isSending(`${item.id}-${contact.type}-email`) ? 'Sending...' : 'Email' }}
+                    </button>
+                    <button
+                      v-if="contact.phone"
+                      @click="sendReminder(item.id, contact.type, 'sms')"
+                      :disabled="isSending(`${item.id}-${contact.type}-sms`)"
+                      class="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Send SMS with form link"
+                    >
+                      <svg v-if="isSending(`${item.id}-${contact.type}-sms`)" class="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <svg v-else class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      {{ isSending(`${item.id}-${contact.type}-sms`) ? 'Sending...' : 'SMS' }}
+                    </button>
                     <a
                       v-if="contact.phone"
                       :href="`tel:${contact.phone}`"
@@ -168,6 +213,12 @@ const authStore = useAuthStore()
 
 const loading = ref(true)
 const chaseItems = ref<any[]>([])
+const sendingStatus = ref<Record<string, boolean>>({})
+const toast = ref<{ show: boolean; message: string; type: 'success' | 'error' }>({
+  show: false,
+  message: '',
+  type: 'success'
+})
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -192,6 +243,45 @@ const fetchChaseList = async () => {
     console.error('Error fetching chase list:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const isSending = (key: string) => sendingStatus.value[key] || false
+
+const showToast = (message: string, type: 'success' | 'error') => {
+  toast.value = { show: true, message, type }
+  setTimeout(() => {
+    toast.value.show = false
+  }, 3000)
+}
+
+const sendReminder = async (referenceId: string, contactType: string, method: 'email' | 'sms') => {
+  const key = `${referenceId}-${contactType}-${method}`
+  sendingStatus.value[key] = true
+
+  try {
+    const token = authStore.session?.access_token
+    const response = await fetch(`${API_URL}/api/staff/chase/${referenceId}/send-reminder`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ contactType, method })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to send reminder')
+    }
+
+    showToast(`${method === 'email' ? 'Email' : 'SMS'} sent successfully to ${contactType}`, 'success')
+  } catch (error: any) {
+    console.error('Error sending reminder:', error)
+    showToast(error.message || 'Failed to send reminder', 'error')
+  } finally {
+    sendingStatus.value[key] = false
   }
 }
 

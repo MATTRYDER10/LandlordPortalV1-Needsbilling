@@ -53,11 +53,11 @@
 
       <!-- Tabs -->
       <div class="tabs">
-        <button :class="['tab', { active: activeTab === 'chase' }]" @click="activeTab = 'chase'">
-          Chase Queue ({{ stats.chase.total }})
-        </button>
         <button :class="['tab', { active: activeTab === 'verify' }]" @click="activeTab = 'verify'">
           Verify Queue ({{ stats.verify.total }})
+        </button>
+        <button :class="['tab', { active: activeTab === 'chase' }]" @click="activeTab = 'chase'">
+          Chase Queue ({{ stats.chase.total }})
         </button>
         <button :class="['tab', { active: activeTab === 'my-cases' }]" @click="activeTab = 'my-cases'">
           My Cases ({{ stats.chase.myItems + stats.verify.myItems }})
@@ -175,7 +175,7 @@ const authStore = useAuthStore()
 const MAX_ACTIVE_ITEMS = 10
 const AUTO_RETURN_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours
 
-const activeTab = ref<'chase' | 'verify' | 'my-cases'>('chase')
+const activeTab = ref<'chase' | 'verify' | 'my-cases'>('verify')
 const workItems = ref<any[]>([])
 const stats = ref({
   chase: { available: 0, assigned: 0, inProgress: 0, myItems: 0, total: 0 },

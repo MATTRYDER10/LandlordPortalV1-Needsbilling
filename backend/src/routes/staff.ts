@@ -1,10 +1,25 @@
 import { Router } from 'express'
 import { authenticateStaff, StaffAuthRequest } from '../middleware/staffAuth'
 import { supabase } from '../config/supabase'
-import { decrypt, encrypt } from '../services/encryption'
+import { decrypt, encrypt, generateToken, hash } from '../services/encryption'
 import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
 import { sanctionsService } from '../services/sanctionsService'
-import { sendReferenceCompletedNotification } from '../services/emailService'
+import {
+  sendReferenceCompletedNotification,
+  sendGuarantorReferenceRequest,
+  sendLandlordReferenceRequest,
+  sendAgentReferenceRequest,
+  sendEmployerReferenceRequest,
+  sendAccountantReferenceRequest
+} from '../services/emailService'
+import {
+  sendGuarantorReferenceRequestSMS,
+  sendLandlordReferenceRequestSMS,
+  sendAgentReferenceRequestSMS,
+  sendEmployerReferenceRequestSMS,
+  sendAccountantReferenceRequestSMS
+} from '../services/smsService'
+import { logAuditAction } from '../services/auditService'
 import {  reAssessApplicationScore, ReAssessmentPayload } from '../services/application-assesment/assessApplication'
 
 const router = Router()
@@ -357,9 +372,35 @@ router.get('/chase-list', authenticateStaff, async (req: StaffAuthRequest, res) 
       .filter(item => item !== null)
       .sort((a, b) => (b?.days_pending || 0) - (a?.days_pending || 0))
 
+    // Get SMS cooldowns from the last 12 hours
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
+    const { data: cooldowns } = await supabase
+      .from('chase_sms_cooldowns')
+      .select('reference_id, contact_type')
+      .gte('sent_at', twelveHoursAgo)
+
+    // Create a set of cooldown keys for quick lookup
+    const cooldownSet = new Set(
+      (cooldowns || []).map(c => `${c.reference_id}-${c.contact_type}`)
+    )
+
+    // Filter out contacts that are in SMS cooldown
+    const itemsWithFilteredContacts = filteredChaseItems.map(item => {
+      if (!item) return null
+      const filteredContacts = item.contacts_to_chase.filter(
+        (contact: { type: string }) => !cooldownSet.has(`${item.id}-${contact.type}`)
+      )
+      // If all contacts are in cooldown, hide the entire item
+      if (filteredContacts.length === 0) return null
+      return {
+        ...item,
+        contacts_to_chase: filteredContacts
+      }
+    }).filter(item => item !== null)
+
     res.json({
-      chase_items: filteredChaseItems,
-      total_count: filteredChaseItems.length
+      chase_items: itemsWithFilteredContacts,
+      total_count: itemsWithFilteredContacts.length
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -1243,4 +1284,291 @@ router.post('/references/:id/re-assess', authenticateStaff, async (req: StaffAut
     res.status(500).json({ error: error.message || 'Failed to re-assess application score' })
   }
 })
+
+// Send chase reminder (email or SMS) for a specific contact type
+router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { referenceId } = req.params
+    const { contactType, method } = req.body as { contactType: string; method: 'email' | 'sms' }
+
+    if (!contactType || !method) {
+      return res.status(400).json({ error: 'contactType and method are required' })
+    }
+
+    if (!['Guarantor', 'Landlord', 'Agent', 'Employer', 'Accountant'].includes(contactType)) {
+      return res.status(400).json({ error: 'Invalid contact type' })
+    }
+
+    if (!['email', 'sms'].includes(method)) {
+      return res.status(400).json({ error: 'Method must be email or sms' })
+    }
+
+    // Get the reference
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get company info
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .eq('id', reference.company_id)
+      .single()
+
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+    const propertyAddress = decrypt(reference.property_address_encrypted) || ''
+    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) || '' : ''
+    const companyPhone = companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted) || '' : ''
+    const companyEmail = companyData?.email_encrypted ? decrypt(companyData.email_encrypted) || '' : ''
+
+    let contactEmail = ''
+    let contactPhone = ''
+    let contactName = ''
+    let formLink = ''
+    let smsResult: { success: boolean; error?: string } | null = null
+
+    // Handle each contact type
+    switch (contactType) {
+      case 'Guarantor': {
+        // Get guarantor reference
+        const { data: guarantorRef } = await supabase
+          .from('guarantor_references')
+          .select('id, reference_token_hash, guarantor_first_name_encrypted, guarantor_last_name_encrypted, email_encrypted, contact_number_encrypted')
+          .eq('reference_id', referenceId)
+          .single()
+
+        if (!guarantorRef) {
+          return res.status(404).json({ error: 'Guarantor reference not found' })
+        }
+
+        contactEmail = decrypt(guarantorRef.email_encrypted) || ''
+        contactPhone = decrypt(guarantorRef.contact_number_encrypted) || ''
+        contactName = `${decrypt(guarantorRef.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRef.guarantor_last_name_encrypted) || ''}`.trim()
+
+        // Generate new token
+        const guarantorToken = generateToken()
+        const guarantorTokenHash = hash(guarantorToken)
+        await supabase
+          .from('guarantor_references')
+          .update({ reference_token_hash: guarantorTokenHash })
+          .eq('id', guarantorRef.id)
+
+        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
+
+        if (method === 'email') {
+          await sendGuarantorReferenceRequest(
+            contactEmail,
+            contactName,
+            tenantName,
+            propertyAddress,
+            companyName,
+            companyPhone,
+            companyEmail,
+            formLink,
+            guarantorRef.id
+          )
+        } else {
+          if (!contactPhone) {
+            return res.status(400).json({ error: 'No phone number available for SMS' })
+          }
+          smsResult = await sendGuarantorReferenceRequestSMS(
+            contactPhone,
+            contactName,
+            tenantName,
+            formLink,
+            guarantorRef.id
+          )
+        }
+        break
+      }
+
+      case 'Landlord': {
+        contactEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        contactPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
+        contactName = decrypt(reference.previous_landlord_name_encrypted) || ''
+        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${referenceId}`
+
+        if (method === 'email') {
+          await sendLandlordReferenceRequest(
+            contactEmail,
+            contactName,
+            tenantName,
+            formLink,
+            companyName,
+            companyPhone,
+            companyEmail,
+            referenceId
+          )
+        } else {
+          if (!contactPhone) {
+            return res.status(400).json({ error: 'No phone number available for SMS' })
+          }
+          smsResult = await sendLandlordReferenceRequestSMS(
+            contactPhone,
+            contactName,
+            tenantName,
+            formLink,
+            referenceId
+          )
+        }
+        break
+      }
+
+      case 'Agent': {
+        contactEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        contactPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
+        contactName = reference.previous_agency_name || ''
+        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`
+
+        if (method === 'email') {
+          await sendAgentReferenceRequest(
+            contactEmail,
+            contactName,
+            tenantName,
+            formLink,
+            companyName,
+            companyPhone,
+            companyEmail,
+            referenceId
+          )
+        } else {
+          if (!contactPhone) {
+            return res.status(400).json({ error: 'No phone number available for SMS' })
+          }
+          smsResult = await sendAgentReferenceRequestSMS(
+            contactPhone,
+            contactName,
+            tenantName,
+            formLink,
+            referenceId
+          )
+        }
+        break
+      }
+
+      case 'Employer': {
+        contactEmail = decrypt(reference.employer_ref_email_encrypted) || ''
+        contactPhone = decrypt(reference.employer_ref_phone_encrypted) || ''
+        contactName = decrypt(reference.employer_ref_name_encrypted) || ''
+        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${referenceId}`
+
+        if (method === 'email') {
+          await sendEmployerReferenceRequest(
+            contactEmail,
+            contactName,
+            tenantName,
+            formLink,
+            companyName,
+            companyPhone,
+            companyEmail,
+            referenceId
+          )
+        } else {
+          if (!contactPhone) {
+            return res.status(400).json({ error: 'No phone number available for SMS' })
+          }
+          smsResult = await sendEmployerReferenceRequestSMS(
+            contactPhone,
+            contactName,
+            tenantName,
+            formLink,
+            referenceId
+          )
+        }
+        break
+      }
+
+      case 'Accountant': {
+        // Get accountant reference
+        const { data: accountantRef } = await supabase
+          .from('accountant_references')
+          .select('id, reference_token_hash')
+          .eq('tenant_reference_id', referenceId)
+          .single()
+
+        if (!accountantRef) {
+          return res.status(404).json({ error: 'Accountant reference not found' })
+        }
+
+        contactEmail = decrypt(reference.accountant_email_encrypted) || ''
+        contactPhone = decrypt(reference.accountant_phone_encrypted) || ''
+        contactName = decrypt(reference.accountant_name_encrypted) || ''
+
+        // Generate new token
+        const accountantToken = generateToken()
+        const accountantTokenHash = hash(accountantToken)
+        await supabase
+          .from('accountant_references')
+          .update({ reference_token_hash: accountantTokenHash })
+          .eq('id', accountantRef.id)
+
+        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accountant-reference/${accountantToken}`
+
+        if (method === 'email') {
+          await sendAccountantReferenceRequest(
+            contactEmail,
+            contactName,
+            tenantName,
+            formLink,
+            companyName,
+            companyPhone,
+            companyEmail,
+            accountantRef.id
+          )
+        } else {
+          if (!contactPhone) {
+            return res.status(400).json({ error: 'No phone number available for SMS' })
+          }
+          smsResult = await sendAccountantReferenceRequestSMS(
+            contactPhone,
+            contactName,
+            tenantName,
+            formLink,
+            accountantRef.id
+          )
+        }
+        break
+      }
+    }
+
+    // Check if SMS failed
+    if (method === 'sms' && smsResult && !smsResult.success) {
+      return res.status(500).json({ error: smsResult.error || 'Failed to send SMS' })
+    }
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: method === 'email' ? 'EMAIL_RESENT' : 'SMS_SENT',
+      description: `Chase ${method} sent to ${contactType}: ${method === 'email' ? contactEmail : contactPhone}`,
+      metadata: { contactType, method, recipient: method === 'email' ? contactEmail : contactPhone }
+    })
+
+    // Record SMS contact attempt for cooldown tracking (only if SMS succeeded)
+    if (method === 'sms' && smsResult?.success) {
+      await supabase.from('chase_sms_cooldowns').upsert({
+        reference_id: referenceId,
+        contact_type: contactType,
+        sent_at: new Date().toISOString()
+      }, {
+        onConflict: 'reference_id,contact_type'
+      })
+    }
+
+    res.json({
+      message: `${method === 'email' ? 'Email' : 'SMS'} sent successfully to ${contactType}`,
+      recipient: method === 'email' ? contactEmail : contactPhone
+    })
+  } catch (error: any) {
+    console.error('Failed to send chase reminder:', error)
+    res.status(500).json({ error: error.message || 'Failed to send reminder' })
+  }
+})
+
 export default router
