@@ -203,9 +203,9 @@
                 Not available
               </span>
             </div> -->
-            <!-- Gates -->
+            <!-- Critical Flags -->
             <div>
-              <p class="text-xs text-gray-500 mb-1">Gates</p>
+              <p class="text-xs text-gray-500 mb-1">Critical Flags</p>
               <div v-if="activeGates.length > 0" class="flex flex-wrap gap-2">
                 <span v-for="gate in activeGates" :key="gate.key"
                   class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-300">
@@ -214,7 +214,7 @@
               </div>
               <div v-else
                 class="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-2 py-1 inline-block">
-                No gates
+                None
               </div>
             </div>
           </div>
@@ -2246,9 +2246,9 @@
                 </span>
               </div>
 
-              <!-- Gates Section -->
+              <!-- Critical Flags Section -->
               <div class="mb-6">
-                <p class="text-sm font-semibold text-gray-700 mb-3">Gates</p>
+                <p class="text-sm font-semibold text-gray-700 mb-3">Critical Flags</p>
                 <div v-if="activeGatesForPreview.length > 0" class="flex flex-wrap gap-2">
                   <span v-for="gate in activeGatesForPreview" :key="gate.key"
                     class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-300">
@@ -2256,7 +2256,7 @@
                   </span>
                 </div>
                 <div v-else class="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
-                  No gates
+                  None
                 </div>
               </div>
 
@@ -2676,9 +2676,16 @@ const formatStatusText = (status: string | null | undefined): string => {
     pending_verification: 'Pending Verification',
     completed: 'Completed',
     cancelled: 'Cancelled',
-    rejected: 'Rejected'
+    rejected: 'Rejected',
+    // Decision values
+    superb: 'Superb',
+    pass: 'Pass',
+    pass_with_guarantor: 'Pass with Guarantor',
+    fail: 'Fail',
+    decline: 'Decline',
+    no_decision: 'No Decision'
   }
-  return statusMap[status.toLowerCase()] || status
+  return statusMap[status.toLowerCase()] || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 const getStatusChipClasses = (status: string | null | undefined): string => {
