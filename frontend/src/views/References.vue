@@ -1071,7 +1071,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
@@ -1175,6 +1175,27 @@ const rentSharesValid = computed(() => {
   const total = totalRentShare.value
   const monthlyRent = Number(formData.value.monthly_rent) || 0
   return Math.abs(total - monthlyRent) < 0.01 && monthlyRent > 0
+})
+
+const distributeRentEvenly = () => {
+  if (tenantCount.value <= 1) return
+  const monthlyRent = Number(formData.value.monthly_rent) || 0
+  if (monthlyRent <= 0) return
+
+  const sharePerTenant = Math.floor((monthlyRent / tenantCount.value) * 100) / 100
+  const remainder = Math.round((monthlyRent - (sharePerTenant * tenantCount.value)) * 100) / 100
+
+  tenants.value.forEach((tenant, index) => {
+    // Give the remainder (due to rounding) to the first tenant
+    tenant.rent_share = index === 0
+      ? Math.round((sharePerTenant + remainder) * 100) / 100
+      : sharePerTenant
+  })
+}
+
+// Watch monthly rent to auto-distribute among tenants
+watch(() => formData.value.monthly_rent, () => {
+  distributeRentEvenly()
 })
 
 const statusCounts = computed(() => {
@@ -1426,6 +1447,9 @@ const updateTenantCount = (count: number) => {
   while (tenants.value.length > count) {
     tenants.value.pop()
   }
+
+  // Auto-distribute rent when tenant count changes
+  distributeRentEvenly()
 
   // Update previous count for next change
   previousTenantCount.value = count
