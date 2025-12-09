@@ -97,8 +97,8 @@
                 <th scope="col" class="px-6 py-3 text-left">
                   <input
                     type="checkbox"
-                    :checked="filteredLandlords.length > 0 && selectedLandlords.size === filteredLandlords.length"
-                    :indeterminate="selectedLandlords.size > 0 && selectedLandlords.size < filteredLandlords.length"
+                    :checked="landlords.length > 0 && selectedLandlords.size === landlords.length"
+                    :indeterminate="selectedLandlords.size > 0 && selectedLandlords.size < landlords.length"
                     @change="toggleSelectAll"
                     class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                   />
@@ -118,13 +118,13 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-if="filteredLandlords.length === 0">
+              <tr v-if="landlords.length === 0">
                 <td colspan="5" class="px-6 py-8 text-center text-gray-500">
                   No landlords found
                 </td>
               </tr>
               <tr
-                v-for="landlord in filteredLandlords"
+                v-for="landlord in landlords"
                 :key="landlord.id"
                 class="hover:bg-gray-50 cursor-pointer"
                 :class="{ 'bg-primary/5': selectedLandlords.has(landlord.id) }"
@@ -215,6 +215,21 @@
             </tbody>
           </table>
           </div>
+
+          <!-- Load More / Pagination Info -->
+          <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <span class="text-sm text-gray-600">
+              Showing {{ landlords.length }} of {{ totalCount }} landlord{{ totalCount === 1 ? '' : 's' }}
+            </span>
+            <button
+              v-if="hasMorePages"
+              @click="loadMore"
+              :disabled="loadingMore"
+              class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-md disabled:opacity-50"
+            >
+              {{ loadingMore ? 'Loading...' : 'Load More' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -247,7 +262,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import Sidebar from '../components/Sidebar.vue'
@@ -264,6 +279,7 @@ const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const loading = ref(false)
+const loadingMore = ref(false)
 const error = ref('')
 const landlords = ref<any[]>([])
 const searchQuery = ref('')
@@ -276,33 +292,55 @@ const actionsMenuOpen = ref<string | null>(null)
 const selectedLandlords = ref<Set<string>>(new Set())
 const bulkDeleting = ref(false)
 
-const filteredLandlords = computed(() => {
-  let filtered = landlords.value
+// Pagination state
+const currentPage = ref(1)
+const totalPages = ref(1)
+const totalCount = ref(0)
+const pageSize = 50
 
-  // Apply search filter
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(landlord => {
-      const fullName = `${landlord.first_name || ''} ${landlord.last_name || ''}`.toLowerCase()
-      const email = (landlord.email || '').toLowerCase()
-      return fullName.includes(query) || email.includes(query)
-    })
+// Debounce timer for search
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+// Watch for search/filter changes and re-fetch from server
+watch(searchQuery, () => {
+  // Debounce search to avoid too many requests
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
   }
-
-  // Apply AML status filter
-  if (amlStatusFilter.value) {
-    filtered = filtered.filter(landlord => landlord.aml_status === amlStatusFilter.value)
-  }
-
-  return filtered
+  searchDebounceTimer = setTimeout(() => {
+    currentPage.value = 1
+    fetchLandlords(1, false)
+  }, 300)
 })
 
-const fetchLandlords = async () => {
-  loading.value = true
+watch(amlStatusFilter, () => {
+  currentPage.value = 1
+  fetchLandlords(1, false)
+})
+
+const fetchLandlords = async (page = 1, append = false) => {
+  if (page === 1) {
+    loading.value = true
+  } else {
+    loadingMore.value = true
+  }
   error.value = ''
 
   try {
-    const response = await fetch(`${API_URL}/api/landlords`, {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: pageSize.toString()
+    })
+
+    // Send search and filter to backend
+    if (searchQuery.value) {
+      params.set('search', searchQuery.value)
+    }
+    if (amlStatusFilter.value) {
+      params.set('aml_status', amlStatusFilter.value)
+    }
+
+    const response = await fetch(`${API_URL}/api/landlords?${params}`, {
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
@@ -314,14 +352,35 @@ const fetchLandlords = async () => {
     }
 
     const data = await response.json()
-    landlords.value = data.landlords || []
+
+    if (append) {
+      landlords.value = [...landlords.value, ...(data.landlords || [])]
+    } else {
+      landlords.value = data.landlords || []
+    }
+
+    // Update pagination state
+    if (data.pagination) {
+      currentPage.value = data.pagination.page
+      totalPages.value = data.pagination.totalPages
+      totalCount.value = data.pagination.total
+    }
   } catch (err: any) {
     error.value = err.message || 'Failed to load landlords'
     toast.error('Failed to load landlords')
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
+
+const loadMore = () => {
+  if (currentPage.value < totalPages.value && !loadingMore.value) {
+    fetchLandlords(currentPage.value + 1, true)
+  }
+}
+
+const hasMorePages = computed(() => currentPage.value < totalPages.value)
 
 const viewLandlord = (id: string) => {
   router.push(`/landlords/${id}`)
@@ -361,10 +420,10 @@ const deleteLandlord = async (id: string) => {
 }
 
 const toggleSelectAll = () => {
-  if (selectedLandlords.value.size === filteredLandlords.value.length) {
+  if (selectedLandlords.value.size === landlords.value.length) {
     selectedLandlords.value.clear()
   } else {
-    selectedLandlords.value = new Set(filteredLandlords.value.map(l => l.id))
+    selectedLandlords.value = new Set(landlords.value.map(l => l.id))
   }
 }
 

@@ -29,6 +29,7 @@ const upload = multer({
 /**
  * GET /api/landlords
  * Get all landlords for the authenticated user's company
+ * Supports pagination with ?page=1&limit=50
  */
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -49,25 +50,49 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    const { search, aml_status } = req.query
+    const { search, aml_status, page, limit } = req.query
 
-    // Build query
+    // Pagination settings
+    const pageNum = Math.max(1, parseInt(page as string) || 1)
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 50))
+    const offset = (pageNum - 1) * limitNum
+
+    // Get total count for pagination metadata
+    let countQuery = supabase
+      .from('landlords')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', companyUser.company_id)
+
+    if (aml_status && typeof aml_status === 'string') {
+      countQuery = countQuery.eq('aml_status', aml_status)
+    }
+
+    const { count: totalCount } = await countQuery
+
+    // Build query - only select fields needed for list view
     let query = supabase
       .from('landlords')
-      .select('*')
+      .select(`
+        id,
+        company_id,
+        first_name_encrypted,
+        last_name_encrypted,
+        email_encrypted,
+        aml_status,
+        aml_completed_at,
+        created_at
+      `)
       .eq('company_id', companyUser.company_id)
       .order('created_at', { ascending: false })
-
-    // Apply search filter
-    if (search && typeof search === 'string') {
-      // Note: Since fields are encrypted, we'll need to decrypt and filter in memory
-      // For now, we'll fetch all and filter client-side, or implement a search index
-      // For production, consider using a search service or decrypted search fields
-    }
 
     // Apply AML status filter
     if (aml_status && typeof aml_status === 'string') {
       query = query.eq('aml_status', aml_status)
+    }
+
+    // Apply pagination if no search (search requires full dataset for encrypted field filtering)
+    if (!search) {
+      query = query.range(offset, offset + limitNum - 1)
     }
 
     const { data: landlords, error } = await query
@@ -76,54 +101,16 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: error.message })
     }
 
-    // Decrypt landlord data
+    // Decrypt only the fields needed for list view
     const decryptedLandlords = landlords?.map(landlord => ({
       id: landlord.id,
       company_id: landlord.company_id,
-      title: decrypt(landlord.title_encrypted),
       first_name: decrypt(landlord.first_name_encrypted),
-      middle_name: decrypt(landlord.middle_name_encrypted),
       last_name: decrypt(landlord.last_name_encrypted),
-      preferred_email_greeting: decrypt(landlord.preferred_email_greeting_encrypted),
-      full_name_displayed_on_contracts: decrypt(landlord.full_name_displayed_on_contracts_encrypted),
-      phone: decrypt(landlord.phone_encrypted),
       email: decrypt(landlord.email_encrypted),
-      date_of_birth: landlord.date_of_birth,
-      is_company: landlord.is_company,
-      company_name: decrypt(landlord.company_name_encrypted),
-      residential_address: {
-        line1: decrypt(landlord.residential_address_line1_encrypted),
-        line2: decrypt(landlord.residential_address_line2_encrypted),
-        city: decrypt(landlord.residential_city_encrypted),
-        postcode: decrypt(landlord.residential_postcode_encrypted),
-        country: decrypt(landlord.residential_country_encrypted)
-      },
-      has_section48_address: landlord.has_section48_address,
-      section48_address: landlord.has_section48_address ? {
-        line1: decrypt(landlord.section48_address_line1_encrypted),
-        line2: decrypt(landlord.section48_address_line2_encrypted),
-        city: decrypt(landlord.section48_city_encrypted),
-        postcode: decrypt(landlord.section48_postcode_encrypted),
-        country: decrypt(landlord.section48_country_encrypted)
-      } : null,
-      bank_details: {
-        account_name: decrypt(landlord.bank_account_name_encrypted),
-        account_number: decrypt(landlord.bank_account_number_encrypted),
-        sort_code: decrypt(landlord.bank_sort_code_encrypted),
-        is_joint_account: landlord.is_joint_account
-      },
-      regulatory: {
-        landlord_registration_number: landlord.landlord_registration_number,
-        landlord_license_number: landlord.landlord_license_number,
-        agent_sign_on_behalf: landlord.agent_sign_on_behalf
-      },
       aml_status: landlord.aml_status,
       aml_completed_at: landlord.aml_completed_at,
-      verification_status: landlord.verification_status,
-      verification_submitted_at: landlord.verification_submitted_at,
-      verification_verified_at: landlord.verification_verified_at,
-      created_at: landlord.created_at,
-      updated_at: landlord.updated_at
+      created_at: landlord.created_at
     })) || []
 
     // Apply search filter if provided (after decryption)
@@ -135,9 +122,31 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         const email = (landlord.email || '').toLowerCase()
         return fullName.includes(searchLower) || email.includes(searchLower)
       })
+      // Apply pagination to search results
+      const searchTotal = filteredLandlords.length
+      filteredLandlords = filteredLandlords.slice(offset, offset + limitNum)
+
+      res.json({
+        landlords: filteredLandlords,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: searchTotal,
+          totalPages: Math.ceil(searchTotal / limitNum)
+        }
+      })
+      return
     }
 
-    res.json({ landlords: filteredLandlords })
+    res.json({
+      landlords: filteredLandlords,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount || 0,
+        totalPages: Math.ceil((totalCount || 0) / limitNum)
+      }
+    })
   } catch (error: any) {
     console.error('Error fetching landlords:', error)
     res.status(500).json({ error: error.message })
