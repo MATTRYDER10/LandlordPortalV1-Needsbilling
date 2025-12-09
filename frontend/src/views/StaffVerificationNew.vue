@@ -1553,13 +1553,25 @@
                       </svg>
                       <span class="text-sm text-gray-900">Document Preview</span>
                     </div>
+                    <a v-if="proofOfAddressBlobUrl" :href="proofOfAddressBlobUrl" target="_blank"
+                      class="text-sm text-orange-600 hover:text-orange-700 font-medium">
+                      Open in new tab
+                    </a>
                   </div>
                   <div class="h-96 border rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
                     <template v-if="proofOfAddressBlobUrl">
-                      <img :src="proofOfAddressBlobUrl" class="max-w-full max-h-full object-contain" alt="Proof of Address" />
+                      <!-- PDF Viewer -->
+                      <iframe v-if="proofOfAddressIsPdf"
+                        :src="proofOfAddressBlobUrl"
+                        class="w-full h-full"
+                        style="min-height: 384px;"
+                        frameborder="0"
+                      ></iframe>
+                      <!-- Image Viewer -->
+                      <img v-else :src="proofOfAddressBlobUrl" class="max-w-full max-h-full object-contain" alt="Proof of Address" />
                     </template>
                     <div v-else class="flex items-center justify-center h-full text-xs text-gray-500">
-                      Preview not available yet. Use &quot;Open in new tab&quot; above.
+                      Loading document preview...
                     </div>
                   </div>
                 </div>
@@ -2682,6 +2694,7 @@ const guarantorReference = ref<any>(null)
 const payslipPreviewUrl = ref('')
 const selectedPayslipIndex = ref<number | null>(null)
 const proofOfAddressBlobUrl = ref('')
+const proofOfAddressIsPdf = ref(false)
 const rtrAlternativeDocumentBlobUrl = ref('')
 const taxReturnPreviewUrl = ref('')
 const proofOfFundsPreviewUrl = ref('')
@@ -3377,6 +3390,18 @@ const loadImageAsBlob = async (filePath: string): Promise<string> => {
   }
 }
 
+// Check if a blob URL is a PDF by examining its MIME type
+const checkIfPdf = async (url: string): Promise<boolean> => {
+  if (!url || !url.startsWith('blob:')) return false
+  try {
+    const response = await fetch(url)
+    const blob = await response.blob()
+    return blob.type === 'application/pdf'
+  } catch {
+    return false
+  }
+}
+
 const previewPayslip = async (filePath: string, index: number) => {
   selectedPayslipIndex.value = index
   payslipPreviewUrl.value = await loadImageAsBlob(filePath)
@@ -3557,6 +3582,7 @@ const loadData = async () => {
     if (reference.value.proof_of_address_path) {
       console.log('Loading proof of address from path:', reference.value.proof_of_address_path)
       proofOfAddressBlobUrl.value = await loadImageAsBlob(reference.value.proof_of_address_path)
+      proofOfAddressIsPdf.value = await checkIfPdf(proofOfAddressBlobUrl.value)
     } else {
       console.warn('No proof of address path found')
     }
