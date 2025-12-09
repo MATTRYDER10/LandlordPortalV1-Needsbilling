@@ -1114,16 +1114,12 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 resY += 20
 
                 const rentPaidOnTime = referenceData.rent_paid_on_time === "yes" ? 'Yes' : referenceData.rent_paid_on_time === "no" ? 'No' : '—'
-                const propertyCondition = referenceData.property_condition_encrypted ? decrypt(referenceData.property_condition_encrypted) : (referenceData.property_condition || '—')
-                const neighbourComplaints = referenceData.neighbour_complaints === "yes" ? 'Yes' : referenceData.neighbour_complaints === "no" ? 'No' : '—'
-                const breachOfTenancy = referenceData.breach_of_tenancy === "yes" ? 'Yes' : referenceData.breach_of_tenancy === "no" ? 'No' : '—'
+                const goodTenant = referenceData.good_tenant === "yes" ? 'Yes' : referenceData.good_tenant === "no" ? 'No' : '—'
                 const wouldRentAgain = referenceData.would_rent_again === "yes" ? 'Yes' : referenceData.would_rent_again === "no" ? 'No' : '—'
 
                 const assessmentData: Array<[string, string]> = [
                     ['Rent Paid On Time:', rentPaidOnTime],
-                    ['Property Condition:', propertyCondition],
-                    ['Neighbour Complaints:', neighbourComplaints],
-                    ['Breach of Tenancy:', breachOfTenancy],
+                    ['Good Tenant:', goodTenant],
                     ['Would Rent Again:', wouldRentAgain]
                 ]
 

@@ -1457,37 +1457,9 @@
 
                               <div>
                                 <div class="mb-1">
-                                  <span class="text-green-700 font-medium text-sm">Property Condition:</span>
+                                  <span class="text-green-700 font-medium text-sm">Good Tenant:</span>
                                   <span class="ml-2 text-green-900 capitalize">{{
-                                    childReferenceDetails[child.id].agentReference.property_condition }}</span>
-                                </div>
-                                <div v-if="childReferenceDetails[child.id].agentReference.property_condition_details"
-                                  class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 text-xs italic">
-                                  {{ childReferenceDetails[child.id].agentReference.property_condition_details }}
-                                </div>
-                              </div>
-
-                              <div>
-                                <div class="mb-1">
-                                  <span class="text-green-700 font-medium text-sm">Neighbour Complaints:</span>
-                                  <span class="ml-2 text-green-900 capitalize">{{
-                                    childReferenceDetails[child.id].agentReference.neighbour_complaints }}</span>
-                                </div>
-                                <div v-if="childReferenceDetails[child.id].agentReference.neighbour_complaints_details"
-                                  class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 text-xs italic">
-                                  {{ childReferenceDetails[child.id].agentReference.neighbour_complaints_details }}
-                                </div>
-                              </div>
-
-                              <div>
-                                <div class="mb-1">
-                                  <span class="text-green-700 font-medium text-sm">Breach of Tenancy:</span>
-                                  <span class="ml-2 text-green-900 capitalize">{{
-                                    childReferenceDetails[child.id].agentReference.breach_of_tenancy }}</span>
-                                </div>
-                                <div v-if="childReferenceDetails[child.id].agentReference.breach_of_tenancy_details"
-                                  class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 text-xs italic">
-                                  {{ childReferenceDetails[child.id].agentReference.breach_of_tenancy_details }}
+                                    childReferenceDetails[child.id].agentReference.good_tenant }}</span>
                                 </div>
                               </div>
 
@@ -3153,34 +3125,8 @@
 
                       <div>
                         <div class="mb-1">
-                          <span class="text-green-700 font-medium">Property Condition:</span>
-                          <span class="ml-2 text-green-900 capitalize">{{ agentReference.property_condition }}</span>
-                        </div>
-                        <div v-if="agentReference.property_condition_details"
-                          class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                          {{ agentReference.property_condition_details }}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div class="mb-1">
-                          <span class="text-green-700 font-medium">Neighbour Complaints:</span>
-                          <span class="ml-2 text-green-900 capitalize">{{ agentReference.neighbour_complaints }}</span>
-                        </div>
-                        <div v-if="agentReference.neighbour_complaints_details"
-                          class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                          {{ agentReference.neighbour_complaints_details }}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div class="mb-1">
-                          <span class="text-green-700 font-medium">Breach of Tenancy:</span>
-                          <span class="ml-2 text-green-900 capitalize">{{ agentReference.breach_of_tenancy }}</span>
-                        </div>
-                        <div v-if="agentReference.breach_of_tenancy_details"
-                          class="ml-4 pl-3 border-l-2 border-green-300 text-green-800 italic">
-                          {{ agentReference.breach_of_tenancy_details }}
+                          <span class="text-green-700 font-medium">Good Tenant:</span>
+                          <span class="ml-2 text-green-900 capitalize">{{ agentReference.good_tenant }}</span>
                         </div>
                       </div>
 

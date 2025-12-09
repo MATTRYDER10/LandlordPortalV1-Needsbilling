@@ -558,11 +558,6 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       property_city: decrypt(landlordReference.property_city_encrypted),
       property_postcode: decrypt(landlordReference.property_postcode_encrypted),
       monthly_rent: decrypt(landlordReference.monthly_rent_encrypted),
-      rent_paid_on_time_details: decrypt(landlordReference.rent_paid_on_time_details_encrypted),
-      property_condition_details: decrypt(landlordReference.property_condition_details_encrypted),
-      neighbour_complaints_details: decrypt(landlordReference.neighbour_complaints_details_encrypted),
-      breach_of_tenancy_details: decrypt(landlordReference.breach_of_tenancy_details_encrypted),
-      would_rent_again_details: decrypt(landlordReference.would_rent_again_details_encrypted),
       additional_comments: decrypt(landlordReference.additional_comments_encrypted),
       signature_name: decrypt(landlordReference.signature_name_encrypted),
       signature: decrypt(landlordReference.signature_encrypted)
@@ -578,11 +573,6 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       property_city: decrypt(agentReference.property_city_encrypted),
       property_postcode: decrypt(agentReference.property_postcode_encrypted),
       monthly_rent: decrypt(agentReference.monthly_rent_encrypted),
-      rent_paid_on_time_details: decrypt(agentReference.rent_paid_on_time_details_encrypted),
-      property_condition_details: decrypt(agentReference.property_condition_details_encrypted),
-      neighbour_complaints_details: decrypt(agentReference.neighbour_complaints_details_encrypted),
-      breach_of_tenancy_details: decrypt(agentReference.breach_of_tenancy_details_encrypted),
-      would_rent_again_details: decrypt(agentReference.would_rent_again_details_encrypted),
       additional_comments: decrypt(agentReference.additional_comments_encrypted),
       signature_name: decrypt(agentReference.signature_name_encrypted),
       signature: decrypt(agentReference.signature_encrypted)
