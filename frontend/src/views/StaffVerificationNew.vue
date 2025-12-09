@@ -2025,46 +2025,46 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-3">Select TAS Category</label>
                 <div class="grid grid-cols-2 gap-4">
-                  <button @click="tasDecision = 'PASS_PLUS'" :class="[
+                  <button @click="tasDecision = 'PASS'" :class="[
                     'p-4 rounded-lg border-2 text-left transition-all',
-                    tasDecision === 'PASS_PLUS'
+                    tasDecision === 'PASS'
                       ? 'border-green-600 bg-green-50'
                       : 'border-gray-300 bg-white hover:border-green-300'
                   ]">
                     <div class="flex items-center gap-2 mb-1">
                       <div :class="[
                         'w-4 h-4 rounded-full border-2',
-                        tasDecision === 'PASS_PLUS' ? 'border-green-600 bg-green-600' : 'border-gray-300'
-                      ]">
-                        <svg v-if="tasDecision === 'PASS_PLUS'" class="w-full h-full text-white" fill="currentColor"
-                          viewBox="0 0 12 12">
-                          <circle cx="6" cy="6" r="3" />
-                        </svg>
-                      </div>
-                      <span class="font-semibold text-green-700">Pass+ (Top 5%)</span>
-                    </div>
-                    <p class="text-xs text-gray-600 ml-6">Exceptional applicant, no concerns</p>
-                  </button>
-
-                  <button @click="tasDecision = 'PASS'" :class="[
-                    'p-4 rounded-lg border-2 text-left transition-all',
-                    tasDecision === 'PASS'
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-300 bg-white hover:border-blue-300'
-                  ]">
-                    <div class="flex items-center gap-2 mb-1">
-                      <div :class="[
-                        'w-4 h-4 rounded-full border-2',
-                        tasDecision === 'PASS' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                        tasDecision === 'PASS' ? 'border-green-600 bg-green-600' : 'border-gray-300'
                       ]">
                         <svg v-if="tasDecision === 'PASS'" class="w-full h-full text-white" fill="currentColor"
                           viewBox="0 0 12 12">
                           <circle cx="6" cy="6" r="3" />
                         </svg>
                       </div>
-                      <span class="font-semibold text-blue-700">Pass (Accept)</span>
+                      <span class="font-semibold text-green-700">Pass (Accept)</span>
                     </div>
                     <p class="text-xs text-gray-600 ml-6">Satisfactory applicant, recommend acceptance</p>
+                  </button>
+
+                  <button @click="tasDecision = 'PASS_WITH_GUARANTOR'" :class="[
+                    'p-4 rounded-lg border-2 text-left transition-all',
+                    tasDecision === 'PASS_WITH_GUARANTOR'
+                      ? 'border-amber-600 bg-amber-50'
+                      : 'border-gray-300 bg-white hover:border-amber-300'
+                  ]">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div :class="[
+                        'w-4 h-4 rounded-full border-2',
+                        tasDecision === 'PASS_WITH_GUARANTOR' ? 'border-amber-600 bg-amber-600' : 'border-gray-300'
+                      ]">
+                        <svg v-if="tasDecision === 'PASS_WITH_GUARANTOR'" class="w-full h-full text-white" fill="currentColor"
+                          viewBox="0 0 12 12">
+                          <circle cx="6" cy="6" r="3" />
+                        </svg>
+                      </div>
+                      <span class="font-semibold text-amber-700">Pass with Guarantor</span>
+                    </div>
+                    <p class="text-xs text-gray-600 ml-6">Applicant passes but requires a guarantor</p>
                   </button>
 
                   <button @click="tasDecision = 'REFER'" :class="[
@@ -2638,7 +2638,7 @@ const steps = ref<VerificationStep[]>([
 ])
 
 // TAS decision
-const tasDecision = ref<'PASS_PLUS' | 'PASS' | 'REFER' | 'FAIL' | null>(null)
+const tasDecision = ref<'PASS' | 'PASS_WITH_GUARANTOR' | 'REFER' | 'FAIL' | null>(null)
 const tasReason = ref('')
 
 type CreditAndAmlVerification = Omit<CreditsAndAmlUIProps, 'caller'>

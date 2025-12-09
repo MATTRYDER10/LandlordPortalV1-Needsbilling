@@ -489,6 +489,7 @@ router.get('/references/outcomes', async (req: Request, res: Response) => {
     const tasCategories = {
       PASS_PLUS: 0,
       PASS: 0,
+      PASS_WITH_GUARANTOR: 0,
       REFER: 0,
       FAIL: 0,
       NOT_SCORED: 0

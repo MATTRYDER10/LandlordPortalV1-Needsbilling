@@ -341,8 +341,8 @@ router.post('/reference/:referenceId/finalize', staffAuth, async (req: StaffAuth
       return res.status(401).json({ error: 'Staff authentication required' });
     }
 
-    // Validate TAS category
-    if (!['PASS_PLUS', 'PASS', 'REFER', 'FAIL'].includes(tas_category)) {
+    // Validate TAS category (PASS_PLUS kept for backward compatibility)
+    if (!['PASS_PLUS', 'PASS', 'PASS_WITH_GUARANTOR', 'REFER', 'FAIL'].includes(tas_category)) {
       return res.status(400).json({ error: 'Invalid TAS category' });
     }
 
@@ -382,7 +382,7 @@ router.post('/reference/:referenceId/finalize', staffAuth, async (req: StaffAuth
 
     // Calculate overall pass/fail
     const allStepsPassed = steps?.every(s => s.overall_pass === true);
-    const finalDecision = (tas_category === 'PASS_PLUS' || tas_category === 'PASS') && allStepsPassed ? 'passed' : 'failed';
+    const finalDecision = (tas_category === 'PASS_PLUS' || tas_category === 'PASS' || tas_category === 'PASS_WITH_GUARANTOR') && allStepsPassed ? 'passed' : 'failed';
 
     // Update verification check with final decision
     const { error: updateError } = await supabaseAdmin
