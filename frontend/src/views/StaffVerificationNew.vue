@@ -1007,6 +1007,51 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Accountant vs Tenant Comparison -->
+              <div v-if="accountantComparisonTable.length" class="bg-white border rounded-lg p-4 mt-4">
+                <div class="flex items-center justify-between mb-3">
+                  <h4 class="font-semibold text-gray-900">Accountant Reference vs Tenant Declaration</h4>
+                  <span class="text-xs text-gray-500" v-if="accountantComparisonHasMismatch">
+                    Differences detected—document rationale below.
+                  </span>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Field</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Tenant Provided</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Accountant Confirmed</th>
+                        <th class="px-4 py-2 text-center font-medium text-gray-600 uppercase tracking-wide">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                      <tr v-for="row in accountantComparisonTable" :key="row.key" :class="row.status === 'mismatch'
+                        ? 'bg-red-50'
+                        : row.status === 'unknown'
+                          ? 'bg-gray-50'
+                          : ''">
+                        <td class="px-4 py-2 font-medium text-gray-900">{{ row.label }}</td>
+                        <td class="px-4 py-2 text-gray-900">{{ row.tenant }}</td>
+                        <td class="px-4 py-2 text-gray-900">{{ row.accountant }}</td>
+                        <td class="px-4 py-2 text-center">
+                          <span :class="[
+                            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                            comparisonBadgeClass(row.status)
+                          ]">
+                            {{ comparisonStatusLabel(row.status) }}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p v-if="accountantComparisonHasMismatch"
+                  class="mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                  Please add notes in this step explaining how you resolved these differences before proceeding.
+                </p>
+              </div>
             </div>
 
             <!-- Savings, Pensions or Investments Details -->
@@ -1766,6 +1811,52 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Residential Data Verification Comparison -->
+            <div v-if="residentialComparisonTable.length && reference?.reference_type !== 'living_with_family'" class="bg-white border rounded-lg p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-semibold text-gray-900">{{ landlordReference ? 'Landlord' : 'Agent' }} Reference Data Verification</h4>
+                <span class="text-xs text-gray-500" v-if="residentialComparisonHasMismatch">
+                  Differences detected—document rationale below.
+                </span>
+              </div>
+              <p class="text-sm text-gray-600 mb-4">Compare tenant-provided information with reference details</p>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Field</th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Tenant Provided</th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">{{ landlordReference ? 'Landlord' : 'Agent' }} Confirmed</th>
+                      <th class="px-4 py-2 text-center font-medium text-gray-600 uppercase tracking-wide">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100">
+                    <tr v-for="row in residentialComparisonTable" :key="row.key" :class="row.status === 'mismatch'
+                      ? 'bg-red-50'
+                      : row.status === 'unknown'
+                        ? 'bg-gray-50'
+                        : ''">
+                      <td class="px-4 py-2 font-medium text-gray-900">{{ row.label }}</td>
+                      <td class="px-4 py-2 text-gray-900">{{ row.tenant }}</td>
+                      <td class="px-4 py-2 text-gray-900">{{ row.reference }}</td>
+                      <td class="px-4 py-2 text-center">
+                        <span :class="[
+                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                          comparisonBadgeClass(row.status)
+                        ]">
+                          {{ comparisonStatusLabel(row.status) }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p v-if="residentialComparisonHasMismatch"
+                class="mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                Please add notes in this step explaining how you resolved these differences before proceeding.
+              </p>
             </div>
 
             <!-- Verification Checks -->
@@ -2617,6 +2708,22 @@ interface EmploymentComparisonDisplayRow {
   status: SimpleComparisonStatus
 }
 
+interface AccountantComparisonDisplayRow {
+  key: string
+  label: string
+  tenant: string
+  accountant: string
+  status: SimpleComparisonStatus
+}
+
+interface ResidentialComparisonDisplayRow {
+  key: string
+  label: string
+  tenant: string
+  reference: string
+  status: SimpleComparisonStatus
+}
+
 // Type definition for verification step
 interface VerificationStep {
   step_number: number
@@ -2865,6 +2972,171 @@ const employmentComparisonTable = computed<EmploymentComparisonDisplayRow[]>(() 
 
 const employmentComparisonHasMismatch = computed(() =>
   employmentComparisonTable.value.some(row => row.status === 'mismatch')
+)
+
+// Accountant comparison table
+const accountantComparisonTable = computed<AccountantComparisonDisplayRow[]>(() => {
+  if (!reference.value || !accountantReference.value || !accountantReference.value.submitted_at) return []
+
+  const tenant = reference.value
+  const accountant = accountantReference.value
+
+  const rows: AccountantComparisonDisplayRow[] = [
+    {
+      key: 'business_name',
+      label: 'Business Name',
+      tenant: formatTextDisplay(tenant.self_employed_business_name),
+      accountant: formatTextDisplay(accountant.business_name),
+      status: compareTextValues(tenant.self_employed_business_name, accountant.business_name)
+    },
+    {
+      key: 'nature_of_business',
+      label: 'Nature of Business',
+      tenant: formatTextDisplay(tenant.self_employed_nature_of_business),
+      accountant: formatTextDisplay(accountant.nature_of_business),
+      status: compareTextValues(tenant.self_employed_nature_of_business, accountant.nature_of_business)
+    },
+    {
+      key: 'start_date',
+      label: 'Business Start Date',
+      tenant: formatDateDisplay(tenant.self_employed_start_date),
+      accountant: formatDateDisplay(accountant.business_start_date),
+      status: compareTextValues(tenant.self_employed_start_date, accountant.business_start_date)
+    },
+    {
+      key: 'annual_income',
+      label: 'Annual Income',
+      tenant: formatCurrencyDisplay(parseFloat(tenant.self_employed_annual_income || '0')),
+      accountant: accountant.estimated_monthly_income
+        ? formatCurrencyDisplay(parseFloat(accountant.estimated_monthly_income) * 12)
+        : 'Not provided',
+      status: compareCurrencyValues(
+        tenant.self_employed_annual_income,
+        accountant.estimated_monthly_income ? parseFloat(accountant.estimated_monthly_income) * 12 : null
+      )
+    },
+    {
+      key: 'accountant_firm',
+      label: 'Accountant Firm',
+      tenant: formatTextDisplay(tenant.accountant_name),
+      accountant: formatTextDisplay(accountant.accountant_firm || accountant.firm_name),
+      status: compareTextValues(tenant.accountant_name, accountant.accountant_firm || accountant.firm_name)
+    },
+    {
+      key: 'accountant_contact',
+      label: 'Accountant Contact',
+      tenant: formatTextDisplay(tenant.accountant_contact_name),
+      accountant: formatTextDisplay(accountant.accountant_name),
+      status: compareTextValues(tenant.accountant_contact_name, accountant.accountant_name)
+    },
+    {
+      key: 'accountant_email',
+      label: 'Accountant Email',
+      tenant: formatTextDisplay(tenant.accountant_email),
+      accountant: formatTextDisplay(accountant.accountant_email),
+      status: compareTextValues(tenant.accountant_email, accountant.accountant_email)
+    }
+  ]
+
+  return rows
+})
+
+const accountantComparisonHasMismatch = computed(() =>
+  accountantComparisonTable.value.some(row => row.status === 'mismatch')
+)
+
+// Residential (landlord/agent) comparison table
+const residentialComparisonTable = computed<ResidentialComparisonDisplayRow[]>(() => {
+  if (!reference.value) return []
+
+  const tenant = reference.value
+  const refData = landlordReference.value || agentReference.value
+  if (!refData || !refData.submitted_at) return []
+
+  const isLandlord = !!landlordReference.value
+
+  const rows: ResidentialComparisonDisplayRow[] = [
+    {
+      key: 'property_address',
+      label: 'Property Address',
+      tenant: formatTextDisplay(tenant.previous_rental_address_line1),
+      reference: formatTextDisplay(refData.property_address),
+      status: compareTextValues(tenant.previous_rental_address_line1, refData.property_address)
+    },
+    {
+      key: 'property_city',
+      label: 'Property City',
+      tenant: formatTextDisplay(tenant.previous_rental_city),
+      reference: formatTextDisplay(refData.property_city),
+      status: compareTextValues(tenant.previous_rental_city, refData.property_city)
+    },
+    {
+      key: 'property_postcode',
+      label: 'Property Postcode',
+      tenant: formatTextDisplay(tenant.previous_rental_postcode),
+      reference: formatTextDisplay(refData.property_postcode),
+      status: compareTextValues(tenant.previous_rental_postcode, refData.property_postcode)
+    },
+    {
+      key: 'contact_name',
+      label: isLandlord ? 'Landlord Name' : 'Agent Name',
+      tenant: formatTextDisplay(tenant.previous_landlord_name),
+      reference: formatTextDisplay(isLandlord ? refData.landlord_name : refData.agent_name),
+      status: compareTextValues(tenant.previous_landlord_name, isLandlord ? refData.landlord_name : refData.agent_name)
+    },
+    ...(!isLandlord ? [{
+      key: 'agency_name',
+      label: 'Agency Name',
+      tenant: formatTextDisplay(tenant.previous_agency_name),
+      reference: formatTextDisplay(refData.agency_name),
+      status: compareTextValues(tenant.previous_agency_name, refData.agency_name)
+    }] : []),
+    {
+      key: 'contact_email',
+      label: isLandlord ? 'Landlord Email' : 'Agent Email',
+      tenant: formatTextDisplay(tenant.previous_landlord_email),
+      reference: formatTextDisplay(isLandlord ? refData.landlord_email : refData.agent_email),
+      status: compareTextValues(tenant.previous_landlord_email, isLandlord ? refData.landlord_email : refData.agent_email)
+    },
+    {
+      key: 'contact_phone',
+      label: isLandlord ? 'Landlord Phone' : 'Agent Phone',
+      tenant: formatTextDisplay(tenant.previous_landlord_phone),
+      reference: formatTextDisplay(isLandlord ? refData.landlord_phone : refData.agent_phone),
+      status: compareTextValues(tenant.previous_landlord_phone, isLandlord ? refData.landlord_phone : refData.agent_phone)
+    },
+    {
+      key: 'tenancy_start',
+      label: 'Tenancy Start Date',
+      tenant: formatDateDisplay(tenant.previous_tenancy_start_date),
+      reference: formatDateDisplay(refData.tenancy_start_date),
+      status: compareTextValues(tenant.previous_tenancy_start_date, refData.tenancy_start_date)
+    },
+    {
+      key: 'tenancy_end',
+      label: 'Tenancy End Date',
+      tenant: formatDateDisplay(tenant.previous_tenancy_end_date),
+      reference: refData.tenancy_still_in_progress
+        ? '🚩 STILL IN CONTRACT - No end date'
+        : formatDateDisplay(refData.tenancy_end_date),
+      status: refData.tenancy_still_in_progress
+        ? (tenant.previous_tenancy_end_date ? 'mismatch' : 'unknown')
+        : compareTextValues(tenant.previous_tenancy_end_date, refData.tenancy_end_date)
+    },
+    {
+      key: 'monthly_rent',
+      label: 'Monthly Rent',
+      tenant: tenant.previous_monthly_rent ? `£${tenant.previous_monthly_rent}` : 'Not provided',
+      reference: refData.monthly_rent ? `£${refData.monthly_rent}` : 'Not provided',
+      status: compareCurrencyValues(tenant.previous_monthly_rent, refData.monthly_rent)
+    }
+  ]
+
+  return rows
+})
+
+const residentialComparisonHasMismatch = computed(() =>
+  residentialComparisonTable.value.some(row => row.status === 'mismatch')
 )
 
 // Computed
