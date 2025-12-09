@@ -4985,8 +4985,8 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
     const companyPhone = companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || '') : ''
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
 
-    // Use submit-reference form link (guarantors fill out a tenant reference form)
-    const formLink = `${process.env.FRONTEND_URL}/submit-reference/${guarantorToken}`
+    // Use guarantor-reference form link
+    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
 
     await sendGuarantorReferenceRequest(
       guarantorEmail,
