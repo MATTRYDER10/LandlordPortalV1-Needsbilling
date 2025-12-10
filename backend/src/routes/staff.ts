@@ -1563,30 +1563,58 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
       }
 
       case 'Accountant': {
-        // Get accountant reference
-        const { data: accountantRef } = await supabase
+        // Get accountant reference (may not exist yet if tenant provided details but email wasn't sent)
+        let { data: accountantRef } = await supabase
           .from('accountant_references')
-          .select('id, reference_token_hash')
+          .select('id, token_hash')
           .eq('tenant_reference_id', referenceId)
-          .single()
-
-        if (!accountantRef) {
-          return res.status(404).json({ error: 'Accountant reference not found' })
-        }
+          .maybeSingle()
 
         contactEmail = decrypt(reference.accountant_email_encrypted) || ''
         contactPhone = decrypt(reference.accountant_phone_encrypted) || ''
         contactName = decrypt(reference.accountant_name_encrypted) || ''
 
-        // Generate new token
-        const accountantToken = generateToken()
-        const accountantTokenHash = hash(accountantToken)
-        await supabase
-          .from('accountant_references')
-          .update({ reference_token_hash: accountantTokenHash })
-          .eq('id', accountantRef.id)
+        // If no accountant reference row exists, create one using tenant's provided details
+        if (!accountantRef) {
+          if (!contactEmail || !contactName) {
+            return res.status(404).json({ error: 'Accountant reference not found - no contact details available' })
+          }
 
-        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accountant-reference/${accountantToken}`
+          // Generate token for new record
+          const newAccountantToken = generateToken()
+          const newAccountantTokenHash = hash(newAccountantToken)
+
+          const { data: newAccountantRef, error: insertError } = await supabase
+            .from('accountant_references')
+            .insert({
+              tenant_reference_id: referenceId,
+              token_hash: newAccountantTokenHash,
+              accountant_firm_encrypted: encrypt(decrypt(reference.accountant_company_encrypted) || ''),
+              accountant_name_encrypted: reference.accountant_name_encrypted,
+              accountant_email_encrypted: reference.accountant_email_encrypted,
+              accountant_phone_encrypted: reference.accountant_phone_encrypted,
+            })
+            .select('id, token_hash')
+            .single()
+
+          if (insertError || !newAccountantRef) {
+            console.error('Failed to create accountant reference:', insertError)
+            return res.status(500).json({ error: 'Failed to create accountant reference record' })
+          }
+
+          accountantRef = newAccountantRef
+          formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accountant-reference/${newAccountantToken}`
+        } else {
+          // Generate new token for existing record
+          const accountantToken = generateToken()
+          const accountantTokenHash = hash(accountantToken)
+          await supabase
+            .from('accountant_references')
+            .update({ token_hash: accountantTokenHash })
+            .eq('id', accountantRef.id)
+
+          formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accountant-reference/${accountantToken}`
+        }
 
         if (method === 'email') {
           await sendAccountantReferenceRequest(
