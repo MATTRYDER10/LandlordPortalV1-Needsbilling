@@ -819,13 +819,13 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
       const notificationEmail = reference.companies?.reference_notification_email
 
       if (notificationEmail) {
-        const tenantName = decrypt(reference.tenant_name_encrypted)
+        const tenantName = decrypt(reference.tenant_name_encrypted) || 'Tenant'
         const propertyAddress = reference.property_address_encrypted
-          ? decrypt(reference.property_address_encrypted)
+          ? decrypt(reference.property_address_encrypted) || 'N/A'
           : 'N/A'
 
         const companyName = reference.companies?.name_encrypted
-          ? decrypt(reference.companies.name_encrypted)
+          ? decrypt(reference.companies.name_encrypted) || 'Agent'
           : 'Agent'
 
         const dashboardLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/dashboard/references/${reference.id}`
