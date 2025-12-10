@@ -1,7 +1,10 @@
 import { Router } from 'express'
+import multer from 'multer'
+import crypto from 'crypto'
 import { authenticateStaff, StaffAuthRequest } from '../middleware/staffAuth'
 import { supabase } from '../config/supabase'
 import { decrypt, encrypt, generateToken, hash } from '../services/encryption'
+import { loadEmailTemplate, sendEmail } from '../services/emailService'
 import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
 import { sanctionsService } from '../services/sanctionsService'
 import {
@@ -23,6 +26,22 @@ import { logAuditAction } from '../services/auditService'
 import {  reAssessApplicationScore, ReAssessmentPayload } from '../services/application-assesment/assessApplication'
 
 const router = Router()
+
+// Configure multer for staff file uploads (store in memory)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Invalid file type. Only PDF and images are allowed.'))
+    }
+  }
+})
 
 const parseEncryptedJsonField = (value?: string | null) => {
   if (!value) return null
@@ -1628,6 +1647,211 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
   } catch (error: any) {
     console.error('Failed to send chase reminder:', error)
     res.status(500).json({ error: error.message || 'Failed to send reminder' })
+  }
+})
+
+// Document type to database field mapping
+const documentTypeToField: Record<string, string> = {
+  'id_document': 'id_document_path',
+  'selfie': 'selfie_path',
+  'proof_of_address': 'proof_of_address_path',
+  'proof_of_funds': 'proof_of_funds_path',
+  'proof_of_additional_income': 'proof_of_additional_income_path',
+  'bank_statements': 'bank_statements_paths',
+  'payslips': 'payslips_paths',
+  'tax_return': 'tax_return_path',
+  'rtr_alternative_document': 'rtr_alternative_document_path'
+}
+
+const documentTypeLabels: Record<string, string> = {
+  'id_document': 'ID Document',
+  'selfie': 'Selfie',
+  'proof_of_address': 'Proof of Address',
+  'proof_of_funds': 'Proof of Funds',
+  'proof_of_additional_income': 'Proof of Additional Income',
+  'bank_statements': 'Bank Statements',
+  'payslips': 'Payslips',
+  'tax_return': 'Tax Return',
+  'rtr_alternative_document': 'Right to Rent Alternative Document'
+}
+
+// Staff upload document on behalf of tenant
+router.post('/references/:id/upload-document', authenticateStaff, upload.single('file'), async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { document_type } = req.body
+    const file = req.file
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file provided' })
+    }
+
+    if (!document_type || !documentTypeToField[document_type]) {
+      return res.status(400).json({ error: 'Invalid document type' })
+    }
+
+    // Verify reference exists
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted')
+      .eq('id', id)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Upload file to Supabase storage
+    const fileExt = file.originalname.split('.').pop()
+    const fileName = `${id}/${document_type}/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('tenant-documents')
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+      })
+
+    if (uploadError) {
+      throw new Error(`Failed to upload file: ${uploadError.message}`)
+    }
+
+    // Update the reference with the new file path
+    const fieldName = documentTypeToField[document_type]
+    const updateData: Record<string, any> = {}
+
+    // Handle array fields (bank_statements, payslips)
+    if (fieldName.endsWith('_paths')) {
+      // Get existing paths and append
+      const { data: currentRef } = await supabase
+        .from('tenant_references')
+        .select(fieldName)
+        .eq('id', id)
+        .single()
+
+      const existingPaths = (currentRef as Record<string, any>)?.[fieldName] || []
+      updateData[fieldName] = [...existingPaths, fileName]
+    } else {
+      updateData[fieldName] = fileName
+    }
+
+    const { error: updateError } = await supabase
+      .from('tenant_references')
+      .update(updateData)
+      .eq('id', id)
+
+    if (updateError) {
+      throw new Error(`Failed to update reference: ${updateError.message}`)
+    }
+
+    // Log audit action
+    await logAuditAction({
+      referenceId: id,
+      action: 'DOCUMENT_UPLOADED_BY_STAFF',
+      description: `Staff uploaded ${documentTypeLabels[document_type]}`,
+      metadata: { document_type, file_name: fileName },
+      userId: req.staffUser?.id
+    })
+
+    res.json({
+      message: 'Document uploaded successfully',
+      file_path: fileName
+    })
+  } catch (error: any) {
+    console.error('Failed to upload document:', error)
+    res.status(500).json({ error: error.message || 'Failed to upload document' })
+  }
+})
+
+// Request document from tenant (pushes back to in_progress)
+router.post('/references/:id/request-document', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { document_type, message } = req.body
+
+    if (!document_type || !documentTypeLabels[document_type]) {
+      return res.status(400).json({ error: 'Invalid document type' })
+    }
+
+    // Get reference details
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, tenant_first_name_encrypted, tenant_email_encrypted, token, status')
+      .eq('id', id)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    const tenantFirstName = decrypt(reference.tenant_first_name_encrypted) || 'Tenant'
+    const tenantEmail = decrypt(reference.tenant_email_encrypted)
+
+    if (!tenantEmail) {
+      return res.status(400).json({ error: 'Tenant email not found' })
+    }
+
+    // Update status to in_progress
+    const { error: statusError } = await supabase
+      .from('tenant_references')
+      .update({ status: 'in_progress' })
+      .eq('id', id)
+
+    if (statusError) {
+      throw new Error(`Failed to update status: ${statusError.message}`)
+    }
+
+    // Add note explaining why pushed back
+    const noteText = `Reference pushed back to request ${documentTypeLabels[document_type]} from tenant.${message ? ` Staff note: ${message}` : ''}`
+
+    await supabase
+      .from('reference_notes')
+      .insert({
+        reference_id: id,
+        note: noteText,
+        created_by: req.staffUser?.id
+      })
+
+    // Update or remove from VERIFY work queue
+    await supabase
+      .from('work_items')
+      .update({ status: 'RETURNED' })
+      .eq('reference_id', id)
+      .eq('work_type', 'VERIFY')
+      .eq('status', 'IN_PROGRESS')
+
+    // Send email to tenant requesting the document
+    const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-form/${reference.token}`
+
+    const emailHtml = await loadEmailTemplate('document-request', {
+      TenantFirstName: tenantFirstName,
+      DocumentType: documentTypeLabels[document_type],
+      FormUrl: formUrl,
+      CustomMessage: message || ''
+    })
+
+    await sendEmail({
+      to: tenantEmail,
+      subject: `Document Required - ${documentTypeLabels[document_type]} - PropertyGoose`,
+      html: emailHtml
+    })
+
+    // Log audit action
+    await logAuditAction({
+      referenceId: id,
+      action: 'DOCUMENT_REQUESTED',
+      description: `Requested ${documentTypeLabels[document_type]} from tenant, pushed back to in_progress`,
+      metadata: { document_type, previous_status: reference.status },
+      userId: req.staffUser?.id
+    })
+
+    res.json({
+      message: `Document request sent to tenant. Reference pushed back to In Progress.`,
+      new_status: 'in_progress'
+    })
+  } catch (error: any) {
+    console.error('Failed to request document:', error)
+    res.status(500).json({ error: error.message || 'Failed to request document' })
   }
 })
 

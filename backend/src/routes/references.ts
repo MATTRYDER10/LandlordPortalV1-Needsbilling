@@ -2788,7 +2788,7 @@ router.post('/upload/:token', (req, res, next) => {
     // Get reference by token hash
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
-      .select('id, company_id')
+      .select('id, company_id, status')
       .eq('reference_token_hash', tokenHash)
       .gte('token_expires_at', new Date().toISOString())
       .single()
@@ -2985,6 +2985,64 @@ router.post('/upload/:token', (req, res, next) => {
         }
 
         payslipPaths.push(fileName)
+      }
+    }
+
+    // Auto-return to verify queue if reference was pushed back to in_progress
+    // and tenant has now uploaded documents
+    if (reference.status === 'in_progress') {
+      const hasNewDocuments = idDocumentPath || selfiePath || proofOfAddressPath ||
+        proofOfFundsPath || proofOfAdditionalIncomePath || rtrAlternativeDocumentPath ||
+        taxReturnPath || bankStatementPaths.length > 0 || payslipPaths.length > 0
+
+      if (hasNewDocuments) {
+        // Update status to pending_verification
+        await supabase
+          .from('tenant_references')
+          .update({ status: 'pending_verification' })
+          .eq('id', reference.id)
+
+        // Create or reactivate work item in VERIFY queue
+        const { data: existingWorkItem } = await supabase
+          .from('work_items')
+          .select('id, status')
+          .eq('reference_id', reference.id)
+          .eq('work_type', 'VERIFY')
+          .single()
+
+        if (existingWorkItem) {
+          // Reactivate existing work item
+          await supabase
+            .from('work_items')
+            .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null })
+            .eq('id', existingWorkItem.id)
+        } else {
+          // Create new work item
+          await supabase
+            .from('work_items')
+            .insert({
+              reference_id: reference.id,
+              work_type: 'VERIFY',
+              status: 'AVAILABLE'
+            })
+        }
+
+        // Add note about document upload
+        await supabase
+          .from('reference_notes')
+          .insert({
+            reference_id: reference.id,
+            note: 'Tenant uploaded requested document(s). Reference returned to verification queue.',
+            created_by: null // System-generated note
+          })
+
+        // Log audit action
+        await logAuditAction({
+          referenceId: reference.id,
+          action: 'DOCUMENT_UPLOADED_BY_TENANT',
+          description: 'Tenant uploaded document(s), reference returned to verification queue',
+          metadata: { previous_status: 'in_progress' }
+        })
       }
     }
 
