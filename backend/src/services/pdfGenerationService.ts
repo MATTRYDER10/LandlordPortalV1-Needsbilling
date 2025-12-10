@@ -404,6 +404,7 @@ class PDFGenerationService {
     if (annexBlockMatch) {
       // Generate individual contract holder entries as tables (matching the expected format)
       // Each contract holder gets their own table matching the Landlord's Details table structure
+      // Post-Contract fields use the tenant's current address/email as default
       const contractHolders = data.tenants.map((tenant, index) => {
         const tenantAddress = this.formatAddress(tenant.address)
         const tenantEmail = data.tenantEmail || ''
@@ -414,13 +415,16 @@ class PDFGenerationService {
         entry += `| Name: ${tenant.name} | Telephone Number: |\n`
         entry += `| :---- | :---- |\n`
         entry += `| Address: ${tenantAddress} | Email: ${tenantEmail} |\n`
-        entry += `| Post-Contract Address: | Post-Contract Telephone Number: |\n`
-        entry += `| Post-Contract Email: | |`
+        entry += `| Post-Contract Address: ${tenantAddress} | Post-Contract Telephone Number: |\n`
+        entry += `| Post-Contract Email: ${tenantEmail} | |`
         return entry
       }).join('\n\n')
 
       result = result.replace(annexBlockMatch[0], contractHolders)
     }
+
+    // Remove the standalone "Contract-Holder's Details:" header (the block generates numbered ones)
+    result = result.replace(/\*\*Contract-Holder's Details:\*\*\s*\n/gi, '')
 
     // Also handle simpler placeholder patterns
     result = result.replace(/Contract-Holder #\{n\}:/gi, '')
