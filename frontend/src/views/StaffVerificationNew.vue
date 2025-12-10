@@ -657,10 +657,16 @@
 
           <div class="space-y-6">
             <!-- Property Details Section (Moved from Income Sources) -->
-            <div v-if="reference?.monthly_rent" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div v-if="reference?.monthly_rent || reference?.rent_share" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 class="font-semibold text-gray-900 mb-3">Property Details</h4>
               <div class="space-y-1 text-sm">
-                <p><strong>Monthly Rent:</strong> £{{ reference.monthly_rent }}</p>
+                <p v-if="reference?.rent_share">
+                  <strong>Rent Share:</strong> £{{ reference.rent_share }}
+                  <span v-if="reference.monthly_rent && parseFloat(reference.monthly_rent) !== parseFloat(reference.rent_share)" class="text-gray-600">
+                    (of £{{ reference.monthly_rent }} total)
+                  </span>
+                </p>
+                <p v-else-if="reference?.monthly_rent"><strong>Monthly Rent:</strong> £{{ reference.monthly_rent }}</p>
                 <p v-if="reference?.property_address"><strong>Property:</strong> {{ reference.property_address }}, {{
                   reference.property_city }} {{ reference.property_postcode }}</p>
               </div>
