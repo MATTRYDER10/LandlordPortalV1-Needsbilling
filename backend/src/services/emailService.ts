@@ -638,38 +638,6 @@ export async function sendLandlordVerificationRequest(
 }
 
 /**
- * Send tenant application request email
- */
-export async function sendTenantApplicationRequest(
-  applicantEmail: string,
-  applicationLink: string,
-  companyName: string,
-  propertyAddress?: string,
-  companyPhone?: string,
-  companyEmail?: string | null
-): Promise<void> {
-  const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
-
-  const html = loadEmailTemplate('tenant-application-request', {
-    CompanyName: companyName,
-    ApplicationLink: applicationLink,
-    PropertyAddress: capitalizeWords(propertyAddress || ''),
-    ContactInfo: contactInfo,
-  })
-
-  await sendEmail({
-    to: applicantEmail,
-    subject: 'Complete Your Rental Application - PropertyGoose',
-    html,
-    contactDetails: {
-      companyName,
-      phone: companyPhone || undefined,
-      email: companyEmail || undefined
-    }
-  })
-}
-
-/**
  * Send tenant offer form request email
  */
 export async function sendTenantOfferRequest(
@@ -758,37 +726,6 @@ export async function sendOfferDeclinedEmail(
   await sendEmail({
     to: tenantEmail,
     subject: 'Update on Your Offer',
-    html,
-    contactDetails: {
-      companyName,
-      phone: companyPhone || undefined,
-      email: companyEmail || undefined
-    }
-  })
-}
-
-/**
- * Send application completed notification to agent
- */
-export async function sendApplicationCompletedNotification(
-  agentEmail: string,
-  applicantName: string,
-  propertyAddress: string,
-  dashboardLink: string,
-  companyName: string,
-  companyPhone?: string | null,
-  companyEmail?: string | null
-): Promise<void> {
-  const html = loadEmailTemplate('application-completed-notification', {
-    ApplicantName: capitalizeWords(applicantName),
-    PropertyAddress: capitalizeWords(propertyAddress),
-    DashboardLink: dashboardLink,
-    CompanyName: companyName || 'PropertyGoose'
-  })
-
-  await sendEmail({
-    to: agentEmail,
-    subject: `Rental Application Completed - ${applicantName} - PropertyGoose`,
     html,
     contactDetails: {
       companyName,

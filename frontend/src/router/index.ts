@@ -9,8 +9,6 @@ import Dashboard from '../views/Dashboard.vue'
 import References from '../views/References.vue'
 import ReferenceDetail from '../views/ReferenceDetail.vue'
 import SubmitReference from '../views/SubmitReference.vue'
-import TenantApplication from '../views/TenantApplication.vue'
-import CreateTenantApplication from '../views/CreateTenantApplication.vue'
 import GuarantorReference from '../views/GuarantorReference.vue'
 import LandlordReference from '../views/LandlordReference.vue'
 import AgentReference from '../views/AgentReference.vue'
@@ -34,7 +32,6 @@ import LandlordVerification from '../views/LandlordVerification.vue'
 import TenantOffer from '../views/TenantOffer.vue'
 import TenantOffers from '../views/TenantOffers.vue'
 import TenantOfferDetail from '../views/TenantOfferDetail.vue'
-import TenantApplications from '../views/TenantApplications.vue'
 import TenantOfferPaymentConfirmed from '../views/TenantOfferPaymentConfirmed.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
 import AdminStaffManagement from '../views/AdminStaffManagement.vue'
@@ -107,11 +104,6 @@ const router = createRouter({
       component: SubmitReference
     },
     {
-      path: '/tenant-application/:token',
-      name: 'TenantApplication',
-      component: TenantApplication
-    },
-    {
       path: '/tenant-offer',
       name: 'TenantOffer',
       component: TenantOffer
@@ -128,21 +120,9 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/sent-applications',
-      name: 'TenantApplications',
-      component: TenantApplications,
-      meta: { requiresAuth: true }
-    },
-    {
       path: '/tenant-offers/:id',
       name: 'TenantOfferDetail',
       component: TenantOfferDetail,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/tenant-applications/create',
-      name: 'CreateTenantApplication',
-      component: CreateTenantApplication,
       meta: { requiresAuth: true }
     },
     {
@@ -384,7 +364,6 @@ router.beforeEach(async (to, _from, next) => {
   const isPublicPath = publicPaths.some(path => to.path.startsWith(path))
   const isStaffPath = to.path.startsWith('/staff')
   const isReferenceSubmission = to.path.startsWith('/submit-reference') ||
-    to.path.startsWith('/tenant-application') ||
                                  to.path.startsWith('/tenant-offer') ||
                                  to.path.startsWith('/guarantor-reference') ||
                                  to.path.startsWith('/landlord-reference') ||
@@ -421,7 +400,7 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   // Agent portal access check - staff members cannot access agent routes
-  const agentPaths = ['/dashboard', '/references', '/agreements', '/landlords', '/tenant-offers', '/sent-applications', '/settings', '/onboarding']
+  const agentPaths = ['/dashboard', '/references', '/agreements', '/landlords', '/tenant-offers', '/settings', '/onboarding']
   const isAgentPath = agentPaths.some(path => to.path.startsWith(path))
   if (isAgentPath && authStore.isStaff && isAuthenticated) {
     // Staff member trying to access agent portal - redirect to staff work queue

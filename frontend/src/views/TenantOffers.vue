@@ -9,7 +9,7 @@
           </div>
           <button @click="showSendModal = true"
             class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
-            Send Application Form
+            Send Offer Form
           </button>
         </div>
 
@@ -175,8 +175,8 @@
         </div>
       </div>
     </div>
-    <!-- Send Application Modal -->
-    <SendApplicationModal
+    <!-- Send Offer Modal -->
+    <SendOfferModal
       :show="showSendModal"
       @close="showSendModal = false"
       @sent="fetchOffers"
@@ -189,7 +189,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
-import SendApplicationModal from '../components/SendApplicationModal.vue'
+import SendOfferModal from '../components/SendOfferModal.vue'
 import { formatDate } from '../utils/date'
 
 const router = useRouter()

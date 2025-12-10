@@ -23,7 +23,6 @@ import contactAttemptsRoutes from './routes/contact-attempts'
 import verificationStepsRoutes from './routes/verification-steps'
 import landlordsRoutes from './routes/landlords'
 import { startSchedulers } from './services/workQueueScheduler'
-import tenantApplicationRoutes from './routes/tenant-applications'
 import tenantOffersRoutes from './routes/tenant-offers'
 import googlePlaces from './routes/google-places'
 import adminRoutes from './routes/admin'
@@ -125,7 +124,6 @@ app.use('/api/invitations', invitationRoutes)
 app.use('/api/profile', profileRoutes)
 app.use('/api/references', referencesRoutes)
 app.use('/api/google-places', googlePlaces)
-app.use('/api/tenant-applications', tenantApplicationRoutes)
 app.use('/api/guarantor-references', guarantorReferencesRoutes)
 app.use('/api/rtr', rtrRoutes)
 app.use('/api/staff', staffRoutes)

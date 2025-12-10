@@ -54,12 +54,6 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             ? (decrypt((companyUser as any).companies.email_encrypted) || '')
             : ''
 
-        // Generate token for tracking
-        const token = generateToken()
-        const tokenHash = hash(token)
-        const expiresAt = new Date()
-        expiresAt.setDate(expiresAt.getDate() + 21) // 21 days expiry
-
         // Generate offer form link with company ID and pre-filled data
         const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
         const propertyAddressQuery = property_address ? `&property_address=${encodeURIComponent(property_address)}` : ''
@@ -67,32 +61,6 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         const propertyPostcodeQuery = property_postcode ? `&property_postcode=${encodeURIComponent(property_postcode)}` : ''
         const rentAmountQuery = rent_amount ? `&rent_amount=${encodeURIComponent(rent_amount)}` : ''
         const offerLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
-
-        // Create tracking record in tenant_applications
-        console.log('Creating tenant_applications record for company:', companyUser.company_id)
-        const { data: application, error: appError } = await supabase
-            .from('tenant_applications')
-            .insert({
-                company_id: companyUser.company_id,
-                created_by: userId,
-                applicant_email_encrypted: encrypt(tenant_email),
-                property_address_encrypted: encrypt(property_address),
-                property_city_encrypted: encrypt(property_city || ''),
-                property_postcode_encrypted: encrypt(property_postcode || ''),
-                agent_email_encrypted: encrypt(companyEmail || 'noreply@propertygoose.co.uk'),
-                application_token_hash: tokenHash,
-                token_expires_at: expiresAt.toISOString(),
-                status: 'pending'
-            })
-            .select()
-            .single()
-
-        if (appError) {
-            console.error('Failed to create application tracking record:', appError)
-            // Continue anyway - email sending is more important
-        } else {
-            console.log('Created tenant_applications record:', application?.id)
-        }
 
         // Send email to tenant with offer form link
         try {
@@ -114,8 +82,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             success: true,
             message: 'Offer form link sent successfully',
             email: tenant_email,
-            deposit_replacement_offered: !!offer_deposit_replacement,
-            application_id: application?.id
+            deposit_replacement_offered: !!offer_deposit_replacement
         })
     } catch (error: any) {
         console.error('Error sending offer form link:', error)
