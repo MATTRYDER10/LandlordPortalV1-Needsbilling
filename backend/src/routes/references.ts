@@ -4454,7 +4454,7 @@ router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthR
     // Get accountant reference to get the token
     const { data: accountantRef } = await supabase
       .from('accountant_references')
-      .select('id, reference_token_hash')
+      .select('id, token_hash')
       .eq('tenant_reference_id', referenceId)
       .single()
 
@@ -4469,7 +4469,7 @@ router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthR
     // Update the token hash
     await supabase
       .from('accountant_references')
-      .update({ reference_token_hash: accountantTokenHash })
+      .update({ token_hash: accountantTokenHash })
       .eq('id', accountantRef.id)
 
     // Get company info
