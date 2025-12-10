@@ -565,6 +565,20 @@ class SignatureService {
       ipAddress: sig.ip_address || 'Unknown'
     }))
 
+    // Fetch company logo for the agreement
+    let companyLogoUrl: string | undefined
+    if (agreement.company_id) {
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('logo_url')
+        .eq('id', agreement.company_id)
+        .single()
+
+      if (companyData) {
+        companyLogoUrl = companyData.logo_url || undefined
+      }
+    }
+
     // Build AgreementPDFData
     const pdfData: AgreementPDFData = {
       templateType: agreement.template_type,
@@ -588,7 +602,8 @@ class SignatureService {
       agentEmail: agreement.agent_email,
       managementType: agreement.management_type,
       breakClause: agreement.break_clause,
-      specialClauses: agreement.special_clauses
+      specialClauses: agreement.special_clauses,
+      companyLogoUrl
     }
 
     // Generate final signed PDF with audit page

@@ -170,18 +170,21 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Fetch company details for managed properties
+    // Fetch company details (always needed for logo, address only for managed)
     let companyName: string | undefined
     let companyAddress: any | undefined
+    let companyLogoUrl: string | undefined
 
-    if (agreement.management_type === 'managed') {
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('name_encrypted, address_encrypted, city_encrypted, postcode_encrypted')
-        .eq('id', companyId)
-        .single()
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, address_encrypted, city_encrypted, postcode_encrypted, logo_url')
+      .eq('id', companyId)
+      .single()
 
-      if (companyData) {
+    if (companyData) {
+      companyLogoUrl = companyData.logo_url || undefined
+
+      if (agreement.management_type === 'managed') {
         companyName = decrypt(companyData.name_encrypted) || ''
         companyAddress = {
           line1: decrypt(companyData.address_encrypted) || '',
@@ -287,7 +290,8 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       breakClause: agreementData.breakClause,
       specialClauses: agreementData.specialClauses,
       companyName: agreementData.companyName,
-      companyAddress: agreementData.companyAddress
+      companyAddress: agreementData.companyAddress,
+      companyLogoUrl
     }
 
     // Generate PDF (only after successful payment)
