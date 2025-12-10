@@ -1803,7 +1803,7 @@ router.post('/references/:id/request-document', authenticateStaff, async (req: S
     // Get reference details
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
-      .select('id, tenant_first_name_encrypted, tenant_email_encrypted, token, status')
+      .select('id, tenant_first_name_encrypted, tenant_email_encrypted, status')
       .eq('id', id)
       .single()
 
@@ -1818,10 +1818,22 @@ router.post('/references/:id/request-document', authenticateStaff, async (req: S
       return res.status(400).json({ error: 'Tenant email not found' })
     }
 
-    // Update status to in_progress
+    // Generate a new token for the tenant to access the form
+    const token = generateToken()
+    const tokenHash = hash(token)
+
+    // Token expires in 21 days
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 21)
+
+    // Update status to in_progress and set new token
     const { error: statusError } = await supabase
       .from('tenant_references')
-      .update({ status: 'in_progress' })
+      .update({
+        status: 'in_progress',
+        reference_token_hash: tokenHash,
+        token_expires_at: expiresAt.toISOString()
+      })
       .eq('id', id)
 
     if (statusError) {
@@ -1848,7 +1860,7 @@ router.post('/references/:id/request-document', authenticateStaff, async (req: S
       .eq('status', 'IN_PROGRESS')
 
     // Send email to tenant requesting the document
-    const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-form/${reference.token}`
+    const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-form/${token}`
 
     const emailHtml = await loadEmailTemplate('document-request', {
       TenantFirstName: tenantFirstName,
