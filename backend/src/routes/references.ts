@@ -1301,14 +1301,17 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
         }
       )
 
-      // Deduct 1 credit for the reference creation
+      // Deduct 1 credit per tenant for the reference creation
+      const tenantCredits = tenants.length
       try {
-        await billingService.consumeCreditForReference(
+        await creditService.deductCredits(
           companyUser.company_id,
+          tenantCredits,
           parentReference.id,
+          `Reference creation for ${tenants.length} tenant${tenants.length > 1 ? 's' : ''}`,
           userId
         )
-        console.log(`Deducted 1 credit for reference ${parentReference.id}`)
+        console.log(`Deducted ${tenantCredits} credits for multi-tenant reference ${parentReference.id} (${tenants.length} tenants)`)
       } catch (creditError: any) {
         console.error('Failed to deduct credit:', creditError)
         // Log error but don't fail the request - credit was already checked by middleware
