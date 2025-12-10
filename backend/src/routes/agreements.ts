@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { agreementService, AgreementData } from '../services/agreementService'
+import { pdfGenerationService, AgreementPDFData } from '../services/pdfGenerationService'
 import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
 import * as billingService from '../services/billingService'
@@ -55,6 +56,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       managementType,
       breakClause,
       specialClauses,
+      language,
       referenceId
     }: AgreementData & { referenceId?: string } = req.body
 
@@ -110,7 +112,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       agentEmail,
       managementType,
       breakClause,
-      specialClauses
+      specialClauses,
+      language: language || 'english'
     }
 
     // Save to database
@@ -213,6 +216,7 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       managementType: agreement.management_type,
       breakClause: agreement.break_clause,
       specialClauses: agreement.special_clauses,
+      language: agreement.language || 'english',
       companyName,
       companyAddress
     }
@@ -258,16 +262,45 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       })
     }
 
-    // Generate DOCX (only after successful payment)
-    const docxBuffer = await agreementService.generateAgreementDocx(agreementData)
+    // Convert AgreementData to AgreementPDFData
+    const pdfData: AgreementPDFData = {
+      templateType: agreementData.templateType,
+      language: agreementData.language || 'english',
+      propertyAddress: agreementData.propertyAddress,
+      landlords: agreementData.landlords,
+      tenants: agreementData.tenants,
+      guarantors: agreementData.guarantors,
+      depositAmount: agreementData.depositAmount,
+      rentAmount: agreementData.rentAmount,
+      tenancyStartDate: agreementData.tenancyStartDate,
+      tenancyEndDate: agreementData.tenancyEndDate,
+      rentDueDay: agreementData.rentDueDay,
+      depositSchemeType: agreementData.depositSchemeType,
+      permittedOccupiers: agreementData.permittedOccupiers,
+      bankAccountName: agreementData.bankAccountName,
+      bankAccountNumber: agreementData.bankAccountNumber,
+      bankSortCode: agreementData.bankSortCode,
+      tenantEmail: agreementData.tenantEmail,
+      landlordEmail: agreementData.landlordEmail,
+      agentEmail: agreementData.agentEmail,
+      managementType: agreementData.managementType,
+      breakClause: agreementData.breakClause,
+      specialClauses: agreementData.specialClauses,
+      companyName: agreementData.companyName,
+      companyAddress: agreementData.companyAddress
+    }
+
+    // Generate PDF (only after successful payment)
+    const pdfBuffer = await pdfGenerationService.generatePreviewPDF(pdfData)
 
     // Generate filename
-    const fileName = `AST_${agreement.template_type}_${new Date().toISOString().split('T')[0]}.docx`
+    const contractType = agreementData.language === 'welsh' ? 'WOC' : 'AST'
+    const fileName = `${contractType}_${agreement.template_type}_${new Date().toISOString().split('T')[0]}.pdf`
 
     // Upload to storage
     const fileUrl = await agreementService.uploadAgreementFile(
       id,
-      docxBuffer,
+      pdfBuffer,
       fileName
     )
 
