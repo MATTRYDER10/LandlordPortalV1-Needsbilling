@@ -162,7 +162,7 @@ Any reference to the singular includes a reference to the plural and vice versa.
 | Guarantor(s) | \[GUARANTOR NAMES and address\] |
 | Dwelling/Property | \[PROPERTY ADDRESS\] |
 | Rent | \[RENT\_AMOUNT\] per month |
-| Other Consideration [^1] |  |
+| Other Consideration |  |
 | Rent Due Date | \[RENT DUE DATE\] |
 | Deposit | \[DEPOSIT\_ AMOUNT\] |
 
