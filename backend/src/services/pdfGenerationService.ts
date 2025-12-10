@@ -331,7 +331,7 @@ class PDFGenerationService {
     result = this.processContractHoldersBlock(result, data)
 
     // Handle logo: use company logo if available, otherwise PropertyGoose default
-    const defaultLogoUrl = 'https://app.propertygoose.co.uk/logo.png'
+    const defaultLogoUrl = 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
     const logoUrl = data.companyLogoUrl || defaultLogoUrl
     // Replace the logo placeholder with an image tag
     const logoHtml = `<img src="${logoUrl}" alt="Logo" style="max-height: 80px; max-width: 200px; object-fit: contain;" />`
