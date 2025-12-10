@@ -61,6 +61,7 @@ export interface AgreementPDFData {
   specialClauses?: string
   companyName?: string
   companyAddress?: PropertyAddress
+  companyLogoUrl?: string
 }
 
 export interface PDFGenerationOptions {
@@ -329,7 +330,14 @@ class PDFGenerationService {
     // Welsh contracts - Contract Holders block
     result = this.processContractHoldersBlock(result, data)
 
-    // Remove handlebars conditionals (they're for the old system)
+    // Handle logo: use company logo if available, otherwise PropertyGoose default
+    const defaultLogoUrl = 'https://app.propertygoose.co.uk/logo.png'
+    const logoUrl = data.companyLogoUrl || defaultLogoUrl
+    // Replace the logo placeholder with an image tag
+    const logoHtml = `<img src="${logoUrl}" alt="Logo" style="max-height: 80px; max-width: 200px; object-fit: contain;" />`
+    result = result.replace(/\[AGREEMENT_LOGO\]/gi, logoHtml)
+
+    // Remove handlebars conditionals (they're for the old system) - logo is always shown
     result = result.replace(/\{\{#if.*?\}\}/gi, '')
     result = result.replace(/\{\{\/if\}\}/gi, '')
 
