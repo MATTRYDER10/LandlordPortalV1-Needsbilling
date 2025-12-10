@@ -232,6 +232,18 @@
                 <p class="mt-1 text-sm text-gray-500">Email address to receive notifications when tenant offers are completed. Can be set to a Slack channel email or any notification service.</p>
               </div>
 
+              <div>
+                <label for="reference-notification-email" class="block text-sm font-medium text-gray-700">Reference Notification Email</label>
+                <input
+                  id="reference-notification-email"
+                  v-model="companyData.referenceNotificationEmail"
+                  type="email"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="notifications@example.com or slack-channel@example.com"
+                />
+                <p class="mt-1 text-sm text-gray-500">Email address to receive notifications when references are completed. Can be set to a Slack channel email or any notification service.</p>
+              </div>
+
               <!-- Bank Details Section -->
               <div class="border-t pt-6">
                 <h4 class="text-md font-semibold text-gray-900 mb-4">Bank Details (for Agreements)</h4>
@@ -886,6 +898,7 @@ const companyData = ref({
   postcode: '',
   phone: '',
   offerNotificationEmail: '',
+  referenceNotificationEmail: '',
   website: '',
   bankAccountName: '',
   bankAccountNumber: '',
@@ -1076,6 +1089,7 @@ const fetchCompanyData = async () => {
         companyData.value.phone = data.company.phone || ''
         companyData.value.website = data.company.website || ''
         companyData.value.offerNotificationEmail = data.company.offer_notification_email || ''
+        companyData.value.referenceNotificationEmail = data.company.reference_notification_email || ''
         companyData.value.bankAccountName = data.company.bank_account_name || ''
         companyData.value.bankAccountNumber = data.company.bank_account_number || ''
         companyData.value.bankSortCode = data.company.bank_sort_code || ''
@@ -1188,6 +1202,13 @@ const handleUpdateCompany = async () => {
     return
   }
 
+  // Validate reference notification email if provided
+  if (companyData.value.referenceNotificationEmail && !isValidEmail(companyData.value.referenceNotificationEmail)) {
+    companyError.value = 'Please enter a valid reference notification email address'
+    companyLoading.value = false
+    return
+  }
+
   try {
     const token = authStore.session?.access_token
     if (!token) {
@@ -1209,6 +1230,7 @@ const handleUpdateCompany = async () => {
         phone: companyData.value.phone,
         website: companyData.value.website,
         offer_notification_email: companyData.value.offerNotificationEmail,
+        reference_notification_email: companyData.value.referenceNotificationEmail,
         bank_account_name: companyData.value.bankAccountName,
         bank_account_number: companyData.value.bankAccountNumber,
         bank_sort_code: companyData.value.bankSortCode

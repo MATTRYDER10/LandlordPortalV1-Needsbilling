@@ -801,7 +801,7 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
         companies:company_id (
           id,
           name_encrypted,
-          email_encrypted
+          reference_notification_email
         )
       `)
       .single()
@@ -814,31 +814,30 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
       return res.status(404).json({ error: 'Reference not found or already verified' })
     }
 
-    // Send email notification to agent/company
+    // Send email notification to the configured reference notification email
     try {
-      if (reference.companies && reference.companies.email_encrypted && reference.companies.name_encrypted) {
-        const companyEmail = decrypt(reference.companies.email_encrypted)
-        const companyName = decrypt(reference.companies.name_encrypted)
+      const notificationEmail = reference.companies?.reference_notification_email
+
+      if (notificationEmail) {
         const tenantName = decrypt(reference.tenant_name_encrypted)
-        const propertyAddressDecrypted = reference.property_address_encrypted
+        const propertyAddress = reference.property_address_encrypted
           ? decrypt(reference.property_address_encrypted)
-          : null
-        const propertyAddress = propertyAddressDecrypted || 'N/A'
+          : 'N/A'
 
-        // Only send email if all required fields are present
-        if (companyEmail && companyName && tenantName) {
-          // Construct dashboard link
-          const dashboardLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/dashboard/references/${reference.id}`
+        const companyName = reference.companies?.name_encrypted
+          ? decrypt(reference.companies.name_encrypted)
+          : 'Agent'
 
-          await sendReferenceCompletedNotification(
-            companyEmail,
-            companyName,
-            tenantName,
-            propertyAddress,
-            dashboardLink,
-            reference.completed_at || new Date().toISOString()
-          )
-        }
+        const dashboardLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/dashboard/references/${reference.id}`
+
+        await sendReferenceCompletedNotification(
+          notificationEmail,
+          companyName,
+          tenantName,
+          propertyAddress,
+          dashboardLink,
+          reference.completed_at || new Date().toISOString()
+        )
       }
     } catch (emailError: any) {
       console.error('Error sending completion notification email:', emailError)
