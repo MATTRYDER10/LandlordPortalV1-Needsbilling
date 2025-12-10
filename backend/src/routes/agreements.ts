@@ -5,6 +5,7 @@ import { pdfGenerationService, AgreementPDFData } from '../services/pdfGeneratio
 import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
 import * as billingService from '../services/billingService'
+import * as creditService from '../services/creditService'
 
 const router = Router()
 
@@ -224,44 +225,23 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       companyAddress
     }
 
-    // Charge for agreement generation BEFORE generating the PDF
-    let paymentResult
+    // Charge 0.25 credits for agreement generation BEFORE generating the PDF
     try {
-      console.log(`Charging company ${companyId} for agreement ${id}`)
-      paymentResult = await billingService.chargeForAgreement(
+      console.log(`Charging company ${companyId} 0.25 credits for agreement ${id}`)
+      await creditService.deductCredits(
         companyId,
+        0.25,
         id,
-        'standard', // agreement type
+        'Agreement generation',
         userId
       )
-
-      // Check if payment method is required
-      if (paymentResult.requires_payment_method && paymentResult.client_secret) {
-        console.log(`Payment method required for agreement ${id}, returning client secret`)
-        return res.status(402).json({
-          error: 'Payment method required',
-          message: 'Please add a payment method to generate this agreement.',
-          requires_payment_method: true,
-          client_secret: paymentResult.client_secret,
-          amount: 9.99 // TODO: Get from billing service
-        })
-      }
-
-      if (!paymentResult.success) {
-        return res.status(402).json({
-          error: 'Payment failed',
-          message: 'Unable to charge for agreement generation. Please check your payment method and try again.',
-          requires_payment_method: false
-        })
-      }
-
-      console.log(`Successfully charged for agreement ${id}, payment intent: ${paymentResult.payment_intent_id}`)
-    } catch (paymentError: any) {
-      console.error('Payment failed for agreement:', paymentError)
+      console.log(`Successfully deducted 0.25 credits for agreement ${id}`)
+    } catch (creditError: any) {
+      console.error('Credit deduction failed for agreement:', creditError)
       return res.status(402).json({
-        error: 'Payment failed',
-        message: paymentError.message || 'Unable to charge for agreement generation.',
-        requires_payment_method: false
+        error: 'Insufficient credits',
+        message: creditError.message || 'Unable to charge for agreement generation. Please add more credits.',
+        requires_credits: true
       })
     }
 
