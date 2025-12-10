@@ -168,7 +168,7 @@ Any reference to the singular includes a reference to the plural and vice versa.
 
 This is a Fixed Term Contract for the Term below, and it becomes Periodic (under Section 184 (6) of the Renting Homes (Wales) Act 2016\) unless either a further Fixed Term is agreed, or the Contract comes to an end.
 
-| Term | From \[tenancy\_start\_date\] to \[tenancy\_end\_date)and thereafter from month to month  |
+| Term | From \[tenancy\_start\_date\] to \[tenancy\_end\_date\] and thereafter from month to month  |
 | :---- | :---- |
 
 Periods where the Contract-Holder is not entitled to occupy the Dwelling/Property (if any):
