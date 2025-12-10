@@ -222,7 +222,17 @@ class PDFGenerationService {
     const landlordAddress = data.landlords[0] ? this.formatAddress(data.landlords[0].address) : '________'
     result = result.replace(/\[Landlord_Address\]/gi, landlordAddress)
 
-    // Landlord names and addresses (use <br> for table cells to avoid breaking markdown tables)
+    // Landlord names and addresses - generate individual boxes for each landlord
+    // We need to replace the entire table structure, not just the placeholder
+    // Pattern matches: | (1) | [ALL_LANDLORD_NAMES_AND_ADDRESSES] |\n| :---- | :---- |
+    const landlordTablePattern = /\|\s*\(1\)\s*\|\s*\[ALL_LANDLORD_NAMES_AND_ADDRESSES\]\s*\|\s*\n\|\s*:----\s*\|\s*:----\s*\|/gi
+    const landlordBoxes = data.landlords.map((l, index) => {
+      const address = this.formatAddress(l.address)
+      return `| **(${index + 1}) ${l.name}** |\n| :---- |\n| ${address} |`
+    }).join('\n\n')
+    result = result.replace(landlordTablePattern, landlordBoxes)
+
+    // Fallback: Also handle plain placeholder if table pattern not found
     const landlordNamesAndAddresses = data.landlords.map(l => this.formatPartyWithAddress(l)).join('<br><br>')
     result = result.replace(/\[ALL_LANDLORD_NAMES_AND_ADDRESSES\]/gi, landlordNamesAndAddresses)
 
@@ -230,7 +240,16 @@ class PDFGenerationService {
     const tenantNames = data.tenants.map(t => t.name).join(', ')
     result = result.replace(/\[ALL_TENANT[ _]NAME\(S\)\]/gi, tenantNames)
 
-    // Tenant names and addresses (use <br> for table cells to avoid breaking markdown tables)
+    // Tenant names and addresses - generate individual boxes for each tenant
+    // Pattern matches: | (2) | [ALL_TENANT_NAMES_AND_ADDRESSES] |\n| :---- | :---- |
+    const tenantTablePattern = /\|\s*\(2\)\s*\|\s*\[ALL_TENANT_NAMES_AND_ADDRESSES\]\s*\|\s*\n\|\s*:----\s*\|\s*:----\s*\|/gi
+    const tenantBoxes = data.tenants.map((t, index) => {
+      const address = this.formatAddress(t.address)
+      return `| **(${index + 1}) ${t.name}** |\n| :---- |\n| ${address} |`
+    }).join('\n\n')
+    result = result.replace(tenantTablePattern, tenantBoxes)
+
+    // Fallback: Also handle plain placeholder if table pattern not found
     const tenantNamesAndAddresses = data.tenants.map(t => this.formatPartyWithAddress(t)).join('<br><br>')
     result = result.replace(/\[ALL_TENANT_NAMES_AND_ADDRESSES\]/gi, tenantNamesAndAddresses)
 
@@ -370,9 +389,10 @@ class PDFGenerationService {
 
     if (betweenBlockMatch) {
       // Generate individual contract holder entries for the "Between" section
+      // Each contract holder gets their own table/box for better readability
       const contractHolders = data.tenants.map((tenant, index) => {
         const tenantAddress = this.formatAddress(tenant.address)
-        return `**Contract-Holder #${index + 1}:**\n**${tenant.name}** of\n**${tenantAddress}**`
+        return `**Contract-Holder #${index + 1}:**\n\n| **${tenant.name}** |\n| :---- |\n| ${tenantAddress} |`
       }).join('\n\n')
 
       result = result.replace(betweenBlockMatch[0], contractHolders)
