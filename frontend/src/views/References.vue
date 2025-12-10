@@ -159,7 +159,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remark</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ statusFilter === 'completed' ? 'Decision' : 'Remark' }}</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">References
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -310,17 +310,17 @@
                           </svg>
                           <span>{{ findReason(child?.final_remarks) }}</span>
                         </div>
-                        <div v-else-if="child.status === 'completed'" class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-100">
-                          <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div v-else-if="child.status === 'completed'" class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium border" :class="getDecisionClasses(child.decision)">
+                          <svg class="w-4 h-4" :class="getDecisionIconClass(child.decision)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span>Verified</span>
+                          <span>{{ formatDecision(child.decision) }}</span>
                         </div>
                         <div v-else class="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-100">
                           <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span>Awaiting outcome</span>
+                          <span>In Progress</span>
                         </div>
                       </td>
                       <td class="px-6 py-3 whitespace-nowrap">
@@ -463,14 +463,14 @@
                       </span>
                     </div>
 
-                    <!-- Completed: green verified pill -->
+                    <!-- Completed: show decision (PASS/PASS with guarantor/FAIL) -->
                     <div v-else-if="item.status === 'completed'"
-                      class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-100">
-                      <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium border" :class="getDecisionClasses(item.decision)">
+                      <svg class="w-4 h-4" :class="getDecisionIconClass(item.decision)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span>Verified</span>
+                      <span>{{ formatDecision(item.decision) }}</span>
                     </div>
 
                     <!-- In progress / pending etc: subtle "in progress" with clock icon -->
@@ -480,7 +480,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span>Awaiting outcome</span>
+                      <span>In Progress</span>
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
@@ -648,7 +648,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span>Awaiting outcome</span>
+                      <span>In Progress</span>
                     </div>
                   </td>
                   <td class="px-6 py-3 whitespace-nowrap">
@@ -1966,5 +1966,49 @@ const resendForm = async (reference: any) => {
 //Fins rejected reason srring
 const findReason = (remark_obj: Record<string, any>) => {
   return (remark_obj?.credit_tas?.tas_reason || remark_obj?.credit_tas?.notes || remark_obj?.id?.notes || remark_obj?.income?.notes || remark_obj?.residential?.notes || remark_obj?.rtr?.notes || "No reason mentioned during assessment!")
+}
+
+// Format decision value for display
+const formatDecision = (decision: string | null): string => {
+  if (!decision) return 'PASS'
+  switch (decision) {
+    case 'SUPERB':
+    case 'PASS':
+      return 'PASS'
+    case 'PASS_WITH_GUARANTOR':
+      return 'PASS with guarantor'
+    case 'DECLINE':
+      return 'FAIL'
+    default:
+      return 'PASS'
+  }
+}
+
+// Get CSS classes for decision pill
+const getDecisionClasses = (decision: string | null): string => {
+  if (!decision || decision === 'SUPERB' || decision === 'PASS') {
+    return 'bg-emerald-50 text-emerald-800 border-emerald-100'
+  }
+  if (decision === 'PASS_WITH_GUARANTOR') {
+    return 'bg-amber-50 text-amber-800 border-amber-100'
+  }
+  if (decision === 'DECLINE') {
+    return 'bg-red-50 text-red-800 border-red-100'
+  }
+  return 'bg-emerald-50 text-emerald-800 border-emerald-100'
+}
+
+// Get CSS class for decision icon
+const getDecisionIconClass = (decision: string | null): string => {
+  if (!decision || decision === 'SUPERB' || decision === 'PASS') {
+    return 'text-emerald-500'
+  }
+  if (decision === 'PASS_WITH_GUARANTOR') {
+    return 'text-amber-500'
+  }
+  if (decision === 'DECLINE') {
+    return 'text-red-500'
+  }
+  return 'text-emerald-500'
 }
 </script>
