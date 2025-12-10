@@ -3654,7 +3654,7 @@ const sendDocumentRequest = async () => {
   requestDocumentLoading.value = true
 
   try {
-    const response = await fetch(`${API_URL}/staff/references/${reference.value.id}/request-document`, {
+    const response = await fetch(`${API_URL}/api/staff/references/${reference.value.id}/request-document`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
