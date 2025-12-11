@@ -66,6 +66,9 @@
         <button :class="['tab', { active: activeTab === 'verify' }]" @click="activeTab = 'verify'">
           Verify Queue ({{ stats.verify.total }})
         </button>
+        <button :class="['tab', { active: activeTab === 'awaiting-docs' }]" @click="activeTab = 'awaiting-docs'">
+          Awaiting Docs ({{ stats.verify.awaitingDocs || 0 }})
+        </button>
         <button :class="['tab', { active: activeTab === 'chase' }]" @click="activeTab = 'chase'">
           Chase Queue ({{ stats.chase.total }})
         </button>
@@ -73,12 +76,15 @@
           My Cases ({{ stats.verify.myItems }})
         </button>
       </div>
-      <p v-if="activeTab !== 'chase'" class="tab-help">
-        You can hold up to {{ MAX_ACTIVE_ITEMS }} active cases. Items idle for 2 hours are automatically returned and
-        escalated.
+      <p v-if="activeTab === 'chase'" class="tab-help">
+        References awaiting responses from landlords, agents, employers, accountants, or guarantors. Use Email/SMS to send reminders with form links.
+      </p>
+      <p v-else-if="activeTab === 'awaiting-docs'" class="tab-help">
+        References where additional documentation has been requested from the tenant. Items will return to the verify queue when documents are uploaded.
       </p>
       <p v-else class="tab-help">
-        References awaiting responses from landlords, agents, employers, accountants, or guarantors. Use Email/SMS to send reminders with form links.
+        You can hold up to {{ MAX_ACTIVE_ITEMS }} active cases. Items idle for 2 hours are automatically returned and
+        escalated.
       </p>
 
       <!-- Loading State -->
@@ -244,6 +250,9 @@
                 <span :class="['status-badge', item.status.toLowerCase()]">
                   {{ item.status }}
                 </span>
+                <span v-if="item.metadata?.awaiting_documentation" class="awaiting-docs-badge">
+                  Awaiting Docs
+                </span>
               </td>
               <td>
                 <div v-if="item.assigned_staff" class="assigned-info">
@@ -357,12 +366,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const MAX_ACTIVE_ITEMS = 10
 const AUTO_RETURN_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours
 
-const activeTab = ref<'chase' | 'verify' | 'my-cases'>('verify')
+const activeTab = ref<'chase' | 'verify' | 'my-cases' | 'awaiting-docs'>('verify')
 const workItems = ref<any[]>([])
 const chaseItems = ref<any[]>([])
 const stats = ref({
   chase: { available: 0, assigned: 0, inProgress: 0, myItems: 0, total: 0 },
-  verify: { available: 0, assigned: 0, inProgress: 0, myItems: 0, total: 0 }
+  verify: { available: 0, assigned: 0, inProgress: 0, awaitingDocs: 0, myItems: 0, total: 0 }
 })
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -392,10 +401,17 @@ const myActiveItemsCount = computed(() => myActiveItems.value.length)
 const canClaimMoreItems = computed(() => myActiveItemsCount.value < MAX_ACTIVE_ITEMS)
 
 const filteredWorkItems = computed(() => {
-  const items =
-    activeTab.value === 'my-cases'
-      ? myActiveItems.value
-      : workItems.value.filter(item => item.work_type === activeTab.value.toUpperCase())
+  let items: any[]
+  if (activeTab.value === 'my-cases') {
+    items = myActiveItems.value
+  } else if (activeTab.value === 'awaiting-docs') {
+    // Filter for VERIFY items that are awaiting documentation
+    items = workItems.value.filter(item =>
+      item.work_type === 'VERIFY' && item.metadata?.awaiting_documentation === true
+    )
+  } else {
+    items = workItems.value.filter(item => item.work_type === activeTab.value.toUpperCase())
+  }
 
   return [...items].sort((a, b) => {
     const dateA =
@@ -1073,6 +1089,19 @@ td {
 .status-badge.returned {
   background: #e5e7eb;
   color: #374151;
+}
+
+.awaiting-docs-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  margin-left: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #f59e0b;
 }
 
 .assigned-info {

@@ -1995,10 +1995,17 @@ router.post('/references/:id/request-document', authenticateStaff, async (req: S
       console.error('Failed to insert reference note:', noteError)
     }
 
-    // Update or remove from VERIFY work queue
+    // Update VERIFY work queue item with awaiting documentation flag
     await supabase
       .from('work_items')
-      .update({ status: 'RETURNED' })
+      .update({
+        status: 'IN_PROGRESS',
+        metadata: {
+          awaiting_documentation: true,
+          document_requested_at: new Date().toISOString(),
+          document_type_requested: documentTypeLabels[document_type]
+        }
+      })
       .eq('reference_id', id)
       .eq('work_type', 'VERIFY')
       .eq('status', 'IN_PROGRESS')

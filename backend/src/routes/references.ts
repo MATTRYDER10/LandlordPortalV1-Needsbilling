@@ -3015,10 +3015,10 @@ router.post('/upload/:token', (req, res, next) => {
           .single()
 
         if (existingWorkItem) {
-          // Reactivate existing work item
+          // Reactivate existing work item and clear awaiting_documentation flag
           await supabase
             .from('work_items')
-            .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null })
+            .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null, metadata: {} })
             .eq('id', existingWorkItem.id)
         } else {
           // Create new work item

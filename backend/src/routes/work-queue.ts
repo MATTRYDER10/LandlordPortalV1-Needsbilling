@@ -107,10 +107,10 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
       return res.status(401).json({ error: 'Staff authentication required' });
     }
 
-    // Get counts by type and status
+    // Get counts by type and status (include metadata for awaiting docs count)
     const { data: stats, error } = await supabaseAdmin
       .from('work_items')
-      .select('work_type, status')
+      .select('work_type, status, metadata')
       .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS']);
 
     if (error) throw error;
@@ -127,6 +127,7 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
         available: 0,
         assigned: 0,
         inProgress: 0,
+        awaitingDocs: 0,
         myItems: 0,
         total: 0
       }
@@ -147,6 +148,11 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
         if (status === 'available') summary[type].available++;
         else if (status === 'assigned') summary[type].assigned++;
         else if (status === 'in_progress') summary[type].inProgress++;
+      }
+
+      // Count awaiting docs items (VERIFY queue only)
+      if (type === 'verify' && item.metadata?.awaiting_documentation === true) {
+        summary.verify.awaitingDocs++;
       }
     });
 
