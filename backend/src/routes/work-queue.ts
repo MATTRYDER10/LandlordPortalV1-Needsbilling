@@ -29,6 +29,7 @@ router.get('/', staffAuth, async (req: StaffAuthRequest, res: Response) => {
           tenant_last_name_encrypted,
           tenant_email_encrypted,
           property_address_encrypted,
+          is_guarantor,
           status,
           created_at
         ),
@@ -203,6 +204,7 @@ router.get('/:id', staffAuth, async (req: StaffAuthRequest, res: Response) => {
           tenant_email_encrypted,
           tenant_phone_encrypted,
           property_address_encrypted,
+          is_guarantor,
           status,
           created_at,
           previous_address_type,

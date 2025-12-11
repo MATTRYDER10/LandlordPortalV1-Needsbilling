@@ -205,7 +205,8 @@
             <tr>
               <th>Urgency</th>
               <th>Type</th>
-              <th>Tenant</th>
+              <th>Person Type</th>
+              <th>Person</th>
               <th>Property</th>
               <th>Age</th>
               <th>Status</th>
@@ -223,6 +224,11 @@
               <td>
                 <span :class="['type-badge', item.work_type.toLowerCase()]">
                   {{ item.work_type }}
+                </span>
+              </td>
+              <td>
+                <span :class="['person-type-badge', item.reference.is_guarantor ? 'guarantor' : 'tenant']">
+                  {{ item.reference.is_guarantor ? 'Guarantor' : 'Tenant' }}
                 </span>
               </td>
               <td>
@@ -1019,6 +1025,25 @@ td {
 .type-badge.verify {
   background: #bfdbfe;
   color: #1e40af;
+}
+
+.person-type-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.person-type-badge.tenant {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.person-type-badge.guarantor {
+  background: #f3e8ff;
+  color: #6b21a8;
 }
 
 .tenant-info {
