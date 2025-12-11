@@ -487,6 +487,46 @@ export async function sendGuarantorReferenceRequest(
 }
 
 /**
+ * Send email to tenant requesting them to add guarantor details
+ * Sent when reference completes with PASS_WITH_GUARANTOR and no guarantor exists
+ */
+export async function sendTenantAddGuarantorRequest(
+  tenantEmail: string,
+  tenantName: string,
+  propertyAddress: string,
+  agentName: string,
+  formLink: string,
+  referenceId?: string
+): Promise<void> {
+  const html = loadEmailTemplate('tenant-add-guarantor-request', {
+    TenantName: tenantName,
+    PropertyAddress: propertyAddress,
+    AgentName: agentName,
+    FormLink: formLink
+  });
+
+  try {
+    await sendEmail({
+      to: tenantEmail,
+      subject: `Guarantor Required for Your Application - ${propertyAddress} - PropertyGoose`,
+      html,
+      contactDetails: {
+        companyName: agentName
+      }
+    });
+
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'tenant_add_guarantor', 'sent');
+    }
+  } catch (error: any) {
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'tenant_add_guarantor', 'failed', error.message);
+    }
+    throw error;
+  }
+}
+
+/**
  * Send consent PDF to tenant
  */
 export async function sendConsentPDFToTenant(

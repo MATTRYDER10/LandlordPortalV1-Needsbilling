@@ -10,6 +10,7 @@ import References from '../views/References.vue'
 import ReferenceDetail from '../views/ReferenceDetail.vue'
 import SubmitReference from '../views/SubmitReference.vue'
 import GuarantorReference from '../views/GuarantorReference.vue'
+import TenantAddGuarantor from '../views/TenantAddGuarantor.vue'
 import LandlordReference from '../views/LandlordReference.vue'
 import AgentReference from '../views/AgentReference.vue'
 import EmployerReference from '../views/EmployerReference.vue'
@@ -37,6 +38,7 @@ import AdminDashboard from '../views/AdminDashboard.vue'
 import AdminStaffManagement from '../views/AdminStaffManagement.vue'
 import AdminCustomerManagement from '../views/AdminCustomerManagement.vue'
 import AdminReports from '../views/AdminReports.vue'
+import AgreementSigning from '../views/AgreementSigning.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -131,6 +133,11 @@ const router = createRouter({
       component: GuarantorReference
     },
     {
+      path: '/tenant-add-guarantor/:token',
+      name: 'TenantAddGuarantor',
+      component: TenantAddGuarantor
+    },
+    {
       path: '/landlord-reference/:referenceId',
       name: 'LandlordReference',
       component: LandlordReference
@@ -149,6 +156,12 @@ const router = createRouter({
       path: '/accountant-reference/:token',
       name: 'AccountantReference',
       component: AccountantReference
+    },
+    {
+      path: '/sign/:token',
+      name: 'AgreementSigning',
+      component: AgreementSigning,
+      meta: { public: true }
     },
     {
       path: '/agreements',
@@ -366,10 +379,12 @@ router.beforeEach(async (to, _from, next) => {
   const isReferenceSubmission = to.path.startsWith('/submit-reference') ||
                                  to.path.startsWith('/tenant-offer') ||
                                  to.path.startsWith('/guarantor-reference') ||
+                                 to.path.startsWith('/tenant-add-guarantor') ||
                                  to.path.startsWith('/landlord-reference') ||
                                  to.path.startsWith('/agent-reference') ||
                                  to.path.startsWith('/employer-reference') ||
-                                 to.path.startsWith('/accountant-reference')
+                                 to.path.startsWith('/accountant-reference') ||
+                                 to.path.startsWith('/sign/')
   const skipOnboardingCheck = to.meta.skipOnboardingCheck === true
 
   if (

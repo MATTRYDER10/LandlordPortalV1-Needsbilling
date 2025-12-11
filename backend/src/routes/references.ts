@@ -5128,4 +5128,279 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+// ==========================================
+// TENANT ADD GUARANTOR (Public, token-based)
+// ==========================================
+
+// Get reference details for tenant to add guarantor (token-based, no auth required)
+router.get('/tenant-add-guarantor/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+    const tokenHash = hash(token)
+
+    // Find reference by add_guarantor_token_hash
+    const { data: reference, error } = await supabase
+      .from('tenant_references')
+      .select(`
+        id,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        property_address_encrypted,
+        add_guarantor_token_expires_at,
+        companies:company_id (
+          id,
+          name_encrypted
+        )
+      `)
+      .eq('add_guarantor_token_hash', tokenHash)
+      .single()
+
+    if (error || !reference) {
+      return res.status(404).json({ error: 'Invalid or expired link' })
+    }
+
+    // Check if token has expired
+    if (reference.add_guarantor_token_expires_at) {
+      const expiresAt = new Date(reference.add_guarantor_token_expires_at)
+      if (expiresAt < new Date()) {
+        return res.status(410).json({ error: 'This link has expired. Please contact your letting agent for a new link.' })
+      }
+    }
+
+    // Check if guarantor already exists
+    const { data: existingGuarantor } = await supabase
+      .from('tenant_references')
+      .select('id')
+      .eq('guarantor_for_reference_id', reference.id)
+      .eq('is_guarantor', true)
+      .maybeSingle()
+
+    if (existingGuarantor) {
+      return res.status(400).json({ error: 'A guarantor has already been added for this reference.' })
+    }
+
+    // Return decrypted info for display
+    const company = (reference.companies as unknown) as { id: string; name_encrypted: string } | null
+    res.json({
+      tenantName: `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`,
+      propertyAddress: decrypt(reference.property_address_encrypted) || 'the property',
+      agentName: company?.name_encrypted
+        ? decrypt(company.name_encrypted) || 'Your agent'
+        : 'Your agent'
+    })
+  } catch (error: any) {
+    console.error('Failed to get tenant add guarantor details:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Submit guarantor details from tenant (token-based, no auth required)
+router.post('/tenant-add-guarantor/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+    const { guarantor_first_name, guarantor_last_name, guarantor_email, guarantor_phone } = req.body
+    const tokenHash = hash(token)
+
+    // Validate required fields
+    if (!guarantor_first_name || !guarantor_last_name || !guarantor_email) {
+      return res.status(400).json({ error: 'Missing required fields: first name, last name, and email are required' })
+    }
+
+    // Find reference by add_guarantor_token_hash
+    const { data: parentReference, error } = await supabase
+      .from('tenant_references')
+      .select(`
+        *,
+        companies:company_id (
+          id,
+          name_encrypted,
+          phone_encrypted,
+          email_encrypted
+        )
+      `)
+      .eq('add_guarantor_token_hash', tokenHash)
+      .single()
+
+    if (error || !parentReference) {
+      return res.status(404).json({ error: 'Invalid or expired link' })
+    }
+
+    // Check if token has expired
+    if (parentReference.add_guarantor_token_expires_at) {
+      const expiresAt = new Date(parentReference.add_guarantor_token_expires_at)
+      if (expiresAt < new Date()) {
+        return res.status(410).json({ error: 'This link has expired. Please contact your letting agent for a new link.' })
+      }
+    }
+
+    // Check if guarantor already exists
+    const { data: existingGuarantor } = await supabase
+      .from('tenant_references')
+      .select('id')
+      .eq('guarantor_for_reference_id', parentReference.id)
+      .eq('is_guarantor', true)
+      .maybeSingle()
+
+    if (existingGuarantor) {
+      return res.status(400).json({ error: 'A guarantor has already been added for this reference.' })
+    }
+
+    // Generate token for guarantor form
+    const guarantorToken = generateToken()
+    const guarantorTokenHash = hash(guarantorToken)
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 21) // 21-day expiry
+
+    // Create guarantor reference as a tenant_reference
+    const { data: guarantorReference, error: createError } = await supabase
+      .from('tenant_references')
+      .insert({
+        company_id: parentReference.company_id,
+        created_by: parentReference.created_by,
+
+        // Mark as guarantor and link to parent
+        is_guarantor: true,
+        guarantor_for_reference_id: parentReference.id,
+
+        // Inherit property details from parent
+        property_address_encrypted: parentReference.property_address_encrypted,
+        property_city_encrypted: parentReference.property_city_encrypted,
+        property_postcode_encrypted: parentReference.property_postcode_encrypted,
+        monthly_rent: parentReference.monthly_rent,
+        move_in_date: parentReference.move_in_date,
+
+        // Store guarantor's own info in tenant fields
+        tenant_first_name_encrypted: encrypt(guarantor_first_name),
+        tenant_last_name_encrypted: encrypt(guarantor_last_name),
+        tenant_email_encrypted: encrypt(guarantor_email),
+        tenant_phone_encrypted: guarantor_phone ? encrypt(guarantor_phone) : null,
+
+        // Store parent tenant info for display in guarantor form
+        guarantor_first_name_encrypted: parentReference.tenant_first_name_encrypted,
+        guarantor_last_name_encrypted: parentReference.tenant_last_name_encrypted,
+
+        // Token for form access
+        reference_token_hash: guarantorTokenHash,
+        token_expires_at: expiresAt.toISOString(),
+
+        // Initial status
+        status: 'pending',
+
+        reference_type: 'landlord' // Default, they'll select during form
+      })
+      .select()
+      .single()
+
+    if (createError || !guarantorReference) {
+      console.error('Failed to create guarantor reference:', createError)
+      return res.status(500).json({ error: 'Failed to create guarantor reference' })
+    }
+
+    console.log('Created guarantor reference from tenant form:', guarantorReference.id)
+
+    // Update parent reference to mark it requires guarantor and invalidate the add-guarantor token
+    await supabase
+      .from('tenant_references')
+      .update({
+        requires_guarantor: true,
+        add_guarantor_token_hash: null,
+        add_guarantor_token_expires_at: null
+      })
+      .eq('id', parentReference.id)
+
+    // Send email to guarantor with guarantor-specific form link
+    const tenantName = `${decrypt(parentReference.tenant_first_name_encrypted)} ${decrypt(parentReference.tenant_last_name_encrypted)}`
+    const propertyAddress = decrypt(parentReference.property_address_encrypted) || 'the property'
+    const companyName = parentReference.companies?.name_encrypted
+      ? decrypt(parentReference.companies.name_encrypted) || 'Your agent'
+      : 'Your agent'
+    const companyPhone = parentReference.companies?.phone_encrypted
+      ? (decrypt(parentReference.companies.phone_encrypted) || '')
+      : ''
+    const companyEmail = parentReference.companies?.email_encrypted
+      ? (decrypt(parentReference.companies.email_encrypted) || '')
+      : ''
+    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+
+    await sendGuarantorReferenceRequest(
+      guarantor_email,
+      `${guarantor_first_name} ${guarantor_last_name}`,
+      tenantName,
+      propertyAddress,
+      companyName,
+      companyPhone,
+      companyEmail,
+      formLink,
+      guarantorReference.id
+    )
+
+    console.log('Guarantor reference email sent to:', guarantor_email)
+
+    // Send SMS to guarantor (non-blocking)
+    if (guarantor_phone) {
+      sendGuarantorReferenceRequestSMS(
+        guarantor_phone,
+        `${guarantor_first_name} ${guarantor_last_name}`,
+        tenantName,
+        formLink,
+        guarantorReference.id
+      ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+    }
+
+    // Deduct 0.5 credits for guarantor reference
+    console.log('💳 Deducting 0.5 credits for guarantor reference (tenant-initiated)...')
+    try {
+      await creditService.deductCredits(
+        parentReference.company_id,
+        0.5,
+        guarantorReference.id,
+        'Guarantor reference creation (tenant-initiated)',
+        parentReference.created_by
+      )
+      console.log('✅ Guarantor reference credit deduction successful')
+    } catch (creditError: any) {
+      console.error('❌ Failed to deduct credits for guarantor reference:', creditError)
+      // Delete the guarantor reference if credit deduction fails
+      await supabase
+        .from('tenant_references')
+        .delete()
+        .eq('id', guarantorReference.id)
+
+      // Restore the add-guarantor token on parent reference
+      await supabase
+        .from('tenant_references')
+        .update({
+          add_guarantor_token_hash: tokenHash,
+          add_guarantor_token_expires_at: parentReference.add_guarantor_token_expires_at
+        })
+        .eq('id', parentReference.id)
+
+      return res.status(402).json({
+        error: 'Unable to process at this time',
+        message: 'Please contact your letting agent to add a guarantor to your application.',
+      })
+    }
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId: parentReference.id,
+      action: 'GUARANTOR_ADDED',
+      description: `Guarantor ${guarantor_first_name} ${guarantor_last_name} added by tenant via email link`,
+      metadata: {
+        guarantorReferenceId: guarantorReference.id,
+        guarantorEmail: guarantor_email,
+        addedBy: 'tenant'
+      }
+    })
+
+    res.json({
+      message: 'Guarantor details submitted successfully. Your guarantor will receive an email shortly.',
+      guarantor_reference_id: guarantorReference.id
+    })
+  } catch (error: any) {
+    console.error('Failed to add guarantor from tenant form:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router
