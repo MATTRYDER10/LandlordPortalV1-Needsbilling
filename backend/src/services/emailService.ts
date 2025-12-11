@@ -719,12 +719,13 @@ export async function sendOfferAcceptedEmail(
   bankAccountNumber: string,
   bankSortCode: string,
   holdingDepositAmount: number,
+  offerId: string,
   companyPhone?: string | null,
   companyEmail?: string | null,
   extraDetailsHtml?: string
 ): Promise<void> {
   const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
-  const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed`
+  const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed?offer_id=${offerId}`
 
   const html = loadEmailTemplate('offer-accepted', {
     CompanyName: companyName,
@@ -772,5 +773,35 @@ export async function sendOfferDeclinedEmail(
       phone: companyPhone || undefined,
       email: companyEmail || undefined
     }
+  })
+}
+
+/**
+ * Send payment confirmed notification email to agent
+ */
+export async function sendPaymentConfirmedToAgentEmail(
+  agentEmail: string,
+  propertyAddress: string,
+  tenantNames: string,
+  holdingDepositAmount: string,
+  offerLink: string
+): Promise<void> {
+  const confirmedAt = new Date().toLocaleString('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
+
+  const html = loadEmailTemplate('tenant-payment-confirmed', {
+    PropertyAddress: propertyAddress,
+    TenantNames: tenantNames,
+    HoldingDepositAmount: holdingDepositAmount,
+    ConfirmedAt: confirmedAt,
+    OfferLink: offerLink
+  })
+
+  await sendEmail({
+    to: agentEmail,
+    subject: 'Tenant Confirmed Holding Deposit Payment',
+    html
   })
 }

@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption'
-import { sendEmail, sendTenantReferenceRequest, sendTenantOfferRequest, sendOfferAcceptedEmail, sendOfferDeclinedEmail } from '../services/emailService'
+import { sendEmail, sendTenantReferenceRequest, sendTenantOfferRequest, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendPaymentConfirmedToAgentEmail } from '../services/emailService'
 import { checkCredits } from '../middleware/checkCredits'
 import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
 import * as billingService from '../services/billingService'
@@ -601,6 +601,117 @@ router.post('/submit', async (req, res) => {
     }
 })
 
+// Confirm payment - public endpoint called when tenant clicks "I've Paid"
+router.post('/confirm-payment', async (req, res) => {
+    try {
+        const { offer_id } = req.body
+
+        if (!offer_id) {
+            return res.status(400).json({ error: 'Offer ID is required' })
+        }
+
+        // Get offer with company details
+        const { data: offer, error: offerError } = await supabase
+            .from('tenant_offers')
+            .select(`
+                *,
+                tenant_offer_tenants (*),
+                companies:company_id (
+                    name_encrypted,
+                    email_encrypted,
+                    offer_notification_email
+                )
+            `)
+            .eq('id', offer_id)
+            .single()
+
+        if (offerError || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Only allow confirmation for approved offers
+        if (offer.status !== 'approved') {
+            return res.status(400).json({ error: 'Offer is not in approved status' })
+        }
+
+        // Check if already confirmed (idempotent - return success)
+        if (offer.tenant_payment_confirmed_at) {
+            return res.json({
+                success: true,
+                message: 'Payment confirmation already recorded',
+                already_confirmed: true
+            })
+        }
+
+        // Update offer with payment confirmation timestamp
+        const { error: updateError } = await supabase
+            .from('tenant_offers')
+            .update({
+                tenant_payment_confirmed_at: new Date().toISOString()
+            })
+            .eq('id', offer_id)
+
+        if (updateError) {
+            console.error('Error updating offer:', updateError)
+            return res.status(500).json({ error: 'Failed to record payment confirmation' })
+        }
+
+        // Get company and notification details
+        const company = (offer as any).companies
+        const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : null
+        const notificationEmail = company?.offer_notification_email || companyEmail
+
+        if (notificationEmail) {
+            try {
+                // Get property address
+                const propertyAddress = offer.property_address_encrypted
+                    ? (decrypt(offer.property_address_encrypted) || 'Property address not available')
+                    : 'Property address not available'
+
+                // Get tenant names
+                const tenantNames = (offer.tenant_offer_tenants || [])
+                    .map((tenant: any) => tenant.name_encrypted ? decrypt(tenant.name_encrypted) : '')
+                    .filter(Boolean)
+                    .join(', ')
+
+                // Calculate holding deposit
+                const holdingDeposit = Math.floor((offer.offered_rent_amount * 12) / 52)
+                const holdingDepositAmount = `£${holdingDeposit.toFixed(2)}`
+
+                // Generate offer link
+                const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+                const offerLink = `${frontendBaseUrl}/tenant-offers/${offer_id}`
+
+                await sendPaymentConfirmedToAgentEmail(
+                    notificationEmail,
+                    propertyAddress,
+                    tenantNames,
+                    holdingDepositAmount,
+                    offerLink
+                )
+            } catch (emailError) {
+                console.error('Failed to send payment confirmation email to agent:', emailError)
+                // Don't fail the request if email fails
+            }
+        }
+
+        // Log audit action
+        await logOfferAuditAction({
+            offerId: offer_id,
+            action: 'TENANT_PAYMENT_CONFIRMED',
+            description: 'Tenant confirmed holding deposit payment'
+        })
+
+        res.json({
+            success: true,
+            message: 'Payment confirmation recorded and agent notified'
+        })
+    } catch (error: any) {
+        console.error('Error confirming payment:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Approve offer (sends email with bank details and, if applicable, updated terms)
 router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => {
     try {
@@ -739,6 +850,7 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
                     bankAccountNumber,
                     bankSortCode,
                     holdingDeposit,
+                    id,
                     companyPhone || undefined,
                     companyEmail || undefined,
                     extraDetailsHtml
@@ -1519,6 +1631,7 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
                         bankAccountNumber,
                         bankSortCode,
                         holdingDeposit,
+                        id,
                         companyPhone || undefined,
                         companyEmail || undefined
                     )
