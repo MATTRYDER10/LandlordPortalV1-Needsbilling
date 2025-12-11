@@ -1,5 +1,6 @@
 import { supabase as supabaseAdmin } from '../config/supabase';
 import * as creditService from './creditService';
+import { signatureService } from './signatureService';
 
 /**
  * Work Queue Scheduler Service
@@ -16,6 +17,8 @@ const IDLE_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const VERIFY_SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const URGENCY_THRESHOLD_HOURS = 8;
 const EXPIRED_REFERENCE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const SIGNING_REMINDER_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const SIGNING_REMINDER_THRESHOLD_HOURS = 24; // Send reminders every 24 hours
 
 /**
  * Auto-unassign CHASE work items that have been idle for 4+ hours
@@ -401,6 +404,58 @@ export async function autoDeleteExpiredReferences() {
 }
 
 /**
+ * Send signing reminders to signers who haven't signed
+ * Reminders are sent every 24 hours until signed or expired
+ */
+export async function sendSigningReminders() {
+  try {
+    const reminderThreshold = new Date();
+    reminderThreshold.setHours(reminderThreshold.getHours() - SIGNING_REMINDER_THRESHOLD_HOURS);
+
+    // Find signatures that need reminders:
+    // - Status is 'pending' or 'sent' or 'viewed'
+    // - Token hasn't expired
+    // - Last email was sent more than 24 hours ago
+    const now = new Date().toISOString();
+    const { data: pendingSignatures, error: fetchError } = await supabaseAdmin
+      .from('agreement_signatures')
+      .select('id, agreement_id, signer_name, signer_email, signer_type, signing_token, token_expires_at, last_email_sent_at, email_send_count')
+      .in('status', ['pending', 'sent', 'viewed'])
+      .gt('token_expires_at', now) // Token not expired
+      .lt('last_email_sent_at', reminderThreshold.toISOString());
+
+    if (fetchError) {
+      console.error('Error fetching pending signatures for reminders:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    if (!pendingSignatures || pendingSignatures.length === 0) {
+      console.log('[Scheduler] No pending signatures need reminders');
+      return { success: true, remindersSent: 0 };
+    }
+
+    console.log(`[Scheduler] Found ${pendingSignatures.length} signatures needing reminders`);
+
+    let remindersSent = 0;
+    for (const signature of pendingSignatures) {
+      try {
+        // Use the existing service method which handles everything
+        await signatureService.sendReminderEmail(signature.id);
+        remindersSent++;
+      } catch (sendError: any) {
+        console.error(`Error sending reminder for signature ${signature.id}:`, sendError);
+      }
+    }
+
+    console.log(`[Scheduler] Successfully sent ${remindersSent} signing reminders`);
+    return { success: true, remindersSent };
+  } catch (error: any) {
+    console.error('[Scheduler] Error in sendSigningReminders:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Start all background schedulers
  */
 export function startSchedulers() {
@@ -436,6 +491,12 @@ export function startSchedulers() {
     await autoDeleteExpiredReferences();
   }, EXPIRED_REFERENCE_CHECK_INTERVAL_MS);
 
+  // Signing reminders (every 1 hour, checks 24-hour threshold)
+  setInterval(async () => {
+    console.log('[Scheduler] Running signing reminder check...');
+    await sendSigningReminders();
+  }, SIGNING_REMINDER_CHECK_INTERVAL_MS);
+
   // Run immediately on startup
   setTimeout(async () => {
     console.log('[Scheduler] Running initial checks...');
@@ -444,6 +505,7 @@ export function startSchedulers() {
     await escalateUrgentItems();
     await syncMissingVerifyItems();
     await autoDeleteExpiredReferences();
+    await sendSigningReminders();
   }, 5000); // Wait 5 seconds after startup
 
   console.log('[Scheduler] Background schedulers started successfully');
@@ -459,7 +521,8 @@ export async function runAllScheduledTasks() {
     cooldown: await processCooldownExpiry(),
     idle: await autoUnassignIdleChaseItems(),
     urgent: await escalateUrgentItems(),
-    expiredReferences: await autoDeleteExpiredReferences()
+    expiredReferences: await autoDeleteExpiredReferences(),
+    signingReminders: await sendSigningReminders()
   };
 
   console.log('[Scheduler] Manual run complete:', results);
