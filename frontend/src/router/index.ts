@@ -326,6 +326,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
+      path: '/admin/references',
+      name: 'AdminReferences',
+      component: () => import('../views/AdminReferences.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
       path: '/admin/reports',
       name: 'AdminReports',
       component: AdminReports,

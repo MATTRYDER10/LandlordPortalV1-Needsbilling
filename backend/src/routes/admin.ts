@@ -1370,4 +1370,128 @@ router.post('/customers/:companyId/credits', authenticateAdmin, async (req: Admi
   }
 })
 
+/**
+ * GET /api/admin/references/search
+ * Search all references with optional filters
+ * Query params: query (search string), status (filter), limit, offset
+ */
+router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { query, status, limit = '50', offset = '0' } = req.query
+    const limitNum = parseInt(limit as string, 10)
+    const offsetNum = parseInt(offset as string, 10)
+
+    // Build the query - fetch all references with company info
+    let dbQuery = supabase
+      .from('tenant_references')
+      .select(`
+        id,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        tenant_email_encrypted,
+        tenant_phone_encrypted,
+        property_address_encrypted,
+        status,
+        move_in_date,
+        created_at,
+        updated_at,
+        is_guarantor,
+        requires_guarantor,
+        parent_reference_id,
+        company_id,
+        companies (
+          id,
+          name_encrypted
+        )
+      `, { count: 'exact' })
+      .eq('is_guarantor', false)
+      .order('created_at', { ascending: false })
+
+    // Apply status filter if provided
+    if (status && status !== 'all') {
+      dbQuery = dbQuery.eq('status', status)
+    }
+
+    // Execute main query with pagination
+    const { data: references, error, count } = await dbQuery
+      .range(offsetNum, offsetNum + limitNum - 1)
+
+    if (error) throw error
+
+    // If there's a search query, we need to decrypt and filter
+    // Also fetch guarantor info for references that require it
+    const guarantorRefIds = references
+      ?.filter(ref => ref.requires_guarantor)
+      .map(ref => ref.id) || []
+
+    let guarantorMap: Record<string, any> = {}
+    if (guarantorRefIds.length > 0) {
+      const { data: guarantors } = await supabase
+        .from('tenant_references')
+        .select('parent_reference_id, tenant_first_name_encrypted, tenant_last_name_encrypted, status')
+        .eq('is_guarantor', true)
+        .in('parent_reference_id', guarantorRefIds)
+
+      if (guarantors) {
+        guarantors.forEach(g => {
+          guarantorMap[g.parent_reference_id] = {
+            name: `${decrypt(g.tenant_first_name_encrypted) || ''} ${decrypt(g.tenant_last_name_encrypted) || ''}`.trim(),
+            status: g.status
+          }
+        })
+      }
+    }
+
+    // Decrypt and enrich reference data
+    let enrichedRefs = references?.map(ref => {
+      const tenantFirstName = decrypt(ref.tenant_first_name_encrypted) || ''
+      const tenantLastName = decrypt(ref.tenant_last_name_encrypted) || ''
+      const tenantEmail = decrypt(ref.tenant_email_encrypted) || ''
+      const tenantPhone = decrypt(ref.tenant_phone_encrypted) || ''
+      const propertyAddress = decrypt(ref.property_address_encrypted) || ''
+
+      return {
+        id: ref.id,
+        tenant_name: `${tenantFirstName} ${tenantLastName}`.trim(),
+        tenant_first_name: tenantFirstName,
+        tenant_last_name: tenantLastName,
+        tenant_email: tenantEmail,
+        tenant_phone: tenantPhone,
+        property_address: propertyAddress,
+        status: ref.status,
+        move_in_date: ref.move_in_date,
+        created_at: ref.created_at,
+        updated_at: ref.updated_at,
+        requires_guarantor: ref.requires_guarantor,
+        company_name: decrypt((ref.companies as any)?.name_encrypted) || 'Unknown',
+        company_id: ref.company_id,
+        guarantor: ref.requires_guarantor ? guarantorMap[ref.id] || null : null
+      }
+    }) || []
+
+    // Apply search filter if query provided (client-side filtering on decrypted data)
+    if (query && typeof query === 'string' && query.length >= 2) {
+      const searchLower = query.toLowerCase()
+      enrichedRefs = enrichedRefs.filter(ref =>
+        ref.tenant_name.toLowerCase().includes(searchLower) ||
+        ref.property_address.toLowerCase().includes(searchLower) ||
+        ref.company_name.toLowerCase().includes(searchLower) ||
+        ref.tenant_email.toLowerCase().includes(searchLower) ||
+        (ref.guarantor?.name && ref.guarantor.name.toLowerCase().includes(searchLower))
+      )
+    }
+
+    res.json({
+      references: enrichedRefs,
+      total: query ? enrichedRefs.length : count,
+      limit: limitNum,
+      offset: offsetNum
+    })
+  } catch (error: any) {
+    console.error('Error searching references:', error?.message || error)
+    console.error('Full error:', JSON.stringify(error, null, 2))
+    res.status(500).json({ error: 'Failed to search references', details: error?.message })
+  }
+})
+
 export default router
