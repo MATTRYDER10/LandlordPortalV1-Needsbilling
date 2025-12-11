@@ -1858,6 +1858,4 @@ DATED: \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
 
 \[Anchor: GUARANTOR\_SIGNATURE {{id}}\]
 
-{{/guarantors}}
-
-[^1]: 
+{{/guarantors}} 

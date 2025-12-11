@@ -351,6 +351,29 @@ class PDFGenerationService {
   }
 
   /**
+   * Add page breaks before Annex headings for Welsh contracts
+   * This ensures each Annex starts on a new page for better readability
+   */
+  private addAnnexPageBreaks(html: string): string {
+    // Add page-break-before style to h1 elements containing "Annex"
+    // The markdown `# Annex 1:` becomes `<h1>Annex 1:` in HTML
+    return html.replace(/<h1>Annex/gi, '<h1 style="page-break-before: always;">Annex')
+  }
+
+  /**
+   * Add page breaks for English Guarantor agreements
+   * - Page break before "DEED OF GUARANTEE AND INDEMNITY" section
+   */
+  private addGuarantorPageBreaks(html: string): string {
+    // Add page break before the Deed of Guarantee section
+    // The markdown `**DEED OF GUARANTEE AND INDEMNITY**` becomes `<strong>DEED OF GUARANTEE` in HTML
+    return html.replace(
+      /<strong>DEED OF GUARANTEE/gi,
+      '<strong style="page-break-before: always; display: block;">DEED OF GUARANTEE'
+    )
+  }
+
+  /**
    * Calculate the date when break clause notice can first be served
    * (1 month before the break clause period from start date)
    */
@@ -605,7 +628,10 @@ class PDFGenerationService {
   /**
    * Wrap HTML content in a styled document
    */
-  private wrapInStyledDocument(htmlContent: string, auditCertificate: string = ''): string {
+  private wrapInStyledDocument(htmlContent: string, auditCertificate: string = '', isWelsh: boolean = false): string {
+    // Both Welsh and English use 9pt font for better fit
+    const fontSize = '9pt'
+
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -625,7 +651,7 @@ class PDFGenerationService {
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      font-size: 11pt;
+      font-size: ${fontSize};
       line-height: 1.6;
       color: #1f2937;
       margin: 0;
@@ -777,15 +803,28 @@ class PDFGenerationService {
         finalHtml = this.embedSignatures(finalHtml, signatures, agreementData)
       }
 
-      // 5. Generate audit certificate if needed
+      // 5. Add page breaks based on contract type
+      const isWelsh = agreementData.language === 'welsh'
+
+      if (isWelsh) {
+        // Welsh contracts: page break before each Annex
+        finalHtml = this.addAnnexPageBreaks(finalHtml)
+      }
+
+      if (!isWelsh && hasGuarantor) {
+        // English Guarantor contracts: page break before Deed of Guarantee
+        finalHtml = this.addGuarantorPageBreaks(finalHtml)
+      }
+
+      // 6. Generate audit certificate if needed
       const auditCertificate = (includeAuditPage && signatures && signatures.length > 0)
         ? this.generateAuditCertificateHtml(options)
         : ''
 
-      // 6. Wrap in styled HTML document
-      const fullHtml = this.wrapInStyledDocument(finalHtml, auditCertificate)
+      // 7. Wrap in styled HTML document (Welsh uses smaller font)
+      const fullHtml = this.wrapInStyledDocument(finalHtml, auditCertificate, isWelsh)
 
-      // 7. Generate PDF using Puppeteer
+      // 8. Generate PDF using Puppeteer
       const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
