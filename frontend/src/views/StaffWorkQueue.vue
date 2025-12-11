@@ -82,10 +82,6 @@
       <p v-else-if="activeTab === 'awaiting-docs'" class="tab-help">
         References where additional documentation has been requested from the tenant. Items will return to the verify queue when documents are uploaded.
       </p>
-      <p v-else class="tab-help">
-        You can hold up to {{ MAX_ACTIVE_ITEMS }} active cases. Items idle for 2 hours are automatically returned and
-        escalated.
-      </p>
 
       <!-- Loading State -->
       <div v-if="loading" class="loading">
