@@ -804,8 +804,14 @@
                       </div>
                     </div>
                   </div>
-                  <div v-else class="bg-gray-50 rounded-lg p-4">
-                    <p class="text-gray-500 text-center text-sm mb-3">Payslips not uploaded yet</p>
+
+                  <!-- Payslip upload/request section - ALWAYS show -->
+                  <div class="bg-gray-50 rounded-lg p-4 mt-3">
+                    <p class="text-gray-500 text-center text-sm mb-3">
+                      {{ reference?.payslip_files?.length
+                          ? `${reference.payslip_files.length} payslip(s) uploaded - 3 required`
+                          : 'Payslips not uploaded yet' }}
+                    </p>
                     <div class="flex justify-center gap-2">
                       <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
                         <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'payslips')">
@@ -1489,31 +1495,67 @@
 
               </div>
 
-              <!-- Gross Total -->
+              <!-- Gross Total with Edit Capability -->
               <div class="p-4 bg-gray-100 rounded mt-3">
-                <p class="text-lg font-semibold">
-                  Gross Total:
-                  <span class="text-blue-600">£{{ annualSalary + parseFloat(accountantReference?.annual_profit || '0') +
-                    parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') +
-                    parseFloat(reference.additional_income_amount || '0')}}</span>
-                </p>
-                <p class="text-lg font-semibold">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-lg font-semibold">Gross Total:</p>
+                  <button
+                    type="button"
+                    @click="isEditingIncome = !isEditingIncome"
+                    class="text-sm px-3 py-1 rounded-md border"
+                    :class="isEditingIncome ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'">
+                    {{ isEditingIncome ? 'Cancel Edit' : 'Edit Income' }}
+                  </button>
+                </div>
+
+                <div v-if="!isEditingIncome">
+                  <p class="text-lg">
+                    <span class="text-blue-600 font-semibold">£{{ totalAnnualIncome.toLocaleString() }}</span>
+                    <span v-if="manualIncomeOverride !== null" class="text-sm text-orange-600 ml-2">(Manually Adjusted)</span>
+                  </p>
+                </div>
+
+                <div v-else class="space-y-2">
+                  <input
+                    type="number"
+                    v-model.number="manualIncomeOverride"
+                    :placeholder="totalAnnualIncome.toString()"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    @click="manualIncomeOverride = null; isEditingIncome = false"
+                    class="text-sm text-gray-600 hover:text-gray-800">
+                    Reset to Auto-Calculated
+                  </button>
+                </div>
+
+                <p class="text-lg font-semibold mt-3">
                   Max Affordability (Gross ÷ 30):
-                  <span class="text-green-600">£{{ (annualSalary + parseFloat(accountantReference?.annual_profit || '0')
-                    +
-                    parseFloat(reference.benefits_annual_amount || '0') + parseFloat(reference.savings_amount || '0') +
-                    parseFloat(reference.additional_income_amount || '0'))/30 }} pcm</span>
+                  <span class="text-green-600">£{{ maxAffordability.toFixed(2) }} pcm</span>
                 </p>
-                <p v-if="reference.rent_share" class="text-lg font-semibold">
+
+                <p v-if="reference.rent_share" class="text-lg font-semibold mt-2">
                   Rent Share:
                   <span class="text-blue-600">£{{ reference.rent_share }}</span>
                   <span v-if="reference.monthly_rent" class="text-sm text-gray-600"> (of £{{ reference.monthly_rent }} total)</span>
                   <span>/month</span>
                 </p>
-                <p v-else-if="reference.monthly_rent" class="text-lg font-semibold">
+                <p v-else-if="reference.monthly_rent" class="text-lg font-semibold mt-2">
                   Monthly Rent:
                   <span class="text-blue-600">£{{ reference.monthly_rent }}/month</span>
                 </p>
+
+                <!-- Rent/Income Ratio Indicator -->
+                <div v-if="reference.rent_share || reference.monthly_rent" class="mt-3 pt-3 border-t border-gray-300">
+                  <p class="text-sm font-medium text-gray-700">
+                    Rent/Income Ratio:
+                    <span :class="maxAffordability >= parseFloat(reference.rent_share || reference.monthly_rent || '0') ? 'text-green-600' : 'text-red-600'">
+                      {{ ((parseFloat(reference.rent_share || reference.monthly_rent || '0') / maxAffordability) * 100).toFixed(1) }}%
+                    </span>
+                    <span class="text-gray-500 ml-1">(30% = affordable)</span>
+                  </p>
+                </div>
               </div>
 
 
@@ -3146,6 +3188,24 @@ const comparisonStatusLabel = (status: SimpleComparisonStatus) => {
 }
 
 const annualSalary = ref<number>(0);
+const manualIncomeOverride = ref<number | null>(null);
+const isEditingIncome = ref(false);
+
+const totalAnnualIncome = computed(() => {
+  if (manualIncomeOverride.value !== null) {
+    return manualIncomeOverride.value;
+  }
+
+  return annualSalary.value +
+    parseFloat(accountantReference.value?.annual_profit || '0') +
+    parseFloat(reference.value?.benefits_annual_amount || '0') +
+    parseFloat(reference.value?.savings_amount || '0') +
+    parseFloat(reference.value?.additional_income_amount || '0');
+});
+
+const maxAffordability = computed(() => {
+  return totalAnnualIncome.value / 30;
+});
 
 const employmentComparisonTable = computed<EmploymentComparisonDisplayRow[]>(() => {
   if (!reference.value || !employerReference.value) return []

@@ -2638,8 +2638,18 @@ router.post('/submit/:token', async (req: Request, res) => {
 
     // Check if tenant requires any third-party references
     // If not, move directly to pending_verification so they enter the verification queue
-    const requiresEmployerRef = !!data.employer_ref_email
-    const requiresAccountantRef = data.income_self_employed && !!data.accountant_email
+
+    // Regular employment: Enter queue if employer reference submitted OR ≥3 payslips uploaded
+    const hasEmployerRef = !!data.employer_ref_email
+    const hasEnoughPayslips = (updatedReference.payslip_files?.length || 0) >= 3
+    const requiresEmployerRef = data.income_regular_employment && !hasEmployerRef && !hasEnoughPayslips
+
+    // Self-employed: Enter queue if accountant reference submitted OR tax return uploaded
+    const hasAccountantRef = !!data.accountant_email
+    const hasTaxReturn = !!updatedReference.tax_return_path
+    const requiresAccountantRef = data.income_self_employed && !hasAccountantRef && !hasTaxReturn
+
+    // Residential: Keep existing logic (landlord reference if provided)
     const requiresResidentialRef = !!data.previous_landlord_email
 
     if (!requiresEmployerRef && !requiresAccountantRef && !requiresResidentialRef) {
