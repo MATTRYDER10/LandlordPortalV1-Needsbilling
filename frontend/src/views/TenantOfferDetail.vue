@@ -71,6 +71,98 @@
           </button>
         </div>
 
+        <!-- Notes Section -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-xl font-semibold text-gray-900 mb-4">Notes</h3>
+
+          <!-- Add Note Form -->
+          <div class="mb-4">
+            <textarea v-model="newNote" rows="3" placeholder="Add a note..."
+              class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary text-sm"></textarea>
+            <button @click="addNote" :disabled="!newNote.trim() || addingNote"
+              class="mt-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 disabled:opacity-50">
+              {{ addingNote ? 'Adding...' : 'Add Note' }}
+            </button>
+          </div>
+
+          <!-- Notes List -->
+          <div v-if="notes.length === 0" class="text-sm text-gray-500 italic">
+            No notes yet.
+          </div>
+          <div v-else class="space-y-3">
+            <div v-for="note in notes" :key="note.id" class="border border-gray-200 rounded-lg p-3">
+              <div class="flex justify-between items-start">
+                <div class="flex-1">
+                  <div v-if="editingNoteId === note.id">
+                    <textarea v-model="editNoteText" rows="2"
+                      class="block w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-primary focus:border-primary"></textarea>
+                    <div class="mt-2 flex gap-2">
+                      <button @click="saveNoteEdit(note.id)" :disabled="!editNoteText.trim()"
+                        class="px-3 py-1 text-xs bg-primary text-white rounded-md hover:bg-primary/90">Save</button>
+                      <button @click="cancelNoteEdit"
+                        class="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">Cancel</button>
+                    </div>
+                  </div>
+                  <p v-else class="text-sm text-gray-900 whitespace-pre-wrap">{{ note.note }}</p>
+                </div>
+                <div v-if="!editingNoteId && note.created_by === authStore.user?.id" class="ml-2 flex gap-1">
+                  <button @click="startEditNote(note)" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button @click="deleteNote(note.id)" class="text-gray-400 hover:text-red-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="mt-2 text-xs text-gray-500">
+                {{ note.created_by_user?.email || 'Unknown' }} - {{ formatDate(note.created_at) }}
+                <span v-if="note.updated_at !== note.created_at" class="italic">(edited)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email History Section -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold text-gray-900">Email History</h3>
+            <div v-if="offer.status === 'approved' || offer.status === 'declined'" class="flex gap-2">
+              <button v-if="offer.status === 'approved'" @click="resendEmail('approval')" :disabled="resendingEmail"
+                class="px-3 py-1 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md disabled:opacity-50">
+                {{ resendingEmail ? 'Sending...' : 'Resend Approval Email' }}
+              </button>
+              <button v-if="offer.status === 'declined'" @click="resendEmail('decline')" :disabled="resendingEmail"
+                class="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md disabled:opacity-50">
+                {{ resendingEmail ? 'Sending...' : 'Resend Decline Email' }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="auditLog.length === 0" class="text-sm text-gray-500 italic">
+            No email history yet.
+          </div>
+          <div v-else class="space-y-2">
+            <div v-for="entry in emailAuditEntries" :key="entry.id"
+              class="flex items-start gap-3 py-2 border-b border-gray-100 last:border-0">
+              <div class="flex-shrink-0 mt-1">
+                <span v-if="entry.action.includes('EMAIL')" class="w-2 h-2 rounded-full inline-block"
+                  :class="entry.action.includes('APPROVAL') ? 'bg-green-500' : entry.action.includes('DECLINE') ? 'bg-red-500' : 'bg-blue-500'"></span>
+                <span v-else class="w-2 h-2 rounded-full inline-block bg-gray-400"></span>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm text-gray-900">{{ entry.description }}</p>
+                <p class="text-xs text-gray-500">
+                  {{ entry.created_by_user?.email || 'System' }} - {{ formatDate(entry.created_at) }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Offer Details -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Offer Details</h3>
@@ -157,6 +249,10 @@
                 <div>
                   <dt class="text-sm font-medium text-gray-500">Annual Income</dt>
                   <dd class="mt-1 text-sm text-gray-900">£{{ tenant.annual_income }}</dd>
+                </div>
+                <div v-if="tenant.job_title">
+                  <dt class="text-sm font-medium text-gray-500">Job Title</dt>
+                  <dd class="mt-1 text-sm text-gray-900">{{ tenant.job_title }}</dd>
                 </div>
                 <div>
                   <dt class="text-sm font-medium text-gray-500">No CCJ/Bankruptcy/IVA</dt>
@@ -494,6 +590,17 @@ const showDeclineModal = ref(false)
 const showEditModal = ref(false)
 const declineReason = ref('')
 
+// Notes state
+const notes = ref<any[]>([])
+const newNote = ref('')
+const addingNote = ref(false)
+const editingNoteId = ref<string | null>(null)
+const editNoteText = ref('')
+
+// Audit log state
+const auditLog = ref<any[]>([])
+const resendingEmail = ref(false)
+
 // Holding deposit modal state
 const showHoldingDepositModal = ref(false)
 const holdingDepositInput = ref('')
@@ -552,6 +659,15 @@ const showStatusTick = computed(() =>
   offer.value?.status === 'reference_created'
 )
 
+// Filter audit log for email-related entries
+const emailAuditEntries = computed(() => {
+  return auditLog.value.filter(entry =>
+    entry.action.includes('EMAIL') ||
+    entry.action.includes('APPROVED') ||
+    entry.action.includes('DECLINED')
+  )
+})
+
 const formatCurrency = (value: number | string | null | undefined) => {
   if (value === null || value === undefined || value === '') return ''
   const numericValue = typeof value === 'string' ? parseFloat(value) : value
@@ -608,10 +724,178 @@ const fetchOffer = async () => {
       deposit_amount: offer.value.deposit_amount || null,
       special_conditions: offer.value.special_conditions || ''
     }
+
+    // Fetch notes and audit log
+    await Promise.all([fetchNotes(), fetchAuditLog()])
   } catch (err: any) {
     error.value = err.message || 'Failed to load offer'
   } finally {
     loading.value = false
+  }
+}
+
+const fetchNotes = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/offer-notes/${route.params.id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      notes.value = data || []
+    }
+  } catch (err) {
+    console.error('Failed to fetch notes:', err)
+  }
+}
+
+const fetchAuditLog = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/offer-audit-log/${route.params.id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      auditLog.value = data || []
+    }
+  } catch (err) {
+    console.error('Failed to fetch audit log:', err)
+  }
+}
+
+const addNote = async () => {
+  if (!newNote.value.trim()) return
+
+  addingNote.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/offer-notes/${route.params.id}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ note: newNote.value })
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      notes.value.unshift(data)
+      newNote.value = ''
+      await fetchAuditLog() // Refresh audit log to show note added
+    }
+  } catch (err) {
+    console.error('Failed to add note:', err)
+  } finally {
+    addingNote.value = false
+  }
+}
+
+const startEditNote = (note: any) => {
+  editingNoteId.value = note.id
+  editNoteText.value = note.note
+}
+
+const cancelNoteEdit = () => {
+  editingNoteId.value = null
+  editNoteText.value = ''
+}
+
+const saveNoteEdit = async (noteId: string) => {
+  if (!editNoteText.value.trim()) return
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/offer-notes/${route.params.id}/${noteId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ note: editNoteText.value })
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      const index = notes.value.findIndex(n => n.id === noteId)
+      if (index !== -1) {
+        notes.value[index] = data
+      }
+      cancelNoteEdit()
+    }
+  } catch (err) {
+    console.error('Failed to update note:', err)
+  }
+}
+
+const deleteNote = async (noteId: string) => {
+  if (!window.confirm('Are you sure you want to delete this note?')) return
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/offer-notes/${route.params.id}/${noteId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      notes.value = notes.value.filter(n => n.id !== noteId)
+      await fetchAuditLog() // Refresh audit log
+    }
+  } catch (err) {
+    console.error('Failed to delete note:', err)
+  }
+}
+
+const resendEmail = async (emailType: 'approval' | 'decline') => {
+  resendingEmail.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}/resend-email`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email_type: emailType })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to resend email')
+    }
+
+    await fetchAuditLog() // Refresh audit log to show resend
+    alert(data.message || 'Email resent successfully')
+  } catch (err: any) {
+    alert(err.message || 'Failed to resend email')
+  } finally {
+    resendingEmail.value = false
   }
 }
 
@@ -637,6 +921,7 @@ const approveOffer = async () => {
 
     showApproveModal.value = false
     await fetchOffer()
+    await fetchAuditLog()
   } catch (err: any) {
     error.value = err.message || 'Failed to approve offer'
   } finally {
@@ -670,6 +955,7 @@ const declineOffer = async () => {
     showDeclineModal.value = false
     declineReason.value = ''
     await fetchOffer()
+    await fetchAuditLog()
   } catch (err: any) {
     error.value = err.message || 'Failed to decline offer'
   } finally {
@@ -721,6 +1007,7 @@ const acceptWithChanges = async () => {
 
     showEditModal.value = false
     await fetchOffer()
+    await fetchAuditLog()
   } catch (err: any) {
     error.value = err.message || 'Failed to update offer'
   } finally {

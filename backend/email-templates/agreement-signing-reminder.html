@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reminder: Sign Your Tenancy Agreement - PropertyGoose</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <div style="display: inline-block; text-align: center;">
+                                            <img src="https://app.propertygoose.co.uk/PropertyGooseLogo.png" alt="PropertyGoose" style="height: 48px; width: auto;">
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Reminder Banner -->
+                    <tr>
+                        <td style="padding: 0;">
+                            <div style="background-color: #fef3c7; padding: 16px 40px; text-align: center;">
+                                <p style="margin: 0; font-size: 14px; font-weight: 600; color: #92400e;">
+                                    REMINDER: Your signature is still required
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: bold; color: #111827; text-align: center;">Your Tenancy Agreement Awaits Signature</h1>
+
+                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                Hi {{ SignerName }},
+                            </p>
+
+                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                We noticed you haven't signed your tenancy agreement yet. As the <strong>{{ SignerType }}</strong>, your signature is required to complete the agreement for:
+                            </p>
+
+                            <div style="margin: 0 0 24px; padding: 16px; background-color: #f9fafb; border-radius: 8px; border-left: 4px solid #f97316;">
+                                <p style="margin: 0; font-size: 16px; font-weight: 600; color: #111827;">
+                                    {{ PropertyAddress }}
+                                </p>
+                            </div>
+
+                            <!-- Days Remaining Alert -->
+                            <div style="margin: 0 0 24px; padding: 20px; background-color: #fee2e2; border-radius: 8px; text-align: center;">
+                                <p style="margin: 0 0 8px; font-size: 32px; font-weight: bold; color: #dc2626;">
+                                    {{ DaysRemaining }}
+                                </p>
+                                <p style="margin: 0; font-size: 14px; color: #991b1b;">
+                                    days remaining to sign
+                                </p>
+                            </div>
+
+                            <p style="margin: 0 0 32px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                Please review and sign the agreement as soon as possible. The signing link will expire on <strong>{{ ExpiryDate }}</strong>.
+                            </p>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <a href="{{ SigningUrl }}" style="display: inline-block; padding: 14px 32px; background-color: #f97316 !important; color: #ffffff !important; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 6px; mso-padding-alt: 0; text-underline-color: #f97316;">
+                                            <span style="color: #ffffff !important; text-decoration: none;">Sign Agreement Now</span>
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 32px 0 0; font-size: 14px; line-height: 20px; color: #6b7280;">
+                                If the button doesn't work, copy and paste this link into your browser:
+                            </p>
+                            <p style="margin: 8px 0 0; font-size: 14px; line-height: 20px; word-break: break-all;">
+                                <a href="{{ SigningUrl }}" style="color: #f97316; text-decoration: none;">{{ SigningUrl }}</a>
+                            </p>
+
+                            <div style="margin-top: 32px; padding: 16px; background-color: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #1e40af;">
+                                    <strong>Note:</strong> Other parties are waiting for your signature to complete the agreement. Your electronic signature is legally binding.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px 40px; background-color: #f9fafb; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 8px; font-size: 14px; line-height: 20px; color: #6b7280; text-align: center;">
+                                If you have any questions about this agreement, please contact your letting agent or landlord.
+                            </p>
+                            <p style="margin: 0; font-size: 12px; line-height: 16px; color: #9ca3af; text-align: center;">
+                                This is an automated reminder from PropertyGoose. Please do not reply to this email.
+                            </p>
+                            <p style="margin: 16px 0 0; font-size: 12px; line-height: 16px; color: #9ca3af; text-align: center;">
+                                &copy; 2025 PropertyGoose. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

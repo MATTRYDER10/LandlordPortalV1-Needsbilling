@@ -63,19 +63,20 @@ export async function mapReferenceToScoringInput(referenceId: string): Promise<A
       employment_status_encrypted: !!reference.employment_status_encrypted
     })
 
-    // Try to get monthly rent from various possible fields (check non-encrypted first, then encrypted)
+    // Try to get monthly rent from various possible fields
+    // Prioritize rent_share if available (for multi-tenant properties and guarantors)
     let monthlyRent = 0
-    if (reference.monthly_rent) {
+    if (reference.rent_share) {
+      // Use rent_share first - this is the actual amount this person is responsible for
+      monthlyRent = parseFloat(String(reference.rent_share))
+      console.log('[ScoringMapper] Using rent_share:', monthlyRent)
+    } else if (reference.monthly_rent) {
       // Plain field
       monthlyRent = parseFloat(String(reference.monthly_rent))
       console.log('[ScoringMapper] Using monthly_rent (plain):', monthlyRent)
     } else if (reference.monthly_rent_encrypted) {
       monthlyRent = parseFloat(decrypt(reference.monthly_rent_encrypted) || '0')
       console.log('[ScoringMapper] Using monthly_rent_encrypted:', monthlyRent)
-    } else if (reference.rent_share) {
-      // If they have a rent share, use that
-      monthlyRent = parseFloat(String(reference.rent_share))
-      console.log('[ScoringMapper] Using rent_share:', monthlyRent)
     }
 
     const rentShareFraction = reference.rent_share_fraction || 1.0

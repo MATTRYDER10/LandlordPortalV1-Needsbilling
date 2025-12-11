@@ -1,7 +1,10 @@
 import { Router } from 'express'
+import multer from 'multer'
+import crypto from 'crypto'
 import { authenticateStaff, StaffAuthRequest } from '../middleware/staffAuth'
 import { supabase } from '../config/supabase'
 import { decrypt, encrypt, generateToken, hash } from '../services/encryption'
+import { loadEmailTemplate, sendEmail } from '../services/emailService'
 import { creditsafeService, VerificationRequest } from '../services/creditsafeService'
 import { sanctionsService } from '../services/sanctionsService'
 import {
@@ -10,7 +13,8 @@ import {
   sendLandlordReferenceRequest,
   sendAgentReferenceRequest,
   sendEmployerReferenceRequest,
-  sendAccountantReferenceRequest
+  sendAccountantReferenceRequest,
+  sendTenantAddGuarantorRequest
 } from '../services/emailService'
 import {
   sendGuarantorReferenceRequestSMS,
@@ -23,6 +27,22 @@ import { logAuditAction } from '../services/auditService'
 import {  reAssessApplicationScore, ReAssessmentPayload } from '../services/application-assesment/assessApplication'
 
 const router = Router()
+
+// Configure multer for staff file uploads (store in memory)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Invalid file type. Only PDF and images are allowed.'))
+    }
+  }
+})
 
 const parseEncryptedJsonField = (value?: string | null) => {
   if (!value) return null
@@ -464,51 +484,6 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       .eq('reference_id', id)
       .single()
 
-    // If this is a child reference and no landlord/agent/accountant ref found, check siblings
-    if (reference.parent_reference_id && (!landlordReference && !agentReference && !accountantReference)) {
-      // Get all sibling references
-      const { data: siblings } = await supabase
-        .from('tenant_references')
-        .select('id')
-        .eq('parent_reference_id', reference.parent_reference_id)
-        .neq('id', id)
-
-      if (siblings && siblings.length > 0) {
-        // Check each sibling for references
-        for (const sibling of siblings) {
-          if (!landlordReference) {
-            const { data: siblingLandlordRef } = await supabase
-              .from('landlord_references')
-              .select('*')
-              .eq('reference_id', sibling.id)
-              .single()
-            if (siblingLandlordRef) landlordReference = siblingLandlordRef
-          }
-
-          if (!agentReference) {
-            const { data: siblingAgentRef } = await supabase
-              .from('agent_references')
-              .select('*')
-              .eq('reference_id', sibling.id)
-              .single()
-            if (siblingAgentRef) agentReference = siblingAgentRef
-          }
-
-          if (!accountantReference) {
-            const { data: siblingAccountantRef } = await supabase
-              .from('accountant_references')
-              .select('*')
-              .eq('tenant_reference_id', sibling.id)
-              .single()
-            if (siblingAccountantRef) accountantReference = siblingAccountantRef
-          }
-
-          // Break early if we found all references
-          if (landlordReference && agentReference && accountantReference) break
-        }
-      }
-    }
-
     // Get documents
     const { data: documents } = await supabase
       .from('reference_documents')
@@ -782,7 +757,7 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
         companies:company_id (
           id,
           name_encrypted,
-          email_encrypted
+          reference_notification_email
         )
       `)
       .single()
@@ -795,35 +770,103 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
       return res.status(404).json({ error: 'Reference not found or already verified' })
     }
 
-    // Send email notification to agent/company
+    // Send email notification to the configured reference notification email
     try {
-      if (reference.companies && reference.companies.email_encrypted && reference.companies.name_encrypted) {
-        const companyEmail = decrypt(reference.companies.email_encrypted)
-        const companyName = decrypt(reference.companies.name_encrypted)
-        const tenantName = decrypt(reference.tenant_name_encrypted)
-        const propertyAddressDecrypted = reference.property_address_encrypted
-          ? decrypt(reference.property_address_encrypted)
-          : null
-        const propertyAddress = propertyAddressDecrypted || 'N/A'
+      const notificationEmail = reference.companies?.reference_notification_email
 
-        // Only send email if all required fields are present
-        if (companyEmail && companyName && tenantName) {
-          // Construct dashboard link
-          const dashboardLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/dashboard/references/${reference.id}`
+      if (notificationEmail) {
+        const tenantName = decrypt(reference.tenant_name_encrypted) || 'Tenant'
+        const propertyAddress = reference.property_address_encrypted
+          ? decrypt(reference.property_address_encrypted) || 'N/A'
+          : 'N/A'
 
-          await sendReferenceCompletedNotification(
-            companyEmail,
-            companyName,
-            tenantName,
-            propertyAddress,
-            dashboardLink,
-            reference.completed_at || new Date().toISOString()
-          )
-        }
+        const companyName = reference.companies?.name_encrypted
+          ? decrypt(reference.companies.name_encrypted) || 'Agent'
+          : 'Agent'
+
+        const dashboardLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/dashboard/references/${reference.id}`
+
+        await sendReferenceCompletedNotification(
+          notificationEmail,
+          companyName,
+          tenantName,
+          propertyAddress,
+          dashboardLink,
+          reference.completed_at || new Date().toISOString()
+        )
       }
     } catch (emailError: any) {
       console.error('Error sending completion notification email:', emailError)
       // Don't fail the request if email fails
+    }
+
+    // Check if PASS_WITH_GUARANTOR and no guarantor assigned - send email to tenant
+    try {
+      // Get the score decision
+      const { data: score } = await supabase
+        .from('reference_scores')
+        .select('decision')
+        .eq('reference_id', id)
+        .single()
+
+      if (score?.decision === 'PASS_WITH_GUARANTOR') {
+        // Check if guarantor already exists
+        const { data: existingGuarantor } = await supabase
+          .from('tenant_references')
+          .select('id')
+          .eq('guarantor_for_reference_id', id)
+          .eq('is_guarantor', true)
+          .maybeSingle()
+
+        if (!existingGuarantor) {
+          // Generate add-guarantor token
+          const addGuarantorToken = generateToken()
+          const addGuarantorTokenHash = hash(addGuarantorToken)
+          const tokenExpiresAt = new Date()
+          tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 14) // 14-day expiry
+
+          // Save token to reference
+          await supabase
+            .from('tenant_references')
+            .update({
+              add_guarantor_token_hash: addGuarantorTokenHash,
+              add_guarantor_token_expires_at: tokenExpiresAt.toISOString()
+            })
+            .eq('id', id)
+
+          // Send email to tenant
+          const tenantEmail = decrypt(reference.tenant_email_encrypted)
+          const tenantFirstName = reference.tenant_first_name_encrypted
+            ? decrypt(reference.tenant_first_name_encrypted) || ''
+            : ''
+          const tenantLastName = reference.tenant_last_name_encrypted
+            ? decrypt(reference.tenant_last_name_encrypted) || ''
+            : ''
+          const tenantName = `${tenantFirstName} ${tenantLastName}`.trim() || 'Tenant'
+          const propertyAddress = reference.property_address_encrypted
+            ? decrypt(reference.property_address_encrypted) || 'the property'
+            : 'the property'
+          const companyName = reference.companies?.name_encrypted
+            ? decrypt(reference.companies.name_encrypted) || 'Your agent'
+            : 'Your agent'
+          const formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-add-guarantor/${addGuarantorToken}`
+
+          if (tenantEmail) {
+            await sendTenantAddGuarantorRequest(
+              tenantEmail,
+              tenantName,
+              propertyAddress,
+              companyName,
+              formLink,
+              id
+            )
+            console.log('Sent tenant add guarantor email to:', tenantEmail)
+          }
+        }
+      }
+    } catch (guarantorEmailError: any) {
+      console.error('Error sending tenant add guarantor email:', guarantorEmailError)
+      // Don't fail the verification if email fails
     }
 
     res.json({
@@ -1289,7 +1332,8 @@ router.post('/references/:id/re-assess', authenticateStaff, async (req: StaffAut
 router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: StaffAuthRequest, res) => {
   try {
     const { referenceId } = req.params
-    const { contactType, method } = req.body as { contactType: string; method: 'email' | 'sms' }
+    const { contactType, method, newEmail } = req.body as { contactType: string; method: 'email' | 'sms'; newEmail?: string }
+    const staffUser = req.staffUser
 
     if (!contactType || !method) {
       return res.status(400).json({ error: 'contactType and method are required' })
@@ -1301,6 +1345,11 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
 
     if (!['email', 'sms'].includes(method)) {
       return res.status(400).json({ error: 'Method must be email or sms' })
+    }
+
+    // Validate new email if provided
+    if (newEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' })
     }
 
     // Get the reference
@@ -1357,9 +1406,23 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         if (guarantorRefLegacy) {
           // Use guarantor_references table data (legacy)
           guarantorId = guarantorRefLegacy.id
-          contactEmail = decrypt(guarantorRefLegacy.email_encrypted) || ''
+          const currentGuarantorEmail = decrypt(guarantorRefLegacy.email_encrypted) || ''
+          contactEmail = newEmail || currentGuarantorEmail
           contactPhone = decrypt(guarantorRefLegacy.contact_number_encrypted) || ''
           contactName = `${decrypt(guarantorRefLegacy.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRefLegacy.guarantor_last_name_encrypted) || ''}`.trim()
+
+          // Update email if changed
+          if (newEmail && newEmail !== currentGuarantorEmail) {
+            await supabase
+              .from('guarantor_references')
+              .update({ email_encrypted: encrypt(newEmail) })
+              .eq('id', guarantorRefLegacy.id)
+            // Also update in parent reference
+            await supabase
+              .from('tenant_references')
+              .update({ guarantor_email_encrypted: encrypt(newEmail) })
+              .eq('id', referenceId)
+          }
 
           // Generate new token
           const guarantorToken = generateToken()
@@ -1398,9 +1461,23 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         } else if (guarantorRefNew) {
           // Use tenant_references table data (new method)
           guarantorId = guarantorRefNew.id
-          contactEmail = decrypt(guarantorRefNew.tenant_email_encrypted) || ''
+          const currentGuarantorEmail = decrypt(guarantorRefNew.tenant_email_encrypted) || ''
+          contactEmail = newEmail || currentGuarantorEmail
           contactPhone = decrypt(guarantorRefNew.tenant_phone_encrypted) || ''
           contactName = `${decrypt(guarantorRefNew.tenant_first_name_encrypted) || ''} ${decrypt(guarantorRefNew.tenant_last_name_encrypted) || ''}`.trim()
+
+          // Update email if changed
+          if (newEmail && newEmail !== currentGuarantorEmail) {
+            await supabase
+              .from('tenant_references')
+              .update({ tenant_email_encrypted: encrypt(newEmail) })
+              .eq('id', guarantorRefNew.id)
+            // Also update in parent reference
+            await supabase
+              .from('tenant_references')
+              .update({ guarantor_email_encrypted: encrypt(newEmail) })
+              .eq('id', referenceId)
+          }
 
           // Generate new token
           const guarantorToken = generateToken()
@@ -1449,10 +1526,19 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
       }
 
       case 'Landlord': {
-        contactEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        const currentLandlordEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        contactEmail = newEmail || currentLandlordEmail
         contactPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
         contactName = decrypt(reference.previous_landlord_name_encrypted) || ''
         formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${referenceId}`
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentLandlordEmail) {
+          await supabase
+            .from('tenant_references')
+            .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId)
+        }
 
         if (method === 'email') {
           await sendLandlordReferenceRequest(
@@ -1481,10 +1567,19 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
       }
 
       case 'Agent': {
-        contactEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        const currentAgentEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        contactEmail = newEmail || currentAgentEmail
         contactPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
         contactName = reference.previous_agency_name || ''
         formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentAgentEmail) {
+          await supabase
+            .from('tenant_references')
+            .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId)
+        }
 
         if (method === 'email') {
           await sendAgentReferenceRequest(
@@ -1513,10 +1608,19 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
       }
 
       case 'Employer': {
-        contactEmail = decrypt(reference.employer_ref_email_encrypted) || ''
+        const currentEmployerEmail = decrypt(reference.employer_ref_email_encrypted) || ''
+        contactEmail = newEmail || currentEmployerEmail
         contactPhone = decrypt(reference.employer_ref_phone_encrypted) || ''
         contactName = decrypt(reference.employer_ref_name_encrypted) || ''
         formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${referenceId}`
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentEmployerEmail) {
+          await supabase
+            .from('tenant_references')
+            .update({ employer_ref_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId)
+        }
 
         if (method === 'email') {
           await sendEmployerReferenceRequest(
@@ -1545,30 +1649,67 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
       }
 
       case 'Accountant': {
-        // Get accountant reference
-        const { data: accountantRef } = await supabase
+        // Get accountant reference (may not exist yet if tenant provided details but email wasn't sent)
+        let { data: accountantRef } = await supabase
           .from('accountant_references')
-          .select('id, reference_token_hash')
+          .select('id, token_hash')
           .eq('tenant_reference_id', referenceId)
-          .single()
+          .maybeSingle()
 
-        if (!accountantRef) {
-          return res.status(404).json({ error: 'Accountant reference not found' })
-        }
-
-        contactEmail = decrypt(reference.accountant_email_encrypted) || ''
+        const currentAccountantEmail = decrypt(reference.accountant_email_encrypted) || ''
+        contactEmail = newEmail || currentAccountantEmail
         contactPhone = decrypt(reference.accountant_phone_encrypted) || ''
         contactName = decrypt(reference.accountant_name_encrypted) || ''
 
-        // Generate new token
-        const accountantToken = generateToken()
-        const accountantTokenHash = hash(accountantToken)
-        await supabase
-          .from('accountant_references')
-          .update({ reference_token_hash: accountantTokenHash })
-          .eq('id', accountantRef.id)
+        // Update email if changed
+        if (newEmail && newEmail !== currentAccountantEmail) {
+          await supabase
+            .from('tenant_references')
+            .update({ accountant_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId)
+        }
 
-        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accountant-reference/${accountantToken}`
+        // If no accountant reference row exists, create one using tenant's provided details
+        if (!accountantRef) {
+          if (!contactEmail || !contactName) {
+            return res.status(404).json({ error: 'Accountant reference not found - no contact details available' })
+          }
+
+          // Generate token for new record
+          const newAccountantToken = generateToken()
+          const newAccountantTokenHash = hash(newAccountantToken)
+
+          const { data: newAccountantRef, error: insertError } = await supabase
+            .from('accountant_references')
+            .insert({
+              tenant_reference_id: referenceId,
+              token_hash: newAccountantTokenHash,
+              accountant_firm_encrypted: encrypt(decrypt(reference.accountant_company_encrypted) || ''),
+              accountant_name_encrypted: reference.accountant_name_encrypted,
+              accountant_email_encrypted: newEmail ? encrypt(newEmail) : reference.accountant_email_encrypted,
+              accountant_phone_encrypted: reference.accountant_phone_encrypted,
+            })
+            .select('id, token_hash')
+            .single()
+
+          if (insertError || !newAccountantRef) {
+            console.error('Failed to create accountant reference:', insertError)
+            return res.status(500).json({ error: 'Failed to create accountant reference record' })
+          }
+
+          accountantRef = newAccountantRef
+          formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accountant-reference/${newAccountantToken}`
+        } else {
+          // Generate new token for existing record
+          const accountantToken = generateToken()
+          const accountantTokenHash = hash(accountantToken)
+          await supabase
+            .from('accountant_references')
+            .update({ token_hash: accountantTokenHash })
+            .eq('id', accountantRef.id)
+
+          formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accountant-reference/${accountantToken}`
+        }
 
         if (method === 'email') {
           await sendAccountantReferenceRequest(
@@ -1628,6 +1769,234 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
   } catch (error: any) {
     console.error('Failed to send chase reminder:', error)
     res.status(500).json({ error: error.message || 'Failed to send reminder' })
+  }
+})
+
+// Document type to database field mapping
+const documentTypeToField: Record<string, string> = {
+  'id_document': 'id_document_path',
+  'selfie': 'selfie_path',
+  'proof_of_address': 'proof_of_address_path',
+  'proof_of_funds': 'proof_of_funds_path',
+  'proof_of_additional_income': 'proof_of_additional_income_path',
+  'bank_statements': 'bank_statements_paths',
+  'payslips': 'payslips_paths',
+  'tax_return': 'tax_return_path',
+  'rtr_alternative_document': 'rtr_alternative_document_path'
+}
+
+const documentTypeLabels: Record<string, string> = {
+  'id_document': 'ID Document',
+  'selfie': 'Selfie',
+  'proof_of_address': 'Proof of Address',
+  'proof_of_funds': 'Proof of Funds',
+  'proof_of_additional_income': 'Proof of Additional Income',
+  'bank_statements': 'Bank Statements',
+  'payslips': 'Payslips',
+  'tax_return': 'Tax Return',
+  'rtr_alternative_document': 'Right to Rent Alternative Document'
+}
+
+// Staff upload document on behalf of tenant
+router.post('/references/:id/upload-document', authenticateStaff, upload.single('file'), async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { document_type } = req.body
+    const file = req.file
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file provided' })
+    }
+
+    if (!document_type || !documentTypeToField[document_type]) {
+      return res.status(400).json({ error: 'Invalid document type' })
+    }
+
+    // Verify reference exists
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted')
+      .eq('id', id)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Upload file to Supabase storage
+    const fileExt = file.originalname.split('.').pop()
+    const fileName = `${id}/${document_type}/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('tenant-documents')
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+      })
+
+    if (uploadError) {
+      throw new Error(`Failed to upload file: ${uploadError.message}`)
+    }
+
+    // Update the reference with the new file path
+    const fieldName = documentTypeToField[document_type]
+    const updateData: Record<string, any> = {}
+
+    // Handle array fields (bank_statements, payslips)
+    if (fieldName.endsWith('_paths')) {
+      // Get existing paths and append
+      const { data: currentRef } = await supabase
+        .from('tenant_references')
+        .select(fieldName)
+        .eq('id', id)
+        .single()
+
+      const existingPaths = (currentRef as Record<string, any>)?.[fieldName] || []
+      updateData[fieldName] = [...existingPaths, fileName]
+    } else {
+      updateData[fieldName] = fileName
+    }
+
+    const { error: updateError } = await supabase
+      .from('tenant_references')
+      .update(updateData)
+      .eq('id', id)
+
+    if (updateError) {
+      throw new Error(`Failed to update reference: ${updateError.message}`)
+    }
+
+    // Log audit action
+    await logAuditAction({
+      referenceId: id,
+      action: 'DOCUMENT_UPLOADED_BY_STAFF',
+      description: `Staff uploaded ${documentTypeLabels[document_type]}`,
+      metadata: { document_type, file_name: fileName },
+      userId: req.staffUser?.id
+    })
+
+    res.json({
+      message: 'Document uploaded successfully',
+      file_path: fileName
+    })
+  } catch (error: any) {
+    console.error('Failed to upload document:', error)
+    res.status(500).json({ error: error.message || 'Failed to upload document' })
+  }
+})
+
+// Request document from tenant (pushes back to in_progress)
+router.post('/references/:id/request-document', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { document_type, message } = req.body
+
+    if (!document_type || !documentTypeLabels[document_type]) {
+      return res.status(400).json({ error: 'Invalid document type' })
+    }
+
+    // Get reference details
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, tenant_first_name_encrypted, tenant_email_encrypted, status')
+      .eq('id', id)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    const tenantFirstName = decrypt(reference.tenant_first_name_encrypted) || 'Tenant'
+    const tenantEmail = decrypt(reference.tenant_email_encrypted)
+
+    if (!tenantEmail) {
+      return res.status(400).json({ error: 'Tenant email not found' })
+    }
+
+    // Generate a new token for the tenant to access the form
+    const token = generateToken()
+    const tokenHash = hash(token)
+
+    // Token expires in 21 days
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 21)
+
+    // Update status to in_progress and set new token
+    const { error: statusError } = await supabase
+      .from('tenant_references')
+      .update({
+        status: 'in_progress',
+        reference_token_hash: tokenHash,
+        token_expires_at: expiresAt.toISOString()
+      })
+      .eq('id', id)
+
+    if (statusError) {
+      throw new Error(`Failed to update status: ${statusError.message}`)
+    }
+
+    // Add note explaining why pushed back
+    const noteText = `Reference pushed back to request ${documentTypeLabels[document_type]} from tenant.${message ? ` Staff note: ${message}` : ''}`
+
+    const { error: noteError } = await supabase
+      .from('reference_notes')
+      .insert({
+        reference_id: id,
+        note: noteText,
+        created_by: req.user?.id
+      })
+
+    if (noteError) {
+      console.error('Failed to insert reference note:', noteError)
+    }
+
+    // Update VERIFY work queue item with awaiting documentation flag
+    await supabase
+      .from('work_items')
+      .update({
+        status: 'IN_PROGRESS',
+        metadata: {
+          awaiting_documentation: true,
+          document_requested_at: new Date().toISOString(),
+          document_type_requested: documentTypeLabels[document_type]
+        }
+      })
+      .eq('reference_id', id)
+      .eq('work_type', 'VERIFY')
+      .eq('status', 'IN_PROGRESS')
+
+    // Send email to tenant requesting the document
+    const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${token}`
+
+    const emailHtml = await loadEmailTemplate('document-request', {
+      TenantFirstName: tenantFirstName,
+      DocumentType: documentTypeLabels[document_type],
+      FormUrl: formUrl,
+      CustomMessage: message || ''
+    })
+
+    await sendEmail({
+      to: tenantEmail,
+      subject: `Document Required - ${documentTypeLabels[document_type]} - PropertyGoose`,
+      html: emailHtml
+    })
+
+    // Log audit action
+    await logAuditAction({
+      referenceId: id,
+      action: 'DOCUMENT_REQUESTED',
+      description: `Requested ${documentTypeLabels[document_type]} from tenant, pushed back to in_progress`,
+      metadata: { document_type, previous_status: reference.status },
+      userId: req.staffUser?.id
+    })
+
+    res.json({
+      message: `Document request sent to tenant. Reference pushed back to In Progress.`,
+      new_status: 'in_progress'
+    })
+  } catch (error: any) {
+    console.error('Failed to request document:', error)
+    res.status(500).json({ error: error.message || 'Failed to request document' })
   }
 })
 

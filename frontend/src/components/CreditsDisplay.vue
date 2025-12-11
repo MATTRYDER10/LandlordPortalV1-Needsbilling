@@ -10,7 +10,7 @@
       </div>
       <div class="credits-info">
         <span class="credits-label">Credits</span>
-        <span class="credits-count">{{ billingStore.creditsCount.toFixed(1) }}</span>
+        <span class="credits-count">{{ billingStore.creditsCount.toFixed(2) }}</span>
       </div>
       <div v-if="billingStore.isLowCredits" class="low-badge">
         !

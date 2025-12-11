@@ -285,8 +285,71 @@
         <!-- Step 1: Select Template -->
         <div v-if="currentStep === 1">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Select Agreement Template</h3>
-          <p class="text-sm text-gray-600 mb-6">Choose the deposit protection scheme for this tenancy</p>
+          <p class="text-sm text-gray-600 mb-6">Choose the contract language and deposit protection scheme for this tenancy</p>
 
+          <!-- Language Selection -->
+          <div class="mb-8">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Contract Language *</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+              <button
+                type="button"
+                @click="formData.language = 'english'"
+                class="border-2 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md text-left"
+                :class="
+                  formData.language === 'english'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-primary/50'
+                "
+              >
+                <div class="flex items-center">
+                  <div
+                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                    :class="
+                      formData.language === 'english'
+                        ? 'border-primary bg-primary'
+                        : 'border-gray-300'
+                    "
+                  >
+                    <div v-if="formData.language === 'english'" class="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div class="ml-3">
+                    <h4 class="font-semibold text-gray-900">English</h4>
+                    <p class="text-sm text-gray-600">Assured Shorthold Tenancy (AST)</p>
+                  </div>
+                </div>
+              </button>
+              <button
+                type="button"
+                @click="formData.language = 'welsh'"
+                class="border-2 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md text-left"
+                :class="
+                  formData.language === 'welsh'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-primary/50'
+                "
+              >
+                <div class="flex items-center">
+                  <div
+                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                    :class="
+                      formData.language === 'welsh'
+                        ? 'border-primary bg-primary'
+                        : 'border-gray-300'
+                    "
+                  >
+                    <div v-if="formData.language === 'welsh'" class="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div class="ml-3">
+                    <h4 class="font-semibold text-gray-900">Cymraeg (Welsh)</h4>
+                    <p class="text-sm text-gray-600">Welsh Occupation Contract</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Deposit Scheme Selection -->
+          <label class="block text-sm font-medium text-gray-700 mb-3">Deposit Protection Scheme *</label>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
               v-for="template in templateOptions"
@@ -1241,6 +1304,7 @@ interface Party {
 }
 
 const formData = ref<{
+  language: 'english' | 'welsh'
   templateType: string
   propertyAddress: Address
   rentAmount?: number
@@ -1266,6 +1330,7 @@ const formData = ref<{
   tenants: Party[]
   guarantors: Party[]
 }>({
+  language: 'english',
   templateType: '',
   propertyAddress: {
     line1: '',
@@ -2140,6 +2205,11 @@ async function generateAgreement() {
     })
 
     const generateData = await generateResponse.json()
+
+    // Check if insufficient credits
+    if (generateResponse.status === 402 && generateData.requires_credits) {
+      throw new Error(generateData.message || 'Insufficient credits to generate agreement')
+    }
 
     // Check if payment is required
     if (generateResponse.status === 402 && generateData.requires_payment_method && generateData.client_secret) {

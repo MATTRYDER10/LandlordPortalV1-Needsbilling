@@ -103,7 +103,7 @@ export const assessApplicationScore = async (referenceId: string, caller: Caller
                 benefits: reference.benefits_monthly_amount_encrypted,
                 additional: reference.additional_income_amount_encrypted,
                 selfAnnual: reference.self_employed_annual_income_encrypted,
-                monthly_rent: reference.monthly_rent || 0,
+                monthly_rent: reference.rent_share || reference.monthly_rent || 0,
                 additional_income: reference.additional_income_amount_encrypted,
                 savings: reference.savings_amount_encrypted,
                 is_hourly: reference.is_hourly || false,

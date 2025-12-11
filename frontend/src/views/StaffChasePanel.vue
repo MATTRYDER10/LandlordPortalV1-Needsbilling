@@ -231,6 +231,73 @@
         </div>
       </div>
     </div>
+
+    <!-- Email Resend Modal -->
+    <div v-if="showEmailResendModal" class="modal-overlay" @click="closeEmailResendModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Send Reference Request Email</h3>
+          <button @click="closeEmailResendModal" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="sendEmailResend">
+            <div class="form-group">
+              <label>Select Contact Type *</label>
+              <select v-model="emailResendContactType" @change="onContactTypeChange" required>
+                <option value="">Select who to email...</option>
+                <option
+                  v-for="contact in availableEmailContacts"
+                  :key="contact.type"
+                  :value="contact.type"
+                >
+                  {{ contact.label }} - {{ contact.name || 'No name' }}
+                </option>
+              </select>
+            </div>
+
+            <div v-if="emailResendContactType" class="form-group">
+              <label>Recipient Name</label>
+              <input
+                v-model="emailRecipientName"
+                type="text"
+                readonly
+                class="readonly-input"
+              />
+            </div>
+
+            <div v-if="emailResendContactType" class="form-group">
+              <label>Email Address *</label>
+              <input
+                v-model="emailToSend"
+                type="email"
+                placeholder="Enter email address"
+                required
+              />
+              <p class="help-text">
+                You can edit this email address. If changed, the new email will be saved permanently.
+              </p>
+            </div>
+
+            <div v-if="emailError" class="error-text">
+              {{ emailError }}
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" @click="closeEmailResendModal" class="btn btn-secondary">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                :disabled="emailSending || !emailResendContactType || !emailToSend"
+              >
+                {{ emailSending ? 'Sending...' : 'Send Email' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -252,6 +319,14 @@ const processing = ref(false)
 const showContactModal = ref(false)
 const selectedChannel = ref<string>('')
 const submitting = ref(false)
+
+// Email resend modal state
+const showEmailResendModal = ref(false)
+const emailResendContactType = ref<string>('')
+const emailToSend = ref<string>('')
+const emailRecipientName = ref<string>('')
+const emailSending = ref(false)
+const emailError = ref<string>('')
 
 const contactForm = ref({
   contact_type: '',
@@ -276,6 +351,66 @@ const lastActivity = computed(() => {
   if (!workItem.value) return 'N/A'
   const date = new Date(workItem.value.last_activity_at)
   return date.toLocaleString()
+})
+
+// Get available email contacts based on what data exists
+const availableEmailContacts = computed(() => {
+  if (!workItem.value?.reference) return []
+  const ref = workItem.value.reference
+  const contacts = []
+
+  // Tenant
+  if (ref.tenant_email) {
+    contacts.push({
+      type: 'TENANT',
+      label: 'Tenant',
+      email: ref.tenant_email,
+      name: `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.trim()
+    })
+  }
+
+  // Landlord or Agent based on previous_address_type
+  if (ref.previous_landlord_email) {
+    const isAgent = ref.previous_address_type === 'agent'
+    contacts.push({
+      type: isAgent ? 'AGENT' : 'LANDLORD',
+      label: isAgent ? 'Letting Agent' : 'Landlord',
+      email: ref.previous_landlord_email,
+      name: ref.previous_landlord_name || ''
+    })
+  }
+
+  // Employer
+  if (ref.employer_ref_email) {
+    contacts.push({
+      type: 'EMPLOYER',
+      label: 'Employer',
+      email: ref.employer_ref_email,
+      name: ref.employer_ref_name || ''
+    })
+  }
+
+  // Accountant
+  if (ref.accountant_email) {
+    contacts.push({
+      type: 'ACCOUNTANT',
+      label: 'Accountant',
+      email: ref.accountant_email,
+      name: ref.accountant_name || ''
+    })
+  }
+
+  // Guarantor
+  if (ref.guarantor_email) {
+    contacts.push({
+      type: 'GUARANTOR',
+      label: 'Guarantor',
+      email: ref.guarantor_email,
+      name: `${ref.guarantor_first_name || ''} ${ref.guarantor_last_name || ''}`.trim()
+    })
+  }
+
+  return contacts
 })
 
 // Methods
@@ -312,9 +447,126 @@ const fetchWorkItem = async () => {
 }
 
 const openContactModal = (channel: string) => {
+  // For EMAIL channel, show the email resend modal instead
+  if (channel === 'EMAIL') {
+    openEmailResendModal()
+    return
+  }
   selectedChannel.value = channel
   showContactModal.value = true
   resetContactForm()
+}
+
+const openEmailResendModal = () => {
+  console.log('Opening email resend modal')
+  console.log('Available contacts:', availableEmailContacts.value)
+  emailResendContactType.value = ''
+  emailToSend.value = ''
+  emailRecipientName.value = ''
+  emailError.value = ''
+  showEmailResendModal.value = true
+  console.log('showEmailResendModal:', showEmailResendModal.value)
+}
+
+const closeEmailResendModal = () => {
+  showEmailResendModal.value = false
+  emailResendContactType.value = ''
+  emailToSend.value = ''
+  emailRecipientName.value = ''
+  emailError.value = ''
+}
+
+const onContactTypeChange = () => {
+  const selected = availableEmailContacts.value.find(
+    c => c.type === emailResendContactType.value
+  )
+  if (selected) {
+    emailToSend.value = selected.email
+    emailRecipientName.value = selected.name
+  } else {
+    emailToSend.value = ''
+    emailRecipientName.value = ''
+  }
+  emailError.value = ''
+}
+
+const isValidEmail = (email: string) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+const sendEmailResend = async () => {
+  if (!emailResendContactType.value) {
+    emailError.value = 'Please select a contact type'
+    return
+  }
+  if (!emailToSend.value) {
+    emailError.value = 'Please enter an email address'
+    return
+  }
+  if (!isValidEmail(emailToSend.value)) {
+    emailError.value = 'Please enter a valid email address'
+    return
+  }
+
+  try {
+    emailSending.value = true
+    emailError.value = ''
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/work-queue/${workItem.value.id}/resend-email`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authStore.session?.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contactType: emailResendContactType.value,
+          newEmail: emailToSend.value
+        })
+      }
+    )
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to send email')
+    }
+
+    const result = await response.json()
+
+    // Log the contact attempt
+    await fetch(
+      `${import.meta.env.VITE_API_URL}/api/contact-attempts`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authStore.session?.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          work_item_id: workItem.value.id,
+          reference_id: workItem.value.reference_id,
+          channel: 'EMAIL',
+          contact_type: emailResendContactType.value,
+          recipient_name: result.recipientName || emailRecipientName.value,
+          recipient_contact: result.emailSentTo || emailToSend.value,
+          outcome: 'SENT',
+          notes: 'Email resent via chase panel'
+        })
+      }
+    )
+
+    // Refresh work item data
+    await fetchWorkItem()
+    closeEmailResendModal()
+    alert(`Email sent successfully to ${result.emailSentTo}`)
+  } catch (err: any) {
+    emailError.value = err.message || 'Failed to send email'
+    console.error('Error sending email:', err)
+  } finally {
+    emailSending.value = false
+  }
 }
 
 const closeContactModal = () => {
@@ -911,5 +1163,27 @@ onMounted(() => {
   justify-content: flex-end;
   padding-top: 1.5rem;
   border-top: 1px solid #e5e7eb;
+}
+
+.readonly-input {
+  background-color: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.help-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #fef2f2;
+  border-radius: 6px;
+  border: 1px solid #fee2e2;
 }
 </style>

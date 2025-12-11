@@ -1,7 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { authenticateStaff as staffAuth, StaffAuthRequest } from '../middleware/staffAuth';
 import { supabase as supabaseAdmin } from '../config/supabase';
-import { decrypt } from '../services/encryption';
+import { decrypt, encrypt, generateToken, hash } from '../services/encryption';
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendGuarantorReferenceRequest } from '../services/emailService';
+import { sendTenantReferenceRequestSMS, sendLandlordReferenceRequestSMS, sendEmployerReferenceRequestSMS, sendAccountantReferenceRequestSMS, sendAgentReferenceRequestSMS, sendGuarantorReferenceRequestSMS } from '../services/smsService';
+import { logAuditAction } from '../services/auditService';
+import { isValidEmail } from '../utils/validation';
 
 const router = Router();
 
@@ -46,8 +50,8 @@ router.get('/', staffAuth, async (req: StaffAuthRequest, res: Response) => {
     if (status) {
       query = query.eq('status', status);
     } else {
-      // Default: only show available and assigned items (not completed)
-      query = query.in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS']);
+      // Default: show all active items (not completed)
+      query = query.in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED']);
     }
 
     // Filter by assigned staff
@@ -64,8 +68,17 @@ router.get('/', staffAuth, async (req: StaffAuthRequest, res: Response) => {
 
     if (error) throw error;
 
+    // Filter out work items where the reference is already completed/rejected
+    const validWorkItems = workItems?.filter((item: any) => {
+      if (!item.reference) return false;
+      if (item.reference.status === 'completed' || item.reference.status === 'rejected') {
+        return false;
+      }
+      return true;
+    });
+
     // Calculate urgency based on age and decrypt reference data
-    const enrichedWorkItems = workItems?.map((item: any) => {
+    const enrichedWorkItems = validWorkItems?.map((item: any) => {
       const ageHours = (Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60);
       let urgency = 'normal';
       if (ageHours >= 8) urgency = 'urgent';
@@ -103,10 +116,10 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
       return res.status(401).json({ error: 'Staff authentication required' });
     }
 
-    // Get counts by type and status
+    // Get counts by type and status (include metadata for awaiting docs count)
     const { data: stats, error } = await supabaseAdmin
       .from('work_items')
-      .select('work_type, status')
+      .select('work_type, status, metadata')
       .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS']);
 
     if (error) throw error;
@@ -123,6 +136,7 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
         available: 0,
         assigned: 0,
         inProgress: 0,
+        awaitingDocs: 0,
         myItems: 0,
         total: 0
       }
@@ -143,6 +157,11 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
         if (status === 'available') summary[type].available++;
         else if (status === 'assigned') summary[type].assigned++;
         else if (status === 'in_progress') summary[type].inProgress++;
+      }
+
+      // Count awaiting docs items (VERIFY queue only)
+      if (type === 'verify' && item.metadata?.awaiting_documentation === true) {
+        summary.verify.awaitingDocs++;
       }
     });
 
@@ -182,9 +201,24 @@ router.get('/:id', staffAuth, async (req: StaffAuthRequest, res: Response) => {
           tenant_first_name_encrypted,
           tenant_last_name_encrypted,
           tenant_email_encrypted,
+          tenant_phone_encrypted,
           property_address_encrypted,
           status,
-          created_at
+          created_at,
+          previous_address_type,
+          previous_landlord_name_encrypted,
+          previous_landlord_email_encrypted,
+          previous_landlord_phone_encrypted,
+          employer_ref_name_encrypted,
+          employer_ref_email_encrypted,
+          employer_ref_phone_encrypted,
+          accountant_name_encrypted,
+          accountant_email_encrypted,
+          accountant_phone_encrypted,
+          guarantor_first_name_encrypted,
+          guarantor_last_name_encrypted,
+          guarantor_email_encrypted,
+          guarantor_phone_encrypted
         ),
         assigned_staff:staff_users!work_items_assigned_to_fkey (id, user_id, full_name),
         contact_attempts (
@@ -213,7 +247,25 @@ router.get('/:id', staffAuth, async (req: StaffAuthRequest, res: Response) => {
       tenant_first_name: decrypt(workItem.reference.tenant_first_name_encrypted),
       tenant_last_name: decrypt(workItem.reference.tenant_last_name_encrypted),
       tenant_email: decrypt(workItem.reference.tenant_email_encrypted),
-      property_address: decrypt(workItem.reference.property_address_encrypted)
+      tenant_phone: decrypt(workItem.reference.tenant_phone_encrypted),
+      property_address: decrypt(workItem.reference.property_address_encrypted),
+      // Landlord/Agent fields (previous_address_type determines which)
+      previous_landlord_name: decrypt(workItem.reference.previous_landlord_name_encrypted),
+      previous_landlord_email: decrypt(workItem.reference.previous_landlord_email_encrypted),
+      previous_landlord_phone: decrypt(workItem.reference.previous_landlord_phone_encrypted),
+      // Employer fields
+      employer_ref_name: decrypt(workItem.reference.employer_ref_name_encrypted),
+      employer_ref_email: decrypt(workItem.reference.employer_ref_email_encrypted),
+      employer_ref_phone: decrypt(workItem.reference.employer_ref_phone_encrypted),
+      // Accountant fields
+      accountant_name: decrypt(workItem.reference.accountant_name_encrypted),
+      accountant_email: decrypt(workItem.reference.accountant_email_encrypted),
+      accountant_phone: decrypt(workItem.reference.accountant_phone_encrypted),
+      // Guarantor fields
+      guarantor_first_name: decrypt(workItem.reference.guarantor_first_name_encrypted),
+      guarantor_last_name: decrypt(workItem.reference.guarantor_last_name_encrypted),
+      guarantor_email: decrypt(workItem.reference.guarantor_email_encrypted),
+      guarantor_phone: decrypt(workItem.reference.guarantor_phone_encrypted)
     } : null;
 
     res.json({
@@ -535,6 +587,475 @@ router.post('/:id/verify-now', staffAuth, async (req: StaffAuthRequest, res: Res
     res.json({ verifyItem, message: 'Started verification immediately' });
   } catch (error: any) {
     console.error('Error starting verify now:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Staff endpoint to resend reference email with optional email update
+router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { contactType, newEmail } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    // Validate contact type
+    const validContactTypes = ['TENANT', 'LANDLORD', 'AGENT', 'EMPLOYER', 'ACCOUNTANT', 'GUARANTOR'];
+    if (!contactType || !validContactTypes.includes(contactType)) {
+      return res.status(400).json({ error: 'Invalid contact type. Must be one of: ' + validContactTypes.join(', ') });
+    }
+
+    // Validate email if provided
+    if (newEmail && !isValidEmail(newEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Get the work item to find the reference
+    const { data: workItem, error: workError } = await supabaseAdmin
+      .from('work_items')
+      .select('reference_id')
+      .eq('id', id)
+      .single();
+
+    if (workError || !workItem) {
+      return res.status(404).json({ error: 'Work item not found' });
+    }
+
+    const referenceId = workItem.reference_id;
+
+    // Get the reference with all needed fields
+    const { data: reference, error: refError } = await supabaseAdmin
+      .from('tenant_references')
+      .select(`
+        *,
+        company:companies!inner(id, name_encrypted, phone_encrypted, email_encrypted)
+      `)
+      .eq('id', referenceId)
+      .single();
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' });
+    }
+
+    const companyName = reference.company?.name_encrypted ? decrypt(reference.company.name_encrypted) || '' : '';
+    const companyPhone = reference.company?.phone_encrypted ? decrypt(reference.company.phone_encrypted) || '' : '';
+    const companyEmail = reference.company?.email_encrypted ? decrypt(reference.company.email_encrypted) || '' : '';
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim();
+    const propertyAddress = decrypt(reference.property_address_encrypted) || '';
+
+    let emailSentTo = '';
+    let recipientName = '';
+
+    switch (contactType) {
+      case 'TENANT': {
+        const currentEmail = decrypt(reference.tenant_email_encrypted) || '';
+        const targetEmail = newEmail || currentEmail;
+        recipientName = tenantName;
+        emailSentTo = targetEmail;
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentEmail) {
+          await supabaseAdmin
+            .from('tenant_references')
+            .update({ tenant_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId);
+
+          await logAuditAction({
+            referenceId,
+            action: 'EMAIL_CHANGED',
+            description: `Tenant email changed from ${currentEmail} to ${newEmail} by staff`,
+            metadata: { emailType: 'tenant', oldEmail: currentEmail, newEmail },
+            userId: staffUser.id
+          });
+        }
+
+        // Generate new token and send email
+        const newToken = generateToken();
+        const newTokenHash = hash(newToken);
+
+        await supabaseAdmin
+          .from('tenant_references')
+          .update({ reference_token_hash: newTokenHash })
+          .eq('id', referenceId);
+
+        const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${newToken}`;
+
+        await sendTenantReferenceRequest(
+          targetEmail,
+          tenantName,
+          tenantReferenceUrl,
+          companyName,
+          propertyAddress,
+          companyPhone || undefined,
+          companyEmail || undefined,
+          referenceId
+        );
+
+        // Send SMS (non-blocking)
+        const tenantPhone = decrypt(reference.tenant_phone_encrypted);
+        if (tenantPhone) {
+          sendTenantReferenceRequestSMS(
+            tenantPhone,
+            tenantName,
+            tenantReferenceUrl,
+            companyName,
+            propertyAddress,
+            referenceId
+          ).catch(err => console.error('Failed to send SMS to tenant:', err));
+        }
+        break;
+      }
+
+      case 'LANDLORD': {
+        const currentEmail = decrypt(reference.previous_landlord_email_encrypted) || '';
+        const targetEmail = newEmail || currentEmail;
+        recipientName = decrypt(reference.previous_landlord_name_encrypted) || '';
+        emailSentTo = targetEmail;
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentEmail) {
+          await supabaseAdmin
+            .from('tenant_references')
+            .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId);
+
+          await logAuditAction({
+            referenceId,
+            action: 'EMAIL_CHANGED',
+            description: `Landlord email changed from ${currentEmail} to ${newEmail} by staff`,
+            metadata: { emailType: 'landlord', oldEmail: currentEmail, newEmail },
+            userId: staffUser.id
+          });
+        }
+
+        const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${referenceId}`;
+
+        await sendLandlordReferenceRequest(
+          targetEmail,
+          recipientName,
+          tenantName,
+          landlordReferenceUrl,
+          companyName,
+          companyPhone,
+          companyEmail,
+          referenceId
+        );
+
+        // Send SMS (non-blocking)
+        const landlordPhone = decrypt(reference.previous_landlord_phone_encrypted);
+        if (landlordPhone) {
+          sendLandlordReferenceRequestSMS(
+            landlordPhone,
+            recipientName,
+            tenantName,
+            landlordReferenceUrl,
+            referenceId
+          ).catch(err => console.error('Failed to send SMS to landlord:', err));
+        }
+        break;
+      }
+
+      case 'AGENT': {
+        const currentEmail = decrypt(reference.previous_landlord_email_encrypted) || '';
+        const targetEmail = newEmail || currentEmail;
+        recipientName = decrypt(reference.previous_landlord_name_encrypted) || '';
+        emailSentTo = targetEmail;
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentEmail) {
+          await supabaseAdmin
+            .from('tenant_references')
+            .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId);
+
+          await logAuditAction({
+            referenceId,
+            action: 'EMAIL_CHANGED',
+            description: `Agent email changed from ${currentEmail} to ${newEmail} by staff`,
+            metadata: { emailType: 'agent', oldEmail: currentEmail, newEmail },
+            userId: staffUser.id
+          });
+        }
+
+        const agentReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`;
+
+        await sendAgentReferenceRequest(
+          targetEmail,
+          recipientName,
+          tenantName,
+          agentReferenceUrl,
+          companyName,
+          companyPhone,
+          companyEmail,
+          referenceId
+        );
+
+        // Send SMS (non-blocking)
+        const agentPhone = decrypt(reference.previous_landlord_phone_encrypted);
+        if (agentPhone) {
+          sendAgentReferenceRequestSMS(
+            agentPhone,
+            recipientName,
+            tenantName,
+            agentReferenceUrl,
+            referenceId
+          ).catch(err => console.error('Failed to send SMS to agent:', err));
+        }
+        break;
+      }
+
+      case 'EMPLOYER': {
+        const currentEmail = decrypt(reference.employer_ref_email_encrypted) || '';
+        const targetEmail = newEmail || currentEmail;
+        recipientName = decrypt(reference.employer_ref_name_encrypted) || '';
+        emailSentTo = targetEmail;
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentEmail) {
+          await supabaseAdmin
+            .from('tenant_references')
+            .update({ employer_ref_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId);
+
+          await logAuditAction({
+            referenceId,
+            action: 'EMAIL_CHANGED',
+            description: `Employer email changed from ${currentEmail} to ${newEmail} by staff`,
+            metadata: { emailType: 'employer', oldEmail: currentEmail, newEmail },
+            userId: staffUser.id
+          });
+        }
+
+        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${referenceId}`;
+
+        await sendEmployerReferenceRequest(
+          targetEmail,
+          recipientName,
+          tenantName,
+          employerReferenceUrl,
+          companyName,
+          companyPhone,
+          companyEmail,
+          referenceId
+        );
+
+        // Send SMS (non-blocking)
+        const employerPhone = decrypt(reference.employer_ref_phone_encrypted);
+        if (employerPhone) {
+          sendEmployerReferenceRequestSMS(
+            employerPhone,
+            recipientName,
+            tenantName,
+            employerReferenceUrl,
+            referenceId
+          ).catch(err => console.error('Failed to send SMS to employer:', err));
+        }
+        break;
+      }
+
+      case 'ACCOUNTANT': {
+        const currentEmail = decrypt(reference.accountant_email_encrypted) || '';
+        const targetEmail = newEmail || currentEmail;
+        recipientName = decrypt(reference.accountant_name_encrypted) || '';
+        emailSentTo = targetEmail;
+
+        // Get accountant reference for token
+        const { data: accountantRef } = await supabaseAdmin
+          .from('accountant_references')
+          .select('id, token_hash')
+          .eq('tenant_reference_id', referenceId)
+          .single();
+
+        if (!accountantRef) {
+          return res.status(404).json({ error: 'Accountant reference not found' });
+        }
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentEmail) {
+          await supabaseAdmin
+            .from('tenant_references')
+            .update({ accountant_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId);
+
+          await logAuditAction({
+            referenceId,
+            action: 'EMAIL_CHANGED',
+            description: `Accountant email changed from ${currentEmail} to ${newEmail} by staff`,
+            metadata: { emailType: 'accountant', oldEmail: currentEmail, newEmail },
+            userId: staffUser.id
+          });
+        }
+
+        // Generate new token
+        const accountantToken = generateToken();
+        const accountantTokenHash = hash(accountantToken);
+
+        await supabaseAdmin
+          .from('accountant_references')
+          .update({ token_hash: accountantTokenHash })
+          .eq('id', accountantRef.id);
+
+        const formLink = `${process.env.FRONTEND_URL}/accountant-reference/${accountantToken}`;
+
+        await sendAccountantReferenceRequest(
+          targetEmail,
+          recipientName,
+          tenantName,
+          formLink,
+          companyName,
+          companyPhone,
+          companyEmail,
+          accountantRef.id
+        );
+
+        // Send SMS (non-blocking)
+        const accountantPhone = decrypt(reference.accountant_phone_encrypted);
+        if (accountantPhone) {
+          sendAccountantReferenceRequestSMS(
+            accountantPhone,
+            recipientName,
+            tenantName,
+            formLink,
+            accountantRef.id
+          ).catch(err => console.error('Failed to send SMS to accountant:', err));
+        }
+        break;
+      }
+
+      case 'GUARANTOR': {
+        const currentEmail = decrypt(reference.guarantor_email_encrypted) || '';
+        const targetEmail = newEmail || currentEmail;
+        const guarantorFirstName = decrypt(reference.guarantor_first_name_encrypted) || '';
+        const guarantorLastName = decrypt(reference.guarantor_last_name_encrypted) || '';
+        recipientName = `${guarantorFirstName} ${guarantorLastName}`.trim();
+        emailSentTo = targetEmail;
+
+        // Try to find guarantor in either legacy or new method
+        const { data: guarantorRefLegacy } = await supabaseAdmin
+          .from('guarantor_references')
+          .select('id, reference_token_hash')
+          .eq('reference_id', referenceId)
+          .single();
+
+        const { data: guarantorRefNew } = await supabaseAdmin
+          .from('tenant_references')
+          .select('id, reference_token_hash')
+          .eq('guarantor_for_reference_id', referenceId)
+          .eq('is_guarantor', true)
+          .single();
+
+        if (!guarantorRefLegacy && !guarantorRefNew) {
+          return res.status(404).json({ error: 'Guarantor reference not found' });
+        }
+
+        const isLegacyGuarantor = !!guarantorRefLegacy;
+        const guarantorId = isLegacyGuarantor ? guarantorRefLegacy.id : guarantorRefNew!.id;
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentEmail) {
+          if (isLegacyGuarantor) {
+            await supabaseAdmin
+              .from('guarantor_references')
+              .update({ guarantor_email_encrypted: encrypt(newEmail) })
+              .eq('id', guarantorId);
+          } else {
+            await supabaseAdmin
+              .from('tenant_references')
+              .update({ tenant_email_encrypted: encrypt(newEmail) })
+              .eq('id', guarantorId);
+          }
+
+          // Also update in parent reference
+          await supabaseAdmin
+            .from('tenant_references')
+            .update({ guarantor_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId);
+
+          await logAuditAction({
+            referenceId,
+            action: 'EMAIL_CHANGED',
+            description: `Guarantor email changed from ${currentEmail} to ${newEmail} by staff`,
+            metadata: { emailType: 'guarantor', oldEmail: currentEmail, newEmail },
+            userId: staffUser.id
+          });
+        }
+
+        // Generate new token
+        const guarantorToken = generateToken();
+        const guarantorTokenHash = hash(guarantorToken);
+        const tokenExpiresAt = new Date();
+        tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21);
+
+        if (isLegacyGuarantor) {
+          await supabaseAdmin
+            .from('guarantor_references')
+            .update({ reference_token_hash: guarantorTokenHash })
+            .eq('id', guarantorId);
+        } else {
+          await supabaseAdmin
+            .from('tenant_references')
+            .update({
+              reference_token_hash: guarantorTokenHash,
+              token_expires_at: tokenExpiresAt.toISOString()
+            })
+            .eq('id', guarantorId);
+        }
+
+        const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`;
+
+        await sendGuarantorReferenceRequest(
+          targetEmail,
+          recipientName,
+          tenantName,
+          propertyAddress,
+          companyName,
+          companyPhone,
+          companyEmail,
+          formLink,
+          guarantorId
+        );
+
+        // Send SMS (non-blocking)
+        const guarantorPhone = decrypt(reference.guarantor_phone_encrypted);
+        if (guarantorPhone) {
+          sendGuarantorReferenceRequestSMS(
+            guarantorPhone,
+            recipientName,
+            tenantName,
+            formLink,
+            guarantorId
+          ).catch(err => console.error('Failed to send SMS to guarantor:', err));
+        }
+        break;
+      }
+    }
+
+    // Log the resend action
+    await logAuditAction({
+      referenceId,
+      action: 'EMAIL_RESENT',
+      description: `${contactType} reference email resent to ${emailSentTo} by staff`,
+      metadata: { emailType: contactType.toLowerCase(), recipient: emailSentTo, staffId: staffUser.id },
+      userId: staffUser.id
+    });
+
+    // Update work item last_activity_at
+    await supabaseAdmin
+      .from('work_items')
+      .update({ last_activity_at: new Date().toISOString() })
+      .eq('id', id);
+
+    res.json({
+      message: `${contactType} reference email sent successfully`,
+      emailSentTo,
+      recipientName,
+      contactType
+    });
+  } catch (error: any) {
+    console.error('Error resending email:', error);
     res.status(500).json({ error: error.message });
   }
 });

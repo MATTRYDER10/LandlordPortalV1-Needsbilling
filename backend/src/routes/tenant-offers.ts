@@ -2,11 +2,12 @@ import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption'
-import { sendEmail, sendTenantReferenceRequest, sendTenantOfferRequest, sendOfferAcceptedEmail, sendOfferDeclinedEmail } from '../services/emailService'
+import { sendEmail, sendTenantReferenceRequest, sendTenantOfferRequest, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendPaymentConfirmedToAgentEmail } from '../services/emailService'
 import { checkCredits } from '../middleware/checkCredits'
 import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
 import * as billingService from '../services/billingService'
 import { auditReferenceAction } from '../services/auditLog'
+import { logOfferAuditAction } from '../services/offerAuditService'
 
 const router = Router()
 
@@ -54,12 +55,6 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             ? (decrypt((companyUser as any).companies.email_encrypted) || '')
             : ''
 
-        // Generate token for tracking
-        const token = generateToken()
-        const tokenHash = hash(token)
-        const expiresAt = new Date()
-        expiresAt.setDate(expiresAt.getDate() + 21) // 21 days expiry
-
         // Generate offer form link with company ID and pre-filled data
         const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
         const propertyAddressQuery = property_address ? `&property_address=${encodeURIComponent(property_address)}` : ''
@@ -67,32 +62,6 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         const propertyPostcodeQuery = property_postcode ? `&property_postcode=${encodeURIComponent(property_postcode)}` : ''
         const rentAmountQuery = rent_amount ? `&rent_amount=${encodeURIComponent(rent_amount)}` : ''
         const offerLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
-
-        // Create tracking record in tenant_applications
-        console.log('Creating tenant_applications record for company:', companyUser.company_id)
-        const { data: application, error: appError } = await supabase
-            .from('tenant_applications')
-            .insert({
-                company_id: companyUser.company_id,
-                created_by: userId,
-                applicant_email_encrypted: encrypt(tenant_email),
-                property_address_encrypted: encrypt(property_address),
-                property_city_encrypted: encrypt(property_city || ''),
-                property_postcode_encrypted: encrypt(property_postcode || ''),
-                agent_email_encrypted: encrypt(companyEmail || 'noreply@propertygoose.co.uk'),
-                application_token_hash: tokenHash,
-                token_expires_at: expiresAt.toISOString(),
-                status: 'pending'
-            })
-            .select()
-            .single()
-
-        if (appError) {
-            console.error('Failed to create application tracking record:', appError)
-            // Continue anyway - email sending is more important
-        } else {
-            console.log('Created tenant_applications record:', application?.id)
-        }
 
         // Send email to tenant with offer form link
         try {
@@ -110,12 +79,30 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             // Don't fail the request if email fails, just log it
         }
 
+        // Store record of sent offer form for tracking
+        try {
+            await supabase
+                .from('sent_offer_forms')
+                .insert({
+                    company_id: companyUser.company_id,
+                    sent_by: userId,
+                    tenant_email: tenant_email,
+                    property_address_encrypted: encrypt(property_address),
+                    property_city_encrypted: property_city ? encrypt(property_city) : null,
+                    property_postcode_encrypted: property_postcode ? encrypt(property_postcode) : null,
+                    rent_amount: rent_amount || null,
+                    offer_deposit_replacement: !!offer_deposit_replacement
+                })
+        } catch (dbError: any) {
+            console.error('Failed to store sent offer form record:', dbError)
+            // Don't fail the request if DB insert fails
+        }
+
         res.status(200).json({
             success: true,
             message: 'Offer form link sent successfully',
             email: tenant_email,
-            deposit_replacement_offered: !!offer_deposit_replacement,
-            application_id: application?.id
+            deposit_replacement_offered: !!offer_deposit_replacement
         })
     } catch (error: any) {
         console.error('Error sending offer form link:', error)
@@ -205,6 +192,59 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     }
 })
 
+// Get sent offer forms (forms sent but not yet submitted by tenants)
+router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        // Get user's company
+        const { data: companyUsers } = await supabase
+            .from('company_users')
+            .select('company_id')
+            .eq('user_id', userId)
+            .limit(1)
+
+        if (!companyUsers || companyUsers.length === 0) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        const companyId = companyUsers[0].company_id
+
+        // Get all sent offer forms that haven't been submitted yet
+        const { data: sentForms, error } = await supabase
+            .from('sent_offer_forms')
+            .select('*')
+            .eq('company_id', companyId)
+            .eq('status', 'sent')
+            .order('sent_at', { ascending: false })
+
+        if (error) {
+            return res.status(400).json({ error: error.message })
+        }
+
+        // Decrypt sent form data
+        const decryptedSentForms = sentForms?.map(form => ({
+            id: form.id,
+            tenant_email: form.tenant_email,
+            property_address: form.property_address_encrypted ? decrypt(form.property_address_encrypted) : '',
+            property_city: form.property_city_encrypted ? decrypt(form.property_city_encrypted) : '',
+            property_postcode: form.property_postcode_encrypted ? decrypt(form.property_postcode_encrypted) : '',
+            rent_amount: form.rent_amount,
+            offer_deposit_replacement: form.offer_deposit_replacement,
+            sent_at: form.sent_at,
+            created_at: form.created_at
+        })) || []
+
+        res.json({ sentForms: decryptedSentForms })
+    } catch (error: any) {
+        console.error('Error fetching sent offer forms:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Get single offer by ID
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     try {
@@ -241,6 +281,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
           phone_encrypted,
           email_encrypted,
           annual_income_encrypted,
+          job_title_encrypted,
           no_ccj_bankruptcy_iva,
           signature_encrypted,
           signature_name_encrypted,
@@ -264,6 +305,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
             phone: tenant.phone_encrypted ? decrypt(tenant.phone_encrypted) : '',
             email: tenant.email_encrypted ? decrypt(tenant.email_encrypted) : '',
             annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
+            job_title: tenant.job_title_encrypted ? decrypt(tenant.job_title_encrypted) : '',
             no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
             signature: tenant.signature_encrypted ? decrypt(tenant.signature_encrypted) : '',
             signature_name: tenant.signature_name_encrypted ? decrypt(tenant.signature_name_encrypted) : '',
@@ -486,6 +528,25 @@ router.post('/submit', async (req, res) => {
             return res.status(400).json({ error: tenantsError.message })
         }
 
+        // Update any matching sent_offer_forms record to mark as submitted
+        // Match by tenant email and company_id where status is still 'sent'
+        const tenantEmails = tenants.map((t: any) => t.email.toLowerCase())
+        try {
+            await supabase
+                .from('sent_offer_forms')
+                .update({
+                    status: 'submitted',
+                    submitted_at: new Date().toISOString(),
+                    tenant_offer_id: offer.id
+                })
+                .eq('company_id', companyId)
+                .eq('status', 'sent')
+                .in('tenant_email', tenantEmails)
+        } catch (updateError: any) {
+            console.error('Failed to update sent_offer_forms record:', updateError)
+            // Don't fail - this is non-critical
+        }
+
         // Get company details for email notification (already fetched above)
         const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : 'PropertyGoose'
         const companyEmail = companyData?.email_encrypted ? decrypt(companyData.email_encrypted) : null
@@ -536,6 +597,117 @@ router.post('/submit', async (req, res) => {
         })
     } catch (error: any) {
         console.error('Error submitting offer:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// Confirm payment - public endpoint called when tenant clicks "I've Paid"
+router.post('/confirm-payment', async (req, res) => {
+    try {
+        const { offer_id } = req.body
+
+        if (!offer_id) {
+            return res.status(400).json({ error: 'Offer ID is required' })
+        }
+
+        // Get offer with company details
+        const { data: offer, error: offerError } = await supabase
+            .from('tenant_offers')
+            .select(`
+                *,
+                tenant_offer_tenants (*),
+                companies:company_id (
+                    name_encrypted,
+                    email_encrypted,
+                    offer_notification_email
+                )
+            `)
+            .eq('id', offer_id)
+            .single()
+
+        if (offerError || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Only allow confirmation for approved offers
+        if (offer.status !== 'approved') {
+            return res.status(400).json({ error: 'Offer is not in approved status' })
+        }
+
+        // Check if already confirmed (idempotent - return success)
+        if (offer.tenant_payment_confirmed_at) {
+            return res.json({
+                success: true,
+                message: 'Payment confirmation already recorded',
+                already_confirmed: true
+            })
+        }
+
+        // Update offer with payment confirmation timestamp
+        const { error: updateError } = await supabase
+            .from('tenant_offers')
+            .update({
+                tenant_payment_confirmed_at: new Date().toISOString()
+            })
+            .eq('id', offer_id)
+
+        if (updateError) {
+            console.error('Error updating offer:', updateError)
+            return res.status(500).json({ error: 'Failed to record payment confirmation' })
+        }
+
+        // Get company and notification details
+        const company = (offer as any).companies
+        const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : null
+        const notificationEmail = company?.offer_notification_email || companyEmail
+
+        if (notificationEmail) {
+            try {
+                // Get property address
+                const propertyAddress = offer.property_address_encrypted
+                    ? (decrypt(offer.property_address_encrypted) || 'Property address not available')
+                    : 'Property address not available'
+
+                // Get tenant names
+                const tenantNames = (offer.tenant_offer_tenants || [])
+                    .map((tenant: any) => tenant.name_encrypted ? decrypt(tenant.name_encrypted) : '')
+                    .filter(Boolean)
+                    .join(', ')
+
+                // Calculate holding deposit
+                const holdingDeposit = Math.floor((offer.offered_rent_amount * 12) / 52)
+                const holdingDepositAmount = `£${holdingDeposit.toFixed(2)}`
+
+                // Generate offer link
+                const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+                const offerLink = `${frontendBaseUrl}/tenant-offers/${offer_id}`
+
+                await sendPaymentConfirmedToAgentEmail(
+                    notificationEmail,
+                    propertyAddress,
+                    tenantNames,
+                    holdingDepositAmount,
+                    offerLink
+                )
+            } catch (emailError) {
+                console.error('Failed to send payment confirmation email to agent:', emailError)
+                // Don't fail the request if email fails
+            }
+        }
+
+        // Log audit action
+        await logOfferAuditAction({
+            offerId: offer_id,
+            action: 'TENANT_PAYMENT_CONFIRMED',
+            description: 'Tenant confirmed holding deposit payment'
+        })
+
+        res.json({
+            success: true,
+            message: 'Payment confirmation recorded and agent notified'
+        })
+    } catch (error: any) {
+        console.error('Error confirming payment:', error)
         res.status(500).json({ error: error.message })
     }
 })
@@ -678,6 +850,7 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
                     bankAccountNumber,
                     bankSortCode,
                     holdingDeposit,
+                    id,
                     companyPhone || undefined,
                     companyEmail || undefined,
                     extraDetailsHtml
@@ -686,6 +859,23 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
                 console.error(`Failed to send approval email to ${email}:`, emailError)
             }
         }
+
+        // Log audit action
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'OFFER_APPROVED',
+            description: `Offer approved${wasAcceptedWithChanges ? ' (with changes)' : ''}`,
+            metadata: { holding_deposit: holdingDeposit },
+            userId
+        })
+
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'APPROVAL_EMAIL_SENT',
+            description: `Approval email sent to ${tenantEmails.length} tenant(s)`,
+            metadata: { recipients: tenantEmails },
+            userId
+        })
 
         res.json({
             success: true,
@@ -786,6 +976,23 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
                 console.error(`Failed to send decline email to ${email}:`, emailError)
             }
         }
+
+        // Log audit action
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'OFFER_DECLINED',
+            description: `Offer declined: ${reason.substring(0, 100)}${reason.length > 100 ? '...' : ''}`,
+            metadata: { reason },
+            userId
+        })
+
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'DECLINE_EMAIL_SENT',
+            description: `Decline email sent to ${tenantEmails.length} tenant(s)`,
+            metadata: { recipients: tenantEmails },
+            userId
+        })
 
         res.json({
             success: true,
@@ -903,6 +1110,15 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
             }
         }
 
+        // Log audit action
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'OFFER_UPDATED',
+            description: offer.status === 'pending' ? 'Offer accepted with changes' : 'Offer details updated',
+            metadata: { changes: updateData },
+            userId
+        })
+
         res.json({
             success: true,
             message: 'Offer updated successfully'
@@ -949,7 +1165,13 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(404).json({ error: 'Offer not found' })
         }
 
-        // Delete tenants first to avoid orphan records
+        // Delete linked sent_offer_forms first
+        await supabase
+            .from('sent_offer_forms')
+            .delete()
+            .eq('tenant_offer_id', id)
+
+        // Delete tenants to avoid orphan records
         await supabase
             .from('tenant_offer_tenants')
             .delete()
@@ -1320,6 +1542,153 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
         })
     } catch (error: any) {
         console.error('Error marking holding deposit received:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// Resend approval or decline email
+router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id } = req.params
+        const { email_type } = req.body // 'approval' or 'decline'
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        if (!email_type || !['approval', 'decline'].includes(email_type)) {
+            return res.status(400).json({ error: 'Valid email_type (approval or decline) is required' })
+        }
+
+        // Get user's company
+        const { data: companyUsers } = await supabase
+            .from('company_users')
+            .select('company_id')
+            .eq('user_id', userId)
+            .limit(1)
+
+        if (!companyUsers || companyUsers.length === 0) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        const companyId = companyUsers[0].company_id
+
+        // Get offer with tenants and company details
+        const { data: offer, error: offerError } = await supabase
+            .from('tenant_offers')
+            .select(`
+                *,
+                tenant_offer_tenants (*),
+                companies:company_id (
+                    name_encrypted,
+                    phone_encrypted,
+                    email_encrypted,
+                    bank_account_name,
+                    bank_account_number,
+                    bank_sort_code
+                )
+            `)
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (offerError || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Validate offer status matches email type
+        if (email_type === 'approval' && offer.status !== 'approved') {
+            return res.status(400).json({ error: 'Cannot resend approval email - offer is not approved' })
+        }
+
+        if (email_type === 'decline' && offer.status !== 'declined') {
+            return res.status(400).json({ error: 'Cannot resend decline email - offer is not declined' })
+        }
+
+        // Get company details
+        const company = (offer as any).companies
+        const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
+        const companyPhone = company?.phone_encrypted ? (decrypt(company.phone_encrypted) || '') : ''
+        const companyEmail = company?.email_encrypted ? (decrypt(company.email_encrypted) || '') : ''
+
+        // Get tenant emails
+        const tenantEmails = (offer.tenant_offer_tenants || []).map((tenant: any) =>
+            tenant.email_encrypted ? decrypt(tenant.email_encrypted) : ''
+        ).filter(Boolean)
+
+        if (tenantEmails.length === 0) {
+            return res.status(400).json({ error: 'No tenant emails found' })
+        }
+
+        if (email_type === 'approval') {
+            const bankAccountName = company?.bank_account_name || ''
+            const bankAccountNumber = company?.bank_account_number || ''
+            const bankSortCode = company?.bank_sort_code || ''
+            const holdingDeposit = Math.floor((offer.offered_rent_amount * 12) / 52)
+
+            // Send approval email to all tenants
+            for (const email of tenantEmails) {
+                try {
+                    await sendOfferAcceptedEmail(
+                        email,
+                        companyName,
+                        bankAccountName,
+                        bankAccountNumber,
+                        bankSortCode,
+                        holdingDeposit,
+                        id,
+                        companyPhone || undefined,
+                        companyEmail || undefined
+                    )
+                } catch (emailError) {
+                    console.error(`Failed to resend approval email to ${email}:`, emailError)
+                }
+            }
+
+            // Log audit action
+            await logOfferAuditAction({
+                offerId: id,
+                action: 'APPROVAL_EMAIL_RESENT',
+                description: `Approval email resent to ${tenantEmails.length} tenant(s)`,
+                metadata: { recipients: tenantEmails },
+                userId
+            })
+        } else {
+            // Get decline reason
+            const declineReason = offer.declined_reason_encrypted ? (decrypt(offer.declined_reason_encrypted) || 'Your offer was not accepted.') : 'Your offer was not accepted.'
+
+            // Send decline email to all tenants
+            for (const email of tenantEmails) {
+                try {
+                    await sendOfferDeclinedEmail(
+                        email,
+                        companyName,
+                        declineReason,
+                        companyPhone || undefined,
+                        companyEmail || undefined
+                    )
+                } catch (emailError) {
+                    console.error(`Failed to resend decline email to ${email}:`, emailError)
+                }
+            }
+
+            // Log audit action
+            await logOfferAuditAction({
+                offerId: id,
+                action: 'DECLINE_EMAIL_RESENT',
+                description: `Decline email resent to ${tenantEmails.length} tenant(s)`,
+                metadata: { recipients: tenantEmails },
+                userId
+            })
+        }
+
+        res.json({
+            success: true,
+            message: `${email_type === 'approval' ? 'Approval' : 'Decline'} email resent to ${tenantEmails.length} tenant(s)`
+        })
+    } catch (error: any) {
+        console.error('Error resending email:', error)
         res.status(500).json({ error: error.message })
     }
 })

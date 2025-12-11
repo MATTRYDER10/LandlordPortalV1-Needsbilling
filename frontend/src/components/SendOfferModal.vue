@@ -19,7 +19,7 @@
         <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-xl font-bold text-gray-900">
-              Send Application Form
+              Send Offer Form
             </h3>
             <button
               @click="close"
@@ -87,7 +87,7 @@
               <button type="submit" :disabled="loading"
                 class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                 <span v-if="loading">Sending...</span>
-                <span v-else>Send Application</span>
+                <span v-else>Send Offer</span>
               </button>
             </div>
           </form>
@@ -175,7 +175,7 @@ const handleSubmit = async () => {
   try {
     const token = authStore.session?.access_token
     if (!token) {
-      errorMessage.value = 'You must be logged in to send the application form'
+      errorMessage.value = 'You must be logged in to send the offer form'
       return
     }
 
@@ -198,15 +198,15 @@ const handleSubmit = async () => {
     const data = await response.json()
 
     if (!response.ok) {
-      errorMessage.value = data.error || 'Failed to send application form'
+      errorMessage.value = data.error || 'Failed to send offer form'
       return
     }
 
-    toast.success(`Application form sent to ${formData.value.applicant_email}`)
+    toast.success(`Offer form sent to ${formData.value.applicant_email}`)
     emit('sent')
     close()
   } catch (err: any) {
-    errorMessage.value = err.message || 'An error occurred while sending the application form'
+    errorMessage.value = err.message || 'An error occurred while sending the offer form'
   } finally {
     loading.value = false
   }

@@ -130,6 +130,39 @@
           </div>
         </div>
 
+        <!-- Guarantor Required Banner (PASS_WITH_GUARANTOR but no guarantor assigned) -->
+        <div v-if="showGuarantorRequiredBanner"
+          class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div class="flex items-start">
+            <svg class="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <div class="flex-1">
+              <h4 class="text-sm font-semibold text-amber-900 mb-1">Guarantor Required</h4>
+              <p class="text-sm text-amber-800">
+                This reference passed with the condition that a guarantor is required.
+                An email has been sent to the tenant to add their guarantor's contact details.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Guarantor Submitted Banner (PASS_WITH_GUARANTOR with guarantor form submitted) -->
+        <div v-if="showGuarantorSubmittedBanner"
+          class="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div class="flex items-start">
+            <svg class="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <div class="flex-1">
+              <h4 class="text-sm font-semibold text-green-900 mb-1">Guarantor Form Submitted</h4>
+              <p class="text-sm text-green-800">
+                The guarantor has submitted their reference form and it is awaiting verification.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Assesment Remarks Section -->
         <div v-if="(reference.status === 'completed' || reference.status === 'rejected') && reference?.final_remarks"
           class="bg-white rounded-lg shadow-md p-6">
@@ -3457,6 +3490,7 @@ const agentReference = ref<any>(null)
 const employerReference = ref<any>(null)
 const accountantReference = ref<any>(null)
 const guarantorReference = ref<any>(null)
+const guarantorReferences = ref<any[]>([])
 const childReferences = ref<any[]>([])
 const parentReference = ref<any>(null)
 const siblingReferences = ref<any[]>([])
@@ -3518,7 +3552,30 @@ const finalCreditStatus = computed(() => {
 });
 
 const hasGuarantor = computed(() => {
-  return guarantorReference.value !== null
+  return guarantorReference.value !== null || guarantorReferences.value.length > 0
+})
+
+// Show banner when reference is PASS_WITH_GUARANTOR but no guarantor has been added yet
+const showGuarantorRequiredBanner = computed(() => {
+  return reference.value?.status === 'completed' &&
+         creditAndAmlVerification.value?.verification?.application_status === 'PASS_WITH_GUARANTOR' &&
+         !guarantorReference.value &&
+         guarantorReferences.value.length === 0 &&
+         !reference.value?.is_guarantor
+})
+
+// Show banner when reference is PASS_WITH_GUARANTOR and guarantor has submitted their form
+const showGuarantorSubmittedBanner = computed(() => {
+  // Check new system (guarantorReferences)
+  const hasSubmittedGuarantorNew = guarantorReferences.value.some((g: any) =>
+    ['pending_verification', 'completed'].includes(g.status)
+  )
+  // Check old system (guarantorReference) - submitted_at indicates form was submitted
+  const hasSubmittedGuarantorOld = guarantorReference.value?.submitted_at != null
+
+  return reference.value?.status === 'completed' &&
+         creditAndAmlVerification.value?.verification?.application_status === 'PASS_WITH_GUARANTOR' &&
+         (hasSubmittedGuarantorNew || hasSubmittedGuarantorOld)
 })
 
 // Move-in date editing
@@ -3587,6 +3644,7 @@ const fetchReference = async () => {
     employerReference.value = data.employerReference
     accountantReference.value = data.accountantReference
     guarantorReference.value = data.guarantorReference
+    guarantorReferences.value = data.guarantorReferences || []
     childReferences.value = data.childReferences || []
     parentReference.value = data.parentReference
     siblingReferences.value = data.siblingReferences || []

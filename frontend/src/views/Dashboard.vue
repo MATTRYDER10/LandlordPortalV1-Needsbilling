@@ -105,13 +105,9 @@
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
               Add Landlord
             </router-link>
-            <router-link to="/tenant-applications/create"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
-              Send Application Form
-            </router-link>
           </div>
           <p class="mt-3 text-sm text-gray-600">
-            Quickly create tenant references, add landlord details, or send application forms to tenants. Application
+            Quickly create tenant references, add landlord details, or send offer forms to tenants. Offer
             forms allow tenants to fill in their offer details directly, saving you time on data entry. Once they
             submit, you can approve, decline, or accept with changes, then collect holding deposits and automatically
             create references.

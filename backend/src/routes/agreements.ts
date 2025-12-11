@@ -1,9 +1,12 @@
 import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { agreementService, AgreementData } from '../services/agreementService'
+import { pdfGenerationService, AgreementPDFData } from '../services/pdfGenerationService'
 import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
 import * as billingService from '../services/billingService'
+import * as creditService from '../services/creditService'
+import { signatureService } from '../services/signatureService'
 
 const router = Router()
 
@@ -26,6 +29,16 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     if (!userId || !companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    // Check credits BEFORE creating agreement (0.25 credits required)
+    const hasEnoughCredits = await creditService.hasCredits(companyId, 0.25)
+    if (!hasEnoughCredits) {
+      return res.status(402).json({
+        error: 'Insufficient credits',
+        message: 'You need at least 0.25 credits to generate an agreement.',
+        requires_credits: true
+      })
     }
 
     // DEBUG: Log the ENTIRE request body
@@ -55,6 +68,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       managementType,
       breakClause,
       specialClauses,
+      language,
       referenceId
     }: AgreementData & { referenceId?: string } = req.body
 
@@ -110,7 +124,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       agentEmail,
       managementType,
       breakClause,
-      specialClauses
+      specialClauses,
+      language: language || 'english'
     }
 
     // Save to database
@@ -167,18 +182,21 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Fetch company details for managed properties
+    // Fetch company details (always needed for logo, address only for managed)
     let companyName: string | undefined
     let companyAddress: any | undefined
+    let companyLogoUrl: string | undefined
 
-    if (agreement.management_type === 'managed') {
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('name_encrypted, address_encrypted, city_encrypted, postcode_encrypted')
-        .eq('id', companyId)
-        .single()
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, address_encrypted, city_encrypted, postcode_encrypted, logo_url')
+      .eq('id', companyId)
+      .single()
 
-      if (companyData) {
+    if (companyData) {
+      companyLogoUrl = companyData.logo_url || undefined
+
+      if (agreement.management_type === 'managed') {
         companyName = decrypt(companyData.name_encrypted) || ''
         companyAddress = {
           line1: decrypt(companyData.address_encrypted) || '',
@@ -213,71 +231,93 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       managementType: agreement.management_type,
       breakClause: agreement.break_clause,
       specialClauses: agreement.special_clauses,
+      language: agreement.language || 'english',
       companyName,
       companyAddress
     }
 
-    // Charge for agreement generation BEFORE generating the PDF
-    let paymentResult
+    // Charge 0.25 credits for agreement generation BEFORE generating the PDF
     try {
-      console.log(`Charging company ${companyId} for agreement ${id}`)
-      paymentResult = await billingService.chargeForAgreement(
+      console.log(`Charging company ${companyId} 0.25 credits for agreement ${id}`)
+      await creditService.deductCredits(
         companyId,
-        id,
-        'standard', // agreement type
+        0.25,
+        null, // Not a reference, so pass null to avoid FK constraint violation
+        `Agreement generation (${id})`,
         userId
       )
-
-      // Check if payment method is required
-      if (paymentResult.requires_payment_method && paymentResult.client_secret) {
-        console.log(`Payment method required for agreement ${id}, returning client secret`)
-        return res.status(402).json({
-          error: 'Payment method required',
-          message: 'Please add a payment method to generate this agreement.',
-          requires_payment_method: true,
-          client_secret: paymentResult.client_secret,
-          amount: 9.99 // TODO: Get from billing service
-        })
-      }
-
-      if (!paymentResult.success) {
-        return res.status(402).json({
-          error: 'Payment failed',
-          message: 'Unable to charge for agreement generation. Please check your payment method and try again.',
-          requires_payment_method: false
-        })
-      }
-
-      console.log(`Successfully charged for agreement ${id}, payment intent: ${paymentResult.payment_intent_id}`)
-    } catch (paymentError: any) {
-      console.error('Payment failed for agreement:', paymentError)
+      console.log(`Successfully deducted 0.25 credits for agreement ${id}`)
+    } catch (creditError: any) {
+      console.error('Credit deduction failed for agreement:', creditError)
       return res.status(402).json({
-        error: 'Payment failed',
-        message: paymentError.message || 'Unable to charge for agreement generation.',
-        requires_payment_method: false
+        error: 'Insufficient credits',
+        message: creditError.message || 'Unable to charge for agreement generation. Please add more credits.',
+        requires_credits: true
       })
     }
 
-    // Generate DOCX (only after successful payment)
-    const docxBuffer = await agreementService.generateAgreementDocx(agreementData)
+    // Convert AgreementData to AgreementPDFData
+    const pdfData: AgreementPDFData = {
+      templateType: agreementData.templateType,
+      language: agreementData.language || 'english',
+      propertyAddress: agreementData.propertyAddress,
+      landlords: agreementData.landlords,
+      tenants: agreementData.tenants,
+      guarantors: agreementData.guarantors,
+      depositAmount: agreementData.depositAmount,
+      rentAmount: agreementData.rentAmount,
+      tenancyStartDate: agreementData.tenancyStartDate,
+      tenancyEndDate: agreementData.tenancyEndDate,
+      rentDueDay: agreementData.rentDueDay,
+      depositSchemeType: agreementData.depositSchemeType,
+      permittedOccupiers: agreementData.permittedOccupiers,
+      bankAccountName: agreementData.bankAccountName,
+      bankAccountNumber: agreementData.bankAccountNumber,
+      bankSortCode: agreementData.bankSortCode,
+      tenantEmail: agreementData.tenantEmail,
+      landlordEmail: agreementData.landlordEmail,
+      agentEmail: agreementData.agentEmail,
+      managementType: agreementData.managementType,
+      breakClause: agreementData.breakClause,
+      specialClauses: agreementData.specialClauses,
+      companyName: agreementData.companyName,
+      companyAddress: agreementData.companyAddress,
+      companyLogoUrl
+    }
+
+    // Generate PDF (only after successful payment)
+    const pdfBuffer = await pdfGenerationService.generatePreviewPDF(pdfData)
 
     // Generate filename
-    const fileName = `AST_${agreement.template_type}_${new Date().toISOString().split('T')[0]}.docx`
+    const contractType = agreementData.language === 'welsh' ? 'WOC' : 'AST'
+    const fileName = `${contractType}_${agreement.template_type}_${new Date().toISOString().split('T')[0]}.pdf`
 
     // Upload to storage
     const fileUrl = await agreementService.uploadAgreementFile(
       id,
-      docxBuffer,
+      pdfBuffer,
       fileName
     )
 
     // Update agreement with file URL
     await agreementService.updateAgreementPdfUrl(id, fileUrl)
 
+    // Automatically initiate signing and send emails to all signers
+    try {
+      console.log(`Initiating signing for agreement ${id}`)
+      await signatureService.initiateSigning(id)
+      console.log(`Signing initiated successfully for agreement ${id}`)
+    } catch (signingError: any) {
+      console.error('Failed to initiate signing:', signingError)
+      // Don't fail the whole request - agreement was generated successfully
+      // User can manually initiate signing from Agreement History
+    }
+
     res.json({
       message: 'Agreement generated successfully',
       fileUrl,
-      fileName
+      fileName,
+      signingInitiated: true
     })
   } catch (error: any) {
     console.error('Error generating agreement:', error)

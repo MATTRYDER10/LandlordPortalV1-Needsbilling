@@ -487,6 +487,46 @@ export async function sendGuarantorReferenceRequest(
 }
 
 /**
+ * Send email to tenant requesting them to add guarantor details
+ * Sent when reference completes with PASS_WITH_GUARANTOR and no guarantor exists
+ */
+export async function sendTenantAddGuarantorRequest(
+  tenantEmail: string,
+  tenantName: string,
+  propertyAddress: string,
+  agentName: string,
+  formLink: string,
+  referenceId?: string
+): Promise<void> {
+  const html = loadEmailTemplate('tenant-add-guarantor-request', {
+    TenantName: tenantName,
+    PropertyAddress: propertyAddress,
+    AgentName: agentName,
+    FormLink: formLink
+  });
+
+  try {
+    await sendEmail({
+      to: tenantEmail,
+      subject: `Guarantor Required for Your Application - ${propertyAddress} - PropertyGoose`,
+      html,
+      contactDetails: {
+        companyName: agentName
+      }
+    });
+
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'tenant_add_guarantor', 'sent');
+    }
+  } catch (error: any) {
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'tenant_add_guarantor', 'failed', error.message);
+    }
+    throw error;
+  }
+}
+
+/**
  * Send consent PDF to tenant
  */
 export async function sendConsentPDFToTenant(
@@ -638,38 +678,6 @@ export async function sendLandlordVerificationRequest(
 }
 
 /**
- * Send tenant application request email
- */
-export async function sendTenantApplicationRequest(
-  applicantEmail: string,
-  applicationLink: string,
-  companyName: string,
-  propertyAddress?: string,
-  companyPhone?: string,
-  companyEmail?: string | null
-): Promise<void> {
-  const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
-
-  const html = loadEmailTemplate('tenant-application-request', {
-    CompanyName: companyName,
-    ApplicationLink: applicationLink,
-    PropertyAddress: capitalizeWords(propertyAddress || ''),
-    ContactInfo: contactInfo,
-  })
-
-  await sendEmail({
-    to: applicantEmail,
-    subject: 'Complete Your Rental Application - PropertyGoose',
-    html,
-    contactDetails: {
-      companyName,
-      phone: companyPhone || undefined,
-      email: companyEmail || undefined
-    }
-  })
-}
-
-/**
  * Send tenant offer form request email
  */
 export async function sendTenantOfferRequest(
@@ -711,12 +719,13 @@ export async function sendOfferAcceptedEmail(
   bankAccountNumber: string,
   bankSortCode: string,
   holdingDepositAmount: number,
+  offerId: string,
   companyPhone?: string | null,
   companyEmail?: string | null,
   extraDetailsHtml?: string
 ): Promise<void> {
   const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
-  const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed`
+  const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed?offer_id=${offerId}`
 
   const html = loadEmailTemplate('offer-accepted', {
     CompanyName: companyName,
@@ -768,32 +777,31 @@ export async function sendOfferDeclinedEmail(
 }
 
 /**
- * Send application completed notification to agent
+ * Send payment confirmed notification email to agent
  */
-export async function sendApplicationCompletedNotification(
+export async function sendPaymentConfirmedToAgentEmail(
   agentEmail: string,
-  applicantName: string,
   propertyAddress: string,
-  dashboardLink: string,
-  companyName: string,
-  companyPhone?: string | null,
-  companyEmail?: string | null
+  tenantNames: string,
+  holdingDepositAmount: string,
+  offerLink: string
 ): Promise<void> {
-  const html = loadEmailTemplate('application-completed-notification', {
-    ApplicantName: capitalizeWords(applicantName),
-    PropertyAddress: capitalizeWords(propertyAddress),
-    DashboardLink: dashboardLink,
-    CompanyName: companyName || 'PropertyGoose'
+  const confirmedAt = new Date().toLocaleString('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
+
+  const html = loadEmailTemplate('tenant-payment-confirmed', {
+    PropertyAddress: propertyAddress,
+    TenantNames: tenantNames,
+    HoldingDepositAmount: holdingDepositAmount,
+    ConfirmedAt: confirmedAt,
+    OfferLink: offerLink
   })
 
   await sendEmail({
     to: agentEmail,
-    subject: `Rental Application Completed - ${applicantName} - PropertyGoose`,
-    html,
-    contactDetails: {
-      companyName,
-      phone: companyPhone || undefined,
-      email: companyEmail || undefined
-    }
+    subject: 'Tenant Confirmed Holding Deposit Payment',
+    html
   })
 }

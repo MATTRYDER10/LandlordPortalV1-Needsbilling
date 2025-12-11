@@ -14,6 +14,8 @@ import auditLogRoutes from './routes/auditLogs'
 import verificationRoutes from './routes/verification'
 import referenceNotesRoutes from './routes/reference-notes'
 import referenceAuditLogRoutes from './routes/reference-audit-log'
+import offerNotesRoutes from './routes/offer-notes'
+import offerAuditLogRoutes from './routes/offer-audit-log'
 import agreementsRoutes from './routes/agreements'
 import billingRoutes from './routes/billing'
 import webhookRoutes from './routes/webhooks'
@@ -23,11 +25,11 @@ import contactAttemptsRoutes from './routes/contact-attempts'
 import verificationStepsRoutes from './routes/verification-steps'
 import landlordsRoutes from './routes/landlords'
 import { startSchedulers } from './services/workQueueScheduler'
-import tenantApplicationRoutes from './routes/tenant-applications'
 import tenantOffersRoutes from './routes/tenant-offers'
 import googlePlaces from './routes/google-places'
 import adminRoutes from './routes/admin'
 import adminReportsRoutes from './routes/adminReports'
+import agreementSigningRoutes from './routes/agreementSigning'
 
 dotenv.config()
 
@@ -125,7 +127,6 @@ app.use('/api/invitations', invitationRoutes)
 app.use('/api/profile', profileRoutes)
 app.use('/api/references', referencesRoutes)
 app.use('/api/google-places', googlePlaces)
-app.use('/api/tenant-applications', tenantApplicationRoutes)
 app.use('/api/guarantor-references', guarantorReferencesRoutes)
 app.use('/api/rtr', rtrRoutes)
 app.use('/api/staff', staffRoutes)
@@ -134,6 +135,8 @@ app.use('/api/audit-logs', auditLogRoutes)
 app.use('/api/verification', verificationRoutes)
 app.use('/api/reference-notes', referenceNotesRoutes)
 app.use('/api/reference-audit-log', referenceAuditLogRoutes)
+app.use('/api/offer-notes', offerNotesRoutes)
+app.use('/api/offer-audit-log', offerAuditLogRoutes)
 app.use('/api/agreements', agreementsRoutes)
 app.use('/api/billing', billingRoutes)
 app.use('/api/onboarding', onboardingRoutes)
@@ -144,6 +147,7 @@ app.use('/api/landlords', landlordsRoutes)
 app.use('/api/tenant-offers', tenantOffersRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/admin/reports', adminReportsRoutes)
+app.use('/api/signing', agreementSigningRoutes) // Public signing routes (magic link authenticated)
 
 // Start server
 app.listen(PORT, () => {

@@ -346,7 +346,34 @@
           <div class="space-y-6">
             <!-- Document vs Selfie comparison -->
             <SideBySideViewer :left-image-url="idDocumentBlobUrl" :right-image-url="selfieBlobUrl"
-              left-title="ID Document" right-title="Selfie" />
+              left-title="ID Document" right-title="Selfie">
+              <!-- ID Document upload/request buttons -->
+              <template #left-content>
+                <div v-if="!reference?.id_document_path" class="mt-3 flex justify-center gap-2">
+                  <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
+                    <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'id_document')">
+                    Upload
+                  </label>
+                  <button type="button" @click="openRequestDocumentModal('id_document')"
+                    class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                    Request from Tenant
+                  </button>
+                </div>
+              </template>
+              <!-- Selfie upload/request buttons -->
+              <template #right-content>
+                <div v-if="!reference?.selfie_path" class="mt-3 flex justify-center gap-2">
+                  <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
+                    <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'selfie')">
+                    Upload
+                  </label>
+                  <button type="button" @click="openRequestDocumentModal('selfie')"
+                    class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                    Request from Tenant
+                  </button>
+                </div>
+              </template>
+            </SideBySideViewer>
 
             <!-- Key identity details -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -549,14 +576,20 @@
                   <p class="text-sm text-gray-600 mb-2">Document Preview</p>
                   <div class="h-96 border rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
                     <template v-if="rtrAlternativeDocumentBlobUrl">
-                      <img :src="rtrAlternativeDocumentBlobUrl" class="max-w-full max-h-full object-contain" alt="RTR Alternative Document" />
+                      <iframe v-if="rtrAlternativeDocumentIsPdf"
+                        :src="rtrAlternativeDocumentBlobUrl"
+                        class="w-full h-full"
+                        style="min-height: 384px;"
+                        frameborder="0"
+                      ></iframe>
+                      <img v-else :src="rtrAlternativeDocumentBlobUrl" class="max-w-full max-h-full object-contain" alt="RTR Alternative Document" />
                     </template>
                     <div v-else class="flex items-center justify-center h-full text-xs text-gray-500">
                       Loading document preview...
                     </div>
                   </div>
                   <div class="mt-2 flex justify-end">
-                    <a :href="`${API_URL}/api/staff/download/${reference.rtr_alternative_document_path.split('/')[0]}/${reference.rtr_alternative_document_path.split('/')[1]}/${encodeURIComponent(reference.rtr_alternative_document_path.split('/')[2] || '')}`"
+                    <a v-if="rtrAlternativeDocumentBlobUrl" :href="rtrAlternativeDocumentBlobUrl"
                       target="_blank" class="text-xs text-primary hover:text-primary-dark underline">
                       Open in new tab
                     </a>
@@ -630,10 +663,16 @@
 
           <div class="space-y-6">
             <!-- Property Details Section (Moved from Income Sources) -->
-            <div v-if="reference?.monthly_rent" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div v-if="reference?.monthly_rent || reference?.rent_share" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 class="font-semibold text-gray-900 mb-3">Property Details</h4>
               <div class="space-y-1 text-sm">
-                <p><strong>Monthly Rent:</strong> £{{ reference.monthly_rent }}</p>
+                <p v-if="reference?.rent_share">
+                  <strong>Rent Share:</strong> £{{ reference.rent_share }}
+                  <span v-if="reference.monthly_rent && parseFloat(reference.monthly_rent) !== parseFloat(reference.rent_share)" class="text-gray-600">
+                    (of £{{ reference.monthly_rent }} total)
+                  </span>
+                </p>
+                <p v-else-if="reference?.monthly_rent"><strong>Monthly Rent:</strong> £{{ reference.monthly_rent }}</p>
                 <p v-if="reference?.property_address"><strong>Property:</strong> {{ reference.property_address }}, {{
                   reference.property_city }} {{ reference.property_postcode }}</p>
               </div>
@@ -762,8 +801,18 @@
                       </div>
                     </div>
                   </div>
-                  <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg text-sm">
-                    Payslips not uploaded yet
+                  <div v-else class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-gray-500 text-center text-sm mb-3">Payslips not uploaded yet</p>
+                    <div class="flex justify-center gap-2">
+                      <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
+                        <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'payslips')">
+                        Upload
+                      </label>
+                      <button type="button" @click="openRequestDocumentModal('payslips')"
+                        class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                        Request from Tenant
+                      </button>
+                    </div>
                   </div>
 
                   <!-- Embedded payslip viewer -->
@@ -834,37 +883,52 @@
               </div>
 
               <!-- Tax Return Document -->
-              <div v-if="reference?.tax_return_path" class="mt-6 pt-6 border-t">
+              <div class="mt-6 pt-6 border-t">
                 <p class="block text-sm font-medium text-gray-700 mb-2">Tax Return Proof</p>
-                <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
-                  <div class="flex items-center">
-                    <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <span class="text-sm text-gray-900">Tax Return Document</span>
+                <div v-if="reference?.tax_return_path">
+                  <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                    <div class="flex items-center">
+                      <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <span class="text-sm text-gray-900">Tax Return Document</span>
+                    </div>
+                    <div class="flex gap-2">
+                      <button type="button" @click="previewTaxReturn(reference.tax_return_path)"
+                        class="px-3 py-1 text-xs sm:text-sm font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                        Preview
+                      </button>
+                    </div>
                   </div>
-                  <div class="flex gap-2">
-                    <button type="button" @click="previewTaxReturn(reference.tax_return_path)"
-                      class="px-3 py-1 text-xs sm:text-sm font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
-                      Preview
-                    </button>
+
+                  <!-- Embedded tax return viewer -->
+                  <div v-if="taxReturnPreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
+                    <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
+                      <p class="text-sm font-medium text-gray-700">
+                        Tax return preview
+                      </p>
+                      <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
+                        @click="clearTaxReturnPreview">
+                        Close preview
+                      </button>
+                    </div>
+                    <div class="h-[480px]">
+                      <iframe :src="taxReturnPreviewUrl" class="w-full h-full" frameborder="0"></iframe>
+                    </div>
                   </div>
                 </div>
-
-                <!-- Embedded tax return viewer -->
-                <div v-if="taxReturnPreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
-                  <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
-                    <p class="text-sm font-medium text-gray-700">
-                      Tax return preview
-                    </p>
-                    <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
-                      @click="clearTaxReturnPreview">
-                      Close preview
+                <div v-else class="bg-gray-50 rounded-lg p-4">
+                  <p class="text-gray-500 text-center text-sm mb-3">Tax return not uploaded yet</p>
+                  <div class="flex justify-center gap-2">
+                    <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
+                      <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'tax_return')">
+                      Upload
+                    </label>
+                    <button type="button" @click="openRequestDocumentModal('tax_return')"
+                      class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                      Request from Tenant
                     </button>
-                  </div>
-                  <div class="h-[480px]">
-                    <iframe :src="taxReturnPreviewUrl" class="w-full h-full" frameborder="0"></iframe>
                   </div>
                 </div>
               </div>
@@ -1084,8 +1148,18 @@
                     </button>
                   </div>
                 </div>
-                <div v-else class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg text-sm">
-                  Proof of funds not uploaded yet
+                <div v-else class="bg-gray-50 rounded-lg p-4">
+                  <p class="text-gray-500 text-center text-sm mb-3">Proof of funds not uploaded yet</p>
+                  <div class="flex justify-center gap-2">
+                    <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
+                      <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'proof_of_funds')">
+                      Upload
+                    </label>
+                    <button type="button" @click="openRequestDocumentModal('proof_of_funds')"
+                      class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                      Request from Tenant
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Embedded proof of funds viewer -->
@@ -1143,38 +1217,53 @@
               </div>
 
               <!-- Proof of Additional Income Document -->
-              <div v-if="reference?.proof_of_additional_income_path" class="mt-4">
+              <div class="mt-4">
                 <p class="block text-sm font-medium text-gray-700 mb-2">Proof of Additional Income</p>
-                <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
-                  <div class="flex items-center">
-                    <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <span class="text-sm text-gray-900">Proof of Additional Income Document</span>
+                <div v-if="reference?.proof_of_additional_income_path">
+                  <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                    <div class="flex items-center">
+                      <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <span class="text-sm text-gray-900">Proof of Additional Income Document</span>
+                    </div>
+                    <div class="flex gap-2">
+                      <button type="button"
+                        @click="previewProofOfAdditionalIncome(reference.proof_of_additional_income_path)"
+                        class="px-3 py-1 text-xs sm:text-sm font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                        Preview
+                      </button>
+                    </div>
                   </div>
-                  <div class="flex gap-2">
-                    <button type="button"
-                      @click="previewProofOfAdditionalIncome(reference.proof_of_additional_income_path)"
-                      class="px-3 py-1 text-xs sm:text-sm font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
-                      Preview
-                    </button>
+
+                  <!-- Embedded proof of additional income viewer -->
+                  <div v-if="proofOfAdditionalIncomePreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
+                    <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
+                      <p class="text-sm font-medium text-gray-700">
+                        Proof of additional income preview
+                      </p>
+                      <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
+                        @click="clearProofOfAdditionalIncomePreview">
+                        Close preview
+                      </button>
+                    </div>
+                    <div class="h-[480px]">
+                      <iframe :src="proofOfAdditionalIncomePreviewUrl" class="w-full h-full" frameborder="0"></iframe>
+                    </div>
                   </div>
                 </div>
-
-                <!-- Embedded proof of additional income viewer -->
-                <div v-if="proofOfAdditionalIncomePreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
-                  <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
-                    <p class="text-sm font-medium text-gray-700">
-                      Proof of additional income preview
-                    </p>
-                    <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
-                      @click="clearProofOfAdditionalIncomePreview">
-                      Close preview
+                <div v-else class="bg-gray-50 rounded-lg p-4">
+                  <p class="text-gray-500 text-center text-sm mb-3">Proof of additional income not uploaded yet</p>
+                  <div class="flex justify-center gap-2">
+                    <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
+                      <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'proof_of_additional_income')">
+                      Upload
+                    </label>
+                    <button type="button" @click="openRequestDocumentModal('proof_of_additional_income')"
+                      class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                      Request from Tenant
                     </button>
-                  </div>
-                  <div class="h-[480px]">
-                    <iframe :src="proofOfAdditionalIncomePreviewUrl" class="w-full h-full" frameborder="0"></iframe>
                   </div>
                 </div>
               </div>
@@ -1584,9 +1673,18 @@
                     </div>
                   </div>
                 </div>
-                <div v-else
-                  class="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-md px-3 py-2">
-                  Proof of address document not provided.
+                <div v-else class="bg-gray-50 border border-dashed border-gray-200 rounded-md p-4">
+                  <p class="text-sm text-gray-500 text-center mb-3">Proof of address document not provided.</p>
+                  <div class="flex justify-center gap-2">
+                    <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
+                      <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'proof_of_address')">
+                      Upload
+                    </label>
+                    <button type="button" @click="openRequestDocumentModal('proof_of_address')"
+                      class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
+                      Request from Tenant
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -2668,12 +2766,58 @@
         </div>
       </div>
     </div>
+
+    <!-- Request Document Modal -->
+    <div v-if="showRequestDocumentModal" class="fixed inset-0 z-50 overflow-y-auto" @click.self="showRequestDocumentModal = false">
+      <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="showRequestDocumentModal = false"></div>
+
+        <!-- Modal panel -->
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full" @click.stop>
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="sm:flex sm:items-start">
+              <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 sm:mx-0 sm:h-10 sm:w-10">
+                <svg class="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">
+                  Request {{ documentTypeLabels[requestDocumentType] || 'Document' }}
+                </h3>
+                <div class="mt-2">
+                  <p class="text-sm text-gray-500 mb-4">
+                    This will send an email to the tenant requesting they upload this document. The reference will be pushed back to "In Progress" status.
+                  </p>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Additional message (optional)</label>
+                    <textarea v-model="requestDocumentMessage" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="Add any specific instructions for the tenant..."></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button @click="sendDocumentRequest" :disabled="requestDocumentLoading"
+              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary/90 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50">
+              {{ requestDocumentLoading ? 'Sending...' : 'Send Request & Push Back' }}
+            </button>
+            <button @click="showRequestDocumentModal = false" :disabled="requestDocumentLoading"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import SideBySideViewer from '../components/SideBySideViewer.vue'
 import CreditsAndAmlUI, { type Props as CreditsAndAmlUIProps } from '../components/CreditsAndAmlUI.vue'
@@ -2683,6 +2827,7 @@ import { formatDate as formatUkDate } from '../utils/date'
 
 const router = useRouter()
 const route = useRoute()
+const toast = useToast()
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -2705,6 +2850,7 @@ const selectedPayslipIndex = ref<number | null>(null)
 const proofOfAddressBlobUrl = ref('')
 const proofOfAddressIsPdf = ref(false)
 const rtrAlternativeDocumentBlobUrl = ref('')
+const rtrAlternativeDocumentIsPdf = ref(false)
 const taxReturnPreviewUrl = ref('')
 const proofOfFundsPreviewUrl = ref('')
 const proofOfAdditionalIncomePreviewUrl = ref('')
@@ -2714,6 +2860,25 @@ const proofOfAdditionalIncomePreviewUrl = ref('')
 // Modal state
 const showConfirmationModal = ref(false)
 const pendingAction = ref<'finalize' | 'reject' | null>(null)
+
+// Document request modal state
+const showRequestDocumentModal = ref(false)
+const requestDocumentType = ref('')
+const requestDocumentMessage = ref('')
+const requestDocumentLoading = ref(false)
+const uploadingDocument = ref(false)
+
+const documentTypeLabels: Record<string, string> = {
+  'id_document': 'ID Document',
+  'selfie': 'Selfie',
+  'proof_of_address': 'Proof of Address',
+  'proof_of_funds': 'Proof of Funds',
+  'proof_of_additional_income': 'Proof of Additional Income',
+  'bank_statements': 'Bank Statements',
+  'payslips': 'Payslips',
+  'tax_return': 'Tax Return',
+  'rtr_alternative_document': 'Right to Rent Alternative Document'
+}
 
 // Re-assessment state
 const reAssessmentLoading = ref(false)
@@ -3453,6 +3618,87 @@ const clearProofOfAdditionalIncomePreview = () => {
   proofOfAdditionalIncomePreviewUrl.value = ''
 }
 
+// Staff document upload function
+const handleStaffUpload = async (event: Event, documentType: string) => {
+  const input = event.target as HTMLInputElement
+  if (!input.files || !input.files[0]) return
+
+  const file = input.files[0]
+  uploadingDocument.value = true
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('document_type', documentType)
+
+    const response = await fetch(`${API_URL}/api/staff/references/${reference.value.id}/upload-document`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to upload document')
+    }
+
+    // Reload the reference data to show the newly uploaded document
+    await loadData()
+    toast.success('Document uploaded successfully')
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to upload document')
+  } finally {
+    uploadingDocument.value = false
+    input.value = '' // Reset file input
+  }
+}
+
+// Open request document modal
+const openRequestDocumentModal = (documentType: string) => {
+  requestDocumentType.value = documentType
+  requestDocumentMessage.value = ''
+  showRequestDocumentModal.value = true
+}
+
+// Send document request to tenant (pushes back to in_progress)
+const sendDocumentRequest = async () => {
+  if (!requestDocumentType.value) return
+
+  requestDocumentLoading.value = true
+
+  try {
+    const response = await fetch(`${API_URL}/api/staff/references/${reference.value.id}/request-document`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        document_type: requestDocumentType.value,
+        message: requestDocumentMessage.value
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to send document request')
+    }
+
+    const result = await response.json()
+    toast.success(result.message)
+    showRequestDocumentModal.value = false
+
+    // Navigate back to work queue since reference is now in_progress
+    router.push('/staff/work-queue')
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to send document request')
+  } finally {
+    requestDocumentLoading.value = false
+  }
+}
+
 type DomainScores = {
   aml: number | null
   rtr: number | null
@@ -3608,6 +3854,7 @@ const loadData = async () => {
     if (reference.value.rtr_alternative_document_path) {
       console.log('Loading RTR alternative document from path:', reference.value.rtr_alternative_document_path)
       rtrAlternativeDocumentBlobUrl.value = await loadImageAsBlob(reference.value.rtr_alternative_document_path)
+      rtrAlternativeDocumentIsPdf.value = await checkIfPdf(rtrAlternativeDocumentBlobUrl.value)
     } else {
       console.warn('No RTR alternative document path found')
     }

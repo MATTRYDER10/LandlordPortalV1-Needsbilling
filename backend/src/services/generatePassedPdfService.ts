@@ -123,9 +123,9 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
     const numberOfTenants = reference.tenant_position || 1
 
     // Extract affordability data (same as frontend)
+    // Prioritize rent_share for multi-tenant properties and guarantors
     const monthlyRent = reference.monthly_rent || (reference.monthly_rent_encrypted ? parseFloat(decrypt(reference.monthly_rent_encrypted) || '0') : 0)
-    // Rent share uses previous_monthly_rent if available, otherwise rent_share, otherwise monthly_rent
-    const rentShare = reference.previous_monthly_rent || reference.rent_share || monthlyRent
+    const rentShare = reference.rent_share || reference.previous_monthly_rent || monthlyRent
     const rentShareValue = typeof rentShare === 'string' ? parseFloat(rentShare) : rentShare
 
     // Max affordability = Total income / 30 (as per frontend)
@@ -429,6 +429,49 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 doc.text('Pass', textX, textY)
             }
 
+            // Helper function to draw Fail button
+            const drawFailButton = (x: number, y: number) => {
+                const buttonWidth = 70
+                const buttonHeight = 28
+                const radius = 15
+                const iconSize = 14
+
+                doc.save()
+                drawRoundedRect(x, y, buttonWidth, buttonHeight, radius)
+                doc.fillColor('#E5E5E5')
+                    .fill()
+                doc.restore()
+
+                const iconCenterX = x + 14
+                const iconCenterY = y + buttonHeight / 2
+
+                doc.circle(iconCenterX, iconCenterY, iconSize / 2)
+                    .lineWidth(1.5)
+                    .strokeColor('#dc3545')
+                    .stroke()
+
+                // Draw X icon
+                const xSize = 3
+                doc.moveTo(iconCenterX - xSize, iconCenterY - xSize)
+                    .lineTo(iconCenterX + xSize, iconCenterY + xSize)
+                    .lineWidth(1.5)
+                    .strokeColor('#dc3545')
+                    .stroke()
+                doc.moveTo(iconCenterX + xSize, iconCenterY - xSize)
+                    .lineTo(iconCenterX - xSize, iconCenterY + xSize)
+                    .lineWidth(1.5)
+                    .strokeColor('#dc3545')
+                    .stroke()
+
+                doc.font('Helvetica-Bold')
+                    .fontSize(11)
+                    .fillColor('#dc3545')
+
+                const textX = iconCenterX + iconSize / 2 + 6
+                const textY = y + (buttonHeight / 2) - 4
+                doc.text('Fail', textX, textY)
+            }
+
             // ========== PAGE 1: Certificate of Completion ==========
             let yPos = 100
 
@@ -605,8 +648,8 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             const checksText = `We have carried out all necessary checks needed and the ${personLabel.toLowerCase()} is clear to ${actionWord} this tenancy.`
             doc.text(checksText, margin, yPos, { align: 'center', width: pageWidth - (2 * margin) })
 
-            // Disclaimer for Pass with Guarantor
-            if (score?.decision === 'PASS_WITH_GUARANTOR') {
+            // Disclaimer for Pass with Guarantor (only show for tenants, not guarantors)
+            if (score?.decision === 'PASS_WITH_GUARANTOR' && !isGuarantor) {
                 yPos += 35
                 const disclaimerBoxWidth = pageWidth - (2 * margin) - 40
                 const disclaimerBoxX = margin + 20
@@ -790,7 +833,8 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             let rightY = yPos2
 
             // Helper function to draw a section
-            const drawSection = (x: number, y: number, title: string, data: Array<[string, string, boolean]>, hasPassButton = false, headerColor = '#FF8C00', useAlternatingColors = false) => {
+            // buttonType: 'none' | 'pass' | 'fail' - determines which button to show in the header
+            const drawSection = (x: number, y: number, title: string, data: Array<[string, string, boolean]>, buttonType: 'none' | 'pass' | 'fail' = 'none', headerColor = '#FF8C00', useAlternatingColors = false) => {
                 const headerHeight = 30
                 const contentPadding = 15
                 let contentHeight = 24 + (data.length * 24)
@@ -807,9 +851,12 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     .fillColor(headerColor === '#FF8C00' ? 'white' : '#333333')
                     .text(title, x + contentPadding, y + 10)
 
-                if (hasPassButton) {
+                if (buttonType === 'pass') {
                     const buttonWidth = 70
                     drawPassButton(x + columnWidth - buttonWidth, y + 1)
+                } else if (buttonType === 'fail') {
+                    const buttonWidth = 70
+                    drawFailButton(x + columnWidth - buttonWidth, y + 1)
                 }
 
                 const contentY = y + headerHeight
@@ -914,16 +961,18 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 ['Pets', hasPets ? 'Yes' : 'No', false],
                 ['No. of tenants ', String(numberOfTenants), false]
             ]
-            leftY += drawSection(leftColumnX, leftY, 'Personal Data', personalData, false, '#FF8C00', true)
+            leftY += drawSection(leftColumnX, leftY, 'Personal Data', personalData, 'none', '#FF8C00', true)
 
             // Affordability Section (same structure as frontend)
+            // Show Pass if ratio >= 2.5x, otherwise Fail (requires guarantor)
             const affordabilityData: Array<[string, string, boolean]> = [
                 ['Rent share', `£${rentShareValue.toLocaleString('en-GB')} pcm`, false],
-                ['Affordability ratio', affordabilityRatioText, true],
+                ['Affordability ratio', affordabilityRatioText, affordabilityRatio >= 2.5],
                 ['Verified savings', `£${savingsAmount.toLocaleString('en-GB')}`, true],
                 ['Maximum affordable rent', `£${maxAffordableRent.toLocaleString('en-GB', { maximumFractionDigits: 0 })} pcm`, false]
             ]
-            leftY += drawSection(leftColumnX, leftY, 'Affordability', affordabilityData, true)
+            const affordabilityButtonType: 'pass' | 'fail' = affordabilityRatio >= 2.5 ? 'pass' : 'fail'
+            leftY += drawSection(leftColumnX, leftY, 'Affordability', affordabilityData, affordabilityButtonType)
 
             // Income Check Section (same structure as frontend)
             const incomeData: Array<[string, string, boolean]> = [
@@ -945,7 +994,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             if (additionalIncome > 0) {
                 incomeData.push(['  Additional income', `£${additionalIncome.toLocaleString('en-GB')} pa`, false])
             }
-            leftY += drawSection(leftColumnX, leftY, 'Income Check', incomeData, true)
+            leftY += drawSection(leftColumnX, leftY, 'Income Check', incomeData, 'pass')
 
             // RIGHT COLUMN
             // Landlord Reference Section
@@ -957,7 +1006,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             } else {
                 landlordData.push(['Landlord reference', 'Completed', true])
             }
-            rightY += drawSection(rightColumnX, rightY, 'Landlord Reference', landlordData, true)
+            rightY += drawSection(rightColumnX, rightY, 'Landlord Reference', landlordData, 'pass')
 
             // Credit History Section
             const creditData: Array<[string, string, boolean]> = [
@@ -967,7 +1016,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 ['Debt relief orders found', '0', false],
                 ['Voluntary arrangements found', '0', false]
             ]
-            rightY += drawSection(rightColumnX, rightY, 'Credit History', creditData, true)
+            rightY += drawSection(rightColumnX, rightY, 'Credit History', creditData, 'pass')
 
             // PEP & Sanction Checks Section
             const sanctionsStatus = sanctions?.risk_level === 'clear' || (Array.isArray(sanctions?.sanctions_matches) && sanctions.sanctions_matches.length === 0)
@@ -976,7 +1025,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 ['PEP', sanctionsStatus ? 'Complete' : 'Pending', false],
                 ['Completion date', formatDate(sanctions?.verified_at || score?.scored_at), false]
             ]
-            rightY += drawSection(rightColumnX, rightY, 'PEP & Sanction Checks', pepData, true)
+            rightY += drawSection(rightColumnX, rightY, 'PEP & Sanction Checks', pepData, 'pass')
 
             // Footer for page 2
             const page2FooterY = pageHeight - 30
