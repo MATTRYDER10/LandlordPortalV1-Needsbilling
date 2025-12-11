@@ -534,19 +534,6 @@ const sendEmailFromModal = async () => {
   try {
     const token = authStore.session?.access_token
 
-    // Map contact type to backend format
-    const contactTypeMap: Record<string, string> = {
-      'Landlord': 'LANDLORD',
-      'Agent': 'AGENT',
-      'Letting Agent': 'AGENT',
-      'Employer': 'EMPLOYER',
-      'Accountant': 'ACCOUNTANT',
-      'Guarantor': 'GUARANTOR',
-      'Tenant': 'TENANT'
-    }
-
-    const backendContactType = contactTypeMap[emailModalContactType.value] || emailModalContactType.value.toUpperCase()
-
     const response = await fetch(`${API_URL}/api/staff/chase/${emailModalReferenceId.value}/send-reminder`, {
       method: 'POST',
       headers: {

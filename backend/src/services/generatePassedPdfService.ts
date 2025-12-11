@@ -123,9 +123,9 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
     const numberOfTenants = reference.tenant_position || 1
 
     // Extract affordability data (same as frontend)
+    // Prioritize rent_share for multi-tenant properties and guarantors
     const monthlyRent = reference.monthly_rent || (reference.monthly_rent_encrypted ? parseFloat(decrypt(reference.monthly_rent_encrypted) || '0') : 0)
-    // Rent share uses previous_monthly_rent if available, otherwise rent_share, otherwise monthly_rent
-    const rentShare = reference.previous_monthly_rent || reference.rent_share || monthlyRent
+    const rentShare = reference.rent_share || reference.previous_monthly_rent || monthlyRent
     const rentShareValue = typeof rentShare === 'string' ? parseFloat(rentShare) : rentShare
 
     // Max affordability = Total income / 30 (as per frontend)

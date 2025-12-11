@@ -1206,6 +1206,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 property_city_encrypted: encrypt(property_city || ''),
                 property_postcode_encrypted: encrypt(property_postcode || ''),
                 monthly_rent,
+                rent_share: tenant.rent_share,
                 move_in_date,
                 // Store guarantor's own info in tenant fields
                 tenant_first_name_encrypted: encrypt(tenant.guarantor.first_name),
@@ -4601,6 +4602,7 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
         property_city_encrypted: parentReference.property_city_encrypted,
         property_postcode_encrypted: parentReference.property_postcode_encrypted,
         monthly_rent: parentReference.monthly_rent,
+        rent_share: parentReference.rent_share,
         move_in_date: parentReference.move_in_date,
 
         // Store guarantor's own info in tenant fields
@@ -5267,6 +5269,7 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
         property_city_encrypted: parentReference.property_city_encrypted,
         property_postcode_encrypted: parentReference.property_postcode_encrypted,
         monthly_rent: parentReference.monthly_rent,
+        rent_share: parentReference.rent_share,
         move_in_date: parentReference.move_in_date,
 
         // Store guarantor's own info in tenant fields
