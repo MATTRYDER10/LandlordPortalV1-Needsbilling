@@ -68,8 +68,17 @@ router.get('/', staffAuth, async (req: StaffAuthRequest, res: Response) => {
 
     if (error) throw error;
 
+    // Filter out work items where the reference is already completed/rejected
+    const validWorkItems = workItems?.filter((item: any) => {
+      if (!item.reference) return false;
+      if (item.reference.status === 'completed' || item.reference.status === 'rejected') {
+        return false;
+      }
+      return true;
+    });
+
     // Calculate urgency based on age and decrypt reference data
-    const enrichedWorkItems = workItems?.map((item: any) => {
+    const enrichedWorkItems = validWorkItems?.map((item: any) => {
       const ageHours = (Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60);
       let urgency = 'normal';
       if (ageHours >= 8) urgency = 'urgent';
