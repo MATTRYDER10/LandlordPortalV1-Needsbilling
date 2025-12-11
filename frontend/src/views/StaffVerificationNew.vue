@@ -98,7 +98,7 @@
         <div class="flex items-center gap-4 mb-6">
           <!-- Tenant Image -->
           <div class="relative">
-            <img v-if="selfieBlobUrl" :src="selfieBlobUrl" alt="Tenant Photo"
+            <img v-if="selfieBlobUrl" :src="selfieBlobUrl" :alt="isGuarantor ? 'Guarantor Photo' : 'Tenant Photo'"
               class="w-20 h-20 rounded-full object-cover border-4 border-gray-200 shadow-md" />
             <div v-else
               class="w-20 h-20 rounded-full bg-gray-200 border-4 border-gray-200 shadow-md flex items-center justify-center">
@@ -112,7 +112,7 @@
           <!-- Name & Email -->
           <div class="flex flex-col justify-center">
             <div>
-              <p class="text-sm text-gray-500">Tenant Name</p>
+              <p class="text-sm text-gray-500">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Name</p>
               <p class="font-semibold text-gray-900 text-lg">
                 {{ reference?.tenant_first_name }} {{ reference?.tenant_last_name }}
               </p>
@@ -334,7 +334,7 @@
             <div>
               <h3 class="text-xl font-bold text-gray-900">Step 1: Identity Verification</h3>
               <p class="text-gray-600 mt-1">
-                Compare the tenant's ID document and selfie, and confirm their identity matches the application details.
+                Compare the {{ isGuarantor ? 'guarantor\'s' : 'tenant\'s' }} ID document and selfie, and confirm their identity matches the application details.
               </p>
             </div>
             <div v-if="reference?.nationality" class="shrink-0">
@@ -359,7 +359,7 @@
                   </label>
                   <button type="button" @click="openRequestDocumentModal('id_document')"
                     class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
-                    Request from Tenant
+                    Request from {{ isGuarantor ? 'Guarantor' : 'Tenant' }}
                   </button>
                 </div>
               </template>
@@ -372,7 +372,7 @@
                   </label>
                   <button type="button" @click="openRequestDocumentModal('selfie')"
                     class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
-                    Request from Tenant
+                    Request from {{ isGuarantor ? 'Guarantor' : 'Tenant' }}
                   </button>
                 </div>
               </template>
@@ -512,12 +512,12 @@
               {{ reference?.rtr_verified ? '✓ Verified' : '✗ Not Verified' }}
             </span>
           </div>
-          <p class="text-gray-600 mb-6">Verify the tenant's Right to Rent status.</p>
+          <p class="text-gray-600 mb-6">Verify the {{ isGuarantor ? 'guarantor\'s' : 'tenant\'s' }} Right to Rent status.</p>
 
           <div class="space-y-6">
             <!-- Tenant Nationality -->
             <div class="bg-white border rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">Tenant Nationality</h4>
+              <h4 class="font-semibold text-gray-900 mb-3">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Nationality</h4>
               <div class="flex items-center gap-3">
                 <span
                   class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-100">
@@ -537,7 +537,7 @@
                 <div>
                   <h4 class="font-semibold text-blue-900 mb-1">British Citizen</h4>
                   <p class="text-sm text-blue-800">
-                    Tenant is a British citizen. No need to verify Right to Rent.
+                    {{ isGuarantor ? 'Guarantor' : 'Tenant' }} is a British citizen. No need to verify Right to Rent.
                   </p>
                 </div>
               </div>
@@ -709,7 +709,7 @@
                 <!-- Student / Unemployed info for guarantor context -->
                 <div v-if="reference?.income_student || reference?.income_unemployed"
                   class="mt-3 p-3 rounded-md bg-yellow-50 border border-yellow-200 text-sm text-yellow-900">
-                  The tenant has declared themselves as
+                  The {{ isGuarantor ? 'guarantor' : 'tenant' }} has declared themselves as
                   <strong>{{ reference?.income_student ? 'student' : 'unemployed' }}</strong>, therefore a guarantor
                   may be required depending on the overall assessment.
                 </div>
@@ -813,7 +813,7 @@
                       </label>
                       <button type="button" @click="openRequestDocumentModal('payslips')"
                         class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
-                        Request from Tenant
+                        Request from {{ isGuarantor ? 'Guarantor' : 'Tenant' }}
                       </button>
                     </div>
                   </div>
@@ -930,7 +930,7 @@
                     </label>
                     <button type="button" @click="openRequestDocumentModal('tax_return')"
                       class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
-                      Request from Tenant
+                      Request from {{ isGuarantor ? 'Guarantor' : 'Tenant' }}
                     </button>
                   </div>
                 </div>
@@ -1078,7 +1078,7 @@
               <!-- Accountant vs Tenant Comparison -->
               <div v-if="accountantComparisonTable.length" class="bg-white border rounded-lg p-4 mt-4">
                 <div class="flex items-center justify-between mb-3">
-                  <h4 class="font-semibold text-gray-900">Accountant Reference vs Tenant Declaration</h4>
+                  <h4 class="font-semibold text-gray-900">Accountant Reference vs {{ isGuarantor ? 'Guarantor' : 'Tenant' }} Declaration</h4>
                   <span class="text-xs text-gray-500" v-if="accountantComparisonHasMismatch">
                     Differences detected—document rationale below.
                   </span>
@@ -1088,7 +1088,7 @@
                     <thead class="bg-gray-50">
                       <tr>
                         <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Field</th>
-                        <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Tenant Provided</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Provided</th>
                         <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Accountant Confirmed</th>
                         <th class="px-4 py-2 text-center font-medium text-gray-600 uppercase tracking-wide">Status</th>
                       </tr>
@@ -1160,7 +1160,7 @@
                     </label>
                     <button type="button" @click="openRequestDocumentModal('proof_of_funds')"
                       class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
-                      Request from Tenant
+                      Request from {{ isGuarantor ? 'Guarantor' : 'Tenant' }}
                     </button>
                   </div>
                 </div>
@@ -1265,7 +1265,7 @@
                     </label>
                     <button type="button" @click="openRequestDocumentModal('proof_of_additional_income')"
                       class="px-3 py-1.5 text-xs font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-md">
-                      Request from Tenant
+                      Request from {{ isGuarantor ? 'Guarantor' : 'Tenant' }}
                     </button>
                   </div>
                 </div>
@@ -1275,7 +1275,7 @@
             <!-- Employer vs Tenant Comparison -->
             <div v-if="employmentComparisonTable.length" class="bg-white border rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
-                <h4 class="font-semibold text-gray-900">Employer Reference vs Tenant Declaration</h4>
+                <h4 class="font-semibold text-gray-900">Employer Reference vs {{ isGuarantor ? 'Guarantor' : 'Tenant' }} Declaration</h4>
                 <span class="text-xs text-gray-500" v-if="employmentComparisonHasMismatch">
                   Differences detected—document rationale below.
                 </span>
@@ -1285,7 +1285,7 @@
                   <thead class="bg-gray-50">
                     <tr>
                       <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Field</th>
-                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Tenant Provided
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Provided
                       </th>
                       <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Employer
                         Confirmed</th>
@@ -1523,8 +1523,8 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
               <p class="text-sm text-gray-600 mb-3">
-                Based on all income, employment, benefits and savings information above, record whether the tenant
-                passes affordability on their own, fails, or requires a guarantor.
+                Based on all income, employment, benefits and savings information above, record whether the {{ isGuarantor ? 'guarantor' : 'tenant' }}
+                passes affordability on their own, fails{{ isGuarantor ? '.' : ', or requires a guarantor.' }}
               </p>
               <div class="flex flex-col sm:flex-row gap-3">
                 <button @click="steps[2]!.overall_pass = true; steps[2]!.status = ''" :disabled="!canMakeStep2Decision"
@@ -2210,7 +2210,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <div class="text-center text-gray-600">Tenant has'nt submitted reference yet.</div>
+                <div class="text-center text-gray-600">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} hasn't submitted reference yet.</div>
               </div>
             </div>
 
@@ -2815,11 +2815,11 @@
                 </h3>
                 <div class="mt-2">
                   <p class="text-sm text-gray-500 mb-4">
-                    This will send an email to the tenant requesting they upload this document. The reference will be pushed back to "In Progress" status.
+                    This will send an email to the {{ isGuarantor ? 'guarantor' : 'tenant' }} requesting they upload this document. The reference will be pushed back to "In Progress" status.
                   </p>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Additional message (optional)</label>
-                    <textarea v-model="requestDocumentMessage" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="Add any specific instructions for the tenant..."></textarea>
+                    <textarea v-model="requestDocumentMessage" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" :placeholder="`Add any specific instructions for the ${isGuarantor ? 'guarantor' : 'tenant'}...`"></textarea>
                   </div>
                 </div>
               </div>
