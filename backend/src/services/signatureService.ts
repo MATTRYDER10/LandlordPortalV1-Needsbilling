@@ -47,8 +47,8 @@ export interface ClientInfo {
 
 export interface SigningStatus {
   id: string
-  name: string
-  type: 'landlord' | 'tenant' | 'guarantor'
+  signer_name: string
+  signer_type: 'landlord' | 'tenant' | 'guarantor'
   status: 'pending' | 'sent' | 'viewed' | 'signed' | 'declined'
   signedAt: string | null
 }
@@ -717,8 +717,8 @@ class SignatureService {
 
     return signatures.map((sig: { id: string; signer_name: string; signer_type: 'landlord' | 'tenant' | 'guarantor'; status: string; signed_at: string | null }) => ({
       id: sig.id,
-      name: sig.signer_name,
-      type: sig.signer_type,
+      signer_name: sig.signer_name,
+      signer_type: sig.signer_type,
       status: sig.status as 'pending' | 'sent' | 'viewed' | 'signed' | 'declined',
       signedAt: sig.signed_at
     }))
