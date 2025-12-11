@@ -576,14 +576,20 @@
                   <p class="text-sm text-gray-600 mb-2">Document Preview</p>
                   <div class="h-96 border rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
                     <template v-if="rtrAlternativeDocumentBlobUrl">
-                      <img :src="rtrAlternativeDocumentBlobUrl" class="max-w-full max-h-full object-contain" alt="RTR Alternative Document" />
+                      <iframe v-if="rtrAlternativeDocumentIsPdf"
+                        :src="rtrAlternativeDocumentBlobUrl"
+                        class="w-full h-full"
+                        style="min-height: 384px;"
+                        frameborder="0"
+                      ></iframe>
+                      <img v-else :src="rtrAlternativeDocumentBlobUrl" class="max-w-full max-h-full object-contain" alt="RTR Alternative Document" />
                     </template>
                     <div v-else class="flex items-center justify-center h-full text-xs text-gray-500">
                       Loading document preview...
                     </div>
                   </div>
                   <div class="mt-2 flex justify-end">
-                    <a :href="`${API_URL}/api/staff/download/${reference.rtr_alternative_document_path.split('/')[0]}/${reference.rtr_alternative_document_path.split('/')[1]}/${encodeURIComponent(reference.rtr_alternative_document_path.split('/')[2] || '')}`"
+                    <a v-if="rtrAlternativeDocumentBlobUrl" :href="rtrAlternativeDocumentBlobUrl"
                       target="_blank" class="text-xs text-primary hover:text-primary-dark underline">
                       Open in new tab
                     </a>
@@ -2844,6 +2850,7 @@ const selectedPayslipIndex = ref<number | null>(null)
 const proofOfAddressBlobUrl = ref('')
 const proofOfAddressIsPdf = ref(false)
 const rtrAlternativeDocumentBlobUrl = ref('')
+const rtrAlternativeDocumentIsPdf = ref(false)
 const taxReturnPreviewUrl = ref('')
 const proofOfFundsPreviewUrl = ref('')
 const proofOfAdditionalIncomePreviewUrl = ref('')
@@ -3847,6 +3854,7 @@ const loadData = async () => {
     if (reference.value.rtr_alternative_document_path) {
       console.log('Loading RTR alternative document from path:', reference.value.rtr_alternative_document_path)
       rtrAlternativeDocumentBlobUrl.value = await loadImageAsBlob(reference.value.rtr_alternative_document_path)
+      rtrAlternativeDocumentIsPdf.value = await checkIfPdf(rtrAlternativeDocumentBlobUrl.value)
     } else {
       console.warn('No RTR alternative document path found')
     }
