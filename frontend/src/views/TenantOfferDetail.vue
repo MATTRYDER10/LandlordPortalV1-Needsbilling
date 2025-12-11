@@ -158,6 +158,10 @@
                   <dt class="text-sm font-medium text-gray-500">Annual Income</dt>
                   <dd class="mt-1 text-sm text-gray-900">£{{ tenant.annual_income }}</dd>
                 </div>
+                <div v-if="tenant.job_title">
+                  <dt class="text-sm font-medium text-gray-500">Job Title</dt>
+                  <dd class="mt-1 text-sm text-gray-900">{{ tenant.job_title }}</dd>
+                </div>
                 <div>
                   <dt class="text-sm font-medium text-gray-500">No CCJ/Bankruptcy/IVA</dt>
                   <dd class="mt-1 text-sm text-gray-900">
