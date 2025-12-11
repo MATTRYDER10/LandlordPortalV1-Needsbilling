@@ -71,12 +71,13 @@ export interface FinalRemarks {
     id: AssessmentSection;
     rtr: AssessmentSection;
     income: AssessmentSection;
-    residential: AssessmentSection;
+    residential?: AssessmentSection; // Optional for guarantors
     credit_tas: AssessmentSection;
 }
 
 export interface SubmitAssessmentBody {
     final_remarks: FinalRemarks;
+    is_guarantor?: boolean;
 }
 // ----- Validation Functions -----
 function isObject(v: any): v is Record<string, any> {
@@ -93,10 +94,13 @@ function isAssessmentSection(v: any): v is AssessmentSection {
     );
 }
 
-function validateFinalRemarks(data: any): data is FinalRemarks {
+function validateFinalRemarks(data: any, isGuarantor: boolean = false): data is FinalRemarks {
     if (!isObject(data)) return false;
 
-    const requiredKeys = ["id", "rtr", "income", "residential", "credit_tas"];
+    // For guarantors, residential is not required
+    const requiredKeys = isGuarantor
+        ? ["id", "rtr", "income", "credit_tas"]
+        : ["id", "rtr", "income", "residential", "credit_tas"];
 
     return requiredKeys.every((key) => isAssessmentSection(data[key]));
 }
@@ -104,9 +108,10 @@ function validateFinalRemarks(data: any): data is FinalRemarks {
 export function validateSubmitAssessmentBody(
     body: any
 ) {
+    const isGuarantor = body.is_guarantor === true;
     const isValid = (
         isObject(body) &&
-        validateFinalRemarks(body.final_remarks)
+        validateFinalRemarks(body.final_remarks, isGuarantor)
     );
-    return { isValid, final_remarks: (body.final_remarks || {}) as FinalRemarks };
+    return { isValid, final_remarks: (body.final_remarks || {}) as FinalRemarks, is_guarantor: isGuarantor };
 }
