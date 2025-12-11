@@ -27,6 +27,7 @@ import tenantOffersRoutes from './routes/tenant-offers'
 import googlePlaces from './routes/google-places'
 import adminRoutes from './routes/admin'
 import adminReportsRoutes from './routes/adminReports'
+import agreementSigningRoutes from './routes/agreementSigning'
 
 dotenv.config()
 
@@ -142,6 +143,7 @@ app.use('/api/landlords', landlordsRoutes)
 app.use('/api/tenant-offers', tenantOffersRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/admin/reports', adminReportsRoutes)
+app.use('/api/signing', agreementSigningRoutes) // Public signing routes (magic link authenticated)
 
 // Start server
 app.listen(PORT, () => {
