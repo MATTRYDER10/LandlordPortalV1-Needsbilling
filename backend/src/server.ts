@@ -14,6 +14,8 @@ import auditLogRoutes from './routes/auditLogs'
 import verificationRoutes from './routes/verification'
 import referenceNotesRoutes from './routes/reference-notes'
 import referenceAuditLogRoutes from './routes/reference-audit-log'
+import offerNotesRoutes from './routes/offer-notes'
+import offerAuditLogRoutes from './routes/offer-audit-log'
 import agreementsRoutes from './routes/agreements'
 import billingRoutes from './routes/billing'
 import webhookRoutes from './routes/webhooks'
@@ -133,6 +135,8 @@ app.use('/api/audit-logs', auditLogRoutes)
 app.use('/api/verification', verificationRoutes)
 app.use('/api/reference-notes', referenceNotesRoutes)
 app.use('/api/reference-audit-log', referenceAuditLogRoutes)
+app.use('/api/offer-notes', offerNotesRoutes)
+app.use('/api/offer-audit-log', offerAuditLogRoutes)
 app.use('/api/agreements', agreementsRoutes)
 app.use('/api/billing', billingRoutes)
 app.use('/api/onboarding', onboardingRoutes)

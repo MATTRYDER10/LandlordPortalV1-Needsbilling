@@ -7,6 +7,7 @@ import { checkCredits } from '../middleware/checkCredits'
 import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
 import * as billingService from '../services/billingService'
 import { auditReferenceAction } from '../services/auditLog'
+import { logOfferAuditAction } from '../services/offerAuditService'
 
 const router = Router()
 
@@ -747,6 +748,23 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
             }
         }
 
+        // Log audit action
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'OFFER_APPROVED',
+            description: `Offer approved${wasAcceptedWithChanges ? ' (with changes)' : ''}`,
+            metadata: { holding_deposit: holdingDeposit },
+            userId
+        })
+
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'APPROVAL_EMAIL_SENT',
+            description: `Approval email sent to ${tenantEmails.length} tenant(s)`,
+            metadata: { recipients: tenantEmails },
+            userId
+        })
+
         res.json({
             success: true,
             message: 'Offer approved and email sent to tenants',
@@ -846,6 +864,23 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
                 console.error(`Failed to send decline email to ${email}:`, emailError)
             }
         }
+
+        // Log audit action
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'OFFER_DECLINED',
+            description: `Offer declined: ${reason.substring(0, 100)}${reason.length > 100 ? '...' : ''}`,
+            metadata: { reason },
+            userId
+        })
+
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'DECLINE_EMAIL_SENT',
+            description: `Decline email sent to ${tenantEmails.length} tenant(s)`,
+            metadata: { recipients: tenantEmails },
+            userId
+        })
 
         res.json({
             success: true,
@@ -962,6 +997,15 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
                 return res.status(400).json({ error: tenantsError.message })
             }
         }
+
+        // Log audit action
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'OFFER_UPDATED',
+            description: offer.status === 'pending' ? 'Offer accepted with changes' : 'Offer details updated',
+            metadata: { changes: updateData },
+            userId
+        })
 
         res.json({
             success: true,
@@ -1380,6 +1424,152 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
         })
     } catch (error: any) {
         console.error('Error marking holding deposit received:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// Resend approval or decline email
+router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id } = req.params
+        const { email_type } = req.body // 'approval' or 'decline'
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        if (!email_type || !['approval', 'decline'].includes(email_type)) {
+            return res.status(400).json({ error: 'Valid email_type (approval or decline) is required' })
+        }
+
+        // Get user's company
+        const { data: companyUsers } = await supabase
+            .from('company_users')
+            .select('company_id')
+            .eq('user_id', userId)
+            .limit(1)
+
+        if (!companyUsers || companyUsers.length === 0) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        const companyId = companyUsers[0].company_id
+
+        // Get offer with tenants and company details
+        const { data: offer, error: offerError } = await supabase
+            .from('tenant_offers')
+            .select(`
+                *,
+                tenant_offer_tenants (*),
+                companies:company_id (
+                    name_encrypted,
+                    phone_encrypted,
+                    email_encrypted,
+                    bank_account_name,
+                    bank_account_number,
+                    bank_sort_code
+                )
+            `)
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (offerError || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Validate offer status matches email type
+        if (email_type === 'approval' && offer.status !== 'approved') {
+            return res.status(400).json({ error: 'Cannot resend approval email - offer is not approved' })
+        }
+
+        if (email_type === 'decline' && offer.status !== 'declined') {
+            return res.status(400).json({ error: 'Cannot resend decline email - offer is not declined' })
+        }
+
+        // Get company details
+        const company = (offer as any).companies
+        const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
+        const companyPhone = company?.phone_encrypted ? (decrypt(company.phone_encrypted) || '') : ''
+        const companyEmail = company?.email_encrypted ? (decrypt(company.email_encrypted) || '') : ''
+
+        // Get tenant emails
+        const tenantEmails = (offer.tenant_offer_tenants || []).map((tenant: any) =>
+            tenant.email_encrypted ? decrypt(tenant.email_encrypted) : ''
+        ).filter(Boolean)
+
+        if (tenantEmails.length === 0) {
+            return res.status(400).json({ error: 'No tenant emails found' })
+        }
+
+        if (email_type === 'approval') {
+            const bankAccountName = company?.bank_account_name || ''
+            const bankAccountNumber = company?.bank_account_number || ''
+            const bankSortCode = company?.bank_sort_code || ''
+            const holdingDeposit = Math.floor((offer.offered_rent_amount * 12) / 52)
+
+            // Send approval email to all tenants
+            for (const email of tenantEmails) {
+                try {
+                    await sendOfferAcceptedEmail(
+                        email,
+                        companyName,
+                        bankAccountName,
+                        bankAccountNumber,
+                        bankSortCode,
+                        holdingDeposit,
+                        companyPhone || undefined,
+                        companyEmail || undefined
+                    )
+                } catch (emailError) {
+                    console.error(`Failed to resend approval email to ${email}:`, emailError)
+                }
+            }
+
+            // Log audit action
+            await logOfferAuditAction({
+                offerId: id,
+                action: 'APPROVAL_EMAIL_RESENT',
+                description: `Approval email resent to ${tenantEmails.length} tenant(s)`,
+                metadata: { recipients: tenantEmails },
+                userId
+            })
+        } else {
+            // Get decline reason
+            const declineReason = offer.declined_reason_encrypted ? (decrypt(offer.declined_reason_encrypted) || 'Your offer was not accepted.') : 'Your offer was not accepted.'
+
+            // Send decline email to all tenants
+            for (const email of tenantEmails) {
+                try {
+                    await sendOfferDeclinedEmail(
+                        email,
+                        companyName,
+                        declineReason,
+                        companyPhone || undefined,
+                        companyEmail || undefined
+                    )
+                } catch (emailError) {
+                    console.error(`Failed to resend decline email to ${email}:`, emailError)
+                }
+            }
+
+            // Log audit action
+            await logOfferAuditAction({
+                offerId: id,
+                action: 'DECLINE_EMAIL_RESENT',
+                description: `Decline email resent to ${tenantEmails.length} tenant(s)`,
+                metadata: { recipients: tenantEmails },
+                userId
+            })
+        }
+
+        res.json({
+            success: true,
+            message: `${email_type === 'approval' ? 'Approval' : 'Decline'} email resent to ${tenantEmails.length} tenant(s)`
+        })
+    } catch (error: any) {
+        console.error('Error resending email:', error)
         res.status(500).json({ error: error.message })
     }
 })
