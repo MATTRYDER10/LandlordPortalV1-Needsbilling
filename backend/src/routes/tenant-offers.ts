@@ -1165,7 +1165,13 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(404).json({ error: 'Offer not found' })
         }
 
-        // Delete tenants first to avoid orphan records
+        // Delete linked sent_offer_forms first
+        await supabase
+            .from('sent_offer_forms')
+            .delete()
+            .eq('tenant_offer_id', id)
+
+        // Delete tenants to avoid orphan records
         await supabase
             .from('tenant_offer_tenants')
             .delete()
