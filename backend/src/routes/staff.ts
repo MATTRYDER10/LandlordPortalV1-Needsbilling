@@ -1983,13 +1983,17 @@ router.post('/references/:id/request-document', authenticateStaff, async (req: S
     // Add note explaining why pushed back
     const noteText = `Reference pushed back to request ${documentTypeLabels[document_type]} from tenant.${message ? ` Staff note: ${message}` : ''}`
 
-    await supabase
+    const { error: noteError } = await supabase
       .from('reference_notes')
       .insert({
         reference_id: id,
         note: noteText,
-        created_by: req.staffUser?.id
+        created_by: req.user?.id
       })
+
+    if (noteError) {
+      console.error('Failed to insert reference note:', noteError)
+    }
 
     // Update or remove from VERIFY work queue
     await supabase
@@ -2000,7 +2004,7 @@ router.post('/references/:id/request-document', authenticateStaff, async (req: S
       .eq('status', 'IN_PROGRESS')
 
     // Send email to tenant requesting the document
-    const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-form/${token}`
+    const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${token}`
 
     const emailHtml = await loadEmailTemplate('document-request', {
       TenantFirstName: tenantFirstName,

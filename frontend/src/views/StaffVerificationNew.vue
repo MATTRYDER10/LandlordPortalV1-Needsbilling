@@ -2811,6 +2811,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import SideBySideViewer from '../components/SideBySideViewer.vue'
 import CreditsAndAmlUI, { type Props as CreditsAndAmlUIProps } from '../components/CreditsAndAmlUI.vue'
@@ -2820,6 +2821,7 @@ import { formatDate as formatUkDate } from '../utils/date'
 
 const router = useRouter()
 const route = useRoute()
+const toast = useToast()
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -3637,9 +3639,9 @@ const handleStaffUpload = async (event: Event, documentType: string) => {
 
     // Reload the reference data to show the newly uploaded document
     await loadData()
-    alert('Document uploaded successfully')
+    toast.success('Document uploaded successfully')
   } catch (err: any) {
-    alert(err.message || 'Failed to upload document')
+    toast.error(err.message || 'Failed to upload document')
   } finally {
     uploadingDocument.value = false
     input.value = '' // Reset file input
@@ -3678,13 +3680,13 @@ const sendDocumentRequest = async () => {
     }
 
     const result = await response.json()
-    alert(result.message)
+    toast.success(result.message)
     showRequestDocumentModal.value = false
 
     // Navigate back to work queue since reference is now in_progress
     router.push('/staff/work-queue')
   } catch (err: any) {
-    alert(err.message || 'Failed to send document request')
+    toast.error(err.message || 'Failed to send document request')
   } finally {
     requestDocumentLoading.value = false
   }
