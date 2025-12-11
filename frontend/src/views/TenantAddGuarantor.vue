@@ -141,7 +141,7 @@ import { useRoute } from 'vue-router'
 import axios from 'axios'
 
 const route = useRoute()
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 // State
 const loading = ref(true)
@@ -174,7 +174,7 @@ onMounted(async () => {
   }
 
   try {
-    const response = await axios.get(`${API_BASE_URL}/references/tenant-add-guarantor/${token}`)
+    const response = await axios.get(`${API_URL}/api/references/tenant-add-guarantor/${token}`)
     referenceDetails.value = response.data
   } catch (err: any) {
     if (err.response?.status === 404) {
@@ -198,7 +198,7 @@ async function handleSubmit() {
   submitting.value = true
 
   try {
-    await axios.post(`${API_BASE_URL}/references/tenant-add-guarantor/${token}`, formData.value)
+    await axios.post(`${API_URL}/api/references/tenant-add-guarantor/${token}`, formData.value)
     submitted.value = true
   } catch (err: any) {
     if (err.response?.status === 400) {
