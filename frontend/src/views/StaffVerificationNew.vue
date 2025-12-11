@@ -3622,7 +3622,7 @@ const handleStaffUpload = async (event: Event, documentType: string) => {
     formData.append('file', file)
     formData.append('document_type', documentType)
 
-    const response = await fetch(`${API_URL}/staff/references/${reference.value.id}/upload-document`, {
+    const response = await fetch(`${API_URL}/api/staff/references/${reference.value.id}/upload-document`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`
