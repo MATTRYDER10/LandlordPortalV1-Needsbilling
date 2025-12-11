@@ -78,6 +78,25 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             // Don't fail the request if email fails, just log it
         }
 
+        // Store record of sent offer form for tracking
+        try {
+            await supabase
+                .from('sent_offer_forms')
+                .insert({
+                    company_id: companyUser.company_id,
+                    sent_by: userId,
+                    tenant_email: tenant_email,
+                    property_address_encrypted: encrypt(property_address),
+                    property_city_encrypted: property_city ? encrypt(property_city) : null,
+                    property_postcode_encrypted: property_postcode ? encrypt(property_postcode) : null,
+                    rent_amount: rent_amount || null,
+                    offer_deposit_replacement: !!offer_deposit_replacement
+                })
+        } catch (dbError: any) {
+            console.error('Failed to store sent offer form record:', dbError)
+            // Don't fail the request if DB insert fails
+        }
+
         res.status(200).json({
             success: true,
             message: 'Offer form link sent successfully',
@@ -168,6 +187,59 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         res.json({ offers: decryptedOffers })
     } catch (error: any) {
         console.error('Error fetching offers:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// Get sent offer forms (forms sent but not yet submitted by tenants)
+router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        // Get user's company
+        const { data: companyUsers } = await supabase
+            .from('company_users')
+            .select('company_id')
+            .eq('user_id', userId)
+            .limit(1)
+
+        if (!companyUsers || companyUsers.length === 0) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        const companyId = companyUsers[0].company_id
+
+        // Get all sent offer forms that haven't been submitted yet
+        const { data: sentForms, error } = await supabase
+            .from('sent_offer_forms')
+            .select('*')
+            .eq('company_id', companyId)
+            .eq('status', 'sent')
+            .order('sent_at', { ascending: false })
+
+        if (error) {
+            return res.status(400).json({ error: error.message })
+        }
+
+        // Decrypt sent form data
+        const decryptedSentForms = sentForms?.map(form => ({
+            id: form.id,
+            tenant_email: form.tenant_email,
+            property_address: form.property_address_encrypted ? decrypt(form.property_address_encrypted) : '',
+            property_city: form.property_city_encrypted ? decrypt(form.property_city_encrypted) : '',
+            property_postcode: form.property_postcode_encrypted ? decrypt(form.property_postcode_encrypted) : '',
+            rent_amount: form.rent_amount,
+            offer_deposit_replacement: form.offer_deposit_replacement,
+            sent_at: form.sent_at,
+            created_at: form.created_at
+        })) || []
+
+        res.json({ sentForms: decryptedSentForms })
+    } catch (error: any) {
+        console.error('Error fetching sent offer forms:', error)
         res.status(500).json({ error: error.message })
     }
 })
@@ -453,6 +525,25 @@ router.post('/submit', async (req, res) => {
             // Rollback offer creation
             await supabase.from('tenant_offers').delete().eq('id', offer.id)
             return res.status(400).json({ error: tenantsError.message })
+        }
+
+        // Update any matching sent_offer_forms record to mark as submitted
+        // Match by tenant email and company_id where status is still 'sent'
+        const tenantEmails = tenants.map((t: any) => t.email.toLowerCase())
+        try {
+            await supabase
+                .from('sent_offer_forms')
+                .update({
+                    status: 'submitted',
+                    submitted_at: new Date().toISOString(),
+                    tenant_offer_id: offer.id
+                })
+                .eq('company_id', companyId)
+                .eq('status', 'sent')
+                .in('tenant_email', tenantEmails)
+        } catch (updateError: any) {
+            console.error('Failed to update sent_offer_forms record:', updateError)
+            // Don't fail - this is non-critical
         }
 
         // Get company details for email notification (already fetched above)

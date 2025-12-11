@@ -14,7 +14,7 @@
         </div>
 
         <!-- Stats -->
-        <div class="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-6">
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-5 mb-6">
           <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
             @click="statusFilter = ''">
             <div class="p-5">
@@ -82,6 +82,23 @@
               </div>
             </div>
           </div>
+          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+            @click="statusFilter = 'sent'">
+            <div class="p-5">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-500">Sent</div>
+                  <div class="mt-1 text-3xl font-semibold text-purple-600">{{ sentOffers.length }}</div>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Search and Filters -->
@@ -102,6 +119,7 @@
               <select v-model="statusFilter"
                 class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm">
                 <option value="">All Statuses</option>
+                <option value="sent">Sent</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="declined">Declined</option>
@@ -121,9 +139,45 @@
         </div>
 
         <div v-else-if="filteredOffers.length === 0" class="bg-white rounded-lg shadow p-8 text-center">
-          <p class="text-gray-500">No offers found</p>
+          <p class="text-gray-500">{{ statusFilter === 'sent' ? 'No sent offer forms found' : 'No offers found' }}</p>
         </div>
 
+        <!-- Sent Offers List -->
+        <div v-else-if="statusFilter === 'sent'" class="bg-white shadow overflow-hidden sm:rounded-md">
+          <ul class="divide-y divide-gray-200">
+            <li v-for="form in filteredOffers" :key="form.id" class="hover:bg-gray-50">
+              <div class="px-6 py-4">
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h3 class="text-lg font-medium text-gray-900">
+                        {{ form.property_address }}
+                      </h3>
+                      <span class="ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                        Sent
+                      </span>
+                    </div>
+                    <div v-if="form.offer_deposit_replacement" class="mt-2">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                        Deposit replacement offered
+                      </span>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-500">
+                      <p><strong>Sent to:</strong> {{ form.tenant_email }}</p>
+                      <p v-if="form.rent_amount"><strong>Rent Amount:</strong> £{{ form.rent_amount }} per month</p>
+                      <p><strong>Sent:</strong> {{ formatDate(form.sent_at) }}</p>
+                    </div>
+                  </div>
+                  <div class="ml-4 flex-shrink-0 flex flex-col gap-2 items-end">
+                    <span class="text-sm text-gray-500 italic">Awaiting response</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Submitted Offers List -->
         <div v-else class="bg-white shadow overflow-hidden sm:rounded-md">
           <ul class="divide-y divide-gray-200">
             <li v-for="offer in filteredOffers" :key="offer.id" class="hover:bg-gray-50">
@@ -179,7 +233,7 @@
     <SendOfferModal
       :show="showSendModal"
       @close="showSendModal = false"
-      @sent="fetchOffers"
+      @sent="onOfferSent"
     />
   </Sidebar>
 </template>
@@ -197,6 +251,7 @@ const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const offers = ref<any[]>([])
+const sentOffers = ref<any[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('')
@@ -236,6 +291,20 @@ const statusCounts = computed(() => {
 })
 
 const filteredOffers = computed(() => {
+  // When filtering by 'sent', return sent offers instead of submitted offers
+  if (statusFilter.value === 'sent') {
+    let filtered = sentOffers.value
+    if (searchQuery.value) {
+      const query = searchQuery.value.toLowerCase()
+      filtered = filtered.filter((form: any) => {
+        const address = form.property_address?.toLowerCase() || ''
+        const email = form.tenant_email?.toLowerCase() || ''
+        return address.includes(query) || email.includes(query)
+      })
+    }
+    return filtered
+  }
+
   let filtered = offers.value
 
   // Apply search filter
@@ -376,7 +445,36 @@ const fetchOffers = async () => {
   }
 }
 
+const fetchSentOffers = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/tenant-offers/sent`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch sent offers')
+    }
+
+    const data = await response.json()
+    sentOffers.value = data.sentForms || []
+  } catch (error: any) {
+    console.error('Error fetching sent offers:', error)
+  }
+}
+
+const onOfferSent = () => {
+  fetchOffers()
+  fetchSentOffers()
+}
+
 onMounted(() => {
   fetchOffers()
+  fetchSentOffers()
 })
 </script>
