@@ -586,29 +586,67 @@ router.post(
         return res.status(400).json({ error: 'Final remarks are required' });
       }
 
+      // Get reference to check if it's a guarantor
+      const { data: reference, error: fetchError } = await supabaseAdmin
+        .from('tenant_references')
+        .select('is_guarantor')
+        .eq('id', referenceId)
+        .single();
+
+      if (fetchError) {
+        return res.status(500).json({ error: 'Failed to fetch reference details' });
+      }
+
+      const isGuarantor = reference?.is_guarantor === true;
+
       // ---- Runtime validation ----
-      const { isValid, final_remarks: validatedFinalRemarks } = validateSubmitAssessmentBody(req.body);
+      const { isValid, final_remarks: validatedFinalRemarks } = validateSubmitAssessmentBody({
+        ...req.body,
+        is_guarantor: isGuarantor
+      });
       if (!isValid) {
         return res.status(400).json({ error: 'Invalid request payload' });
       }
       const { residential, credit_tas, income, rtr } = validatedFinalRemarks;
 
-      const tas_category = credit_tas.tas_category
+      const tas_category = credit_tas.tas_category;
+
+      // Validate guarantor-specific rules
+      if (isGuarantor && tas_category === 'PASS_WITH_GUARANTOR') {
+        return res.status(400).json({
+          error: 'Guarantors cannot have PASS_WITH_GUARANTOR status'
+        });
+      }
+
+      // Validate allowed TAS categories
+      const allowedTasCategories = ['PASS', 'PASS_WITH_GUARANTOR', 'PASS_ON_CONDITION', 'REFER', 'FAIL'];
+      if (tas_category && !allowedTasCategories.includes(tas_category)) {
+        return res.status(400).json({
+          error: `Invalid TAS category. Allowed values: ${allowedTasCategories.join(', ')}`
+        });
+      }
+
       const finalDecision = verdict === 'completed' ? 'passed' : 'failed';
 
       // Not updating verification_checks as we didn't use that in new flow
 
-      // Update reference status
+      // Update reference status (skip residential for guarantors)
+      const updateData: any = {
+        status: verdict,
+        income_assessment_status: income.decision,
+        rtr_verified: rtr.decision === 'PASS',
+        verified_by: staffUser.id,
+        verified_at: new Date().toISOString()
+      };
+
+      // Only update residential status for non-guarantors
+      if (!isGuarantor && residential) {
+        updateData.res_assessment_status = residential.decision;
+      }
+
       const { error: refError } = await supabaseAdmin
         .from('tenant_references')
-        .update({
-          status: verdict,
-          res_assessment_status: residential.decision,
-          income_assessment_status: income.decision,
-          rtr_verified: rtr.decision === 'PASS',
-          verified_by : staffUser.id,
-          verified_at : new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', referenceId);
 
       if (refError) throw refError;
@@ -624,18 +662,21 @@ router.post(
       }
 
       // Update creditsafe and sanctions
+      // Skip if REFER, otherwise update based on decision
       if (credit_tas.tas_category !== 'REFER') {
+        const isPassed = credit_tas.decision === 'PASS' || credit_tas.tas_category === 'PASS_ON_CONDITION';
+
         const { data: _, error: creditsafeError } = await supabaseAdmin
           .from("creditsafe_verifications")
           .update({
             fraud_indicators: {
-              "insolvencyMatch": !(credit_tas.decision === 'PASS'),
-              "ccjMatch": !(credit_tas.decision === 'PASS'),
-              "deceasedMatch": !(credit_tas.decision === 'PASS'),
-              "electoralRollMatch": credit_tas.decision === 'PASS',
-              ...(getCCJAndInsCount(credit_tas.decision as "PASS" | "FAIL"))
+              "insolvencyMatch": !isPassed,
+              "ccjMatch": !isPassed,
+              "deceasedMatch": !isPassed,
+              "electoralRollMatch": isPassed,
+              ...(getCCJAndInsCount(isPassed ? 'PASS' : 'FAIL'))
             },
-            verification_status: credit_tas.decision === 'PASS' ? 'passed' : 'failed'
+            verification_status: isPassed ? 'passed' : 'failed'
           })
           .eq("reference_id", referenceId);
 
@@ -646,8 +687,8 @@ router.post(
         const { data: __, error: sanctionsError } = await supabaseAdmin
           .from("sanctions_screenings")
           .update({
-            risk_level: credit_tas.decision === 'PASS' ? 'clear' : 'high',
-            sanctions_matches: credit_tas.decision === 'PASS' ? [] : ['sanctions_match']
+            risk_level: isPassed ? 'clear' : 'high',
+            sanctions_matches: isPassed ? [] : ['sanctions_match']
           })
           .eq("reference_id", referenceId);
 

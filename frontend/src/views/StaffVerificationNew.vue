@@ -38,15 +38,18 @@
     <div class="bg-white border-b">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex items-center justify-between mb-2">
-          <h2 class="text-xl font-bold text-gray-900">6-Step Verification</h2>
-          <span class="text-sm text-gray-500">Step {{ currentStep }} of 6 • {{ Math.round((currentStep / 6) * 100) }}%
+          <h2 class="text-xl font-bold text-gray-900">{{ totalSteps }}-Step Verification</h2>
+          <span class="text-sm text-gray-500">Step {{ currentStep }} of {{ totalSteps }} • {{ Math.round((currentStep / totalSteps) * 100) }}%
             Complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
           <div class="bg-primary h-2 rounded-full transition-all duration-300"
-            :style="{ width: `${(currentStep / 6) * 100}%` }"></div>
+            :style="{ width: `${(currentStep / totalSteps) * 100}%` }"></div>
         </div>
-        <div class="grid grid-cols-6 gap-4 mt-3">
+        <div :class="[
+          'grid gap-4 mt-3',
+          isGuarantor ? 'grid-cols-5' : 'grid-cols-6'
+        ]">
           <div v-for="(step, index) in stepLabels" :key="index" :class="[
             'text-center py-2 px-3 rounded-md text-sm font-medium transition-all',
             currentStep > index + 1 ? 'bg-green-100 text-green-800' :
@@ -1544,8 +1547,9 @@
                   ]">
                   Fail - Affordability not met
                 </button>
+                <!-- Guarantor Needed button - only for tenants, not guarantors -->
                 <button
-                  v-if="(reference?.income_student || reference?.income_unemployed) && !guarantorReference && !steps[2]!.overall_pass"
+                  v-if="!isGuarantor && (reference?.income_student || reference?.income_unemployed) && !guarantorReference && !steps[2]!.overall_pass"
                   @click="steps[2]!.overall_pass = null; steps[2]!.status = 'GUARANTOR_NEEDED'"
                   :disabled="!canMakeStep2Decision" :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
@@ -2256,7 +2260,8 @@
                     <p class="text-xs text-gray-600 ml-6">Satisfactory applicant, recommend acceptance</p>
                   </button>
 
-                  <button @click="tasDecision = 'PASS_WITH_GUARANTOR'" :class="[
+                  <!-- Only show "Pass with Guarantor" for non-guarantors -->
+                  <button v-if="!isGuarantor" @click="tasDecision = 'PASS_WITH_GUARANTOR'" :class="[
                     'p-4 rounded-lg border-2 text-left transition-all',
                     tasDecision === 'PASS_WITH_GUARANTOR'
                       ? 'border-amber-600 bg-amber-50'
@@ -2275,6 +2280,28 @@
                       <span class="font-semibold text-amber-700">Pass with Guarantor</span>
                     </div>
                     <p class="text-xs text-gray-600 ml-6">Applicant passes but requires a guarantor</p>
+                  </button>
+
+                  <!-- Pass on Condition option -->
+                  <button @click="tasDecision = 'PASS_ON_CONDITION'" :class="[
+                    'p-4 rounded-lg border-2 text-left transition-all',
+                    tasDecision === 'PASS_ON_CONDITION'
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-gray-300 bg-white hover:border-blue-300'
+                  ]">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div :class="[
+                        'w-4 h-4 rounded-full border-2',
+                        tasDecision === 'PASS_ON_CONDITION' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                      ]">
+                        <svg v-if="tasDecision === 'PASS_ON_CONDITION'" class="w-full h-full text-white" fill="currentColor"
+                          viewBox="0 0 12 12">
+                          <circle cx="6" cy="6" r="3" />
+                        </svg>
+                      </div>
+                      <span class="font-semibold text-blue-700">Pass on Condition</span>
+                    </div>
+                    <p class="text-xs text-gray-600 ml-6">Conditional acceptance (e.g., additional verification required)</p>
                   </button>
 
                   <button @click="tasDecision = 'REFER'" :class="[
@@ -2321,14 +2348,14 @@
                 </div>
               </div>
 
-              <!-- TAS Reason (required for REFER and FAIL) -->
-              <div v-if="tasDecision === 'REFER' || tasDecision === 'FAIL'">
+              <!-- TAS Reason (required for PASS_ON_CONDITION, REFER and FAIL) -->
+              <div v-if="tasDecision === 'PASS_ON_CONDITION' || tasDecision === 'REFER' || tasDecision === 'FAIL'">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Reason for {{ tasDecision }} Decision *
+                  {{ tasDecision === 'PASS_ON_CONDITION' ? 'Condition Details' : `Reason for ${tasDecision} Decision` }} *
                 </label>
                 <textarea v-model="tasReason" rows="3"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  placeholder="Explain the reason for this decision..." required></textarea>
+                  :placeholder="tasDecision === 'PASS_ON_CONDITION' ? 'Specify the conditions required (e.g., agent to check ID in person, proof of address needed)...' : 'Explain the reason for this decision...'" required></textarea>
               </div>
 
               <!-- Notes -->
@@ -2692,9 +2719,9 @@
           <div v-else></div>
 
           <div class="flex gap-3">
-            <button v-if="currentStep < 6" @click="nextStep" :disabled="!canProceed"
+            <button v-if="currentStep < totalSteps" @click="nextStep" :disabled="!canProceed"
               class="px-6 py-2 text-white bg-primary hover:bg-primary-dark rounded-md font-medium disabled:opacity-50">
-              {{ currentStep === 5 ? 'Proceed to Preview' : 'Next Step' }}
+              {{ currentStep === totalSteps - 1 ? 'Proceed to Preview' : 'Next Step' }}
             </button>
             <template v-else>
               <button @click="handleReject"
@@ -2884,7 +2911,22 @@ const documentTypeLabels: Record<string, string> = {
 const reAssessmentLoading = ref(false)
 const reAssessmentError = ref<string | null>(null)
 
-const stepLabels = ['ID & Selfie', 'RTR Verification', 'Income & Affordability', 'Residential', 'Credit & TAS', 'Preview']
+// Computed step labels based on whether this is a guarantor
+const stepLabels = computed(() => {
+  const isGuarantor = reference.value?.is_guarantor === true
+  if (isGuarantor) {
+    return ['ID & Selfie', 'RTR Verification', 'Income & Affordability', 'AML & Credit', 'Preview']
+  }
+  return ['ID & Selfie', 'RTR Verification', 'Income & Affordability', 'Residential', 'Credit & TAS', 'Preview']
+})
+
+// Total number of steps (5 for guarantors, 6 for tenants)
+const totalSteps = computed(() => {
+  return reference.value?.is_guarantor === true ? 5 : 6
+})
+
+// Check if we should skip residential step (step 4 in original flow)
+const isGuarantor = computed(() => reference.value?.is_guarantor === true)
 
 type SimpleComparisonStatus = 'match' | 'mismatch' | 'unknown'
 interface EmploymentComparisonDisplayRow {
@@ -2932,7 +2974,7 @@ const steps = ref<VerificationStep[]>([
 ])
 
 // TAS decision
-const tasDecision = ref<'PASS' | 'PASS_WITH_GUARANTOR' | 'REFER' | 'FAIL' | null>(null)
+const tasDecision = ref<'PASS' | 'PASS_WITH_GUARANTOR' | 'PASS_ON_CONDITION' | 'REFER' | 'FAIL' | null>(null)
 const tasReason = ref('')
 
 type CreditAndAmlVerification = Omit<CreditsAndAmlUIProps, 'caller'>
@@ -3421,7 +3463,11 @@ const proceedWithAction = async () => {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ final_remarks: verificationReportJson.value, verdict })
+      body: JSON.stringify({
+        final_remarks: verificationReportJson.value,
+        verdict,
+        is_guarantor: isGuarantor.value
+      })
     });
     if (!response.ok) {
       throw new Error('Failed to submit assessment');
@@ -3491,19 +3537,21 @@ const verificationReportJson = computed(() => {
     }
   }
 
-  // Step 4: RESIDENTIAL
-  const step4 = steps.value[3]
-  if (step4) {
-    const decision = step4.status === 'amber' ? 'AMBER' :
-      step4.overall_pass === true ? 'PASS' : step4.overall_pass === false ? 'FAIL' : 'PENDING'
-    report['residential'] = {
-      decision,
-      notes: step4.notes || '',
-      Verification_Checks: step4.checks.reduce((acc: any, check: any) => {
-        acc[check.name] = check.pass === true ? 'PASS' : check.pass === false ? 'FAIL' : null
-        return acc
-      }, {}),
-      Evidence_Sources_Used: step4.evidence_sources || []
+  // Step 4: RESIDENTIAL (skip for guarantors)
+  if (!isGuarantor.value) {
+    const step4 = steps.value[3]
+    if (step4) {
+      const decision = step4.status === 'amber' ? 'AMBER' :
+        step4.overall_pass === true ? 'PASS' : step4.overall_pass === false ? 'FAIL' : 'PENDING'
+      report['residential'] = {
+        decision,
+        notes: step4.notes || '',
+        Verification_Checks: step4.checks.reduce((acc: any, check: any) => {
+          acc[check.name] = check.pass === true ? 'PASS' : check.pass === false ? 'FAIL' : null
+          return acc
+        }, {}),
+        Evidence_Sources_Used: step4.evidence_sources || []
+      }
     }
   }
 
@@ -3887,15 +3935,29 @@ const loadData = async () => {
 }
 
 const nextStep = () => {
-  if (currentStep.value < 6) {
-    currentStep.value++
+  if (currentStep.value < totalSteps.value) {
+    // For guarantors, skip step 4 (residential)
+    if (isGuarantor.value && currentStep.value === 3) {
+      currentStep.value = 5 // Skip from Income (3) to Credit/AML (5)
+    } else if (isGuarantor.value && currentStep.value === 5) {
+      currentStep.value = 6 // Go from Credit/AML (5) to Preview (6)
+    } else {
+      currentStep.value++
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
 const previousStep = () => {
   if (currentStep.value > 1) {
-    currentStep.value--
+    // For guarantors, skip step 4 (residential) when going back
+    if (isGuarantor.value && currentStep.value === 5) {
+      currentStep.value = 3 // Skip from Credit/AML (5) back to Income (3)
+    } else if (isGuarantor.value && currentStep.value === 6) {
+      currentStep.value = 5 // Go from Preview (6) back to Credit/AML (5)
+    } else {
+      currentStep.value--
+    }
   }
 }
 
