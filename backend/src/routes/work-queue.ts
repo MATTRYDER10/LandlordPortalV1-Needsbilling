@@ -50,8 +50,8 @@ router.get('/', staffAuth, async (req: StaffAuthRequest, res: Response) => {
     if (status) {
       query = query.eq('status', status);
     } else {
-      // Default: only show available and assigned items (not completed)
-      query = query.in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS']);
+      // Default: show all active items (not completed)
+      query = query.in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED']);
     }
 
     // Filter by assigned staff
