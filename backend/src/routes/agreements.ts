@@ -6,6 +6,7 @@ import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
 import * as billingService from '../services/billingService'
 import * as creditService from '../services/creditService'
+import { signatureService } from '../services/signatureService'
 
 const router = Router()
 
@@ -28,6 +29,16 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     if (!userId || !companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    // Check credits BEFORE creating agreement (0.25 credits required)
+    const hasEnoughCredits = await creditService.hasCredits(companyId, 0.25)
+    if (!hasEnoughCredits) {
+      return res.status(402).json({
+        error: 'Insufficient credits',
+        message: 'You need at least 0.25 credits to generate an agreement.',
+        requires_credits: true
+      })
     }
 
     // DEBUG: Log the ENTIRE request body
@@ -231,8 +242,8 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       await creditService.deductCredits(
         companyId,
         0.25,
-        id,
-        'Agreement generation',
+        null, // Not a reference, so pass null to avoid FK constraint violation
+        `Agreement generation (${id})`,
         userId
       )
       console.log(`Successfully deducted 0.25 credits for agreement ${id}`)
@@ -291,10 +302,22 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
     // Update agreement with file URL
     await agreementService.updateAgreementPdfUrl(id, fileUrl)
 
+    // Automatically initiate signing and send emails to all signers
+    try {
+      console.log(`Initiating signing for agreement ${id}`)
+      await signatureService.initiateSigning(id)
+      console.log(`Signing initiated successfully for agreement ${id}`)
+    } catch (signingError: any) {
+      console.error('Failed to initiate signing:', signingError)
+      // Don't fail the whole request - agreement was generated successfully
+      // User can manually initiate signing from Agreement History
+    }
+
     res.json({
       message: 'Agreement generated successfully',
       fileUrl,
-      fileName
+      fileName,
+      signingInitiated: true
     })
   } catch (error: any) {
     console.error('Error generating agreement:', error)

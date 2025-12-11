@@ -2206,6 +2206,11 @@ async function generateAgreement() {
 
     const generateData = await generateResponse.json()
 
+    // Check if insufficient credits
+    if (generateResponse.status === 402 && generateData.requires_credits) {
+      throw new Error(generateData.message || 'Insufficient credits to generate agreement')
+    }
+
     // Check if payment is required
     if (generateResponse.status === 402 && generateData.requires_payment_method && generateData.client_secret) {
       // Payment method required - show payment modal

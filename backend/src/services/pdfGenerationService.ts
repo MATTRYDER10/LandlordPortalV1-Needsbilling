@@ -344,8 +344,8 @@ class PDFGenerationService {
     // Handle handlebars loops for signatures
     result = this.processSignatureLoops(result, data)
 
-    // Remove [Anchor: ...] placeholders (legacy signing system)
-    result = result.replace(/\[Anchor:.*?\]/gi, '')
+    // NOTE: Don't remove [Anchor: ...] placeholders here - they're needed by embedSignatures()
+    // They will be cleaned up after signature embedding in embedSignatures()
 
     return result
   }
@@ -529,35 +529,100 @@ class PDFGenerationService {
 
   /**
    * Embed signatures into the HTML content
+   * Replaces the SIGNED: ___ and DATED: ___ lines with actual signatures
    */
   private embedSignatures(html: string, signatures: SignatureData[], data: AgreementPDFData): string {
     let result = html
 
-    // Replace signature placeholders for landlords
+    // After markdown->HTML conversion, the signature blocks look like:
+    // <p>SIGNED: _______________</p>
+    // <p>DATED: ________________</p>
+    // <p>[Anchor: LANDLORD_SIGNATURE landlord_0]</p>
+
+    // We need to find the anchor and replace the preceding SIGNED/DATED paragraphs
+
+    // Replace signature blocks for landlords
     data.landlords.forEach((_, index) => {
-      const placeholder = `[Anchor: LANDLORD_SIGNATURE landlord_${index}]`
-      const signatureHtml = this.generateSignatureHtml(signatures, 'landlord', index)
-      result = result.replace(placeholder, signatureHtml)
+      const signature = signatures.find(s => s.signerType === 'landlord' && s.signerIndex === index)
+      if (signature) {
+        result = this.replaceSignatureBlock(result, `landlord_${index}`, 'LANDLORD_SIGNATURE', signature)
+      }
     })
 
-    // Replace signature placeholders for tenants
+    // Replace signature blocks for tenants
     data.tenants.forEach((_, index) => {
-      const placeholder = `[Anchor: TENANT_SIGNATURE tenant_${index}]`
-      const signatureHtml = this.generateSignatureHtml(signatures, 'tenant', index)
-      result = result.replace(placeholder, signatureHtml)
+      const signature = signatures.find(s => s.signerType === 'tenant' && s.signerIndex === index)
+      if (signature) {
+        result = this.replaceSignatureBlock(result, `tenant_${index}`, 'TENANT_SIGNATURE', signature)
+      }
     })
 
-    // Replace signature placeholders for guarantors
+    // Replace signature blocks for guarantors
     ;(data.guarantors || []).forEach((_, index) => {
-      const placeholder = `[Anchor: GUARANTOR_SIGNATURE guarantor_${index}]`
-      const signatureHtml = this.generateSignatureHtml(signatures, 'guarantor', index)
-      result = result.replace(placeholder, signatureHtml)
+      const signature = signatures.find(s => s.signerType === 'guarantor' && s.signerIndex === index)
+      if (signature) {
+        result = this.replaceSignatureBlock(result, `guarantor_${index}`, 'GUARANTOR_SIGNATURE', signature)
+      }
     })
 
     // Clean up any remaining anchor placeholders
     result = result.replace(/\[Anchor:.*?\]/gi, '')
 
     return result
+  }
+
+  /**
+   * Replace a signature block in the HTML
+   */
+  private replaceSignatureBlock(html: string, signerId: string, anchorType: string, signature: SignatureData): string {
+    // Pattern to find SIGNED line, DATED line, and anchor - allowing for HTML tags between them
+    // The markdown converts to: <p>SIGNED: ___</p>\n<p>DATED: ___</p>\n<p>[Anchor: ...]</p>
+    // We need a flexible pattern that handles various whitespace and potential HTML variations
+    const pattern = new RegExp(
+      `<p>SIGNED:[^<]*<\\/p>[\\s\\n]*<p>DATED:[^<]*<\\/p>[\\s\\n]*<p>\\[Anchor:\\s*${anchorType}\\s+${signerId}\\]<\\/p>`,
+      'gi'
+    )
+
+    const replaced = html.replace(pattern, this.formatSignatureBlock(signature))
+
+    // Debug log to see if replacement happened
+    if (replaced === html) {
+      console.log(`[DEBUG] Signature block NOT found for ${anchorType} ${signerId}`)
+    } else {
+      console.log(`[DEBUG] Signature block replaced for ${anchorType} ${signerId}`)
+    }
+
+    return replaced
+  }
+
+  /**
+   * Format a signature block with the actual signature image/text
+   */
+  private formatSignatureBlock(signature: SignatureData): string {
+    const signedDate = new Date(signature.signedAt).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+
+    if (signature.signatureType === 'draw') {
+      return `
+        <div class="signature-block" style="margin: 15px 0;">
+          <p style="margin-bottom: 5px;">SIGNED:</p>
+          <img src="${signature.signatureImage}" alt="Signature" style="max-height: 60px; max-width: 250px; display: block; margin: 5px 0;" />
+          <p style="margin-top: 10px;">DATED: ${signedDate}</p>
+        </div>
+      `
+    } else {
+      // Typed signature
+      return `
+        <div class="signature-block" style="margin: 15px 0;">
+          <p style="margin-bottom: 5px;">SIGNED:</p>
+          <p style="font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 24pt; color: #1e40af; margin: 5px 0;">${signature.typedName || signature.signerName}</p>
+          <p style="margin-top: 10px;">DATED: ${signedDate}</p>
+        </div>
+      `
+    }
   }
 
   /**

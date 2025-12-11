@@ -308,7 +308,29 @@ const fetchSigningData = async () => {
       throw new Error(data.error || 'Failed to load signing data')
     }
 
-    signingData.value = data
+    // Transform API response to match expected structure
+    signingData.value = {
+      signature: {
+        id: data.signatureId,
+        signer_name: data.signerName,
+        signer_email: data.signerEmail,
+        signer_type: data.signerType,
+        status: data.status,
+        signed_at: data.signedAt,
+        token_expires_at: data.tokenExpiresAt
+      },
+      agreement: {
+        id: data.agreement.id,
+        property_address: data.agreement.propertyAddress,
+        language: data.agreement.language,
+        template_type: data.agreement.templateType,
+        rent_amount: data.agreement.rentAmount,
+        deposit_amount: data.agreement.depositAmount,
+        tenancy_start_date: data.agreement.tenancyStartDate,
+        tenancy_end_date: data.agreement.tenancyEndDate
+      },
+      signers: data.signingStatus?.signatures || []
+    }
 
     // Load the PDF
     loadPdf()
