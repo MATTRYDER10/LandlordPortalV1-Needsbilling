@@ -1377,7 +1377,8 @@ router.post('/references/:id/re-assess', authenticateStaff, async (req: StaffAut
 router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: StaffAuthRequest, res) => {
   try {
     const { referenceId } = req.params
-    const { contactType, method } = req.body as { contactType: string; method: 'email' | 'sms' }
+    const { contactType, method, newEmail } = req.body as { contactType: string; method: 'email' | 'sms'; newEmail?: string }
+    const staffUser = req.staffUser
 
     if (!contactType || !method) {
       return res.status(400).json({ error: 'contactType and method are required' })
@@ -1389,6 +1390,11 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
 
     if (!['email', 'sms'].includes(method)) {
       return res.status(400).json({ error: 'Method must be email or sms' })
+    }
+
+    // Validate new email if provided
+    if (newEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' })
     }
 
     // Get the reference
@@ -1445,9 +1451,23 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         if (guarantorRefLegacy) {
           // Use guarantor_references table data (legacy)
           guarantorId = guarantorRefLegacy.id
-          contactEmail = decrypt(guarantorRefLegacy.email_encrypted) || ''
+          const currentGuarantorEmail = decrypt(guarantorRefLegacy.email_encrypted) || ''
+          contactEmail = newEmail || currentGuarantorEmail
           contactPhone = decrypt(guarantorRefLegacy.contact_number_encrypted) || ''
           contactName = `${decrypt(guarantorRefLegacy.guarantor_first_name_encrypted) || ''} ${decrypt(guarantorRefLegacy.guarantor_last_name_encrypted) || ''}`.trim()
+
+          // Update email if changed
+          if (newEmail && newEmail !== currentGuarantorEmail) {
+            await supabase
+              .from('guarantor_references')
+              .update({ email_encrypted: encrypt(newEmail) })
+              .eq('id', guarantorRefLegacy.id)
+            // Also update in parent reference
+            await supabase
+              .from('tenant_references')
+              .update({ guarantor_email_encrypted: encrypt(newEmail) })
+              .eq('id', referenceId)
+          }
 
           // Generate new token
           const guarantorToken = generateToken()
@@ -1486,9 +1506,23 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         } else if (guarantorRefNew) {
           // Use tenant_references table data (new method)
           guarantorId = guarantorRefNew.id
-          contactEmail = decrypt(guarantorRefNew.tenant_email_encrypted) || ''
+          const currentGuarantorEmail = decrypt(guarantorRefNew.tenant_email_encrypted) || ''
+          contactEmail = newEmail || currentGuarantorEmail
           contactPhone = decrypt(guarantorRefNew.tenant_phone_encrypted) || ''
           contactName = `${decrypt(guarantorRefNew.tenant_first_name_encrypted) || ''} ${decrypt(guarantorRefNew.tenant_last_name_encrypted) || ''}`.trim()
+
+          // Update email if changed
+          if (newEmail && newEmail !== currentGuarantorEmail) {
+            await supabase
+              .from('tenant_references')
+              .update({ tenant_email_encrypted: encrypt(newEmail) })
+              .eq('id', guarantorRefNew.id)
+            // Also update in parent reference
+            await supabase
+              .from('tenant_references')
+              .update({ guarantor_email_encrypted: encrypt(newEmail) })
+              .eq('id', referenceId)
+          }
 
           // Generate new token
           const guarantorToken = generateToken()
@@ -1537,10 +1571,19 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
       }
 
       case 'Landlord': {
-        contactEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        const currentLandlordEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        contactEmail = newEmail || currentLandlordEmail
         contactPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
         contactName = decrypt(reference.previous_landlord_name_encrypted) || ''
         formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${referenceId}`
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentLandlordEmail) {
+          await supabase
+            .from('tenant_references')
+            .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId)
+        }
 
         if (method === 'email') {
           await sendLandlordReferenceRequest(
@@ -1569,10 +1612,19 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
       }
 
       case 'Agent': {
-        contactEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        const currentAgentEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+        contactEmail = newEmail || currentAgentEmail
         contactPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
         contactName = reference.previous_agency_name || ''
         formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentAgentEmail) {
+          await supabase
+            .from('tenant_references')
+            .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId)
+        }
 
         if (method === 'email') {
           await sendAgentReferenceRequest(
@@ -1601,10 +1653,19 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
       }
 
       case 'Employer': {
-        contactEmail = decrypt(reference.employer_ref_email_encrypted) || ''
+        const currentEmployerEmail = decrypt(reference.employer_ref_email_encrypted) || ''
+        contactEmail = newEmail || currentEmployerEmail
         contactPhone = decrypt(reference.employer_ref_phone_encrypted) || ''
         contactName = decrypt(reference.employer_ref_name_encrypted) || ''
         formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${referenceId}`
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentEmployerEmail) {
+          await supabase
+            .from('tenant_references')
+            .update({ employer_ref_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId)
+        }
 
         if (method === 'email') {
           await sendEmployerReferenceRequest(
@@ -1640,9 +1701,18 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
           .eq('tenant_reference_id', referenceId)
           .maybeSingle()
 
-        contactEmail = decrypt(reference.accountant_email_encrypted) || ''
+        const currentAccountantEmail = decrypt(reference.accountant_email_encrypted) || ''
+        contactEmail = newEmail || currentAccountantEmail
         contactPhone = decrypt(reference.accountant_phone_encrypted) || ''
         contactName = decrypt(reference.accountant_name_encrypted) || ''
+
+        // Update email if changed
+        if (newEmail && newEmail !== currentAccountantEmail) {
+          await supabase
+            .from('tenant_references')
+            .update({ accountant_email_encrypted: encrypt(newEmail) })
+            .eq('id', referenceId)
+        }
 
         // If no accountant reference row exists, create one using tenant's provided details
         if (!accountantRef) {
@@ -1661,7 +1731,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
               token_hash: newAccountantTokenHash,
               accountant_firm_encrypted: encrypt(decrypt(reference.accountant_company_encrypted) || ''),
               accountant_name_encrypted: reference.accountant_name_encrypted,
-              accountant_email_encrypted: reference.accountant_email_encrypted,
+              accountant_email_encrypted: newEmail ? encrypt(newEmail) : reference.accountant_email_encrypted,
               accountant_phone_encrypted: reference.accountant_phone_encrypted,
             })
             .select('id, token_hash')

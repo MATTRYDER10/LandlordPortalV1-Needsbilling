@@ -149,19 +149,14 @@
                 </div>
                 <div class="chase-contact-actions">
                   <button
-                    @click="sendReminder(item.id, contact.type, 'email')"
-                    :disabled="isSending(`${item.id}-${contact.type}-email`)"
+                    @click="openEmailModal(item.id, contact)"
                     class="btn btn-sm btn-primary"
-                    title="Send chase email with form link"
+                    title="Send chase email with form link (click to edit email)"
                   >
-                    <svg v-if="isSending(`${item.id}-${contact.type}-email`)" class="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <svg v-else class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
-                    {{ isSending(`${item.id}-${contact.type}-email`) ? 'Sending...' : 'Email' }}
+                    Email
                   </button>
                   <button
                     v-if="contact.phone"
@@ -280,6 +275,70 @@
         </div>
       </div>
     </div>
+
+    <!-- Email Edit Modal -->
+    <div v-if="showEmailModal" class="modal-overlay" @click="closeEmailModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Send Reference Request Email</h3>
+          <button @click="closeEmailModal" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="sendEmailFromModal">
+            <div class="form-group">
+              <label>Contact Type</label>
+              <input
+                type="text"
+                :value="emailModalContactType"
+                readonly
+                class="form-input readonly"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Recipient Name</label>
+              <input
+                type="text"
+                :value="emailModalContactName"
+                readonly
+                class="form-input readonly"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Email Address *</label>
+              <input
+                v-model="emailModalNewEmail"
+                type="email"
+                placeholder="Enter email address"
+                required
+                class="form-input"
+              />
+              <p class="help-text">
+                You can edit this email address. If changed, the new email will be saved permanently.
+              </p>
+            </div>
+
+            <div v-if="emailModalError" class="error-message-box">
+              {{ emailModalError }}
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" @click="closeEmailModal" class="btn btn-secondary">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                :disabled="emailModalSending || !emailModalNewEmail"
+              >
+                {{ emailModalSending ? 'Sending...' : 'Send Email' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -316,6 +375,16 @@ const toast = ref<{ show: boolean; message: string; type: 'success' | 'error' }>
   message: '',
   type: 'success'
 })
+
+// Email edit modal state
+const showEmailModal = ref(false)
+const emailModalReferenceId = ref<string>('')
+const emailModalContactType = ref<string>('')
+const emailModalContactName = ref<string>('')
+const emailModalCurrentEmail = ref<string>('')
+const emailModalNewEmail = ref<string>('')
+const emailModalSending = ref(false)
+const emailModalError = ref<string>('')
 
 // Computed
 const myActiveItems = computed(() => workItems.value.filter(item => isMyItem(item)))
@@ -421,6 +490,93 @@ const showToast = (message: string, type: 'success' | 'error') => {
   setTimeout(() => {
     toast.value.show = false
   }, 3000)
+}
+
+// Email modal methods
+const openEmailModal = (referenceId: string, contact: { type: string; name: string; email: string }) => {
+  emailModalReferenceId.value = referenceId
+  emailModalContactType.value = contact.type
+  emailModalContactName.value = contact.name
+  emailModalCurrentEmail.value = contact.email
+  emailModalNewEmail.value = contact.email
+  emailModalError.value = ''
+  showEmailModal.value = true
+}
+
+const closeEmailModal = () => {
+  showEmailModal.value = false
+  emailModalReferenceId.value = ''
+  emailModalContactType.value = ''
+  emailModalContactName.value = ''
+  emailModalCurrentEmail.value = ''
+  emailModalNewEmail.value = ''
+  emailModalError.value = ''
+}
+
+const isValidEmail = (email: string) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+const sendEmailFromModal = async () => {
+  if (!emailModalNewEmail.value) {
+    emailModalError.value = 'Please enter an email address'
+    return
+  }
+  if (!isValidEmail(emailModalNewEmail.value)) {
+    emailModalError.value = 'Please enter a valid email address'
+    return
+  }
+
+  emailModalSending.value = true
+  emailModalError.value = ''
+
+  try {
+    const token = authStore.session?.access_token
+
+    // Map contact type to backend format
+    const contactTypeMap: Record<string, string> = {
+      'Landlord': 'LANDLORD',
+      'Agent': 'AGENT',
+      'Letting Agent': 'AGENT',
+      'Employer': 'EMPLOYER',
+      'Accountant': 'ACCOUNTANT',
+      'Guarantor': 'GUARANTOR',
+      'Tenant': 'TENANT'
+    }
+
+    const backendContactType = contactTypeMap[emailModalContactType.value] || emailModalContactType.value.toUpperCase()
+
+    const response = await fetch(`${API_URL}/api/staff/chase/${emailModalReferenceId.value}/send-reminder`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contactType: emailModalContactType.value,
+        method: 'email',
+        newEmail: emailModalNewEmail.value !== emailModalCurrentEmail.value ? emailModalNewEmail.value : undefined
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to send email')
+    }
+
+    showToast(`Email sent successfully to ${emailModalNewEmail.value}`, 'success')
+    closeEmailModal()
+
+    // Refresh the chase list to update any changed emails
+    await fetchChaseList()
+  } catch (err: any) {
+    console.error('Error sending email:', err)
+    emailModalError.value = err.message || 'Failed to send email'
+  } finally {
+    emailModalSending.value = false
+  }
 }
 
 const sendReminder = async (referenceId: string, contactType: string, method: 'email' | 'sms') => {
@@ -1224,5 +1380,128 @@ td {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+/* Email Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6b7280;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.modal-close:hover {
+  color: #1f2937;
+  background: #f3f4f6;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.form-input.readonly {
+  background-color: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.help-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+.error-message-box {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #fef2f2;
+  border-radius: 6px;
+  border: 1px solid #fee2e2;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 0.5rem;
 }
 </style>
