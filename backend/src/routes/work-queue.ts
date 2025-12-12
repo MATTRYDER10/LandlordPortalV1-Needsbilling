@@ -717,12 +717,18 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
         recipientName = decrypt(reference.previous_landlord_name_encrypted) || '';
         emailSentTo = targetEmail;
 
-        // Update email if changed
+        // Update email if changed - update both tenant_references AND landlord_references
         if (newEmail && newEmail !== currentEmail) {
           await supabaseAdmin
             .from('tenant_references')
             .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
             .eq('id', referenceId);
+
+          // Also update landlord_references if it exists
+          await supabaseAdmin
+            .from('landlord_references')
+            .update({ landlord_email_encrypted: encrypt(newEmail) })
+            .eq('reference_id', referenceId);
 
           await logAuditAction({
             referenceId,
@@ -766,12 +772,18 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
         recipientName = decrypt(reference.previous_landlord_name_encrypted) || '';
         emailSentTo = targetEmail;
 
-        // Update email if changed
+        // Update email if changed - update both tenant_references AND agent_references
         if (newEmail && newEmail !== currentEmail) {
           await supabaseAdmin
             .from('tenant_references')
             .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
             .eq('id', referenceId);
+
+          // Also update agent_references if it exists
+          await supabaseAdmin
+            .from('agent_references')
+            .update({ agent_email_encrypted: encrypt(newEmail) })
+            .eq('reference_id', referenceId);
 
           await logAuditAction({
             referenceId,
@@ -815,12 +827,18 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
         recipientName = decrypt(reference.employer_ref_name_encrypted) || '';
         emailSentTo = targetEmail;
 
-        // Update email if changed
+        // Update email if changed - update both tenant_references AND employer_references
         if (newEmail && newEmail !== currentEmail) {
           await supabaseAdmin
             .from('tenant_references')
             .update({ employer_ref_email_encrypted: encrypt(newEmail) })
             .eq('id', referenceId);
+
+          // Also update employer_references if it exists
+          await supabaseAdmin
+            .from('employer_references')
+            .update({ employer_email_encrypted: encrypt(newEmail) })
+            .eq('reference_id', referenceId);
 
           await logAuditAction({
             referenceId,
@@ -875,12 +893,18 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           return res.status(404).json({ error: 'Accountant reference not found' });
         }
 
-        // Update email if changed
+        // Update email if changed - update both tenant_references AND accountant_references
         if (newEmail && newEmail !== currentEmail) {
           await supabaseAdmin
             .from('tenant_references')
             .update({ accountant_email_encrypted: encrypt(newEmail) })
             .eq('id', referenceId);
+
+          // Also update accountant_references
+          await supabaseAdmin
+            .from('accountant_references')
+            .update({ accountant_email_encrypted: encrypt(newEmail) })
+            .eq('id', accountantRef.id);
 
           await logAuditAction({
             referenceId,
