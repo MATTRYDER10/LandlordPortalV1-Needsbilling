@@ -5,6 +5,7 @@ import { generateReferenceReportPDFV2 } from '../services/pdfReportServiceV2';
 import { generatePassedPdfService } from '../services/generatePassedPdfService';
 import { validateSubmitAssessmentBody } from '../utils/verification-validation';
 import { assessApplicationScore } from '../services/application-assesment/assessApplication';
+import { encrypt } from '../services/encryption';
 
 // Helper function to ensure storage bucket exists
 async function ensureBucketExists(bucketId: string): Promise<boolean> {
@@ -642,6 +643,41 @@ router.post(
       // Only update residential status for non-guarantors
       if (!isGuarantor && residential) {
         updateData.res_assessment_status = residential.decision;
+      }
+
+      // Store verified income values if any were edited by staff
+      if (income.verified_income) {
+        const { verified_income } = income;
+
+        // Only store values that were actually edited (not null)
+        if (verified_income.salary !== null && verified_income.salary !== undefined) {
+          updateData.verified_salary_amount_encrypted = encrypt(String(verified_income.salary));
+        }
+        if (verified_income.benefits !== null && verified_income.benefits !== undefined) {
+          updateData.verified_benefits_amount_encrypted = encrypt(String(verified_income.benefits));
+        }
+        if (verified_income.savings !== null && verified_income.savings !== undefined) {
+          updateData.verified_savings_amount_encrypted = encrypt(String(verified_income.savings));
+        }
+        if (verified_income.additional_income !== null && verified_income.additional_income !== undefined) {
+          updateData.verified_additional_income_amount_encrypted = encrypt(String(verified_income.additional_income));
+        }
+        if (verified_income.self_employed !== null && verified_income.self_employed !== undefined) {
+          updateData.verified_self_employed_income_encrypted = encrypt(String(verified_income.self_employed));
+        }
+        if (verified_income.total_override !== null && verified_income.total_override !== undefined) {
+          updateData.verified_total_income_encrypted = encrypt(String(verified_income.total_override));
+        }
+
+        console.log('[Assessment] Storing verified income values:', {
+          hasSalary: verified_income.salary !== null,
+          hasBenefits: verified_income.benefits !== null,
+          hasSavings: verified_income.savings !== null,
+          hasAdditionalIncome: verified_income.additional_income !== null,
+          hasSelfEmployed: verified_income.self_employed !== null,
+          hasTotalOverride: verified_income.total_override !== null,
+          effectiveTotal: verified_income.effective_total
+        });
       }
 
       const { error: refError } = await supabaseAdmin

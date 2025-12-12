@@ -98,16 +98,17 @@ export const assessApplicationScore = async (referenceId: string, caller: Caller
 
         let incomeMultiple = 0;
         if (reference?.income_assessment_status !== "FAIL" && !reference?.income_student && !reference?.income_unemployed) {
+            // Use verified income values when available, otherwise fall back to original values
             const payloadToSanitize: SanitizedIncome = {
-                salary: reference.employment_salary_amount_encrypted,
-                benefits: reference.benefits_monthly_amount_encrypted,
-                additional: reference.additional_income_amount_encrypted,
-                selfAnnual: reference.self_employed_annual_income_encrypted,
+                salary: reference.verified_salary_amount_encrypted || reference.employment_salary_amount_encrypted,
+                benefits: reference.verified_benefits_amount_encrypted || reference.benefits_monthly_amount_encrypted,
+                additional: reference.verified_additional_income_amount_encrypted || reference.additional_income_amount_encrypted,
+                selfAnnual: reference.verified_self_employed_income_encrypted || reference.self_employed_annual_income_encrypted,
                 monthly_rent: reference.rent_share || reference.monthly_rent || 0,
-                additional_income: reference.additional_income_amount_encrypted,
-                savings: reference.savings_amount_encrypted,
-                is_hourly: reference.is_hourly || false,
-                hours_per_month: reference.employment_hours_per_month || 0,
+                additional_income: reference.verified_additional_income_amount_encrypted || reference.additional_income_amount_encrypted,
+                savings: reference.verified_savings_amount_encrypted || reference.savings_amount_encrypted,
+                is_hourly: reference.verified_salary_amount_encrypted ? false : (reference.is_hourly || false), // If salary is verified, it's already annual
+                hours_per_month: reference.verified_salary_amount_encrypted ? 0 : (reference.employment_hours_per_month || 0),
             }
             incomeMultiple = sanitizeIncome(payloadToSanitize);
         }
@@ -200,16 +201,17 @@ export const reAssessApplicationScore = async (referenceId: string, caller: Call
         const residentialStatus: "PASS" | "SKIPPED" | "FAIL" | "AMBER" = payload.res_assessment_status || "FAIL"
         let incomeMultiple = 0;
         if (payload.financial_status !== "FAIL" && !reference?.income_student && !reference?.income_unemployed) {
+            // Use verified income values when available, otherwise fall back to original values
             const payloadToSanitize: SanitizedIncome = {
-                salary: reference.employment_salary_amount_encrypted,
-                benefits: reference.benefits_annual_amount_encrypted,
-                additional: reference.additional_income_amount_encrypted,
-                selfAnnual: reference.self_employed_annual_income_encrypted,
+                salary: reference.verified_salary_amount_encrypted || reference.employment_salary_amount_encrypted,
+                benefits: reference.verified_benefits_amount_encrypted || reference.benefits_annual_amount_encrypted,
+                additional: reference.verified_additional_income_amount_encrypted || reference.additional_income_amount_encrypted,
+                selfAnnual: reference.verified_self_employed_income_encrypted || reference.self_employed_annual_income_encrypted,
                 monthly_rent: reference.monthly_rent || 0,
-                additional_income: reference.additional_income_amount_encrypted,
-                savings: reference.savings_amount_encrypted,
-                is_hourly: reference.employment_is_hourly || false,
-                hours_per_month: reference.employment_hours_per_month || 0,
+                additional_income: reference.verified_additional_income_amount_encrypted || reference.additional_income_amount_encrypted,
+                savings: reference.verified_savings_amount_encrypted || reference.savings_amount_encrypted,
+                is_hourly: reference.verified_salary_amount_encrypted ? false : (reference.employment_is_hourly || false),
+                hours_per_month: reference.verified_salary_amount_encrypted ? 0 : (reference.employment_hours_per_month || 0),
             }
             incomeMultiple = sanitizeIncome(payloadToSanitize);
         }

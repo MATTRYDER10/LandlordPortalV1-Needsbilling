@@ -86,35 +86,60 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
         .eq('reference_id', referenceId)
         .maybeSingle()
 
-    // Calculate annual salary (same as frontend)
-    const employmentSalaryAmount = reference.employment_salary_amount_encrypted
-        ? parseFloat(decrypt(reference.employment_salary_amount_encrypted) || '0')
-        : parseFloat(reference.employment_salary_amount || '0')
+    // Calculate annual salary - use verified value if available, otherwise original
+    let annualSalary: number
+    if (reference.verified_salary_amount_encrypted) {
+        // Staff-verified salary takes precedence
+        annualSalary = parseFloat(decrypt(reference.verified_salary_amount_encrypted) || '0')
+    } else {
+        const employmentSalaryAmount = reference.employment_salary_amount_encrypted
+            ? parseFloat(decrypt(reference.employment_salary_amount_encrypted) || '0')
+            : parseFloat(reference.employment_salary_amount || '0')
 
-    let annualSalary = employmentSalaryAmount
-    if (reference.employment_is_hourly && reference.employment_hours_per_month) {
-        annualSalary = employmentSalaryAmount * reference.employment_hours_per_month * 12
+        annualSalary = employmentSalaryAmount
+        if (reference.employment_is_hourly && reference.employment_hours_per_month) {
+            annualSalary = employmentSalaryAmount * reference.employment_hours_per_month * 12
+        }
     }
 
-    // Calculate total income (same as frontend - includes savings in gross total)
-    const selfEmployedIncome = accountantReference?.annual_profit_encrypted
-        ? parseFloat(decrypt(accountantReference.annual_profit_encrypted) || '0')
-        : parseFloat(accountantReference?.annual_profit || '0')
+    // Calculate total income - use verified values when available, otherwise original
+    // Self-employed income - check verified first
+    const selfEmployedIncome = reference.verified_self_employed_income_encrypted
+        ? parseFloat(decrypt(reference.verified_self_employed_income_encrypted) || '0')
+        : (accountantReference?.annual_profit_encrypted
+            ? parseFloat(decrypt(accountantReference.annual_profit_encrypted) || '0')
+            : parseFloat(accountantReference?.annual_profit || '0'))
 
-    const benefitsAnnual = reference.benefits_annual_amount_encrypted
-        ? parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0')
-        : parseFloat(reference.benefits_annual_amount || '0')
+    // Benefits - check verified first
+    const benefitsAnnual = reference.verified_benefits_amount_encrypted
+        ? parseFloat(decrypt(reference.verified_benefits_amount_encrypted) || '0')
+        : (reference.benefits_annual_amount_encrypted
+            ? parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0')
+            : parseFloat(reference.benefits_annual_amount || '0'))
 
-    const savingsAmount = reference.savings_amount_encrypted
-        ? parseFloat(decrypt(reference.savings_amount_encrypted) || '0')
-        : parseFloat(reference.savings_amount || '0')
+    // Savings - check verified first (THIS WAS THE MAIN BUG - savings wasn't using verified value)
+    const savingsAmount = reference.verified_savings_amount_encrypted
+        ? parseFloat(decrypt(reference.verified_savings_amount_encrypted) || '0')
+        : (reference.savings_amount_encrypted
+            ? parseFloat(decrypt(reference.savings_amount_encrypted) || '0')
+            : parseFloat(reference.savings_amount || '0'))
 
-    const additionalIncome = reference.additional_income_amount_encrypted
-        ? parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0')
-        : parseFloat(reference.additional_income_amount || '0')
+    // Additional income - check verified first
+    const additionalIncome = reference.verified_additional_income_amount_encrypted
+        ? parseFloat(decrypt(reference.verified_additional_income_amount_encrypted) || '0')
+        : (reference.additional_income_amount_encrypted
+            ? parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0')
+            : parseFloat(reference.additional_income_amount || '0'))
 
-    // Gross total includes all sources (as shown in frontend)
-    const totalIncome = annualSalary + selfEmployedIncome + benefitsAnnual + savingsAmount + additionalIncome
+    // Check if there's a total override (staff manually set total income)
+    let totalIncome: number
+    if (reference.verified_total_income_encrypted) {
+        // Staff override of total income takes precedence over individual values
+        totalIncome = parseFloat(decrypt(reference.verified_total_income_encrypted) || '0')
+    } else {
+        // Gross total includes all sources (as shown in frontend)
+        totalIncome = annualSalary + selfEmployedIncome + benefitsAnnual + savingsAmount + additionalIncome
+    }
 
     // Extract personal data
     const hasChildren = reference.number_of_dependants ? reference.number_of_dependants > 0 : false

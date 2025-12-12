@@ -1468,29 +1468,92 @@
 
                 <div>
                   <p class="font-medium">Salary (£)</p>
-                  <p class="text-lg text-gray-600">£{{ annualSalary || 0 }}</p>
+                  <div v-if="isEditingIncome" class="flex items-center gap-2">
+                    <input
+                      type="number"
+                      :value="verifiedSalary ?? annualSalary"
+                      @input="verifiedSalary = $event.target.value ? parseFloat($event.target.value) : null"
+                      class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      placeholder="Enter verified amount"
+                    />
+                    <span v-if="verifiedSalary !== null" class="text-xs text-orange-600">(edited)</span>
+                  </div>
+                  <p v-else class="text-lg text-gray-600">
+                    £{{ effectiveSalary.toLocaleString() }}
+                    <span v-if="verifiedSalary !== null" class="text-xs text-orange-600 ml-1">(verified)</span>
+                  </p>
                 </div>
 
                 <div>
                   <p class="font-medium">Self-employed (£)</p>
-                  <p class="text-lg text-gray-600">£{{ parseFloat(accountantReference?.annual_profit || '0') }}</p>
+                  <div v-if="isEditingIncome" class="flex items-center gap-2">
+                    <input
+                      type="number"
+                      :value="verifiedSelfEmployedIncome ?? parseFloat(accountantReference?.annual_profit || '0')"
+                      @input="verifiedSelfEmployedIncome = $event.target.value ? parseFloat($event.target.value) : null"
+                      class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      placeholder="Enter verified amount"
+                    />
+                    <span v-if="verifiedSelfEmployedIncome !== null" class="text-xs text-orange-600">(edited)</span>
+                  </div>
+                  <p v-else class="text-lg text-gray-600">
+                    £{{ effectiveSelfEmployedIncome.toLocaleString() }}
+                    <span v-if="verifiedSelfEmployedIncome !== null" class="text-xs text-orange-600 ml-1">(verified)</span>
+                  </p>
                 </div>
 
                 <div>
                   <p class="font-medium">Benefits (£)</p>
-                  <p class="text-lg text-gray-600">£{{ parseFloat(reference.benefits_annual_amount ||
-                    '0') }}</p>
+                  <div v-if="isEditingIncome" class="flex items-center gap-2">
+                    <input
+                      type="number"
+                      :value="verifiedBenefits ?? parseFloat(reference.benefits_annual_amount || '0')"
+                      @input="verifiedBenefits = $event.target.value ? parseFloat($event.target.value) : null"
+                      class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      placeholder="Enter verified amount"
+                    />
+                    <span v-if="verifiedBenefits !== null" class="text-xs text-orange-600">(edited)</span>
+                  </div>
+                  <p v-else class="text-lg text-gray-600">
+                    £{{ effectiveBenefits.toLocaleString() }}
+                    <span v-if="verifiedBenefits !== null" class="text-xs text-orange-600 ml-1">(verified)</span>
+                  </p>
                 </div>
 
                 <div>
                   <p class="font-medium">Savings / Pension / Investment (£)</p>
-                  <p class="text-lg text-gray-600">£{{ parseFloat(reference.savings_amount || '0') }}</p>
+                  <div v-if="isEditingIncome" class="flex items-center gap-2">
+                    <input
+                      type="number"
+                      :value="verifiedSavings ?? parseFloat(reference.savings_amount || '0')"
+                      @input="verifiedSavings = $event.target.value ? parseFloat($event.target.value) : null"
+                      class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      placeholder="Enter verified amount"
+                    />
+                    <span v-if="verifiedSavings !== null" class="text-xs text-orange-600">(edited)</span>
+                  </div>
+                  <p v-else class="text-lg text-gray-600">
+                    £{{ effectiveSavings.toLocaleString() }}
+                    <span v-if="verifiedSavings !== null" class="text-xs text-orange-600 ml-1">(verified)</span>
+                  </p>
                 </div>
 
                 <div>
                   <p class="font-medium">Additional Income (£)</p>
-                  <p class="text-lg text-gray-600">£{{ parseFloat(reference.additional_income_amount ||
-                    '0') }}</p>
+                  <div v-if="isEditingIncome" class="flex items-center gap-2">
+                    <input
+                      type="number"
+                      :value="verifiedAdditionalIncome ?? parseFloat(reference.additional_income_amount || '0')"
+                      @input="verifiedAdditionalIncome = $event.target.value ? parseFloat($event.target.value) : null"
+                      class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      placeholder="Enter verified amount"
+                    />
+                    <span v-if="verifiedAdditionalIncome !== null" class="text-xs text-orange-600">(edited)</span>
+                  </div>
+                  <p v-else class="text-lg text-gray-600">
+                    £{{ effectiveAdditionalIncome.toLocaleString() }}
+                    <span v-if="verifiedAdditionalIncome !== null" class="text-xs text-orange-600 ml-1">(verified)</span>
+                  </p>
                 </div>
 
               </div>
@@ -1516,18 +1579,29 @@
                 </div>
 
                 <div v-else class="space-y-2">
+                  <div class="text-sm text-gray-600 mb-2">
+                    Edit individual income sources above, or override the total below:
+                  </div>
                   <input
                     type="number"
                     v-model.number="manualIncomeOverride"
                     :placeholder="totalAnnualIncome.toString()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                   />
-                  <button
-                    type="button"
-                    @click="manualIncomeOverride = null; isEditingIncome = false"
-                    class="text-sm text-gray-600 hover:text-gray-800">
-                    Reset to Auto-Calculated
-                  </button>
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      @click="resetAllIncomeEdits"
+                      class="text-sm text-gray-600 hover:text-gray-800">
+                      Reset All to Original
+                    </button>
+                    <button
+                      type="button"
+                      @click="isEditingIncome = false"
+                      class="text-sm text-blue-600 hover:text-blue-800">
+                      Done Editing
+                    </button>
+                  </div>
                 </div>
 
                 <p class="text-lg font-semibold mt-3">
@@ -3191,21 +3265,56 @@ const annualSalary = ref<number>(0);
 const manualIncomeOverride = ref<number | null>(null);
 const isEditingIncome = ref(false);
 
+// Individual income override refs for staff verification
+const verifiedSalary = ref<number | null>(null);
+const verifiedBenefits = ref<number | null>(null);
+const verifiedSavings = ref<number | null>(null);
+const verifiedAdditionalIncome = ref<number | null>(null);
+const verifiedSelfEmployedIncome = ref<number | null>(null);
+
+// Get effective income values (verified if set, otherwise original)
+const effectiveSalary = computed(() => verifiedSalary.value ?? annualSalary.value);
+const effectiveBenefits = computed(() => verifiedBenefits.value ?? parseFloat(reference.value?.benefits_annual_amount || '0'));
+const effectiveSavings = computed(() => verifiedSavings.value ?? parseFloat(reference.value?.savings_amount || '0'));
+const effectiveAdditionalIncome = computed(() => verifiedAdditionalIncome.value ?? parseFloat(reference.value?.additional_income_amount || '0'));
+const effectiveSelfEmployedIncome = computed(() => verifiedSelfEmployedIncome.value ?? parseFloat(accountantReference.value?.annual_profit || '0'));
+
+// Check if any income has been manually verified/edited
+const hasVerifiedIncome = computed(() => {
+  return verifiedSalary.value !== null ||
+    verifiedBenefits.value !== null ||
+    verifiedSavings.value !== null ||
+    verifiedAdditionalIncome.value !== null ||
+    verifiedSelfEmployedIncome.value !== null ||
+    manualIncomeOverride.value !== null;
+});
+
 const totalAnnualIncome = computed(() => {
   if (manualIncomeOverride.value !== null) {
     return manualIncomeOverride.value;
   }
 
-  return annualSalary.value +
-    parseFloat(accountantReference.value?.annual_profit || '0') +
-    parseFloat(reference.value?.benefits_annual_amount || '0') +
-    parseFloat(reference.value?.savings_amount || '0') +
-    parseFloat(reference.value?.additional_income_amount || '0');
+  return effectiveSalary.value +
+    effectiveSelfEmployedIncome.value +
+    effectiveBenefits.value +
+    effectiveSavings.value +
+    effectiveAdditionalIncome.value;
 });
 
 const maxAffordability = computed(() => {
   return totalAnnualIncome.value / 30;
 });
+
+// Reset all income edits to original values
+const resetAllIncomeEdits = () => {
+  verifiedSalary.value = null;
+  verifiedBenefits.value = null;
+  verifiedSavings.value = null;
+  verifiedAdditionalIncome.value = null;
+  verifiedSelfEmployedIncome.value = null;
+  manualIncomeOverride.value = null;
+  isEditingIncome.value = false;
+};
 
 const employmentComparisonTable = computed<EmploymentComparisonDisplayRow[]>(() => {
   if (!reference.value || !employerReference.value) return []
@@ -3593,7 +3702,19 @@ const verificationReportJson = computed(() => {
         acc[check.name] = check.pass === true ? 'PASS' : check.pass === false ? 'FAIL' : null
         return acc
       }, {}),
-      Evidence_Sources_Used: step3.evidence_sources || []
+      Evidence_Sources_Used: step3.evidence_sources || [],
+      // Include verified income values for backend storage and PDF generation
+      verified_income: {
+        salary: verifiedSalary.value,
+        benefits: verifiedBenefits.value,
+        savings: verifiedSavings.value,
+        additional_income: verifiedAdditionalIncome.value,
+        self_employed: verifiedSelfEmployedIncome.value,
+        total_override: manualIncomeOverride.value,
+        // Include calculated totals for reference
+        effective_total: totalAnnualIncome.value,
+        has_edits: hasVerifiedIncome.value
+      }
     }
   }
 

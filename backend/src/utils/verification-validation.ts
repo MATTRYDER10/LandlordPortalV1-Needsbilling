@@ -58,6 +58,17 @@ export interface VerificationChecks {
     [key: string]: string; // dynamic key-value pairs
 }
 
+export interface VerifiedIncome {
+    salary?: number | null;
+    benefits?: number | null;
+    savings?: number | null;
+    additional_income?: number | null;
+    self_employed?: number | null;
+    total_override?: number | null;
+    effective_total?: number;
+    has_edits?: boolean;
+}
+
 export interface AssessmentSection {
     decision: string;
     notes?: string;
@@ -65,6 +76,7 @@ export interface AssessmentSection {
     tas_reason?: string;
     Verification_Checks: VerificationChecks;
     Evidence_Sources_Used: string[];
+    verified_income?: VerifiedIncome;
 }
 
 export interface FinalRemarks {
