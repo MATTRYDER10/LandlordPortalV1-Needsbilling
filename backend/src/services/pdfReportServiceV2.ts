@@ -145,13 +145,42 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
     }
   }
 
-  // Calculate total income
-  let totalIncome = 0
-  const employmentSalary = reference.employment_salary_amount_encrypted ? parseFloat(decrypt(reference.employment_salary_amount_encrypted) || '0') : 0
-  const selfEmployedIncome = reference.self_employed_annual_income_encrypted ? parseFloat(decrypt(reference.self_employed_annual_income_encrypted) || '0') : 0
-  const benefitsAnnual = reference.benefits_annual_amount_encrypted ? parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0') : 0
-  const additionalIncome = reference.additional_income_amount_encrypted ? parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0') : 0
-  totalIncome = employmentSalary + selfEmployedIncome + benefitsAnnual + additionalIncome
+  // Calculate total income - use verified values when available, otherwise original
+  // Employment salary - check verified first
+  const employmentSalary = reference.verified_salary_amount_encrypted
+    ? parseFloat(decrypt(reference.verified_salary_amount_encrypted) || '0')
+    : (reference.employment_salary_amount_encrypted
+        ? parseFloat(decrypt(reference.employment_salary_amount_encrypted) || '0')
+        : 0)
+
+  // Self-employed income - check verified first
+  const selfEmployedIncome = reference.verified_self_employed_income_encrypted
+    ? parseFloat(decrypt(reference.verified_self_employed_income_encrypted) || '0')
+    : (reference.self_employed_annual_income_encrypted
+        ? parseFloat(decrypt(reference.self_employed_annual_income_encrypted) || '0')
+        : 0)
+
+  // Benefits - check verified first
+  const benefitsAnnual = reference.verified_benefits_amount_encrypted
+    ? parseFloat(decrypt(reference.verified_benefits_amount_encrypted) || '0')
+    : (reference.benefits_annual_amount_encrypted
+        ? parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0')
+        : 0)
+
+  // Additional income - check verified first
+  const additionalIncome = reference.verified_additional_income_amount_encrypted
+    ? parseFloat(decrypt(reference.verified_additional_income_amount_encrypted) || '0')
+    : (reference.additional_income_amount_encrypted
+        ? parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0')
+        : 0)
+
+  // Calculate total or use override
+  let totalIncome: number
+  if (reference.verified_total_income_encrypted) {
+    totalIncome = parseFloat(decrypt(reference.verified_total_income_encrypted) || '0')
+  } else {
+    totalIncome = employmentSalary + selfEmployedIncome + benefitsAnnual + additionalIncome
+  }
 
   // Extract personal data fields
   const hasChildren = reference.number_of_dependants ? reference.number_of_dependants > 0 : false
@@ -165,7 +194,14 @@ export async function generateReferenceReportPDFV2(referenceId: string): Promise
   const monthlyRent = reference.monthly_rent || (reference.monthly_rent_encrypted ? parseFloat(decrypt(reference.monthly_rent_encrypted) || '0') : 0)
   const rentShare = reference.rent_share ? parseFloat(String(reference.rent_share)) : monthlyRent
   const affordabilityRatio = score?.ratio || (totalIncome > 0 && monthlyRent > 0 ? (totalIncome / 12) / monthlyRent : 0)
-  const verifiedSavings = reference.savings_amount_encrypted ? parseFloat(decrypt(reference.savings_amount_encrypted) || '0') : 0
+
+  // Verified savings - check verified field first
+  const verifiedSavings = reference.verified_savings_amount_encrypted
+    ? parseFloat(decrypt(reference.verified_savings_amount_encrypted) || '0')
+    : (reference.savings_amount_encrypted
+        ? parseFloat(decrypt(reference.savings_amount_encrypted) || '0')
+        : 0)
+
   const maxAffordableRent = totalIncome > 0 ? (totalIncome / 12) / 2.5 : 0 // Assuming 2.5x ratio minimum
 
   // Parse fraud indicators for credit history
