@@ -1472,7 +1472,7 @@
                     <input
                       type="number"
                       :value="verifiedSalary ?? annualSalary"
-                      @input="verifiedSalary = $event.target.value ? parseFloat($event.target.value) : null"
+                      @input="verifiedSalary = ($event.target as HTMLInputElement)?.value ? parseFloat(($event.target as HTMLInputElement).value) : null"
                       class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
                       placeholder="Enter verified amount"
                     />
@@ -1490,7 +1490,7 @@
                     <input
                       type="number"
                       :value="verifiedSelfEmployedIncome ?? parseFloat(accountantReference?.annual_profit || '0')"
-                      @input="verifiedSelfEmployedIncome = $event.target.value ? parseFloat($event.target.value) : null"
+                      @input="verifiedSelfEmployedIncome = ($event.target as HTMLInputElement)?.value ? parseFloat(($event.target as HTMLInputElement).value) : null"
                       class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
                       placeholder="Enter verified amount"
                     />
@@ -1508,7 +1508,7 @@
                     <input
                       type="number"
                       :value="verifiedBenefits ?? parseFloat(reference.benefits_annual_amount || '0')"
-                      @input="verifiedBenefits = $event.target.value ? parseFloat($event.target.value) : null"
+                      @input="verifiedBenefits = ($event.target as HTMLInputElement)?.value ? parseFloat(($event.target as HTMLInputElement).value) : null"
                       class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
                       placeholder="Enter verified amount"
                     />
@@ -1526,7 +1526,7 @@
                     <input
                       type="number"
                       :value="verifiedSavings ?? parseFloat(reference.savings_amount || '0')"
-                      @input="verifiedSavings = $event.target.value ? parseFloat($event.target.value) : null"
+                      @input="verifiedSavings = ($event.target as HTMLInputElement)?.value ? parseFloat(($event.target as HTMLInputElement).value) : null"
                       class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
                       placeholder="Enter verified amount"
                     />
@@ -1544,7 +1544,7 @@
                     <input
                       type="number"
                       :value="verifiedAdditionalIncome ?? parseFloat(reference.additional_income_amount || '0')"
-                      @input="verifiedAdditionalIncome = $event.target.value ? parseFloat($event.target.value) : null"
+                      @input="verifiedAdditionalIncome = ($event.target as HTMLInputElement)?.value ? parseFloat(($event.target as HTMLInputElement).value) : null"
                       class="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm"
                       placeholder="Enter verified amount"
                     />
