@@ -1532,12 +1532,18 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         contactName = decrypt(reference.previous_landlord_name_encrypted) || ''
         formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${referenceId}`
 
-        // Update email if changed
+        // Update email if changed - update both tenant_references AND landlord_references
         if (newEmail && newEmail !== currentLandlordEmail) {
           await supabase
             .from('tenant_references')
             .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
             .eq('id', referenceId)
+
+          // Also update landlord_references if it exists
+          await supabase
+            .from('landlord_references')
+            .update({ landlord_email_encrypted: encrypt(newEmail) })
+            .eq('reference_id', referenceId)
         }
 
         if (method === 'email') {
@@ -1573,12 +1579,18 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         contactName = reference.previous_agency_name || ''
         formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`
 
-        // Update email if changed
+        // Update email if changed - update both tenant_references AND agent_references
         if (newEmail && newEmail !== currentAgentEmail) {
           await supabase
             .from('tenant_references')
             .update({ previous_landlord_email_encrypted: encrypt(newEmail) })
             .eq('id', referenceId)
+
+          // Also update agent_references if it exists
+          await supabase
+            .from('agent_references')
+            .update({ agent_email_encrypted: encrypt(newEmail) })
+            .eq('reference_id', referenceId)
         }
 
         if (method === 'email') {
@@ -1614,12 +1626,18 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         contactName = decrypt(reference.employer_ref_name_encrypted) || ''
         formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${referenceId}`
 
-        // Update email if changed
+        // Update email if changed - update both tenant_references AND employer_references
         if (newEmail && newEmail !== currentEmployerEmail) {
           await supabase
             .from('tenant_references')
             .update({ employer_ref_email_encrypted: encrypt(newEmail) })
             .eq('id', referenceId)
+
+          // Also update employer_references if it exists
+          await supabase
+            .from('employer_references')
+            .update({ employer_email_encrypted: encrypt(newEmail) })
+            .eq('reference_id', referenceId)
         }
 
         if (method === 'email') {
@@ -1661,12 +1679,20 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         contactPhone = decrypt(reference.accountant_phone_encrypted) || ''
         contactName = decrypt(reference.accountant_name_encrypted) || ''
 
-        // Update email if changed
+        // Update email if changed - update both tenant_references AND accountant_references
         if (newEmail && newEmail !== currentAccountantEmail) {
           await supabase
             .from('tenant_references')
             .update({ accountant_email_encrypted: encrypt(newEmail) })
             .eq('id', referenceId)
+
+          // Also update accountant_references if it exists
+          if (accountantRef) {
+            await supabase
+              .from('accountant_references')
+              .update({ accountant_email_encrypted: encrypt(newEmail) })
+              .eq('id', accountantRef.id)
+          }
         }
 
         // If no accountant reference row exists, create one using tenant's provided details
