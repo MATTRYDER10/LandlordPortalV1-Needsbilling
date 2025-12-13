@@ -3440,9 +3440,15 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('employer_ref_email, income_self_employed')
+      .select('employer_ref_email, income_self_employed, is_guarantor')
       .eq('id', referenceId)
       .single()
+
+    // Skip status update for guarantor references - they have their own verification flow
+    if (tenantRef?.is_guarantor) {
+      res.json({ message: 'Landlord reference submitted successfully' })
+      return
+    }
 
     // Check all required references
     let allReferencesSubmitted = true
@@ -3567,9 +3573,15 @@ router.post('/agent/:referenceId', async (req: Request, res) => {
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('employer_ref_email, income_self_employed')
+      .select('employer_ref_email, income_self_employed, is_guarantor')
       .eq('id', referenceId)
       .single()
+
+    // Skip status update for guarantor references - they have their own verification flow
+    if (tenantRef?.is_guarantor) {
+      res.json({ message: 'Agent reference submitted successfully' })
+      return
+    }
 
     // Check all required references
     let allReferencesSubmitted = true
@@ -3689,9 +3701,15 @@ router.post('/employer/:referenceId', async (req: Request, res) => {
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('previous_landlord_email, reference_type, income_self_employed')
+      .select('previous_landlord_email, reference_type, income_self_employed, is_guarantor')
       .eq('id', referenceId)
       .single()
+
+    // Skip status update for guarantor references - they have their own verification flow
+    if (tenantRef?.is_guarantor) {
+      res.json({ message: 'Employer reference submitted successfully' })
+      return
+    }
 
     // Check all required references
     let allReferencesSubmitted = true
@@ -3816,9 +3834,15 @@ router.post('/accountant/:token', async (req: Request, res) => {
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('employer_ref_email, previous_landlord_email, reference_type')
+      .select('employer_ref_email, previous_landlord_email, reference_type, is_guarantor')
       .eq('id', accountantRef.tenant_reference_id)
       .single()
+
+    // Skip status update for guarantor references - they have their own verification flow
+    if (tenantRef?.is_guarantor) {
+      res.json({ message: 'Accountant reference submitted successfully' })
+      return
+    }
 
     // Check all required references
     let allReferencesSubmitted = true
