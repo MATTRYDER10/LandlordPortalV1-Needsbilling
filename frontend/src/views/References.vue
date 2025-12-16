@@ -1012,10 +1012,10 @@ const addGuarantor = async () => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        first_name: guarantorForm.value.first_name,
-        last_name: guarantorForm.value.last_name,
-        email: guarantorForm.value.email,
-        phone: guarantorForm.value.phone || null
+        guarantor_first_name: guarantorForm.value.first_name,
+        guarantor_last_name: guarantorForm.value.last_name,
+        guarantor_email: guarantorForm.value.email,
+        guarantor_phone: guarantorForm.value.phone || null
       })
     })
 
