@@ -1,8 +1,16 @@
 <template>
   <div class="evidence-preview" @click="openFullView">
     <div class="preview-container">
+      <!-- Loading State -->
+      <div v-if="loading" class="preview-loading">
+        <svg class="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </div>
+
       <!-- PDF Preview -->
-      <div v-if="isPdf" class="preview-pdf">
+      <div v-else-if="isPdf" class="preview-pdf">
         <svg class="pdf-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
         </svg>
@@ -11,7 +19,7 @@
 
       <!-- Image Preview -->
       <img
-        v-else-if="isImage"
+        v-else-if="isImage && blobUrl"
         :src="previewUrl"
         :alt="fileName"
         class="preview-image"
@@ -39,7 +47,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
         </svg>
       </button>
-      <a :href="url" target="_blank" class="action-btn download" @click.stop title="Download">
+      <a :href="previewUrl" target="_blank" class="action-btn download" @click.stop title="Download">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
@@ -54,7 +62,7 @@
         <div class="full-view-header">
           <h3 class="full-view-title">{{ fileName }}</h3>
           <div class="full-view-actions">
-            <a :href="url" target="_blank" class="full-view-btn">
+            <a :href="previewUrl" target="_blank" class="full-view-btn">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
@@ -70,13 +78,13 @@
         <div class="full-view-content">
           <iframe
             v-if="isPdf"
-            :src="url"
+            :src="previewUrl"
             class="full-view-pdf"
             frameborder="0"
           />
           <img
             v-else-if="isImage"
-            :src="url"
+            :src="previewUrl"
             :alt="fileName"
             class="full-view-image"
           />
@@ -85,7 +93,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <p>Preview not available</p>
-            <a :href="url" target="_blank" class="download-link">Download file</a>
+            <a :href="previewUrl" target="_blank" class="download-link">Download file</a>
           </div>
         </div>
       </div>
@@ -94,7 +102,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const props = defineProps<{
   url: string
@@ -103,8 +114,64 @@ const props = defineProps<{
   uploadedAt?: string
 }>()
 
+const authStore = useAuthStore()
+const token = computed(() => authStore.session?.access_token || '')
 const showFullView = ref(false)
 const imageError = ref(false)
+const blobUrl = ref<string | null>(null)
+const loading = ref(false)
+
+// Load image as blob through backend proxy
+async function loadImageAsBlob() {
+  if (!token.value || !props.url) {
+    return
+  }
+
+  // Skip if not a storage path (already a full URL)
+  if (props.url.startsWith('http://') || props.url.startsWith('https://') || props.url.startsWith('blob:')) {
+    blobUrl.value = props.url
+    return
+  }
+
+  loading.value = true
+  try {
+    // Parse file path: referenceId/folder/filename
+    const parts = props.url.split('/')
+    if (parts.length !== 3) {
+      console.error('Invalid file path format. Expected: referenceId/folder/filename, got:', props.url)
+      return
+    }
+
+    const [refId, folder, filename] = parts as [string, string, string]
+    const downloadUrl = `${API_BASE}/api/staff/download/${refId}/${folder}/${encodeURIComponent(filename)}`
+
+    const response = await fetch(downloadUrl, {
+      headers: {
+        'Authorization': `Bearer ${token.value}`
+      }
+    })
+
+    if (!response.ok) {
+      console.error('Failed to load evidence image:', response.status)
+      return
+    }
+
+    const blob = await response.blob()
+    blobUrl.value = URL.createObjectURL(blob)
+  } catch (err) {
+    console.error('Failed to load evidence image:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadImageAsBlob()
+})
+
+watch(() => props.url, () => {
+  loadImageAsBlob()
+})
 
 const fileExtension = computed(() => {
   const ext = props.fileName.split('.').pop()?.toLowerCase() || ''
@@ -123,7 +190,7 @@ const isImage = computed(() => {
 })
 
 const previewUrl = computed(() => {
-  return props.url
+  return blobUrl.value || props.url
 })
 
 const truncatedFileName = computed(() => {
@@ -182,6 +249,26 @@ const closeFullView = () => {
   justify-content: center;
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .preview-pdf,

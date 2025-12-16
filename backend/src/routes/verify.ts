@@ -980,21 +980,71 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         previous_tenancy_end_date,
         monthly_rent,
         rent_share,
-        is_guarantor
+        is_guarantor,
+        created_at,
+        payslip_files,
+        tax_return_path,
+        proof_of_additional_income_path,
+        proof_of_funds_path,
+        id_document_path,
+        selfie_path,
+        proof_of_address_path
       `)
       .eq('id', referenceId)
       .single();
 
-    if (refError || !reference) {
+    if (refError) {
+      console.error('Error fetching reference for evidence:', refError);
+      return res.status(500).json({ error: 'Failed to fetch reference data', details: refError.message });
+    }
+
+    if (!reference) {
       return res.status(404).json({ error: 'Reference not found' });
     }
 
-    // Get evidence files from reference_evidence table
-    const { data: evidenceFiles } = await supabaseAdmin
-      .from('reference_evidence')
-      .select('*')
-      .eq('reference_id', referenceId)
-      .order('created_at', { ascending: false });
+    // Build evidence arrays from file path columns in tenant_references
+    // (reference_evidence table doesn't exist - files are stored as paths in tenant_references)
+    const buildEvidenceFromPaths = () => {
+      const evidence: any[] = [];
+
+      // Helper to create evidence object from file path
+      // Paths are already in format: referenceId/folder/filename
+      const addEvidence = (path: string | null, type: string, label: string) => {
+        if (path) {
+          evidence.push({
+            id: `${type}-${path}`,
+            file_url: path,
+            file_name: path.split('/').pop() || label,
+            file_type: path.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/*',
+            evidence_type: type,
+            created_at: reference.created_at
+          });
+        }
+      };
+
+      // Add payslips (array - stored as payslip_files)
+      if (reference.payslip_files && Array.isArray(reference.payslip_files)) {
+        reference.payslip_files.forEach((path: string, idx: number) => {
+          addEvidence(path, 'PAYSLIP', `Payslip ${idx + 1}`);
+        });
+      }
+
+      // Add single file evidence - Income related
+      addEvidence(reference.tax_return_path, 'TAX_RETURN', 'Tax Return');
+      addEvidence(reference.proof_of_additional_income_path, 'ADDITIONAL_INCOME', 'Additional Income Proof');
+      addEvidence(reference.proof_of_funds_path, 'PROOF_OF_FUNDS', 'Proof of Funds');
+
+      // Identity related
+      addEvidence(reference.id_document_path, 'ID_DOCUMENT', 'ID Document');
+      addEvidence(reference.selfie_path, 'SELFIE', 'Selfie');
+
+      // Residential related
+      addEvidence(reference.proof_of_address_path, 'PROOF_OF_ADDRESS', 'Proof of Address');
+
+      return evidence;
+    };
+
+    const evidenceFiles = buildEvidenceFromPaths();
 
     // Get employer reference if exists
     const { data: employerReference } = await supabaseAdmin
@@ -1082,11 +1132,11 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
 
     // Categorize evidence files
     const incomeEvidence = (evidenceFiles || []).filter((f: any) =>
-      ['PAYSLIP', 'BANK_STATEMENT', 'EMPLOYMENT_CONTRACT', 'TAX_RETURN', 'P60', 'P45', 'ACCOUNTANT_LETTER'].includes(f.evidence_type)
+      ['PAYSLIP', 'BANK_STATEMENT', 'EMPLOYMENT_CONTRACT', 'TAX_RETURN', 'P60', 'P45', 'ACCOUNTANT_LETTER', 'ADDITIONAL_INCOME', 'PROOF_OF_FUNDS'].includes(f.evidence_type)
     );
 
     const residentialEvidence = (evidenceFiles || []).filter((f: any) =>
-      ['LANDLORD_REFERENCE', 'TENANCY_AGREEMENT', 'UTILITY_BILL', 'COUNCIL_TAX'].includes(f.evidence_type)
+      ['LANDLORD_REFERENCE', 'TENANCY_AGREEMENT', 'UTILITY_BILL', 'COUNCIL_TAX', 'PROOF_OF_ADDRESS'].includes(f.evidence_type)
     );
 
     const idEvidence = (evidenceFiles || []).filter((f: any) =>
