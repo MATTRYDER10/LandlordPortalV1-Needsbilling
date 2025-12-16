@@ -202,6 +202,35 @@
               </div>
             </div>
 
+            <!-- Assessment Remarks Section (for completed/rejected references) -->
+            <div v-if="isVerified && score?.final_remarks" class="p-6 border-b border-gray-200">
+              <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Assessment Remarks
+              </h3>
+              <div class="space-y-3">
+                <div v-if="score.decision" class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-gray-600">Final Decision:</span>
+                  <span
+                    class="px-2.5 py-0.5 text-xs font-medium rounded-full"
+                    :class="{
+                      'bg-green-100 text-green-800': score.decision === 'PASS' || score.decision === 'VERIFIED_PASS',
+                      'bg-amber-100 text-amber-800': score.decision === 'PASS_WITH_CONDITION' || score.decision === 'VERIFIED_CONDITIONAL',
+                      'bg-red-100 text-red-800': score.decision === 'FAIL' || score.decision === 'VERIFIED_FAIL',
+                      'bg-gray-100 text-gray-800': !['PASS', 'VERIFIED_PASS', 'PASS_WITH_CONDITION', 'VERIFIED_CONDITIONAL', 'FAIL', 'VERIFIED_FAIL'].includes(score.decision)
+                    }"
+                  >
+                    {{ score.decision.replace(/_/g, ' ') }}
+                  </span>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-lg">
+                  <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ score.final_remarks }}</p>
+                </div>
+              </div>
+            </div>
+
             <!-- Section Status Overview -->
             <div class="p-6 border-b border-gray-200">
               <h3 class="text-sm font-semibold text-gray-900 mb-3">Verification Sections</h3>
@@ -261,6 +290,104 @@
                   <label class="block text-xs font-medium text-gray-500 uppercase">Nationality</label>
                   <p class="mt-1 text-sm text-gray-900">{{ fullDetails?.nationality || 'Not provided' }}</p>
                 </div>
+              </div>
+            </CollapsibleSection>
+
+            <!-- Property Information -->
+            <CollapsibleSection title="Property Information" v-if="fullDetails?.property_address">
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Property Address</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.property_address }}</p>
+                  <p v-if="fullDetails.property_city || fullDetails.property_postcode" class="text-sm text-gray-900">
+                    {{ fullDetails.property_city }}<span v-if="fullDetails.property_city && fullDetails.property_postcode">, </span>{{ fullDetails.property_postcode }}
+                  </p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div v-if="fullDetails.monthly_rent">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Monthly Rent</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.monthly_rent)) }}</p>
+                  </div>
+                  <div v-if="fullDetails.move_in_date">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Move-in Date</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.move_in_date) }}</p>
+                  </div>
+                  <div v-if="fullDetails.holding_deposit_amount">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Holding Deposit</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.holding_deposit_amount)) }}</p>
+                  </div>
+                  <div v-if="fullDetails.term_months || fullDetails.term_years">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Tenancy Term</label>
+                    <p class="mt-1 text-sm text-gray-900">
+                      <span v-if="fullDetails.term_years">{{ fullDetails.term_years }} year<span v-if="fullDetails.term_years > 1">s</span></span>
+                      <span v-if="fullDetails.term_years && fullDetails.term_months"> </span>
+                      <span v-if="fullDetails.term_months">{{ fullDetails.term_months }} month<span v-if="fullDetails.term_months > 1">s</span></span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            <!-- About the Tenant (Tenant Only) -->
+            <CollapsibleSection v-if="person.role === 'TENANT' && hasAboutTenantData" title="About the Tenant">
+              <div class="grid grid-cols-2 gap-4">
+                <div v-if="fullDetails?.is_smoker !== null && fullDetails?.is_smoker !== undefined">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Smoker</label>
+                  <p class="mt-1">
+                    <span :class="fullDetails.is_smoker ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                      {{ fullDetails.is_smoker ? 'Yes' : 'No' }}
+                    </span>
+                  </p>
+                </div>
+                <div v-if="fullDetails?.has_pets !== null && fullDetails?.has_pets !== undefined">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Has Pets</label>
+                  <p class="mt-1">
+                    <span :class="fullDetails.has_pets ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                      {{ fullDetails.has_pets ? 'Yes' : 'No' }}
+                    </span>
+                  </p>
+                </div>
+                <div v-if="fullDetails?.pet_details" class="col-span-2">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Pet Details</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.pet_details }}</p>
+                </div>
+                <div v-if="fullDetails?.marital_status">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Marital Status</label>
+                  <p class="mt-1 text-sm text-gray-900 capitalize">{{ fullDetails.marital_status.replace(/_/g, ' ') }}</p>
+                </div>
+                <div v-if="fullDetails?.num_dependants !== null && fullDetails?.num_dependants !== undefined">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Dependants</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.num_dependants }}</p>
+                </div>
+                <div v-if="fullDetails?.dependants_details" class="col-span-2">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Dependants Details</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.dependants_details }}</p>
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            <!-- Consent Declaration -->
+            <CollapsibleSection v-if="fullDetails?.consent_agreed_at" title="Consent Declaration">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Agreed On</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ formatDateTime(fullDetails.consent_agreed_at) }}</p>
+                </div>
+                <div v-if="fullDetails?.consent_printed_name">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Signed Name</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.consent_printed_name }}</p>
+                </div>
+              </div>
+              <div v-if="fullDetails?.consent_pdf_path" class="mt-3">
+                <button
+                  @click="viewDocument(fullDetails.consent_pdf_path)"
+                  class="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  View Signed Consent
+                </button>
               </div>
             </CollapsibleSection>
 
@@ -339,6 +466,34 @@
               :status="getEmploymentStatus()"
             >
               <div v-if="hasEmploymentData" class="space-y-4">
+                <!-- Income Sources Badges -->
+                <div class="flex flex-wrap gap-2 pb-3 border-b border-gray-200">
+                  <span v-if="fullDetails?.employment_status === 'employed' || fullDetails?.employment_status === 'contractor'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Employed
+                  </span>
+                  <span v-if="fullDetails?.employment_status === 'self_employed' || fullDetails?.employment_status === 'director'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    Self-Employed
+                  </span>
+                  <span v-if="fullDetails?.employment_status === 'unemployed'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    Unemployed
+                  </span>
+                  <span v-if="fullDetails?.employment_status === 'student'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    Student
+                  </span>
+                  <span v-if="fullDetails?.employment_status === 'retired'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    Retired
+                  </span>
+                  <span v-if="fullDetails?.savings_amount" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800">
+                    Savings
+                  </span>
+                  <span v-if="fullDetails?.additional_income_source" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                    Additional Income
+                  </span>
+                  <span v-if="fullDetails?.receives_benefits" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    Benefits
+                  </span>
+                </div>
+
                 <div class="grid grid-cols-2 gap-4">
                   <div>
                     <label class="block text-xs font-medium text-gray-500 uppercase">Employment Status</label>
@@ -359,6 +514,35 @@
                   <div v-if="fullDetails?.employment_start_date">
                     <label class="block text-xs font-medium text-gray-500 uppercase">Start Date</label>
                     <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.employment_start_date) }}</p>
+                  </div>
+                  <div v-if="fullDetails?.employment_type">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Employment Type</label>
+                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ fullDetails.employment_type.replace(/_/g, ' ') }}</p>
+                  </div>
+                  <div v-if="fullDetails?.compensation_type">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Pay Type</label>
+                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ fullDetails.compensation_type }}</p>
+                  </div>
+                  <div v-if="fullDetails?.hourly_rate">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Hourly Rate</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.hourly_rate)) }}</p>
+                  </div>
+                  <div v-if="fullDetails?.hours_per_month">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Hours/Month</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.hours_per_month }}</p>
+                  </div>
+                </div>
+
+                <!-- Company Address -->
+                <div v-if="fullDetails?.company_address_line_1" class="pt-3 border-t border-gray-200">
+                  <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Company Address</label>
+                  <div class="text-sm text-gray-900 space-y-0.5">
+                    <p>{{ fullDetails.company_address_line_1 }}</p>
+                    <p v-if="fullDetails.company_address_line_2">{{ fullDetails.company_address_line_2 }}</p>
+                    <p v-if="fullDetails.company_city || fullDetails.company_postcode">
+                      {{ fullDetails.company_city }}<span v-if="fullDetails.company_city && fullDetails.company_postcode">, </span>{{ fullDetails.company_postcode }}
+                    </p>
+                    <p v-if="fullDetails.company_country" class="text-gray-500">{{ fullDetails.company_country }}</p>
                   </div>
                 </div>
 
@@ -643,6 +827,86 @@
               <p v-else class="text-sm text-gray-500">Credit and AML checks not yet completed</p>
             </CollapsibleSection>
 
+            <!-- Notes -->
+            <CollapsibleSection v-if="fullDetails?.notes || fullDetails?.internal_notes || fullDetails?.verification_notes" title="Notes" :defaultOpen="false">
+              <div class="space-y-4">
+                <div v-if="fullDetails?.notes">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Reference Notes</label>
+                  <p class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ fullDetails.notes }}</p>
+                </div>
+                <div v-if="fullDetails?.internal_notes">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Internal Notes</label>
+                  <p class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ fullDetails.internal_notes }}</p>
+                </div>
+                <div v-if="fullDetails?.verification_notes">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Verification Notes</label>
+                  <p class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ fullDetails.verification_notes }}</p>
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            <!-- Timeline -->
+            <CollapsibleSection title="Timeline" :defaultOpen="false">
+              <div class="space-y-3">
+                <div v-if="fullDetails?.created_at" class="flex items-center gap-3">
+                  <div class="flex-shrink-0 w-2 h-2 rounded-full bg-gray-400"></div>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-900">Reference Created</p>
+                    <p class="text-xs text-gray-500">{{ formatDateTime(fullDetails.created_at) }}</p>
+                  </div>
+                </div>
+                <div v-if="fullDetails?.submitted_at" class="flex items-center gap-3">
+                  <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-900">Form Submitted by {{ person.role === 'TENANT' ? 'Tenant' : 'Guarantor' }}</p>
+                    <p class="text-xs text-gray-500">{{ formatDateTime(fullDetails.submitted_at) }}</p>
+                  </div>
+                </div>
+                <div v-if="employerRef?.submitted_at" class="flex items-center gap-3">
+                  <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-900">Employer Reference Submitted</p>
+                    <p class="text-xs text-gray-500">{{ formatDateTime(employerRef.submitted_at) }}</p>
+                  </div>
+                </div>
+                <div v-if="landlordRef?.submitted_at" class="flex items-center gap-3">
+                  <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-900">Landlord Reference Submitted</p>
+                    <p class="text-xs text-gray-500">{{ formatDateTime(landlordRef.submitted_at) }}</p>
+                  </div>
+                </div>
+                <div v-if="agentRef?.submitted_at" class="flex items-center gap-3">
+                  <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-900">Agent Reference Submitted</p>
+                    <p class="text-xs text-gray-500">{{ formatDateTime(agentRef.submitted_at) }}</p>
+                  </div>
+                </div>
+                <div v-if="accountantRef?.submitted_at" class="flex items-center gap-3">
+                  <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-900">Accountant Reference Submitted</p>
+                    <p class="text-xs text-gray-500">{{ formatDateTime(accountantRef.submitted_at) }}</p>
+                  </div>
+                </div>
+                <div v-if="fullDetails?.verified_at" class="flex items-center gap-3">
+                  <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-500"></div>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-900">Verification Completed</p>
+                    <p class="text-xs text-gray-500">{{ formatDateTime(fullDetails.verified_at) }}</p>
+                  </div>
+                </div>
+                <div v-if="fullDetails?.rejected_at" class="flex items-center gap-3">
+                  <div class="flex-shrink-0 w-2 h-2 rounded-full bg-red-500"></div>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-900">Reference Rejected</p>
+                    <p class="text-xs text-gray-500">{{ formatDateTime(fullDetails.rejected_at) }}</p>
+                  </div>
+                </div>
+              </div>
+            </CollapsibleSection>
+
             <!-- Audit Log -->
             <CollapsibleSection title="Activity Log" :defaultOpen="false">
               <ReferenceAuditLog v-if="person.id" :referenceId="person.id" />
@@ -865,6 +1129,7 @@ const fullDetails = ref<any>(null)
 const employerRef = ref<any>(null)
 const landlordRef = ref<any>(null)
 const agentRef = ref<any>(null)
+const accountantRef = ref<any>(null)
 const creditsafeVerification = ref<any>(null)
 const sanctionsScreening = ref<any>(null)
 const score = ref<any>(null)
@@ -910,6 +1175,7 @@ watch(() => [props.open, props.person?.id], async ([isOpen, personId]) => {
     employerRef.value = null
     landlordRef.value = null
     agentRef.value = null
+    accountantRef.value = null
     creditsafeVerification.value = null
     sanctionsScreening.value = null
     score.value = null
@@ -936,6 +1202,7 @@ async function loadFullDetails(referenceId: string) {
     employerRef.value = data.employerReference || null
     landlordRef.value = data.landlordReference || null
     agentRef.value = data.agentReference || null
+    accountantRef.value = data.accountantReference || null
     creditsafeVerification.value = data.creditsafeVerification || null
     sanctionsScreening.value = data.sanctionsScreening || null
     score.value = data.score || null
@@ -966,6 +1233,14 @@ const canSubmitForReReferencing = computed(() => {
 const canEdit = computed(() => {
   const finalStatuses = ['VERIFIED_PASS', 'VERIFIED_CONDITIONAL', 'VERIFIED_FAIL', 'ARCHIVED']
   return props.person?.status && !finalStatuses.includes(props.person.status)
+})
+
+// Check if we have any "About the Tenant" data to display
+const hasAboutTenantData = computed(() => {
+  return fullDetails.value?.is_smoker !== null ||
+         fullDetails.value?.has_pets !== null ||
+         fullDetails.value?.marital_status ||
+         fullDetails.value?.num_dependants !== null
 })
 
 // Extract documents from the reference record
@@ -1118,6 +1393,35 @@ function formatDate(dateStr: string): string {
     month: 'short',
     year: 'numeric'
   })
+}
+
+function formatDateTime(dateStr: string): string {
+  if (!dateStr) return 'N/A'
+  const date = new Date(dateStr)
+  return date.toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+async function viewDocument(path: string) {
+  if (!path) return
+  try {
+    const response = await fetch(`${API_BASE}/api/documents/signed-url?path=${encodeURIComponent(path)}`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      window.open(data.signedUrl, '_blank')
+    }
+  } catch (error) {
+    console.error('Error getting signed URL:', error)
+  }
 }
 
 function formatResidentialStatus(status: string | null | undefined): string {
