@@ -115,9 +115,17 @@ const isVerified = computed(() => {
   return ['VERIFIED_PASS', 'VERIFIED_CONDITIONAL', 'VERIFIED_FAIL'].includes(props.person.status)
 })
 
+const hasGuarantorCondition = computed(() => {
+  // Check if income section has PASS_WITH_CONDITION (indicates guarantor required)
+  const incomeSection = props.person.sectionStatuses?.find(s => s.type === 'INCOME')
+  return incomeSection?.decision === 'PASS_WITH_CONDITION'
+})
+
 const decisionLabel = computed(() => {
   switch (props.person.status) {
-    case 'VERIFIED_PASS': return 'Pass'
+    case 'VERIFIED_PASS':
+      // Check if income section required guarantor
+      return hasGuarantorCondition.value ? 'Pass with Guarantor' : 'Pass'
     case 'VERIFIED_CONDITIONAL': return 'Pass with Guarantor'
     case 'VERIFIED_FAIL': return 'Fail'
     default: return ''
@@ -125,6 +133,10 @@ const decisionLabel = computed(() => {
 })
 
 const decisionBadgeClass = computed(() => {
+  // Use amber for Pass with Guarantor, green for Pass, red for Fail
+  if (props.person.status === 'VERIFIED_PASS' && hasGuarantorCondition.value) {
+    return 'bg-amber-100 text-amber-800'
+  }
   switch (props.person.status) {
     case 'VERIFIED_PASS': return 'bg-green-100 text-green-800'
     case 'VERIFIED_CONDITIONAL': return 'bg-amber-100 text-amber-800'
