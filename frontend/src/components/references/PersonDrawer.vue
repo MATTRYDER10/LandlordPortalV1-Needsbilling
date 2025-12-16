@@ -79,9 +79,17 @@
             <button
               @click="handleViewCertificate"
               v-if="hasCertificate"
-              class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              :disabled="loadingCertificate"
+              class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
             >
-              View Certificate
+              <span v-if="loadingCertificate" class="flex items-center gap-1">
+                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading...
+              </span>
+              <span v-else>View Certificate</span>
             </button>
           </div>
         </div>
@@ -883,6 +891,7 @@ const updatingReferee = ref(false)
 // Loading states for actions
 const resendingForm = ref(false)
 const submittingForReRef = ref(false)
+const loadingCertificate = ref(false)
 
 // Toast messages
 const toastMessage = ref<string | null>(null)
@@ -1304,6 +1313,7 @@ function showToast(message: string, type: 'success' | 'error') {
 async function handleViewCertificate() {
   if (!props.person?.id) return
 
+  loadingCertificate.value = true
   try {
     // Fetch the certificate/report with authentication
     const response = await fetch(`${API_BASE}/api/references/${props.person.id}/report`, {
@@ -1327,6 +1337,9 @@ async function handleViewCertificate() {
     setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
   } catch (error) {
     console.error('Error viewing certificate:', error)
+    showToast('Failed to load certificate', 'error')
+  } finally {
+    loadingCertificate.value = false
   }
 }
 
