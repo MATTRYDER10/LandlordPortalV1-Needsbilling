@@ -248,6 +248,14 @@
                     <span class="ref-label">Employer</span>
                     <span class="ref-value">{{ evidenceEmployerRef.employerName }}</span>
                   </div>
+                  <div v-if="evidenceEmployerRef.jobTitle" class="ref-row">
+                    <span class="ref-label">Job Title</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.jobTitle }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.employmentType" class="ref-row">
+                    <span class="ref-label">Employment Type</span>
+                    <span class="ref-value">{{ formatEmploymentTypeLabel(evidenceEmployerRef.employmentType) }}</span>
+                  </div>
                   <div class="ref-row">
                     <span class="ref-label">Confirmed Salary</span>
                     <span class="ref-value highlight">{{ formatCurrency(evidenceEmployerRef.salary || 0) }}/year</span>
@@ -255,6 +263,14 @@
                   <div class="ref-row">
                     <span class="ref-label">Start Date</span>
                     <span class="ref-value">{{ formatDate(evidenceEmployerRef.employmentStartDate) }}</span>
+                  </div>
+                  <div class="ref-row">
+                    <span class="ref-label">Status</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.isCurrentlyEmployed ? 'Currently Employed' : (evidenceEmployerRef.employmentStatus || 'Not specified') }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.isProbation === true || evidenceEmployerRef.isProbation === 'yes'" class="ref-row">
+                    <span class="ref-label">Probation</span>
+                    <span class="ref-value">{{ formatProbationStatus(evidenceEmployerRef) }}</span>
                   </div>
                   <div class="ref-row">
                     <span class="ref-label">Submitted</span>
@@ -471,6 +487,12 @@ interface EvidenceEmployerRef {
   salary: number | null
   employmentStartDate: string
   submittedAt: string
+  jobTitle: string | null
+  employmentStatus: string | null
+  isCurrentlyEmployed: boolean | null
+  employmentType: string | null
+  isProbation: boolean | string | null
+  probationEndDate: string | null
 }
 
 interface EvidenceAccountantRef {
@@ -693,6 +715,33 @@ const formatEmploymentType = (type: string) => {
     other: 'Other'
   }
   return types[type] || type
+}
+
+const formatEmploymentTypeLabel = (type: string | null) => {
+  if (!type) return 'Not specified'
+  const types: Record<string, string> = {
+    'full_time': 'Full-time',
+    'part_time': 'Part-time',
+    'contract': 'Contract',
+    'permanent': 'Permanent',
+    'temporary': 'Temporary',
+    'zero_hours': 'Zero Hours',
+    'FULL_TIME': 'Full-time',
+    'PART_TIME': 'Part-time',
+    'CONTRACT': 'Contract',
+    'PERMANENT': 'Permanent',
+    'TEMPORARY': 'Temporary'
+  }
+  return types[type] || type.replace(/_/g, ' ')
+}
+
+const formatProbationStatus = (ref: EvidenceEmployerRef) => {
+  const isProbation = ref.isProbation === true || ref.isProbation === 'yes'
+  if (!isProbation) return 'No'
+  if (ref.probationEndDate) {
+    return `Yes (ends ${formatDate(ref.probationEndDate)})`
+  }
+  return 'Yes'
 }
 </script>
 

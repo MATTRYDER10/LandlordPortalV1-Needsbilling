@@ -1101,11 +1101,14 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         employerName: employerReference.employer_name_encrypted ? decrypt(employerReference.employer_name_encrypted) : null,
         contactName: employerReference.contact_name_encrypted ? decrypt(employerReference.contact_name_encrypted) : null,
         contactEmail: employerReference.contact_email_encrypted ? decrypt(employerReference.contact_email_encrypted) : null,
-        jobTitle: employerReference.job_title,
+        jobTitle: employerReference.employee_position_encrypted ? decrypt(employerReference.employee_position_encrypted) : null,
         employmentStartDate: employerReference.employment_start_date,
         salary: employerReference.annual_salary_encrypted ? parseFloat(decrypt(employerReference.annual_salary_encrypted) || '0') : null,
         employmentStatus: employerReference.employment_status,
         isCurrentlyEmployed: employerReference.is_currently_employed,
+        employmentType: employerReference.employment_type || null,
+        isProbation: employerReference.is_probation,
+        probationEndDate: employerReference.probation_end_date,
         submittedAt: employerReference.submitted_at,
         signaturePath: employerReference.signature_path
       };

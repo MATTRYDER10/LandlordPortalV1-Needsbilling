@@ -2986,53 +2986,58 @@ router.post('/upload/:token', (req, res, next) => {
         taxReturnPath || bankStatementPaths.length > 0 || payslipPaths.length > 0
 
       if (hasNewDocuments) {
-        // Update status to pending_verification
-        await supabase
-          .from('tenant_references')
-          .update({ status: 'pending_verification' })
-          .eq('id', reference.id)
+        // Check if reference is ready for verification (includes guarantor check)
+        const readiness = await isReadyForVerification(reference.id)
 
-        // Create or reactivate work item in VERIFY queue
-        const { data: existingWorkItem } = await supabase
-          .from('work_items')
-          .select('id, status')
-          .eq('reference_id', reference.id)
-          .eq('work_type', 'VERIFY')
-          .single()
+        if (readiness.isReady) {
+          // Update status to pending_verification
+          await supabase
+            .from('tenant_references')
+            .update({ status: 'pending_verification' })
+            .eq('id', reference.id)
 
-        if (existingWorkItem) {
-          // Reactivate existing work item and clear awaiting_documentation flag
-          await supabase
+          // Create or reactivate work item in VERIFY queue
+          const { data: existingWorkItem } = await supabase
             .from('work_items')
-            .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null, metadata: {} })
-            .eq('id', existingWorkItem.id)
-        } else {
-          // Create new work item
+            .select('id, status')
+            .eq('reference_id', reference.id)
+            .eq('work_type', 'VERIFY')
+            .single()
+
+          if (existingWorkItem) {
+            // Reactivate existing work item and clear awaiting_documentation flag
+            await supabase
+              .from('work_items')
+              .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null, metadata: {} })
+              .eq('id', existingWorkItem.id)
+          } else {
+            // Create new work item
+            await supabase
+              .from('work_items')
+              .insert({
+                reference_id: reference.id,
+                work_type: 'VERIFY',
+                status: 'AVAILABLE'
+              })
+          }
+
+          // Add note about document upload
           await supabase
-            .from('work_items')
+            .from('reference_notes')
             .insert({
               reference_id: reference.id,
-              work_type: 'VERIFY',
-              status: 'AVAILABLE'
+              note: 'Tenant uploaded requested document(s). Reference returned to verification queue.',
+              created_by: null // System-generated note
             })
-        }
 
-        // Add note about document upload
-        await supabase
-          .from('reference_notes')
-          .insert({
-            reference_id: reference.id,
-            note: 'Tenant uploaded requested document(s). Reference returned to verification queue.',
-            created_by: null // System-generated note
+          // Log audit action
+          await logAuditAction({
+            referenceId: reference.id,
+            action: 'DOCUMENT_UPLOADED_BY_TENANT',
+            description: 'Tenant uploaded document(s), reference returned to verification queue',
+            metadata: { previous_status: 'in_progress' }
           })
-
-        // Log audit action
-        await logAuditAction({
-          referenceId: reference.id,
-          action: 'DOCUMENT_UPLOADED_BY_TENANT',
-          description: 'Tenant uploaded document(s), reference returned to verification queue',
-          metadata: { previous_status: 'in_progress' }
-        })
+        }
       }
     }
 
@@ -3473,37 +3478,9 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
       return
     }
 
-    // Check all required references
-    let allReferencesSubmitted = true
-
-    // Check employer reference if required
-    if (tenantRef?.employer_ref_email) {
-      const { data: employerRef } = await supabase
-        .from('employer_references')
-        .select('id')
-        .eq('reference_id', referenceId)
-        .single()
-
-      if (!employerRef) {
-        allReferencesSubmitted = false
-      }
-    }
-
-    // Check accountant reference if required (self-employed)
-    if (tenantRef?.income_self_employed) {
-      const { data: accountantRef } = await supabase
-        .from('accountant_references')
-        .select('id, submitted_at')
-        .eq('tenant_reference_id', referenceId)
-        .single()
-
-      if (!accountantRef || !accountantRef.submitted_at) {
-        allReferencesSubmitted = false
-      }
-    }
-
-    // Only mark as pending verification if all required references are submitted
-    if (allReferencesSubmitted) {
+    // Check if reference is ready for verification (includes guarantor check)
+    const readiness = await isReadyForVerification(referenceId)
+    if (readiness.isReady) {
       await supabase
         .from('tenant_references')
         .update({ status: 'pending_verification' })
@@ -3612,37 +3589,9 @@ router.post('/agent/:referenceId', async (req: Request, res) => {
       return
     }
 
-    // Check all required references
-    let allReferencesSubmitted = true
-
-    // Check employer reference if required
-    if (tenantRef?.employer_ref_email) {
-      const { data: employerRef } = await supabase
-        .from('employer_references')
-        .select('id')
-        .eq('reference_id', referenceId)
-        .single()
-
-      if (!employerRef) {
-        allReferencesSubmitted = false
-      }
-    }
-
-    // Check accountant reference if required (self-employed)
-    if (tenantRef?.income_self_employed) {
-      const { data: accountantRef } = await supabase
-        .from('accountant_references')
-        .select('id, submitted_at')
-        .eq('tenant_reference_id', referenceId)
-        .single()
-
-      if (!accountantRef || !accountantRef.submitted_at) {
-        allReferencesSubmitted = false
-      }
-    }
-
-    // Only mark as pending verification if all required references are submitted
-    if (allReferencesSubmitted) {
+    // Check if reference is ready for verification (includes guarantor check)
+    const readiness = await isReadyForVerification(referenceId)
+    if (readiness.isReady) {
       await supabase
         .from('tenant_references')
         .update({ status: 'pending_verification' })
@@ -3743,49 +3692,9 @@ router.post('/employer/:referenceId', async (req: Request, res) => {
       return
     }
 
-    // Check all required references
-    let allReferencesSubmitted = true
-
-    // Check landlord or agent reference if required
-    if (tenantRef?.previous_landlord_email) {
-      if (tenantRef.reference_type === 'agent') {
-        const { data: agentRef } = await supabase
-          .from('agent_references')
-          .select('id')
-          .eq('reference_id', referenceId)
-          .single()
-
-        if (!agentRef) {
-          allReferencesSubmitted = false
-        }
-      } else {
-        const { data: landlordRef } = await supabase
-          .from('landlord_references')
-          .select('id')
-          .eq('reference_id', referenceId)
-          .single()
-
-        if (!landlordRef) {
-          allReferencesSubmitted = false
-        }
-      }
-    }
-
-    // Check accountant reference if required (self-employed)
-    if (tenantRef?.income_self_employed) {
-      const { data: accountantRef } = await supabase
-        .from('accountant_references')
-        .select('id, submitted_at')
-        .eq('tenant_reference_id', referenceId)
-        .single()
-
-      if (!accountantRef || !accountantRef.submitted_at) {
-        allReferencesSubmitted = false
-      }
-    }
-
-    // Only mark as pending verification if all required references are submitted
-    if (allReferencesSubmitted) {
+    // Check if reference is ready for verification (includes guarantor check)
+    const readiness = await isReadyForVerification(referenceId)
+    if (readiness.isReady) {
       await supabase
         .from('tenant_references')
         .update({ status: 'pending_verification' })
@@ -3879,49 +3788,9 @@ router.post('/accountant/:token', async (req: Request, res) => {
       return
     }
 
-    // Check all required references
-    let allReferencesSubmitted = true
-
-    // Check employer reference if required
-    if (tenantRef?.employer_ref_email) {
-      const { data: employerRef } = await supabase
-        .from('employer_references')
-        .select('id')
-        .eq('reference_id', accountantRef.tenant_reference_id)
-        .single()
-
-      if (!employerRef) {
-        allReferencesSubmitted = false
-      }
-    }
-
-    // Check landlord or agent reference if required
-    if (tenantRef?.previous_landlord_email) {
-      if (tenantRef.reference_type === 'agent') {
-        const { data: agentRef } = await supabase
-          .from('agent_references')
-          .select('id')
-          .eq('reference_id', accountantRef.tenant_reference_id)
-          .single()
-
-        if (!agentRef) {
-          allReferencesSubmitted = false
-        }
-      } else {
-        const { data: landlordRef } = await supabase
-          .from('landlord_references')
-          .select('id')
-          .eq('reference_id', accountantRef.tenant_reference_id)
-          .single()
-
-        if (!landlordRef) {
-          allReferencesSubmitted = false
-        }
-      }
-    }
-
-    // Only mark as pending verification if all required references are submitted
-    if (allReferencesSubmitted) {
+    // Check if reference is ready for verification (includes guarantor check)
+    const readiness = await isReadyForVerification(accountantRef.tenant_reference_id)
+    if (readiness.isReady) {
       await supabase
         .from('tenant_references')
         .update({ status: 'pending_verification' })
@@ -5416,6 +5285,836 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
     })
   } catch (error: any) {
     console.error('Failed to add guarantor from tenant form:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// RE-REFERENCING ENDPOINTS
+// These endpoints support the ACTION_REQUIRED → Re-referencing workflow
+// ============================================================================
+
+/**
+ * GET /:id/action-required-details
+ * Get details about why a reference has ACTION_REQUIRED status
+ * Returns sections with ACTION_REQUIRED decision and their reason codes
+ */
+router.get('/:id/action-required-details', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyId = companyUsers[0].company_id
+
+    // Verify reference belongs to company
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, status')
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get verification sections with ACTION_REQUIRED status
+    const { data: sections, error: sectionsError } = await supabase
+      .from('verification_sections')
+      .select(`
+        id,
+        section_type,
+        decision,
+        action_reason_code,
+        action_agent_note,
+        correction_cycle,
+        decision_at
+      `)
+      .eq('reference_id', referenceId)
+      .eq('decision', 'ACTION_REQUIRED')
+
+    if (sectionsError) {
+      console.error('Error fetching verification sections:', sectionsError)
+      return res.status(500).json({ error: 'Failed to fetch verification sections' })
+    }
+
+    // Get reason codes for display labels
+    const reasonCodes = sections?.map(s => s.action_reason_code).filter(Boolean) || []
+    let reasonCodeDetails: Record<string, { display_label: string; default_agent_message: string }> = {}
+
+    if (reasonCodes.length > 0) {
+      const { data: codes } = await supabase
+        .from('action_reason_codes')
+        .select('code, display_label, default_agent_message')
+        .in('code', reasonCodes)
+
+      if (codes) {
+        reasonCodeDetails = codes.reduce((acc, c) => {
+          acc[c.code] = { display_label: c.display_label, default_agent_message: c.default_agent_message }
+          return acc
+        }, {} as Record<string, { display_label: string; default_agent_message: string }>)
+      }
+    }
+
+    // Build response with enriched details
+    const actionRequiredSections = sections?.map(section => ({
+      sectionType: section.section_type,
+      reasonCode: section.action_reason_code,
+      reasonLabel: section.action_reason_code ? reasonCodeDetails[section.action_reason_code]?.display_label : null,
+      agentMessage: section.action_agent_note || (section.action_reason_code ? reasonCodeDetails[section.action_reason_code]?.default_agent_message : null),
+      correctionCycle: section.correction_cycle,
+      decisionAt: section.decision_at
+    })) || []
+
+    res.json({
+      referenceId,
+      hasActionRequired: actionRequiredSections.length > 0,
+      sections: actionRequiredSections
+    })
+  } catch (error: any) {
+    console.error('Error in GET /:id/action-required-details:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * POST /:id/upload-document
+ * Upload a document for a reference (agent context)
+ * Supports: id_document, selfie, payslips, bank_statement, proof_of_address, tax_return
+ */
+router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
+  const uploadMiddleware = upload.fields([
+    { name: 'id_document', maxCount: 1 },
+    { name: 'selfie', maxCount: 1 },
+    { name: 'payslips', maxCount: 10 },
+    { name: 'bank_statement', maxCount: 10 },
+    { name: 'proof_of_address', maxCount: 1 },
+    { name: 'tax_return', maxCount: 1 },
+    { name: 'proof_of_additional_income', maxCount: 1 }
+  ])
+
+  uploadMiddleware(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message })
+    }
+    next()
+  })
+}, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] }
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyId = companyUsers[0].company_id
+
+    // Verify reference belongs to company
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, status, payslip_files')
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    const updates: Record<string, any> = {}
+    const uploadedFiles: string[] = []
+
+    // Upload ID document
+    if (files.id_document && files.id_document[0]) {
+      const file = files.id_document[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/id_document/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload ID document: ${uploadError.message}`)
+      }
+
+      updates.id_document_path = fileName
+      uploadedFiles.push('id_document')
+    }
+
+    // Upload selfie
+    if (files.selfie && files.selfie[0]) {
+      const file = files.selfie[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/selfie/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload selfie: ${uploadError.message}`)
+      }
+
+      updates.selfie_path = fileName
+      uploadedFiles.push('selfie')
+    }
+
+    // Upload proof of address
+    if (files.proof_of_address && files.proof_of_address[0]) {
+      const file = files.proof_of_address[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/proof_of_address/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload proof of address: ${uploadError.message}`)
+      }
+
+      updates.proof_of_address_path = fileName
+      uploadedFiles.push('proof_of_address')
+    }
+
+    // Upload tax return
+    if (files.tax_return && files.tax_return[0]) {
+      const file = files.tax_return[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/tax_return/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload tax return: ${uploadError.message}`)
+      }
+
+      updates.tax_return_path = fileName
+      uploadedFiles.push('tax_return')
+    }
+
+    // Upload proof of additional income
+    if (files.proof_of_additional_income && files.proof_of_additional_income[0]) {
+      const file = files.proof_of_additional_income[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/proof_of_additional_income/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload proof of additional income: ${uploadError.message}`)
+      }
+
+      updates.proof_of_additional_income_path = fileName
+      uploadedFiles.push('proof_of_additional_income')
+    }
+
+    // Upload payslips (append to existing)
+    if (files.payslips && files.payslips.length > 0) {
+      const existingPayslips = reference.payslip_files || []
+      const newPayslipPaths: string[] = []
+
+      for (const file of files.payslips) {
+        const fileExt = file.originalname.split('.').pop()
+        const fileName = `${reference.id}/payslips/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('tenant-documents')
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+            upsert: false
+          })
+
+        if (uploadError) {
+          throw new Error(`Failed to upload payslip: ${uploadError.message}`)
+        }
+
+        newPayslipPaths.push(fileName)
+      }
+
+      updates.payslip_files = [...existingPayslips, ...newPayslipPaths]
+      uploadedFiles.push(`payslips (${newPayslipPaths.length})`)
+    }
+
+    // Upload bank statements (append to existing)
+    if (files.bank_statement && files.bank_statement.length > 0) {
+      const newBankStatementPaths: string[] = []
+
+      for (const file of files.bank_statement) {
+        const fileExt = file.originalname.split('.').pop()
+        const fileName = `${reference.id}/bank_statements/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('tenant-documents')
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+            upsert: false
+          })
+
+        if (uploadError) {
+          throw new Error(`Failed to upload bank statement: ${uploadError.message}`)
+        }
+
+        newBankStatementPaths.push(fileName)
+      }
+
+      // Note: bank_statements might need to be stored differently based on existing schema
+      uploadedFiles.push(`bank_statements (${newBankStatementPaths.length})`)
+    }
+
+    // Update reference if we have any updates
+    if (Object.keys(updates).length > 0) {
+      const { error: updateError } = await supabase
+        .from('tenant_references')
+        .update(updates)
+        .eq('id', referenceId)
+
+      if (updateError) {
+        throw new Error(`Failed to update reference: ${updateError.message}`)
+      }
+    }
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'DOCUMENTS_UPLOADED_BY_AGENT',
+      description: `Agent uploaded documents: ${uploadedFiles.join(', ')}`,
+      metadata: { uploadedFiles },
+      userId
+    })
+
+    res.json({
+      message: 'Documents uploaded successfully',
+      uploadedFiles
+    })
+  } catch (error: any) {
+    console.error('Error in POST /:id/upload-document:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * PATCH /:id/referee
+ * Update referee email (employer, landlord, or accountant)
+ * Will create new referee reference record if email changed
+ */
+router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+    const { type, email, name } = req.body
+
+    if (!type || !['employer', 'landlord', 'accountant'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid referee type. Must be employer, landlord, or accountant.' })
+    }
+
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email address' })
+    }
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyId = companyUsers[0].company_id
+
+    // Verify reference belongs to company and get current details
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*')
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get company info for email sending
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted')
+      .eq('id', companyId)
+      .single()
+
+    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : ''
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
+    const propertyAddress = decrypt(reference.property_address_encrypted) || ''
+
+    let result: any = {}
+
+    if (type === 'employer') {
+      // Update employer email on tenant_references
+      const oldEmail = decrypt(reference.employer_email_encrypted) || ''
+
+      await supabase
+        .from('tenant_references')
+        .update({
+          employer_email_encrypted: encrypt(email),
+          employer_name_encrypted: name ? encrypt(name) : reference.employer_name_encrypted
+        })
+        .eq('id', referenceId)
+
+      // Generate new token and create/update employer reference
+      const newToken = generateToken()
+      const newTokenHash = hash(newToken)
+
+      // Check if employer reference exists
+      const { data: existingRef } = await supabase
+        .from('employer_references')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .single()
+
+      if (existingRef) {
+        // Update existing with new token
+        await supabase
+          .from('employer_references')
+          .update({
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            submitted_at: null // Reset submission
+          })
+          .eq('id', existingRef.id)
+      } else {
+        // Create new employer reference
+        await supabase
+          .from('employer_references')
+          .insert({
+            reference_id: referenceId,
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          })
+      }
+
+      // Send email to new employer
+      const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${newToken}`
+      await sendEmployerReferenceRequest(
+        email,
+        name || 'Employer',
+        tenantName,
+        formUrl,
+        companyName,
+        propertyAddress
+      )
+
+      result = { type: 'employer', oldEmail, newEmail: email, emailSent: true }
+    } else if (type === 'landlord') {
+      // Update landlord email on tenant_references
+      const oldEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+
+      await supabase
+        .from('tenant_references')
+        .update({
+          previous_landlord_email_encrypted: encrypt(email),
+          previous_landlord_name_encrypted: name ? encrypt(name) : reference.previous_landlord_name_encrypted
+        })
+        .eq('id', referenceId)
+
+      // Generate new token and create/update landlord reference
+      const newToken = generateToken()
+      const newTokenHash = hash(newToken)
+
+      const { data: existingRef } = await supabase
+        .from('landlord_references')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .single()
+
+      if (existingRef) {
+        await supabase
+          .from('landlord_references')
+          .update({
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            submitted_at: null
+          })
+          .eq('id', existingRef.id)
+      } else {
+        await supabase
+          .from('landlord_references')
+          .insert({
+            reference_id: referenceId,
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          })
+      }
+
+      // Send email to new landlord
+      const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-landlord-reference/${newToken}`
+      await sendLandlordReferenceRequest(
+        email,
+        name || 'Previous Landlord',
+        tenantName,
+        formUrl,
+        companyName,
+        propertyAddress
+      )
+
+      result = { type: 'landlord', oldEmail, newEmail: email, emailSent: true }
+    } else if (type === 'accountant') {
+      // Update accountant email on tenant_references
+      const oldEmail = decrypt(reference.accountant_email_encrypted) || ''
+
+      await supabase
+        .from('tenant_references')
+        .update({
+          accountant_email_encrypted: encrypt(email),
+          accountant_name_encrypted: name ? encrypt(name) : reference.accountant_name_encrypted
+        })
+        .eq('id', referenceId)
+
+      // Generate new token and create/update accountant reference
+      const newToken = generateToken()
+      const newTokenHash = hash(newToken)
+
+      const { data: existingRef } = await supabase
+        .from('accountant_references')
+        .select('id')
+        .eq('tenant_reference_id', referenceId)
+        .single()
+
+      if (existingRef) {
+        await supabase
+          .from('accountant_references')
+          .update({
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            submitted_at: null
+          })
+          .eq('id', existingRef.id)
+      } else {
+        await supabase
+          .from('accountant_references')
+          .insert({
+            tenant_reference_id: referenceId,
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          })
+      }
+
+      // Send email to new accountant
+      const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-accountant-reference/${newToken}`
+      await sendAccountantReferenceRequest(
+        email,
+        name || 'Accountant',
+        tenantName,
+        formUrl,
+        companyName,
+        propertyAddress
+      )
+
+      result = { type: 'accountant', oldEmail, newEmail: email, emailSent: true }
+    }
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'REFEREE_EMAIL_UPDATED',
+      description: `${type} email updated from ${result.oldEmail || 'none'} to ${email}`,
+      metadata: { ...result, updatedBy: 'agent' },
+      userId
+    })
+
+    res.json({
+      message: `${type.charAt(0).toUpperCase() + type.slice(1)} email updated and reference request sent`,
+      ...result
+    })
+  } catch (error: any) {
+    console.error('Error in PATCH /:id/referee:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * POST /:id/resend-form
+ * Resend the form to the tenant (not referees)
+ * Used when agent wants tenant to fix their own submission
+ */
+router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const userId = req.user?.id
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyId = companyUsers[0].company_id
+
+    // Verify reference belongs to company
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*')
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get company info
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .eq('id', companyId)
+      .single()
+
+    const tenantEmail = decrypt(reference.tenant_email_encrypted) || ''
+    const tenantFirstName = decrypt(reference.tenant_first_name_encrypted) || ''
+    const tenantLastName = decrypt(reference.tenant_last_name_encrypted) || ''
+    const tenantName = `${tenantFirstName} ${tenantLastName}`
+    const propertyAddress = decrypt(reference.property_address_encrypted) || ''
+
+    // Generate a new token for this resend
+    const newToken = generateToken()
+    const newTokenHash = hash(newToken)
+
+    // Update the reference with the new token hash
+    await supabase
+      .from('tenant_references')
+      .update({ reference_token_hash: newTokenHash })
+      .eq('id', referenceId)
+
+    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${newToken}`
+
+    const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : ''
+    const companyPhone = companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : ''
+    const companyEmail = companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
+
+    await sendTenantReferenceRequest(
+      tenantEmail,
+      tenantName,
+      tenantReferenceUrl,
+      companyName,
+      propertyAddress,
+      companyPhone || undefined,
+      companyEmail || undefined,
+      referenceId
+    )
+
+    // Send SMS to tenant (non-blocking)
+    const tenantPhone = decrypt(reference.tenant_phone_encrypted)
+    if (tenantPhone) {
+      sendTenantReferenceRequestSMS(
+        tenantPhone,
+        tenantName,
+        tenantReferenceUrl,
+        companyName,
+        propertyAddress,
+        referenceId
+      ).catch(err => console.error('Failed to send SMS to tenant:', err))
+    }
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'FORM_RESENT_FOR_CORRECTION',
+      description: `Tenant form resent to ${tenantEmail} for corrections`,
+      metadata: { emailType: 'tenant', recipient: tenantEmail, reason: 'action_required_correction' },
+      userId
+    })
+
+    res.json({
+      message: 'Form resent to tenant successfully',
+      email: tenantEmail
+    })
+  } catch (error: any) {
+    console.error('Failed to resend form:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * POST /:id/submit-for-re-referencing
+ * Submit reference for re-referencing after ACTION_REQUIRED edits
+ * - If new referee email was added: status → in_progress
+ * - If evidence ready: status → pending_verification (back to Verify queue)
+ * - Sets urgent_reverify = true
+ */
+router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const userId = req.user?.id
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyId = companyUsers[0].company_id
+
+    // Verify reference belongs to company and get current status
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select(`
+        id, status, is_guarantor,
+        employer_email_encrypted, previous_landlord_email_encrypted, accountant_email_encrypted,
+        id_document_path, selfie_path, payslip_files, tax_return_path,
+        proof_of_additional_income_path, confirmed_residential_status,
+        income_student, income_regular_employment, income_self_employed, income_benefits,
+        benefits_annual_amount_encrypted,
+        employer_references (id, submitted_at),
+        landlord_references (id, submitted_at),
+        agent_references (id, submitted_at),
+        accountant_references (id, submitted_at)
+      `)
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (refError || !reference) {
+      console.log(`[submit-for-re-referencing] Reference not found: refId=${referenceId}, companyId=${companyId}, error=${refError?.message}`)
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    console.log(`[submit-for-re-referencing] Found reference: ${reference.id}, status=${reference.status}`)
+
+    // Check if there are any ACTION_REQUIRED sections
+    const { data: actionRequiredSections } = await supabase
+      .from('verification_sections')
+      .select('id, section_type, action_reason_code')
+      .eq('reference_id', referenceId)
+      .eq('decision', 'ACTION_REQUIRED')
+
+    if (!actionRequiredSections || actionRequiredSections.length === 0) {
+      return res.status(400).json({ error: 'No ACTION_REQUIRED sections to resubmit' })
+    }
+
+    // Check if any section required a new referee (and the referee hasn't responded yet)
+    const refereeCodes = ['NEW_EMPLOYER_REF', 'NEW_LANDLORD_REF', 'NEW_ACCOUNTANT_REF']
+    const needsReferee = actionRequiredSections.some(s => refereeCodes.includes(s.action_reason_code || ''))
+
+    // Check if referees have NOT yet submitted
+    const employerSubmitted = reference.employer_references?.some((er: any) => er.submitted_at)
+    const landlordSubmitted = reference.landlord_references?.some((lr: any) => lr.submitted_at)
+    const accountantSubmitted = reference.accountant_references?.some((ar: any) => ar.submitted_at)
+
+    // Determine new status
+    let newStatus = 'pending_verification' // Default: go to Verify queue
+
+    if (needsReferee) {
+      // Check if waiting for specific referee
+      const needsEmployer = actionRequiredSections.some(s => s.action_reason_code === 'NEW_EMPLOYER_REF')
+      const needsLandlord = actionRequiredSections.some(s => s.action_reason_code === 'NEW_LANDLORD_REF')
+      const needsAccountant = actionRequiredSections.some(s => s.action_reason_code === 'NEW_ACCOUNTANT_REF')
+
+      if ((needsEmployer && !employerSubmitted) ||
+          (needsLandlord && !landlordSubmitted) ||
+          (needsAccountant && !accountantSubmitted)) {
+        newStatus = 'in_progress' // Waiting for referee response
+      }
+    }
+
+    // Check readiness if not already waiting for referee
+    if (newStatus === 'pending_verification') {
+      const readiness = await isReadyForVerification(referenceId)
+      if (!readiness.isReady) {
+        newStatus = 'in_progress' // Not ready yet
+      }
+    }
+
+    // Reset ACTION_REQUIRED sections to NOT_REVIEWED
+    await supabase
+      .from('verification_sections')
+      .update({
+        decision: 'NOT_REVIEWED',
+        decision_by: null,
+        decision_at: null
+      })
+      .eq('reference_id', referenceId)
+      .eq('decision', 'ACTION_REQUIRED')
+
+    // Update reference status and set urgent_reverify
+    await supabase
+      .from('tenant_references')
+      .update({
+        status: newStatus,
+        urgent_reverify: true
+      })
+      .eq('id', referenceId)
+
+    // Log to audit trail
+    await logAuditAction({
+      referenceId,
+      action: 'SUBMITTED_FOR_RE_REFERENCING',
+      description: `Reference submitted for re-referencing. New status: ${newStatus}`,
+      metadata: {
+        previousSections: actionRequiredSections.map(s => s.section_type),
+        newStatus,
+        urgentReverify: true
+      },
+      userId
+    })
+
+    res.json({
+      message: 'Reference submitted for re-referencing',
+      newStatus,
+      urgentReverify: true
+    })
+  } catch (error: any) {
+    console.error('Error in POST /:id/submit-for-re-referencing:', error)
     res.status(500).json({ error: error.message })
   }
 })

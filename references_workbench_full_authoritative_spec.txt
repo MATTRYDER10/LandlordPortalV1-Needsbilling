@@ -1,0 +1,378 @@
+Version: 1.0 FINAL
+Audience: Front-end developers, tech lead, product owner, LLM-assisted builders
+
+====================================================================
+SECTION 1: PURPOSE AND GOALS
+====================================================================
+
+This document defines the complete rebuild of the References page into a
+tenancy-centric workbench. It is the single source of truth for how the page
+must look, behave, and reason about data.
+
+The primary objectives are:
+- Make multi-tenant references easy to understand at a glance
+- Remove ambiguity around statuses and progression
+- Allow early failure handling without blocking entire groups
+- Provide a clean, fast workflow for agents
+- Ensure deterministic logic for developers
+- Reduce operational back-and-forth and misinterpretation
+
+This document prioritises clarity, density, and usability.
+There should be NO wasted space, NO duplicated signals, and NO unclear states.
+
+====================================================================
+SECTION 2: CORE MODEL (NON-NEGOTIABLE)
+====================================================================
+
+1. The TENANCY is the primary unit of work.
+2. One row equals one tenancy – always.
+3. People progress independently; the tenancy inherits the worst outstanding state.
+4. A tenancy has exactly ONE visible status at all times.
+5. Individual tenants or guarantors may:
+   - Pass
+   - Fail
+   - Require action
+6. If ANY required person requires action, the tenancy requires action.
+7. A tenancy is never split across multiple statuses or rows.
+
+Examples:
+- 4 tenants verified, 1 Action Required → Tenancy = ACTION REQUIRED
+- All data returned, staff reviewing → Tenancy = AWAITING VERIFICATION
+- One person has not completed a form → Tenancy = IN PROGRESS
+
+====================================================================
+SECTION 3: STATUS DEFINITIONS AND LOGIC
+====================================================================
+
+-----------------
+PERSON STATUS
+-----------------
+
+Derived, never manually set:
+
+- NOT_STARTED
+  No form activity, no data submitted.
+
+- IN_PROGRESS
+  Form started OR references sent OR external dependency outstanding.
+
+- AWAITING_VERIFICATION
+  All required data and references returned, awaiting staff review.
+
+- ACTION_REQUIRED
+  Staff have failed one or more verification sections and returned tasks
+  to the agent.
+
+- VERIFIED_PASS
+- VERIFIED_CONDITIONAL
+- VERIFIED_FAIL
+
+- ARCHIVED
+  Person replaced; excluded from all rollups and UI.
+
+-----------------
+TENANCY STATUS
+-----------------
+
+Derived from active (non-archived) people:
+
+1. ACTION_REQUIRED
+   If ANY person has ACTION_REQUIRED.
+
+2. AWAITING_VERIFICATION
+   If ALL required data for ALL people is returned and none require action.
+
+3. IN_PROGRESS
+   If ANY external dependency exists.
+
+4. SENT
+   If nobody has started.
+
+5. COMPLETED / REJECTED
+   Final staff-set states only.
+
+Priority order:
+ACTION_REQUIRED > AWAITING_VERIFICATION > IN_PROGRESS > SENT
+
+====================================================================
+SECTION 4: PAGE STRUCTURE
+====================================================================
+
+Page name: References Workbench
+
+Layout:
+- Sticky top bar: search, filters, sort
+- Sticky status tabs
+- Scrollable tenancy list
+- Global right-hand drawer (slides over page)
+
+Tabs:
+- All
+- In Progress
+- Awaiting Verification
+- Action Required
+- Completed
+- Rejected
+
+Default sort:
+- Move-in date (ascending)
+
+====================================================================
+SECTION 5: VISUAL DESIGN RULES
+====================================================================
+
+This page must be DENSE but CALM.
+
+-----------------
+COLOURS (SEMANTIC)
+-----------------
+Green  = Verified / Completed
+Amber  = Waiting / In Progress / Awaiting Verification
+Red    = Action Required / Failed
+Grey   = Neutral / Metadata
+Purple = URGENT (re-verify priority only)
+
+-----------------
+SPACING
+-----------------
+- Tight vertical spacing
+- No empty rows or decorative whitespace
+- Content grouped logically with dividers, not padding
+
+-----------------
+TYPOGRAPHY
+-----------------
+- Property / person name: primary emphasis
+- Status pill: secondary emphasis
+- Blocking sentence: high contrast, readable
+- Chips: compact, consistent size
+
+====================================================================
+SECTION 6: TENANCY LIST (COLLAPSED VIEW)
+====================================================================
+
+Each row shows:
+
+Line 1:
+- Property name / address (left)
+- Move-in date (right)
+
+Line 2:
+- Tenancy status pill
+- URGENT tag if urgent_reverify = true
+
+Line 3:
+- Blocking sentence (single line only)
+  Examples:
+  - Blocking: Action Required – Right to Rent (1)
+  - Blocking: Awaiting employer reference (2)
+  - Blocking: Awaiting verification (1)
+
+Line 4:
+- Progress + check chips
+  - Tenants: X / Y verified
+  - Guarantors: X / Y verified
+  - Check chips (counts only):
+    ID, RTR, Income, Employment, Residential, Credit, POA, AML
+    Failures shown as ❌N
+
+Right-side actions menu:
+- Create agreement
+- Resend outstanding forms (backend chooses recipients)
+- View tenancy certificate pack
+- Delete tenancy
+
+====================================================================
+SECTION 7: EXPANDED TENANCY VIEW
+====================================================================
+
+-----------------
+ACTION REQUIRED BANNER
+-----------------
+Only visible when tenancy is ACTION_REQUIRED.
+
+Displays:
+- Person name
+- Section failed
+- Staff note
+
+CTA:
+- Resolve now (scrolls to affected person)
+
+-----------------
+TENANT CARDS
+-----------------
+
+Each tenant card displays:
+- Tenant name
+- Rent share
+- Status badge
+- Mini section strip:
+  ID | RTR | Income | Emp | Res | Credit | POA | AML
+- Actions:
+  Open | Chase | Replace
+
+-----------------
+GUARANTORS (NESTED)
+-----------------
+
+- Guarantors appear directly under their tenant.
+- Guarantors are never top-level items.
+- Guarantor covers tenant rent share.
+- Multiple guarantors supported (rare).
+
+Add guarantor:
+- Button always visible before verification complete.
+- Adding guarantor instantly sends invite via:
+  Email + SMS + AI phone call.
+
+====================================================================
+SECTION 8: PERSON DRAWER (TENANT / GUARANTOR)
+====================================================================
+
+Header:
+- Full name
+- Role badge
+- Rent share (tenant) or guaranteed share (guarantor)
+- Status badge
+
+Actions:
+- Resend form
+- Replace person
+- View certificate (if exists)
+
+-----------------
+ACTION REQUIRED TASKS
+-----------------
+
+Pulled from staff backend.
+
+Each task includes:
+- Section
+- Reason code
+- Staff note
+- Required action type
+
+Only fields related to open tasks are editable.
+
+Sections include:
+- Right to Rent
+- ID
+- AML / PEP / Sanctions
+- Income
+- Credit
+- Proof of Address
+- Employment referee
+- Residential referee
+- Accountant referee
+
+-----------------
+RIGHT TO RENT (RTR)
+-----------------
+
+Fields:
+- share_code
+- visa_expiry_date
+- document upload
+- notes
+
+Used for:
+- expired visa
+- invalid share code
+- mismatch
+
+-----------------
+EVIDENCE UPLOAD
+-----------------
+
+Evidence types:
+- ID
+- Visa
+- Share code evidence
+- Payslip
+- Bank statement
+- Employer letter
+- Accountant letter
+- Self assessment
+- Proof of address
+- Other (note required)
+
+Multiple files allowed.
+
+-----------------
+REFEREE EDITING
+-----------------
+
+Editable:
+- name
+- email
+- phone
+- relationship
+
+On save:
+- Prompt: Resend now?
+- If yes: send email + SMS + AI phone
+
+-----------------
+RENT SHARE EDITOR
+-----------------
+
+- Group-level editor
+- All tenant shares visible
+- Totals validated
+- Affordability preview:
+  Tenant = salary / 30
+  Guarantor = salary / 32 (applied to tenant share)
+
+-----------------
+SUBMIT FOR RE-REFERENCING
+-----------------
+
+- One person at a time
+- Max 2 correction cycles
+- If referee resent → IN_PROGRESS
+- If evidence only → AWAITING_VERIFICATION
+- Tenancy marked urgent_reverify = true
+
+-----------------
+AUDIT LOG
+-----------------
+
+Append-only:
+- Staff failures
+- Agent edits
+- Uploads
+- Chases
+- Resends
+- Replacements
+- Submissions
+
+====================================================================
+SECTION 9: CHASING RULES
+====================================================================
+
+- Agent chase sends email + SMS + AI phone
+- Cooldown: 4 hours per referee
+- Agent chase removes referee from staff chase queue
+
+====================================================================
+SECTION 10: CERTIFICATES
+====================================================================
+
+- Individual certificates per person
+- Tenancy certificate pack on completion
+- Old certificates remain if re-verify occurs
+- New certificate generated post re-verify
+
+====================================================================
+SECTION 11: IMPLEMENTATION NOTES
+====================================================================
+
+- No tables with horizontal scrolling
+- No duplicated status indicators
+- Counts over icons
+- Tight layout
+- Deterministic logic only
+- Backend verify integrates later but must respect this model
+
+END OF AUTHORITATIVE SPEC

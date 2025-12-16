@@ -51,6 +51,7 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         selfie_path,
         tax_return_path,
         payslip_files,
+        proof_of_additional_income_path,
         confirmed_residential_status,
         previous_landlord_email_encrypted,
         employer_references (id, submitted_at),
@@ -119,10 +120,15 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
     }
 
     // 4. RESIDENTIAL SECTION - Landlord/Agent reference or alternative status
-    const residentialComplete = checkResidentialSection(reference)
-    sectionStatus.residential = residentialComplete
-    if (!residentialComplete.complete) {
-      missingItems.push(residentialComplete.reason || 'Residential verification incomplete')
+    // NOTE: Guarantors do NOT require residential verification
+    if (reference.is_guarantor) {
+      sectionStatus.residential = { complete: true, reason: 'Guarantors do not require residential verification' }
+    } else {
+      const residentialComplete = checkResidentialSection(reference)
+      sectionStatus.residential = residentialComplete
+      if (!residentialComplete.complete) {
+        missingItems.push(residentialComplete.reason || 'Residential verification incomplete')
+      }
     }
 
     // 5. IDENTITY SECTION - ID document and selfie required
@@ -160,74 +166,89 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
 
 /**
  * Check if income section is complete based on employment type
+ *
+ * Rules:
+ * - Student ONLY (no other income): Auto-complete
+ * - Student + other income: Need evidence for the other income type
+ * - Employed: ANY payslips uploaded OR employer reference submitted
+ * - Self-employed: Tax return uploaded OR accountant reference submitted
+ * - Benefits: Evidence uploaded AND amount declared
+ * - No income declared: Auto-complete
  */
 function checkIncomeSection(reference: any): SectionStatus {
-  // Students don't need income proof
-  if (reference.income_student) {
-    return { complete: true, reason: 'Student - no income proof required' }
+  const isStudent = !!reference.income_student
+  const isEmployed = !!reference.income_regular_employment
+  const isSelfEmployed = !!reference.income_self_employed
+  const hasBenefits = !!reference.income_benefits
+
+  // Student ONLY (no other income types) - auto-complete
+  if (isStudent && !isEmployed && !isSelfEmployed && !hasBenefits) {
+    return { complete: true, reason: 'Student only - no income proof required' }
   }
 
-  // If employed - need employer reference OR 3+ payslips
-  if (reference.income_regular_employment) {
+  // Check each income type that was selected (student may have additional income)
+  const incomeIssues: string[] = []
+
+  // If employed - need employer reference OR ANY payslips
+  if (isEmployed) {
     const hasEmployerRef = reference.employer_references?.some((er: any) => er.submitted_at)
     const payslipCount = reference.payslip_files?.length || 0
-    const hasEnoughPayslips = payslipCount >= 3
+    const hasPayslips = payslipCount > 0
 
-    if (hasEmployerRef) {
-      return { complete: true }
-    }
-    if (hasEnoughPayslips) {
-      return { complete: true, reason: '3+ payslips uploaded' }
-    }
-
-    return {
-      complete: false,
-      reason: `Employed: need employer reference OR 3+ payslips (have ${payslipCount})`
+    if (!hasEmployerRef && !hasPayslips) {
+      incomeIssues.push('Employed: need employer reference OR payslips')
     }
   }
 
   // If self-employed - need accountant reference OR tax return
-  if (reference.income_self_employed) {
+  if (isSelfEmployed) {
     const hasAccountantRef = reference.accountant_references?.some((ar: any) => ar.submitted_at)
     const hasTaxReturn = !!reference.tax_return_path
 
-    if (hasAccountantRef) {
-      return { complete: true }
-    }
-    if (hasTaxReturn) {
-      return { complete: true, reason: 'Tax return uploaded' }
-    }
-
-    return {
-      complete: false,
-      reason: 'Self-employed: need accountant reference OR tax return'
+    if (!hasAccountantRef && !hasTaxReturn) {
+      incomeIssues.push('Self-employed: need accountant reference OR tax return')
     }
   }
 
-  // If benefits only - check benefits fields are filled
-  if (reference.income_benefits) {
-    if (reference.benefits_annual_amount_encrypted) {
-      return { complete: true }
+  // If benefits - need amount declared AND evidence uploaded
+  if (hasBenefits) {
+    const hasAmount = !!reference.benefits_annual_amount_encrypted
+    const hasEvidence = !!reference.proof_of_additional_income_path
+
+    if (!hasAmount || !hasEvidence) {
+      const missing = []
+      if (!hasAmount) missing.push('amount declared')
+      if (!hasEvidence) missing.push('evidence uploaded')
+      incomeIssues.push(`Benefits: need ${missing.join(' and ')}`)
     }
+  }
+
+  // If any income issues, return incomplete
+  if (incomeIssues.length > 0) {
     return {
       complete: false,
-      reason: 'Benefits income: need benefits amount filled'
+      reason: incomeIssues.join('; ')
     }
+  }
+
+  // If we had any income types selected and passed all checks, we're complete
+  if (isEmployed || isSelfEmployed || hasBenefits) {
+    return { complete: true }
   }
 
   // No income type selected - check if any income fields are filled
   const hasSalary = !!reference.employment_salary_amount_encrypted
-  const hasBenefits = !!reference.benefits_annual_amount_encrypted
-  const hasSelfEmployed = !!reference.self_employed_annual_income_encrypted
+  const hasBenefitsAmount = !!reference.benefits_annual_amount_encrypted
+  const hasSelfEmployedIncome = !!reference.self_employed_annual_income_encrypted
 
-  if (hasSalary || hasBenefits || hasSelfEmployed) {
-    // Some income declared - check if verification evidence exists
+  if (hasSalary || hasBenefitsAmount || hasSelfEmployedIncome) {
+    // Some income declared but no type selected - check if verification evidence exists
     const hasEmployerRef = reference.employer_references?.some((er: any) => er.submitted_at)
     const hasAccountantRef = reference.accountant_references?.some((ar: any) => ar.submitted_at)
     const payslipCount = reference.payslip_files?.length || 0
     const hasTaxReturn = !!reference.tax_return_path
 
-    if (hasEmployerRef || hasAccountantRef || payslipCount >= 3 || hasTaxReturn) {
+    if (hasEmployerRef || hasAccountantRef || payslipCount > 0 || hasTaxReturn) {
       return { complete: true }
     }
 
@@ -277,4 +298,131 @@ function checkResidentialSection(reference: any): SectionStatus {
 export async function isReady(referenceId: string): Promise<boolean> {
   const result = await isReadyForVerification(referenceId)
   return result.isReady
+}
+
+/**
+ * Sync version of readiness check for use with pre-fetched reference data.
+ * This is used by the /references page to determine display status without additional DB calls.
+ *
+ * The reference object must include these fields:
+ * - is_guarantor, status
+ * - income_student, income_regular_employment, income_self_employed, income_benefits
+ * - id_document_path, selfie_path, tax_return_path, payslip_files
+ * - proof_of_additional_income_path, benefits_annual_amount_encrypted
+ * - confirmed_residential_status, previous_landlord_email_encrypted
+ * - employer_references, landlord_references, agent_references, accountant_references (as arrays with submitted_at)
+ */
+export function isReadyForVerificationSync(reference: any): { isReady: boolean; reason?: string } {
+  // 1. Check identity (ID + selfie required)
+  if (!reference.id_document_path || !reference.selfie_path) {
+    const missing = []
+    if (!reference.id_document_path) missing.push('ID document')
+    if (!reference.selfie_path) missing.push('selfie')
+    return { isReady: false, reason: `Missing: ${missing.join(', ')}` }
+  }
+
+  // 2. Check income
+  const incomeCheck = checkIncomeSectionSync(reference)
+  if (!incomeCheck.complete) {
+    return { isReady: false, reason: incomeCheck.reason }
+  }
+
+  // 3. Check residential (only for tenants, not guarantors)
+  if (!reference.is_guarantor) {
+    const residentialCheck = checkResidentialSectionSync(reference)
+    if (!residentialCheck.complete) {
+      return { isReady: false, reason: residentialCheck.reason }
+    }
+  }
+
+  return { isReady: true }
+}
+
+/**
+ * Sync version of income check
+ */
+function checkIncomeSectionSync(reference: any): SectionStatus {
+  const isStudent = !!reference.income_student
+  const isEmployed = !!reference.income_regular_employment
+  const isSelfEmployed = !!reference.income_self_employed
+  const hasBenefits = !!reference.income_benefits
+
+  // Student ONLY (no other income types) - auto-complete
+  if (isStudent && !isEmployed && !isSelfEmployed && !hasBenefits) {
+    return { complete: true, reason: 'Student only - no income proof required' }
+  }
+
+  const incomeIssues: string[] = []
+
+  // If employed - need employer reference OR ANY payslips
+  if (isEmployed) {
+    const hasEmployerRef = reference.employer_references?.some((er: any) => er.submitted_at)
+    const payslipCount = reference.payslip_files?.length || 0
+    const hasPayslips = payslipCount > 0
+
+    if (!hasEmployerRef && !hasPayslips) {
+      incomeIssues.push('Employed: need employer reference OR payslips')
+    }
+  }
+
+  // If self-employed - need accountant reference OR tax return
+  if (isSelfEmployed) {
+    const hasAccountantRef = reference.accountant_references?.some((ar: any) => ar.submitted_at)
+    const hasTaxReturn = !!reference.tax_return_path
+
+    if (!hasAccountantRef && !hasTaxReturn) {
+      incomeIssues.push('Self-employed: need accountant reference OR tax return')
+    }
+  }
+
+  // If benefits - need amount declared AND evidence uploaded
+  if (hasBenefits) {
+    const hasAmount = !!reference.benefits_annual_amount_encrypted
+    const hasEvidence = !!reference.proof_of_additional_income_path
+
+    if (!hasAmount || !hasEvidence) {
+      const missing = []
+      if (!hasAmount) missing.push('amount declared')
+      if (!hasEvidence) missing.push('evidence uploaded')
+      incomeIssues.push(`Benefits: need ${missing.join(' and ')}`)
+    }
+  }
+
+  if (incomeIssues.length > 0) {
+    return { complete: false, reason: incomeIssues.join('; ') }
+  }
+
+  // If any income types selected and passed all checks, we're complete
+  if (isEmployed || isSelfEmployed || hasBenefits) {
+    return { complete: true }
+  }
+
+  // No income type selected - auto-complete (no income declared)
+  return { complete: true, reason: 'No income declared' }
+}
+
+/**
+ * Sync version of residential check
+ */
+function checkResidentialSectionSync(reference: any): SectionStatus {
+  // If confirmed residential status is set (e.g., living with family, owner occupier)
+  if (reference.confirmed_residential_status) {
+    return { complete: true, reason: `Residential status: ${reference.confirmed_residential_status}` }
+  }
+
+  // Check if landlord or agent reference exists
+  const hasLandlordRef = reference.landlord_references?.some((lr: any) => lr.submitted_at)
+  const hasAgentRef = reference.agent_references?.some((ar: any) => ar.submitted_at)
+
+  if (hasLandlordRef || hasAgentRef) {
+    return { complete: true }
+  }
+
+  // Check if landlord email was provided (meaning they expect a reference)
+  if (reference.previous_landlord_email_encrypted) {
+    return { complete: false, reason: 'Landlord/Agent reference requested but not received' }
+  }
+
+  // No landlord email provided - assume not renting or alternative living situation
+  return { complete: true, reason: 'No landlord reference required' }
 }

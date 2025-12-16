@@ -1,754 +1,82 @@
 <template>
   <Sidebar>
-    <div class="p-8">
-      <div class="mb-8">
-        <div class="flex justify-between items-center mb-4">
-          <div>
-            <h2 class="text-3xl font-bold text-gray-900">References</h2>
-            <p class="mt-2 text-gray-600">Manage all tenant references</p>
-          </div>
-          <button @click="showCreateModal = true"
-            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
-            Create New Reference
-          </button>
-        </div>
+    <div class="h-screen flex flex-col bg-gray-50">
+      <!-- Top Bar -->
+      <ReferencesTopBar
+        v-model:search="search"
+        v-model:sortBy="sortBy"
+        v-model:sortOrder="sortOrder"
+        @refresh="loadTenancies"
+        @create="showCreateModal = true"
+      />
 
-        <!-- Stats -->
-        <div class="grid grid-cols-1 gap-5 sm:grid-cols-5 mb-6">
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-            @click="statusFilter = ''">
-            <div class="p-5">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">Total References</div>
-                  <div class="mt-1 text-3xl font-semibold text-gray-900">{{ references.length }}</div>
-                </div>
-                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                  <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-            @click="statusFilter = 'in_progress'">
-            <div class="p-5">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">In Progress</div>
-                  <div class="mt-1 text-3xl font-semibold text-blue-600">{{ statusCounts.in_progress }}</div>
-                </div>
-                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-            @click="statusFilter = 'pending_verification'">
-            <div class="p-5">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">Pending Verification</div>
-                  <div class="mt-1 text-3xl font-semibold text-primary">{{ statusCounts.pending_verification }}</div>
-                </div>
-                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                  <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-            @click="statusFilter = 'rejected'">
-            <div class="p-5">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">Rejected</div>
-                  <div class="mt-1 text-3xl font-semibold text-red-600">{{ statusCounts.rejected }}</div>
-                </div>
-                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-            @click="statusFilter = 'completed'">
-            <div class="p-5">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">Completed</div>
-                  <div class="mt-1 text-3xl font-semibold text-green-600">{{ statusCounts.completed }}</div>
-                </div>
-                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
+      <!-- Status Tabs -->
+      <ReferencesStatusTabs
+        v-model="activeTab"
+        :counts="statusCounts"
+      />
+
+      <!-- Main Content -->
+      <div class="flex-1 overflow-y-auto">
+        <!-- Loading State -->
+        <div v-if="loading" class="p-6">
+          <div class="bg-white rounded-lg shadow divide-y divide-gray-100">
+            <div v-for="i in 5" :key="i" class="px-6 py-4">
+              <div class="animate-pulse">
+                <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div class="h-3 bg-gray-100 rounded w-1/2 mb-2"></div>
+                <div class="h-3 bg-gray-100 rounded w-1/3"></div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Search and Filters -->
-        <div class="space-y-3">
-          <!-- Search Box -->
-          <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input v-model="searchQuery" type="text" placeholder="Search by tenant name, email, or property address..."
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm" />
-          </div>
+        <!-- Tenancy List -->
+        <div v-else-if="filteredTenancies.length > 0" class="px-6 py-4">
+          <TenancyRow
+            v-for="tenancy in filteredTenancies"
+            :key="tenancy.id"
+            :tenancy="tenancy"
+            :isExpanded="expandedTenancyId === tenancy.id"
+            @toggle="toggleExpanded(tenancy.id)"
+            @openPerson="(person) => openPersonDrawer(person, tenancy)"
+            @chase="handleChase"
+            @addGuarantor="handleAddGuarantor(tenancy)"
+          />
+        </div>
 
-          <!-- Filters -->
-          <div class="flex gap-3">
-            <div class="flex-1">
-              <label for="status-filter" class="sr-only">Filter by Status</label>
-              <select id="status-filter" v-model="statusFilter"
-                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm">
-                <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="pending_verification">Pending Verification</option>
-                <option value="completed">Completed</option>
-                <option value="rejected">Rejected</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+        <!-- Empty State -->
+        <div v-else class="p-6">
+          <div class="bg-white rounded-lg shadow p-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">
+              {{ search ? 'No references found' : 'No references yet' }}
+            </h3>
+            <p class="mt-1 text-sm text-gray-500">
+              {{ search ? 'Try adjusting your search terms.' : 'Get started by creating a new tenant reference.' }}
+            </p>
+            <div v-if="!search" class="mt-6">
+              <button
+                @click="showCreateModal = true"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
+              >
+                Create New Reference
+              </button>
             </div>
-            <div class="flex-1">
-              <label for="date-filter" class="sr-only">Filter by Date</label>
-              <select id="date-filter" v-model="dateFilter"
-                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm">
-                <option value="">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">Last 7 Days</option>
-                <option value="month">Last 30 Days</option>
-                <option value="quarter">Last 3 Months</option>
-                <option value="year">Last Year</option>
-              </select>
-            </div>
-            <button v-if="statusFilter || dateFilter" @click="clearFilters"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-              Clear Filters
-            </button>
           </div>
         </div>
       </div>
 
-      <!-- References List -->
-      <div v-if="loading || filteredReferences.length > 0" class="bg-white rounded-lg shadow">
-        <div class="overflow-visible">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ statusFilter === 'completed' ? 'Decision' : 'Remark' }}</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">References
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <button @click="toggleSort('created_at')" class="flex items-center gap-1 hover:text-gray-700"
-                    :class="{ 'text-primary': sortBy === 'created_at' }">
-                    Created
-                    <svg v-if="sortBy === 'created_at'" class="w-4 h-4" fill="none" stroke="currentColor"
-                      viewBox="0 0 24 24">
-                      <path v-if="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M5 15l7-7 7 7" />
-                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <button @click="toggleSort('move_in_date')" class="flex items-center gap-1 hover:text-gray-700"
-                    :class="{ 'text-primary': sortBy === 'move_in_date' }">
-                    Move In Date
-                    <svg v-if="sortBy === 'move_in_date'" class="w-4 h-4" fill="none" stroke="currentColor"
-                      viewBox="0 0 24 24">
-                      <path v-if="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M5 15l7-7 7 7" />
-                      <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody v-if="loading" class="bg-white">
-              <tr>
-                <td class="px-6 py-4" style="width: 300px;">
-                  <div class="text-sm text-gray-900">
-                    <div class="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
-                  </div>
-                  <div class="text-sm text-gray-500 mt-1">
-                    <div class="h-4 bg-gray-100 rounded w-40 animate-pulse"></div>
-                  </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap" style="width: 250px;">
-                  <div class="text-sm font-medium text-gray-900 flex items-center gap-2">
-                    <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                    <div class="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
-                  </div>
-                  <div class="text-sm text-gray-500 mt-1">
-                    <div class="h-4 bg-gray-100 rounded w-48 animate-pulse"></div>
-                  </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap" style="width: 120px;">
-                  <span
-                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                    Pending
-                  </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap" style="width: 200px;">
-                  <div class="h-4 bg-gray-100 rounded w-32 animate-pulse"></div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap" style="width: 150px;">
-                  <div class="flex items-center gap-3">
-                    <div class="h-5 w-5 bg-gray-200 rounded animate-pulse"></div>
-                    <div class="h-5 w-5 bg-gray-200 rounded animate-pulse"></div>
-                    <div class="h-5 w-5 bg-gray-200 rounded animate-pulse"></div>
-                  </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" style="width: 150px;">
-                  <div class="h-4 bg-gray-100 rounded w-28 animate-pulse"></div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" style="width: 150px;">
-                  <div class="h-4 bg-gray-100 rounded w-28 animate-pulse"></div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style="width: 180px;">
-                  <div class="h-4 bg-gray-100 rounded w-36 animate-pulse ml-auto"></div>
-                </td>
-              </tr>
-            </tbody>
-            <tbody v-else class="bg-white divide-y divide-gray-200">
-              <template v-for="item in groupedReferences" :key="item.id">
-                <!-- Multi-tenant Property Group Header -->
-                <template v-if="item.isPropertyGroup">
-                  <tr class="bg-purple-50 hover:bg-purple-100 cursor-pointer" @click="toggleGroupExpanded(item.id)">
-                    <td class="px-6 py-4">
-                      <div class="flex items-center gap-2">
-                        <svg class="w-5 h-5 text-purple-600 transition-transform" :class="{ 'rotate-90': expandedGroups.has(item.id) }" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                        </svg>
-                        <div>
-                          <div class="text-sm font-medium text-gray-900">{{ item.property_address }}</div>
-                          <div class="text-sm text-gray-500">{{ item.property_city }}{{ item.property_postcode ? ', ' + item.property_postcode : '' }}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                        {{ item.tenantCount }} Tenants
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
-                        'bg-green-100 text-green-800': getGroupStatus(item.children) === 'completed',
-                        'bg-blue-100 text-blue-800': getGroupStatus(item.children) === 'in_progress',
-                        'bg-yellow-100 text-yellow-800': getGroupStatus(item.children) === 'pending',
-                        'bg-orange-100 text-orange-800': getGroupStatus(item.children) === 'mixed'
-                      }">
-                        {{ getGroupStatus(item.children) === 'completed' ? 'All Completed' : getGroupStatus(item.children) === 'in_progress' ? 'In Progress' : getGroupStatus(item.children) === 'mixed' ? 'Mixed Status' : 'Pending' }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="text-xs text-gray-500">{{ item.children.filter((c: any) => c.status === 'completed').length }}/{{ item.tenantCount }} completed</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">—</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.created_at) }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.move_in_date ? formatDate(item.move_in_date) : '—' }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <span class="text-gray-400 text-xs mr-4">{{ expandedGroups.has(item.id) ? 'Click to collapse' : 'Click to expand' }}</span>
-                      <button
-                        @click.stop="confirmDeletePropertyGroup(item)"
-                        class="text-red-600 hover:text-red-800 text-xs font-medium"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                  <!-- Expanded Child Tenant Rows -->
-                  <template v-if="expandedGroups.has(item.id)">
-                    <tr v-for="(child, childIndex) in item.children" :key="child.id" class="bg-gray-50 border-l-4 border-l-purple-400">
-                      <td class="px-6 py-3 pl-12">
-                        <div class="text-xs text-purple-600 font-medium mb-1">Tenant {{ child.tenant_position || childIndex + 1 }}/{{ item.tenantCount }}</div>
-                        <div class="text-sm text-gray-500">Rent share: £{{ child.rent_share || '—' }}/month</div>
-                      </td>
-                      <td class="px-6 py-3 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">{{ child.tenant_first_name }} {{ child.tenant_last_name }}</div>
-                        <div class="text-sm text-gray-500">{{ child.tenant_email }}</div>
-                      </td>
-                      <td class="px-6 py-3 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
-                          'bg-yellow-100 text-yellow-800': child.status === 'pending',
-                          'bg-blue-100 text-blue-800': child.status === 'in_progress',
-                          'bg-orange-100 text-orange-800': child.status === 'pending_verification',
-                          'bg-green-100 text-green-800': child.status === 'completed',
-                          'bg-red-100 text-red-800': child.status === 'rejected',
-                          'bg-gray-100 text-gray-800': child.status === 'cancelled'
-                        }">{{ formatStatus(child.status, child) }}</span>
-                      </td>
-                      <td class="px-6 py-3 whitespace-nowrap">
-                        <div v-if="child.status === 'rejected'" class="flex items-start gap-2 text-sm text-red-700">
-                          <svg class="w-4 h-4 mt-0.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L2.82 18a1 1 0 00.9 1.5h16.56a1 1 0 00.9-1.5L13.71 3.86a1 1 0 00-1.72 0z" />
-                          </svg>
-                          <span>{{ findReason(child?.final_remarks) }}</span>
-                        </div>
-                        <div v-else-if="child.status === 'completed'" class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium border" :class="getDecisionClasses(child.decision)">
-                          <svg class="w-4 h-4" :class="getDecisionIconClass(child.decision)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>{{ formatDecision(child.decision) }}</span>
-                        </div>
-                        <div v-else class="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-100">
-                          <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>In Progress</span>
-                        </div>
-                      </td>
-                      <td class="px-6 py-3 whitespace-nowrap">
-                        <div class="flex items-center gap-3">
-                          <div class="flex items-center gap-1" :title="getEmploymentTitle(child)">
-                            <svg class="w-5 h-5" :class="hasEmploymentSatisfied(child) ? 'text-green-600' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
-                              <path v-if="hasEmploymentSatisfied(child)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                              <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-xs text-gray-600">Emp</span>
-                          </div>
-                          <div class="flex items-center gap-1" :title="child.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
-                            <svg class="w-5 h-5" :class="(child.has_credit_check && (child.credit_check_status === 'passed' || child.credit_check_status === 'refer')) ? 'text-green-600' : (child.credit_check_status === 'failed' || child.credit_check_status === 'error') ? 'text-red-600' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
-                              <path v-if="child.has_credit_check && (child.credit_check_status === 'passed' || child.credit_check_status === 'refer')" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                              <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-xs text-gray-600">Credit</span>
-                          </div>
-                          <div class="flex items-center gap-1" :title="(child.has_landlord_reference || child.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
-                            <svg class="w-5 h-5" :class="(child.reference_type === 'living_with_family' || child.has_landlord_reference || child.has_agent_reference) ? 'text-green-600' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
-                              <path v-if="(child.has_landlord_reference || child.has_agent_reference || child.reference_type === 'living_with_family')" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                              <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-xs text-gray-600">Res</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{ formatDate(child.created_at) }}</td>
-                      <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{{ child.move_in_date ? formatDate(child.move_in_date) : '—' }}</td>
-                      <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                        <router-link :to="`/references/${child.id}`" class="text-primary hover:text-primary/80">View</router-link>
-                        <div class="relative inline-block ml-3">
-                          <button @click.stop="toggleActionMenu(child.id, $event)" class="text-gray-600 hover:text-gray-800 font-medium">
-                            Actions
-                            <svg class="w-4 h-4 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                          <div v-if="openActionMenuId === child.id" class="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg border border-gray-200 z-50">
-                            <button @click.stop="resendForm(child)" :disabled="resendingFormId === child.id" class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-50 disabled:opacity-50">
-                              {{ resendingFormId === child.id ? 'Sending...' : 'Resend Form' }}
-                            </button>
-                            <router-link
-                              :to="{ path: '/agreements/generate', query: { referenceId: child.parent_reference_id || child.id } }"
-                              @click="closeActionMenu()"
-                              class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
-                              Create Agreement
-                            </router-link>
-                            <a v-if="child.passed_certificate_url"
-                              :href="child.passed_certificate_url"
-                              target="_blank"
-                              @click="closeActionMenu()"
-                              class="block w-full text-left px-4 py-2 text-sm text-purple-600 hover:bg-gray-50">
-                              View Certificate
-                            </a>
-                            <a v-if="child.report_url"
-                              :href="child.report_url"
-                              target="_blank"
-                              @click="closeActionMenu()"
-                              class="block w-full text-left px-4 py-2 text-sm text-purple-600 hover:bg-gray-50">
-                              View Full Report
-                            </a>
-                            <button @click.stop="confirmDelete(child); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    <!-- Guarantors for each child tenant in expanded view -->
-                    <template v-for="child in item.children" :key="`guarantors-${child.id}`">
-                      <tr v-for="guarantor in (child.guarantors || [])" :key="`guarantor-${guarantor.id}`" class="bg-purple-50/50 border-l-4 border-l-purple-300">
-                        <td class="px-6 py-2 pl-16">
-                          <div class="text-xs text-purple-600 font-medium">Guarantor for {{ child.tenant_first_name }}</div>
-                        </td>
-                        <td class="px-6 py-2 whitespace-nowrap">
-                          <div class="text-sm font-medium text-gray-900">{{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}</div>
-                          <div class="text-sm text-gray-500">{{ guarantor.tenant_email }}</div>
-                        </td>
-                        <td class="px-6 py-2 whitespace-nowrap">
-                          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
-                            'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
-                            'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
-                            'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
-                            'bg-green-100 text-green-800': guarantor.status === 'completed',
-                            'bg-red-100 text-red-800': guarantor.status === 'rejected'
-                          }">{{ formatStatus(guarantor.status, guarantor) }}</span>
-                        </td>
-                        <td class="px-6 py-2 whitespace-nowrap" colspan="4"></td>
-                        <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
-                          <router-link :to="`/references/${guarantor.id}`" class="text-purple-600 hover:text-purple-800">View</router-link>
-                          <button @click.stop="confirmDelete(guarantor)" class="ml-3 text-red-600 hover:text-red-700">Delete</button>
-                        </td>
-                      </tr>
-                    </template>
-                  </template>
-                </template>
-                <!-- Single Tenant Reference (original row) -->
-                <template v-else>
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4">
-                      <div class="text-sm text-gray-900">{{ item.property_address }}</div>
-                      <div class="text-sm text-gray-500">
-                        {{ item.property_city }}{{ item.property_postcode ? ', ' + item.property_postcode : '' }}
-                      </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex items-center gap-2">
-                        <div class="flex-1">
-                          <div class="flex items-center gap-2">
-                            <div class="text-sm font-medium text-gray-900">
-                              {{ item.tenant_first_name }} {{ item.tenant_last_name }}
-                            </div>
-                          </div>
-                          <div class="text-sm text-gray-500">{{ item.tenant_email }}</div>
-                        </div>
-                      </div>
-                    </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
-                      'bg-yellow-100 text-yellow-800': item.status === 'pending',
-                      'bg-blue-100 text-blue-800': item.status === 'in_progress',
-                      'bg-orange-100 text-orange-800': item.status === 'pending_verification',
-                      'bg-green-100 text-green-800': item.status === 'completed',
-                      'bg-red-100 text-red-800': item.status === 'rejected',
-                      'bg-gray-100 text-gray-800': item.status === 'cancelled'
-                    }">
-                      {{ formatStatus(item.status, item) }}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap" style="width: 220px;">
-                    <!-- Rejected: show clear rejection message -->
-                    <div v-if="item.status === 'rejected'" class="flex items-start gap-2 text-sm text-red-700">
-                      <svg class="w-4 h-4 mt-0.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 9v4m0 4h.01M10.29 3.86L2.82 18a1 1 0 00.9 1.5h16.56a1 1 0 00.9-1.5L13.71 3.86a1 1 0 00-1.72 0z" />
-                      </svg>
-                      <span>
-                        {{ findReason(item?.final_remarks) }}
-                      </span>
-                    </div>
-
-                    <!-- Completed: show decision (PASS/PASS with guarantor/FAIL) -->
-                    <div v-else-if="item.status === 'completed'"
-                      class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium border" :class="getDecisionClasses(item.decision)">
-                      <svg class="w-4 h-4" :class="getDecisionIconClass(item.decision)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>{{ formatDecision(item.decision) }}</span>
-                    </div>
-
-                    <!-- In progress / pending etc: subtle "in progress" with clock icon -->
-                    <div v-else
-                      class="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-100">
-                      <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>In Progress</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center gap-3">
-                      <!-- Employment Reference -->
-                      <div class="flex items-center gap-1"
-                        :title="getEmploymentTitle(item)">
-                        <svg class="w-5 h-5"
-                          :class="hasEmploymentSatisfied(item) ? 'text-green-600' : 'text-gray-300'"
-                          fill="currentColor" viewBox="0 0 20 20">
-                          <path v-if="hasEmploymentSatisfied(item)" fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                          <path v-else fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <span class="text-xs text-gray-600">Emp</span>
-                      </div>
-                      <!-- Credit Check -->
-                      <div class="flex items-center gap-1"
-                        :title="(item.has_credit_check && (item.credit_check_status === 'passed' || item.credit_check_status === 'refer')) ? 'Credit check completed' : (item.credit_check_status === 'failed' || item.credit_check_status === 'error') ? 'Credit check failed' : 'Credit check pending'">
-                        <svg class="w-5 h-5"
-                          :class="(item.has_credit_check && (item.credit_check_status === 'passed' || item.credit_check_status === 'refer')) ? 'text-green-600' : (item.credit_check_status === 'failed' || item.credit_check_status === 'error') ? 'text-red-600' : 'text-gray-300'"
-                          fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            v-if="item.has_credit_check && (item.credit_check_status === 'passed' || item.credit_check_status === 'refer')"
-                            fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                          <path v-else fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <span class="text-xs text-gray-600">Credit</span>
-                      </div>
-                      <!-- Residential Reference -->
-                      <div class="flex items-center gap-1"
-                        :title="item.reference_type === 'living_with_family' ? 'Tenant is living with family, no residential reference required' : (item.has_landlord_reference || item.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
-                        <svg class="w-5 h-5"
-                          :class="(item.reference_type === 'living_with_family' || item.has_landlord_reference || item.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
-                          fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            v-if="(item.has_landlord_reference || item.has_agent_reference || item.reference_type === 'living_with_family')"
-                            fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                          <path v-else fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <span class="text-xs text-gray-600">Res</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ formatDate(item.created_at) }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ item.move_in_date ? formatDate(item.move_in_date) : '—' }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <router-link :to="`/references/${item.id}`" class="text-primary hover:text-primary/80">
-                      View
-                    </router-link>
-                    <div class="relative inline-block ml-3">
-                      <button @click="toggleActionMenu(item.id, $event)" class="text-gray-600 hover:text-gray-800 font-medium">
-                        Actions
-                        <svg class="w-4 h-4 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      <div v-if="openActionMenuId === item.id" class="absolute right-0 mt-1 w-44 bg-white rounded-md shadow-lg border border-gray-200 z-50">
-                        <button @click="resendForm(item)" :disabled="resendingFormId === item.id" class="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-gray-50 disabled:opacity-50">
-                          {{ resendingFormId === item.id ? 'Sending...' : 'Resend Form' }}
-                        </button>
-                        <router-link
-                          :to="{ path: '/agreements/generate', query: { referenceId: item.parent_reference_id || item.id } }"
-                          @click="closeActionMenu()"
-                          class="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-50">
-                          Create Agreement
-                        </router-link>
-                        <a v-if="item.passed_certificate_url"
-                          :href="item.passed_certificate_url"
-                          target="_blank"
-                          @click="closeActionMenu()"
-                          class="block w-full text-left px-4 py-2 text-sm text-purple-600 hover:bg-gray-50">
-                          View Certificate
-                        </a>
-                        <a v-if="item.report_url"
-                          :href="item.report_url"
-                          target="_blank"
-                          @click="closeActionMenu()"
-                          class="block w-full text-left px-4 py-2 text-sm text-purple-600 hover:bg-gray-50">
-                          View Full Report
-                        </a>
-                        <button @click="confirmDelete(item); closeActionMenu()" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                <!-- Guarantor Row (if exists) -->
-                <tr v-if="item.guarantors && item.guarantors.length > 0"
-                  v-for="guarantor in item.guarantors" :key="`guarantor-${guarantor.id}`"
-                  class="bg-purple-50 border-l-4 border-l-purple-500">
-                  <td class="px-6 py-3 pl-12">
-                    <div class="text-xs text-purple-700 font-medium mb-1">↳ Guarantor for above tenant</div>
-                    <div class="text-sm text-gray-900">{{ guarantor.property_address }}</div>
-                  </td>
-                  <td class="px-6 py-3">
-                    <div class="flex items-center gap-2">
-                      <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                          <div class="text-sm font-medium text-gray-900">
-                            {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
-                          </div>
-                          <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                            Guarantor
-                          </span>
-                        </div>
-                        <div class="text-sm text-gray-500">{{ guarantor.tenant_email }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-3">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
-                      'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
-                      'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
-                      'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
-                      'bg-green-100 text-green-800': guarantor.status === 'completed',
-                      'bg-red-100 text-red-800': guarantor.status === 'rejected',
-                      'bg-gray-100 text-gray-800': guarantor.status === 'cancelled'
-                    }">
-                      {{ formatStatus(guarantor.status, guarantor) }}
-                    </span>
-                  </td>
-                  <td class="px-6 py-3 whitespace-nowrap" style="width: 220px;">
-                    <!-- Rejected guarantor: show clear rejection message -->
-                    <div v-if="guarantor.status === 'rejected'" class="flex items-start gap-2 text-sm text-red-700">
-                      <svg class="w-4 h-4 mt-0.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 9v4m0 4h.01M10.29 3.86L2.82 18a1 1 0 00.9 1.5h16.56a1 1 0 00.9-1.5L13.71 3.86a1 1 0 00-1.72 0z" />
-                      </svg>
-                      <span>
-                        {{ guarantor.rejection_message || 'Reference rejected due to incomplete verification' }}
-                      </span>
-                    </div>
-
-                    <!-- Completed guarantor: green verified pill -->
-                    <div v-else-if="guarantor.status === 'completed'"
-                      class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-100">
-                      <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>Verified</span>
-                    </div>
-
-                    <!-- In progress / pending etc: subtle "in progress" with clock icon -->
-                    <div v-else
-                      class="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-100">
-                      <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>In Progress</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-3 whitespace-nowrap">
-                    <div class="flex items-center gap-3">
-                      <!-- Employment Reference -->
-                      <div class="flex items-center gap-1"
-                        :title="getEmploymentTitle(guarantor)">
-                        <svg class="w-5 h-5"
-                          :class="hasEmploymentSatisfied(guarantor) ? 'text-green-600' : 'text-gray-300'"
-                          fill="currentColor" viewBox="0 0 20 20">
-                          <path v-if="hasEmploymentSatisfied(guarantor)" fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                          <path v-else fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <span class="text-xs text-gray-600">Emp</span>
-                      </div>
-                      <!-- Credit Check -->
-                      <div class="flex items-center gap-1"
-                        :title="guarantor.has_credit_check ? 'Credit check completed' : 'Credit check pending'">
-                        <svg class="w-5 h-5" :class="guarantor.has_credit_check ? 'text-green-600' : 'text-gray-300'"
-                          fill="currentColor" viewBox="0 0 20 20">
-                          <path v-if="guarantor.has_credit_check" fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                          <path v-else fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <span class="text-xs text-gray-600">Credit</span>
-                      </div>
-                      <!-- Residential Reference -->
-                      <div class="flex items-center gap-1"
-                        :title="(guarantor.has_landlord_reference || guarantor.has_agent_reference) ? 'Residential reference received' : 'Residential reference pending'">
-                        <svg class="w-5 h-5"
-                          :class="(guarantor.has_landlord_reference || guarantor.has_agent_reference) ? 'text-green-600' : 'text-gray-300'"
-                          fill="currentColor" viewBox="0 0 20 20">
-                          <path v-if="(guarantor.has_landlord_reference || guarantor.has_agent_reference)"
-                            fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                          <path v-else fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <span class="text-xs text-gray-600">Res</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
-                    {{ formatDate(guarantor.created_at) }}
-                  </td>
-                  <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
-                    {{ guarantor.move_in_date ? formatDate(guarantor.move_in_date) : '—' }}
-                  </td>
-                  <td class="px-6 py-3 text-right text-sm font-medium">
-                    <router-link :to="`/references/${guarantor.id}`" class="text-purple-600 hover:text-purple-800 font-medium">
-                      View
-                    </router-link>
-                    <button @click="confirmDelete(guarantor)" class="ml-3 text-red-600 hover:text-red-700 font-medium"
-                      title="Delete guarantor reference">
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-                </template>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Empty State -->
-      <div v-else class="bg-white rounded-lg shadow p-6">
-        <div class="text-center py-12">
-          <svg v-if="!searchQuery" class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor"
-            viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <svg v-else class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">
-            {{ searchQuery ? 'No references found' : 'No references yet' }}
-          </h3>
-          <p class="mt-1 text-sm text-gray-500">
-            {{ searchQuery ? 'Try adjusting your search terms.' : 'Get started by creating a new tenant reference.' }}
-          </p>
-          <div v-if="!searchQuery" class="mt-6">
-            <button @click="showCreateModal = true"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
-              Create New Reference
-            </button>
-          </div>
-        </div>
-      </div>
+      <!-- Person Drawer -->
+      <PersonDrawer
+        v-model:open="drawerOpen"
+        :person="selectedPerson"
+        :tenancy="selectedTenancy"
+        @updated="loadTenancies"
+      />
     </div>
 
     <!-- Create Reference Modal -->
@@ -981,7 +309,7 @@
                   Rent shares must sum exactly to the total monthly rent
                 </p>
                 <p v-else class="text-xs text-green-700 mt-2">
-                  ✓ Rent shares match total rent
+                  Rent shares match total rent
                 </p>
               </div>
             </div>
@@ -1055,9 +383,7 @@
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Reference</h3>
         <p class="text-sm text-gray-600 mb-6">
           Are you sure you want to delete the reference for
-          <span class="font-medium">{{ referenceToDelete?.tenant_first_name }} {{ referenceToDelete?.tenant_last_name
-            }}</span>
-          at <span class="font-medium">{{ referenceToDelete?.property_address }}</span>?
+          <span class="font-medium">{{ referenceToDelete?.name }}</span>?
           This action cannot be undone.
         </p>
         <div class="flex justify-end space-x-3">
@@ -1073,33 +399,76 @@
       </div>
     </div>
 
-    <!-- Delete Property Group Confirmation Modal -->
-    <div v-if="showDeletePropertyGroupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <!-- Add Guarantor Modal -->
+    <div v-if="showAddGuarantorModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-lg max-w-md w-full p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Property Reference</h3>
-        <p class="text-sm text-gray-600 mb-6">
-          Are you sure you want to delete the property reference for
-          <span class="font-medium">{{ propertyGroupToDelete?.tenantCount }} tenant(s)</span>
-          at <span class="font-medium">{{ propertyGroupToDelete?.property_address }}</span>?
-          This will delete all tenant references for this property. This action cannot be undone.
-        </p>
-        <div class="flex justify-end space-x-3">
-          <button @click="showDeletePropertyGroupModal = false"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-            Cancel
-          </button>
-          <button @click="handleDeletePropertyGroup" :disabled="deletePropertyGroupLoading"
-            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50">
-            {{ deletePropertyGroupLoading ? 'Deleting...' : 'Delete All' }}
-          </button>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Guarantor</h3>
+
+        <!-- Tenant Selection (if multiple tenants) -->
+        <div v-if="tenantsForGuarantor.length > 1" class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Select Tenant *</label>
+          <select v-model="selectedTenantForGuarantor"
+            class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+            <option value="">Select a tenant</option>
+            <option v-for="tenant in tenantsForGuarantor" :key="tenant.id" :value="tenant.id">
+              {{ tenant.name }}
+            </option>
+          </select>
         </div>
+
+        <form @submit.prevent="addGuarantor" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">First Name *</label>
+            <input v-model="guarantorForm.first_name" type="text" required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Last Name *</label>
+            <input v-model="guarantorForm.last_name" type="text" required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Email *</label>
+            <input v-model="guarantorForm.email" type="email" required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Phone</label>
+            <input v-model="guarantorForm.phone" type="tel"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+          </div>
+
+          <div v-if="guarantorError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm">
+            {{ guarantorError }}
+          </div>
+
+          <div v-if="guarantorSuccess"
+            class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded text-sm">
+            {{ guarantorSuccess }}
+          </div>
+
+          <div class="flex justify-end space-x-3 pt-4">
+            <button type="button" @click="closeGuarantorModal"
+              class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
+              Cancel
+            </button>
+            <button type="submit" :disabled="addingGuarantor || (tenantsForGuarantor.length > 1 && !selectedTenantForGuarantor)"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50">
+              {{ addingGuarantor ? 'Adding...' : 'Add Guarantor' }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </Sidebar>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
@@ -1109,7 +478,11 @@ import DatePicker from '../components/DatePicker.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import InsufficientCreditsModal from '../components/InsufficientCreditsModal.vue'
 import PaymentMethodRequiredModal from '../components/PaymentMethodRequiredModal.vue'
-import { formatDate as formatUkDate } from '../utils/date'
+import ReferencesTopBar from '../components/references/ReferencesTopBar.vue'
+import ReferencesStatusTabs from '../components/references/ReferencesStatusTabs.vue'
+import TenancyRow from '../components/references/TenancyRow.vue'
+import PersonDrawer from '../components/references/PersonDrawer.vue'
+import { useTenancies, type Tenancy, type TenancyPerson, type TenancyStatus } from '../composables/useTenancies'
 import { isValidEmail } from '../utils/validation'
 
 const router = useRouter()
@@ -1119,37 +492,54 @@ const authStore = useAuthStore()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+// Use the tenancies composable
+const {
+  tenancies,
+  statusCounts,
+  loading,
+  loadTenancies,
+  expandedTenancyId,
+  toggleExpanded,
+  selectedPerson,
+  selectedTenancy,
+  drawerOpen,
+  openPersonDrawer
+} = useTenancies()
+
+// Local state
+const search = ref('')
+const sortBy = ref<'move_in_date' | 'created_at'>('move_in_date')
+const sortOrder = ref<'asc' | 'desc'>('asc')
+const activeTab = ref<TenancyStatus | 'ALL'>('ALL')
+
+// Create modal state
 const showCreateModal = ref(false)
 const showGuarantorFields = ref(false)
 const showInsufficientCreditsModal = ref(false)
 const showPaymentMethodModal = ref(false)
-const showDeleteModal = ref(false)
-const referenceToDelete = ref<any>(null)
-const showDeletePropertyGroupModal = ref(false)
-const propertyGroupToDelete = ref<any>(null)
-const deletePropertyGroupLoading = ref(false)
-const openActionMenuId = ref<string | null>(null)
-
-const toggleActionMenu = (referenceId: string, event: Event) => {
-  event.stopPropagation()
-  openActionMenuId.value = openActionMenuId.value === referenceId ? null : referenceId
-}
-
-const closeActionMenu = () => {
-  openActionMenuId.value = null
-}
-const deleteLoading = ref(false)
-const resendingFormId = ref<string | null>(null)
-const references = ref<any[]>([])
-const loading = ref(true)
 const createLoading = ref(false)
 const createError = ref('')
-const searchQuery = ref('')
-const statusFilter = ref('')
-const dateFilter = ref('')
-const sortBy = ref<'created_at' | 'move_in_date'>('created_at')
-const sortOrder = ref<'asc' | 'desc'>('desc')
 
+// Delete modal state
+const showDeleteModal = ref(false)
+const referenceToDelete = ref<TenancyPerson | null>(null)
+const deleteLoading = ref(false)
+
+// Add Guarantor modal state
+const showAddGuarantorModal = ref(false)
+const addingGuarantor = ref(false)
+const guarantorError = ref('')
+const guarantorSuccess = ref('')
+const selectedTenantForGuarantor = ref('')
+const tenancyForGuarantor = ref<Tenancy | null>(null)
+const guarantorForm = ref({
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone: ''
+})
+
+// Multi-tenant form state
 const tenantCount = ref(1)
 const previousTenantCount = ref(1)
 const tenants = ref<Array<{
@@ -1183,7 +573,7 @@ const formData = ref({
   property_address: '',
   property_city: '',
   property_postcode: '',
-  monthly_rent: null,
+  monthly_rent: null as number | null,
   move_in_date: '',
   term_years: 0,
   term_months: 0,
@@ -1192,6 +582,52 @@ const formData = ref({
   guarantor_last_name: '',
   guarantor_email: '',
   guarantor_phone: ''
+})
+
+// Computed
+const filteredTenancies = computed(() => {
+  let filtered = tenancies.value
+
+  // Filter by status tab
+  if (activeTab.value !== 'ALL') {
+    filtered = filtered.filter(t => t.tenancyStatus === activeTab.value)
+  }
+
+  // Filter by search
+  if (search.value.trim()) {
+    const query = search.value.toLowerCase().trim()
+    filtered = filtered.filter(t => {
+      const address = t.propertyAddress.toLowerCase()
+      const city = (t.propertyCity || '').toLowerCase()
+      const postcode = (t.propertyPostcode || '').toLowerCase()
+      const peopleMatch = t.people.some(p =>
+        p.name.toLowerCase().includes(query) ||
+        p.email.toLowerCase().includes(query)
+      )
+      return address.includes(query) ||
+             city.includes(query) ||
+             postcode.includes(query) ||
+             peopleMatch
+    })
+  }
+
+  // Sort
+  const sorted = [...filtered].sort((a, b) => {
+    let aValue: number
+    let bValue: number
+
+    if (sortBy.value === 'move_in_date') {
+      aValue = a.moveInDate ? new Date(a.moveInDate).getTime() : 0
+      bValue = b.moveInDate ? new Date(b.moveInDate).getTime() : 0
+    } else {
+      aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0
+    }
+
+    return sortOrder.value === 'asc' ? aValue - bValue : bValue - aValue
+  })
+
+  return sorted
 })
 
 const totalRentShare = computed(() => {
@@ -1205,6 +641,24 @@ const rentSharesValid = computed(() => {
   return Math.abs(total - monthlyRent) < 0.01 && monthlyRent > 0
 })
 
+// Get tenants without guarantors for the selected tenancy
+const tenantsForGuarantor = computed(() => {
+  if (!tenancyForGuarantor.value) return []
+  // Get IDs of tenants who already have guarantors
+  const guarantorForTenantIds = tenancyForGuarantor.value.people
+    .filter(p => p.role === 'GUARANTOR' && p.guarantorForTenantId)
+    .map(p => p.guarantorForTenantId)
+  // Return tenants who don't already have a guarantor
+  return tenancyForGuarantor.value.people
+    .filter(p => p.role === 'TENANT' && !guarantorForTenantIds.includes(p.id))
+})
+
+// Watchers
+watch(() => formData.value.monthly_rent, () => {
+  distributeRentEvenly()
+})
+
+// Methods
 const distributeRentEvenly = () => {
   if (tenantCount.value <= 1) return
   const monthlyRent = Number(formData.value.monthly_rent) || 0
@@ -1214,217 +668,16 @@ const distributeRentEvenly = () => {
   const remainder = Math.round((monthlyRent - (sharePerTenant * tenantCount.value)) * 100) / 100
 
   tenants.value.forEach((tenant, index) => {
-    // Give the remainder (due to rounding) to the first tenant
     tenant.rent_share = index === 0
       ? Math.round((sharePerTenant + remainder) * 100) / 100
       : sharePerTenant
   })
 }
 
-// Watch monthly rent to auto-distribute among tenants
-watch(() => formData.value.monthly_rent, () => {
-  distributeRentEvenly()
-})
-
-const statusCounts = computed(() => {
-  const counts = {
-    pending: 0,
-    in_progress: 0,
-    pending_verification: 0,
-    rejected: 0,
-    completed: 0,
-    cancelled: 0
-  }
-
-  references.value.forEach(ref => {
-    if (counts.hasOwnProperty(ref.status)) {
-      counts[ref.status as keyof typeof counts]++
-    }
-  })
-
-  return counts
-})
-
-const filteredReferences = computed(() => {
-  // Filter out guarantor references - they should only appear nested under their parent
-  let filtered = references.value.filter(ref => !ref.is_guarantor)
-
-  // Apply search filter
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase().trim()
-    filtered = filtered.filter(ref => {
-      const tenantName = `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.toLowerCase()
-      const tenantEmail = (ref.tenant_email || '').toLowerCase()
-      const propertyAddress = (ref.property_address || '').toLowerCase()
-      const propertyCity = (ref.property_city || '').toLowerCase()
-      const propertyPostcode = (ref.property_postcode || '').toLowerCase()
-
-      return tenantName.includes(query) ||
-        tenantEmail.includes(query) ||
-        propertyAddress.includes(query) ||
-        propertyCity.includes(query) ||
-        propertyPostcode.includes(query)
-    })
-  }
-
-  // Apply status filter
-  if (statusFilter.value) {
-    filtered = filtered.filter(ref => ref.status === statusFilter.value)
-  }
-
-  // Apply date filter
-  if (dateFilter.value) {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-
-    filtered = filtered.filter(ref => {
-      const createdDate = new Date(ref.created_at)
-      const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
-
-      switch (dateFilter.value) {
-        case 'today':
-          return createdDate >= today
-        case 'week':
-          return daysDiff <= 7
-        case 'month':
-          return daysDiff <= 30
-        case 'quarter':
-          return daysDiff <= 90
-        case 'year':
-          return daysDiff <= 365
-        default:
-          return true
-      }
-    })
-  }
-
-  // Sort references
-  const sorted = [...filtered].sort((a, b) => {
-    let aValue: any
-    let bValue: any
-
-    if (sortBy.value === 'move_in_date') {
-      aValue = a.move_in_date ? new Date(a.move_in_date).getTime() : 0
-      bValue = b.move_in_date ? new Date(b.move_in_date).getTime() : 0
-    } else {
-      // Default: sort by created_at
-      aValue = a.created_at ? new Date(a.created_at).getTime() : 0
-      bValue = b.created_at ? new Date(b.created_at).getTime() : 0
-    }
-
-    if (sortOrder.value === 'asc') {
-      return aValue - bValue
-    } else {
-      return bValue - aValue
-    }
-  })
-  return sorted
-})
-
-// Group multi-tenant references by parent_reference_id
-const groupedReferences = computed(() => {
-  const filtered = filteredReferences.value
-  const groups: any[] = []
-  const processedIds = new Set<string>()
-
-  // First, identify all multi-tenant children (those with parent_reference_id)
-  const childrenByParent = new Map<string, any[]>()
-
-  filtered.forEach(ref => {
-    if (ref.parent_reference_id) {
-      const children = childrenByParent.get(ref.parent_reference_id) || []
-      children.push(ref)
-      childrenByParent.set(ref.parent_reference_id, children)
-    }
-  })
-
-  // Sort children by tenant_position
-  childrenByParent.forEach((children) => {
-    children.sort((a, b) => (a.tenant_position || 0) - (b.tenant_position || 0))
-  })
-
-  // Create property groups for each multi-tenant group
-  childrenByParent.forEach((children, parentId) => {
-    if (children.length > 0) {
-      const firstChild = children[0]
-      groups.push({
-        isPropertyGroup: true,
-        id: parentId + '_group',
-        property_address: firstChild.property_address,
-        property_city: firstChild.property_city,
-        property_postcode: firstChild.property_postcode,
-        monthly_rent: firstChild.monthly_rent,
-        move_in_date: firstChild.move_in_date,
-        created_at: firstChild.created_at,
-        children: children,
-        tenantCount: children.length
-      })
-      children.forEach(c => processedIds.add(c.id))
-    }
-  })
-
-  // Add single tenant references (those without parent_reference_id and not group parents)
-  filtered.forEach(ref => {
-    if (!ref.parent_reference_id && !ref.is_group_parent && !processedIds.has(ref.id)) {
-      groups.push(ref)
-      processedIds.add(ref.id)
-    }
-  })
-
-  // Sort groups by created_at descending
-  groups.sort((a, b) => {
-    const aDate = new Date(a.created_at || 0).getTime()
-    const bDate = new Date(b.created_at || 0).getTime()
-    return bDate - aDate
-  })
-
-  return groups
-})
-
-// Track expanded property groups
-const expandedGroups = ref<Set<string>>(new Set())
-
-const toggleGroupExpanded = (groupId: string) => {
-  if (expandedGroups.value.has(groupId)) {
-    expandedGroups.value.delete(groupId)
-  } else {
-    expandedGroups.value.add(groupId)
-  }
-  // Trigger reactivity
-  expandedGroups.value = new Set(expandedGroups.value)
-}
-
-const getGroupStatus = (children: any[]) => {
-  // Determine overall status for a multi-tenant group
-  const statuses = children.map(c => c.status)
-  if (statuses.every(s => s === 'completed')) return 'completed'
-  if (statuses.some(s => s === 'rejected')) return 'mixed'
-  if (statuses.some(s => s === 'in_progress' || s === 'pending_verification')) return 'in_progress'
-  return 'pending'
-}
-
-// Check if employment reference requirement is satisfied
-// Green tick if: has employer reference OR (is student AND has guarantor assigned)
-const hasEmploymentSatisfied = (ref: any) => {
-  if (ref.has_employer_reference) return true
-  // For students, having a guarantor assigned means no employer reference needed
-  if (ref.income_student && ref.has_guarantor_assigned) return true
-  return false
-}
-
-const getEmploymentTitle = (ref: any) => {
-  if (ref.has_employer_reference) return 'Employment reference received'
-  if (ref.income_student && ref.has_guarantor_assigned) return 'Student with guarantor - no employment reference required'
-  if (ref.income_student) return 'Student - awaiting guarantor assignment'
-  return 'Employment reference pending'
-}
-
 const updateTenantCount = (count: number) => {
   const previousCount = previousTenantCount.value
   tenantCount.value = count
 
-  // Switching from single tenant (1) to multiple tenants (2+)
-  // Copy formData tenant fields into tenants[0]
   if (previousCount === 1 && count > 1) {
     tenants.value[0] = {
       first_name: formData.value.tenant_first_name,
@@ -1442,15 +695,12 @@ const updateTenantCount = (count: number) => {
     }
   }
 
-  // Switching from multiple tenants (2+) to single tenant (1)
-  // Copy tenants[0] fields into formData tenant fields
   if (previousCount > 1 && count === 1) {
     formData.value.tenant_first_name = tenants.value[0]?.first_name || ''
     formData.value.tenant_last_name = tenants.value[0]?.last_name || ''
     formData.value.tenant_email = tenants.value[0]?.email || ''
     formData.value.tenant_phone = tenants.value[0]?.phone || ''
 
-    // Also sync guarantor if present
     if (tenants.value[0]?.guarantor) {
       formData.value.guarantor_first_name = tenants.value[0].guarantor.first_name || ''
       formData.value.guarantor_last_name = tenants.value[0].guarantor.last_name || ''
@@ -1460,7 +710,6 @@ const updateTenantCount = (count: number) => {
     }
   }
 
-  // Adjust tenants array size
   while (tenants.value.length < count) {
     tenants.value.push({
       first_name: '',
@@ -1476,107 +725,14 @@ const updateTenantCount = (count: number) => {
     tenants.value.pop()
   }
 
-  // Auto-distribute rent when tenant count changes
   distributeRentEvenly()
-
-  // Update previous count for next change
   previousTenantCount.value = count
 }
 
-// Handler for custom event from sidebar
-const handleOpenCreateModal = () => {
-  showCreateModal.value = true
-}
-
-// Handler to close action menu when clicking outside
-const handleDocumentClick = () => {
-  openActionMenuId.value = null
-}
-
-onMounted(() => {
-  fetchReferences()
-
-  // Check if we should open the create modal
-  if (route.query.create === 'true') {
-    showCreateModal.value = true
-    // Remove the query parameter from the URL
-    router.replace('/references')
-  }
-
-  // Check if we should apply a status filter from query params
-  if (route.query.status && typeof route.query.status === 'string') {
-    statusFilter.value = route.query.status
-  }
-
-  // Listen for custom event from sidebar
-  window.addEventListener('open-create-reference-modal', handleOpenCreateModal)
-  // Close action menu when clicking anywhere on document
-  document.addEventListener('click', handleDocumentClick)
-})
-
-onUnmounted(() => {
-  // Clean up event listeners
-  window.removeEventListener('open-create-reference-modal', handleOpenCreateModal)
-  document.removeEventListener('click', handleDocumentClick)
-})
-
-const fetchReferences = async () => {
-  try {
-    loading.value = true
-    const token = authStore.session?.access_token
-    if (!token) {
-      console.error('No auth token available')
-      return
-    }
-
-    const response = await fetch(`${API_URL}/api/references`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-
-    if (response.status === 404) {
-      // User no longer has access to company (likely removed from team)
-      console.log('User no longer has access, logging out...')
-      await authStore.signOut()
-      router.push('/login')
-      return
-    }
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch references')
-    }
-
-    const data = await response.json()
-    const allReferences = data.references
-
-    // Attach guarantors to their parent references
-    const guarantorMap = new Map()
-    allReferences.forEach((ref: any) => {
-      if (ref.is_guarantor && ref.guarantor_for_reference_id) {
-        if (!guarantorMap.has(ref.guarantor_for_reference_id)) {
-          guarantorMap.set(ref.guarantor_for_reference_id, [])
-        }
-        guarantorMap.get(ref.guarantor_for_reference_id).push(ref)
-      }
-    })
-
-    // Attach guarantors array to parent references
-    allReferences.forEach((ref: any) => {
-      if (guarantorMap.has(ref.id)) {
-        ref.guarantors = guarantorMap.get(ref.id)
-      } else {
-        ref.guarantors = []
-      }
-    })
-
-    references.value = allReferences
-  } catch (error) {
-    console.error('Failed to fetch references:', error)
-  } finally {
-    loading.value = false
-  }
+const handlePropertyAddressSelected = (addressData: any) => {
+  formData.value.property_address = addressData.addressLine1
+  formData.value.property_city = addressData.city
+  formData.value.property_postcode = addressData.postcode
 }
 
 const handleCreate = async () => {
@@ -1590,16 +746,13 @@ const handleCreate = async () => {
       return
     }
 
-    let payload: any
-
-    // Validate move-in date is provided
     if (!formData.value.move_in_date) {
       createError.value = 'Move-in date is required'
       createLoading.value = false
       return
     }
 
-    // Validate email addresses
+    // Validate emails
     if (tenantCount.value === 1) {
       if (!isValidEmail(formData.value.tenant_email)) {
         createError.value = 'Please enter a valid tenant email address'
@@ -1612,9 +765,8 @@ const handleCreate = async () => {
         return
       }
     } else {
-      // Validate all tenant emails
       for (let i = 0; i < tenants.value.length; i++) {
-        const tenant = tenants.value[i];
+        const tenant = tenants.value[i]
         if (!isValidEmail(tenant?.email || '')) {
           createError.value = `Please enter a valid email address for tenant ${i + 1}`
           createLoading.value = false
@@ -1628,13 +780,11 @@ const handleCreate = async () => {
       }
     }
 
+    let payload: any
+
     if (tenantCount.value === 1) {
-      // Single tenant flow
-      payload = {
-        ...formData.value
-      }
+      payload = { ...formData.value }
     } else {
-      // Multi-tenant flow
       if (!rentSharesValid.value) {
         createError.value = 'Rent shares must sum to the total monthly rent'
         createLoading.value = false
@@ -1664,17 +814,13 @@ const handleCreate = async () => {
     })
 
     if (!response.ok) {
-      // Check for 402 Payment Required (could be credits OR payment method)
       if (response.status === 402) {
         const errorData = await response.json()
         closeCreateModal()
 
-        // Check if it's a payment method issue or credits issue
         if (errorData.requires_payment_method || errorData.error === 'Payment Method Required') {
-          // Payment method required - show modal
           showPaymentMethodModal.value = true
         } else {
-          // Insufficient credits
           showInsufficientCreditsModal.value = true
         }
         return
@@ -1684,14 +830,13 @@ const handleCreate = async () => {
       throw new Error(errorData.error || 'Failed to create reference')
     }
 
-    await response.json()
     const successMessage = tenantCount.value > 1
       ? `Reference created successfully for ${tenantCount.value} tenants!`
       : 'Reference created successfully!'
     toast.success(successMessage)
 
     closeCreateModal()
-    fetchReferences()
+    loadTenancies()
   } catch (error: any) {
     createError.value = error.message || 'Failed to create reference'
   } finally {
@@ -1734,109 +879,164 @@ const closeCreateModal = () => {
   createError.value = ''
 }
 
-const clearFilters = () => {
-  statusFilter.value = ''
-  dateFilter.value = ''
-}
-
-const formatStatus = (status: string, reference?: any) => {
-  // If status is 'in_progress' or 'pending_verification', provide more detail about what's missing
-  if ((status === 'in_progress' || status === 'pending_verification') && reference) {
-    const missing: string[] = []
-
-    // Check for residential reference (landlord or agent)
-    // Skip if tenant is a homeowner or is a guarantor (guarantors don't need residential refs)
-    const needsResidential =
-      !reference.is_guarantor &&
-      reference.reference_type !== 'living_with_family' &&
-      reference.home_ownership_status !== 'homeowner' &&
-      reference.home_ownership_status !== 'living_with_family'
-    if (needsResidential && !reference.has_landlord_reference && !reference.has_agent_reference) {
-      missing.push('Residential')
-    }
-
-    // Check for employment reference (employer)
-    // Only needed if income source is employment (not self-employed)
-    if (reference.income_employment && !reference.income_self_employed && !reference.has_employer_reference) {
-      missing.push('Employment')
-    }
-
-    // Check for accountant reference
-    // Only needed if income source is self-employed
-    if (reference.income_self_employed && !reference.has_accountant_reference) {
-      missing.push('Accountant')
-    }
-
-    // Check for guarantor reference
-    // Only needed if tenant requires a guarantor and guarantor hasn't completed their reference
-    if (reference.requires_guarantor && !reference.has_guarantor_reference) {
-      missing.push('Guarantor')
-    }
-
-    // If references are missing, show "Awaiting X" status
-    if (missing.length > 0) {
-      // Build the "Awaiting X" string with proper grammar
-      if (missing.length === 1) {
-        return `Awaiting ${missing[0]}`
-      } else if (missing.length === 2) {
-        return `Awaiting ${missing[0]} & ${missing[1]}`
-      } else {
-        // 3 or more items: "Awaiting X, Y & Z"
-        const lastItem = missing[missing.length - 1]
-        const otherItems = missing.slice(0, -1).join(', ')
-        return `Awaiting ${otherItems} & ${lastItem}`
-      }
-    }
-
-    // If no references are missing and status is 'pending_verification', show proper status
-    if (status === 'pending_verification' && missing.length === 0) {
-      return 'Pending Verification'
-    }
-  }
-
-  // Default: format the status string nicely
-  return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const toggleSort = (field: 'created_at' | 'move_in_date') => {
-  if (sortBy.value === field) {
-    // Toggle order if same field
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    // Set new field and default to desc
-    sortBy.value = field
-    sortOrder.value = 'desc'
-  }
-}
-
-const formatDate = (date?: string | null, fallback = 'N/A') =>
-  formatUkDate(
-    date,
-    {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    },
-    fallback
-  )
-
-
-const handlePropertyAddressSelected = (addressData: any) => {
-  console.log('Property address selected:', addressData)
-  formData.value.property_address = addressData.addressLine1
-  formData.value.property_city = addressData.city
-  formData.value.property_postcode = addressData.postcode
-}
-
 const handleCreditsPurchased = () => {
   showInsufficientCreditsModal.value = false
-  // Re-open the create modal so user can try again
   showCreateModal.value = true
 }
 
-const confirmDelete = (reference: any) => {
-  referenceToDelete.value = reference
-  showDeleteModal.value = true
+const handleChase = async (person: TenancyPerson) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('No auth token available')
+      return
+    }
+
+    // Get chase dependencies for this person
+    const depsResponse = await fetch(`${API_URL}/api/chase/agent/reference/${person.id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!depsResponse.ok) {
+      throw new Error('Failed to get chase dependencies')
+    }
+
+    const { dependencies } = await depsResponse.json()
+
+    // Chase all available dependencies
+    let chaseCount = 0
+    for (const dep of dependencies) {
+      if (dep.canChase) {
+        const chaseResponse = await fetch(`${API_URL}/api/chase/agent/${dep.id}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (chaseResponse.ok) {
+          chaseCount++
+        }
+      }
+    }
+
+    if (chaseCount > 0) {
+      toast.success(`Chase sent for ${chaseCount} outstanding item(s)`)
+    } else {
+      toast.info('No items available to chase at this time')
+    }
+  } catch (error: any) {
+    console.error('Failed to chase:', error)
+    toast.error(error.message || 'Failed to send chase')
+  }
+}
+
+const handleAddGuarantor = (tenancy: Tenancy) => {
+  // Set the tenancy and reset form
+  tenancyForGuarantor.value = tenancy
+  guarantorForm.value = { first_name: '', last_name: '', email: '', phone: '' }
+  guarantorError.value = ''
+  guarantorSuccess.value = ''
+
+  // Get tenants without guarantors
+  const availableTenants = tenantsForGuarantor.value
+
+  if (availableTenants.length === 0) {
+    toast.info('All tenants in this tenancy already have guarantors')
+    return
+  }
+
+  // Auto-select if only one tenant
+  if (availableTenants.length === 1 && availableTenants[0]) {
+    selectedTenantForGuarantor.value = availableTenants[0].id
+  } else {
+    selectedTenantForGuarantor.value = ''
+  }
+
+  showAddGuarantorModal.value = true
+}
+
+const closeGuarantorModal = () => {
+  showAddGuarantorModal.value = false
+  tenancyForGuarantor.value = null
+  selectedTenantForGuarantor.value = ''
+  guarantorForm.value = { first_name: '', last_name: '', email: '', phone: '' }
+  guarantorError.value = ''
+  guarantorSuccess.value = ''
+}
+
+const addGuarantor = async () => {
+  if (!tenancyForGuarantor.value) return
+
+  // Validate tenant selection if multiple tenants
+  const firstTenant = tenantsForGuarantor.value[0]
+  const tenantId = tenantsForGuarantor.value.length === 1 && firstTenant
+    ? firstTenant.id
+    : selectedTenantForGuarantor.value
+
+  if (!tenantId) {
+    guarantorError.value = 'Please select a tenant'
+    return
+  }
+
+  // Validate form
+  if (!guarantorForm.value.first_name || !guarantorForm.value.last_name || !guarantorForm.value.email) {
+    guarantorError.value = 'Please fill in all required fields'
+    return
+  }
+
+  if (!isValidEmail(guarantorForm.value.email)) {
+    guarantorError.value = 'Please enter a valid email address'
+    return
+  }
+
+  addingGuarantor.value = true
+  guarantorError.value = ''
+  guarantorSuccess.value = ''
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      guarantorError.value = 'Not authenticated'
+      return
+    }
+
+    const response = await fetch(`${API_URL}/api/references/${tenantId}/add-guarantor`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        first_name: guarantorForm.value.first_name,
+        last_name: guarantorForm.value.last_name,
+        email: guarantorForm.value.email,
+        phone: guarantorForm.value.phone || null
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to add guarantor')
+    }
+
+    guarantorSuccess.value = 'Guarantor added successfully! An email has been sent to them.'
+    await loadTenancies()
+
+    // Close modal after a short delay
+    setTimeout(() => {
+      closeGuarantorModal()
+    }, 1500)
+  } catch (error: any) {
+    console.error('Failed to add guarantor:', error)
+    guarantorError.value = error.message || 'Failed to add guarantor'
+  } finally {
+    addingGuarantor.value = false
+  }
 }
 
 const handleDelete = async () => {
@@ -1863,152 +1063,43 @@ const handleDelete = async () => {
       throw new Error(errorData.error || 'Failed to delete reference')
     }
 
-    // Close modal and refresh list
     showDeleteModal.value = false
     referenceToDelete.value = null
-    await fetchReferences()
+    await loadTenancies()
+    toast.success('Reference deleted successfully')
   } catch (error: any) {
     console.error('Failed to delete reference:', error)
-    alert(error.message || 'Failed to delete reference')
+    toast.error(error.message || 'Failed to delete reference')
   } finally {
     deleteLoading.value = false
   }
 }
 
-const confirmDeletePropertyGroup = (group: any) => {
-  propertyGroupToDelete.value = group
-  showDeletePropertyGroupModal.value = true
+// Event handlers
+const handleOpenCreateModal = () => {
+  showCreateModal.value = true
 }
 
-const handleDeletePropertyGroup = async () => {
-  if (!propertyGroupToDelete.value) return
+// Lifecycle
+onMounted(() => {
+  loadTenancies()
 
-  deletePropertyGroupLoading.value = true
-  try {
-    const token = authStore.session?.access_token
-    if (!token) {
-      console.error('No auth token available')
-      return
+  if (route.query.create === 'true') {
+    showCreateModal.value = true
+    router.replace('/references')
+  }
+
+  if (route.query.status && typeof route.query.status === 'string') {
+    const status = route.query.status.toUpperCase()
+    if (['IN_PROGRESS', 'AWAITING_VERIFICATION', 'ACTION_REQUIRED', 'COMPLETED', 'REJECTED'].includes(status)) {
+      activeTab.value = status as TenancyStatus
     }
-
-    // Extract parent reference ID from the group
-    // The group.id is in format "parentId_group", so we need the actual parent ID
-    // Get it from the first child's parent_reference_id
-    const parentId = propertyGroupToDelete.value.children?.[0]?.parent_reference_id
-    if (!parentId) {
-      throw new Error('Could not determine parent reference ID')
-    }
-
-    const response = await fetch(`${API_URL}/api/references/property/${parentId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to delete property reference')
-    }
-
-    const result = await response.json()
-    toast.success(`Property reference deleted. ${result.credits_refunded > 0 ? `${result.credits_refunded} credit(s) refunded.` : ''}`)
-
-    // Close modal and refresh list
-    showDeletePropertyGroupModal.value = false
-    propertyGroupToDelete.value = null
-    await fetchReferences()
-  } catch (error: any) {
-    console.error('Failed to delete property reference:', error)
-    toast.error(error.message || 'Failed to delete property reference')
-  } finally {
-    deletePropertyGroupLoading.value = false
   }
-}
 
-const resendForm = async (reference: any) => {
-  if (resendingFormId.value) return
+  window.addEventListener('open-create-reference-modal', handleOpenCreateModal)
+})
 
-  resendingFormId.value = reference.id
-  closeActionMenu()
-
-  try {
-    const token = authStore.session?.access_token
-    if (!token) {
-      console.error('No auth token available')
-      return
-    }
-
-    const response = await fetch(`${API_URL}/api/references/${reference.id}/resend-tenant-email`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({})
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to resend form')
-    }
-
-    toast.success('Form email sent successfully')
-  } catch (error: any) {
-    console.error('Failed to resend form:', error)
-    toast.error(error.message || 'Failed to resend form')
-  } finally {
-    resendingFormId.value = null
-  }
-}
-
-//Fins rejected reason srring
-const findReason = (remark_obj: Record<string, any>) => {
-  return (remark_obj?.credit_tas?.tas_reason || remark_obj?.credit_tas?.notes || remark_obj?.id?.notes || remark_obj?.income?.notes || remark_obj?.residential?.notes || remark_obj?.rtr?.notes || "No reason mentioned during assessment!")
-}
-
-// Format decision value for display
-const formatDecision = (decision: string | null): string => {
-  if (!decision) return 'PASS'
-  switch (decision) {
-    case 'SUPERB':
-    case 'PASS':
-      return 'PASS'
-    case 'PASS_WITH_GUARANTOR':
-      return 'PASS with guarantor'
-    case 'DECLINE':
-      return 'FAIL'
-    default:
-      return 'PASS'
-  }
-}
-
-// Get CSS classes for decision pill
-const getDecisionClasses = (decision: string | null): string => {
-  if (!decision || decision === 'SUPERB' || decision === 'PASS') {
-    return 'bg-emerald-50 text-emerald-800 border-emerald-100'
-  }
-  if (decision === 'PASS_WITH_GUARANTOR') {
-    return 'bg-amber-50 text-amber-800 border-amber-100'
-  }
-  if (decision === 'DECLINE') {
-    return 'bg-red-50 text-red-800 border-red-100'
-  }
-  return 'bg-emerald-50 text-emerald-800 border-emerald-100'
-}
-
-// Get CSS class for decision icon
-const getDecisionIconClass = (decision: string | null): string => {
-  if (!decision || decision === 'SUPERB' || decision === 'PASS') {
-    return 'text-emerald-500'
-  }
-  if (decision === 'PASS_WITH_GUARANTOR') {
-    return 'text-amber-500'
-  }
-  if (decision === 'DECLINE') {
-    return 'text-red-500'
-  }
-  return 'text-emerald-500'
-}
+onUnmounted(() => {
+  window.removeEventListener('open-create-reference-modal', handleOpenCreateModal)
+})
 </script>
