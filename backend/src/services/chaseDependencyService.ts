@@ -130,7 +130,7 @@ export async function createDependenciesForReference(referenceId: string): Promi
         contact_name_encrypted: reference.previous_landlord_name_encrypted,
         contact_email_encrypted: reference.previous_landlord_email_encrypted,
         contact_phone_encrypted: reference.previous_landlord_phone_encrypted,
-        linked_table: reference.previous_address_type === 'agency' ? 'agent_references' : 'landlord_references',
+        linked_table: reference.reference_type === 'agent' ? 'agent_references' : 'landlord_references',
         initial_request_sent_at: now
       })
     }
@@ -854,7 +854,7 @@ export async function sendChaseForDependency(
           previous_landlord_name_encrypted,
           previous_landlord_email_encrypted,
           previous_landlord_phone_encrypted,
-          previous_address_type,
+          reference_type,
           accountant_name_encrypted,
           accountant_email_encrypted,
           accountant_phone_encrypted,
@@ -869,7 +869,12 @@ export async function sendChaseForDependency(
       .eq('id', dependencyId)
       .single()
 
-    if (depError || !dependency) {
+    if (depError) {
+      console.error('[Chase] Error fetching dependency:', depError)
+      return { sent: false, skipped: false, reason: `Database error: ${depError.message}` }
+    }
+
+    if (!dependency) {
       return { sent: false, skipped: false, reason: 'Dependency not found' }
     }
 
@@ -970,7 +975,7 @@ export async function sendChaseForDependency(
 
       case 'RESIDENTIAL_REF': {
         const landlordName = decrypt(reference.previous_landlord_name_encrypted) || ''
-        const isAgent = reference.previous_address_type === 'agency' || dependency.linked_table === 'agent_references'
+        const isAgent = reference.reference_type === 'agent' || dependency.linked_table === 'agent_references'
 
         if (isAgent) {
           const agentUrl = `${frontendUrl}/agent-reference/${reference.id}`
