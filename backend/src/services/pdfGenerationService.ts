@@ -123,8 +123,8 @@ class PDFGenerationService {
   private readonly contractsDir: string
 
   constructor() {
-    // Contracts folder is at the root of the project
-    this.contractsDir = path.join(__dirname, '../../../Contracts')
+    // Contracts folder is inside the backend directory
+    this.contractsDir = path.join(__dirname, '../../Contracts')
   }
 
   /**
