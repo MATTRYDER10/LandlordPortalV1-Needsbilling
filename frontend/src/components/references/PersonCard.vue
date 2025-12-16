@@ -22,6 +22,13 @@
           <div class="flex items-center gap-2">
             <span class="font-medium text-gray-900 truncate">{{ person.name }}</span>
             <StatusPill :status="person.status" />
+            <span
+              v-if="isVerified"
+              class="px-2 py-0.5 text-xs font-medium rounded-full"
+              :class="decisionBadgeClass"
+            >
+              {{ decisionLabel }}
+            </span>
           </div>
           <div class="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
             <span v-if="person.rentShare">{{ formatCurrency(person.rentShare) }}/mo</span>
@@ -102,6 +109,28 @@ const displaySections = computed(() => {
 
 const canChase = computed(() => {
   return ['NOT_STARTED', 'IN_PROGRESS'].includes(props.person.status)
+})
+
+const isVerified = computed(() => {
+  return ['VERIFIED_PASS', 'VERIFIED_CONDITIONAL', 'VERIFIED_FAIL'].includes(props.person.status)
+})
+
+const decisionLabel = computed(() => {
+  switch (props.person.status) {
+    case 'VERIFIED_PASS': return 'Pass'
+    case 'VERIFIED_CONDITIONAL': return 'Pass with Guarantor'
+    case 'VERIFIED_FAIL': return 'Fail'
+    default: return ''
+  }
+})
+
+const decisionBadgeClass = computed(() => {
+  switch (props.person.status) {
+    case 'VERIFIED_PASS': return 'bg-green-100 text-green-800'
+    case 'VERIFIED_CONDITIONAL': return 'bg-amber-100 text-amber-800'
+    case 'VERIFIED_FAIL': return 'bg-red-100 text-red-800'
+    default: return ''
+  }
 })
 
 function getSectionClass(decision: SectionDecision): string {
