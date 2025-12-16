@@ -1,0 +1,1490 @@
+import { Router, Response } from 'express';
+import { authenticateStaff as staffAuth, StaffAuthRequest } from '../middleware/staffAuth';
+import { supabase as supabaseAdmin } from '../config/supabase';
+import { decrypt, encrypt } from '../services/encryption';
+import {
+  getSections,
+  getSection,
+  setPass,
+  setPassWithCondition,
+  setActionRequired,
+  setFail,
+  resetSection,
+  updateSectionChecks,
+  updateEvidenceSources,
+  getVerificationProgress,
+  getActionReasonCodes,
+  initializeSections
+} from '../services/verificationSectionService';
+import { logAuditAction } from '../services/auditService';
+import { isReadyForVerification } from '../services/verificationReadinessService';
+import { generatePassedPdfService } from '../services/generatePassedPdfService';
+
+const router = Router();
+
+// Helper function to calculate tenancy duration from start/end dates
+function calculateTenancyDuration(startDate: string, endDate: string | null): string {
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : new Date();
+
+  const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+
+  if (years === 0) {
+    return `${remainingMonths} month${remainingMonths !== 1 ? 's' : ''}`;
+  } else if (remainingMonths === 0) {
+    return `${years} year${years !== 1 ? 's' : ''}`;
+  } else {
+    return `${years} year${years !== 1 ? 's' : ''}, ${remainingMonths} month${remainingMonths !== 1 ? 's' : ''}`;
+  }
+}
+
+// ============================================================================
+// VERIFY QUEUE ENDPOINTS
+// ============================================================================
+
+// Get person-centric verify queue
+// Only returns references that are truly ready for verification (all required data present)
+router.get('/queue', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const staffUser = req.staffUser;
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const { status, assigned_to } = req.query;
+
+    // Get VERIFY work items with reference data
+    let query = supabaseAdmin
+      .from('work_items')
+      .select(`
+        *,
+        reference:tenant_references!work_items_reference_id_fkey (
+          id,
+          tenant_first_name_encrypted,
+          tenant_last_name_encrypted,
+          tenant_email_encrypted,
+          property_address_encrypted,
+          is_guarantor,
+          status,
+          created_at,
+          company:companies!inner(id, name_encrypted)
+        ),
+        assigned_staff:staff_users!work_items_assigned_to_fkey (
+          id,
+          full_name
+        )
+      `)
+      .eq('work_type', 'VERIFY')
+      .order('priority', { ascending: false })
+      .order('created_at', { ascending: true });
+
+    // Filter by status
+    if (status) {
+      query = query.eq('status', status);
+    } else {
+      query = query.in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED']);
+    }
+
+    // Filter by assigned staff
+    if (assigned_to === 'me') {
+      query = query.eq('assigned_to', staffUser.id);
+    } else if (assigned_to) {
+      query = query.eq('assigned_to', assigned_to);
+    }
+
+    // Filter out items in cooldown
+    query = query.or('cooldown_until.is.null,cooldown_until.lte.now()');
+
+    const { data: workItems, error } = await query;
+
+    if (error) throw error;
+
+    // Filter out completed/rejected/action_required references
+    const filteredItems = (workItems || []).filter((item: any) => {
+      if (!item.reference) return false;
+      // Exclude references that shouldn't be in verify queue
+      const excludedStatuses = ['completed', 'rejected', 'action_required', 'cancelled'];
+      if (excludedStatuses.includes(item.reference.status)) return false;
+      return true;
+    });
+
+    // Validate readiness for each item and enrich with data
+    const enrichedItems = await Promise.all(
+      filteredItems.map(async (item: any) => {
+        // Check if reference is actually ready for verification
+        const readiness = await isReadyForVerification(item.reference_id);
+
+        if (!readiness.isReady) {
+          // Log that this item shouldn't be in verify queue (for debugging)
+          console.log(`Reference ${item.reference_id} in verify queue but not ready:`, readiness.missingItems);
+          return null; // Exclude from queue results
+        }
+
+        const hoursInQueue = (Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60);
+
+        let urgency: 'NORMAL' | 'WARNING' | 'URGENT' = 'NORMAL';
+        let urgencyReason = '';
+        if (hoursInQueue > 48) {
+          urgency = 'URGENT';
+          urgencyReason = 'Over 48 hours in queue';
+        } else if (hoursInQueue > 24) {
+          urgency = 'WARNING';
+          urgencyReason = 'Over 24 hours in queue';
+        }
+
+        return {
+          id: item.id,
+          referenceId: item.reference_id,
+          workType: item.work_type,
+          status: item.status,
+          priority: item.priority,
+          urgency,
+          urgencyReason,
+          hoursInQueue: Math.floor(hoursInQueue),
+          createdAt: item.created_at,
+          assignedTo: item.assigned_to,
+          assignedAt: item.assigned_at,
+          assignedStaffName: item.assigned_staff?.full_name || null,
+          person: {
+            name: `${decrypt(item.reference.tenant_first_name_encrypted) || ''} ${decrypt(item.reference.tenant_last_name_encrypted) || ''}`.trim(),
+            email: decrypt(item.reference.tenant_email_encrypted) || '',
+            role: item.reference.is_guarantor ? 'GUARANTOR' : 'TENANT'
+          },
+          property: {
+            address: decrypt(item.reference.property_address_encrypted) || ''
+          },
+          company: {
+            name: decrypt(item.reference.company?.name_encrypted) || ''
+          }
+        };
+      })
+    );
+
+    // Filter out null items (those not ready for verification)
+    const validItems = enrichedItems.filter(item => item !== null);
+
+    // Sort by urgency and age
+    validItems.sort((a: any, b: any) => {
+      const urgencyOrder: Record<string, number> = { URGENT: 0, WARNING: 1, NORMAL: 2 };
+      if (urgencyOrder[a.urgency as string] !== urgencyOrder[b.urgency as string]) {
+        return urgencyOrder[a.urgency as string] - urgencyOrder[b.urgency as string];
+      }
+      return b.hoursInQueue - a.hoursInQueue;
+    });
+
+    res.json({
+      items: validItems,
+      total: validItems.length
+    });
+  } catch (error: any) {
+    console.error('Error fetching verify queue:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// PERSON ENDPOINTS
+// ============================================================================
+
+// Get full person data with sections for verification view
+router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    // Get reference data
+    const { data: reference, error: refError } = await supabaseAdmin
+      .from('tenant_references')
+      .select(`
+        *,
+        company:companies!inner(id, name_encrypted)
+      `)
+      .eq('id', referenceId)
+      .single();
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' });
+    }
+
+    // Calculate total income from encrypted fields
+    // All income fields are stored as annual amounts
+    const salaryAmount = reference.employment_salary_amount_encrypted
+      ? parseFloat(decrypt(reference.employment_salary_amount_encrypted) || '0') : 0;
+    const additionalIncome = reference.additional_income_amount_encrypted
+      ? parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0') : 0;
+    const selfEmployedIncome = reference.self_employed_annual_income_encrypted
+      ? parseFloat(decrypt(reference.self_employed_annual_income_encrypted) || '0') : 0;
+    const benefitsIncome = reference.benefits_annual_amount_encrypted
+      ? parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0') : 0;
+
+    const totalIncomeForDisplay = salaryAmount + additionalIncome + selfEmployedIncome + benefitsIncome;
+
+    // Use rent_share for multi-tenant properties and guarantors, fallback to monthly_rent
+    let rentForDisplay = reference.rent_share || reference.monthly_rent;
+
+    // For guarantors without rent_share, get it from the parent tenant reference
+    if (reference.is_guarantor && !reference.rent_share && reference.guarantor_for_reference_id) {
+      const { data: parentRef } = await supabaseAdmin
+        .from('tenant_references')
+        .select('rent_share')
+        .eq('id', reference.guarantor_for_reference_id)
+        .single();
+      if (parentRef?.rent_share) {
+        rentForDisplay = parentRef.rent_share;
+      }
+    }
+
+    // Decrypt reference data
+    const decryptedReference = {
+      id: reference.id,
+      tenant_first_name: decrypt(reference.tenant_first_name_encrypted),
+      tenant_last_name: decrypt(reference.tenant_last_name_encrypted),
+      tenant_email: decrypt(reference.tenant_email_encrypted),
+      property_address: decrypt(reference.property_address_encrypted),
+      date_of_birth: reference.date_of_birth ? decrypt(reference.date_of_birth) : null,
+      nationality: reference.nationality,
+      monthly_rent: rentForDisplay,
+      status: reference.status,
+      is_guarantor: reference.is_guarantor,
+      person_type: reference.is_guarantor ? 'GUARANTOR' : 'TENANT',
+      submitted_at: reference.submitted_at,
+      created_at: reference.created_at,
+      // Income data
+      total_income: totalIncomeForDisplay,
+      income_ratio: reference.income_ratio,
+      required_ratio: reference.required_ratio || 2.5,
+      employment_type: reference.employment_type,
+      employer_name: reference.employer_name,
+      job_title: reference.job_title,
+      employment_start_date: reference.employment_start_date,
+      income_student: reference.income_student || false,
+      // Credit data - TAS score now comes from reference_scores table
+      // tas_score: will be included from score query below
+      // RTR data - derive rtr_status from is_british_citizen if set
+      rtr_status: reference.is_british_citizen ? 'uk_citizen' : reference.rtr_status,
+      rtr_expiry_date: reference.rtr_expiry_date,
+      share_code: reference.share_code,
+      is_british_citizen: reference.is_british_citizen,
+      // File paths
+      id_document_path: reference.id_document_path,
+      selfie_path: reference.selfie_path,
+      signature_path: reference.signature_path,
+      rtr_document_path: reference.rtr_document_path,
+      // Previous address - construct from encrypted fields
+      previous_address: reference.previous_rental_address_line1_encrypted
+        ? `${decrypt(reference.previous_rental_address_line1_encrypted) || ''}${reference.previous_rental_city_encrypted ? ', ' + decrypt(reference.previous_rental_city_encrypted) : ''}${reference.previous_rental_postcode_encrypted ? ' ' + decrypt(reference.previous_rental_postcode_encrypted) : ''}`.trim()
+        : null,
+      // Address type - derive from reference_type (landlord/agent) - map to frontend expected values
+      previous_address_type: reference.reference_type
+        ? (reference.reference_type === 'agent' ? 'AGENT' : 'LANDLORD')
+        : null,
+      // Tenancy dates
+      previous_tenancy_start_date: reference.previous_tenancy_start_date,
+      previous_tenancy_end_date: reference.previous_tenancy_end_date,
+      // Tenancy duration - calculate from dates
+      tenancy_duration: reference.previous_tenancy_start_date
+        ? calculateTenancyDuration(reference.previous_tenancy_start_date, reference.previous_tenancy_end_date)
+        : null,
+      // Company
+      company_name: decrypt(reference.company?.name_encrypted)
+    };
+
+    // Get sections (or initialize if none exist)
+    let sections = await getSections(referenceId);
+
+    // If no sections exist, initialize them
+    if (!sections || sections.length === 0) {
+      sections = await initializeSections(referenceId);
+    }
+
+    // Get work item ID for this reference
+    const { data: workItem } = await supabaseAdmin
+      .from('work_items')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .eq('work_type', 'VERIFY')
+      .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED'])
+      .single();
+
+    // Get Creditsafe verification data
+    const { data: creditsafeVerification } = await supabaseAdmin
+      .from('creditsafe_verifications')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single();
+
+    // Get Sanctions/AML screening data
+    const { data: sanctionsScreening } = await supabaseAdmin
+      .from('sanctions_screenings')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single();
+
+    // Get reference score
+    const { data: score } = await supabaseAdmin
+      .from('reference_scores')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single();
+
+    res.json({
+      reference: decryptedReference,
+      sections,
+      workItemId: workItem?.id || null,
+      creditsafeVerification: creditsafeVerification || null,
+      sanctionsScreening: sanctionsScreening || null,
+      score: score || null
+    });
+  } catch (error: any) {
+    console.error('Error fetching person data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// SECTION ENDPOINTS
+// ============================================================================
+
+// Get all sections for a reference
+router.get('/person/:referenceId/sections', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const sections = await getSections(referenceId);
+
+    res.json({ sections });
+  } catch (error: any) {
+    console.error('Error fetching sections:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Initialize sections for a reference (if not already created)
+router.post('/person/:referenceId/sections/initialize', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const sections = await initializeSections(referenceId);
+
+    res.json({
+      message: 'Sections initialized successfully',
+      sections
+    });
+  } catch (error: any) {
+    console.error('Error initializing sections:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get verification progress for a reference
+router.get('/person/:referenceId/progress', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const progress = await getVerificationProgress(referenceId);
+
+    res.json(progress);
+  } catch (error: any) {
+    console.error('Error fetching progress:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single section by ID
+router.get('/sections/:sectionId', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionId } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const section = await getSection(sectionId);
+
+    if (!section) {
+      return res.status(404).json({ error: 'Section not found' });
+    }
+
+    res.json({ section });
+  } catch (error: any) {
+    console.error('Error fetching section:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set section decision to PASS
+router.post('/sections/:sectionId/pass', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionId } = req.params;
+    const { notes } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const section = await setPass(sectionId, staffUser.id, notes);
+
+    res.json({
+      message: 'Section passed',
+      section
+    });
+  } catch (error: any) {
+    console.error('Error setting pass:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set section decision to PASS_WITH_CONDITION
+router.post('/sections/:sectionId/pass-with-condition', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionId } = req.params;
+    const { conditionText, notes } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    if (!conditionText?.trim()) {
+      return res.status(400).json({ error: 'Condition text is required' });
+    }
+
+    const section = await setPassWithCondition(
+      sectionId,
+      staffUser.id,
+      { conditionText },
+      notes
+    );
+
+    res.json({
+      message: 'Section passed with condition',
+      section
+    });
+  } catch (error: any) {
+    console.error('Error setting pass with condition:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set section decision to ACTION_REQUIRED
+router.post('/sections/:sectionId/action-required', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionId } = req.params;
+    const { reasonCode, agentNote, internalNote, notes } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    if (!reasonCode?.trim()) {
+      return res.status(400).json({ error: 'Reason code is required' });
+    }
+
+    if (!agentNote?.trim()) {
+      return res.status(400).json({ error: 'Agent note is required' });
+    }
+
+    const section = await setActionRequired(
+      sectionId,
+      staffUser.id,
+      { reasonCode, agentNote, internalNote },
+      notes
+    );
+
+    res.json({
+      message: 'Section marked as action required - verification returned to agent',
+      section
+    });
+  } catch (error: any) {
+    console.error('Error setting action required:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set section decision to FAIL
+router.post('/sections/:sectionId/fail', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionId } = req.params;
+    const { failReason, notes } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    if (!failReason?.trim()) {
+      return res.status(400).json({ error: 'Fail reason is required' });
+    }
+
+    const section = await setFail(
+      sectionId,
+      staffUser.id,
+      { failReason },
+      notes
+    );
+
+    res.json({
+      message: 'Section failed',
+      section
+    });
+  } catch (error: any) {
+    console.error('Error setting fail:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset section to NOT_REVIEWED
+router.post('/sections/:sectionId/reset', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionId } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const section = await resetSection(sectionId, staffUser.id);
+
+    res.json({
+      message: 'Section reset',
+      section
+    });
+  } catch (error: any) {
+    console.error('Error resetting section:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update section checks
+router.patch('/sections/:sectionId/checks', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionId } = req.params;
+    const { checks } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    if (!Array.isArray(checks)) {
+      return res.status(400).json({ error: 'Checks must be an array' });
+    }
+
+    const section = await updateSectionChecks(sectionId, checks, staffUser.id);
+
+    res.json({ section });
+  } catch (error: any) {
+    console.error('Error updating checks:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update section evidence sources
+router.patch('/sections/:sectionId/evidence', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionId } = req.params;
+    const { evidenceSources } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    if (!Array.isArray(evidenceSources)) {
+      return res.status(400).json({ error: 'Evidence sources must be an array' });
+    }
+
+    const section = await updateEvidenceSources(sectionId, evidenceSources, staffUser.id);
+
+    res.json({ section });
+  } catch (error: any) {
+    console.error('Error updating evidence:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unified section update (PATCH)
+router.patch('/sections/:sectionId', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionId } = req.params;
+    const { decision, conditionText, actionReasonCode, actionAgentNote, actionInternalNote, failReason, notes } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    let section;
+
+    switch (decision) {
+      case 'PASS':
+        section = await setPass(sectionId, staffUser.id, notes);
+        break;
+      case 'PASS_WITH_CONDITION':
+        if (!conditionText?.trim()) {
+          return res.status(400).json({ error: 'Condition text is required for PASS_WITH_CONDITION' });
+        }
+        section = await setPassWithCondition(sectionId, staffUser.id, { conditionText }, notes);
+        break;
+      case 'ACTION_REQUIRED':
+        if (!actionReasonCode?.trim()) {
+          return res.status(400).json({ error: 'Reason code is required for ACTION_REQUIRED' });
+        }
+        if (!actionAgentNote?.trim()) {
+          return res.status(400).json({ error: 'Agent note is required for ACTION_REQUIRED' });
+        }
+        section = await setActionRequired(sectionId, staffUser.id, {
+          reasonCode: actionReasonCode,
+          agentNote: actionAgentNote,
+          internalNote: actionInternalNote
+        }, notes);
+        break;
+      case 'FAIL':
+        if (!failReason?.trim()) {
+          return res.status(400).json({ error: 'Fail reason is required for FAIL' });
+        }
+        section = await setFail(sectionId, staffUser.id, { failReason }, notes);
+        break;
+      case 'NOT_REVIEWED':
+        section = await resetSection(sectionId, staffUser.id);
+        break;
+      default:
+        return res.status(400).json({ error: `Invalid decision: ${decision}` });
+    }
+
+    res.json({ section });
+  } catch (error: any) {
+    console.error('Error updating section:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// LOOKUP ENDPOINTS
+// ============================================================================
+
+// Get action reason codes
+router.get('/reason-codes', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionType } = req.query;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const codes = await getActionReasonCodes(sectionType as any);
+
+    res.json({ codes });
+  } catch (error: any) {
+    console.error('Error fetching reason codes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Alias: Get action reason codes (for frontend compatibility)
+router.get('/action-codes', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { sectionType } = req.query;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const codes = await getActionReasonCodes(sectionType as any);
+
+    res.json({ codes });
+  } catch (error: any) {
+    console.error('Error fetching action codes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// CONFIRMATION ENDPOINTS
+// ============================================================================
+
+// Confirm income for a reference
+router.post('/confirm-income/:referenceId', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const {
+      confirmedSalary,
+      confirmedBenefits,
+      confirmedSelfEmployed,
+      confirmedSavings,
+      confirmedAdditional,
+      confirmedTotal
+    } = req.body;
+
+    // Validate that at least confirmedTotal is provided
+    if (confirmedTotal === undefined || confirmedTotal === null) {
+      return res.status(400).json({ error: 'Confirmed total income is required' });
+    }
+
+    // Get reference to check it exists and get monthly rent
+    const { data: reference, error: refError } = await supabaseAdmin
+      .from('tenant_references')
+      .select('id, monthly_rent, is_guarantor')
+      .eq('id', referenceId)
+      .single();
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' });
+    }
+
+    // Encrypt the confirmed income values
+    const updateData: Record<string, any> = {
+      confirmed_income_at: new Date().toISOString(),
+      confirmed_income_by: staffUser.id,
+      updated_at: new Date().toISOString()
+    };
+
+    // Update verified_* fields with encrypted values
+    if (confirmedSalary !== undefined) {
+      updateData.verified_salary_amount_encrypted = encrypt(confirmedSalary.toString());
+    }
+    if (confirmedBenefits !== undefined) {
+      updateData.verified_benefits_amount_encrypted = encrypt(confirmedBenefits.toString());
+    }
+    if (confirmedSelfEmployed !== undefined) {
+      updateData.verified_self_employed_income_encrypted = encrypt(confirmedSelfEmployed.toString());
+    }
+    if (confirmedSavings !== undefined) {
+      updateData.verified_savings_amount_encrypted = encrypt(confirmedSavings.toString());
+    }
+    if (confirmedAdditional !== undefined) {
+      updateData.verified_additional_income_amount_encrypted = encrypt(confirmedAdditional.toString());
+    }
+    if (confirmedTotal !== undefined) {
+      updateData.verified_total_income_encrypted = encrypt(confirmedTotal.toString());
+    }
+
+    // Calculate affordability
+    const monthlyRent = reference.monthly_rent || 0;
+    const annualRent = monthlyRent * 12;
+    const affordabilityRatio = annualRent > 0 ? confirmedTotal / annualRent : 0;
+    // Tenants = income/30, Guarantors = income/32
+    const divisor = reference.is_guarantor ? 32 : 30;
+    const affordableRent = Math.round(confirmedTotal / divisor);
+
+    // Update the reference (without income_ratio - that's in reference_scores)
+    const { error: updateError } = await supabaseAdmin
+      .from('tenant_references')
+      .update(updateData)
+      .eq('id', referenceId);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Update income_ratio in reference_scores (upsert to create if doesn't exist)
+    const incomeRatioValue = Math.round(affordabilityRatio * 100) / 100;
+    const { error: scoreError } = await supabaseAdmin
+      .from('reference_scores')
+      .upsert({
+        reference_id: referenceId,
+        income_ratio: incomeRatioValue,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'reference_id' });
+
+    if (scoreError) {
+      console.error('Error updating reference_scores:', scoreError);
+      // Don't fail the whole operation if score update fails
+    }
+
+    // Log audit
+    await logAuditAction({
+      referenceId,
+      action: 'INCOME_CONFIRMED',
+      description: `Staff confirmed income: £${confirmedTotal.toLocaleString()}/year`,
+      metadata: {
+        confirmedSalary,
+        confirmedBenefits,
+        confirmedSelfEmployed,
+        confirmedSavings,
+        confirmedAdditional,
+        confirmedTotal,
+        affordabilityRatio,
+        affordableRent,
+        visible_to_agent: false
+      },
+      userId: staffUser.id
+    });
+
+    // Get staff name for response
+    const { data: staffData } = await supabaseAdmin
+      .from('staff_users')
+      .select('full_name')
+      .eq('id', staffUser.id)
+      .single();
+
+    res.json({
+      success: true,
+      confirmedIncome: confirmedTotal,
+      affordabilityRatio: Math.round(affordabilityRatio * 100) / 100,
+      affordableRent,
+      confirmedBy: staffData?.full_name || 'Staff',
+      confirmedAt: updateData.confirmed_income_at
+    });
+  } catch (error: any) {
+    console.error('Error confirming income:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Confirm residential status for a reference
+router.post('/confirm-residential/:referenceId', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ['VERIFIED', 'LIVING_WITH_FAMILY', 'OWNER_OCCUPIER'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Check reference exists
+    const { data: reference, error: refError } = await supabaseAdmin
+      .from('tenant_references')
+      .select('id')
+      .eq('id', referenceId)
+      .single();
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' });
+    }
+
+    // Update the reference with confirmed residential status
+    const confirmedAt = new Date().toISOString();
+    const { error: updateError } = await supabaseAdmin
+      .from('tenant_references')
+      .update({
+        confirmed_residential_status: status,
+        confirmed_residential_at: confirmedAt,
+        confirmed_residential_by: staffUser.id,
+        updated_at: confirmedAt
+      })
+      .eq('id', referenceId);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Log audit
+    await logAuditAction({
+      referenceId,
+      action: 'RESIDENTIAL_CONFIRMED',
+      description: `Staff confirmed residential status: ${status}`,
+      metadata: {
+        confirmedStatus: status,
+        visible_to_agent: false
+      },
+      userId: staffUser.id
+    });
+
+    // Get staff name for response
+    const { data: staffData } = await supabaseAdmin
+      .from('staff_users')
+      .select('full_name')
+      .eq('id', staffUser.id)
+      .single();
+
+    res.json({
+      success: true,
+      confirmedStatus: status,
+      confirmedBy: staffData?.full_name || 'Staff',
+      confirmedAt
+    });
+  } catch (error: any) {
+    console.error('Error confirming residential:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get evidence files and references for a reference
+router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    // Get reference with income-related fields
+    const { data: reference, error: refError } = await supabaseAdmin
+      .from('tenant_references')
+      .select(`
+        id,
+        employment_salary_amount_encrypted,
+        benefits_annual_amount_encrypted,
+        self_employed_annual_income_encrypted,
+        additional_income_amount_encrypted,
+        guarantor_for_reference_id,
+        verified_salary_amount_encrypted,
+        verified_benefits_amount_encrypted,
+        verified_self_employed_income_encrypted,
+        verified_savings_amount_encrypted,
+        verified_additional_income_amount_encrypted,
+        verified_total_income_encrypted,
+        confirmed_income_at,
+        confirmed_income_by,
+        confirmed_residential_status,
+        confirmed_residential_at,
+        confirmed_residential_by,
+        previous_rental_address_line1_encrypted,
+        previous_rental_city_encrypted,
+        previous_rental_postcode_encrypted,
+        previous_tenancy_start_date,
+        previous_tenancy_end_date,
+        monthly_rent,
+        rent_share,
+        is_guarantor
+      `)
+      .eq('id', referenceId)
+      .single();
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' });
+    }
+
+    // Get evidence files from reference_evidence table
+    const { data: evidenceFiles } = await supabaseAdmin
+      .from('reference_evidence')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .order('created_at', { ascending: false });
+
+    // Get employer reference if exists
+    const { data: employerReference } = await supabaseAdmin
+      .from('employer_references')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single();
+
+    // Get accountant reference if exists
+    const { data: accountantReference } = await supabaseAdmin
+      .from('accountant_references')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single();
+
+    // Get landlord reference if exists
+    const { data: landlordReference } = await supabaseAdmin
+      .from('landlord_references')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single();
+
+    // Get agent reference if exists
+    const { data: agentReference } = await supabaseAdmin
+      .from('agent_references')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .single();
+
+    // Get staff names for confirmed by fields
+    let incomeConfirmedByName = null;
+    let residentialConfirmedByName = null;
+
+    if (reference.confirmed_income_by) {
+      const { data: staffData } = await supabaseAdmin
+        .from('staff_users')
+        .select('full_name')
+        .eq('id', reference.confirmed_income_by)
+        .single();
+      incomeConfirmedByName = staffData?.full_name;
+    }
+
+    if (reference.confirmed_residential_by) {
+      const { data: staffData } = await supabaseAdmin
+        .from('staff_users')
+        .select('full_name')
+        .eq('id', reference.confirmed_residential_by)
+        .single();
+      residentialConfirmedByName = staffData?.full_name;
+    }
+
+    // Decrypt claimed income values
+    // All income fields are stored as annual amounts
+    const salaryAmount = reference.employment_salary_amount_encrypted
+      ? parseFloat(decrypt(reference.employment_salary_amount_encrypted) || '0') : 0;
+    const additionalIncomeAmount = reference.additional_income_amount_encrypted
+      ? parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0') : 0;
+    const selfEmployedIncome = reference.self_employed_annual_income_encrypted
+      ? parseFloat(decrypt(reference.self_employed_annual_income_encrypted) || '0') : 0;
+    const benefitsIncome = reference.benefits_annual_amount_encrypted
+      ? parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0') : 0;
+
+    const claimedTotal = salaryAmount + additionalIncomeAmount + selfEmployedIncome + benefitsIncome;
+
+    const claimedIncome = {
+      salary: salaryAmount,
+      benefits: benefitsIncome,
+      selfEmployed: selfEmployedIncome,
+      savings: 0,
+      additional: additionalIncomeAmount,
+      total: claimedTotal
+    };
+
+    // Decrypt verified income values (if they exist)
+    const verifiedIncome = {
+      salary: reference.verified_salary_amount_encrypted ? parseFloat(decrypt(reference.verified_salary_amount_encrypted) || '0') : null,
+      benefits: reference.verified_benefits_amount_encrypted ? parseFloat(decrypt(reference.verified_benefits_amount_encrypted) || '0') : null,
+      selfEmployed: reference.verified_self_employed_income_encrypted ? parseFloat(decrypt(reference.verified_self_employed_income_encrypted) || '0') : null,
+      savings: reference.verified_savings_amount_encrypted ? parseFloat(decrypt(reference.verified_savings_amount_encrypted) || '0') : null,
+      additional: reference.verified_additional_income_amount_encrypted ? parseFloat(decrypt(reference.verified_additional_income_amount_encrypted) || '0') : null,
+      total: reference.verified_total_income_encrypted ? parseFloat(decrypt(reference.verified_total_income_encrypted) || '0') : null,
+      confirmedAt: reference.confirmed_income_at,
+      confirmedBy: incomeConfirmedByName
+    };
+
+    // Categorize evidence files
+    const incomeEvidence = (evidenceFiles || []).filter((f: any) =>
+      ['PAYSLIP', 'BANK_STATEMENT', 'EMPLOYMENT_CONTRACT', 'TAX_RETURN', 'P60', 'P45', 'ACCOUNTANT_LETTER'].includes(f.evidence_type)
+    );
+
+    const residentialEvidence = (evidenceFiles || []).filter((f: any) =>
+      ['LANDLORD_REFERENCE', 'TENANCY_AGREEMENT', 'UTILITY_BILL', 'COUNCIL_TAX'].includes(f.evidence_type)
+    );
+
+    const idEvidence = (evidenceFiles || []).filter((f: any) =>
+      ['ID_DOCUMENT', 'SELFIE', 'PASSPORT', 'DRIVING_LICENSE'].includes(f.evidence_type)
+    );
+
+    // Decrypt employer reference fields if exists
+    let decryptedEmployerReference = null;
+    if (employerReference) {
+      decryptedEmployerReference = {
+        id: employerReference.id,
+        employerName: employerReference.employer_name_encrypted ? decrypt(employerReference.employer_name_encrypted) : null,
+        contactName: employerReference.contact_name_encrypted ? decrypt(employerReference.contact_name_encrypted) : null,
+        contactEmail: employerReference.contact_email_encrypted ? decrypt(employerReference.contact_email_encrypted) : null,
+        jobTitle: employerReference.job_title,
+        employmentStartDate: employerReference.employment_start_date,
+        salary: employerReference.annual_salary_encrypted ? parseFloat(decrypt(employerReference.annual_salary_encrypted) || '0') : null,
+        employmentStatus: employerReference.employment_status,
+        isCurrentlyEmployed: employerReference.is_currently_employed,
+        submittedAt: employerReference.submitted_at,
+        signaturePath: employerReference.signature_path
+      };
+    }
+
+    // Decrypt accountant reference fields if exists
+    let decryptedAccountantReference = null;
+    if (accountantReference) {
+      decryptedAccountantReference = {
+        id: accountantReference.id,
+        accountantName: accountantReference.accountant_name_encrypted ? decrypt(accountantReference.accountant_name_encrypted) : null,
+        firmName: accountantReference.firm_name_encrypted ? decrypt(accountantReference.firm_name_encrypted) : null,
+        contactEmail: accountantReference.contact_email_encrypted ? decrypt(accountantReference.contact_email_encrypted) : null,
+        annualIncome: accountantReference.annual_income_encrypted ? parseFloat(decrypt(accountantReference.annual_income_encrypted) || '0') : null,
+        yearsTrading: accountantReference.years_trading,
+        submittedAt: accountantReference.submitted_at,
+        signaturePath: accountantReference.signature_path
+      };
+    }
+
+    // Decrypt landlord reference fields if exists
+    let decryptedLandlordReference = null;
+    if (landlordReference) {
+      decryptedLandlordReference = {
+        id: landlordReference.id,
+        landlordName: landlordReference.landlord_name_encrypted ? decrypt(landlordReference.landlord_name_encrypted) : null,
+        landlordEmail: landlordReference.landlord_email_encrypted ? decrypt(landlordReference.landlord_email_encrypted) : null,
+        landlordPhone: landlordReference.landlord_phone_encrypted ? decrypt(landlordReference.landlord_phone_encrypted) : null,
+        propertyAddress: landlordReference.property_address_encrypted ? decrypt(landlordReference.property_address_encrypted) : null,
+        tenancyStartDate: landlordReference.tenancy_start_date,
+        tenancyEndDate: landlordReference.tenancy_end_date,
+        monthlyRent: landlordReference.monthly_rent_encrypted ? parseFloat(decrypt(landlordReference.monthly_rent_encrypted) || '0') : null,
+        rentPaidOnTime: landlordReference.rent_paid_on_time,
+        wouldRentAgain: landlordReference.would_rent_again,
+        propertyCondition: landlordReference.property_condition,
+        additionalComments: landlordReference.additional_comments,
+        submittedAt: landlordReference.submitted_at,
+        signaturePath: landlordReference.signature_path,
+        // Additional reference questions
+        rentPaidOnTimeDetails: landlordReference.rent_paid_on_time_details,
+        propertyConditionDetails: landlordReference.property_condition_details,
+        neighbourComplaints: landlordReference.neighbour_complaints,
+        neighbourComplaintsDetails: landlordReference.neighbour_complaints_details,
+        breachOfTenancy: landlordReference.breach_of_tenancy,
+        breachOfTenancyDetails: landlordReference.breach_of_tenancy_details,
+        wouldRentAgainDetails: landlordReference.would_rent_again_details,
+        tenancyStillInProgress: landlordReference.tenancy_still_in_progress
+      };
+    }
+
+    // Decrypt agent reference fields if exists
+    let decryptedAgentReference = null;
+    if (agentReference) {
+      decryptedAgentReference = {
+        id: agentReference.id,
+        agentName: agentReference.agent_name_encrypted ? decrypt(agentReference.agent_name_encrypted) : null,
+        agencyName: agentReference.agency_name_encrypted ? decrypt(agentReference.agency_name_encrypted) : null,
+        agentEmail: agentReference.agent_email_encrypted ? decrypt(agentReference.agent_email_encrypted) : null,
+        agentPhone: agentReference.agent_phone_encrypted ? decrypt(agentReference.agent_phone_encrypted) : null,
+        propertyAddress: agentReference.property_address_encrypted ? decrypt(agentReference.property_address_encrypted) : null,
+        tenancyStartDate: agentReference.tenancy_start_date,
+        tenancyEndDate: agentReference.tenancy_end_date,
+        monthlyRent: agentReference.monthly_rent_encrypted ? parseFloat(decrypt(agentReference.monthly_rent_encrypted) || '0') : null,
+        rentPaidOnTime: agentReference.rent_paid_on_time,
+        wouldRentAgain: agentReference.would_rent_again,
+        additionalComments: agentReference.additional_comments,
+        submittedAt: agentReference.submitted_at,
+        signaturePath: agentReference.signature_path,
+        // Additional reference questions
+        rentPaidOnTimeDetails: agentReference.rent_paid_on_time_details,
+        neighbourComplaints: agentReference.neighbour_complaints,
+        neighbourComplaintsDetails: agentReference.neighbour_complaints_details,
+        breachOfTenancy: agentReference.breach_of_tenancy,
+        breachOfTenancyDetails: agentReference.breach_of_tenancy_details,
+        wouldRentAgainDetails: agentReference.would_rent_again_details,
+        tenancyStillInProgress: agentReference.tenancy_still_in_progress
+      };
+    }
+
+    // Get rent amount - for guarantors, get parent tenant's rent_share if needed
+    let rentForDisplay = reference.rent_share || reference.monthly_rent;
+    if (reference.is_guarantor && !reference.rent_share && reference.guarantor_for_reference_id) {
+      const { data: parentRef } = await supabaseAdmin
+        .from('tenant_references')
+        .select('rent_share')
+        .eq('id', reference.guarantor_for_reference_id)
+        .single();
+      if (parentRef?.rent_share) {
+        rentForDisplay = parentRef.rent_share;
+      }
+    }
+
+    res.json({
+      claimedIncome,
+      verifiedIncome,
+      incomeEvidence,
+      residentialEvidence,
+      idEvidence,
+      employerReference: decryptedEmployerReference,
+      accountantReference: decryptedAccountantReference,
+      landlordReference: decryptedLandlordReference,
+      agentReference: decryptedAgentReference,
+      residential: {
+        previousAddress: reference.previous_rental_address_line1_encrypted
+          ? `${decrypt(reference.previous_rental_address_line1_encrypted)}, ${decrypt(reference.previous_rental_city_encrypted) || ''} ${decrypt(reference.previous_rental_postcode_encrypted) || ''}`.trim()
+          : null,
+        tenancyStart: reference.previous_tenancy_start_date,
+        tenancyEnd: reference.previous_tenancy_end_date,
+        confirmedStatus: reference.confirmed_residential_status,
+        confirmedAt: reference.confirmed_residential_at,
+        confirmedBy: residentialConfirmedByName
+      },
+      employment: {
+        type: employerReference?.employment_status || null,
+        employerName: decryptedEmployerReference?.employerName || null,
+        jobTitle: decryptedEmployerReference?.jobTitle || null,
+        startDate: decryptedEmployerReference?.employmentStartDate || null
+      },
+      monthlyRent: rentForDisplay,
+      isGuarantor: reference.is_guarantor
+    });
+  } catch (error: any) {
+    console.error('Error fetching evidence:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// FINALIZATION ENDPOINTS
+// ============================================================================
+
+// Finalize verification for a reference
+router.post('/person/:referenceId/finalize', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const { finalDecision, justification } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    // Valid final decisions
+    const validDecisions = ['PASS', 'PASS_WITH_CONDITION', 'PASS_WITH_GUARANTOR', 'REFER', 'FAIL'];
+    if (!validDecisions.includes(finalDecision)) {
+      return res.status(400).json({ error: `Invalid final decision. Must be one of: ${validDecisions.join(', ')}` });
+    }
+
+    // Check verification progress
+    const progress = await getVerificationProgress(referenceId);
+
+    if (!progress.canFinalize) {
+      if (progress.hasActionRequired) {
+        return res.status(400).json({ error: 'Cannot finalize - one or more sections require action' });
+      }
+      if (progress.totalSections === 0 || progress.completedSections < progress.totalSections) {
+        return res.status(400).json({ error: 'Cannot finalize - not all sections have been reviewed' });
+      }
+    }
+
+    // Get reference details
+    const { data: reference, error: refError } = await supabaseAdmin
+      .from('tenant_references')
+      .select('status, is_guarantor')
+      .eq('id', referenceId)
+      .single();
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' });
+    }
+
+    // Update reference status based on decision
+    let newStatus = 'completed';
+    if (finalDecision === 'FAIL') {
+      newStatus = 'rejected';
+    } else if (finalDecision === 'PASS_WITH_GUARANTOR' && !reference.is_guarantor) {
+      newStatus = 'awaiting_guarantor';
+    }
+
+    // Update reference
+    await supabaseAdmin
+      .from('tenant_references')
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', referenceId);
+
+    // Complete any open work items for this reference
+    await supabaseAdmin
+      .from('work_items')
+      .update({
+        status: 'COMPLETED',
+        completed_at: new Date().toISOString(),
+        last_activity_at: new Date().toISOString()
+      })
+      .eq('reference_id', referenceId)
+      .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED']);
+
+    // Log audit
+    await logAuditAction({
+      referenceId,
+      action: 'VERIFICATION_FINALIZED',
+      description: `Verification finalized with decision: ${finalDecision}`,
+      metadata: {
+        finalDecision,
+        justification,
+        newStatus,
+        sectionsSummary: progress.sections,
+        visible_to_agent: true
+      },
+      userId: staffUser.id
+    });
+
+    // Generate PDF report for passing decisions
+    let pdfGenerated = false;
+    let pdfUrl: string | null = null;
+
+    if (newStatus === 'completed' && ['PASS', 'PASS_WITH_CONDITION', 'PASS_WITH_GUARANTOR'].includes(finalDecision)) {
+      try {
+        console.log(`[Finalize] Generating PDF report for reference ${referenceId}...`);
+        pdfUrl = await generatePassedPdfService(referenceId);
+        pdfGenerated = true;
+        console.log(`[Finalize] PDF generated and uploaded: ${pdfUrl}`);
+
+        // Save PDF URL to database
+        const { error: pdfUpdateError } = await supabaseAdmin
+          .from('tenant_references')
+          .update({ passed_certificate_url: pdfUrl })
+          .eq('id', referenceId);
+
+        if (pdfUpdateError) {
+          console.error('[Finalize] Failed to save PDF URL to database:', pdfUpdateError);
+        }
+      } catch (pdfError) {
+        console.error('[Finalize] PDF generation error:', pdfError);
+        // Don't fail the finalization if PDF generation fails
+      }
+    }
+
+    res.json({
+      message: 'Verification finalized successfully',
+      finalDecision,
+      newStatus,
+      referenceId,
+      pdfGenerated,
+      pdfUrl
+    });
+  } catch (error: any) {
+    console.error('Error finalizing verification:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Alias: Finalize verification (alternate route for frontend compatibility)
+router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const { decision, notes } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    // Map frontend decision format to backend format
+    const finalDecision = decision;
+    const justification = notes;
+
+    // Valid final decisions
+    const validDecisions = ['PASS', 'PASS_WITH_CONDITION', 'PASS_WITH_GUARANTOR', 'REFER', 'FAIL'];
+    if (!validDecisions.includes(finalDecision)) {
+      return res.status(400).json({ error: `Invalid final decision. Must be one of: ${validDecisions.join(', ')}` });
+    }
+
+    // Check verification progress
+    const progress = await getVerificationProgress(referenceId);
+
+    if (!progress.canFinalize) {
+      if (progress.hasActionRequired) {
+        return res.status(400).json({ error: 'Cannot finalize - one or more sections require action' });
+      }
+      if (progress.totalSections === 0 || progress.completedSections < progress.totalSections) {
+        return res.status(400).json({ error: 'Cannot finalize - not all sections have been reviewed' });
+      }
+    }
+
+    // Get reference details
+    const { data: reference, error: refError } = await supabaseAdmin
+      .from('tenant_references')
+      .select('status, is_guarantor')
+      .eq('id', referenceId)
+      .single();
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' });
+    }
+
+    // Update reference status based on decision
+    let newStatus = 'completed';
+    if (finalDecision === 'FAIL') {
+      newStatus = 'rejected';
+    } else if (finalDecision === 'PASS_WITH_GUARANTOR' && !reference.is_guarantor) {
+      newStatus = 'awaiting_guarantor';
+    }
+
+    // Update reference
+    await supabaseAdmin
+      .from('tenant_references')
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', referenceId);
+
+    // Complete any open work items for this reference
+    await supabaseAdmin
+      .from('work_items')
+      .update({
+        status: 'COMPLETED',
+        completed_at: new Date().toISOString(),
+        last_activity_at: new Date().toISOString()
+      })
+      .eq('reference_id', referenceId)
+      .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED']);
+
+    // Log audit
+    await logAuditAction({
+      referenceId,
+      action: 'VERIFICATION_FINALIZED',
+      description: `Verification finalized with decision: ${finalDecision}`,
+      metadata: {
+        finalDecision,
+        justification,
+        newStatus,
+        sectionsSummary: progress.sections,
+        visible_to_agent: true
+      },
+      userId: staffUser.id
+    });
+
+    // Generate PDF report for passing decisions
+    let pdfGenerated = false;
+    let pdfUrl: string | null = null;
+
+    if (newStatus === 'completed' && ['PASS', 'PASS_WITH_CONDITION', 'PASS_WITH_GUARANTOR'].includes(finalDecision)) {
+      try {
+        console.log(`[Finalize] Generating PDF report for reference ${referenceId}...`);
+        pdfUrl = await generatePassedPdfService(referenceId);
+        pdfGenerated = true;
+        console.log(`[Finalize] PDF generated and uploaded: ${pdfUrl}`);
+
+        // Save PDF URL to database
+        const { error: pdfUpdateError } = await supabaseAdmin
+          .from('tenant_references')
+          .update({ passed_certificate_url: pdfUrl })
+          .eq('id', referenceId);
+
+        if (pdfUpdateError) {
+          console.error('[Finalize] Failed to save PDF URL to database:', pdfUpdateError);
+        }
+      } catch (pdfError) {
+        console.error('[Finalize] PDF generation error:', pdfError);
+        // Don't fail the finalization if PDF generation fails
+      }
+    }
+
+    res.json({
+      message: 'Verification finalized successfully',
+      finalDecision,
+      newStatus,
+      referenceId,
+      pdfGenerated,
+      pdfUrl
+    });
+  } catch (error: any) {
+    console.error('Error finalizing verification:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;

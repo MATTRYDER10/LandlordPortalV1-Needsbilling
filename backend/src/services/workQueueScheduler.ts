@@ -1,6 +1,7 @@
 import { supabase as supabaseAdmin } from '../config/supabase';
 import * as creditService from './creditService';
 import { signatureService } from './signatureService';
+import { processAutoChases } from './autoChaseService';
 
 /**
  * Work Queue Scheduler Service
@@ -19,6 +20,7 @@ const URGENCY_THRESHOLD_HOURS = 8;
 const EXPIRED_REFERENCE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const SIGNING_REMINDER_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const SIGNING_REMINDER_THRESHOLD_HOURS = 24; // Send reminders every 24 hours
+const AUTO_CHASE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Auto-unassign CHASE work items that have been idle for 4+ hours
@@ -497,6 +499,12 @@ export function startSchedulers() {
     await sendSigningReminders();
   }, SIGNING_REMINDER_CHECK_INTERVAL_MS);
 
+  // Auto-chase (every 30 minutes)
+  setInterval(async () => {
+    console.log('[Scheduler] Running auto-chase check...');
+    await processAutoChases();
+  }, AUTO_CHASE_INTERVAL_MS);
+
   // Run immediately on startup
   setTimeout(async () => {
     console.log('[Scheduler] Running initial checks...');
@@ -506,6 +514,7 @@ export function startSchedulers() {
     await syncMissingVerifyItems();
     await autoDeleteExpiredReferences();
     await sendSigningReminders();
+    await processAutoChases();
   }, 5000); // Wait 5 seconds after startup
 
   console.log('[Scheduler] Background schedulers started successfully');
@@ -522,7 +531,8 @@ export async function runAllScheduledTasks() {
     idle: await autoUnassignIdleChaseItems(),
     urgent: await escalateUrgentItems(),
     expiredReferences: await autoDeleteExpiredReferences(),
-    signingReminders: await sendSigningReminders()
+    signingReminders: await sendSigningReminders(),
+    autoChase: await processAutoChases()
   };
 
   console.log('[Scheduler] Manual run complete:', results);

@@ -15,12 +15,14 @@ import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
 import pdfService from '../services/pdfService'
 import { creditsafeService } from '../services/creditsafeService'
 import { sanctionsService, ScreeningResponse } from '../services/sanctionsService'
-import { generateReferenceReportPDF } from '../services/pdfReportService'
+import { generatePassedPdfService } from '../services/generatePassedPdfService'
 import * as billingService from '../services/billingService'
 import * as creditService from '../services/creditService'
 import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/requestMetadata'
 import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
+import { isReadyForVerification } from '../services/verificationReadinessService'
+import { markDependencyReceivedByType } from '../services/chaseDependencyService'
 
 const router = Router()
 
@@ -148,7 +150,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       pending_verification: 0,
       completed: 0,
       rejected: 0,
-      cancelled: 0
+      cancelled: 0,
+      action_required: 0  // References where chase cycles exhausted and need agent intervention
     }
     statusCountsData?.forEach(ref => {
       statusCounts.total++
@@ -2636,30 +2639,48 @@ router.post('/submit/:token', async (req: Request, res) => {
     await assessApplicationScore(updatedReference.id, 'System');
     console.log('Application assessed successfully')
 
-    // Check if tenant requires any third-party references
-    // If not, move directly to pending_verification so they enter the verification queue
+    // Check if reference is ready for verification using comprehensive readiness check
+    // This validates ALL required sections: tenant form, guarantor (if required), income, residential, identity
+    const readiness = await isReadyForVerification(updatedReference.id)
 
-    // Regular employment: Enter queue if employer reference submitted OR ≥3 payslips uploaded
-    const hasEmployerRef = !!data.employer_ref_email
-    const hasEnoughPayslips = (updatedReference.payslip_files?.length || 0) >= 3
-    const requiresEmployerRef = data.income_regular_employment && !hasEmployerRef && !hasEnoughPayslips
-
-    // Self-employed: Enter queue if accountant reference submitted OR tax return uploaded
-    const hasAccountantRef = !!data.accountant_email
-    const hasTaxReturn = !!updatedReference.tax_return_path
-    const requiresAccountantRef = data.income_self_employed && !hasAccountantRef && !hasTaxReturn
-
-    // Residential: Keep existing logic (landlord reference if provided)
-    const requiresResidentialRef = !!data.previous_landlord_email
-
-    if (!requiresEmployerRef && !requiresAccountantRef && !requiresResidentialRef) {
-      // No third-party references required - move to pending_verification
+    if (readiness.isReady) {
+      // All requirements met - move to pending_verification
       await supabase
         .from('tenant_references')
         .update({ status: 'pending_verification' })
         .eq('id', updatedReference.id)
 
-      console.log('No third-party references required - moved to pending_verification')
+      // Create VERIFY work item
+      const { data: existingVerify } = await supabase
+        .from('work_items')
+        .select('id')
+        .eq('reference_id', updatedReference.id)
+        .eq('work_type', 'VERIFY')
+        .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED'])
+        .single()
+
+      if (!existingVerify) {
+        await supabase
+          .from('work_items')
+          .insert({
+            reference_id: updatedReference.id,
+            work_type: 'VERIFY',
+            status: 'AVAILABLE',
+            priority: 0
+          })
+      }
+
+      console.log('Reference ready for verification - moved to pending_verification')
+    } else {
+      console.log('Reference not ready for verification. Missing:', readiness.missingItems)
+    }
+
+    // Mark tenant form chase dependency as received
+    await markDependencyReceivedByType(updatedReference.id, 'TENANT_FORM')
+
+    // If this is a guarantor reference, also mark GUARANTOR_FORM on parent reference
+    if (reference.is_guarantor && reference.guarantor_for_reference_id) {
+      await markDependencyReceivedByType(reference.guarantor_for_reference_id, 'GUARANTOR_FORM')
     }
 
     res.json({
@@ -3446,6 +3467,8 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
 
     // Skip status update for guarantor references - they have their own verification flow
     if (tenantRef?.is_guarantor) {
+      // Still mark residential ref as received for guarantors
+      await markDependencyReceivedByType(referenceId, 'RESIDENTIAL_REF')
       res.json({ message: 'Landlord reference submitted successfully' })
       return
     }
@@ -3486,6 +3509,9 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
         .update({ status: 'pending_verification' })
         .eq('id', referenceId)
     }
+
+    // Mark residential ref chase dependency as received
+    await markDependencyReceivedByType(referenceId, 'RESIDENTIAL_REF')
 
     res.json({ message: 'Landlord reference submitted successfully' })
   } catch (error: any) {
@@ -3569,6 +3595,9 @@ router.post('/agent/:referenceId', async (req: Request, res) => {
     if (insertError) {
       return res.status(400).json({ error: insertError.message })
     }
+
+    // Mark residential ref chase dependency as received
+    await markDependencyReceivedByType(referenceId, 'RESIDENTIAL_REF')
 
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
@@ -3697,6 +3726,9 @@ router.post('/employer/:referenceId', async (req: Request, res) => {
     if (insertError) {
       return res.status(400).json({ error: insertError.message })
     }
+
+    // Mark employer ref chase dependency as received
+    await markDependencyReceivedByType(referenceId, 'EMPLOYER_REF')
 
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
@@ -3830,6 +3862,9 @@ router.post('/accountant/:token', async (req: Request, res) => {
     if (updateError) {
       return res.status(400).json({ error: updateError.message })
     }
+
+    // Mark accountant ref chase dependency as received
+    await markDependencyReceivedByType(accountantRef.tenant_reference_id, 'ACCOUNTANT_REF')
 
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
@@ -5097,22 +5132,12 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
-    // Generate the PDF (returns buffer and name)
-    const pdfResult = await generateReferenceReportPDF(referenceId)
+    // Generate the PDF and get the URL
+    const pdfUrl = await generatePassedPdfService(referenceId)
+    console.log('[PDF] Generated PDF URL:', pdfUrl)
 
-    console.log('[PDF] Generated PDF with names:', pdfResult.firstName, pdfResult.lastName)
-
-    const filename = `PropertyGoose_Reference_Report_${pdfResult.firstName.replace(/\s+/g, '_')}_${pdfResult.lastName.replace(/\s+/g, '_')}.pdf`
-
-    console.log('[PDF] Sending filename:', filename)
-
-    // Set response headers
-    res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
-    res.setHeader('Content-Length', pdfResult.buffer.length)
-
-    // Send the PDF
-    res.send(pdfResult.buffer)
+    // Redirect to the PDF URL for download
+    res.redirect(pdfUrl)
   } catch (error: any) {
     console.error('Failed to generate PDF report:', error)
     res.status(500).json({ error: error.message })

@@ -99,6 +99,12 @@ function buildContactFooter(details?: ContactDetails): string {
  * Send an email using Resend
  */
 export async function sendEmail(options: EmailOptions): Promise<void> {
+  // Dev mode check - skip actual sending in development unless explicitly enabled
+  if (process.env.NODE_ENV === 'development' && !process.env.ENABLE_EMAIL_DEV) {
+    console.log(`[DEV] Email skipped - would send to ${options.to}: ${options.subject}`);
+    return;
+  }
+
   try {
     const footer = buildContactFooter(options.contactDetails);
     const html = footer ? `${options.html}${footer}` : options.html;

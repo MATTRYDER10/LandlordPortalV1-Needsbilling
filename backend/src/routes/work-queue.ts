@@ -6,6 +6,8 @@ import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordR
 import { sendTenantReferenceRequestSMS, sendLandlordReferenceRequestSMS, sendEmployerReferenceRequestSMS, sendAccountantReferenceRequestSMS, sendAgentReferenceRequestSMS, sendGuarantorReferenceRequestSMS } from '../services/smsService';
 import { logAuditAction } from '../services/auditService';
 import { isValidEmail } from '../utils/validation';
+import { acquireLock, releaseLock, extendLock, checkLockStatus, getStaffLocks, forceReleaseLock } from '../services/lockService';
+import { isReadyForVerification } from '../services/verificationReadinessService';
 
 const router = Router();
 
@@ -117,21 +119,58 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
       return res.status(401).json({ error: 'Staff authentication required' });
     }
 
-    // Get counts by type and status (include metadata for awaiting docs count)
-    const { data: stats, error } = await supabaseAdmin
+    // Get VERIFY work_items with reference data for filtering
+    const { data: verifyItems, error: verifyError } = await supabaseAdmin
       .from('work_items')
-      .select('work_type, status, metadata')
-      .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS']);
+      .select(`
+        id,
+        reference_id,
+        status,
+        metadata,
+        assigned_to,
+        cooldown_until,
+        reference:tenant_references!work_items_reference_id_fkey (status)
+      `)
+      .eq('work_type', 'VERIFY')
+      .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED']);
 
-    if (error) throw error;
+    if (verifyError) throw verifyError;
+
+    // Get CHASE dependencies count (items ready to chase - 8+ hours since initial/last chase)
+    const eightHoursAgo = new Date();
+    eightHoursAgo.setHours(eightHoursAgo.getHours() - 8);
+
+    const { data: chaseDeps, error: chaseError } = await supabaseAdmin
+      .from('chase_dependencies')
+      .select(`
+        id,
+        initial_request_sent_at,
+        last_chase_sent_at,
+        reference:tenant_references!chase_dependencies_reference_id_fkey (status)
+      `)
+      .in('status', ['PENDING', 'CHASING']);
+
+    if (chaseError) throw chaseError;
+
+    // Filter chase dependencies by 8-hour rule and reference status
+    const excludedRefStatuses = ['completed', 'rejected', 'cancelled', 'action_required', 'pending_verification'];
+    const activeChaseCount = (chaseDeps || []).filter((dep: any) => {
+      if (!dep.reference) return false;
+      if (excludedRefStatuses.includes(dep.reference.status)) return false;
+      if (!dep.initial_request_sent_at) return false;
+
+      const relevantTimestamp = dep.last_chase_sent_at || dep.initial_request_sent_at;
+      const timestampDate = new Date(relevantTimestamp);
+      return timestampDate <= eightHoursAgo;
+    }).length;
 
     const summary = {
       chase: {
-        available: 0,
+        available: activeChaseCount,
         assigned: 0,
         inProgress: 0,
         myItems: 0,
-        total: 0
+        total: activeChaseCount
       },
       verify: {
         available: 0,
@@ -143,42 +182,112 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
       }
     };
 
-    // Get my assigned items
-    const { data: myItems } = await supabaseAdmin
-      .from('work_items')
-      .select('work_type')
-      .eq('assigned_to', staffUser.id)
-      .in('status', ['ASSIGNED', 'IN_PROGRESS']);
+    // Filter verify items same as /api/verify/queue does
+    const excludedVerifyStatuses = ['completed', 'rejected', 'action_required', 'cancelled'];
+    const now = new Date();
 
-    stats?.forEach((item: any) => {
-      const type = item.work_type.toLowerCase() as 'chase' | 'verify';
+    // Check readiness for each item (same as verify queue endpoint)
+    const readyItems = await Promise.all(
+      (verifyItems || []).map(async (item: any) => {
+        // Filter out items with excluded reference status
+        if (!item.reference) return null;
+        if (excludedVerifyStatuses.includes(item.reference.status)) return null;
+
+        // Filter out items in cooldown
+        if (item.cooldown_until && new Date(item.cooldown_until) > now) return null;
+
+        // Check if reference is actually ready for verification
+        const readiness = await isReadyForVerification(item.reference_id);
+        if (!readiness.isReady) return null;
+
+        return item;
+      })
+    );
+
+    // Count the ready items
+    readyItems.filter(item => item !== null).forEach((item: any) => {
       const status = item.status.toLowerCase();
 
-      if (type === 'chase' || type === 'verify') {
-        if (status === 'available') summary[type].available++;
-        else if (status === 'assigned') summary[type].assigned++;
-        else if (status === 'in_progress') summary[type].inProgress++;
-      }
+      // RETURNED items are treated as available since they can be picked up
+      if (status === 'available' || status === 'returned') summary.verify.available++;
+      else if (status === 'assigned') summary.verify.assigned++;
+      else if (status === 'in_progress') summary.verify.inProgress++;
 
-      // Count awaiting docs items (VERIFY queue only)
-      if (type === 'verify' && item.metadata?.awaiting_documentation === true) {
+      // Count awaiting docs items
+      if (item.metadata?.awaiting_documentation === true) {
         summary.verify.awaitingDocs++;
       }
-    });
 
-    myItems?.forEach((item: any) => {
-      const type = item.work_type.toLowerCase() as 'chase' | 'verify';
-      if (type === 'chase' || type === 'verify') {
-        summary[type].myItems++;
+      // Count my items
+      if (item.assigned_to === staffUser.id && (status === 'assigned' || status === 'in_progress')) {
+        summary.verify.myItems++;
       }
     });
 
-    summary.chase.total = summary.chase.available + summary.chase.assigned + summary.chase.inProgress;
     summary.verify.total = summary.verify.available + summary.verify.assigned + summary.verify.inProgress;
 
     res.json({ stats: summary });
   } catch (error: any) {
     console.error('Error fetching work queue stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get my active tasks (unified view of both VERIFY and CHASE)
+router.get('/my-tasks', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const staffUser = req.staffUser;
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const { data: workItems, error } = await supabaseAdmin
+      .from('work_items')
+      .select(`
+        *,
+        reference:tenant_references!work_items_reference_id_fkey (
+          id,
+          tenant_first_name_encrypted,
+          tenant_last_name_encrypted,
+          property_address_encrypted,
+          is_guarantor
+        )
+      `)
+      .eq('assigned_to', staffUser.id)
+      .in('status', ['ASSIGNED', 'IN_PROGRESS'])
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    // Transform to ActiveTask format
+    const tasks = workItems?.map((item: any) => {
+      const hoursInQueue = (Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60);
+      let urgency: 'NORMAL' | 'WARNING' | 'URGENT' = 'NORMAL';
+      if (hoursInQueue >= 48) urgency = 'URGENT';
+      else if (hoursInQueue >= 24) urgency = 'WARNING';
+
+      return {
+        id: item.id,
+        referenceId: item.reference_id,
+        workType: item.work_type,
+        status: item.status,
+        personName: item.reference ?
+          `${decrypt(item.reference.tenant_first_name_encrypted) || ''} ${decrypt(item.reference.tenant_last_name_encrypted) || ''}`.trim() :
+          'Unknown',
+        personRole: item.reference?.is_guarantor ? 'GUARANTOR' : 'TENANT',
+        propertyAddress: item.reference ? decrypt(item.reference.property_address_encrypted) || '' : '',
+        urgency,
+        hoursInQueue: Math.floor(hoursInQueue),
+        createdAt: item.created_at,
+        dependencyId: item.dependency_id,
+        dependencyType: item.dependency_type,
+        dependencyStatus: item.dependency_status
+      };
+    }) || [];
+
+    res.json({ tasks });
+  } catch (error: any) {
+    console.error('Error fetching my tasks:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1082,6 +1191,163 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
     });
   } catch (error: any) {
     console.error('Error resending email:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// LOCK ENDPOINTS - Soft locking for concurrent access
+// ============================================================================
+
+// Acquire lock on a work item
+router.post('/:id/lock/claim', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const result = await acquireLock(id, staffUser.id);
+
+    if (!result.success) {
+      return res.status(409).json({
+        error: result.error,
+        existingLock: result.existingLock
+      });
+    }
+
+    res.json({
+      message: 'Lock acquired successfully',
+      lock: result.lock
+    });
+  } catch (error: any) {
+    console.error('Error acquiring lock:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Release lock on a work item
+router.post('/:id/lock/release', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const success = await releaseLock(id, staffUser.id);
+
+    if (!success) {
+      return res.status(400).json({ error: 'Failed to release lock' });
+    }
+
+    res.json({ message: 'Lock released successfully' });
+  } catch (error: any) {
+    console.error('Error releasing lock:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Heartbeat to extend lock (call every 5 minutes)
+router.post('/:id/lock/heartbeat', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const result = await extendLock(id, staffUser.id);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({
+      message: 'Lock extended successfully',
+      lock: result.lock
+    });
+  } catch (error: any) {
+    console.error('Error extending lock:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check lock status for a work item
+router.get('/:id/lock/status', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const status = await checkLockStatus(id);
+
+    res.json({
+      isLocked: status.isLocked,
+      lock: status.lock,
+      isLockedByMe: status.lock?.lockedBy === staffUser.id
+    });
+  } catch (error: any) {
+    console.error('Error checking lock status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all locks held by current staff member
+router.get('/locks/my-locks', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    const locks = await getStaffLocks(staffUser.id);
+
+    res.json({ locks });
+  } catch (error: any) {
+    console.error('Error getting staff locks:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Force release lock (admin only)
+router.post('/:id/lock/force-release', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    // Check if user is admin
+    const { data: staff } = await supabaseAdmin
+      .from('staff_users')
+      .select('role')
+      .eq('id', staffUser.id)
+      .single();
+
+    if (staff?.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const success = await forceReleaseLock(id);
+
+    if (!success) {
+      return res.status(400).json({ error: 'Failed to force release lock' });
+    }
+
+    res.json({ message: 'Lock force released successfully' });
+  } catch (error: any) {
+    console.error('Error force releasing lock:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -25,8 +25,9 @@ import StaffReferenceDetail from '../views/StaffReferenceDetail.vue'
 import StaffVerification from '../views/StaffVerification.vue'
 import StaffVerificationNew from '../views/StaffVerificationNew.vue'
 import StaffReferenceView from '../views/StaffReferenceView.vue'
-import StaffWorkQueue from '../views/StaffWorkQueue.vue'
+import StaffPortal from '../views/StaffPortal.vue'
 import StaffChasePanel from '../views/StaffChasePanel.vue'
+import VerifyCaseView from '../components/staff/verify/VerifyCaseView.vue'
 import Landlords from '../views/Landlords.vue'
 import LandlordDetail from '../views/LandlordDetail.vue'
 import LandlordVerification from '../views/LandlordVerification.vue'
@@ -270,7 +271,13 @@ const router = createRouter({
     {
       path: '/staff/work-queue',
       name: 'StaffWorkQueue',
-      component: StaffWorkQueue,
+      component: StaffPortal,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/verify/:id',
+      name: 'StaffVerifyCase',
+      component: VerifyCaseView,
       meta: { requiresAuth: true }
     },
     {

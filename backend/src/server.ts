@@ -23,6 +23,8 @@ import onboardingRoutes from './routes/onboarding'
 import workQueueRoutes from './routes/work-queue'
 import contactAttemptsRoutes from './routes/contact-attempts'
 import verificationStepsRoutes from './routes/verification-steps'
+import verifyRoutes from './routes/verify'
+import chaseRoutes from './routes/chase'
 import landlordsRoutes from './routes/landlords'
 import { startSchedulers } from './services/workQueueScheduler'
 import tenantOffersRoutes from './routes/tenant-offers'
@@ -143,6 +145,8 @@ app.use('/api/onboarding', onboardingRoutes)
 app.use('/api/work-queue', workQueueRoutes)
 app.use('/api/contact-attempts', contactAttemptsRoutes)
 app.use('/api/verification-steps', verificationStepsRoutes)
+app.use('/api/verify', verifyRoutes)
+app.use('/api/chase', chaseRoutes)
 app.use('/api/landlords', landlordsRoutes)
 app.use('/api/tenant-offers', tenantOffersRoutes)
 app.use('/api/admin', adminRoutes)
