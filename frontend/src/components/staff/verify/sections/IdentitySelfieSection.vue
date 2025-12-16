@@ -57,6 +57,10 @@
           <p class="detail-label">Full Name</p>
           <p class="detail-value">{{ fullName }}</p>
         </div>
+        <div v-if="middleName" class="detail-item">
+          <p class="detail-label">Middle Name</p>
+          <p class="detail-value">{{ middleName }}</p>
+        </div>
         <div class="detail-item">
           <p class="detail-label">Date of Birth</p>
           <p class="detail-value">{{ dateOfBirth || 'Not provided' }}</p>
@@ -68,6 +72,10 @@
         <div v-if="email" class="detail-item">
           <p class="detail-label">Email</p>
           <p class="detail-value">{{ email }}</p>
+        </div>
+        <div v-if="contactNumber" class="detail-item">
+          <p class="detail-label">Phone</p>
+          <p class="detail-value">{{ contactNumber }}</p>
         </div>
       </div>
 
@@ -125,9 +133,11 @@ defineProps<{
   section: VerificationSection
   isGuarantor: boolean
   fullName: string
+  middleName?: string
   dateOfBirth?: string
   nationality?: string
   email?: string
+  contactNumber?: string
   idDocumentUrl?: string | null
   selfieUrl?: string | null
   signatureUrl?: string | null

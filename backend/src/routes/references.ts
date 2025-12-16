@@ -554,9 +554,17 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         current_city: decrypt(ref.current_city_encrypted),
         current_postcode: decrypt(ref.current_postcode_encrypted),
         current_country: decrypt(ref.current_country_encrypted),
+        // Time at address (not encrypted)
+        time_at_address_years: ref.time_at_address_years,
+        time_at_address_months: ref.time_at_address_months,
+        // Employment fields
         employment_company_name: decrypt(ref.employment_company_name_encrypted),
         employment_job_title: decrypt(ref.employment_position_encrypted),
         employment_salary_amount: decrypt(ref.employment_salary_amount_encrypted),
+        employment_contract_type: ref.employment_contract_type,
+        employment_salary_frequency: ref.employment_salary_frequency,
+        employment_start_date: ref.employment_start_date,
+        employment_end_date: ref.employment_end_date,
         employment_company_address_line1: decrypt(ref.employment_company_address_line1_encrypted),
         employment_company_address_line2: decrypt(ref.employment_company_address_line2_encrypted),
         employment_company_city: decrypt(ref.employment_company_city_encrypted),
@@ -565,16 +573,24 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         employer_ref_name: decrypt(ref.employer_ref_name_encrypted),
         employer_ref_email: decrypt(ref.employer_ref_email_encrypted),
         employer_ref_phone: decrypt(ref.employer_ref_phone_encrypted),
+        // Self-employed fields
         self_employed_business_name: decrypt(ref.self_employed_business_name_encrypted),
         self_employed_nature_of_business: decrypt(ref.self_employed_nature_of_business_encrypted),
         self_employed_annual_income: decrypt(ref.self_employed_annual_income_encrypted),
+        // Benefits fields
+        benefits_monthly_amount: decrypt(ref.benefits_monthly_amount_encrypted),
+        benefits_annual_amount: decrypt(ref.benefits_annual_amount_encrypted),
+        // Other income/savings
         savings_amount: decrypt(ref.savings_amount_encrypted),
         additional_income_source: decrypt(ref.additional_income_source_encrypted),
         additional_income_amount: decrypt(ref.additional_income_amount_encrypted),
+        // Adverse credit
         adverse_credit_details: decrypt(ref.adverse_credit_details_encrypted),
+        // Personal details
         pet_details: decrypt(ref.pet_details_encrypted),
         marital_status: decrypt(ref.marital_status_encrypted),
         dependants_details: decrypt(ref.dependants_details_encrypted),
+        // Previous rental
         previous_landlord_name: decrypt(ref.previous_landlord_name_encrypted),
         previous_landlord_email: decrypt(ref.previous_landlord_email_encrypted),
         previous_landlord_phone: decrypt(ref.previous_landlord_phone_encrypted),
@@ -585,18 +601,23 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         previous_rental_country: decrypt(ref.previous_rental_country_encrypted),
         previous_monthly_rent: decrypt(ref.previous_monthly_rent_encrypted),
         previous_agency_name: decrypt(ref.previous_agency_name_encrypted),
+        // Accountant
         accountant_name: decrypt(ref.accountant_firm_encrypted),
         accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
         accountant_phone: decrypt(ref.accountant_phone_encrypted),
+        // Guarantor info
         guarantor_first_name: decrypt(ref.guarantor_first_name_encrypted),
         guarantor_last_name: decrypt(ref.guarantor_last_name_encrypted),
         guarantor_email: decrypt(ref.guarantor_email_encrypted),
         guarantor_phone: decrypt(ref.guarantor_phone_encrypted),
+        // Notes
         notes: decrypt(ref.notes_encrypted),
         internal_notes: decrypt(ref.internal_notes_encrypted),
         verification_notes: decrypt(ref.verification_notes_encrypted),
-        consent_printed_name: decrypt(ref.consent_printed_name_encrypted)
+        consent_printed_name: decrypt(ref.consent_printed_name_encrypted),
+        // Document paths (not encrypted)
+        proof_of_funds_path: ref.proof_of_funds_path
       }
     }
 

@@ -309,9 +309,11 @@ const hasFail = computed(() =>
 const referenceData = computed(() => ({
   // Identity
   fullName: personName.value,
+  middleName: reference.value?.middle_name,
   dateOfBirth: reference.value?.date_of_birth,
   nationality: reference.value?.nationality,
   email: reference.value?.tenant_email,
+  contactNumber: reference.value?.contact_number,
   idDocumentUrl: idDocumentBlobUrl.value,
   selfieUrl: selfieBlobUrl.value,
   signatureUrl: signatureBlobUrl.value,
@@ -329,6 +331,9 @@ const referenceData = computed(() => ({
   employerName: evidenceData.value?.employment?.employerName || reference.value?.employer_name,
   jobTitle: evidenceData.value?.employment?.jobTitle || reference.value?.job_title,
   employmentStartDate: evidenceData.value?.employment?.startDate || reference.value?.employment_start_date,
+  employmentEndDate: reference.value?.employment_end_date,
+  employmentContractType: reference.value?.employment_contract_type,
+  salaryFrequency: reference.value?.employment_salary_frequency,
   incomeSources: reference.value?.income_sources || [],
   employerReference: reference.value?.employer_reference,
   accountantReference: reference.value?.accountant_reference,
@@ -341,17 +346,35 @@ const referenceData = computed(() => ({
   incomeConfirmedAt: evidenceData.value?.verifiedIncome?.confirmedAt,
   incomeConfirmedBy: evidenceData.value?.verifiedIncome?.confirmedBy,
   isStudent: reference.value?.income_student || false,
+  // Guarantor financial data (for guarantors)
+  guarantorFinancialData: evidenceData.value?.guarantorFinancialData,
   // Residential
   previousAddress: evidenceData.value?.residential?.previousAddress || reference.value?.previous_address,
   previousAddressType: evidenceData.value?.residential?.addressType || reference.value?.previous_address_type,
   tenancyDuration: evidenceData.value?.residential?.tenancyDuration || reference.value?.tenancy_duration,
   landlordReference: reference.value?.landlord_reference,
+  // Previous tenancy dates
+  previousTenancyStartDate: reference.value?.previous_tenancy_start_date,
+  previousTenancyEndDate: reference.value?.previous_tenancy_end_date,
   // Evidence data for Residential section modal
   evidenceLandlordRef: evidenceData.value?.landlordReference,
   evidenceAgentRef: evidenceData.value?.agentReference,
   confirmedResidentialStatus: evidenceData.value?.residential?.confirmedStatus,
   residentialConfirmedAt: evidenceData.value?.residential?.confirmedAt,
   residentialConfirmedBy: evidenceData.value?.residential?.confirmedBy,
+  // Current address and address history
+  currentAddress: reference.value?.current_address_line1 ? {
+    line1: reference.value.current_address_line1,
+    line2: reference.value.current_address_line2,
+    city: reference.value.current_address_city,
+    postcode: reference.value.current_address_postcode,
+    country: reference.value.current_address_country,
+    timeYears: reference.value.time_at_address_years,
+    timeMonths: reference.value.time_at_address_months
+  } : undefined,
+  previousAddresses: evidenceData.value?.previousAddresses,
+  // Credit - adverse credit disclosure
+  adverseCreditDetails: reference.value?.adverse_credit_details,
   // Credit (from reference_scores or Creditsafe verification)
   tasScore: tasScore.value, // Use the computed tasScore which handles all fallbacks
   creditsafeVerification: creditsafeVerification.value,

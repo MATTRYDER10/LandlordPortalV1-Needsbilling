@@ -6,9 +6,11 @@
       :section="identitySection"
       :is-guarantor="isGuarantor"
       :full-name="referenceData.fullName"
+      :middle-name="referenceData.middleName"
       :date-of-birth="referenceData.dateOfBirth"
       :nationality="referenceData.nationality"
       :email="referenceData.email"
+      :contact-number="referenceData.contactNumber"
       :id-document-url="referenceData.idDocumentUrl"
       :selfie-url="referenceData.selfieUrl"
       :signature-url="referenceData.signatureUrl"
@@ -54,6 +56,9 @@
       :employer-name="referenceData.employerName"
       :job-title="referenceData.jobTitle"
       :employment-start-date="referenceData.employmentStartDate"
+      :employment-end-date="referenceData.employmentEndDate"
+      :employment-contract-type="referenceData.employmentContractType"
+      :salary-frequency="referenceData.salaryFrequency"
       :income-sources="referenceData.incomeSources"
       :employer-reference="referenceData.employerReference"
       :accountant-reference="referenceData.accountantReference"
@@ -66,6 +71,7 @@
       :income-confirmed-at="referenceData.incomeConfirmedAt"
       :income-confirmed-by="referenceData.incomeConfirmedBy"
       :is-student="referenceData.isStudent"
+      :guarantor-financial-data="referenceData.guarantorFinancialData"
       :read-only="readOnly"
       :loading="loading"
       :action-reason-codes="actionReasonCodes"
@@ -93,6 +99,8 @@
       :confirmed-residential-status="referenceData.confirmedResidentialStatus"
       :residential-confirmed-at="referenceData.residentialConfirmedAt"
       :residential-confirmed-by="referenceData.residentialConfirmedBy"
+      :current-address="referenceData.currentAddress"
+      :previous-addresses="referenceData.previousAddresses"
       :read-only="readOnly"
       :loading="loading"
       :action-reason-codes="actionReasonCodes"
@@ -116,6 +124,7 @@
       :creditsafe-verification="referenceData.creditsafeVerification"
       :credit-report="referenceData.creditReport"
       :reference-score="referenceData.referenceScore"
+      :adverse-credit-details="referenceData.adverseCreditDetails"
       :read-only="readOnly"
       :loading="loading"
       :action-reason-codes="actionReasonCodes"
@@ -170,9 +179,11 @@ import AmlSection from './sections/AmlSection.vue'
 interface ReferenceData {
   // Identity
   fullName: string
+  middleName?: string
   dateOfBirth?: string
   nationality?: string
   email?: string
+  contactNumber?: string
   idDocumentUrl?: string | null
   selfieUrl?: string | null
   signatureUrl?: string | null
@@ -203,6 +214,12 @@ interface ReferenceData {
   incomeConfirmedAt?: string
   incomeConfirmedBy?: string
   isStudent?: boolean
+  // Employment details
+  employmentEndDate?: string
+  employmentContractType?: string
+  salaryFrequency?: string
+  // Guarantor financial data
+  guarantorFinancialData?: any
   // Residential
   previousAddress?: string
   previousAddressType?: string
@@ -216,7 +233,11 @@ interface ReferenceData {
   confirmedResidentialStatus?: string
   residentialConfirmedAt?: string
   residentialConfirmedBy?: string
+  // Current and previous addresses
+  currentAddress?: any
+  previousAddresses?: any[]
   // Credit
+  adverseCreditDetails?: string
   tasScore?: number
   creditSummary?: any
   creditFlags?: any[]

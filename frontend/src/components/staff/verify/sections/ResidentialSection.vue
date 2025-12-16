@@ -33,7 +33,42 @@
         </span>
       </div>
 
-      <!-- Current/Previous Address -->
+      <!-- Current Address -->
+      <div v-if="currentAddress" class="address-section current-address">
+        <h4 class="subsection-title">Current Address</h4>
+        <div class="address-card current">
+          <div class="address-content">
+            <p class="address-text">{{ currentAddress.line1 }}</p>
+            <p v-if="currentAddress.line2" class="address-text">{{ currentAddress.line2 }}</p>
+            <p class="address-text">{{ currentAddress.city }}, {{ currentAddress.postcode }}</p>
+            <p v-if="currentAddress.country" class="address-country">{{ currentAddress.country }}</p>
+          </div>
+          <div v-if="currentAddress.timeYears !== undefined || currentAddress.timeMonths !== undefined" class="time-at-address">
+            <span class="time-badge">
+              {{ formatTimeAtAddress(currentAddress.timeYears, currentAddress.timeMonths) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Full Address History (3 Years) -->
+      <div v-if="previousAddresses && previousAddresses.length > 0" class="address-section address-history">
+        <h4 class="subsection-title">Address History (3 Years)</h4>
+        <div class="address-history-list">
+          <div v-for="(addr, index) in previousAddresses" :key="index" class="address-card history">
+            <div class="address-order">#{{ index + 1 }}</div>
+            <div class="address-content">
+              <p class="address-text">{{ addr.line1 }}</p>
+              <p v-if="addr.line2" class="address-text">{{ addr.line2 }}</p>
+              <p class="address-text">{{ addr.city }}, {{ addr.postcode }}</p>
+              <p v-if="addr.country" class="address-country">{{ addr.country }}</p>
+              <p v-if="addr.movedIn" class="address-date">Moved in: {{ formatDate(addr.movedIn) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Previous Rental Address (from form) -->
       <div class="address-section">
         <h4 class="subsection-title">Previous Address</h4>
         <div class="address-card">
@@ -603,6 +638,25 @@ interface EvidenceAgentRef {
   tenancyStillInProgress?: boolean
 }
 
+interface CurrentAddress {
+  line1?: string
+  line2?: string
+  city?: string
+  postcode?: string
+  country?: string
+  timeYears?: number
+  timeMonths?: number
+}
+
+interface PreviousAddress {
+  line1?: string
+  line2?: string
+  city?: string
+  postcode?: string
+  country?: string
+  movedIn?: string
+}
+
 const props = defineProps<{
   section: VerificationSection
   referenceId: string
@@ -622,6 +676,9 @@ const props = defineProps<{
   confirmedResidentialStatus?: string
   residentialConfirmedAt?: string
   residentialConfirmedBy?: string
+  // Current and previous addresses
+  currentAddress?: CurrentAddress
+  previousAddresses?: PreviousAddress[]
 }>()
 
 const emit = defineEmits<{
@@ -757,6 +814,17 @@ const formatYesNo = (value?: string) => {
   if (value.toLowerCase() === 'no') return 'No'
   return value
 }
+
+const formatTimeAtAddress = (years?: number, months?: number) => {
+  const parts = []
+  if (years && years > 0) {
+    parts.push(`${years} year${years !== 1 ? 's' : ''}`)
+  }
+  if (months && months > 0) {
+    parts.push(`${months} month${months !== 1 ? 's' : ''}`)
+  }
+  return parts.length > 0 ? parts.join(', ') : 'Not specified'
+}
 </script>
 
 <style scoped>
@@ -833,6 +901,62 @@ const formatYesNo = (value?: string) => {
   padding: 0.75rem;
   background: white;
   border-radius: 0.25rem;
+}
+
+.address-card.current {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-left: 3px solid #10b981;
+}
+
+.address-card.history {
+  display: flex;
+  gap: 0.75rem;
+  border-left: 2px solid #e5e7eb;
+}
+
+.address-content {
+  flex: 1;
+}
+
+.address-country {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.address-date {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0.5rem 0 0;
+}
+
+.address-order {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  min-width: 1.5rem;
+}
+
+.time-at-address {
+  flex-shrink: 0;
+}
+
+.time-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: #dbeafe;
+  color: #1e40af;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.address-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .address-type {
