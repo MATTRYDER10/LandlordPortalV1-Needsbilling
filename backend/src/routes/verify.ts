@@ -1393,7 +1393,8 @@ router.post('/person/:referenceId/finalize', staffAuth, async (req: StaffAuthReq
     const progress = await getVerificationProgress(referenceId);
 
     if (!progress.canFinalize) {
-      if (progress.hasActionRequired) {
+      // Allow REFER decision even when sections have ACTION_REQUIRED
+      if (progress.hasActionRequired && finalDecision !== 'REFER') {
         return res.status(400).json({ error: 'Cannot finalize - one or more sections require action' });
       }
       if (progress.totalSections === 0 || progress.completedSections < progress.totalSections) {
@@ -1520,7 +1521,8 @@ router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, r
     const progress = await getVerificationProgress(referenceId);
 
     if (!progress.canFinalize) {
-      if (progress.hasActionRequired) {
+      // Allow REFER decision even when sections have ACTION_REQUIRED
+      if (progress.hasActionRequired && finalDecision !== 'REFER') {
         return res.status(400).json({ error: 'Cannot finalize - one or more sections require action' });
       }
       if (progress.totalSections === 0 || progress.completedSections < progress.totalSections) {
