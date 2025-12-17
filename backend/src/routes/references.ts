@@ -617,7 +617,13 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         verification_notes: decrypt(ref.verification_notes_encrypted),
         consent_printed_name: decrypt(ref.consent_printed_name_encrypted),
         // Document paths (not encrypted)
-        proof_of_funds_path: ref.proof_of_funds_path
+        proof_of_funds_path: ref.proof_of_funds_path,
+        // Derived employment status from boolean flags
+        employment_status: ref.income_regular_employment ? 'employed' :
+                          ref.income_self_employed ? 'self_employed' :
+                          ref.income_student ? 'student' :
+                          ref.income_unemployed ? 'unemployed' :
+                          ref.income_retired ? 'retired' : null
       }
     }
 
