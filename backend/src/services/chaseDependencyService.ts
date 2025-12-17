@@ -914,10 +914,15 @@ export async function sendChaseForDependency(
         // Generate new token for tenant
         const newToken = generateToken()
         const newTokenHash = hash(newToken)
+        const tokenExpiresAt = new Date()
+        tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21)
 
         await supabase
           .from('tenant_references')
-          .update({ reference_token_hash: newTokenHash })
+          .update({
+            reference_token_hash: newTokenHash,
+            token_expires_at: tokenExpiresAt.toISOString()
+          })
           .eq('id', reference.id)
 
         const tenantUrl = `${frontendUrl}/submit-reference/${newToken}`
@@ -1108,7 +1113,10 @@ export async function sendChaseForDependency(
         if (isLegacyGuarantor) {
           await supabase
             .from('guarantor_references')
-            .update({ reference_token_hash: guarantorTokenHash })
+            .update({
+              reference_token_hash: guarantorTokenHash,
+              token_expires_at: tokenExpiresAt.toISOString()
+            })
             .eq('id', guarantorId)
         } else {
           await supabase
