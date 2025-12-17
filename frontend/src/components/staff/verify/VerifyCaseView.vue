@@ -334,6 +334,13 @@ const referenceData = computed(() => ({
   employmentEndDate: reference.value?.employment_end_date,
   employmentContractType: reference.value?.employment_contract_type,
   salaryFrequency: reference.value?.employment_salary_frequency,
+  // Self-employed details
+  selfEmployedStartDate: reference.value?.self_employed_start_date,
+  selfEmployedNatureOfBusiness: reference.value?.self_employed_nature_of_business,
+  // Additional income
+  additionalIncomeFrequency: reference.value?.additional_income_frequency,
+  // Benefits
+  benefitsMonthlyAmount: reference.value?.benefits_monthly_amount,
   incomeSources: reference.value?.income_sources || [],
   employerReference: reference.value?.employer_reference,
   accountantReference: reference.value?.accountant_reference,

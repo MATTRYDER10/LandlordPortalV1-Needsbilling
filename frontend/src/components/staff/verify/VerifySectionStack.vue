@@ -59,6 +59,10 @@
       :employment-end-date="referenceData.employmentEndDate"
       :employment-contract-type="referenceData.employmentContractType"
       :salary-frequency="referenceData.salaryFrequency"
+      :self-employed-start-date="referenceData.selfEmployedStartDate"
+      :self-employed-nature-of-business="referenceData.selfEmployedNatureOfBusiness"
+      :additional-income-frequency="referenceData.additionalIncomeFrequency"
+      :benefits-monthly-amount="referenceData.benefitsMonthlyAmount"
       :income-sources="referenceData.incomeSources"
       :employer-reference="referenceData.employerReference"
       :accountant-reference="referenceData.accountantReference"
@@ -218,6 +222,13 @@ interface ReferenceData {
   employmentEndDate?: string
   employmentContractType?: string
   salaryFrequency?: string
+  // Self-employed details
+  selfEmployedStartDate?: string
+  selfEmployedNatureOfBusiness?: string
+  // Additional income
+  additionalIncomeFrequency?: string
+  // Benefits
+  benefitsMonthlyAmount?: number
   // Guarantor financial data
   guarantorFinancialData?: any
   // Residential

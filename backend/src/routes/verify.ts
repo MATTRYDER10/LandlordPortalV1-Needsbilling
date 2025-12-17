@@ -269,6 +269,12 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       employment_contract_type: reference.employment_contract_type,
       employment_salary_frequency: reference.employment_salary_frequency,
       income_student: reference.income_student || false,
+      // Additional income
+      additional_income_frequency: reference.additional_income_frequency,
+      // Self-employed data
+      self_employed_start_date: reference.self_employed_start_date,
+      self_employed_nature_of_business: reference.self_employed_nature_of_business_encrypted
+        ? decrypt(reference.self_employed_nature_of_business_encrypted) : null,
       // Benefits data
       benefits_monthly_amount: reference.benefits_monthly_amount_encrypted
         ? parseFloat(decrypt(reference.benefits_monthly_amount_encrypted) || '0') : null,
@@ -1170,6 +1176,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         employerName: employerReference.employer_name_encrypted ? decrypt(employerReference.employer_name_encrypted) : null,
         contactName: employerReference.contact_name_encrypted ? decrypt(employerReference.contact_name_encrypted) : null,
         contactEmail: employerReference.contact_email_encrypted ? decrypt(employerReference.contact_email_encrypted) : null,
+        contactPhone: employerReference.employer_phone_encrypted ? decrypt(employerReference.employer_phone_encrypted) : null,
         jobTitle: employerReference.employee_position_encrypted ? decrypt(employerReference.employee_position_encrypted) : null,
         employmentStartDate: employerReference.employment_start_date,
         salary: employerReference.annual_salary_encrypted ? parseFloat(decrypt(employerReference.annual_salary_encrypted) || '0') : null,
@@ -1191,6 +1198,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         accountantName: accountantReference.accountant_name_encrypted ? decrypt(accountantReference.accountant_name_encrypted) : null,
         firmName: accountantReference.firm_name_encrypted ? decrypt(accountantReference.firm_name_encrypted) : null,
         contactEmail: accountantReference.contact_email_encrypted ? decrypt(accountantReference.contact_email_encrypted) : null,
+        contactPhone: accountantReference.accountant_phone_encrypted ? decrypt(accountantReference.accountant_phone_encrypted) : null,
         annualIncome: accountantReference.annual_income_encrypted ? parseFloat(decrypt(accountantReference.annual_income_encrypted) || '0') : null,
         yearsTrading: accountantReference.years_trading,
         submittedAt: accountantReference.submitted_at,

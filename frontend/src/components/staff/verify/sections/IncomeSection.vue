@@ -116,6 +116,21 @@
         </div>
       </div>
 
+      <!-- Self-Employed Details -->
+      <div v-if="employmentType === 'self_employed' && (selfEmployedStartDate || selfEmployedNatureOfBusiness)" class="detail-section">
+        <h4 class="subsection-title">Self-Employment Details</h4>
+        <div class="details-grid">
+          <div v-if="selfEmployedNatureOfBusiness" class="detail-item">
+            <p class="detail-label">Nature of Business</p>
+            <p class="detail-value">{{ selfEmployedNatureOfBusiness }}</p>
+          </div>
+          <div v-if="selfEmployedStartDate" class="detail-item">
+            <p class="detail-label">Started Self-Employment</p>
+            <p class="detail-value">{{ formatDate(selfEmployedStartDate) }}</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Guarantor Financial Position (only for guarantors) -->
       <div v-if="isGuarantor && guarantorFinancialData" class="detail-section guarantor-financial">
         <h4 class="subsection-title">Guarantor Financial Position</h4>
@@ -296,7 +311,10 @@
                   </div>
                   <div class="claimed-item">
                     <span class="claimed-label">Benefits</span>
-                    <span class="claimed-value">{{ formatCurrency(claimedIncome?.benefits || 0) }}/year</span>
+                    <span class="claimed-value">
+                      {{ formatCurrency(claimedIncome?.benefits || 0) }}/year
+                      <span v-if="benefitsMonthlyAmount" class="claimed-subtext">({{ formatCurrency(benefitsMonthlyAmount) }}/mo)</span>
+                    </span>
                   </div>
                   <div class="claimed-item">
                     <span class="claimed-label">Self-Employed</span>
@@ -304,7 +322,10 @@
                   </div>
                   <div class="claimed-item">
                     <span class="claimed-label">Savings/Other</span>
-                    <span class="claimed-value">{{ formatCurrency((claimedIncome?.savings || 0) + (claimedIncome?.additional || 0)) }}/year</span>
+                    <span class="claimed-value">
+                      {{ formatCurrency((claimedIncome?.savings || 0) + (claimedIncome?.additional || 0)) }}/year
+                      <span v-if="additionalIncomeFrequency" class="claimed-subtext">({{ formatFrequency(additionalIncomeFrequency) }})</span>
+                    </span>
                   </div>
                   <div class="claimed-item total">
                     <span class="claimed-label">Total Claimed</span>
@@ -361,6 +382,10 @@
                     <span class="ref-label">Probation</span>
                     <span class="ref-value">{{ formatProbationStatus(evidenceEmployerRef) }}</span>
                   </div>
+                  <div v-if="evidenceEmployerRef.contactPhone" class="ref-row">
+                    <span class="ref-label">Contact Phone</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.contactPhone }}</span>
+                  </div>
                   <div class="ref-row">
                     <span class="ref-label">Submitted</span>
                     <span class="ref-value">{{ formatDate(evidenceEmployerRef.submittedAt) }}</span>
@@ -383,6 +408,10 @@
                   <div class="ref-row">
                     <span class="ref-label">Years Trading</span>
                     <span class="ref-value">{{ evidenceAccountantRef.yearsTrading }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.contactPhone" class="ref-row">
+                    <span class="ref-label">Contact Phone</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.contactPhone }}</span>
                   </div>
                   <div class="ref-row">
                     <span class="ref-label">Submitted</span>
@@ -582,6 +611,7 @@ interface EvidenceEmployerRef {
   employmentType: string | null
   isProbation: boolean | string | null
   probationEndDate: string | null
+  contactPhone: string | null
 }
 
 interface EvidenceAccountantRef {
@@ -589,6 +619,7 @@ interface EvidenceAccountantRef {
   annualIncome: number | null
   yearsTrading: number
   submittedAt: string
+  contactPhone: string | null
 }
 
 interface GuarantorFinancialData {
@@ -622,6 +653,13 @@ const props = defineProps<{
   employmentEndDate?: string
   employmentContractType?: string
   salaryFrequency?: string
+  // Self-employed fields
+  selfEmployedStartDate?: string
+  selfEmployedNatureOfBusiness?: string
+  // Additional income
+  additionalIncomeFrequency?: string
+  // Benefits
+  benefitsMonthlyAmount?: number
   incomeSources?: IncomeSource[]
   employerReference?: EmployerRef
   accountantReference?: AccountantRef
@@ -1357,6 +1395,13 @@ const formatHomeOwnership = (status: string) => {
   color: #1f2937;
   font-size: 0.875rem;
   font-weight: 500;
+}
+
+.claimed-subtext {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #6b7280;
+  margin-left: 0.25rem;
 }
 
 .evidence-preview-grid {
