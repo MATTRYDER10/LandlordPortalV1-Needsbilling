@@ -1491,6 +1491,7 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
     if (hasSearchQuery) {
       const searchLower = (query as string).toLowerCase()
       enrichedRefs = enrichedRefs.filter(ref =>
+        ref.id.toLowerCase().includes(searchLower) ||
         ref.tenant_name.toLowerCase().includes(searchLower) ||
         ref.property_address.toLowerCase().includes(searchLower) ||
         ref.company_name.toLowerCase().includes(searchLower) ||
