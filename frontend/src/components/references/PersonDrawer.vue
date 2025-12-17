@@ -606,6 +606,10 @@
                     <label class="block text-xs font-medium text-gray-500 uppercase">Nature of Business</label>
                     <p class="mt-1 text-sm text-gray-900">{{ fullDetails.self_employed_nature_of_business }}</p>
                   </div>
+                  <div v-if="fullDetails.self_employed_start_date">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Started Self-Employment</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.self_employed_start_date) }}</p>
+                  </div>
                 </div>
 
                 <!-- Savings -->
@@ -639,6 +643,10 @@
                     <label class="block text-xs font-medium text-gray-500 uppercase">Additional Income Amount</label>
                     <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.additional_income_amount)) }}</p>
                   </div>
+                  <div v-if="fullDetails?.additional_income_frequency">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Frequency</label>
+                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ formatPayFrequency(fullDetails.additional_income_frequency) }}</p>
+                  </div>
                 </div>
 
                 <!-- Employer Reference Request (what tenant provided) -->
@@ -664,12 +672,45 @@
                   </div>
                   <p v-if="employerRef.company_name" class="text-sm text-gray-700 mt-1">{{ employerRef.company_name }}</p>
                   <p class="text-xs text-gray-500 mt-1">{{ employerRef.employer_email }}</p>
+                  <p v-if="employerRef.employer_phone" class="text-xs text-gray-500">{{ employerRef.employer_phone }}</p>
                   <div v-if="employerRef.confirmed_at" class="mt-2 text-xs text-gray-600">
                     <p v-if="employerRef.annual_salary">Confirmed Salary: {{ formatCurrency(Number(employerRef.annual_salary)) }}</p>
                     <p v-if="employerRef.employee_position">Confirmed Title: {{ employerRef.employee_position }}</p>
                     <p v-if="employerRef.start_date">Employment Start: {{ formatDate(employerRef.start_date) }}</p>
                     <p v-if="employerRef.performance_satisfactory !== undefined">Performance Satisfactory: {{ employerRef.performance_satisfactory ? 'Yes' : 'No' }}</p>
                     <p v-if="employerRef.would_reemploy !== undefined">Would Re-employ: {{ employerRef.would_reemploy ? 'Yes' : 'No' }}</p>
+                  </div>
+                </div>
+
+                <!-- Accountant Reference Request (what tenant provided) -->
+                <div v-if="fullDetails?.accountant_email" class="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p class="text-xs font-medium text-blue-700 uppercase mb-2">Accountant Reference Request Sent To</p>
+                  <div class="text-sm text-gray-700 space-y-1">
+                    <p v-if="fullDetails.accountant_name">{{ fullDetails.accountant_name }}</p>
+                    <p v-if="fullDetails.accountant_contact_name" class="text-xs text-gray-600">Contact: {{ fullDetails.accountant_contact_name }}</p>
+                    <p class="text-xs text-gray-500">{{ fullDetails.accountant_email }}</p>
+                    <p v-if="fullDetails.accountant_phone" class="text-xs text-gray-500">{{ fullDetails.accountant_phone }}</p>
+                  </div>
+                </div>
+
+                <!-- Accountant Reference Response -->
+                <div v-if="accountantRef" class="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-gray-700">Accountant Reference Response</span>
+                    <span
+                      class="px-2 py-0.5 text-xs font-medium rounded-full"
+                      :class="accountantRef.submitted_at ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                    >
+                      {{ accountantRef.submitted_at ? 'Received' : 'Pending' }}
+                    </span>
+                  </div>
+                  <p v-if="accountantRef.firm_name" class="text-sm text-gray-700 mt-1">{{ accountantRef.firm_name }}</p>
+                  <p v-if="accountantRef.accountant_name" class="text-xs text-gray-600">Contact: {{ accountantRef.accountant_name }}</p>
+                  <p v-if="accountantRef.accountant_email" class="text-xs text-gray-500">{{ accountantRef.accountant_email }}</p>
+                  <p v-if="accountantRef.accountant_phone" class="text-xs text-gray-500">{{ accountantRef.accountant_phone }}</p>
+                  <div v-if="accountantRef.submitted_at" class="mt-2 text-xs text-gray-600">
+                    <p v-if="accountantRef.annual_income">Confirmed Annual Income: {{ formatCurrency(Number(accountantRef.annual_income)) }}</p>
+                    <p v-if="accountantRef.years_trading">Years Trading: {{ accountantRef.years_trading }}</p>
                   </div>
                 </div>
               </div>
