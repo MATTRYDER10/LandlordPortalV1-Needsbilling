@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-gray-100">
     <AdminHeader />
 
-    <div class="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-gray-900">All References</h1>
         <p class="mt-1 text-sm text-gray-500">Search and view all tenant references across all companies</p>
@@ -67,7 +67,7 @@
       </div>
 
       <!-- Results Table -->
-      <div v-else class="bg-white shadow rounded-lg overflow-hidden">
+      <div v-else class="bg-white shadow rounded-lg overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
