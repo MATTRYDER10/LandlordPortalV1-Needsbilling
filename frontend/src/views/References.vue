@@ -908,6 +908,8 @@ const handleChase = async (person: TenancyPerson) => {
 
     // Chase all available dependencies
     let chaseCount = 0
+    let earliestCooldownEnd: Date | null = null
+
     for (const dep of dependencies) {
       if (dep.canChase) {
         const chaseResponse = await fetch(`${API_URL}/api/chase/agent/${dep.id}`, {
@@ -921,11 +923,30 @@ const handleChase = async (person: TenancyPerson) => {
         if (chaseResponse.ok) {
           chaseCount++
         }
+      } else if (dep.cooldownEnds) {
+        // Track earliest cooldown end time
+        const cooldownEnd = new Date(dep.cooldownEnds)
+        if (!earliestCooldownEnd || cooldownEnd < earliestCooldownEnd) {
+          earliestCooldownEnd = cooldownEnd
+        }
       }
     }
 
     if (chaseCount > 0) {
       toast.success(`Chase sent for ${chaseCount} outstanding item(s)`)
+    } else if (earliestCooldownEnd) {
+      // Show when the cooldown ends
+      const now = new Date()
+      const diffMs = earliestCooldownEnd.getTime() - now.getTime()
+      const diffMins = Math.ceil(diffMs / (1000 * 60))
+
+      if (diffMins > 60) {
+        const hours = Math.floor(diffMins / 60)
+        const mins = diffMins % 60
+        toast.info(`Chase available again in ${hours}h ${mins}m`)
+      } else {
+        toast.info(`Chase available again in ${diffMins} minute${diffMins !== 1 ? 's' : ''}`)
+      }
     } else {
       toast.info('No items available to chase at this time')
     }
