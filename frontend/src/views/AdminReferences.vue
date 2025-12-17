@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-gray-100">
     <AdminHeader />
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-gray-900">All References</h1>
         <p class="mt-1 text-sm text-gray-500">Search and view all tenant references across all companies</p>
@@ -119,8 +119,8 @@
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-900 max-w-xs truncate">{{ reference.property_address }}</div>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span :class="getStatusClass(reference.status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
@@ -208,7 +208,7 @@
                   </div>
 
                   <!-- Actions -->
-                  <div class="mt-4 pt-4 border-t border-gray-200">
+                  <div class="mt-4 pt-4 border-t border-gray-200 flex items-center gap-3">
                     <router-link
                       :to="`/staff/references/${reference.id}`"
                       class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
@@ -219,6 +219,15 @@
                       </svg>
                       View in Staff Portal
                     </router-link>
+                    <button
+                      @click.stop="confirmDelete(reference)"
+                      class="inline-flex items-center px-3 py-1.5 border border-red-300 shadow-sm text-sm font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -261,6 +270,55 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div v-if="deleteModal.show" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="deleteModal.show = false"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div class="px-4 pt-5 pb-4 bg-white sm:p-6 sm:pb-4">
+            <div class="sm:flex sm:items-start">
+              <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 mx-auto bg-red-100 rounded-full sm:mx-0 sm:h-10 sm:w-10">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                <h3 class="text-lg font-medium leading-6 text-gray-900">Delete Reference</h3>
+                <div class="mt-2">
+                  <p class="text-sm text-gray-500">
+                    Are you sure you want to delete the reference for <strong>{{ deleteModal.reference?.tenant_name }}</strong>?
+                    This will permanently delete all related data including verification results, work items, and any guarantor references.
+                  </p>
+                  <p class="mt-2 text-sm font-medium text-red-600">This action cannot be undone.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="px-4 py-3 bg-gray-50 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+            <button
+              @click="executeDelete"
+              :disabled="deleteModal.loading"
+              class="inline-flex justify-center w-full px-4 py-2 text-base font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+            >
+              <svg v-if="deleteModal.loading" class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ deleteModal.loading ? 'Deleting...' : 'Delete' }}
+            </button>
+            <button
+              @click="deleteModal.show = false"
+              :disabled="deleteModal.loading"
+              class="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:w-auto sm:text-sm disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -283,6 +341,15 @@ const total = ref(0)
 const limit = ref(50)
 const offset = ref(0)
 const expandedRows = ref<Set<string>>(new Set())
+const deleteModal = ref<{
+  show: boolean
+  loading: boolean
+  reference: any | null
+}>({
+  show: false,
+  loading: false,
+  reference: null
+})
 
 // Debounce timer
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
@@ -323,6 +390,40 @@ const toggleRow = (id: string) => {
     expandedRows.value.add(id)
   }
   expandedRows.value = new Set(expandedRows.value) // Trigger reactivity
+}
+
+// Delete functions
+const confirmDelete = (reference: any) => {
+  deleteModal.value = {
+    show: true,
+    loading: false,
+    reference
+  }
+}
+
+const executeDelete = async () => {
+  if (!deleteModal.value.reference) return
+
+  deleteModal.value.loading = true
+
+  try {
+    await axios.delete(`${API_URL}/api/admin/references/${deleteModal.value.reference.id}`, {
+      headers: {
+        Authorization: `Bearer ${authStore.session?.access_token}`
+      }
+    })
+
+    // Remove from local list
+    references.value = references.value.filter(r => r.id !== deleteModal.value.reference?.id)
+    total.value--
+
+    // Close modal
+    deleteModal.value = { show: false, loading: false, reference: null }
+  } catch (err: any) {
+    console.error('Error deleting reference:', err)
+    alert(err.response?.data?.error || 'Failed to delete reference')
+    deleteModal.value.loading = false
+  }
 }
 
 // Pagination

@@ -1494,4 +1494,148 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
   }
 })
 
+/**
+ * DELETE /api/admin/references/:id
+ * Delete a reference and all related data (admin only)
+ */
+router.delete('/references/:id', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+
+    // First check if the reference exists
+    const { data: reference, error: fetchError } = await supabase
+      .from('tenant_references')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, is_guarantor, parent_reference_id')
+      .eq('id', referenceId)
+      .single()
+
+    if (fetchError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Delete related records first (in order of dependencies)
+    // These may not exist for all references, so we don't check for errors
+
+    // Delete work items
+    await supabase
+      .from('work_items')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete verification sections
+    await supabase
+      .from('verification_sections')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete employer references
+    await supabase
+      .from('employer_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete accountant references
+    await supabase
+      .from('accountant_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete landlord references
+    await supabase
+      .from('landlord_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete agent references
+    await supabase
+      .from('agent_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete guarantor references (child references)
+    await supabase
+      .from('guarantor_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete creditsafe verifications
+    await supabase
+      .from('creditsafe_verifications')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete sanctions screenings
+    await supabase
+      .from('sanctions_screenings')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete reference scores
+    await supabase
+      .from('reference_scores')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete previous addresses
+    await supabase
+      .from('tenant_reference_previous_addresses')
+      .delete()
+      .eq('tenant_reference_id', referenceId)
+
+    // Delete audit logs for this reference
+    await supabase
+      .from('audit_logs')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // If this is a parent reference, delete child tenant references (guarantors)
+    if (!reference.is_guarantor) {
+      // First get child reference IDs to clean up their related data
+      const { data: childRefs } = await supabase
+        .from('tenant_references')
+        .select('id')
+        .eq('parent_reference_id', referenceId)
+
+      if (childRefs && childRefs.length > 0) {
+        const childIds = childRefs.map(c => c.id)
+
+        // Clean up child reference related data
+        await supabase.from('work_items').delete().in('reference_id', childIds)
+        await supabase.from('verification_sections').delete().in('reference_id', childIds)
+        await supabase.from('creditsafe_verifications').delete().in('reference_id', childIds)
+        await supabase.from('sanctions_screenings').delete().in('reference_id', childIds)
+        await supabase.from('reference_scores').delete().in('reference_id', childIds)
+        await supabase.from('audit_logs').delete().in('reference_id', childIds)
+
+        // Delete child references
+        await supabase
+          .from('tenant_references')
+          .delete()
+          .eq('parent_reference_id', referenceId)
+      }
+    }
+
+    // Finally delete the main reference
+    const { error: deleteError } = await supabase
+      .from('tenant_references')
+      .delete()
+      .eq('id', referenceId)
+
+    if (deleteError) {
+      throw deleteError
+    }
+
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+    console.log(`[Admin] Deleted reference ${referenceId} (${tenantName})`)
+
+    res.json({
+      success: true,
+      message: `Reference for ${tenantName} deleted successfully`
+    })
+  } catch (error: any) {
+    console.error('Error deleting reference:', error?.message || error)
+    res.status(500).json({ error: 'Failed to delete reference', details: error?.message })
+  }
+})
+
 export default router
