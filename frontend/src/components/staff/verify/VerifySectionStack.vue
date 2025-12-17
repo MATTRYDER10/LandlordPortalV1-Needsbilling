@@ -33,6 +33,9 @@
       :nationality="referenceData.nationality"
       :share-code="referenceData.shareCode"
       :rtr-document-url="referenceData.rtrDocumentUrl"
+      :rtr-alternative-document-url="referenceData.rtrAlternativeDocumentUrl"
+      :rtr-alternative-document-type="referenceData.rtrAlternativeDocumentType"
+      :is-british-citizen="referenceData.isBritishCitizen"
       :read-only="readOnly"
       :loading="loading"
       :action-reason-codes="actionReasonCodes"
@@ -196,6 +199,8 @@ interface ReferenceData {
   rtrExpiryDate?: string
   shareCode?: string
   rtrDocumentUrl?: string | null
+  rtrAlternativeDocumentUrl?: string | null
+  rtrAlternativeDocumentType?: string
   isBritishCitizen?: boolean
   // Income
   monthlyRent?: number

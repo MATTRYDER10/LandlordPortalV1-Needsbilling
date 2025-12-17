@@ -63,6 +63,14 @@
         </div>
       </div>
 
+      <!-- Visa / BRP Document -->
+      <div v-if="rtrAlternativeDocumentUrl" class="document-section">
+        <h4 class="subsection-title">{{ alternativeDocumentTypeLabel }}</h4>
+        <div class="image-container">
+          <img :src="rtrAlternativeDocumentUrl" :alt="alternativeDocumentTypeLabel" class="document-image" />
+        </div>
+      </div>
+
       <!-- Evidence files -->
       <div v-if="section.evidenceFiles && section.evidenceFiles.length > 0" class="evidence-section">
         <h4 class="subsection-title">Evidence Files</h4>
@@ -112,6 +120,9 @@ const props = defineProps<{
   nationality?: string
   shareCode?: string
   rtrDocumentUrl?: string | null
+  rtrAlternativeDocumentUrl?: string | null
+  rtrAlternativeDocumentType?: string
+  isBritishCitizen?: boolean
   hasUnreviewedData?: boolean
   readOnly?: boolean
   loading?: boolean
@@ -148,6 +159,13 @@ const formatDate = (dateString?: string) => {
     year: 'numeric'
   })
 }
+
+const alternativeDocumentTypeLabel = computed(() => {
+  if (!props.rtrAlternativeDocumentType) return 'Document'
+  if (props.rtrAlternativeDocumentType === 'brp') return 'Biometric Residence Permit (BRP)'
+  if (props.rtrAlternativeDocumentType === 'visa') return 'Visa'
+  return props.rtrAlternativeDocumentType
+})
 </script>
 
 <style scoped>

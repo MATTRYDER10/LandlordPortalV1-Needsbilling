@@ -293,6 +293,8 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       selfie_path: reference.selfie_path,
       signature_path: reference.signature_path,
       rtr_document_path: reference.rtr_document_path,
+      rtr_alternative_document_path: reference.rtr_alternative_document_path,
+      rtr_alternative_document_type: reference.rtr_alternative_document_type,
       // Current address
       current_address_line1: decrypt(reference.current_address_line1_encrypted),
       current_address_line2: decrypt(reference.current_address_line2_encrypted),
