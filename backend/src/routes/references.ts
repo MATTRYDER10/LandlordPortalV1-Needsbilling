@@ -5942,6 +5942,28 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
       result = { type: 'agent', oldEmail, newEmail: email, emailSent: true }
     }
 
+    // Update chase_dependencies with new email so auto-chase uses correct address
+    const dependencyTypeMap: Record<string, string> = {
+      employer: 'EMPLOYER_REF',
+      landlord: 'RESIDENTIAL_REF',
+      agent: 'RESIDENTIAL_REF',
+      accountant: 'ACCOUNTANT_REF'
+    }
+    const dependencyType = dependencyTypeMap[type]
+    if (dependencyType) {
+      const updateData: Record<string, string> = {
+        contact_email_encrypted: encrypt(email)!
+      }
+      if (name) {
+        updateData.contact_name_encrypted = encrypt(name)!
+      }
+      await supabase
+        .from('chase_dependencies')
+        .update(updateData)
+        .eq('reference_id', referenceId)
+        .eq('dependency_type', dependencyType)
+    }
+
     // Log to audit trail
     await logAuditAction({
       referenceId,
