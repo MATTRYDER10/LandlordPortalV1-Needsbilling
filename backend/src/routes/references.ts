@@ -554,9 +554,17 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         current_city: decrypt(ref.current_city_encrypted),
         current_postcode: decrypt(ref.current_postcode_encrypted),
         current_country: decrypt(ref.current_country_encrypted),
+        // Time at address (not encrypted)
+        time_at_address_years: ref.time_at_address_years,
+        time_at_address_months: ref.time_at_address_months,
+        // Employment fields
         employment_company_name: decrypt(ref.employment_company_name_encrypted),
         employment_job_title: decrypt(ref.employment_position_encrypted),
         employment_salary_amount: decrypt(ref.employment_salary_amount_encrypted),
+        employment_contract_type: ref.employment_contract_type,
+        employment_salary_frequency: ref.employment_salary_frequency,
+        employment_start_date: ref.employment_start_date,
+        employment_end_date: ref.employment_end_date,
         employment_company_address_line1: decrypt(ref.employment_company_address_line1_encrypted),
         employment_company_address_line2: decrypt(ref.employment_company_address_line2_encrypted),
         employment_company_city: decrypt(ref.employment_company_city_encrypted),
@@ -565,16 +573,24 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         employer_ref_name: decrypt(ref.employer_ref_name_encrypted),
         employer_ref_email: decrypt(ref.employer_ref_email_encrypted),
         employer_ref_phone: decrypt(ref.employer_ref_phone_encrypted),
+        // Self-employed fields
         self_employed_business_name: decrypt(ref.self_employed_business_name_encrypted),
         self_employed_nature_of_business: decrypt(ref.self_employed_nature_of_business_encrypted),
         self_employed_annual_income: decrypt(ref.self_employed_annual_income_encrypted),
+        // Benefits fields
+        benefits_monthly_amount: decrypt(ref.benefits_monthly_amount_encrypted),
+        benefits_annual_amount: decrypt(ref.benefits_annual_amount_encrypted),
+        // Other income/savings
         savings_amount: decrypt(ref.savings_amount_encrypted),
         additional_income_source: decrypt(ref.additional_income_source_encrypted),
         additional_income_amount: decrypt(ref.additional_income_amount_encrypted),
+        // Adverse credit
         adverse_credit_details: decrypt(ref.adverse_credit_details_encrypted),
+        // Personal details
         pet_details: decrypt(ref.pet_details_encrypted),
         marital_status: decrypt(ref.marital_status_encrypted),
         dependants_details: decrypt(ref.dependants_details_encrypted),
+        // Previous rental
         previous_landlord_name: decrypt(ref.previous_landlord_name_encrypted),
         previous_landlord_email: decrypt(ref.previous_landlord_email_encrypted),
         previous_landlord_phone: decrypt(ref.previous_landlord_phone_encrypted),
@@ -585,18 +601,29 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         previous_rental_country: decrypt(ref.previous_rental_country_encrypted),
         previous_monthly_rent: decrypt(ref.previous_monthly_rent_encrypted),
         previous_agency_name: decrypt(ref.previous_agency_name_encrypted),
+        // Accountant
         accountant_name: decrypt(ref.accountant_firm_encrypted),
         accountant_contact_name: decrypt(ref.accountant_name_encrypted),
         accountant_email: decrypt(ref.accountant_email_encrypted),
         accountant_phone: decrypt(ref.accountant_phone_encrypted),
+        // Guarantor info
         guarantor_first_name: decrypt(ref.guarantor_first_name_encrypted),
         guarantor_last_name: decrypt(ref.guarantor_last_name_encrypted),
         guarantor_email: decrypt(ref.guarantor_email_encrypted),
         guarantor_phone: decrypt(ref.guarantor_phone_encrypted),
+        // Notes
         notes: decrypt(ref.notes_encrypted),
         internal_notes: decrypt(ref.internal_notes_encrypted),
         verification_notes: decrypt(ref.verification_notes_encrypted),
-        consent_printed_name: decrypt(ref.consent_printed_name_encrypted)
+        consent_printed_name: decrypt(ref.consent_printed_name_encrypted),
+        // Document paths (not encrypted)
+        proof_of_funds_path: ref.proof_of_funds_path,
+        // Derived employment status from boolean flags
+        employment_status: ref.income_regular_employment ? 'employed' :
+                          ref.income_self_employed ? 'self_employed' :
+                          ref.income_student ? 'student' :
+                          ref.income_unemployed ? 'unemployed' :
+                          ref.income_retired ? 'retired' : null
       }
     }
 
@@ -5644,8 +5671,8 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
     const referenceId = req.params.id
     const { type, email, name } = req.body
 
-    if (!type || !['employer', 'landlord', 'accountant'].includes(type)) {
-      return res.status(400).json({ error: 'Invalid referee type. Must be employer, landlord, or accountant.' })
+    if (!type || !['employer', 'landlord', 'agent', 'accountant'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid referee type. Must be employer, landlord, agent, or accountant.' })
     }
 
     if (!email || !isValidEmail(email)) {
@@ -5852,6 +5879,60 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
       )
 
       result = { type: 'accountant', oldEmail, newEmail: email, emailSent: true }
+    } else if (type === 'agent') {
+      // Update letting agent email on tenant_references (same field as landlord)
+      const oldEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+
+      await supabase
+        .from('tenant_references')
+        .update({
+          previous_landlord_email_encrypted: encrypt(email),
+          previous_landlord_name_encrypted: name ? encrypt(name) : reference.previous_landlord_name_encrypted,
+          reference_type: 'agent' // Ensure reference_type is set to agent
+        })
+        .eq('id', referenceId)
+
+      // Generate new token and create/update agent reference
+      const newToken = generateToken()
+      const newTokenHash = hash(newToken)
+
+      const { data: existingRef } = await supabase
+        .from('agent_references')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .single()
+
+      if (existingRef) {
+        await supabase
+          .from('agent_references')
+          .update({
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            submitted_at: null
+          })
+          .eq('id', existingRef.id)
+      } else {
+        await supabase
+          .from('agent_references')
+          .insert({
+            reference_id: referenceId,
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          })
+      }
+
+      // Send email to new letting agent
+      const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`
+      await sendAgentReferenceRequest(
+        email,
+        name || 'Letting Agent',
+        tenantName,
+        formUrl,
+        companyName,
+        propertyAddress
+      )
+
+      result = { type: 'agent', oldEmail, newEmail: email, emailSent: true }
     }
 
     // Log to audit trail

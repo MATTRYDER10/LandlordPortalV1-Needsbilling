@@ -908,6 +908,8 @@ const handleChase = async (person: TenancyPerson) => {
 
     // Chase all available dependencies
     let chaseCount = 0
+    let earliestCooldownEnd: Date | null = null
+
     for (const dep of dependencies) {
       if (dep.canChase) {
         const chaseResponse = await fetch(`${API_URL}/api/chase/agent/${dep.id}`, {
@@ -921,11 +923,30 @@ const handleChase = async (person: TenancyPerson) => {
         if (chaseResponse.ok) {
           chaseCount++
         }
+      } else if (dep.cooldownEnds) {
+        // Track earliest cooldown end time
+        const cooldownEnd = new Date(dep.cooldownEnds)
+        if (!earliestCooldownEnd || cooldownEnd < earliestCooldownEnd) {
+          earliestCooldownEnd = cooldownEnd
+        }
       }
     }
 
     if (chaseCount > 0) {
       toast.success(`Chase sent for ${chaseCount} outstanding item(s)`)
+    } else if (earliestCooldownEnd) {
+      // Show when the cooldown ends
+      const now = new Date()
+      const diffMs = earliestCooldownEnd.getTime() - now.getTime()
+      const diffMins = Math.ceil(diffMs / (1000 * 60))
+
+      if (diffMins > 60) {
+        const hours = Math.floor(diffMins / 60)
+        const mins = diffMins % 60
+        toast.info(`Chase available again in ${hours}h ${mins}m`)
+      } else {
+        toast.info(`Chase available again in ${diffMins} minute${diffMins !== 1 ? 's' : ''}`)
+      }
     } else {
       toast.info('No items available to chase at this time')
     }
@@ -1080,9 +1101,48 @@ const handleOpenCreateModal = () => {
   showCreateModal.value = true
 }
 
+// URL sync for person drawer
+const updateUrlWithPerson = (personId: string | null) => {
+  const query = { ...route.query }
+  if (personId) {
+    query.person = personId
+  } else {
+    delete query.person
+  }
+  router.replace({ query })
+}
+
+// Watch drawer state to sync URL
+watch(drawerOpen, (isOpen) => {
+  if (isOpen && selectedPerson.value) {
+    updateUrlWithPerson(selectedPerson.value.id)
+  } else if (!isOpen) {
+    updateUrlWithPerson(null)
+  }
+})
+
+// Open drawer from URL param after tenancies load
+const openDrawerFromUrl = () => {
+  const personId = route.query.person
+  if (personId && typeof personId === 'string') {
+    // Find the person across all tenancies
+    for (const tenancy of tenancies.value) {
+      const person = tenancy.people.find(p => p.id === personId)
+      if (person) {
+        openPersonDrawer(person, tenancy)
+        expandedTenancyId.value = tenancy.id
+        return
+      }
+    }
+  }
+}
+
 // Lifecycle
-onMounted(() => {
-  loadTenancies()
+onMounted(async () => {
+  await loadTenancies()
+
+  // Check for person in URL after tenancies load
+  openDrawerFromUrl()
 
   if (route.query.create === 'true') {
     showCreateModal.value = true

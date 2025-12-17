@@ -245,7 +245,9 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       id: reference.id,
       tenant_first_name: decrypt(reference.tenant_first_name_encrypted),
       tenant_last_name: decrypt(reference.tenant_last_name_encrypted),
+      middle_name: decrypt(reference.middle_name_encrypted),
       tenant_email: decrypt(reference.tenant_email_encrypted),
+      contact_number: decrypt(reference.contact_number_encrypted),
       property_address: decrypt(reference.property_address_encrypted),
       date_of_birth: reference.date_of_birth ? decrypt(reference.date_of_birth) : null,
       nationality: reference.nationality,
@@ -263,7 +265,22 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       employer_name: reference.employer_name,
       job_title: reference.job_title,
       employment_start_date: reference.employment_start_date,
+      employment_end_date: reference.employment_end_date,
+      employment_contract_type: reference.employment_contract_type,
+      employment_salary_frequency: reference.employment_salary_frequency,
       income_student: reference.income_student || false,
+      // Additional income
+      additional_income_frequency: reference.additional_income_frequency,
+      // Self-employed data
+      self_employed_start_date: reference.self_employed_start_date,
+      self_employed_nature_of_business: reference.self_employed_nature_of_business_encrypted
+        ? decrypt(reference.self_employed_nature_of_business_encrypted) : null,
+      // Benefits data
+      benefits_monthly_amount: reference.benefits_monthly_amount_encrypted
+        ? parseFloat(decrypt(reference.benefits_monthly_amount_encrypted) || '0') : null,
+      benefits_annual_amount: benefitsIncome,
+      // Adverse credit
+      adverse_credit_details: decrypt(reference.adverse_credit_details_encrypted),
       // Credit data - TAS score now comes from reference_scores table
       // tas_score: will be included from score query below
       // RTR data - derive rtr_status from is_british_citizen if set
@@ -276,13 +293,21 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       selfie_path: reference.selfie_path,
       signature_path: reference.signature_path,
       rtr_document_path: reference.rtr_document_path,
+      // Current address
+      current_address_line1: decrypt(reference.current_address_line1_encrypted),
+      current_address_line2: decrypt(reference.current_address_line2_encrypted),
+      current_city: decrypt(reference.current_city_encrypted),
+      current_postcode: decrypt(reference.current_postcode_encrypted),
+      current_country: decrypt(reference.current_country_encrypted),
+      time_at_address_years: reference.time_at_address_years,
+      time_at_address_months: reference.time_at_address_months,
       // Previous address - construct from encrypted fields
       previous_address: reference.previous_rental_address_line1_encrypted
         ? `${decrypt(reference.previous_rental_address_line1_encrypted) || ''}${reference.previous_rental_city_encrypted ? ', ' + decrypt(reference.previous_rental_city_encrypted) : ''}${reference.previous_rental_postcode_encrypted ? ' ' + decrypt(reference.previous_rental_postcode_encrypted) : ''}`.trim()
         : null,
       // Address type - derive from reference_type (landlord/agent) - map to frontend expected values
       previous_address_type: reference.reference_type
-        ? (reference.reference_type === 'agent' ? 'AGENT' : 'LANDLORD')
+        ? (reference.reference_type === 'agent' ? 'AGENT' : reference.reference_type === 'living_with_family' ? 'FAMILY' : 'LANDLORD')
         : null,
       // Tenancy dates
       previous_tenancy_start_date: reference.previous_tenancy_start_date,
@@ -1151,6 +1176,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         employerName: employerReference.employer_name_encrypted ? decrypt(employerReference.employer_name_encrypted) : null,
         contactName: employerReference.contact_name_encrypted ? decrypt(employerReference.contact_name_encrypted) : null,
         contactEmail: employerReference.contact_email_encrypted ? decrypt(employerReference.contact_email_encrypted) : null,
+        contactPhone: employerReference.employer_phone_encrypted ? decrypt(employerReference.employer_phone_encrypted) : null,
         jobTitle: employerReference.employee_position_encrypted ? decrypt(employerReference.employee_position_encrypted) : null,
         employmentStartDate: employerReference.employment_start_date,
         salary: employerReference.annual_salary_encrypted ? parseFloat(decrypt(employerReference.annual_salary_encrypted) || '0') : null,
@@ -1172,6 +1198,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         accountantName: accountantReference.accountant_name_encrypted ? decrypt(accountantReference.accountant_name_encrypted) : null,
         firmName: accountantReference.firm_name_encrypted ? decrypt(accountantReference.firm_name_encrypted) : null,
         contactEmail: accountantReference.contact_email_encrypted ? decrypt(accountantReference.contact_email_encrypted) : null,
+        contactPhone: accountantReference.accountant_phone_encrypted ? decrypt(accountantReference.accountant_phone_encrypted) : null,
         annualIncome: accountantReference.annual_income_encrypted ? parseFloat(decrypt(accountantReference.annual_income_encrypted) || '0') : null,
         yearsTrading: accountantReference.years_trading,
         submittedAt: accountantReference.submitted_at,
@@ -1251,6 +1278,57 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       }
     }
 
+    // Get previous addresses from tenant_reference_previous_addresses table
+    const { data: previousAddressesData } = await supabaseAdmin
+      .from('tenant_reference_previous_addresses')
+      .select('*')
+      .eq('tenant_reference_id', referenceId)
+      .order('address_order', { ascending: true });
+
+    const previousAddresses = (previousAddressesData || []).map((addr: any) => ({
+      line1: decrypt(addr.address_line1_encrypted),
+      line2: decrypt(addr.address_line2_encrypted),
+      city: decrypt(addr.city_encrypted),
+      postcode: decrypt(addr.postcode_encrypted),
+      country: decrypt(addr.country_encrypted),
+      movedIn: addr.moved_in,
+      addressOrder: addr.address_order
+    }));
+
+    // Get guarantor financial data if this is a guarantor
+    let guarantorFinancialData = null;
+    if (reference.is_guarantor) {
+      const { data: guarantorData } = await supabaseAdmin
+        .from('guarantor_references')
+        .select('*')
+        .eq('reference_id', referenceId)
+        .single();
+
+      if (guarantorData) {
+        guarantorFinancialData = {
+          homeOwnershipStatus: guarantorData.home_ownership_status,
+          propertyValue: guarantorData.property_value_encrypted
+            ? parseFloat(decrypt(guarantorData.property_value_encrypted) || '0') : null,
+          monthlyMortgageRent: guarantorData.monthly_mortgage_rent_encrypted
+            ? parseFloat(decrypt(guarantorData.monthly_mortgage_rent_encrypted) || '0') : null,
+          pensionAmount: guarantorData.pension_amount_encrypted
+            ? parseFloat(decrypt(guarantorData.pension_amount_encrypted) || '0') : null,
+          pensionFrequency: guarantorData.pension_frequency,
+          otherMonthlyCommitments: guarantorData.other_monthly_commitments_encrypted
+            ? parseFloat(decrypt(guarantorData.other_monthly_commitments_encrypted) || '0') : null,
+          totalMonthlyExpenditure: guarantorData.total_monthly_expenditure_encrypted
+            ? parseFloat(decrypt(guarantorData.total_monthly_expenditure_encrypted) || '0') : null,
+          understandsObligations: guarantorData.understands_obligations,
+          willingToPayRent: guarantorData.willing_to_pay_rent,
+          willingToPayDamages: guarantorData.willing_to_pay_damages,
+          previouslyActedAsGuarantor: guarantorData.previously_acted_as_guarantor,
+          adverseCredit: guarantorData.adverse_credit,
+          adverseCreditDetails: guarantorData.adverse_credit_details_encrypted
+            ? decrypt(guarantorData.adverse_credit_details_encrypted) : null
+        };
+      }
+    }
+
     res.json({
       claimedIncome,
       verifiedIncome,
@@ -1271,6 +1349,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         confirmedAt: reference.confirmed_residential_at,
         confirmedBy: residentialConfirmedByName
       },
+      previousAddresses,
       employment: {
         type: employerReference?.employment_status || null,
         employerName: decryptedEmployerReference?.employerName || null,
@@ -1278,7 +1357,8 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         startDate: decryptedEmployerReference?.employmentStartDate || null
       },
       monthlyRent: rentForDisplay,
-      isGuarantor: reference.is_guarantor
+      isGuarantor: reference.is_guarantor,
+      guarantorFinancialData
     });
   } catch (error: any) {
     console.error('Error fetching evidence:', error);

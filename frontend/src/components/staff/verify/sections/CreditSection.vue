@@ -22,6 +22,35 @@
         Review credit check results and tenant affordability score (TAS).
       </p>
 
+      <!-- Self-Disclosed Adverse Credit -->
+      <div v-if="adverseCreditDetails" class="adverse-credit-section">
+        <div class="adverse-credit-header">
+          <svg class="warning-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <h4 class="adverse-credit-title">Self-Disclosed Credit Issues</h4>
+        </div>
+        <div class="adverse-credit-card">
+          <span class="adverse-badge">Applicant Disclosed Credit Issues</span>
+          <div class="adverse-details-container">
+            <p class="adverse-label">Details provided by applicant:</p>
+            <p class="adverse-text">{{ adverseCreditDetails }}</p>
+          </div>
+          <p class="adverse-note">
+            Compare this disclosure against the credit report below to verify accuracy and identify any undisclosed issues.
+          </p>
+        </div>
+      </div>
+
+      <!-- No Adverse Credit Disclosed -->
+      <div v-else class="no-adverse-credit">
+        <svg class="check-icon" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        <span>No adverse credit history disclosed by applicant</span>
+      </div>
+
       <!-- TAS Score -->
       <div class="score-card">
         <div class="score-header">
@@ -181,6 +210,7 @@ defineProps<{
   creditsafeVerification?: any
   creditReport?: any
   referenceScore?: any
+  adverseCreditDetails?: string
   hasUnreviewedData?: boolean
   readOnly?: boolean
   loading?: boolean
@@ -505,5 +535,97 @@ const formatCurrency = (amount?: number) => {
   width: 1rem;
   height: 1rem;
   color: #9ca3af;
+}
+
+/* Adverse Credit Section */
+.adverse-credit-section {
+  padding: 1rem;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 0.5rem;
+}
+
+.adverse-credit-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.adverse-credit-header .warning-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #d97706;
+}
+
+.adverse-credit-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #92400e;
+  margin: 0;
+}
+
+.adverse-credit-card {
+  background: white;
+  border-radius: 0.375rem;
+  padding: 1rem;
+}
+
+.adverse-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.adverse-details-container {
+  margin-bottom: 0.75rem;
+}
+
+.adverse-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  margin: 0 0 0.25rem;
+}
+
+.adverse-text {
+  font-size: 0.875rem;
+  color: #1f2937;
+  margin: 0;
+  white-space: pre-line;
+  background: #f9fafb;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  border: 1px solid #e5e7eb;
+}
+
+.adverse-note {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-style: italic;
+  margin: 0;
+}
+
+.no-adverse-credit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #d1fae5;
+  color: #065f46;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.no-adverse-credit .check-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #059669;
 }
 </style>

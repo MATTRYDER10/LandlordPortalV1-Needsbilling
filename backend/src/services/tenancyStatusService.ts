@@ -145,6 +145,12 @@ export async function derivePersonStatus(referenceId: string): Promise<PersonSta
       return 'AWAITING_VERIFICATION'
     }
 
+    // If reference is still pending and form hasn't been submitted, it's NOT_STARTED
+    // regardless of chase dependencies (we may be chasing them, but they haven't started yet)
+    if (reference.status === 'pending' && !reference.submitted_at) {
+      return 'NOT_STARTED'
+    }
+
     // Check for outstanding dependencies
     const { data: dependencies } = await supabase
       .from('chase_dependencies')
@@ -620,6 +626,12 @@ export function derivePersonStatusSync(
     }
 
     return 'AWAITING_VERIFICATION'
+  }
+
+  // If reference is still pending and form hasn't been submitted, it's NOT_STARTED
+  // regardless of chase dependencies (we may be chasing them, but they haven't started yet)
+  if (reference.status === 'pending' && !reference.submitted_at) {
+    return 'NOT_STARTED'
   }
 
   // Check for outstanding dependencies

@@ -399,9 +399,43 @@
                 <p class="text-sm text-gray-900">{{ fullDetails.current_city }}, {{ fullDetails.current_postcode }}</p>
                 <p v-if="fullDetails.current_country" class="text-sm text-gray-500">{{ fullDetails.current_country }}</p>
               </div>
-              <div v-if="fullDetails.current_address_moved_in" class="mt-3">
-                <label class="block text-xs font-medium text-gray-500 uppercase">Moved In</label>
-                <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.current_address_moved_in) }}</p>
+              <div class="mt-3 grid grid-cols-2 gap-4">
+                <div v-if="fullDetails.current_address_moved_in">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Moved In</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.current_address_moved_in) }}</p>
+                </div>
+                <div v-if="fullDetails.time_at_address_years !== null || fullDetails.time_at_address_months !== null">
+                  <label class="block text-xs font-medium text-gray-500 uppercase">Time at Address</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ formatTimeAtAddress(fullDetails.time_at_address_years, fullDetails.time_at_address_months) }}</p>
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            <!-- Address History (3 Years) -->
+            <CollapsibleSection
+              v-if="fullDetails?.previousAddresses && fullDetails.previousAddresses.length > 0"
+              title="Address History"
+              :badge="fullDetails.previousAddresses.length.toString()"
+            >
+              <div class="space-y-3">
+                <div
+                  v-for="(addr, index) in fullDetails.previousAddresses"
+                  :key="index"
+                  class="p-3 bg-gray-50 rounded-lg border-l-2 border-gray-300"
+                >
+                  <div class="flex items-start justify-between">
+                    <div class="space-y-1">
+                      <p class="text-sm font-medium text-gray-900">{{ addr.line1 }}</p>
+                      <p v-if="addr.line2" class="text-sm text-gray-700">{{ addr.line2 }}</p>
+                      <p class="text-sm text-gray-700">{{ addr.city }}, {{ addr.postcode }}</p>
+                      <p v-if="addr.country" class="text-xs text-gray-500">{{ addr.country }}</p>
+                    </div>
+                    <span class="text-xs text-gray-500 font-medium">#{{ index + 1 }}</span>
+                  </div>
+                  <p v-if="addr.moved_in" class="mt-2 text-xs text-gray-500">
+                    Moved in: {{ formatDate(addr.moved_in) }}
+                  </p>
+                </div>
               </div>
             </CollapsibleSection>
 
@@ -515,9 +549,21 @@
                     <label class="block text-xs font-medium text-gray-500 uppercase">Start Date</label>
                     <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.employment_start_date) }}</p>
                   </div>
+                  <div v-if="fullDetails?.employment_end_date">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">End Date</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.employment_end_date) }}</p>
+                  </div>
                   <div v-if="fullDetails?.employment_type">
                     <label class="block text-xs font-medium text-gray-500 uppercase">Employment Type</label>
                     <p class="mt-1 text-sm text-gray-900 capitalize">{{ fullDetails.employment_type.replace(/_/g, ' ') }}</p>
+                  </div>
+                  <div v-if="fullDetails?.employment_contract_type">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Contract Type</label>
+                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ formatContractType(fullDetails.employment_contract_type) }}</p>
+                  </div>
+                  <div v-if="fullDetails?.employment_salary_frequency">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Pay Frequency</label>
+                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ formatPayFrequency(fullDetails.employment_salary_frequency) }}</p>
                   </div>
                   <div v-if="fullDetails?.compensation_type">
                     <label class="block text-xs font-medium text-gray-500 uppercase">Pay Type</label>
@@ -560,12 +606,31 @@
                     <label class="block text-xs font-medium text-gray-500 uppercase">Nature of Business</label>
                     <p class="mt-1 text-sm text-gray-900">{{ fullDetails.self_employed_nature_of_business }}</p>
                   </div>
+                  <div v-if="fullDetails.self_employed_start_date">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Started Self-Employment</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.self_employed_start_date) }}</p>
+                  </div>
                 </div>
 
                 <!-- Savings -->
                 <div v-if="fullDetails?.savings_amount" class="pt-3 border-t border-gray-200">
                   <label class="block text-xs font-medium text-gray-500 uppercase">Savings</label>
                   <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.savings_amount)) }}</p>
+                </div>
+
+                <!-- Benefits -->
+                <div v-if="fullDetails?.receives_benefits || fullDetails?.benefits_monthly_amount || fullDetails?.benefits_annual_amount" class="pt-3 border-t border-gray-200">
+                  <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Benefits</label>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div v-if="fullDetails?.benefits_monthly_amount">
+                      <label class="block text-xs font-medium text-gray-400">Monthly Amount</label>
+                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.benefits_monthly_amount)) }}</p>
+                    </div>
+                    <div v-if="fullDetails?.benefits_annual_amount">
+                      <label class="block text-xs font-medium text-gray-400">Annual Amount</label>
+                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.benefits_annual_amount)) }}</p>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Additional Income -->
@@ -578,11 +643,29 @@
                     <label class="block text-xs font-medium text-gray-500 uppercase">Additional Income Amount</label>
                     <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.additional_income_amount)) }}</p>
                   </div>
+                  <div v-if="fullDetails?.additional_income_frequency">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Frequency</label>
+                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ formatPayFrequency(fullDetails.additional_income_frequency) }}</p>
+                  </div>
                 </div>
 
                 <!-- Employer Reference Request (what tenant provided) -->
                 <div v-if="fullDetails?.employer_ref_email" class="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p class="text-xs font-medium text-blue-700 uppercase mb-2">Employer Reference Request Sent To</p>
+                  <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-medium text-blue-700 uppercase">Employer Reference Request Sent To</p>
+                    <span
+                      v-if="!employerRef?.submitted_at"
+                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                    >
+                      Awaiting Response
+                    </span>
+                    <span
+                      v-else
+                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                    >
+                      Received
+                    </span>
+                  </div>
                   <div class="text-sm text-gray-700 space-y-1">
                     <p v-if="fullDetails.employer_ref_name">{{ fullDetails.employer_ref_name }}</p>
                     <p class="text-xs text-gray-500">{{ fullDetails.employer_ref_email }}</p>
@@ -603,12 +686,59 @@
                   </div>
                   <p v-if="employerRef.company_name" class="text-sm text-gray-700 mt-1">{{ employerRef.company_name }}</p>
                   <p class="text-xs text-gray-500 mt-1">{{ employerRef.employer_email }}</p>
+                  <p v-if="employerRef.employer_phone" class="text-xs text-gray-500">{{ employerRef.employer_phone }}</p>
                   <div v-if="employerRef.confirmed_at" class="mt-2 text-xs text-gray-600">
                     <p v-if="employerRef.annual_salary">Confirmed Salary: {{ formatCurrency(Number(employerRef.annual_salary)) }}</p>
                     <p v-if="employerRef.employee_position">Confirmed Title: {{ employerRef.employee_position }}</p>
                     <p v-if="employerRef.start_date">Employment Start: {{ formatDate(employerRef.start_date) }}</p>
                     <p v-if="employerRef.performance_satisfactory !== undefined">Performance Satisfactory: {{ employerRef.performance_satisfactory ? 'Yes' : 'No' }}</p>
                     <p v-if="employerRef.would_reemploy !== undefined">Would Re-employ: {{ employerRef.would_reemploy ? 'Yes' : 'No' }}</p>
+                  </div>
+                </div>
+
+                <!-- Accountant Reference Request (what tenant provided) -->
+                <div v-if="fullDetails?.accountant_email" class="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-medium text-blue-700 uppercase">Accountant Reference Request Sent To</p>
+                    <span
+                      v-if="!accountantRef?.submitted_at"
+                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                    >
+                      Awaiting Response
+                    </span>
+                    <span
+                      v-else
+                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                    >
+                      Received
+                    </span>
+                  </div>
+                  <div class="text-sm text-gray-700 space-y-1">
+                    <p v-if="fullDetails.accountant_name">{{ fullDetails.accountant_name }}</p>
+                    <p v-if="fullDetails.accountant_contact_name" class="text-xs text-gray-600">Contact: {{ fullDetails.accountant_contact_name }}</p>
+                    <p class="text-xs text-gray-500">{{ fullDetails.accountant_email }}</p>
+                    <p v-if="fullDetails.accountant_phone" class="text-xs text-gray-500">{{ fullDetails.accountant_phone }}</p>
+                  </div>
+                </div>
+
+                <!-- Accountant Reference Response -->
+                <div v-if="accountantRef" class="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-gray-700">Accountant Reference Response</span>
+                    <span
+                      class="px-2 py-0.5 text-xs font-medium rounded-full"
+                      :class="accountantRef.submitted_at ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                    >
+                      {{ accountantRef.submitted_at ? 'Received' : 'Pending' }}
+                    </span>
+                  </div>
+                  <p v-if="accountantRef.firm_name" class="text-sm text-gray-700 mt-1">{{ accountantRef.firm_name }}</p>
+                  <p v-if="accountantRef.accountant_name" class="text-xs text-gray-600">Contact: {{ accountantRef.accountant_name }}</p>
+                  <p v-if="accountantRef.accountant_email" class="text-xs text-gray-500">{{ accountantRef.accountant_email }}</p>
+                  <p v-if="accountantRef.accountant_phone" class="text-xs text-gray-500">{{ accountantRef.accountant_phone }}</p>
+                  <div v-if="accountantRef.submitted_at" class="mt-2 text-xs text-gray-600">
+                    <p v-if="accountantRef.annual_income">Confirmed Annual Income: {{ formatCurrency(Number(accountantRef.annual_income)) }}</p>
+                    <p v-if="accountantRef.years_trading">Years Trading: {{ accountantRef.years_trading }}</p>
                   </div>
                 </div>
               </div>
@@ -652,7 +782,21 @@
                     <p v-if="fullDetails.previous_monthly_rent" class="text-xs text-gray-500">Rent: {{ formatCurrency(Number(fullDetails.previous_monthly_rent)) }}/mo</p>
                   </div>
                   <div v-if="fullDetails.previous_landlord_name || fullDetails.previous_landlord_email" class="mt-2 pt-2 border-t border-blue-200">
-                    <p class="text-xs font-medium text-blue-700 uppercase mb-1">Reference Request Sent To</p>
+                    <div class="flex items-center justify-between mb-1">
+                      <p class="text-xs font-medium text-blue-700 uppercase">Reference Request Sent To</p>
+                      <span
+                        v-if="!landlordRef?.submitted_at && !agentRef?.submitted_at"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                      >
+                        Awaiting Response
+                      </span>
+                      <span
+                        v-else
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                      >
+                        Received
+                      </span>
+                    </div>
                     <p v-if="fullDetails.previous_landlord_name" class="text-sm text-gray-700">{{ fullDetails.previous_landlord_name }}</p>
                     <p v-if="fullDetails.previous_landlord_email" class="text-xs text-gray-500">{{ fullDetails.previous_landlord_email }}</p>
                     <p v-if="fullDetails.previous_landlord_phone" class="text-xs text-gray-500">{{ fullDetails.previous_landlord_phone }}</p>
@@ -722,6 +866,136 @@
                 </div>
               </div>
               <p v-else class="text-sm text-gray-500">Residential references not yet provided</p>
+            </CollapsibleSection>
+
+            <!-- Adverse Credit Disclosure -->
+            <CollapsibleSection
+              v-if="fullDetails?.adverse_credit || fullDetails?.adverse_credit_details"
+              title="Adverse Credit Disclosure"
+              :status="fullDetails?.adverse_credit ? 'fail' : undefined"
+            >
+              <div v-if="fullDetails?.adverse_credit" class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                  <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <p class="text-sm font-medium text-amber-800">Applicant has disclosed adverse credit history</p>
+                    <p v-if="fullDetails.adverse_credit_details" class="mt-2 text-sm text-amber-700 whitespace-pre-wrap">{{ fullDetails.adverse_credit_details }}</p>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="p-3 bg-green-50 rounded-lg">
+                <div class="flex items-center gap-2">
+                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p class="text-sm text-green-800">No adverse credit history disclosed</p>
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            <!-- Guarantor Financial Position (Guarantors only) -->
+            <CollapsibleSection
+              v-if="person.role === 'GUARANTOR' && hasGuarantorFinancialData"
+              title="Guarantor Financial Position"
+            >
+              <div class="space-y-4">
+                <!-- Home Ownership -->
+                <div class="grid grid-cols-2 gap-4">
+                  <div v-if="fullDetails?.guarantorData?.home_ownership_status">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Home Ownership</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatHomeOwnership(fullDetails.guarantorData.home_ownership_status) }}</p>
+                  </div>
+                  <div v-if="fullDetails?.guarantorData?.property_value">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Property Value</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.property_value)) }}</p>
+                  </div>
+                  <div v-if="fullDetails?.guarantorData?.monthly_mortgage_rent">
+                    <label class="block text-xs font-medium text-gray-500 uppercase">Monthly Mortgage/Rent</label>
+                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.monthly_mortgage_rent)) }}</p>
+                  </div>
+                </div>
+
+                <!-- Pension & Income -->
+                <div v-if="fullDetails?.guarantorData?.pension_amount" class="pt-3 border-t border-gray-200">
+                  <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Pension Income</label>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs font-medium text-gray-400">Amount</label>
+                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.pension_amount)) }}</p>
+                    </div>
+                    <div v-if="fullDetails?.guarantorData?.pension_frequency">
+                      <label class="block text-xs font-medium text-gray-400">Frequency</label>
+                      <p class="text-sm text-gray-900 capitalize">{{ fullDetails.guarantorData.pension_frequency }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Monthly Commitments -->
+                <div v-if="fullDetails?.guarantorData?.other_monthly_commitments || fullDetails?.guarantorData?.total_monthly_expenditure" class="pt-3 border-t border-gray-200">
+                  <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Monthly Expenditure</label>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div v-if="fullDetails?.guarantorData?.other_monthly_commitments">
+                      <label class="block text-xs font-medium text-gray-400">Other Commitments</label>
+                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.other_monthly_commitments)) }}</p>
+                    </div>
+                    <div v-if="fullDetails?.guarantorData?.total_monthly_expenditure">
+                      <label class="block text-xs font-medium text-gray-400">Total Expenditure</label>
+                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.total_monthly_expenditure)) }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Guarantor Obligations -->
+                <div class="pt-3 border-t border-gray-200">
+                  <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Guarantor Obligations</label>
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      v-if="fullDetails?.guarantorData?.understands_obligations !== undefined"
+                      :class="fullDetails.guarantorData.understands_obligations ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    >
+                      {{ fullDetails.guarantorData.understands_obligations ? 'Understands Obligations' : 'Does Not Understand' }}
+                    </span>
+                    <span
+                      v-if="fullDetails?.guarantorData?.willing_to_pay_rent !== undefined"
+                      :class="fullDetails.guarantorData.willing_to_pay_rent ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    >
+                      {{ fullDetails.guarantorData.willing_to_pay_rent ? 'Willing to Pay Rent' : 'Not Willing to Pay Rent' }}
+                    </span>
+                    <span
+                      v-if="fullDetails?.guarantorData?.willing_to_pay_damages !== undefined"
+                      :class="fullDetails.guarantorData.willing_to_pay_damages ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    >
+                      {{ fullDetails.guarantorData.willing_to_pay_damages ? 'Willing to Pay Damages' : 'Not Willing to Pay Damages' }}
+                    </span>
+                    <span
+                      v-if="fullDetails?.guarantorData?.previously_acted_as_guarantor"
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    >
+                      Previously Acted as Guarantor
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Guarantor Adverse Credit -->
+                <div v-if="fullDetails?.guarantorData?.adverse_credit" class="pt-3 border-t border-gray-200">
+                  <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div class="flex items-start gap-2">
+                      <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <div>
+                        <p class="text-sm font-medium text-amber-800">Guarantor has disclosed adverse credit</p>
+                        <p v-if="fullDetails.guarantorData.adverse_credit_details" class="mt-2 text-sm text-amber-700 whitespace-pre-wrap">{{ fullDetails.guarantorData.adverse_credit_details }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CollapsibleSection>
 
             <!-- Documents -->
@@ -1044,6 +1318,7 @@
                 <option value="">Select referee type...</option>
                 <option value="employer">Employer</option>
                 <option value="landlord">Landlord</option>
+                <option value="agent">Letting Agent</option>
                 <option value="accountant">Accountant</option>
               </select>
             </div>
@@ -1236,7 +1511,9 @@ const canEdit = computed(() => {
 })
 
 // Check if we have any "About the Tenant" data to display
+// Only show if form has been submitted (submitted_at is set) to avoid showing database default values
 const hasAboutTenantData = computed(() => {
+  if (!fullDetails.value?.submitted_at) return false
   return fullDetails.value?.is_smoker !== null ||
          fullDetails.value?.has_pets !== null ||
          fullDetails.value?.marital_status ||
@@ -1369,6 +1646,68 @@ const hasResidentialData = computed(() => {
          landlordRef.value ||
          agentRef.value
 })
+
+// Check if we have guarantor financial data
+const hasGuarantorFinancialData = computed(() => {
+  if (!fullDetails.value?.guarantorData) return false
+  return fullDetails.value.guarantorData.home_ownership_status ||
+         fullDetails.value.guarantorData.property_value ||
+         fullDetails.value.guarantorData.monthly_mortgage_rent ||
+         fullDetails.value.guarantorData.pension_amount ||
+         fullDetails.value.guarantorData.other_monthly_commitments ||
+         fullDetails.value.guarantorData.total_monthly_expenditure ||
+         fullDetails.value.guarantorData.understands_obligations !== undefined ||
+         fullDetails.value.guarantorData.willing_to_pay_rent !== undefined ||
+         fullDetails.value.guarantorData.willing_to_pay_damages !== undefined
+})
+
+function formatTimeAtAddress(years: number | null | undefined, months: number | null | undefined): string {
+  const parts = []
+  if (years && years > 0) {
+    parts.push(`${years} year${years !== 1 ? 's' : ''}`)
+  }
+  if (months && months > 0) {
+    parts.push(`${months} month${months !== 1 ? 's' : ''}`)
+  }
+  return parts.length > 0 ? parts.join(', ') : 'Not specified'
+}
+
+function formatContractType(type: string | null | undefined): string {
+  if (!type) return 'Not specified'
+  const typeMap: Record<string, string> = {
+    'permanent': 'Permanent',
+    'fixed_term': 'Fixed Term',
+    'temporary': 'Temporary',
+    'zero_hours': 'Zero Hours',
+    'casual': 'Casual'
+  }
+  return typeMap[type] || type.replace(/_/g, ' ')
+}
+
+function formatPayFrequency(frequency: string | null | undefined): string {
+  if (!frequency) return 'Not specified'
+  const freqMap: Record<string, string> = {
+    'weekly': 'Weekly',
+    'fortnightly': 'Fortnightly',
+    'monthly': 'Monthly',
+    'annually': 'Annually',
+    'four_weekly': 'Four Weekly'
+  }
+  return freqMap[frequency] || frequency.replace(/_/g, ' ')
+}
+
+function formatHomeOwnership(status: string | null | undefined): string {
+  if (!status) return 'Not specified'
+  const statusMap: Record<string, string> = {
+    'owner_no_mortgage': 'Owner (No Mortgage)',
+    'owner_with_mortgage': 'Owner (With Mortgage)',
+    'renting': 'Renting',
+    'living_with_family': 'Living with Family',
+    'council_tenant': 'Council Tenant',
+    'housing_association': 'Housing Association'
+  }
+  return statusMap[status] || status.replace(/_/g, ' ')
+}
 
 function formatEmploymentStatus(status: string | null | undefined): string {
   if (!status) return 'Not provided'

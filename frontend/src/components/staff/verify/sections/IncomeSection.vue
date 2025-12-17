@@ -97,10 +97,114 @@
             <p class="detail-label">Job Title</p>
             <p class="detail-value">{{ jobTitle }}</p>
           </div>
+          <div v-if="employmentContractType" class="detail-item">
+            <p class="detail-label">Contract Type</p>
+            <p class="detail-value">{{ formatContractType(employmentContractType) }}</p>
+          </div>
           <div v-if="employmentStartDate" class="detail-item">
             <p class="detail-label">Start Date</p>
             <p class="detail-value">{{ formatDate(employmentStartDate) }}</p>
           </div>
+          <div v-if="employmentEndDate" class="detail-item">
+            <p class="detail-label">End Date</p>
+            <p class="detail-value">{{ formatDate(employmentEndDate) }}</p>
+          </div>
+          <div v-if="salaryFrequency" class="detail-item">
+            <p class="detail-label">Pay Frequency</p>
+            <p class="detail-value">{{ formatFrequency(salaryFrequency) }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Self-Employed Details -->
+      <div v-if="employmentType === 'self_employed' && (selfEmployedStartDate || selfEmployedNatureOfBusiness)" class="detail-section">
+        <h4 class="subsection-title">Self-Employment Details</h4>
+        <div class="details-grid">
+          <div v-if="selfEmployedNatureOfBusiness" class="detail-item">
+            <p class="detail-label">Nature of Business</p>
+            <p class="detail-value">{{ selfEmployedNatureOfBusiness }}</p>
+          </div>
+          <div v-if="selfEmployedStartDate" class="detail-item">
+            <p class="detail-label">Started Self-Employment</p>
+            <p class="detail-value">{{ formatDate(selfEmployedStartDate) }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guarantor Financial Position (only for guarantors) -->
+      <div v-if="isGuarantor && guarantorFinancialData" class="detail-section guarantor-financial">
+        <h4 class="subsection-title">Guarantor Financial Position</h4>
+        <div class="details-grid">
+          <div v-if="guarantorFinancialData.homeOwnershipStatus" class="detail-item">
+            <p class="detail-label">Home Ownership</p>
+            <p class="detail-value">{{ formatHomeOwnership(guarantorFinancialData.homeOwnershipStatus) }}</p>
+          </div>
+          <div v-if="guarantorFinancialData.propertyValue" class="detail-item">
+            <p class="detail-label">Property Value</p>
+            <p class="detail-value">{{ formatCurrency(guarantorFinancialData.propertyValue) }}</p>
+          </div>
+          <div v-if="guarantorFinancialData.monthlyMortgageRent" class="detail-item">
+            <p class="detail-label">Monthly Mortgage/Rent</p>
+            <p class="detail-value">{{ formatCurrency(guarantorFinancialData.monthlyMortgageRent) }}/mo</p>
+          </div>
+          <div v-if="guarantorFinancialData.pensionAmount" class="detail-item">
+            <p class="detail-label">Pension</p>
+            <p class="detail-value">
+              {{ formatCurrency(guarantorFinancialData.pensionAmount) }}
+              <span v-if="guarantorFinancialData.pensionFrequency" class="frequency-label">/{{ guarantorFinancialData.pensionFrequency }}</span>
+            </p>
+          </div>
+          <div v-if="guarantorFinancialData.otherMonthlyCommitments" class="detail-item">
+            <p class="detail-label">Other Commitments</p>
+            <p class="detail-value">{{ formatCurrency(guarantorFinancialData.otherMonthlyCommitments) }}/mo</p>
+          </div>
+          <div v-if="guarantorFinancialData.totalMonthlyExpenditure" class="detail-item">
+            <p class="detail-label">Total Monthly Expenditure</p>
+            <p class="detail-value">{{ formatCurrency(guarantorFinancialData.totalMonthlyExpenditure) }}/mo</p>
+          </div>
+        </div>
+
+        <!-- Guarantor Obligations -->
+        <div class="obligations-section">
+          <p class="obligations-title">Guarantor Confirmations</p>
+          <div class="obligations-grid">
+            <div class="obligation-item">
+              <span :class="['obligation-badge', guarantorFinancialData.understandsObligations ? 'confirmed' : 'pending']">
+                {{ guarantorFinancialData.understandsObligations ? '✓' : '?' }}
+              </span>
+              <span>Understands Legal Obligations</span>
+            </div>
+            <div class="obligation-item">
+              <span :class="['obligation-badge', guarantorFinancialData.willingToPayRent ? 'confirmed' : 'pending']">
+                {{ guarantorFinancialData.willingToPayRent ? '✓' : '?' }}
+              </span>
+              <span>Willing to Pay Rent if Tenant Defaults</span>
+            </div>
+            <div class="obligation-item">
+              <span :class="['obligation-badge', guarantorFinancialData.willingToPayDamages ? 'confirmed' : 'pending']">
+                {{ guarantorFinancialData.willingToPayDamages ? '✓' : '?' }}
+              </span>
+              <span>Willing to Pay Damages if Tenant Defaults</span>
+            </div>
+            <div v-if="guarantorFinancialData.previouslyActedAsGuarantor" class="obligation-item">
+              <span class="obligation-badge info">ℹ</span>
+              <span>Has Previously Acted as Guarantor</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Guarantor Adverse Credit -->
+        <div v-if="guarantorFinancialData.adverseCredit || guarantorFinancialData.adverseCreditDetails" class="guarantor-adverse-credit">
+          <div class="adverse-header">
+            <svg class="warning-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Guarantor Disclosed Credit Issues</span>
+          </div>
+          <p v-if="guarantorFinancialData.adverseCreditDetails" class="adverse-details">
+            {{ guarantorFinancialData.adverseCreditDetails }}
+          </p>
         </div>
       </div>
 
@@ -207,7 +311,10 @@
                   </div>
                   <div class="claimed-item">
                     <span class="claimed-label">Benefits</span>
-                    <span class="claimed-value">{{ formatCurrency(claimedIncome?.benefits || 0) }}/year</span>
+                    <span class="claimed-value">
+                      {{ formatCurrency(claimedIncome?.benefits || 0) }}/year
+                      <span v-if="benefitsMonthlyAmount" class="claimed-subtext">({{ formatCurrency(benefitsMonthlyAmount) }}/mo)</span>
+                    </span>
                   </div>
                   <div class="claimed-item">
                     <span class="claimed-label">Self-Employed</span>
@@ -215,7 +322,10 @@
                   </div>
                   <div class="claimed-item">
                     <span class="claimed-label">Savings/Other</span>
-                    <span class="claimed-value">{{ formatCurrency((claimedIncome?.savings || 0) + (claimedIncome?.additional || 0)) }}/year</span>
+                    <span class="claimed-value">
+                      {{ formatCurrency((claimedIncome?.savings || 0) + (claimedIncome?.additional || 0)) }}/year
+                      <span v-if="additionalIncomeFrequency" class="claimed-subtext">({{ formatFrequency(additionalIncomeFrequency) }})</span>
+                    </span>
                   </div>
                   <div class="claimed-item total">
                     <span class="claimed-label">Total Claimed</span>
@@ -272,6 +382,10 @@
                     <span class="ref-label">Probation</span>
                     <span class="ref-value">{{ formatProbationStatus(evidenceEmployerRef) }}</span>
                   </div>
+                  <div v-if="evidenceEmployerRef.contactPhone" class="ref-row">
+                    <span class="ref-label">Contact Phone</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.contactPhone }}</span>
+                  </div>
                   <div class="ref-row">
                     <span class="ref-label">Submitted</span>
                     <span class="ref-value">{{ formatDate(evidenceEmployerRef.submittedAt) }}</span>
@@ -294,6 +408,10 @@
                   <div class="ref-row">
                     <span class="ref-label">Years Trading</span>
                     <span class="ref-value">{{ evidenceAccountantRef.yearsTrading }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.contactPhone" class="ref-row">
+                    <span class="ref-label">Contact Phone</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.contactPhone }}</span>
                   </div>
                   <div class="ref-row">
                     <span class="ref-label">Submitted</span>
@@ -493,6 +611,7 @@ interface EvidenceEmployerRef {
   employmentType: string | null
   isProbation: boolean | string | null
   probationEndDate: string | null
+  contactPhone: string | null
 }
 
 interface EvidenceAccountantRef {
@@ -500,6 +619,23 @@ interface EvidenceAccountantRef {
   annualIncome: number | null
   yearsTrading: number
   submittedAt: string
+  contactPhone: string | null
+}
+
+interface GuarantorFinancialData {
+  homeOwnershipStatus?: string
+  propertyValue?: number | null
+  monthlyMortgageRent?: number | null
+  pensionAmount?: number | null
+  pensionFrequency?: string
+  otherMonthlyCommitments?: number | null
+  totalMonthlyExpenditure?: number | null
+  understandsObligations?: boolean
+  willingToPayRent?: boolean
+  willingToPayDamages?: boolean
+  previouslyActedAsGuarantor?: boolean
+  adverseCredit?: boolean
+  adverseCreditDetails?: string | null
 }
 
 const props = defineProps<{
@@ -514,6 +650,16 @@ const props = defineProps<{
   employerName?: string
   jobTitle?: string
   employmentStartDate?: string
+  employmentEndDate?: string
+  employmentContractType?: string
+  salaryFrequency?: string
+  // Self-employed fields
+  selfEmployedStartDate?: string
+  selfEmployedNatureOfBusiness?: string
+  // Additional income
+  additionalIncomeFrequency?: string
+  // Benefits
+  benefitsMonthlyAmount?: number
   incomeSources?: IncomeSource[]
   employerReference?: EmployerRef
   accountantReference?: AccountantRef
@@ -530,6 +676,8 @@ const props = defineProps<{
   incomeConfirmedAt?: string
   incomeConfirmedBy?: string
   isStudent?: boolean
+  // Guarantor-specific data
+  guarantorFinancialData?: GuarantorFinancialData
 }>()
 
 const emit = defineEmits<{
@@ -742,6 +890,39 @@ const formatProbationStatus = (ref: EvidenceEmployerRef) => {
     return `Yes (ends ${formatDate(ref.probationEndDate)})`
   }
   return 'Yes'
+}
+
+const formatContractType = (type: string) => {
+  const types: Record<string, string> = {
+    'full_time': 'Full-time',
+    'part_time': 'Part-time',
+    'contract': 'Contract',
+    'temporary': 'Temporary',
+    'zero_hours': 'Zero Hours',
+    'permanent': 'Permanent'
+  }
+  return types[type] || type.replace(/_/g, ' ')
+}
+
+const formatFrequency = (freq: string) => {
+  const frequencies: Record<string, string> = {
+    'weekly': 'Weekly',
+    'bi_weekly': 'Bi-weekly',
+    'monthly': 'Monthly',
+    'annually': 'Annually'
+  }
+  return frequencies[freq] || freq.replace(/_/g, ' ')
+}
+
+const formatHomeOwnership = (status: string) => {
+  const statuses: Record<string, string> = {
+    'owner': 'Owner (Outright)',
+    'owner_mortgage': 'Owner with Mortgage',
+    'renting': 'Renting',
+    'living_with_family': 'Living with Family',
+    'other': 'Other'
+  }
+  return statuses[status] || status.replace(/_/g, ' ')
 }
 </script>
 
@@ -1216,6 +1397,13 @@ const formatProbationStatus = (ref: EvidenceEmployerRef) => {
   font-weight: 500;
 }
 
+.claimed-subtext {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #6b7280;
+  margin-left: 0.25rem;
+}
+
 .evidence-preview-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1382,5 +1570,106 @@ const formatProbationStatus = (ref: EvidenceEmployerRef) => {
 .btn-primary:disabled {
   background: #fdba74;
   cursor: not-allowed;
+}
+
+/* Guarantor Financial Section */
+.guarantor-financial {
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+}
+
+.frequency-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.obligations-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #bfdbfe;
+}
+
+.obligations-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+}
+
+.obligations-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.obligation-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: #374151;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border-radius: 0.25rem;
+}
+
+.obligation-badge {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.obligation-badge.confirmed {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.obligation-badge.pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.obligation-badge.info {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.guarantor-adverse-credit {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 0.375rem;
+}
+
+.guarantor-adverse-credit .adverse-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #92400e;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.guarantor-adverse-credit .warning-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.guarantor-adverse-credit .adverse-details {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: #1f2937;
+  background: white;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  white-space: pre-line;
 }
 </style>
