@@ -651,7 +651,21 @@
 
                 <!-- Employer Reference Request (what tenant provided) -->
                 <div v-if="fullDetails?.employer_ref_email" class="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p class="text-xs font-medium text-blue-700 uppercase mb-2">Employer Reference Request Sent To</p>
+                  <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-medium text-blue-700 uppercase">Employer Reference Request Sent To</p>
+                    <span
+                      v-if="!employerRef?.submitted_at"
+                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                    >
+                      Awaiting Response
+                    </span>
+                    <span
+                      v-else
+                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                    >
+                      Received
+                    </span>
+                  </div>
                   <div class="text-sm text-gray-700 space-y-1">
                     <p v-if="fullDetails.employer_ref_name">{{ fullDetails.employer_ref_name }}</p>
                     <p class="text-xs text-gray-500">{{ fullDetails.employer_ref_email }}</p>
@@ -684,7 +698,21 @@
 
                 <!-- Accountant Reference Request (what tenant provided) -->
                 <div v-if="fullDetails?.accountant_email" class="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p class="text-xs font-medium text-blue-700 uppercase mb-2">Accountant Reference Request Sent To</p>
+                  <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-medium text-blue-700 uppercase">Accountant Reference Request Sent To</p>
+                    <span
+                      v-if="!accountantRef?.submitted_at"
+                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                    >
+                      Awaiting Response
+                    </span>
+                    <span
+                      v-else
+                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                    >
+                      Received
+                    </span>
+                  </div>
                   <div class="text-sm text-gray-700 space-y-1">
                     <p v-if="fullDetails.accountant_name">{{ fullDetails.accountant_name }}</p>
                     <p v-if="fullDetails.accountant_contact_name" class="text-xs text-gray-600">Contact: {{ fullDetails.accountant_contact_name }}</p>
@@ -754,7 +782,21 @@
                     <p v-if="fullDetails.previous_monthly_rent" class="text-xs text-gray-500">Rent: {{ formatCurrency(Number(fullDetails.previous_monthly_rent)) }}/mo</p>
                   </div>
                   <div v-if="fullDetails.previous_landlord_name || fullDetails.previous_landlord_email" class="mt-2 pt-2 border-t border-blue-200">
-                    <p class="text-xs font-medium text-blue-700 uppercase mb-1">Reference Request Sent To</p>
+                    <div class="flex items-center justify-between mb-1">
+                      <p class="text-xs font-medium text-blue-700 uppercase">Reference Request Sent To</p>
+                      <span
+                        v-if="!landlordRef?.submitted_at && !agentRef?.submitted_at"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                      >
+                        Awaiting Response
+                      </span>
+                      <span
+                        v-else
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                      >
+                        Received
+                      </span>
+                    </div>
                     <p v-if="fullDetails.previous_landlord_name" class="text-sm text-gray-700">{{ fullDetails.previous_landlord_name }}</p>
                     <p v-if="fullDetails.previous_landlord_email" class="text-xs text-gray-500">{{ fullDetails.previous_landlord_email }}</p>
                     <p v-if="fullDetails.previous_landlord_phone" class="text-xs text-gray-500">{{ fullDetails.previous_landlord_phone }}</p>
