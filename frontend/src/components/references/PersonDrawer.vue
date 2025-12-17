@@ -1318,6 +1318,7 @@
                 <option value="">Select referee type...</option>
                 <option value="employer">Employer</option>
                 <option value="landlord">Landlord</option>
+                <option value="agent">Letting Agent</option>
                 <option value="accountant">Accountant</option>
               </select>
             </div>

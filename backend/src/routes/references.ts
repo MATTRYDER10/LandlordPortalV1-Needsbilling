@@ -5671,8 +5671,8 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
     const referenceId = req.params.id
     const { type, email, name } = req.body
 
-    if (!type || !['employer', 'landlord', 'accountant'].includes(type)) {
-      return res.status(400).json({ error: 'Invalid referee type. Must be employer, landlord, or accountant.' })
+    if (!type || !['employer', 'landlord', 'agent', 'accountant'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid referee type. Must be employer, landlord, agent, or accountant.' })
     }
 
     if (!email || !isValidEmail(email)) {
@@ -5879,6 +5879,60 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
       )
 
       result = { type: 'accountant', oldEmail, newEmail: email, emailSent: true }
+    } else if (type === 'agent') {
+      // Update letting agent email on tenant_references (same field as landlord)
+      const oldEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+
+      await supabase
+        .from('tenant_references')
+        .update({
+          previous_landlord_email_encrypted: encrypt(email),
+          previous_landlord_name_encrypted: name ? encrypt(name) : reference.previous_landlord_name_encrypted,
+          reference_type: 'agent' // Ensure reference_type is set to agent
+        })
+        .eq('id', referenceId)
+
+      // Generate new token and create/update agent reference
+      const newToken = generateToken()
+      const newTokenHash = hash(newToken)
+
+      const { data: existingRef } = await supabase
+        .from('agent_references')
+        .select('id')
+        .eq('reference_id', referenceId)
+        .single()
+
+      if (existingRef) {
+        await supabase
+          .from('agent_references')
+          .update({
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            submitted_at: null
+          })
+          .eq('id', existingRef.id)
+      } else {
+        await supabase
+          .from('agent_references')
+          .insert({
+            reference_id: referenceId,
+            reference_token_hash: newTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          })
+      }
+
+      // Send email to new letting agent
+      const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`
+      await sendAgentReferenceRequest(
+        email,
+        name || 'Letting Agent',
+        tenantName,
+        formUrl,
+        companyName,
+        propertyAddress
+      )
+
+      result = { type: 'agent', oldEmail, newEmail: email, emailSent: true }
     }
 
     // Log to audit trail
