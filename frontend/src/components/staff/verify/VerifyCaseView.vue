@@ -263,6 +263,7 @@ const selfieBlobUrl = ref<string | null>(null)
 const idDocumentBlobUrl = ref<string | null>(null)
 const signatureBlobUrl = ref<string | null>(null)
 const rtrDocumentBlobUrl = ref<string | null>(null)
+const rtrAlternativeDocumentBlobUrl = ref<string | null>(null)
 const creditsafeVerification = ref<any>(null)
 const sanctionsScreening = ref<any>(null)
 const referenceScore = ref<any>(null)
@@ -322,6 +323,9 @@ const referenceData = computed(() => ({
   rtrExpiryDate: reference.value?.rtr_expiry_date,
   shareCode: reference.value?.share_code,
   rtrDocumentUrl: rtrDocumentBlobUrl.value,
+  rtrAlternativeDocumentUrl: rtrAlternativeDocumentBlobUrl.value,
+  rtrAlternativeDocumentType: reference.value?.rtr_alternative_document_type,
+  isBritishCitizen: reference.value?.is_british_citizen,
   // Income
   monthlyRent: evidenceData.value?.monthlyRent || reference.value?.monthly_rent,
   totalIncome: evidenceData.value?.verifiedIncome?.total || evidenceData.value?.claimedIncome?.total || reference.value?.total_income,
@@ -656,6 +660,9 @@ async function loadData() {
     if (reference.value?.rtr_document_path) {
       rtrDocumentBlobUrl.value = await loadImageAsBlob(reference.value.rtr_document_path)
     }
+    if (reference.value?.rtr_alternative_document_path) {
+      rtrAlternativeDocumentBlobUrl.value = await loadImageAsBlob(reference.value.rtr_alternative_document_path)
+    }
   } catch (err: any) {
     console.error('Failed to load data:', err)
     error.value = err.message
@@ -837,6 +844,9 @@ onUnmounted(() => {
   }
   if (rtrDocumentBlobUrl.value) {
     URL.revokeObjectURL(rtrDocumentBlobUrl.value)
+  }
+  if (rtrAlternativeDocumentBlobUrl.value) {
+    URL.revokeObjectURL(rtrAlternativeDocumentBlobUrl.value)
   }
 })
 
