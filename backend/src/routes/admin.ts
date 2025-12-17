@@ -1382,7 +1382,7 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
     const offsetNum = parseInt(offset as string, 10)
     const hasSearchQuery = query && typeof query === 'string' && query.length >= 2
 
-    // Build the query - fetch references with company info
+    // Build the query - fetch references with company info (includes both tenants and guarantors)
     let dbQuery = supabase
       .from('tenant_references')
       .select(`
@@ -1405,7 +1405,6 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
           name_encrypted
         )
       `, { count: 'exact' })
-      .eq('is_guarantor', false)
       .order('created_at', { ascending: false })
 
     // Apply status filter if provided
@@ -1479,10 +1478,12 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
         move_in_date: ref.move_in_date,
         created_at: ref.created_at,
         updated_at: ref.updated_at,
+        is_guarantor: ref.is_guarantor,
         requires_guarantor: ref.requires_guarantor,
+        parent_reference_id: ref.parent_reference_id,
         company_name: decrypt((ref.companies as any)?.name_encrypted) || 'Unknown',
         company_id: ref.company_id,
-        guarantor: ref.requires_guarantor ? guarantorMap[ref.id] || null : null
+        guarantor: ref.requires_guarantor && !ref.is_guarantor ? guarantorMap[ref.id] || null : null
       }
     })
 

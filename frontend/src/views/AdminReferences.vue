@@ -114,7 +114,10 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
                     <div>
-                      <div class="text-sm font-medium text-gray-900">{{ reference.tenant_name }}</div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm font-medium text-gray-900">{{ reference.tenant_name }}</span>
+                        <span v-if="reference.is_guarantor" class="px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded">Guarantor</span>
+                      </div>
                       <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
                     </div>
                   </div>
