@@ -1380,8 +1380,9 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
     const { query, status, limit = '50', offset = '0' } = req.query
     const limitNum = parseInt(limit as string, 10)
     const offsetNum = parseInt(offset as string, 10)
+    const hasSearchQuery = query && typeof query === 'string' && query.length >= 2
 
-    // Build the query - fetch all references with company info
+    // Build the query - fetch references with company info (includes both tenants and guarantors)
     let dbQuery = supabase
       .from('tenant_references')
       .select(`
@@ -1404,7 +1405,6 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
           name_encrypted
         )
       `, { count: 'exact' })
-      .eq('is_guarantor', false)
       .order('created_at', { ascending: false })
 
     // Apply status filter if provided
@@ -1412,23 +1412,38 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
       dbQuery = dbQuery.eq('status', status)
     }
 
-    // Execute main query with pagination
-    const { data: references, error, count } = await dbQuery
-      .range(offsetNum, offsetNum + limitNum - 1)
+    // If searching, fetch ALL records to search through decrypted data
+    // Otherwise, apply pagination at database level
+    let references: any[] = []
+    let totalCount = 0
 
-    if (error) throw error
+    if (hasSearchQuery) {
+      // Fetch all records for search (we need to decrypt to search)
+      const { data, error, count } = await dbQuery
 
-    // If there's a search query, we need to decrypt and filter
-    // Also fetch guarantor info for references that require it
+      if (error) throw error
+      references = data || []
+      totalCount = count || 0
+    } else {
+      // No search - use database pagination
+      const { data, error, count } = await dbQuery
+        .range(offsetNum, offsetNum + limitNum - 1)
+
+      if (error) throw error
+      references = data || []
+      totalCount = count || 0
+    }
+
+    // Fetch guarantor info for references that require it
     const guarantorRefIds = references
-      ?.filter(ref => ref.requires_guarantor)
-      .map(ref => ref.id) || []
+      .filter(ref => ref.requires_guarantor)
+      .map(ref => ref.id)
 
     let guarantorMap: Record<string, any> = {}
     if (guarantorRefIds.length > 0) {
       const { data: guarantors } = await supabase
         .from('tenant_references')
-        .select('parent_reference_id, tenant_first_name_encrypted, tenant_last_name_encrypted, status')
+        .select('parent_reference_id, tenant_first_name_encrypted, tenant_last_name_encrypted, status, tas_category')
         .eq('is_guarantor', true)
         .in('parent_reference_id', guarantorRefIds)
 
@@ -1436,14 +1451,15 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
         guarantors.forEach(g => {
           guarantorMap[g.parent_reference_id] = {
             name: `${decrypt(g.tenant_first_name_encrypted) || ''} ${decrypt(g.tenant_last_name_encrypted) || ''}`.trim(),
-            status: g.status
+            status: g.status,
+            tas_category: g.tas_category
           }
         })
       }
     }
 
     // Decrypt and enrich reference data
-    let enrichedRefs = references?.map(ref => {
+    let enrichedRefs = references.map(ref => {
       const tenantFirstName = decrypt(ref.tenant_first_name_encrypted) || ''
       const tenantLastName = decrypt(ref.tenant_last_name_encrypted) || ''
       const tenantEmail = decrypt(ref.tenant_email_encrypted) || ''
@@ -1462,16 +1478,18 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
         move_in_date: ref.move_in_date,
         created_at: ref.created_at,
         updated_at: ref.updated_at,
+        is_guarantor: ref.is_guarantor,
         requires_guarantor: ref.requires_guarantor,
+        parent_reference_id: ref.parent_reference_id,
         company_name: decrypt((ref.companies as any)?.name_encrypted) || 'Unknown',
         company_id: ref.company_id,
-        guarantor: ref.requires_guarantor ? guarantorMap[ref.id] || null : null
+        guarantor: ref.requires_guarantor && !ref.is_guarantor ? guarantorMap[ref.id] || null : null
       }
-    }) || []
+    })
 
-    // Apply search filter if query provided (client-side filtering on decrypted data)
-    if (query && typeof query === 'string' && query.length >= 2) {
-      const searchLower = query.toLowerCase()
+    // Apply search filter if query provided (on decrypted data)
+    if (hasSearchQuery) {
+      const searchLower = (query as string).toLowerCase()
       enrichedRefs = enrichedRefs.filter(ref =>
         ref.tenant_name.toLowerCase().includes(searchLower) ||
         ref.property_address.toLowerCase().includes(searchLower) ||
@@ -1479,11 +1497,15 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
         ref.tenant_email.toLowerCase().includes(searchLower) ||
         (ref.guarantor?.name && ref.guarantor.name.toLowerCase().includes(searchLower))
       )
+
+      // Update total to filtered count, then paginate
+      totalCount = enrichedRefs.length
+      enrichedRefs = enrichedRefs.slice(offsetNum, offsetNum + limitNum)
     }
 
     res.json({
       references: enrichedRefs,
-      total: query ? enrichedRefs.length : count,
+      total: totalCount,
       limit: limitNum,
       offset: offsetNum
     })
@@ -1491,6 +1513,150 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
     console.error('Error searching references:', error?.message || error)
     console.error('Full error:', JSON.stringify(error, null, 2))
     res.status(500).json({ error: 'Failed to search references', details: error?.message })
+  }
+})
+
+/**
+ * DELETE /api/admin/references/:id
+ * Delete a reference and all related data (admin only)
+ */
+router.delete('/references/:id', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+
+    // First check if the reference exists
+    const { data: reference, error: fetchError } = await supabase
+      .from('tenant_references')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, is_guarantor, parent_reference_id')
+      .eq('id', referenceId)
+      .single()
+
+    if (fetchError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Delete related records first (in order of dependencies)
+    // These may not exist for all references, so we don't check for errors
+
+    // Delete work items
+    await supabase
+      .from('work_items')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete verification sections
+    await supabase
+      .from('verification_sections')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete employer references
+    await supabase
+      .from('employer_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete accountant references
+    await supabase
+      .from('accountant_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete landlord references
+    await supabase
+      .from('landlord_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete agent references
+    await supabase
+      .from('agent_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete guarantor references (child references)
+    await supabase
+      .from('guarantor_references')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete creditsafe verifications
+    await supabase
+      .from('creditsafe_verifications')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete sanctions screenings
+    await supabase
+      .from('sanctions_screenings')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete reference scores
+    await supabase
+      .from('reference_scores')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // Delete previous addresses
+    await supabase
+      .from('tenant_reference_previous_addresses')
+      .delete()
+      .eq('tenant_reference_id', referenceId)
+
+    // Delete audit logs for this reference
+    await supabase
+      .from('audit_logs')
+      .delete()
+      .eq('reference_id', referenceId)
+
+    // If this is a parent reference, delete child tenant references (guarantors)
+    if (!reference.is_guarantor) {
+      // First get child reference IDs to clean up their related data
+      const { data: childRefs } = await supabase
+        .from('tenant_references')
+        .select('id')
+        .eq('parent_reference_id', referenceId)
+
+      if (childRefs && childRefs.length > 0) {
+        const childIds = childRefs.map(c => c.id)
+
+        // Clean up child reference related data
+        await supabase.from('work_items').delete().in('reference_id', childIds)
+        await supabase.from('verification_sections').delete().in('reference_id', childIds)
+        await supabase.from('creditsafe_verifications').delete().in('reference_id', childIds)
+        await supabase.from('sanctions_screenings').delete().in('reference_id', childIds)
+        await supabase.from('reference_scores').delete().in('reference_id', childIds)
+        await supabase.from('audit_logs').delete().in('reference_id', childIds)
+
+        // Delete child references
+        await supabase
+          .from('tenant_references')
+          .delete()
+          .eq('parent_reference_id', referenceId)
+      }
+    }
+
+    // Finally delete the main reference
+    const { error: deleteError } = await supabase
+      .from('tenant_references')
+      .delete()
+      .eq('id', referenceId)
+
+    if (deleteError) {
+      throw deleteError
+    }
+
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+    console.log(`[Admin] Deleted reference ${referenceId} (${tenantName})`)
+
+    res.json({
+      success: true,
+      message: `Reference for ${tenantName} deleted successfully`
+    })
+  } catch (error: any) {
+    console.error('Error deleting reference:', error?.message || error)
+    res.status(500).json({ error: 'Failed to delete reference', details: error?.message })
   }
 })
 
