@@ -25,9 +25,39 @@
       <!-- Document vs Selfie comparison -->
       <div class="comparison-grid">
         <div class="comparison-item">
-          <h4 class="comparison-title">ID Document</h4>
+          <div class="comparison-header">
+            <h4 class="comparison-title">ID Document</h4>
+            <div v-if="idDocumentUrl" class="image-controls">
+              <button type="button" class="control-btn" @click="rotateId" title="Rotate 90°">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button type="button" class="control-btn" @click="zoomOutId" :disabled="idZoom <= 0.5" title="Zoom out">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                </svg>
+              </button>
+              <span class="zoom-level">{{ Math.round(idZoom * 100) }}%</span>
+              <button type="button" class="control-btn" @click="zoomInId" :disabled="idZoom >= 3" title="Zoom in">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </button>
+              <button type="button" class="control-btn" @click="resetId" title="Reset">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
           <div v-if="idDocumentUrl" class="image-container">
-            <img :src="idDocumentUrl" alt="ID Document" class="document-image" />
+            <img
+              :src="idDocumentUrl"
+              alt="ID Document"
+              class="document-image"
+              :style="{ transform: `rotate(${idRotation}deg) scale(${idZoom})` }"
+            />
           </div>
           <div v-else class="placeholder">
             <svg class="placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,9 +68,39 @@
         </div>
 
         <div class="comparison-item">
-          <h4 class="comparison-title">Selfie</h4>
+          <div class="comparison-header">
+            <h4 class="comparison-title">Selfie</h4>
+            <div v-if="selfieUrl" class="image-controls">
+              <button type="button" class="control-btn" @click="rotateSelfie" title="Rotate 90°">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button type="button" class="control-btn" @click="zoomOutSelfie" :disabled="selfieZoom <= 0.5" title="Zoom out">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                </svg>
+              </button>
+              <span class="zoom-level">{{ Math.round(selfieZoom * 100) }}%</span>
+              <button type="button" class="control-btn" @click="zoomInSelfie" :disabled="selfieZoom >= 3" title="Zoom in">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </button>
+              <button type="button" class="control-btn" @click="resetSelfie" title="Reset">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
           <div v-if="selfieUrl" class="image-container">
-            <img :src="selfieUrl" alt="Selfie" class="document-image" />
+            <img
+              :src="selfieUrl"
+              alt="Selfie"
+              class="document-image"
+              :style="{ transform: `rotate(${selfieRotation}deg) scale(${selfieZoom})` }"
+            />
           </div>
           <div v-else class="placeholder">
             <svg class="placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,8 +186,57 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
+
+// Image manipulation state
+const idRotation = ref(0)
+const idZoom = ref(1)
+const selfieRotation = ref(0)
+const selfieZoom = ref(1)
+
+function rotateId() {
+  idRotation.value = (idRotation.value + 90) % 360
+}
+
+function zoomInId() {
+  if (idZoom.value < 3) {
+    idZoom.value = Math.min(3, idZoom.value + 0.5)
+  }
+}
+
+function zoomOutId() {
+  if (idZoom.value > 0.5) {
+    idZoom.value = Math.max(0.5, idZoom.value - 0.5)
+  }
+}
+
+function resetId() {
+  idRotation.value = 0
+  idZoom.value = 1
+}
+
+function rotateSelfie() {
+  selfieRotation.value = (selfieRotation.value + 90) % 360
+}
+
+function zoomInSelfie() {
+  if (selfieZoom.value < 3) {
+    selfieZoom.value = Math.min(3, selfieZoom.value + 0.5)
+  }
+}
+
+function zoomOutSelfie() {
+  if (selfieZoom.value > 0.5) {
+    selfieZoom.value = Math.max(0.5, selfieZoom.value - 0.5)
+  }
+}
+
+function resetSelfie() {
+  selfieRotation.value = 0
+  selfieZoom.value = 1
+}
 
 defineProps<{
   section: VerificationSection
@@ -186,14 +295,59 @@ defineEmits<{
   overflow: hidden;
 }
 
+.comparison-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 0.5rem;
+}
+
 .comparison-title {
   font-size: 0.875rem;
   font-weight: 600;
   color: #374151;
-  padding: 0.75rem;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
   margin: 0;
+}
+
+.image-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.control-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #9ca3af;
+}
+
+.control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.zoom-level {
+  font-size: 0.7rem;
+  color: #6b7280;
+  min-width: 36px;
+  text-align: center;
 }
 
 .image-container {
@@ -202,6 +356,7 @@ defineEmits<{
   align-items: center;
   justify-content: center;
   min-height: 200px;
+  overflow: hidden;
 }
 
 .document-image {
@@ -209,6 +364,7 @@ defineEmits<{
   max-height: 300px;
   object-fit: contain;
   border-radius: 0.25rem;
+  transition: transform 0.2s ease;
 }
 
 .placeholder {
