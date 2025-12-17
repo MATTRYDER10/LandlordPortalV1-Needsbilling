@@ -245,28 +245,28 @@
             </tr>
           </tbody>
         </table>
-      </div>
 
-      <!-- Pagination -->
-      <div v-if="total > limit && !loading" class="mt-4 flex items-center justify-between">
-        <div class="text-sm text-gray-700">
-          Showing {{ offset + 1 }} to {{ Math.min(offset + limit, total) }} of {{ total }} results
-        </div>
-        <div class="flex gap-2">
-          <button
-            @click="prevPage"
-            :disabled="offset === 0"
-            class="px-3 py-1.5 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          <button
-            @click="nextPage"
-            :disabled="offset + limit >= total"
-            class="px-3 py-1.5 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+          <div class="text-sm text-gray-700">
+            Showing {{ offset + 1 }} to {{ Math.min(offset + limit, total) }} of {{ total }} results
+          </div>
+          <div class="flex gap-2">
+            <button
+              @click="prevPage"
+              :disabled="offset === 0"
+              class="px-3 py-1.5 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              @click="nextPage"
+              :disabled="offset + limit >= total"
+              class="px-3 py-1.5 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </div>
