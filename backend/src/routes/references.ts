@@ -2677,13 +2677,14 @@ router.post('/submit/:token', async (req: Request, res) => {
         .update({ status: 'pending_verification' })
         .eq('id', updatedReference.id)
 
-      // Create VERIFY work item
+      // Create VERIFY work item if none exists (check ALL statuses to avoid duplicates)
       const { data: existingVerify } = await supabase
         .from('work_items')
-        .select('id')
+        .select('id, status')
         .eq('reference_id', updatedReference.id)
         .eq('work_type', 'VERIFY')
-        .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED'])
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single()
 
       if (!existingVerify) {
@@ -2695,6 +2696,12 @@ router.post('/submit/:token', async (req: Request, res) => {
             status: 'AVAILABLE',
             priority: 0
           })
+      } else if (existingVerify.status === 'COMPLETED') {
+        // Reactivate the completed work item instead of creating a duplicate
+        await supabase
+          .from('work_items')
+          .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null, completed_at: null })
+          .eq('id', existingVerify.id)
       }
 
       console.log('Reference ready for verification - moved to pending_verification')
