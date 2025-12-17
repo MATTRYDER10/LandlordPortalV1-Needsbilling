@@ -1210,8 +1210,8 @@
                     </div>
                   </div>
 
-                  <!-- About the Tenant -->
-                  <div class="bg-white rounded-lg shadow p-6">
+                  <!-- About the Tenant - Only show if form has been submitted -->
+                  <div v-if="childReferenceDetails[child.id].reference.submitted_at" class="bg-white rounded-lg shadow p-6">
                     <h5 class="text-md font-semibold text-gray-900 mb-4">About the Tenant</h5>
                     <div class="grid grid-cols-2 gap-4">
                       <div>
@@ -2818,8 +2818,8 @@
           </div>
         </div>
 
-        <!-- About the Tenant -->
-        <div v-if="!reference.is_group_parent && !reference.is_guarantor" class="bg-white rounded-lg shadow p-6">
+        <!-- About the Tenant - Only show if form has been submitted -->
+        <div v-if="!reference.is_group_parent && !reference.is_guarantor && reference.submitted_at" class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">About the Tenant</h3>
           <div class="grid grid-cols-2 gap-4">
             <div>

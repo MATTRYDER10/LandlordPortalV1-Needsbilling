@@ -1511,7 +1511,9 @@ const canEdit = computed(() => {
 })
 
 // Check if we have any "About the Tenant" data to display
+// Only show if form has been submitted (submitted_at is set) to avoid showing database default values
 const hasAboutTenantData = computed(() => {
+  if (!fullDetails.value?.submitted_at) return false
   return fullDetails.value?.is_smoker !== null ||
          fullDetails.value?.has_pets !== null ||
          fullDetails.value?.marital_status ||
