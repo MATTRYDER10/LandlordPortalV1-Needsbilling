@@ -1380,8 +1380,9 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
     const { query, status, limit = '50', offset = '0' } = req.query
     const limitNum = parseInt(limit as string, 10)
     const offsetNum = parseInt(offset as string, 10)
+    const hasSearchQuery = query && typeof query === 'string' && query.length >= 2
 
-    // Build the query - fetch all references with company info
+    // Build the query - fetch references with company info
     let dbQuery = supabase
       .from('tenant_references')
       .select(`
@@ -1412,23 +1413,38 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
       dbQuery = dbQuery.eq('status', status)
     }
 
-    // Execute main query with pagination
-    const { data: references, error, count } = await dbQuery
-      .range(offsetNum, offsetNum + limitNum - 1)
+    // If searching, fetch ALL records to search through decrypted data
+    // Otherwise, apply pagination at database level
+    let references: any[] = []
+    let totalCount = 0
 
-    if (error) throw error
+    if (hasSearchQuery) {
+      // Fetch all records for search (we need to decrypt to search)
+      const { data, error, count } = await dbQuery
 
-    // If there's a search query, we need to decrypt and filter
-    // Also fetch guarantor info for references that require it
+      if (error) throw error
+      references = data || []
+      totalCount = count || 0
+    } else {
+      // No search - use database pagination
+      const { data, error, count } = await dbQuery
+        .range(offsetNum, offsetNum + limitNum - 1)
+
+      if (error) throw error
+      references = data || []
+      totalCount = count || 0
+    }
+
+    // Fetch guarantor info for references that require it
     const guarantorRefIds = references
-      ?.filter(ref => ref.requires_guarantor)
-      .map(ref => ref.id) || []
+      .filter(ref => ref.requires_guarantor)
+      .map(ref => ref.id)
 
     let guarantorMap: Record<string, any> = {}
     if (guarantorRefIds.length > 0) {
       const { data: guarantors } = await supabase
         .from('tenant_references')
-        .select('parent_reference_id, tenant_first_name_encrypted, tenant_last_name_encrypted, status')
+        .select('parent_reference_id, tenant_first_name_encrypted, tenant_last_name_encrypted, status, tas_category')
         .eq('is_guarantor', true)
         .in('parent_reference_id', guarantorRefIds)
 
@@ -1436,14 +1452,15 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
         guarantors.forEach(g => {
           guarantorMap[g.parent_reference_id] = {
             name: `${decrypt(g.tenant_first_name_encrypted) || ''} ${decrypt(g.tenant_last_name_encrypted) || ''}`.trim(),
-            status: g.status
+            status: g.status,
+            tas_category: g.tas_category
           }
         })
       }
     }
 
     // Decrypt and enrich reference data
-    let enrichedRefs = references?.map(ref => {
+    let enrichedRefs = references.map(ref => {
       const tenantFirstName = decrypt(ref.tenant_first_name_encrypted) || ''
       const tenantLastName = decrypt(ref.tenant_last_name_encrypted) || ''
       const tenantEmail = decrypt(ref.tenant_email_encrypted) || ''
@@ -1467,11 +1484,11 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
         company_id: ref.company_id,
         guarantor: ref.requires_guarantor ? guarantorMap[ref.id] || null : null
       }
-    }) || []
+    })
 
-    // Apply search filter if query provided (client-side filtering on decrypted data)
-    if (query && typeof query === 'string' && query.length >= 2) {
-      const searchLower = query.toLowerCase()
+    // Apply search filter if query provided (on decrypted data)
+    if (hasSearchQuery) {
+      const searchLower = (query as string).toLowerCase()
       enrichedRefs = enrichedRefs.filter(ref =>
         ref.tenant_name.toLowerCase().includes(searchLower) ||
         ref.property_address.toLowerCase().includes(searchLower) ||
@@ -1479,11 +1496,15 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
         ref.tenant_email.toLowerCase().includes(searchLower) ||
         (ref.guarantor?.name && ref.guarantor.name.toLowerCase().includes(searchLower))
       )
+
+      // Update total to filtered count, then paginate
+      totalCount = enrichedRefs.length
+      enrichedRefs = enrichedRefs.slice(offsetNum, offsetNum + limitNum)
     }
 
     res.json({
       references: enrichedRefs,
-      total: query ? enrichedRefs.length : count,
+      total: totalCount,
       limit: limitNum,
       offset: offsetNum
     })
