@@ -147,6 +147,9 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
         await recordChase(dep.id, method, 'SYSTEM', true)
         stats.sent++
         console.log(`[AutoChase] Sent ${method} for ${dep.dependency_type} (ref: ${dep.reference_id})`)
+
+        // Rate limit: Resend allows 2 req/sec, add 600ms delay to stay well under limit
+        await new Promise(resolve => setTimeout(resolve, 600))
       } catch (error: any) {
         stats.errors++
         console.error(`[AutoChase] Error sending ${method} for ${dep.id}:`, error.message)
