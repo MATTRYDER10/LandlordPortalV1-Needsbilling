@@ -54,9 +54,7 @@
               @click="$emit('update:open', false)"
               class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X class="w-5 h-5" />
             </button>
           </div>
 
@@ -68,10 +66,7 @@
               class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span v-if="resendingForm" class="flex items-center gap-1">
-                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <Loader2 class="animate-spin h-4 w-4" />
                 Sending...
               </span>
               <span v-else>Resend Form</span>
@@ -83,10 +78,7 @@
               class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
             >
               <span v-if="loadingCertificate" class="flex items-center gap-1">
-                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <Loader2 class="animate-spin h-4 w-4" />
                 Loading...
               </span>
               <span v-else>View Certificate</span>
@@ -123,10 +115,7 @@
             <!-- Action Required Banner - Always show when status is ACTION_REQUIRED -->
             <div v-if="person.status === 'ACTION_REQUIRED'" class="p-6 bg-red-50 border-b border-red-200">
               <h3 class="text-sm font-semibold text-red-900 mb-3 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <AlertTriangle class="w-5 h-5" />
                 Action Required
               </h3>
 
@@ -185,27 +174,21 @@
                   @click="showUploadModal = true"
                   class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-1"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
+                  <Upload class="w-4 h-4" />
                   Upload Documents
                 </button>
                 <button
                   @click="showRefereeModal = true"
                   class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 hover:bg-blue-50 rounded-md flex items-center gap-1"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
+                  <Mail class="w-4 h-4" />
                   Update Referee Email
                 </button>
                 <button
                   @click="openEditNameModal"
                   class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 hover:bg-blue-50 rounded-md flex items-center gap-1"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
+                  <Pencil class="w-4 h-4" />
                   Edit Name
                 </button>
               </div>
@@ -214,9 +197,7 @@
             <!-- Assessment Result Section (for completed/rejected references) -->
             <div v-if="isVerified && (score?.decision || score?.final_remarks)" class="p-6 border-b border-gray-200">
               <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <FileText class="w-5 h-5" />
                 Assessment Result
               </h3>
               <div class="space-y-3">
@@ -264,9 +245,7 @@
               <!-- Show verified status for legacy verifications that don't have section data -->
               <div v-else-if="isVerified" class="text-center py-4">
                 <div class="inline-flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg">
-                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <CheckCircle class="w-5 h-5 text-green-600" />
                   <span class="text-sm font-medium text-green-800">Verification Complete</span>
                 </div>
                 <p class="text-xs text-gray-500 mt-2">Verified before section-based tracking was implemented</p>
@@ -392,9 +371,7 @@
                   @click="viewDocument(fullDetails.consent_pdf_path)"
                   class="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+                  <FileText class="w-4 h-4" />
                   View Signed Consent
                 </button>
               </div>
@@ -764,9 +741,7 @@
                 <!-- Verified Residential Status (if confirmed by staff) -->
                 <div v-if="fullDetails?.confirmed_residential_status" class="p-3 bg-green-50 rounded-lg border border-green-200">
                   <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <CheckCircle class="w-5 h-5 text-green-600" />
                     <span class="text-sm font-medium text-green-800">Verified: {{ formatResidentialStatus(fullDetails.confirmed_residential_status) }}</span>
                   </div>
                 </div>
@@ -885,9 +860,7 @@
             >
               <div v-if="fullDetails?.adverse_credit" class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <div class="flex items-start gap-2">
-                  <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
+                  <AlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p class="text-sm font-medium text-amber-800">Applicant has disclosed adverse credit history</p>
                     <p v-if="fullDetails.adverse_credit_details" class="mt-2 text-sm text-amber-700 whitespace-pre-wrap">{{ fullDetails.adverse_credit_details }}</p>
@@ -896,9 +869,7 @@
               </div>
               <div v-else class="p-3 bg-green-50 rounded-lg">
                 <div class="flex items-center gap-2">
-                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <CheckCircle class="w-5 h-5 text-green-600" />
                   <p class="text-sm text-green-800">No adverse credit history disclosed</p>
                 </div>
               </div>
@@ -994,9 +965,7 @@
                 <div v-if="fullDetails?.guarantorData?.adverse_credit" class="pt-3 border-t border-gray-200">
                   <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <div class="flex items-start gap-2">
-                      <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
+                      <AlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                       <div>
                         <p class="text-sm font-medium text-amber-800">Guarantor has disclosed adverse credit</p>
                         <p v-if="fullDetails.guarantorData.adverse_credit_details" class="mt-2 text-sm text-amber-700 whitespace-pre-wrap">{{ fullDetails.guarantorData.adverse_credit_details }}</p>
@@ -1016,10 +985,7 @@
                   class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
                   <div class="flex items-center gap-3">
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
+                    <File class="w-5 h-5 text-gray-400" />
                     <div>
                       <p class="text-sm font-medium text-gray-900">{{ doc.label }}</p>
                       <span
@@ -1040,10 +1006,7 @@
                 </div>
               </div>
               <div v-else class="text-center py-4">
-                <svg class="mx-auto h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <FileText class="mx-auto h-8 w-8 text-gray-300" />
                 <p class="mt-2 text-sm text-gray-500">No documents uploaded</p>
               </div>
             </CollapsibleSection>
@@ -1213,10 +1176,7 @@
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span v-if="submittingForReRef" class="flex items-center gap-2">
-                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <Loader2 class="animate-spin h-4 w-4" />
                 Submitting...
               </span>
               <span v-else>Submit for Re-referencing</span>
@@ -1273,9 +1233,7 @@
               <p class="text-sm font-medium text-gray-700 mb-2">Selected files:</p>
               <ul class="text-sm text-gray-600 space-y-1">
                 <li v-for="(file, index) in selectedFiles" :key="index" class="flex items-center gap-2">
-                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+                  <File class="w-4 h-4 text-gray-400" />
                   {{ file.name }}
                 </li>
               </ul>
@@ -1293,10 +1251,7 @@
               :disabled="!uploadDocType || selectedFiles.length === 0 || uploadingDoc"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              <svg v-if="uploadingDoc" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <Loader2 v-if="uploadingDoc" class="animate-spin h-4 w-4" />
               {{ uploadingDoc ? 'Uploading...' : 'Upload' }}
             </button>
           </div>
@@ -1367,10 +1322,7 @@
               :disabled="!refereeType || !newRefereeEmail || updatingReferee"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              <svg v-if="updatingReferee" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <Loader2 v-if="updatingReferee" class="animate-spin h-4 w-4" />
               {{ updatingReferee ? 'Updating...' : 'Update & Send Request' }}
             </button>
           </div>
@@ -1431,10 +1383,7 @@
               :disabled="!editFirstName || !editLastName || updatingName"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              <svg v-if="updatingName" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <Loader2 v-if="updatingName" class="animate-spin h-4 w-4" />
               {{ updatingName ? 'Saving...' : 'Save Changes' }}
             </button>
           </div>
@@ -1452,6 +1401,7 @@ import { useAuthStore } from '@/stores/auth'
 import StatusPill from './StatusPill.vue'
 import ReferenceAuditLog from '@/components/ReferenceAuditLog.vue'
 import CollapsibleSection from './CollapsibleSection.vue'
+import { X, AlertTriangle, Upload, Mail, Pencil, Loader2, CheckCircle, FileText, File } from 'lucide-vue-next'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 

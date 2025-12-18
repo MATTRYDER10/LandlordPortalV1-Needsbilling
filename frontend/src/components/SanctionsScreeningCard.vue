@@ -21,9 +21,7 @@
     <!-- No Screening Found -->
     <div v-else-if="!screening" class="text-center py-8">
       <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
-        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
+        <ShieldCheck class="w-6 h-6 text-gray-400" />
       </div>
       <p class="text-sm text-gray-600">No screening data available</p>
       <p class="text-xs text-gray-500 mt-1">Screening will run automatically when the tenant submits their information</p>
@@ -56,9 +54,7 @@
       <!-- UK Sanctions List Matches -->
       <div v-if="sanctionsMatches.length > 0" class="p-4 bg-red-50 border border-red-200 rounded-lg">
         <h4 class="text-sm font-semibold text-red-900 mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-          </svg>
+          <AlertTriangle class="w-5 h-5 mr-2" />
           UK Sanctions List Matches ({{ sanctionsMatches.length }})
         </h4>
         <div class="space-y-3">
@@ -110,10 +106,7 @@
       <!-- Political Donations (PEP) -->
       <div v-if="donationMatches.length > 0" class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <h4 class="text-sm font-semibold text-blue-900 mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-            <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
-          </svg>
+          <Gift class="w-5 h-5 mr-2" />
           Electoral Commission Donations ({{ donationMatches.length }})
         </h4>
         <div v-if="donationMatches.length <= 5" class="space-y-2">
@@ -185,6 +178,7 @@
 <script setup lang="ts">
 import { computed, h } from 'vue'
 import { formatDate as formatUkDate } from '../utils/date'
+import { ShieldCheck, AlertTriangle, Gift } from 'lucide-vue-next'
 
 // Icons as render functions
 const CheckCircleIcon = () => h('svg', { fill: 'currentColor', viewBox: '0 0 20 20' }, [

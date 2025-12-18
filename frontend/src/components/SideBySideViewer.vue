@@ -18,9 +18,7 @@
                 @click="openDocumentModal(leftImageUrl, leftTitle, 'pdf')"
                 class="bg-white bg-opacity-90 hover:bg-opacity-100 px-3 py-2 rounded-md shadow-md text-sm font-medium text-gray-700 flex items-center gap-2 transition-all"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-                </svg>
+                <ZoomIn class="w-4 h-4" />
                 View Fullscreen
               </button>
             </div>
@@ -34,16 +32,12 @@
               @click="openImageModal(leftImageUrl, leftTitle)"
             />
             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center pointer-events-none">
-              <svg class="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-              </svg>
+              <ZoomIn class="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
         </div>
         <div v-else class="p-8 text-center text-gray-400">
-          <svg class="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+          <Image class="w-16 h-16 mx-auto mb-2" />
           <p class="text-sm">No document provided</p>
         </div>
       </div>
@@ -68,9 +62,7 @@
                 @click="openDocumentModal(rightImageUrl, rightTitle, 'pdf')"
                 class="bg-white bg-opacity-90 hover:bg-opacity-100 px-3 py-2 rounded-md shadow-md text-sm font-medium text-gray-700 flex items-center gap-2 transition-all"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-                </svg>
+                <ZoomIn class="w-4 h-4" />
                 View Fullscreen
               </button>
             </div>
@@ -84,9 +76,7 @@
               @click="openImageModal(rightImageUrl, rightTitle)"
             />
             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center pointer-events-none">
-              <svg class="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-              </svg>
+              <ZoomIn class="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
         </div>
@@ -102,9 +92,7 @@
         @click="closeImageModal"
         class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
       >
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <X class="w-8 h-8" />
       </button>
       <div class="relative max-w-7xl max-h-screen">
         <h3 class="text-white text-xl mb-4 text-center">{{ modalTitle }}</h3>
@@ -125,9 +113,7 @@
         @click="closeImageModal"
         class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
       >
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <X class="w-8 h-8" />
       </button>
       <div class="relative w-full h-full max-w-7xl max-h-screen">
         <h3 class="text-white text-xl mb-4 text-center">{{ modalTitle }}</h3>
@@ -145,6 +131,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { ZoomIn, X, Image } from 'lucide-vue-next'
 
 interface Props {
   leftImageUrl?: string

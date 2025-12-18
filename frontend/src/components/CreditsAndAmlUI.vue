@@ -12,11 +12,7 @@
             <!-- Failure Reason Banner -->
             <div v-if="failureReasonMessage"
                 class="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <svg class="h-5 w-5 flex-shrink-0 text-amber-500 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd"
-                        d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
-                        clip-rule="evenodd" />
-                </svg>
+<AlertTriangle class="h-5 w-5 flex-shrink-0 text-amber-500 mt-0.5" />
                 <div>
                     <p class="text-sm font-semibold text-amber-800">{{ failureReasonMessage }}</p>
                     <p v-if="isIdentityNotMatched" class="text-xs text-amber-700 mt-1">
@@ -79,21 +75,9 @@
                             isIdentityNotMatched ? 'text-gray-400' :
                             verificationFlags.electoralRollMatch ? 'text-emerald-500' : 'text-rose-500'
                         ]">
-                            <!-- Question mark icon for not verified -->
-                            <svg v-if="isIdentityNotMatched" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                            </svg>
-                            <svg v-else-if="verificationFlags.electoralRollMatch" class="h-5 w-5" viewBox="0 0 20 20"
-                                fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                    clip-rule="evenodd" />
-                            </svg>
+<HelpCircle v-if="isIdentityNotMatched" class="h-5 w-5" />
+                            <Check v-else-if="verificationFlags.electoralRollMatch" class="h-5 w-5" />
+                            <XCircle v-else class="h-5 w-5" />
                         </span>
                         <span class="text-sm font-semibold text-gray-800">
                             Electoral Roll
@@ -112,21 +96,9 @@
                             isIdentityNotMatched ? 'text-gray-400' :
                             !verificationFlags.ccjMatch ? 'text-emerald-500' : 'text-rose-500'
                         ]">
-                            <!-- Question mark icon for not verified -->
-                            <svg v-if="isIdentityNotMatched" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                            </svg>
-                            <svg v-else-if="!verificationFlags.ccjMatch" class="h-5 w-5" viewBox="0 0 20 20"
-                                fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                    clip-rule="evenodd" />
-                            </svg>
+<HelpCircle v-if="isIdentityNotMatched" class="h-5 w-5" />
+                            <Check v-else-if="!verificationFlags.ccjMatch" class="h-5 w-5" />
+                            <XCircle v-else class="h-5 w-5" />
                         </span>
                         <span class="text-sm font-semibold text-gray-800">
                             No CCJs
@@ -145,21 +117,9 @@
                             isIdentityNotMatched ? 'text-gray-400' :
                             !verificationFlags.insolvencyMatch ? 'text-emerald-500' : 'text-rose-500'
                         ]">
-                            <!-- Question mark icon for not verified -->
-                            <svg v-if="isIdentityNotMatched" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                            </svg>
-                            <svg v-else-if="!verificationFlags.insolvencyMatch" class="h-5 w-5" viewBox="0 0 20 20"
-                                fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                    clip-rule="evenodd" />
-                            </svg>
+<HelpCircle v-if="isIdentityNotMatched" class="h-5 w-5" />
+                            <Check v-else-if="!verificationFlags.insolvencyMatch" class="h-5 w-5" />
+                            <XCircle v-else class="h-5 w-5" />
                         </span>
                         <span class="text-sm font-semibold text-gray-800">
                             No Insolvency
@@ -178,21 +138,9 @@
                             isIdentityNotMatched ? 'text-gray-400' :
                             !verificationFlags.deceasedMatch ? 'text-emerald-500' : 'text-rose-500'
                         ]">
-                            <!-- Question mark icon for not verified -->
-                            <svg v-if="isIdentityNotMatched" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                            </svg>
-                            <svg v-else-if="!verificationFlags.deceasedMatch" class="h-5 w-5" viewBox="0 0 20 20"
-                                fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <svg v-else class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                    clip-rule="evenodd" />
-                            </svg>
+<HelpCircle v-if="isIdentityNotMatched" class="h-5 w-5" />
+                            <Check v-else-if="!verificationFlags.deceasedMatch" class="h-5 w-5" />
+                            <XCircle v-else class="h-5 w-5" />
                         </span>
                         <span class="text-sm font-semibold text-gray-800">
                             Not Deceased
@@ -215,18 +163,9 @@
                             <span :class="statusClass(complianceChecks.pep ? 'clear' : 'failed')">
                                 {{ complianceChecks.pep ? 'Clear' : 'Failed' }}
                             </span>
-                            <span :class="statusIconWrapper(complianceChecks.pep ? 'clear' : 'failed')">
-                                <svg v-if="complianceChecks.pep" class="h-4 w-4 text-emerald-600" viewBox="0 0 20 20"
-                                    fill="currentColor">
-                                    <path fill-rule="evenodd"
-                                        d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                                <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                        clip-rule="evenodd" />
-                                </svg>
+<span :class="statusIconWrapper(complianceChecks.pep ? 'clear' : 'failed')">
+                                <Check v-if="complianceChecks.pep" class="h-4 w-4 text-emerald-600" />
+                                <XCircle v-else class="h-4 w-4 text-rose-500" />
                             </span>
                         </div>
                     </div>
@@ -240,18 +179,9 @@
                             <span :class="statusClass(complianceChecks.sanctions ? 'clear' : 'failed')">
                                 {{ complianceChecks.sanctions ? 'Clear' : 'Failed' }}
                             </span>
-                            <span :class="statusIconWrapper(complianceChecks.sanctions ? 'clear' : 'failed')">
-                                <svg v-if="complianceChecks.sanctions" class="h-4 w-4 text-emerald-600"
-                                    viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd"
-                                        d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                                <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                        clip-rule="evenodd" />
-                                </svg>
+<span :class="statusIconWrapper(complianceChecks.sanctions ? 'clear' : 'failed')">
+                                <Check v-if="complianceChecks.sanctions" class="h-4 w-4 text-emerald-600" />
+                                <XCircle v-else class="h-4 w-4 text-rose-500" />
                             </span>
                         </div>
                     </div>
@@ -265,18 +195,9 @@
                             <span :class="statusClass(complianceChecks.adverseMedia ? 'clear' : 'failed')">
                                 {{ complianceChecks.adverseMedia ? 'Clear' : 'Failed' }}
                             </span>
-                            <span :class="statusIconWrapper(complianceChecks.adverseMedia ? 'clear' : 'failed')">
-                                <svg v-if="complianceChecks.adverseMedia" class="h-4 w-4 text-emerald-600"
-                                    viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd"
-                                        d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                                <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                        clip-rule="evenodd" />
-                                </svg>
+<span :class="statusIconWrapper(complianceChecks.adverseMedia ? 'clear' : 'failed')">
+                                <Check v-if="complianceChecks.adverseMedia" class="h-4 w-4 text-emerald-600" />
+                                <XCircle v-else class="h-4 w-4 text-rose-500" />
                             </span>
                         </div>
                     </div>
@@ -291,6 +212,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { AlertTriangle, HelpCircle, Check, XCircle } from 'lucide-vue-next'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info'
 

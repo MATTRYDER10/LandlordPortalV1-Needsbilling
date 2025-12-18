@@ -10,17 +10,13 @@
       <div class="relative inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
         <!-- Close button -->
         <button @click="$emit('close')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-500">
-          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X class="h-6 w-6" />
         </button>
 
         <div class="sm:flex sm:items-start">
           <!-- Icon -->
           <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 sm:mx-0 sm:h-16 sm:w-16">
-            <svg class="h-8 w-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <AlertTriangle class="h-8 w-8 text-orange-600" />
           </div>
 
           <!-- Content -->
@@ -36,9 +32,7 @@
               <!-- Pricing info box -->
               <div class="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
                 <div class="flex items-start">
-                  <svg class="h-5 w-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <AlertCircle class="h-5 w-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" />
                   <div class="text-sm text-orange-800">
                     <p class="font-semibold mb-1">Credit costs</p>
                     <p>References cost <strong>1 credit</strong> each. Guarantor references cost <strong>0.5 credits</strong> each.</p>
@@ -49,21 +43,15 @@
               <!-- Benefits list -->
               <div class="mt-4 space-y-2">
                 <div class="flex items-start text-sm text-gray-600">
-                  <svg class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Check class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
                   <span>Purchase credits via subscription or credit packs</span>
                 </div>
                 <div class="flex items-start text-sm text-gray-600">
-                  <svg class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Check class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
                   <span>Enable auto-recharge to never run out of credits</span>
                 </div>
                 <div class="flex items-start text-sm text-gray-600">
-                  <svg class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Check class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
                   <span>Unused credits never expire</span>
                 </div>
               </div>
@@ -94,6 +82,7 @@
 </template>
 
 <script setup lang="ts">
+import { X, AlertTriangle, AlertCircle, Check } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
 defineProps<{

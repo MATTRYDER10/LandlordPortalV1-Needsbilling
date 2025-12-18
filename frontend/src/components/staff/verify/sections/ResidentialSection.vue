@@ -24,9 +24,7 @@
 
       <!-- Confirmation Status Badge -->
       <div v-if="residentialConfirmedAt" class="confirmation-status">
-        <svg class="check-icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-        </svg>
+        <CheckCircle class="check-icon" />
         <span>
           Residential confirmed as <strong>{{ formatConfirmedStatus(confirmedResidentialStatus) }}</strong>
           by {{ residentialConfirmedBy }} on {{ formatDateTime(residentialConfirmedAt) }}
@@ -97,9 +95,7 @@
         class="confirm-btn"
         @click="openConfirmModal"
       >
-        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <CheckCircle class="btn-icon" />
         {{ residentialConfirmedAt ? 'Review & Update Residential' : 'Confirm Residential Status' }}
       </button>
 
@@ -246,17 +242,13 @@
 
       <!-- No Reference Warning -->
       <div v-else-if="!isLivingWithFamily && !isOwnerOccupier" class="no-reference-warning">
-        <svg class="warning-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
+        <AlertTriangle class="warning-icon" />
         <p>No landlord/agent reference received yet</p>
       </div>
 
       <!-- Living with Family Notice -->
       <div v-else-if="isLivingWithFamily" class="family-notice">
-        <svg class="info-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <Info class="info-icon" />
         <div class="notice-text">
           <p class="notice-title">Living with Family</p>
           <p class="notice-description">No landlord reference required. Confirm this status to proceed.</p>
@@ -265,9 +257,7 @@
 
       <!-- Owner Occupier Notice -->
       <div v-else-if="isOwnerOccupier" class="owner-notice">
-        <svg class="info-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
+        <Home class="info-icon" />
         <div class="notice-text">
           <p class="notice-title">Owner Occupier</p>
           <p class="notice-description">Applicant owns their current property. No landlord reference required.</p>
@@ -279,9 +269,7 @@
         <h4 class="subsection-title">Evidence Files</h4>
         <div class="evidence-list">
           <div v-for="file in section.evidenceFiles" :key="file.fileId" class="evidence-item">
-            <svg class="evidence-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FileText class="evidence-icon" />
             <span class="evidence-name">{{ file.fileName }}</span>
           </div>
         </div>
@@ -296,9 +284,7 @@
         <div class="modal-header">
           <h2 class="modal-title">Confirm Residential History</h2>
           <button class="modal-close" @click="closeConfirmModal">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X />
           </button>
         </div>
 
@@ -489,9 +475,7 @@
           <!-- Family/Owner Notice -->
           <div v-if="isLivingWithFamily || isOwnerOccupier" class="modal-section">
             <div :class="['info-banner', isLivingWithFamily ? 'family' : 'owner']">
-              <svg class="banner-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <Info class="banner-icon" />
               <p v-if="isLivingWithFamily">
                 Applicant is living with family. No landlord reference is required.
               </p>
@@ -571,6 +555,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { CheckCircle, AlertTriangle, Info, Home, FileText, X } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 import { useAuthStore } from '@/stores/auth'

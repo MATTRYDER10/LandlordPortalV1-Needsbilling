@@ -17,9 +17,7 @@
         </div>
 
         <div class="info-box">
-          <svg class="info-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
+          <AlertCircle class="info-icon" />
           <p>Your payment method will be securely stored by Stripe and used only when you make a purchase or enable auto-recharge.</p>
         </div>
       </div>
@@ -42,6 +40,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { AlertCircle } from 'lucide-vue-next'
 import { loadStripe } from '@stripe/stripe-js'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'

@@ -15,9 +15,7 @@
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
       <div class="flex">
         <div class="flex-shrink-0">
-          <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-          </svg>
+          <Info class="h-5 w-5 text-blue-400" />
         </div>
         <div class="ml-3 flex-1">
           <h3 class="text-sm font-medium text-blue-800">How our billing works</h3>
@@ -81,9 +79,7 @@
       <div class="bg-green-50 border border-green-200 rounded-lg p-6">
         <div class="flex">
           <div class="flex-shrink-0">
-            <svg class="h-6 w-6 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
+            <CheckCircle class="h-6 w-6 text-green-400" />
           </div>
           <div class="ml-3">
             <h3 class="text-sm font-medium text-green-800">Payment method added successfully!</h3>
@@ -108,9 +104,7 @@
               <p class="font-medium text-gray-900 group-hover:text-primary">Continue to Dashboard</p>
               <p class="text-sm text-gray-600">Start exploring PropertyGoose (you can purchase credits anytime)</p>
             </div>
-            <svg class="w-5 h-5 text-gray-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
+            <ChevronRight class="w-5 h-5 text-gray-400 group-hover:text-primary" />
           </button>
 
           <!-- Subscribe -->
@@ -122,9 +116,7 @@
               <p class="font-medium text-gray-900 group-hover:text-primary">Subscribe to a Plan</p>
               <p class="text-sm text-gray-600">Get monthly credits at a discounted rate</p>
             </div>
-            <svg class="w-5 h-5 text-gray-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
+            <ChevronRight class="w-5 h-5 text-gray-400 group-hover:text-primary" />
           </button>
 
           <!-- Buy Credits -->
@@ -136,9 +128,7 @@
               <p class="font-medium text-gray-900 group-hover:text-primary">Buy Credit Pack</p>
               <p class="text-sm text-gray-600">Purchase credits as you need them</p>
             </div>
-            <svg class="w-5 h-5 text-gray-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
+            <ChevronRight class="w-5 h-5 text-gray-400 group-hover:text-primary" />
           </button>
         </div>
       </div>
@@ -150,9 +140,7 @@
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-gray-900">Choose a Subscription</h3>
           <button @click="showSubscriptionOptions = false" class="text-gray-400 hover:text-gray-600">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X class="w-6 h-6" />
           </button>
         </div>
         <p class="text-sm text-gray-600 mb-4">You can manage or cancel your subscription anytime from Settings.</p>
@@ -170,9 +158,7 @@
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-gray-900">Choose a Credit Pack</h3>
           <button @click="showCreditPackOptions = false" class="text-gray-400 hover:text-gray-600">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X class="w-6 h-6" />
           </button>
         </div>
         <p class="text-sm text-gray-600 mb-4">Credits never expire and can be used anytime.</p>
@@ -192,6 +178,7 @@ import { loadStripe } from '@stripe/stripe-js'
 import axios from 'axios'
 import { useAuthStore } from '../../stores/auth'
 import { colors } from '../../config/colors'
+import { Info, CheckCircle, ChevronRight, X } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL

@@ -17,12 +17,8 @@
         class="fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
         :class="toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'"
       >
-        <svg v-if="toast.type === 'success'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-        </svg>
-        <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <Check v-if="toast.type === 'success'" class="w-5 h-5" />
+        <X v-else class="w-5 h-5" />
         {{ toast.message }}
       </div>
     </Transition>
@@ -94,6 +90,7 @@
 import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { Check, X } from 'lucide-vue-next'
 import StaffHeader from '../components/StaffHeader.vue'
 import QueueStatsBar from '../components/staff/portal/QueueStatsBar.vue'
 import VerifyQueueTab from '../components/staff/portal/VerifyQueueTab.vue'

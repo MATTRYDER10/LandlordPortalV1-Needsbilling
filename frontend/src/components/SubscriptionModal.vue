@@ -48,27 +48,19 @@
 
                 <div class="tier-features">
                   <div class="feature-item">
-                    <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
+                    <Check class="check-icon" />
                     <span>{{ tier.credits_quantity }} credits per month</span>
                   </div>
                   <div class="feature-item">
-                    <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
+                    <Check class="check-icon" />
                     <span>Credits roll over</span>
                   </div>
                   <div class="feature-item">
-                    <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
+                    <Check class="check-icon" />
                     <span>Cancel anytime</span>
                   </div>
                   <div class="feature-item savings-feature">
-                    <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
+                    <Check class="check-icon" />
                     <span>Save {{ calculateSavings(tier) }}% vs pay-as-you-go</span>
                   </div>
                 </div>
@@ -137,6 +129,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { Check } from 'lucide-vue-next'
 import { useBillingStore } from '../stores/billing'
 import { loadStripe } from '@stripe/stripe-js'
 import type { SubscriptionTier } from '../stores/billing'

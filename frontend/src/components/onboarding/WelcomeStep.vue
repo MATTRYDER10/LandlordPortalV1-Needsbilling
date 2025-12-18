@@ -22,9 +22,7 @@
         <h3 class="text-lg font-semibold text-gray-900 mb-4">What we'll set up:</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
           <div class="flex items-start">
-            <svg class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
+            <CheckCircle class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
             <div>
               <p class="font-medium text-gray-900">Your Profile</p>
               <p class="text-sm text-gray-600">Name and contact details</p>
@@ -32,9 +30,7 @@
           </div>
 
           <div class="flex items-start">
-            <svg class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
+            <CheckCircle class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
             <div>
               <p class="font-medium text-gray-900">Company Information</p>
               <p class="text-sm text-gray-600">Business address and contact</p>
@@ -42,9 +38,7 @@
           </div>
 
           <div class="flex items-start">
-            <svg class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
+            <CheckCircle class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
             <div>
               <p class="font-medium text-gray-900">Bank Details</p>
               <p class="text-sm text-gray-600">For generating agreements</p>
@@ -52,9 +46,7 @@
           </div>
 
           <div class="flex items-start">
-            <svg class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
+            <CheckCircle class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
             <div>
               <p class="font-medium text-gray-900">Branding</p>
               <p class="text-sm text-gray-600">Logo and colors (optional)</p>
@@ -62,9 +54,7 @@
           </div>
 
           <div class="flex items-start">
-            <svg class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
+            <CheckCircle class="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
             <div>
               <p class="font-medium text-gray-900">Payment Method</p>
               <p class="text-sm text-gray-600">For billing and credits</p>
@@ -89,6 +79,8 @@
 </template>
 
 <script setup lang="ts">
+import { CheckCircle } from 'lucide-vue-next'
+
 // No props or state needed for welcome screen
 defineEmits<{
   next: []

@@ -23,18 +23,14 @@
       <!-- Error State -->
       <div v-else-if="error" class="bg-white rounded-lg shadow p-8">
         <div class="text-center">
-          <svg class="mx-auto h-12 w-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+          <AlertTriangle class="mx-auto h-12 w-12 text-red-500" />
           <h3 class="mt-4 text-lg font-semibold text-gray-900">{{ error }}</h3>
         </div>
       </div>
 
       <!-- Success State -->
       <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
-        <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <CheckCircle2 class="mx-auto h-12 w-12 text-green-500" />
         <h3 class="mt-4 text-lg font-semibold text-gray-900">Thank You!</h3>
         <p class="mt-2 text-gray-600">Your accountant reference has been submitted successfully.</p>
       </div>
@@ -429,6 +425,7 @@ import DatePicker from '../components/DatePicker.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { defaultBranding } from '../config/colors'
+import { AlertTriangle, CheckCircle2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'

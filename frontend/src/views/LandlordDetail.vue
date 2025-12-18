@@ -15,9 +15,7 @@
           <div>
             <button @click="$router.push('/landlords')"
               class="text-gray-600 hover:text-gray-900 mb-4 flex items-center">
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
+              <ArrowLeft class="w-5 h-5 mr-2" />
               Back to Landlords
             </button>
             <h2 class="text-3xl font-bold text-gray-900">
@@ -29,10 +27,7 @@
           <div class="flex items-center gap-3">
             <button @click="showEditModal = true"
               class="flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 transition-colors">
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
+              <Pencil class="w-4 h-4 mr-2" />
               Edit
             </button>
             <span class="px-3 py-1 text-sm font-semibold rounded-full" :class="{
@@ -82,12 +77,7 @@
                 'bg-blue-100 text-blue-800': landlord.aml_status === 'requested' || landlord.aml_status === 'pending' || landlord.aml_status === 'submitted',
                 'bg-gray-100 text-gray-800': landlord.aml_status === 'not_requested'
               }">
-                <svg v-if="landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed'" class="w-4 h-4" fill="currentColor"
-                  viewBox="0 0 20 20">
-                  <path fill-rule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clip-rule="evenodd" />
-                </svg>
+                <CheckCircle v-if="landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed'" class="w-4 h-4" />
                 {{ formatAMLStatus(landlord.aml_status) }}
               </span>
               <p v-if="landlord.aml_completed_at" class="mt-2 text-sm text-gray-500">
@@ -276,17 +266,8 @@
                         </span>
                         <span
                           :class="statusIconWrapper(landlord.aml_check.pep_check_result === false ? 'clear' : 'failed')">
-                          <svg v-if="landlord.aml_check.pep_check_result === false" class="h-4 w-4 text-emerald-600"
-                            viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                              d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                              clip-rule="evenodd" />
-                          </svg>
-                          <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                              clip-rule="evenodd" />
-                          </svg>
+                          <Check v-if="landlord.aml_check.pep_check_result === false" class="h-4 w-4 text-emerald-600" />
+                          <X v-else class="h-4 w-4 text-rose-500" />
                         </span>
                       </div>
                     </div>
@@ -305,17 +286,8 @@
                           landlord.aml_check.sanctions_check_result === false ? 'clear' : 'failed'
                         )
                           ">
-                          <svg v-if="landlord.aml_check.sanctions_check_result === false"
-                            class="h-4 w-4 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                              d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                              clip-rule="evenodd" />
-                          </svg>
-                          <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                              clip-rule="evenodd" />
-                          </svg>
+                          <Check v-if="landlord.aml_check.sanctions_check_result === false" class="h-4 w-4 text-emerald-600" />
+                          <X v-else class="h-4 w-4 text-rose-500" />
                         </span>
                       </div>
                     </div>
@@ -334,17 +306,8 @@
                           landlord.aml_check.adverse_media_result === false ? 'clear' : 'failed'
                         )
                           ">
-                          <svg v-if="landlord.aml_check.adverse_media_result === false" class="h-4 w-4 text-emerald-600"
-                            viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                              d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z"
-                              clip-rule="evenodd" />
-                          </svg>
-                          <svg v-else class="h-4 w-4 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                              clip-rule="evenodd" />
-                          </svg>
+                          <Check v-if="landlord.aml_check.adverse_media_result === false" class="h-4 w-4 text-emerald-600" />
+                          <X v-else class="h-4 w-4 text-rose-500" />
                         </span>
                       </div>
                     </div>
@@ -378,9 +341,7 @@
                           class="w-full h-full object-contain"
                         />
                         <div v-else class="flex items-center justify-center h-full">
-                          <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
+                          <FileText class="w-12 h-12 text-gray-400" />
                         </div>
                       </div>
                       <a
@@ -389,9 +350,7 @@
                         target="_blank"
                         class="mt-2 inline-flex items-center text-sm text-primary hover:text-primary/80"
                       >
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
+                        <ExternalLink class="w-4 h-4 mr-1" />
                         View Full Size
                       </a>
                     </div>
@@ -409,9 +368,7 @@
                           class="w-full h-full object-contain"
                         />
                         <div v-else class="flex items-center justify-center h-full">
-                          <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
+                          <User class="w-12 h-12 text-gray-400" />
                         </div>
                       </div>
                       <a
@@ -420,9 +377,7 @@
                         target="_blank"
                         class="mt-2 inline-flex items-center text-sm text-primary hover:text-primary/80"
                       >
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
+                        <ExternalLink class="w-4 h-4 mr-1" />
                         View Full Size
                       </a>
                     </div>
@@ -448,6 +403,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
+import { ArrowLeft, Pencil, CheckCircle, Check, X, FileText, User, ExternalLink } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import AddEditLandlordModal from '../components/AddEditLandlordModal.vue'
 import { useAuthStore } from '../stores/auth'

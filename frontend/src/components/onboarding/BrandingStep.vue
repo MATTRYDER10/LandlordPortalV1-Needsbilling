@@ -10,9 +10,7 @@
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
       <div class="flex">
         <div class="flex-shrink-0">
-          <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-          </svg>
+          <Info class="h-5 w-5 text-blue-400" />
         </div>
         <div class="ml-3 flex-1">
           <h3 class="text-sm font-medium text-blue-800">Professional appearance</h3>
@@ -34,9 +32,7 @@
             <div class="w-32 h-32 border-2 border-gray-300 border-dashed rounded-lg flex items-center justify-center bg-gray-50 overflow-hidden">
               <img v-if="logoPreview" :src="logoPreview" alt="Logo preview" class="w-full h-full object-contain" />
               <div v-else class="text-center p-4">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+                <Image class="mx-auto h-12 w-12 text-gray-400" />
                 <p class="mt-1 text-xs text-gray-500">No logo</p>
               </div>
             </div>
@@ -184,6 +180,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { defaultBranding } from '../../config/colors'
+import { Info, Image } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL

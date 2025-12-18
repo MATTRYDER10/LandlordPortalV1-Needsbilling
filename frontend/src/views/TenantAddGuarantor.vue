@@ -22,10 +22,7 @@
 
       <!-- Success State -->
       <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
-        <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <CheckCircle2 class="mx-auto h-12 w-12 text-green-500" />
         <h3 class="mt-4 text-lg font-semibold text-gray-900">Thank You!</h3>
         <p class="mt-2 text-gray-600">
           Your guarantor's details have been submitted successfully. They will receive an email shortly with a link to complete their reference form.
@@ -114,10 +111,7 @@
               :disabled="submitting"
               class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg v-if="submitting" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <Loader2 v-if="submitting" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
               {{ submitting ? 'Submitting...' : 'Submit Guarantor Details' }}
             </button>
           </div>
@@ -136,6 +130,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
+import { CheckCircle2, Loader2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'

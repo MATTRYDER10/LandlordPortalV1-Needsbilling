@@ -76,9 +76,7 @@
               'w-5 h-5 rounded-full border-2 flex items-center justify-center',
               selectedDecision === 'PASS' ? 'border-green-500 bg-green-500' : 'border-gray-300'
             ]">
-              <svg v-if="selectedDecision === 'PASS'" class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-              </svg>
+              <Check v-if="selectedDecision === 'PASS'" class="w-3 h-3 text-white" />
             </div>
             <span class="font-medium text-gray-900">Pass</span>
           </div>
@@ -102,9 +100,7 @@
               'w-5 h-5 rounded-full border-2 flex items-center justify-center',
               selectedDecision === 'PASS_WITH_CONDITION' ? 'border-amber-500 bg-amber-500' : 'border-gray-300'
             ]">
-              <svg v-if="selectedDecision === 'PASS_WITH_CONDITION'" class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-              </svg>
+              <Check v-if="selectedDecision === 'PASS_WITH_CONDITION'" class="w-3 h-3 text-white" />
             </div>
             <span class="font-medium text-gray-900">Pass with Conditions</span>
           </div>
@@ -129,9 +125,7 @@
               'w-5 h-5 rounded-full border-2 flex items-center justify-center',
               selectedDecision === 'PASS_WITH_GUARANTOR' ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
             ]">
-              <svg v-if="selectedDecision === 'PASS_WITH_GUARANTOR'" class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-              </svg>
+              <Check v-if="selectedDecision === 'PASS_WITH_GUARANTOR'" class="w-3 h-3 text-white" />
             </div>
             <span class="font-medium text-gray-900">Pass with Guarantor</span>
           </div>
@@ -155,9 +149,7 @@
               'w-5 h-5 rounded-full border-2 flex items-center justify-center',
               selectedDecision === 'REFER' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
             ]">
-              <svg v-if="selectedDecision === 'REFER'" class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-              </svg>
+              <Check v-if="selectedDecision === 'REFER'" class="w-3 h-3 text-white" />
             </div>
             <span class="font-medium text-gray-900">Refer</span>
           </div>
@@ -181,9 +173,7 @@
               'w-5 h-5 rounded-full border-2 flex items-center justify-center',
               selectedDecision === 'FAIL' ? 'border-red-500 bg-red-500' : 'border-gray-300'
             ]">
-              <svg v-if="selectedDecision === 'FAIL'" class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-              </svg>
+              <Check v-if="selectedDecision === 'FAIL'" class="w-3 h-3 text-white" />
             </div>
             <span class="font-medium text-gray-900">Fail</span>
           </div>
@@ -220,10 +210,7 @@
           (!selectedDecision || loading || readOnly) && 'opacity-50 cursor-not-allowed'
         ]"
       >
-        <svg v-if="loading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
+        <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
         <span v-if="loading">Processing...</span>
         <span v-else>
           {{ selectedDecision ? `Finalize as ${formatFinalDecision(selectedDecision)}` : 'Select a decision' }}
@@ -274,6 +261,7 @@
 import { ref, computed } from 'vue'
 import type { VerificationSection, FinalDecision } from '@/types/staff'
 import { getSectionLabel } from '@/types/staff'
+import { Check, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps<{
   sections: VerificationSection[]

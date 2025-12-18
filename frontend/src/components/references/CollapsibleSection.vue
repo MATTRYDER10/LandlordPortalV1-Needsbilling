@@ -24,15 +24,10 @@
           {{ badge }}
         </span>
       </div>
-      <svg
+      <ChevronDown
         class="w-5 h-5 text-gray-400 transition-transform duration-200"
         :class="{ 'rotate-180': isOpen }"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-      </svg>
+      />
     </button>
     <Transition
       enter-active-class="transition-all duration-200 ease-out"
@@ -51,6 +46,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { ChevronDown } from 'lucide-vue-next'
 
 const props = defineProps<{
   title: string

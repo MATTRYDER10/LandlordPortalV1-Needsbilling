@@ -321,15 +321,10 @@
                           <p class="text-sm text-gray-500">{{ segment.length }} companies</p>
                         </div>
                       </div>
-                      <svg
+                      <ChevronDown
                         class="w-5 h-5 text-gray-400 transition-transform"
                         :class="{ 'rotate-180': expandedSegments.includes(String(segmentName)) }"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                      </svg>
+                      />
                     </button>
 
                     <div v-if="expandedSegments.includes(String(segmentName))" class="border-t border-gray-200">
@@ -482,6 +477,7 @@ import { useAuthStore } from '../stores/auth'
 import AdminHeader from '../components/AdminHeader.vue'
 import { Chart, registerables } from 'chart.js'
 import { colors } from '../config/colors'
+import { ChevronDown } from 'lucide-vue-next'
 
 Chart.register(...registerables)
 

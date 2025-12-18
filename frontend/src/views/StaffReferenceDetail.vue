@@ -17,9 +17,7 @@
             @click="handleSignOut"
             class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
           >
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <LogOut class="w-5 h-5 mr-2" />
             Sign Out
           </button>
         </div>
@@ -75,9 +73,7 @@
               @click="showAddGuarantorModal = true"
               class="flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
             >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
+              <Plus class="w-4 h-4 mr-2" />
               Add Guarantor
             </button>
             <button
@@ -86,13 +82,8 @@
               :disabled="downloadingPDF"
               class="flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <svg v-if="!downloadingPDF" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <svg v-else class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <Download v-if="!downloadingPDF" class="w-4 h-4 mr-2" />
+              <Loader2 v-else class="animate-spin w-4 h-4 mr-2" />
               {{ downloadingPDF ? 'Generating...' : 'Download PDF Report' }}
             </button>
           </div>
@@ -230,9 +221,7 @@
           <div class="space-y-2">
             <div v-if="reference.id_document_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
               <div class="flex items-center">
-                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
+                <FileText class="w-5 h-5 text-gray-600 mr-3" />
                 <span class="text-sm text-gray-900">ID Document</span>
               </div>
               <div class="flex gap-2">
@@ -252,9 +241,7 @@
             </div>
             <div v-if="reference.selfie_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
               <div class="flex items-center">
-                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+                <Image class="w-5 h-5 text-gray-600 mr-3" />
                 <span class="text-sm text-gray-900">Selfie Verification</span>
               </div>
               <div class="flex gap-2">
@@ -305,9 +292,7 @@
           <div class="space-y-2">
             <div v-for="doc in documents" :key="doc.id" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors">
               <div class="flex items-center flex-1">
-                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
+                <FileText class="w-5 h-5 text-gray-600 mr-3" />
                 <div class="flex-1">
                   <p class="text-sm font-medium text-gray-900">{{ doc.file_name }}</p>
                   <p class="text-xs text-gray-500">
@@ -351,9 +336,7 @@
             <!-- Consent PDF -->
             <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
               <div class="flex items-center">
-                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
+                <FileText class="w-5 h-5 text-gray-600 mr-3" />
                 <span class="text-sm text-gray-900">Signed Consent Declaration</span>
               </div>
               <div class="flex gap-2">
@@ -405,9 +388,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Address Document</label>
             <div v-if="reference.proof_of_address_path" class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
               <div class="flex items-center">
-                <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
+                <FileText class="w-5 h-5 text-gray-600 mr-3" />
                 <span class="text-sm text-gray-900">Proof of Address</span>
               </div>
               <div class="flex gap-2">
@@ -543,9 +524,7 @@
                 <div v-for="(file, index) in reference.payslip_files" :key="index"
                      class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
                   <div class="flex items-center">
-                    <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
+                    <FileText class="w-5 h-5 text-gray-600 mr-3" />
                     <span class="text-sm text-gray-900">Payslip {{ index + 1 }}</span>
                   </div>
                   <div class="flex gap-2">
@@ -750,10 +729,7 @@
                 @click="viewFile(reference.tax_return_path)"
                 class="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100"
               >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
+                <Eye class="w-4 h-4 mr-2" />
                 View Tax Return
               </button>
             </div>
@@ -1053,9 +1029,7 @@
                     <div class="space-y-2">
                       <div v-if="guarantorReference.id_document_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-blue-200">
                         <div class="flex items-center">
-                          <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
+                          <FileText class="w-4 h-4 text-blue-600 mr-2" />
                           <span class="text-sm text-blue-900">ID Document</span>
                         </div>
                         <div class="flex gap-2">
@@ -1065,9 +1039,7 @@
                       </div>
                       <div v-if="guarantorReference.selfie_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-blue-200">
                         <div class="flex items-center">
-                          <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
+                          <Image class="w-4 h-4 text-blue-600 mr-2" />
                           <span class="text-sm text-blue-900">Selfie</span>
                         </div>
                         <div class="flex gap-2">
@@ -1077,9 +1049,7 @@
                       </div>
                       <div v-if="guarantorReference.proof_of_address_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-blue-200">
                         <div class="flex items-center">
-                          <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                          </svg>
+                          <Home class="w-4 h-4 text-blue-600 mr-2" />
                           <span class="text-sm text-blue-900">Proof of Address</span>
                         </div>
                         <div class="flex gap-2">
@@ -1089,9 +1059,7 @@
                       </div>
                       <div v-if="guarantorReference.bank_statement_path" class="flex items-center justify-between bg-white px-3 py-2 rounded border border-blue-200">
                         <div class="flex items-center">
-                          <svg class="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
+                          <FileCheck class="w-4 h-4 text-blue-600 mr-2" />
                           <span class="text-sm text-blue-900">Bank Statement</span>
                         </div>
                         <div class="flex gap-2">
@@ -1146,10 +1114,7 @@
                   @click="viewFile(reference.proof_of_funds_path)"
                   class="mt-1 inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm"
                 >
-                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
+                  <Eye class="w-4 h-4 mr-1" />
                   View Document
                 </button>
               </div>
@@ -1186,10 +1151,7 @@
                   @click="viewFile(reference.proof_of_additional_income_path)"
                   class="mt-1 inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm"
                 >
-                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
+                  <Eye class="w-4 h-4 mr-1" />
                   View Document
                 </button>
               </div>
@@ -1627,12 +1589,8 @@
         }">
           <div class="flex items-start">
             <div class="flex-shrink-0">
-              <svg v-if="reference.status === 'completed'" class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <svg v-else class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <CheckCircle v-if="reference.status === 'completed'" class="h-6 w-6 text-green-600" />
+              <X v-else class="h-6 w-6 text-red-600" />
             </div>
             <div class="ml-3 flex-1">
               <h3 class="text-lg font-semibold mb-2" :class="{
@@ -1714,9 +1672,7 @@
           <!-- New Step-by-Step Verification -->
           <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div class="flex items-start">
-              <svg class="w-6 h-6 text-blue-600 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <CheckCircle class="w-6 h-6 text-blue-600 mr-3 mt-1" />
               <div class="flex-1">
                 <h4 class="text-sm font-semibold text-blue-900 mb-1">New: Step-by-Step Verification Process</h4>
                 <p class="text-sm text-blue-800 mb-3">
@@ -1726,9 +1682,7 @@
                   @click="$router.push(`/staff/verification/${reference.id}`)"
                   class="px-6 py-3 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md flex items-center"
                 >
-                  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                  </svg>
+                  <ChevronRight class="w-5 h-5 mr-2" />
                   Start Step-by-Step Verification
                 </button>
               </div>
@@ -1751,18 +1705,14 @@
               @click="showVerifyModal = true"
               class="px-6 py-3 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md flex items-center"
             >
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <CheckCircle class="w-5 h-5 mr-2" />
               Quick Verify & Complete
             </button>
             <button
               @click="showRejectModal = true"
               class="px-6 py-3 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center"
             >
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X class="w-5 h-5 mr-2" />
               Reject for Corrections
             </button>
           </div>
@@ -1779,9 +1729,7 @@
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="sm:flex sm:items-start">
               <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
-                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <CheckCircle class="h-6 w-6 text-green-600" />
               </div>
               <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
                 <h3 class="text-lg leading-6 font-medium text-gray-900">Verify Reference</h3>
@@ -1826,9 +1774,7 @@
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="sm:flex sm:items-start">
               <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X class="h-6 w-6 text-red-600" />
               </div>
               <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
                 <h3 class="text-lg leading-6 font-medium text-gray-900">Reject Reference</h3>
@@ -1889,9 +1835,7 @@
                 {{ viewingDocumentName }}
               </h3>
               <button @click="closeDocumentViewer" class="text-gray-400 hover:text-gray-500">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X class="h-6 w-6" />
               </button>
             </div>
             <div class="w-full flex items-center justify-center" style="height: 70vh;">
@@ -1999,6 +1943,7 @@ import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { LogOut, Plus, FileText, Image, Eye, Download, Home, FileCheck, CheckCircle, X, ChevronRight, Loader2 } from 'lucide-vue-next'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
 import SanctionsScreeningCard from '../components/SanctionsScreeningCard.vue'

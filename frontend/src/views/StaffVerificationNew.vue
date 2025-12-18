@@ -11,18 +11,12 @@
           <div class="flex items-center gap-4">
             <router-link to="/staff/work-queue"
               class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+              <ClipboardList class="w-5 h-5 mr-2" />
               Back to Work Queue
             </router-link>
             <button @click="handleSignOut"
               class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
+              <LogOut class="w-5 h-5 mr-2" />
               Sign Out
             </button>
           </div>
@@ -53,11 +47,7 @@
                 'bg-gray-100 text-gray-400'
           ]">
             <div class="flex items-center justify-center gap-2">
-              <svg v-if="currentStep > index + 1" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd"
-                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                  clip-rule="evenodd" />
-              </svg>
+              <Check v-if="currentStep > index + 1" class="w-4 h-4" />
               <span>{{ step }}</span>
             </div>
           </div>
@@ -98,10 +88,7 @@
               class="w-20 h-20 rounded-full object-cover border-4 border-gray-200 shadow-md" />
             <div v-else
               class="w-20 h-20 rounded-full bg-gray-200 border-4 border-gray-200 shadow-md flex items-center justify-center">
-              <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+              <User class="w-10 h-10 text-gray-400" />
             </div>
           </div>
 
@@ -144,12 +131,7 @@
             <button type="button" class="flex items-center gap-1 text-primary hover:text-primary-dark transition-colors"
               :title="formatGeolocationText(reference.submitted_geolocation)"
               @click="openGeolocationMap(reference.submitted_geolocation)">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+              <MapPin class="w-5 h-5" />
               <span class="text-xs">View Map</span>
             </button>
             <!-- Tooltip on hover -->
@@ -525,11 +507,7 @@
             <!-- British Citizen Check -->
             <div v-if="isBritishCitizen" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div class="flex items-start gap-3">
-                <svg class="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
-                  viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <CheckCircle class="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 class="font-semibold text-blue-900 mb-1">British Citizen</h4>
                   <p class="text-sm text-blue-800">
@@ -600,11 +578,7 @@
             <!-- No RTR Information -->
             <div v-else class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <div class="flex items-start gap-3">
-                <svg class="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
-                  viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <AlertTriangle class="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 class="font-semibold text-yellow-900 mb-1">No Right to Rent Information</h4>
                   <p class="text-sm text-yellow-800">
@@ -786,10 +760,7 @@
                     <div v-for="(file, index) in reference.payslip_files" :key="index"
                       class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
                       <div class="flex items-center">
-                        <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
+                        <FileText class="w-5 h-5 text-gray-600 mr-3" />
                         <span class="text-sm text-gray-900">Payslip {{ index + 1 }}</span>
                       </div>
                       <div class="flex gap-2">
@@ -893,10 +864,7 @@
                 <div v-if="reference?.tax_return_path">
                   <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
                     <div class="flex items-center">
-                      <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
+                      <FileText class="w-5 h-5 text-gray-600 mr-3" />
                       <span class="text-sm text-gray-900">Tax Return Document</span>
                     </div>
                     <div class="flex gap-2">
@@ -1140,10 +1108,7 @@
                 <div v-if="reference?.proof_of_funds_path"
                   class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
                   <div class="flex items-center">
-                    <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
+                    <FileText class="w-5 h-5 text-gray-600 mr-3" />
                     <span class="text-sm text-gray-900">Proof of Funds Document</span>
                   </div>
                   <div class="flex gap-2">
@@ -1227,10 +1192,7 @@
                 <div v-if="reference?.proof_of_additional_income_path">
                   <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
                     <div class="flex items-center">
-                      <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
+                      <FileText class="w-5 h-5 text-gray-600 mr-3" />
                       <span class="text-sm text-gray-900">Proof of Additional Income Document</span>
                     </div>
                     <div class="flex gap-2">
@@ -1696,10 +1658,7 @@
             class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
             <div class="flex items-start gap-4">
               <div class="flex-shrink-0">
-                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <CheckCircle class="w-8 h-8 text-blue-600" />
               </div>
               <div>
                 <h4 class="text-lg font-semibold text-blue-900 mb-1">Tenant Living with Family / Friends</h4>
@@ -1761,10 +1720,7 @@
                 <div v-if="reference?.proof_of_address_path">
                   <div class="mb-2 flex items-center justify-between">
                     <div class="flex items-center">
-                      <svg class="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
+                      <FileText class="w-5 h-5 text-gray-600 mr-2" />
                       <span class="text-sm text-gray-900">Document Preview</span>
                     </div>
                     <a v-if="proofOfAddressBlobUrl" :href="proofOfAddressBlobUrl" target="_blank"
@@ -2318,10 +2274,7 @@
                 :verification="creditAndAmlVerification?.verification"
                 :compliance-checks="creditAndAmlVerification?.complianceChecks ?? {}" :caller="'Staff'" />
               <div v-else class="bg-white rounded-lg shadow p-6">
-                <svg class="w-6 h-6 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <Clock class="w-6 h-6 text-gray-600 mx-auto mb-4" />
                 <div class="text-center text-gray-600">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} hasn't submitted reference yet.</div>
               </div>
             </div>
@@ -2524,11 +2477,7 @@
           <!-- Re-assessment Error State -->
           <div v-else-if="reAssessmentError" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div class="flex items-start gap-3">
-              <svg class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
-                viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <AlertCircle class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 class="text-sm font-semibold text-red-800 mb-1">Failed to re-assess application</h3>
                 <p class="text-sm text-red-700">{{ reAssessmentError }}</p>
@@ -2633,10 +2582,7 @@
                             reassesmentDataForPreview.domains.income_band.replace('_', ' ') }}</p>
                       </div>
                       <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <DollarSign class="w-6 h-6 text-indigo-600" />
                       </div>
                     </div>
                   </div>
@@ -2650,10 +2596,7 @@
                         </p>
                       </div>
                       <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
+                        <ShieldCheck class="w-6 h-6 text-blue-600" />
                       </div>
                     </div>
                   </div>
@@ -2667,10 +2610,7 @@
                           }}</p>
                       </div>
                       <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
+                        <Lock class="w-6 h-6 text-emerald-600" />
                       </div>
                     </div>
                   </div>
@@ -2684,10 +2624,7 @@
                           }}</p>
                       </div>
                       <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
+                        <CreditCard class="w-6 h-6 text-blue-600" />
                       </div>
                     </div>
                   </div>
@@ -2702,10 +2639,7 @@
                         </p>
                       </div>
                       <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                        </svg>
+                        <Home class="w-6 h-6 text-orange-600" />
                       </div>
                     </div>
                   </div>
@@ -2866,15 +2800,8 @@
                 'mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full sm:mx-0 sm:h-10 sm:w-10',
                 pendingAction === 'finalize' ? 'bg-green-100' : 'bg-red-100'
               ]">
-                <svg v-if="pendingAction === 'finalize'" class="h-6 w-6 text-green-600" fill="none"
-                  stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <svg v-else class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <CheckCircle v-if="pendingAction === 'finalize'" class="h-6 w-6 text-green-600" />
+                <XCircle v-else class="h-6 w-6 text-red-600" />
               </div>
               <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                 <h3 class="text-lg leading-6 font-medium text-gray-900">
@@ -2917,9 +2844,7 @@
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="sm:flex sm:items-start">
               <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 sm:mx-0 sm:h-10 sm:w-10">
-                <svg class="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <AlertTriangle class="h-6 w-6 text-amber-600" />
               </div>
               <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
                 <h3 class="text-lg leading-6 font-medium text-gray-900">
@@ -2958,6 +2883,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { ClipboardList, LogOut, Check, User, MapPin, AlertCircle, AlertTriangle, FileText, CheckCircle, Clock, XCircle, DollarSign, ShieldCheck, Lock, CreditCard, Home } from 'lucide-vue-next'
 import SideBySideViewer from '../components/SideBySideViewer.vue'
 import CreditsAndAmlUI, { type Props as CreditsAndAmlUIProps } from '../components/CreditsAndAmlUI.vue'
 import { formatDate as formatUkDate } from '../utils/date'

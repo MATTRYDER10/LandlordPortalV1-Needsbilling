@@ -3,9 +3,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <div class="header-icon">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-          </svg>
+          <AlertTriangle />
         </div>
         <h2>Cancel Subscription?</h2>
         <p class="subtitle">You can continue using your subscription until {{ billingEndDate }}</p>
@@ -14,21 +12,15 @@
       <div class="modal-body">
         <div class="info-box">
           <div class="info-item">
-            <svg class="info-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
+            <Check class="info-icon" />
             <span>Your credits will remain available until {{ billingEndDate }}</span>
           </div>
           <div class="info-item">
-            <svg class="info-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
+            <Check class="info-icon" />
             <span>You can reactivate anytime before the billing period ends</span>
           </div>
           <div class="info-item">
-            <svg class="info-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
+            <Check class="info-icon" />
             <span>No refunds for unused time in current billing period</span>
           </div>
         </div>
@@ -47,6 +39,8 @@
 </template>
 
 <script setup lang="ts">
+import { AlertTriangle, Check } from 'lucide-vue-next'
+
 interface Props {
   billingEndDate: string
 }

@@ -39,10 +39,7 @@
 
       <!-- Success/Already Submitted -->
       <div v-else-if="reference && reference.submitted_at" class="bg-white rounded-lg shadow p-8 text-center">
-        <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <CheckCircle class="mx-auto h-12 w-12 text-green-500" />
         <h3 class="mt-4 text-lg font-semibold text-gray-900">{{ justSubmitted ? 'Thank You!' : 'Reference Already Submitted' }}</h3>
         <p class="mt-2 text-gray-600">{{ justSubmitted ? 'Your reference has been submitted successfully. We appreciate you taking the time to complete this form.' : 'You have already submitted this reference. Thank you!' }}</p>
       </div>
@@ -98,18 +95,13 @@
                     <span class="text-sm text-gray-700">{{ idDocument.name }} ({{ formatFileSize(idDocument.size)
                       }})</span>
                     <button type="button" @click="removeIdDocument" class="text-red-600 hover:text-red-800">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <X class="w-4 h-4" />
                     </button>
                   </div>
                 </div>
                 <div v-else-if="formData.id_document_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
                   <div class="flex items-center">
-                    <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
+                    <Check class="w-4 h-4 text-green-600 mr-2" />
                     <span class="text-sm text-green-700">Document uploaded successfully</span>
                   </div>
                 </div>
@@ -328,18 +320,8 @@
                       'text-red-700': rtrVerificationStatus === 'failed',
                       'text-blue-700': rtrVerificationStatus === 'checking'
                     }">
-                        <svg v-if="rtrVerificationStatus === 'verified'" class="w-4 h-4 mr-2" fill="currentColor"
-                          viewBox="0 0 20 20">
-                          <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                        </svg>
-                        <svg v-else-if="rtrVerificationStatus === 'failed'" class="w-4 h-4 mr-2" fill="currentColor"
-                          viewBox="0 0 20 20">
-                          <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                            clip-rule="evenodd" />
-                        </svg>
+                        <CheckCircle v-if="rtrVerificationStatus === 'verified'" class="w-4 h-4 mr-2" />
+                        <XCircle v-else-if="rtrVerificationStatus === 'failed'" class="w-4 h-4 mr-2" />
                         <div v-else
                           class="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin">
                         </div>
@@ -350,11 +332,7 @@
                     <div
                       class="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
                       <div class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-orange-500 mt-0.5" fill="none" stroke="currentColor"
-                          viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <AlertCircle class="w-5 h-5 text-orange-500 mt-0.5" />
                         <p class="text-sm text-orange-900">
                           Or you can upload either your Visa or Biometric
                           Residence Permit (BRP) so we can manually confirm your Right to Rent.
@@ -395,10 +373,7 @@
                         <div v-else-if="formData.rtr_alternative_document_path"
                           class="mt-2 p-3 bg-green-50 rounded border border-green-200">
                           <div class="flex items-center gap-2 text-sm text-green-700">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M5 13l4 4L19 7" />
-                            </svg>
+                            <Check class="w-4 h-4" />
                             Document uploaded successfully
                           </div>
                         </div>
@@ -457,10 +432,7 @@
                     <div class="p-3 bg-green-50 rounded border border-green-200">
                       <div class="flex items-center justify-between">
                         <div class="flex items-center">
-                          <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                          </svg>
+                          <Check class="w-4 h-4 text-green-600 mr-2" />
                           <span class="text-sm text-green-700">Selfie uploaded successfully</span>
                         </div>
                         <button type="button" @click="removeSelfie"
@@ -699,19 +671,14 @@
                     <span class="text-sm text-gray-700">{{ proofOfAddress.name }} ({{
                       formatFileSize(proofOfAddress.size) }})</span>
                     <button type="button" @click="removeProofOfAddress" class="text-red-600 hover:text-red-800">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <X class="w-4 h-4" />
                     </button>
                   </div>
                 </div>
                 <div v-else-if="formData.proof_of_address_path"
                   class="mt-2 p-3 bg-green-50 rounded border border-green-200">
                   <div class="flex items-center">
-                    <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
+                    <Check class="w-4 h-4 text-green-600 mr-2" />
                     <span class="text-sm text-green-700">Proof of address uploaded successfully</span>
                   </div>
                 </div>
@@ -767,12 +734,7 @@
                 <!-- Show existing guarantor message if one exists -->
                 <div v-if="hasExistingGuarantor" class="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
                   <div class="flex items-start">
-                    <svg class="w-5 h-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" fill="currentColor"
-                      viewBox="0 0 20 20">
-                      <path fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clip-rule="evenodd" />
-                    </svg>
+                    <CheckCircle class="w-5 h-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
                     <div>
                       <p class="text-sm font-medium text-green-900 mb-1">Guarantor Already Added</p>
                       <p class="text-sm text-green-800">
@@ -1067,19 +1029,14 @@
                         class="flex items-center justify-between text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
                         <span>{{ file.name }} ({{ formatFileSize(file.size) }})</span>
                         <button type="button" @click="removePayslip(index)" class="text-red-600 hover:text-red-800">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          <X class="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                     <div v-else-if="formData.payslip_paths.length > 0"
                       class="mt-2 p-3 bg-green-50 rounded border border-green-200">
                       <div class="flex items-center">
-                        <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
+                        <Check class="w-4 h-4 text-green-600 mr-2" />
                         <span class="text-sm text-green-700">{{ formData.payslip_paths.length }} payslip(s) uploaded
                           successfully</span>
                       </div>
@@ -1214,11 +1171,7 @@
                         <div v-else-if="formData.tax_return_path"
                           class="mt-2 p-3 bg-green-50 rounded border border-green-200">
                           <div class="flex items-center">
-                            <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor"
-                              viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M5 13l4 4L19 7" />
-                            </svg>
+                            <Check class="w-4 h-4 text-green-600 mr-2" />
                             <span class="text-sm text-green-700">Tax return uploaded successfully</span>
                           </div>
                         </div>
@@ -1279,10 +1232,7 @@
                     <div v-if="proofOfFunds" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
                       <div class="flex items-center justify-between">
                         <div class="flex items-center">
-                          <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
+                          <FileText class="w-5 h-5 text-blue-600 mr-2" />
                           <span class="text-sm text-gray-700">{{ proofOfFunds.name }} ({{
                             formatFileSize(proofOfFunds.size) }})</span>
                         </div>
@@ -1295,9 +1245,7 @@
                     <div v-else-if="formData.proof_of_funds_path"
                       class="mt-2 p-3 bg-green-50 rounded border border-green-200">
                       <div class="flex items-center">
-                        <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
+                        <Check class="w-4 h-4 text-green-600 mr-2" />
                         <span class="text-sm text-green-700">Proof of funds uploaded successfully</span>
                       </div>
                     </div>
@@ -1391,10 +1339,7 @@
                   <div v-if="proofOfAdditionalIncome" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
                     <div class="flex items-center justify-between">
                       <div class="flex items-center">
-                        <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
+                        <FileText class="w-5 h-5 text-blue-600 mr-2" />
                         <span class="text-sm text-gray-700">{{ proofOfAdditionalIncome.name }} ({{
                           formatFileSize(proofOfAdditionalIncome.size) }})</span>
                       </div>
@@ -1407,9 +1352,7 @@
                   <div v-else-if="formData.proof_of_additional_income_path"
                     class="mt-2 p-3 bg-green-50 rounded border border-green-200">
                     <div class="flex items-center">
-                      <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                      </svg>
+                      <Check class="w-4 h-4 text-green-600 mr-2" />
                       <span class="text-sm text-green-700">Proof of additional income uploaded successfully</span>
                     </div>
                   </div>
@@ -1695,11 +1638,7 @@
                 class="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div class="flex">
                   <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clip-rule="evenodd" />
-                    </svg>
+                    <CheckCircle class="h-5 w-5 text-green-400" />
                   </div>
                   <div class="ml-3">
                     <p class="text-sm text-green-700">
@@ -1713,11 +1652,7 @@
                 class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div class="flex">
                   <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                        clip-rule="evenodd" />
-                    </svg>
+                    <Info class="h-5 w-5 text-blue-400" />
                   </div>
                   <div class="ml-3">
                     <p class="text-sm text-blue-700">
@@ -1857,6 +1792,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { CheckCircle, XCircle, X, Check, Info, FileText, AlertCircle } from 'lucide-vue-next'
 import PhoneInput from '../components/PhoneInput.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'

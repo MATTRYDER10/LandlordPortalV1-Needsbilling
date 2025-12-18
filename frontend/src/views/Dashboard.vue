@@ -16,10 +16,7 @@
               <p class="text-3xl font-bold text-gray-900">{{ totalReferences }}</p>
             </div>
             <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <FileText class="w-6 h-6 text-primary" />
             </div>
           </div>
         </router-link>
@@ -32,10 +29,7 @@
               <p class="text-3xl font-bold text-primary">{{ inProgressReferences }}</p>
             </div>
             <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <Clock class="w-6 h-6 text-yellow-600" />
             </div>
           </div>
         </router-link>
@@ -48,10 +42,7 @@
               <p class="text-3xl font-bold text-orange-600">{{ pendingVerificationReferences }}</p>
             </div>
             <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
+              <ClipboardCheck class="w-6 h-6 text-orange-600" />
             </div>
           </div>
         </router-link>
@@ -64,9 +55,7 @@
               <p class="text-3xl font-bold text-red-600">{{ rejectedReferences }}</p>
             </div>
             <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X class="w-6 h-6 text-red-600" />
             </div>
           </div>
         </router-link>
@@ -79,10 +68,7 @@
               <p class="text-3xl font-bold text-green-600">{{ completedReferences }}</p>
             </div>
             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <CheckCircle class="w-6 h-6 text-green-600" />
             </div>
           </div>
         </router-link>
@@ -127,10 +113,7 @@
         <!-- Empty State -->
         <div v-if="recentReferences.length === 0" class="p-6">
           <div class="text-center py-12">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FileText class="mx-auto h-12 w-12 text-gray-400" />
             <h3 class="mt-2 text-sm font-medium text-gray-900">No references yet</h3>
             <p class="mt-1 text-sm text-gray-500">Get started by creating a new tenant reference.</p>
             <div class="mt-6">
@@ -247,6 +230,13 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
 import { formatDate as formatUkDate } from '../utils/date'
+import {
+  FileText,
+  Clock,
+  ClipboardCheck,
+  X,
+  CheckCircle
+} from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()

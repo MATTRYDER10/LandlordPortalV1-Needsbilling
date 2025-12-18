@@ -22,10 +22,7 @@
 
             <!-- Already Submitted State -->
             <div v-else-if="alreadySubmitted" class="bg-white rounded-lg shadow p-8 text-center">
-                <svg class="mx-auto h-12 w-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <CheckCircle2 class="mx-auto h-12 w-12 text-blue-500" />
                 <h3 class="mt-4 text-lg font-semibold text-gray-900">Application Already Submitted</h3>
                 <p class="mt-2 text-gray-600">You have already filled the form. We will mail you once the agent approves
                     or disapproves your application.</p>
@@ -33,10 +30,7 @@
 
             <!-- Success State -->
             <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
-                <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <CheckCircle2 class="mx-auto h-12 w-12 text-green-500" />
                 <h3 class="mt-4 text-lg font-semibold text-gray-900">Offer Submitted Successfully!</h3>
                 <p class="mt-2 text-gray-600">Your offer has been submitted and will be reviewed by the agent.</p>
             </div>
@@ -318,6 +312,7 @@ import PhoneInput from '../components/PhoneInput.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
+import { CheckCircle2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'

@@ -27,10 +27,7 @@
 
       <!-- Success/Already Submitted -->
       <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
-        <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <CheckCircle2 class="mx-auto h-12 w-12 text-green-500" />
         <h3 class="mt-4 text-lg font-semibold text-gray-900">Thank You!</h3>
         <p class="mt-2 text-gray-600">Your verification has been submitted successfully. Your documents are being
           reviewed.</p>
@@ -230,6 +227,7 @@ import { useToast } from 'vue-toastification'
 import DeviceHandoffGate from '../components/DeviceHandoffGate.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import { defaultBranding } from '../config/colors'
+import { CheckCircle2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const toast = useToast()

@@ -12,10 +12,7 @@
                 </div>
                 <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
                     :style="{ backgroundColor: `${primaryColor}15`, color: primaryColor }">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <Info class="w-4 h-4" />
                     Camera Required
                 </span>
             </div>
@@ -73,10 +70,7 @@
                     <div class="bg-white p-4 rounded-2xl shadow-inner">
                         <img v-if="qrCodeDataUrl" :src="qrCodeDataUrl" alt="QR Code" class="w-48 h-48 object-contain" />
                         <div v-else class="w-48 h-48 flex items-center justify-center text-gray-400">
-                            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 8h4V4H3v4zM3 20h4v-4H3v4zM17 8h4V4h-4v4zM17 20h4v-4h-4v4zM7 8h10v8H7V8z" />
-                            </svg>
+                            <QrCode class="w-12 h-12" />
                         </div>
                     </div>
                     <p class="text-sm text-gray-600">
@@ -86,12 +80,7 @@
                     <button type="button"
                         class="inline-flex items-center justify-center gap-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-100 transition-colors"
                         @click="copyLink">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 16h8a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M16 8h2a2 2 0 012 2v8a2 2 0 01-2 2H10a2 2 0 01-2-2v-2" />
-                        </svg>
+                        <Copy class="w-4 h-4" />
                         <span>{{ copied ? 'Link copied!' : 'Copy secure link' }}</span>
                     </button>
                 </div>
@@ -108,10 +97,7 @@
                         {{ proceedLabel }}
                     </button>
                     <div class="flex items-center text-sm text-gray-500 gap-2">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14m-6 0l-4.553 2.276A1 1 0 013 15.382V8.618a1 1 0 011.447-.894L9 10m6 0l-6 4m6-4L9 6" />
-                        </svg>
+                        <Video class="w-4 h-4 text-gray-400" />
                         You can come back to this screen at any time.
                     </div>
                 </div>
@@ -124,6 +110,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import type { PropType } from 'vue'
 import QRCode from 'qrcode'
+import { Info, QrCode, Copy, Video } from 'lucide-vue-next'
 import { defaultBranding } from '../config/colors'
 
 type Detail = {

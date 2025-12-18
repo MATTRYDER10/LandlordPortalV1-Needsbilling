@@ -81,9 +81,7 @@
       </div>
 
       <div v-else-if="paymentMethods.length === 0" class="no-payment-methods" style="margin-top: 1.5rem; padding: 2rem; background: #f9fafb; border: 2px dashed #e5e7eb; border-radius: 8px; text-align: center;">
-        <svg style="width: 48px; height: 48px; margin: 0 auto 1rem; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
-        </svg>
+        <CreditCard style="width: 48px; height: 48px; margin: 0 auto 1rem; color: #9ca3af;" />
         <p style="color: #6b7280; margin-bottom: 1rem;">No payment methods saved</p>
         <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">Add a payment method to enable auto-recharge</p>
         <button @click="showAddPaymentMethod = true" class="btn-primary">
@@ -101,9 +99,7 @@
         >
           <div style="display: flex; align-items: center; gap: 1rem;">
             <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-              <svg style="width: 24px; height: 24px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
-              </svg>
+              <CreditCard style="width: 24px; height: 24px; color: #6b7280;" />
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -310,6 +306,7 @@ import CreditPacksModal from '../components/CreditPacksModal.vue'
 import SubscriptionModal from '../components/SubscriptionModal.vue'
 import CancelSubscriptionModal from '../components/CancelSubscriptionModal.vue'
 import AddPaymentMethodModal from '../components/AddPaymentMethodModal.vue'
+import { CreditCard } from 'lucide-vue-next'
 import axios from 'axios'
 import { formatDate as formatUkDate } from '../utils/date'
 

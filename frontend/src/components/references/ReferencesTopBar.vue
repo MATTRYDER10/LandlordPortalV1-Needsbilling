@@ -10,10 +10,7 @@
       <div class="flex-1 max-w-md">
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <Search class="h-5 w-5 text-gray-400" />
           </div>
           <input
             :value="search"
@@ -38,9 +35,7 @@
             <option value="created_at">Created Date</option>
           </select>
           <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+            <ChevronDown class="h-4 w-4 text-gray-400" />
           </div>
         </div>
 
@@ -50,12 +45,8 @@
           class="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
           :title="sortOrder === 'asc' ? 'Ascending' : 'Descending'"
         >
-          <svg class="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path v-if="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-            <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
-          </svg>
+          <ArrowUpNarrowWide v-if="sortOrder === 'asc'" class="h-5 w-5 text-gray-600" />
+          <ArrowDownNarrowWide v-else class="h-5 w-5 text-gray-600" />
         </button>
 
         <!-- Refresh -->
@@ -64,10 +55,7 @@
           class="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
           title="Refresh"
         >
-          <svg class="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
+          <RefreshCw class="h-5 w-5 text-gray-600" />
         </button>
 
         <!-- Create Reference -->
@@ -83,6 +71,8 @@
 </template>
 
 <script setup lang="ts">
+import { Search, ChevronDown, ArrowUpNarrowWide, ArrowDownNarrowWide, RefreshCw } from 'lucide-vue-next'
+
 const props = defineProps<{
   search: string
   sortBy: 'move_in_date' | 'created_at'

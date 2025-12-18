@@ -76,9 +76,7 @@
         <h4 class="subsection-title">Evidence Files</h4>
         <div class="evidence-list">
           <div v-for="file in section.evidenceFiles" :key="file.fileId" class="evidence-item">
-            <svg class="evidence-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FileText class="evidence-icon" />
             <span class="evidence-name">{{ file.fileName }}</span>
           </div>
         </div>
@@ -90,15 +88,9 @@
         <div class="checks-list">
           <div v-for="check in section.checks" :key="check.name" class="check-item">
             <span :class="['check-icon', check.result]">
-              <svg v-if="check.result === 'pass'" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-              </svg>
-              <svg v-else-if="check.result === 'fail'" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-              <svg v-else fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
-              </svg>
+              <Check v-if="check.result === 'pass'" />
+              <X v-else-if="check.result === 'fail'" />
+              <Minus v-else />
             </span>
             <span class="check-name">{{ check.name }}</span>
           </div>
@@ -110,6 +102,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { FileText, Check, X, Minus } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 

@@ -26,18 +26,13 @@
 
       <!-- Confirmation Status Badge -->
       <div v-if="incomeConfirmedAt" class="confirmation-status">
-        <svg class="check-icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-        </svg>
+        <CheckCircle class="check-icon" />
         <span>Income confirmed by {{ incomeConfirmedBy }} on {{ formatDateTime(incomeConfirmedAt) }}</span>
       </div>
 
       <!-- Student Status Badge -->
       <div v-if="isStudent && !isGuarantor" class="student-status">
-        <svg class="student-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-        </svg>
+        <GraduationCap class="student-icon" />
         <span><strong>Student</strong> - Will likely require a guarantor</span>
       </div>
 
@@ -75,9 +70,7 @@
         class="confirm-btn"
         @click="openConfirmModal"
       >
-        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <CheckCircle class="btn-icon" />
         {{ incomeConfirmedAt ? 'Review & Update Income' : 'Review & Confirm Income' }}
       </button>
 
@@ -196,10 +189,7 @@
         <!-- Guarantor Adverse Credit -->
         <div v-if="guarantorFinancialData.adverseCredit || guarantorFinancialData.adverseCreditDetails" class="guarantor-adverse-credit">
           <div class="adverse-header">
-            <svg class="warning-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <AlertTriangle class="warning-icon" />
             <span>Guarantor Disclosed Credit Issues</span>
           </div>
           <p v-if="guarantorFinancialData.adverseCreditDetails" class="adverse-details">
@@ -263,9 +253,7 @@
         <h4 class="subsection-title">Evidence Files</h4>
         <div class="evidence-list">
           <div v-for="file in section.evidenceFiles" :key="file.fileId" class="evidence-item">
-            <svg class="evidence-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FileText class="evidence-icon" />
             <span class="evidence-name">{{ file.fileName }}</span>
           </div>
         </div>
@@ -280,19 +268,14 @@
         <div class="modal-header">
           <h2 class="modal-title">Review & Confirm Income</h2>
           <button class="modal-close" @click="closeConfirmModal">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X />
           </button>
         </div>
 
         <div class="modal-body">
           <!-- Student Info Banner -->
           <div v-if="isStudent && !isGuarantor" class="student-modal-banner">
-            <svg class="banner-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-            </svg>
+            <GraduationCap class="banner-icon" />
             <div class="banner-content">
               <strong>Student Applicant</strong>
               <p>Students typically have little or no income. You can confirm £0 income - a guarantor will be required to pass affordability.</p>
@@ -539,6 +522,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { CheckCircle, GraduationCap, AlertTriangle, FileText, X } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 import EvidencePreview from '../shared/EvidencePreview.vue'

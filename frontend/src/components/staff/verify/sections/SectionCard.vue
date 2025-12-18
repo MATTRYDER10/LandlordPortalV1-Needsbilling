@@ -3,9 +3,7 @@
     <div class="section-header" @click="toggleCollapse">
       <div class="section-header-left">
         <button class="collapse-btn" :aria-label="isCollapsed ? 'Expand' : 'Collapse'">
-          <svg :class="['collapse-icon', { collapsed: isCollapsed }]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
+          <ChevronDown :class="['collapse-icon', { collapsed: isCollapsed }]" />
         </button>
         <span class="section-order">{{ sectionOrder }}</span>
         <h3 class="section-title">{{ title }}</h3>
@@ -199,6 +197,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { ChevronDown } from 'lucide-vue-next'
 import type { SectionDecision, ActionReasonCode } from '@/types/staff'
 import SectionStatusPill from '../../shared/SectionStatusPill.vue'
 

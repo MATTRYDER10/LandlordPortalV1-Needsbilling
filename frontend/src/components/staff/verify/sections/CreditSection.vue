@@ -25,10 +25,7 @@
       <!-- Self-Disclosed Adverse Credit -->
       <div v-if="adverseCreditDetails" class="adverse-credit-section">
         <div class="adverse-credit-header">
-          <svg class="warning-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+          <AlertTriangle class="warning-icon" />
           <h4 class="adverse-credit-title">Self-Disclosed Credit Issues</h4>
         </div>
         <div class="adverse-credit-card">
@@ -45,9 +42,7 @@
 
       <!-- No Adverse Credit Disclosed -->
       <div v-else class="no-adverse-credit">
-        <svg class="check-icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-        </svg>
+        <CheckCircle class="check-icon" />
         <span>No adverse credit history disclosed by applicant</span>
       </div>
 
@@ -134,12 +129,8 @@
         <h4 class="subsection-title">Credit Flags</h4>
         <div class="flags-list">
           <div v-for="flag in creditFlags" :key="flag.type" :class="['flag-item', flag.severity]">
-            <svg v-if="flag.severity === 'high'" class="flag-icon" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
-            <svg v-else class="flag-icon" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
+            <AlertCircle v-if="flag.severity === 'high'" class="flag-icon" />
+            <AlertTriangle v-else class="flag-icon" />
             <div class="flag-content">
               <span class="flag-type">{{ flag.type }}</span>
               <span v-if="flag.description" class="flag-description">{{ flag.description }}</span>
@@ -152,12 +143,8 @@
       <div v-if="addressMatchStatus" class="match-section">
         <h4 class="subsection-title">Address Verification</h4>
         <div :class="['match-status', addressMatchStatus]">
-          <svg v-if="addressMatchStatus === 'matched'" class="match-icon" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-          </svg>
-          <svg v-else class="match-icon" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-          </svg>
+          <Check v-if="addressMatchStatus === 'matched'" class="match-icon" />
+          <AlertTriangle v-else class="match-icon" />
           <span>{{ addressMatchStatus === 'matched' ? 'Address history matches credit file' : 'Address history does not match' }}</span>
         </div>
       </div>
@@ -167,9 +154,7 @@
         <h4 class="subsection-title">Evidence Files</h4>
         <div class="evidence-list">
           <div v-for="file in section.evidenceFiles" :key="file.fileId" class="evidence-item">
-            <svg class="evidence-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FileText class="evidence-icon" />
             <span class="evidence-name">{{ file.fileName }}</span>
           </div>
         </div>
@@ -179,6 +164,7 @@
 </template>
 
 <script setup lang="ts">
+import { AlertTriangle, CheckCircle, AlertCircle, Check, FileText } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 

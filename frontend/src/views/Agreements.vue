@@ -21,9 +21,7 @@
                       : 'bg-gray-200 text-gray-600'
                   "
                 >
-                  <svg v-if="currentStep > index" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
+                  <Check v-if="currentStep > index" class="w-6 h-6" />
                   <span v-else>{{ index + 1 }}</span>
                 </div>
                 <span class="text-xs mt-2 text-center font-medium" :class="currentStep === index ? 'text-primary' : 'text-gray-600'">{{ step }}</span>
@@ -37,9 +35,7 @@
       <!-- Imported From Reference Banner -->
       <div v-if="importedFromReference && selectedReferenceId" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
         <div class="flex items-center">
-          <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+          <FileText class="w-5 h-5 text-blue-600 mr-2" />
           <span class="text-sm font-medium text-blue-900">Imported from Reference #{{ selectedReferenceId }}</span>
         </div>
         <button
@@ -54,9 +50,7 @@
       <!-- Imported From Landlord Banner -->
       <div v-if="importedFromLandlord && selectedLandlordId" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center justify-between">
         <div class="flex items-center">
-          <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
+          <Users class="w-5 h-5 text-green-600 mr-2" />
           <span class="text-sm font-medium text-green-900">Imported landlord details and bank information</span>
         </div>
         <button
@@ -143,9 +137,7 @@
 
             <!-- No References -->
             <div v-else-if="!loadingReferences && filteredReferences.length === 0" class="text-center py-12">
-              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <FileText class="mx-auto h-12 w-12 text-gray-400" />
               <p class="mt-2 text-gray-600">{{ referenceSearchQuery ? 'No references match your search' : 'No completed references found. Click "Skip" to enter manually.' }}</p>
             </div>
 
@@ -232,9 +224,7 @@
 
             <!-- No Landlords -->
             <div v-else-if="!loadingLandlordsImport && filteredLandlordsForImport.length === 0" class="text-center py-12">
-              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+              <Users class="mx-auto h-12 w-12 text-gray-400" />
               <p class="mt-2 text-gray-600">{{ landlordImportSearchQuery ? 'No landlords match your search' : 'No landlords found. Click "Skip" to enter manually.' }}</p>
             </div>
 
@@ -1157,9 +1147,7 @@
               @click="showLandlordSelector = false"
               class="text-gray-400 hover:text-gray-500"
             >
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X class="w-6 h-6" />
             </button>
           </div>
 
@@ -1223,6 +1211,7 @@ import AgreementPaymentModal from '../components/AgreementPaymentModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { isValidEmail } from '../utils/validation'
+import { Check, FileText, Users, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const authStore = useAuthStore()

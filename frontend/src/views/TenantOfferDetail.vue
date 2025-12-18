@@ -15,9 +15,7 @@
           <div>
             <button @click="$router.push('/tenant-offers')"
               class="text-gray-600 hover:text-gray-900 mb-4 flex items-center">
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
+              <ArrowLeft class="w-5 h-5 mr-2" />
               Back to Tenant Offers
             </button>
             <h2 class="text-3xl font-bold text-gray-900">{{ offer.property_address }}</h2>
@@ -27,10 +25,7 @@
             <span class="px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-2"
               :class="statusBadgeClass">
               <span>{{ statusDisplay }}</span>
-              <svg v-if="showStatusTick" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor"
-                viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+              <Check v-if="showStatusTick" class="w-4 h-4 text-green-600" />
             </span>
             <span v-if="offer.deposit_replacement_requested"
               class="px-3 py-1 text-sm font-semibold rounded-full bg-emerald-100 text-emerald-800 whitespace-nowrap">
@@ -107,14 +102,10 @@
                 </div>
                 <div v-if="!editingNoteId && note.created_by === authStore.user?.id" class="ml-2 flex gap-1">
                   <button @click="startEditNote(note)" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
+                    <Pencil class="w-4 h-4" />
                   </button>
                   <button @click="deleteNote(note.id)" class="text-gray-400 hover:text-red-600">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                    <Trash2 class="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -549,9 +540,7 @@
           <template v-else-if="holdingDepositStep === 'success'">
             <div class="text-center">
               <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
+                <CheckCircle class="h-6 w-6 text-green-600" />
               </div>
               <h3 class="text-lg font-bold text-gray-900 mb-2">Success!</h3>
               <p class="text-sm text-gray-600 mb-4">
@@ -573,6 +562,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { ArrowLeft, Check, Pencil, Trash2, CheckCircle } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import { formatDateTime } from '../utils/date'
 

@@ -84,9 +84,7 @@
               <p v-if="match.source" class="match-source">Source: {{ match.source }}</p>
             </div>
             <div v-if="match.reviewedBy" class="match-reviewed">
-              <svg class="reviewed-icon" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-              </svg>
+              <Check class="reviewed-icon" />
               Reviewed by {{ match.reviewedBy }}
             </div>
           </div>
@@ -112,9 +110,7 @@
         <h4 class="subsection-title">Evidence Files</h4>
         <div class="evidence-list">
           <div v-for="file in section.evidenceFiles" :key="file.fileId" class="evidence-item">
-            <svg class="evidence-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FileText class="evidence-icon" />
             <span class="evidence-name">{{ file.fileName }}</span>
           </div>
         </div>
@@ -124,6 +120,7 @@
 </template>
 
 <script setup lang="ts">
+import { Check, FileText } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 

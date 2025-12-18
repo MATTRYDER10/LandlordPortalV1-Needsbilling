@@ -3,11 +3,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <div class="warning-icon">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-            </path>
-          </svg>
+          <AlertTriangle />
         </div>
         <h2>Insufficient Credits</h2>
         <button @click="$emit('close')" class="close-button">&times;</button>
@@ -21,11 +17,7 @@
         <div class="options-container">
           <div class="option-card" @click="showCreditPacks = true">
             <div class="option-icon">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
-                </path>
-              </svg>
+              <Banknote />
             </div>
             <h3>Buy Credit Pack</h3>
             <p>One-time purchase</p>
@@ -34,17 +26,13 @@
           </div>
 
           <div class="option-card featured" @click="showSubscription = true">
-            <div class="featured-badge">⭐ Best Value</div>
+            <div class="featured-badge">Best Value</div>
             <div class="option-icon">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z">
-                </path>
-              </svg>
+              <BadgeCheck />
             </div>
             <h3>Subscribe & Save</h3>
             <p>Monthly subscription</p>
-            <span class="starting-from">From £350/month • Save up to 50%</span>
+            <span class="starting-from">From £350/month - Save up to 50%</span>
             <button class="btn-primary">Subscribe Now</button>
           </div>
         </div>
@@ -79,6 +67,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { AlertTriangle, Banknote, BadgeCheck } from 'lucide-vue-next'
 import { useBillingStore } from '../stores/billing'
 import CreditPacksModal from './CreditPacksModal.vue'
 import SubscriptionModal from './SubscriptionModal.vue'

@@ -14,9 +14,7 @@
 
     <!-- Empty State -->
     <div v-else-if="items.length === 0" class="empty-state">
-      <svg class="mx-auto h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
+      <CheckCircle class="mx-auto h-12 w-12 text-green-400" />
       <p class="mt-2">All caught up! No references waiting for verification.</p>
     </div>
 
@@ -110,6 +108,7 @@
 
 <script setup lang="ts">
 import type { VerifyQueueItem } from '@/types/staff'
+import { CheckCircle } from 'lucide-vue-next'
 import UrgencyIndicator from '../shared/UrgencyIndicator.vue'
 
 const props = defineProps<{

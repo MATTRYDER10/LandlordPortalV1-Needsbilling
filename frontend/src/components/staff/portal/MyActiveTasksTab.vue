@@ -14,9 +14,7 @@
 
     <!-- Empty State -->
     <div v-else-if="items.length === 0" class="empty-state">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
+      <ClipboardList class="mx-auto h-12 w-12 text-gray-400" />
       <p class="mt-2">No active tasks. Pick up items from the Verify or Chase queues to get started.</p>
     </div>
 
@@ -101,6 +99,7 @@
 <script setup lang="ts">
 import type { ActiveTask } from '@/types/staff'
 import { getDependencyTypeLabel } from '@/types/staff'
+import { ClipboardList } from 'lucide-vue-next'
 import UrgencyIndicator from '../shared/UrgencyIndicator.vue'
 
 defineProps<{

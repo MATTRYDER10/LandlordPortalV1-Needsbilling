@@ -11,9 +11,7 @@
 
       <!-- PDF Preview -->
       <div v-else-if="isPdf" class="preview-pdf">
-        <svg class="pdf-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
+        <FileText class="pdf-icon" />
         <span class="file-type">PDF</span>
       </div>
 
@@ -28,9 +26,7 @@
 
       <!-- Generic File -->
       <div v-else class="preview-generic">
-        <svg class="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
+        <FileText class="file-icon" />
         <span class="file-type">{{ fileExtension.toUpperCase() }}</span>
       </div>
     </div>
@@ -42,15 +38,10 @@
 
     <div class="preview-actions">
       <button class="action-btn view" @click.stop="openFullView" title="View">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
+        <Eye />
       </button>
       <a :href="previewUrl" target="_blank" class="action-btn download" @click.stop title="Download">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
+        <Download />
       </a>
     </div>
   </div>
@@ -63,15 +54,11 @@
           <h3 class="full-view-title">{{ fileName }}</h3>
           <div class="full-view-actions">
             <a :href="previewUrl" target="_blank" class="full-view-btn">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
+              <ExternalLink />
               Open in new tab
             </a>
             <button class="full-view-close" @click="closeFullView">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X />
             </button>
           </div>
         </div>
@@ -89,9 +76,7 @@
             class="full-view-image"
           />
           <div v-else class="full-view-unsupported">
-            <svg class="unsupported-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FileText class="unsupported-icon" />
             <p>Preview not available</p>
             <a :href="previewUrl" target="_blank" class="download-link">Download file</a>
           </div>
@@ -103,6 +88,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { FileText, Eye, Download, ExternalLink, X } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'

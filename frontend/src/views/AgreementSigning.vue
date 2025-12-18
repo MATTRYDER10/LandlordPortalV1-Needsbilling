@@ -19,18 +19,14 @@
       <!-- Error State -->
       <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-lg">
         <div class="flex items-center">
-          <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+          <AlertTriangle class="h-5 w-5 mr-2" />
           {{ error }}
         </div>
       </div>
 
       <!-- Already Signed State -->
       <div v-else-if="signingData?.signature?.status === 'signed'" class="bg-white rounded-lg shadow p-8 text-center">
-        <svg class="mx-auto h-16 w-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <CheckCircle class="mx-auto h-16 w-16 text-green-500" />
         <h3 class="mt-4 text-xl font-semibold text-gray-900">Agreement Already Signed</h3>
         <p class="mt-2 text-gray-600">You have already signed this agreement on {{ formatDate(signingData.signature.signed_at) }}.</p>
         <p class="mt-4 text-sm text-gray-500">You will receive an email with the fully executed agreement once all parties have signed.</p>
@@ -38,9 +34,7 @@
 
       <!-- Declined State -->
       <div v-else-if="signingData?.signature?.status === 'declined'" class="bg-white rounded-lg shadow p-8 text-center">
-        <svg class="mx-auto h-16 w-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <XCircle class="mx-auto h-16 w-16 text-red-500" />
         <h3 class="mt-4 text-xl font-semibold text-gray-900">Signature Declined</h3>
         <p class="mt-2 text-gray-600">You have declined to sign this agreement.</p>
         <p class="mt-4 text-sm text-gray-500">If this was a mistake, please contact your letting agent.</p>
@@ -48,18 +42,14 @@
 
       <!-- Expired Token State -->
       <div v-else-if="signingData?.signature?.status === 'expired'" class="bg-white rounded-lg shadow p-8 text-center">
-        <svg class="mx-auto h-16 w-16 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <Clock class="mx-auto h-16 w-16 text-yellow-500" />
         <h3 class="mt-4 text-xl font-semibold text-gray-900">Link Expired</h3>
         <p class="mt-2 text-gray-600">This signing link has expired. Please contact your letting agent for a new link.</p>
       </div>
 
       <!-- Success State (just signed) -->
       <div v-else-if="justSigned" class="bg-white rounded-lg shadow p-8 text-center">
-        <svg class="mx-auto h-16 w-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <CheckCircle class="mx-auto h-16 w-16 text-green-500" />
         <h3 class="mt-4 text-xl font-semibold text-gray-900">Thank You!</h3>
         <p class="mt-2 text-gray-600">Your signature has been recorded successfully.</p>
         <div class="mt-6 p-4 bg-blue-50 rounded-lg">
@@ -119,9 +109,7 @@
               @click="downloadPdf"
               class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
             >
-              <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+              <Download class="w-4 h-4 mr-1.5" />
               Download PDF
             </button>
           </div>
@@ -151,12 +139,8 @@
                   'w-8 h-8 rounded-full flex items-center justify-center mr-3',
                   signer.status === 'signed' ? 'bg-green-100' : 'bg-gray-200'
                 ]">
-                  <svg v-if="signer.status === 'signed'" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <svg v-else class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <Check v-if="signer.status === 'signed'" class="w-4 h-4 text-green-600" />
+                  <Clock v-else class="w-4 h-4 text-gray-400" />
                 </div>
                 <div>
                   <span class="text-sm font-medium text-gray-900">{{ signer.signer_name }}</span>
@@ -205,10 +189,7 @@
               :class="canSign && !submitting ? 'bg-primary hover:bg-primary-dark' : 'bg-gray-400'"
             >
               <span v-if="submitting" class="flex items-center justify-center">
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <Loader2 class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
                 Signing...
               </span>
               <span v-else>Sign Agreement</span>
@@ -266,6 +247,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
+import { AlertTriangle, CheckCircle, XCircle, Clock, Download, Check, Loader2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const token = route.params.token as string

@@ -22,15 +22,10 @@
           <span class="text-sm text-gray-500">
             {{ formatDate(tenancy.moveInDate) }}
           </span>
-          <svg
+          <ChevronDown
             class="w-5 h-5 text-gray-400 transition-transform duration-200"
             :class="{ 'rotate-180': isExpanded }"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
+          />
         </div>
       </div>
 
@@ -79,10 +74,7 @@
           class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"
         >
           <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <AlertTriangle class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div class="flex-1">
               <h4 class="text-sm font-medium text-red-800">Action Required</h4>
               <p class="mt-1 text-sm text-red-700">
@@ -124,6 +116,7 @@ import type { Tenancy, TenancyPerson } from '@/composables/useTenancies'
 import StatusPill from './StatusPill.vue'
 import ProgressChips from './ProgressChips.vue'
 import PersonCard from './PersonCard.vue'
+import { ChevronDown, AlertTriangle } from 'lucide-vue-next'
 
 const props = defineProps<{
   tenancy: Tenancy
