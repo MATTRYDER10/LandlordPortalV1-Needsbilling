@@ -3,10 +3,7 @@
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
         <div class="flex items-center justify-center mb-4">
-          <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="w-10 h-10 mr-3" />
-          <h1 class="text-4xl font-bold">
-            <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-          </h1>
+          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-10" />
         </div>
         <div class="mt-6">
           <span class="inline-block px-4 py-2 bg-primary/10 text-primary text-sm font-semibold rounded-full mb-3">

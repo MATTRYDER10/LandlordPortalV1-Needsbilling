@@ -191,6 +191,7 @@ import { ref, onMounted } from 'vue'
 import { loadStripe } from '@stripe/stripe-js'
 import axios from 'axios'
 import { useAuthStore } from '../../stores/auth'
+import { colors } from '../../config/colors'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL
@@ -240,7 +241,7 @@ onMounted(async () => {
       appearance: {
         theme: 'stripe',
         variables: {
-          colorPrimary: '#f97316',
+          colorPrimary: colors.primary,
         },
       },
     })

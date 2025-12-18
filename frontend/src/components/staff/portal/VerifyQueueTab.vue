@@ -163,7 +163,7 @@ const formatStatus = (status: string) => {
   width: 40px;
   height: 40px;
   border: 4px solid #e5e7eb;
-  border-top-color: #f97316;
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 1rem;
@@ -341,7 +341,7 @@ td {
 }
 
 .btn-primary {
-  background: #f97316;
+  background: var(--color-primary);
   color: white;
 }
 

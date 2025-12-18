@@ -8,11 +8,7 @@
                         <img :src="companyLogo" alt="Company Logo" class="h-20 object-contain" />
                     </template>
                     <template v-else>
-                        <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
-                        <span class="text-2xl font-bold">
-                            <span class="text-gray-900">Property</span><span
-                                :style="{ color: primaryColor }">Goose</span>
-                        </span>
+                        <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12" />
                     </template>
                 </div>
                 <h1 class="text-3xl font-bold" :style="{ color: primaryColor }">Tenant Offer Form</h1>
@@ -321,6 +317,7 @@ import SignaturePad from '../components/SignaturePad.vue'
 import PhoneInput from '../components/PhoneInput.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import { isValidEmail } from '../utils/validation'
+import { defaultBranding } from '../config/colors'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -334,8 +331,8 @@ const brandingLoaded = ref(false)
 
 // Company branding
 const companyLogo = ref('')
-const primaryColor = ref('#FF8C41')
-const buttonColor = ref('#FF8C41')
+const primaryColor = ref(defaultBranding.primaryColor)
+const buttonColor = ref(defaultBranding.buttonColor)
 
 const formData = ref({
     property_address: '',
@@ -610,8 +607,8 @@ onMounted(async () => {
             const data = await response.json()
             if (data.branding) {
                 companyLogo.value = data.branding.logo_url || ''
-                primaryColor.value = data.branding.primary_color || '#FF8C41'
-                buttonColor.value = data.branding.button_color || '#FF8C41'
+                primaryColor.value = data.branding.primary_color || defaultBranding.primaryColor
+                buttonColor.value = data.branding.button_color || defaultBranding.buttonColor
             }
         }
     } catch (err) {

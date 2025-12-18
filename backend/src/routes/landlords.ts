@@ -7,6 +7,7 @@ import * as billingService from '../services/billingService'
 import multer from 'multer'
 import { sendLandlordVerificationRequest } from '../services/emailService'
 import { sanctionsService } from '../services/sanctionsService'
+import { DEFAULT_BRANDING } from '../config/colors'
 
 const router = Router()
 
@@ -984,8 +985,8 @@ router.get('/:id/verification/:token', async (req, res) => {
           postcode: company.postcode_encrypted ? decrypt(company.postcode_encrypted) : '',
           website: company.website_encrypted ? decrypt(company.website_encrypted) : '',
           logo_url: company.logo_url || '',
-          primary_color: company.primary_color || '#f97316',
-          button_color: company.button_color || '#f97316'
+          primary_color: company.primary_color || DEFAULT_BRANDING.primaryColor,
+          button_color: company.button_color || DEFAULT_BRANDING.buttonColor
         }
       }
     }

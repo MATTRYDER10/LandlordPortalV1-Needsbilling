@@ -124,6 +124,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import type { PropType } from 'vue'
 import QRCode from 'qrcode'
+import { defaultBranding } from '../config/colors'
 
 type Detail = {
     label: string
@@ -177,7 +178,7 @@ const props = defineProps({
     },
     buttonColor: {
         type: String,
-        default: '#FF8C41'
+        default: defaultBranding.buttonColor
     },
     proceedLabel: {
         type: String,

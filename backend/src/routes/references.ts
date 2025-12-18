@@ -23,6 +23,7 @@ import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
 import { isReadyForVerification } from '../services/verificationReadinessService'
 import { markDependencyReceivedByType } from '../services/chaseDependencyService'
+import { DEFAULT_BRANDING } from '../config/colors'
 
 const router = Router()
 
@@ -3149,8 +3150,8 @@ router.get('/view/:token', async (req, res) => {
     const company = Array.isArray(reference.companies) ? reference.companies[0] : reference.companies
     const companyDetails = company ? {
       logo_url: company.logo_url || '',
-      primary_color: company.primary_color || '#FF8C41',
-      button_color: company.button_color || '#FF8C41',
+      primary_color: company.primary_color || DEFAULT_BRANDING.primaryColor,
+      button_color: company.button_color || DEFAULT_BRANDING.buttonColor,
       name: company?.name_encrypted ? decrypt(company.name_encrypted) : '',
       phone: company?.phone_encrypted ? decrypt(company.phone_encrypted) : '',
       email: company?.email_encrypted ? decrypt(company.email_encrypted) : '',

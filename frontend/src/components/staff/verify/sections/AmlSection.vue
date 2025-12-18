@@ -385,7 +385,7 @@ const getScoreClass = (score: number) => {
 }
 
 .match-item.medium {
-  border-left-color: #f97316;
+  border-left-color: var(--color-primary);
 }
 
 .match-item.high {
@@ -484,7 +484,7 @@ const getScoreClass = (score: number) => {
 }
 
 .risk-card.high {
-  border-left-color: #f97316;
+  border-left-color: var(--color-primary);
 }
 
 .risk-card.very_high {

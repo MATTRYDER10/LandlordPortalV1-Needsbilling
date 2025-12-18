@@ -269,7 +269,7 @@ onMounted(() => {
 
 .note-input:focus {
   outline: none;
-  border-color: #f97316;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 
@@ -279,7 +279,7 @@ onMounted(() => {
 }
 
 .btn-primary {
-  background-color: #f97316;
+  background-color: var(--color-primary);
   color: white;
   padding: 8px 16px;
   border: none;
@@ -318,7 +318,7 @@ onMounted(() => {
 .btn-link {
   background: none;
   border: none;
-  color: #f97316;
+  color: var(--color-primary);
   font-size: 13px;
   cursor: pointer;
   padding: 4px 8px;

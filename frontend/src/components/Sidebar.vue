@@ -11,10 +11,7 @@
         </svg>
       </button>
       <div class="flex items-center ml-3">
-        <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="w-7 h-7 mr-2" />
-        <h1 class="text-xl font-bold">
-          <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-        </h1>
+        <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-8" />
       </div>
     </div>
 
@@ -37,10 +34,7 @@
       <div class="flex flex-col h-full">
         <!-- Logo -->
         <div class="flex items-center justify-center h-16 px-4 border-b border-gray-200">
-          <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="w-8 h-8 mr-2" />
-          <h1 class="text-2xl font-bold">
-            <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-          </h1>
+          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-9" />
         </div>
 
         <!-- Navigation -->

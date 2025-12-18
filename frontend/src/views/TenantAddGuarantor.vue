@@ -4,10 +4,7 @@
       <!-- Header -->
       <div class="text-center mb-8">
         <div class="flex justify-center items-center gap-3 mb-4">
-          <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
-          <span class="text-2xl font-bold">
-            <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-          </span>
+          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12" />
         </div>
         <h1 class="text-3xl font-bold text-gray-900">Add Guarantor Details</h1>
         <p class="mt-2 text-gray-600">Provide your guarantor's contact information</p>
@@ -218,18 +215,18 @@ async function handleSubmit() {
 
 <style scoped>
 .bg-primary {
-  background-color: #f97316;
+  background-color: var(--color-primary);
 }
 .bg-primary-dark:hover {
   background-color: #ea580c;
 }
 .text-primary {
-  color: #f97316;
+  color: var(--color-primary);
 }
 .focus\:ring-primary:focus {
-  --tw-ring-color: #f97316;
+  --tw-ring-color: var(--color-primary);
 }
 .focus\:border-primary:focus {
-  border-color: #f97316;
+  border-color: var(--color-primary);
 }
 </style>

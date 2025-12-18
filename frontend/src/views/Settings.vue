@@ -363,7 +363,7 @@
                     v-model="brandingData.primary_color"
                     type="text"
                     class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    placeholder="#FF8C41"
+                    placeholder="#fe7a0f"
                   />
                 </div>
                 <p class="mt-1 text-xs text-gray-500">Used for headings and key UI elements</p>
@@ -383,7 +383,7 @@
                     v-model="brandingData.button_color"
                     type="text"
                     class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    placeholder="#FF8C41"
+                    placeholder="#fe7a0f"
                   />
                 </div>
                 <p class="mt-1 text-xs text-gray-500">Used for action buttons throughout forms</p>
@@ -831,6 +831,7 @@ import Billing from './Billing.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { isValidEmail } from '../utils/validation'
+import { defaultBranding } from '../config/colors'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -920,8 +921,8 @@ const formatWebsiteUrl = () => {
 // Branding data
 const brandingData = ref({
   logo_url: '',
-  primary_color: '#FF8C41',
-  button_color: '#FF8C41'
+  primary_color: defaultBranding.primaryColor,
+  button_color: defaultBranding.buttonColor
 })
 
 const brandingLoading = ref(false)
@@ -1096,8 +1097,8 @@ const fetchCompanyData = async () => {
 
         // Load branding data
         brandingData.value.logo_url = data.company.logo_url || ''
-        brandingData.value.primary_color = data.company.primary_color || '#FF8C41'
-        brandingData.value.button_color = data.company.button_color || '#FF8C41'
+        brandingData.value.primary_color = data.company.primary_color || defaultBranding.primaryColor
+        brandingData.value.button_color = data.company.button_color || defaultBranding.buttonColor
         logoPreview.value = data.company.logo_url || ''
       }
     }
@@ -1467,8 +1468,8 @@ const confirmResetBranding = async () => {
       },
       body: JSON.stringify({
         logo_url: null,
-        primary_color: '#f97316',
-        button_color: '#f97316'
+        primary_color: defaultBranding.primaryColor,
+        button_color: defaultBranding.buttonColor
       })
     })
 
@@ -1479,8 +1480,8 @@ const confirmResetBranding = async () => {
 
     // Update local state
     brandingData.value.logo_url = ''
-    brandingData.value.primary_color = '#f97316'
-    brandingData.value.button_color = '#f97316'
+    brandingData.value.primary_color = defaultBranding.primaryColor
+    brandingData.value.button_color = defaultBranding.buttonColor
     logoFile.value = null
     logoPreview.value = ''
 

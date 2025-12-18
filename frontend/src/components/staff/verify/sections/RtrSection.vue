@@ -285,7 +285,7 @@ const alternativeDocumentTypeLabel = computed(() => {
 }
 
 .verify-link {
-  color: #f97316;
+  color: var(--color-primary);
   font-size: 0.875rem;
   text-decoration: none;
 }

@@ -436,7 +436,7 @@ const handlePassWithGuarantor = () => {
 }
 
 .btn-action-required {
-  background: #f97316;
+  background: var(--color-primary);
   color: white;
 }
 
@@ -481,7 +481,7 @@ const handlePassWithGuarantor = () => {
 }
 
 .btn-primary {
-  background: #f97316;
+  background: var(--color-primary);
   color: white;
 }
 
@@ -608,7 +608,7 @@ const handlePassWithGuarantor = () => {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #f97316;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 

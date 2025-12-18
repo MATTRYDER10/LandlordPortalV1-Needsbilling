@@ -56,7 +56,7 @@ This directory contains branded HTML email templates for Supabase authentication
 All templates use consistent PropertyGoose branding:
 - **Logo:** PropertyGoose horizontal logo with icon and text (PNG format for email compatibility)
 - **Colors:**
-  - CTA buttons in orange (#f97316)
+  - CTA buttons in orange (#fe7a0f)
 - **Copyright:** © 2025 PropertyGoose
 
 ## Image URL

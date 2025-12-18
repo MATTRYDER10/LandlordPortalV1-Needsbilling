@@ -481,6 +481,7 @@ import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import AdminHeader from '../components/AdminHeader.vue'
 import { Chart, registerables } from 'chart.js'
+import { colors } from '../config/colors'
 
 Chart.register(...registerables)
 
@@ -718,8 +719,8 @@ const renderRevenueChart = () => {
         {
           label: 'Agreements',
           data: revenueData.value.trends.map((t: any) => t.agreements),
-          borderColor: '#f97316',
-          backgroundColor: 'rgba(249, 115, 22, 0.1)',
+          borderColor: colors.primary,
+          backgroundColor: 'rgba(254, 122, 15, 0.1)',
           tension: 0.4
         }
       ]

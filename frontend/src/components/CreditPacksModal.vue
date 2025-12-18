@@ -379,11 +379,11 @@ async function handlePayment() {
 }
 
 .credit-pack-card.recommended {
-  border-color: #f97316;
+  border-color: var(--color-primary);
 }
 
 .credit-pack-card.recommended.selected {
-  border-color: #f97316;
+  border-color: var(--color-primary);
   background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
 }
 
@@ -391,7 +391,7 @@ async function handlePayment() {
   position: absolute;
   top: 0;
   right: 0;
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #ea580c 100%);
   color: white;
   padding: 0.4rem 0.875rem;
   border-bottom-left-radius: 8px;

@@ -215,7 +215,7 @@
               @click="saveAutoRechargeSettings"
               :disabled="savingAutoRecharge"
               class="btn-primary"
-              style="padding: 0.75rem 1.5rem; background: #f97316; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;"
+              style="padding: 0.75rem 1.5rem; background: var(--color-primary); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;"
             >
               {{ savingAutoRecharge ? 'Saving...' : 'Save Settings' }}
             </button>
@@ -811,7 +811,7 @@ async function deletePaymentMethod(paymentMethodId: string) {
 
 /* Toggle Switch */
 .toggle-switch input:checked + .toggle-slider {
-  background-color: #f97316;
+  background-color: var(--color-primary);
 }
 
 .toggle-slider:before {

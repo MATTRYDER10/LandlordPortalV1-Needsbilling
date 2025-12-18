@@ -327,7 +327,7 @@ td {
 }
 
 .btn-primary {
-  background: #f97316;
+  background: var(--color-primary);
   color: white;
 }
 

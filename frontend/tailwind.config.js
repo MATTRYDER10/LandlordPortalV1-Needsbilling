@@ -1,3 +1,5 @@
+import { colors } from './src/config/colors.ts'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -7,9 +9,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#FF8C41',
-        secondary: '#F8F5F0',
-        background: '#FDFDFD',
+        primary: colors.primary,
+        dark: colors.dark,
+        secondary: colors.secondary,
+        background: colors.background,
+      },
+      fontFamily: {
+        sans: ['"Space Grotesk"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
       },
     },
   },

@@ -167,7 +167,7 @@ const formatStatus = (status: string) => {
   width: 40px;
   height: 40px;
   border: 4px solid #e5e7eb;
-  border-top-color: #f97316;
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 1rem;
@@ -219,7 +219,7 @@ const formatStatus = (status: string) => {
 .chase-tenant-name {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #f97316;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -331,7 +331,7 @@ const formatStatus = (status: string) => {
 }
 
 .chase-contact-email {
-  color: #f97316;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -387,7 +387,7 @@ const formatStatus = (status: string) => {
 }
 
 .btn-primary {
-  background: #f97316;
+  background: var(--color-primary);
   color: white;
 }
 

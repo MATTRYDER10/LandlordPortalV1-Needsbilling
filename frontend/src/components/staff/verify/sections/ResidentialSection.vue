@@ -863,7 +863,7 @@ const formatTimeAtAddress = (years?: number, months?: number) => {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  background: #f97316;
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 0.5rem;
@@ -1402,17 +1402,17 @@ const formatTimeAtAddress = (years?: number, months?: number) => {
 }
 
 .status-option:hover {
-  border-color: #f97316;
+  border-color: var(--color-primary);
 }
 
 .status-option.selected {
-  border-color: #f97316;
+  border-color: var(--color-primary);
   background: #fff7ed;
 }
 
 .status-option input {
   margin-top: 0.25rem;
-  accent-color: #f97316;
+  accent-color: var(--color-primary);
 }
 
 .option-content {
@@ -1457,7 +1457,7 @@ const formatTimeAtAddress = (years?: number, months?: number) => {
 
 .btn-primary {
   padding: 0.625rem 1.25rem;
-  background: #f97316;
+  background: var(--color-primary);
   border: none;
   border-radius: 0.375rem;
   font-size: 0.875rem;

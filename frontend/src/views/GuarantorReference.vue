@@ -8,10 +8,7 @@
             <img :src="companyLogo" alt="Company Logo" class="h-20 object-contain" />
           </template>
           <template v-else>
-            <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
-            <span class="text-2xl font-bold">
-              <span class="text-gray-900">Property</span><span :style="{ color: primaryColor }">Goose</span>
-            </span>
+            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12" />
           </template>
         </div>
         <h1 class="text-3xl font-bold text-gray-900">Guarantor Reference Form</h1>
@@ -1870,6 +1867,7 @@ import DatePicker from '../components/DatePicker.vue'
 import DeviceHandoffGate from '../components/DeviceHandoffGate.vue'
 import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
+import { defaultBranding } from '../config/colors'
 
 const route = useRoute()
 
@@ -1896,8 +1894,8 @@ const landlordEmailError = ref('')
 
 // Company branding
 const companyLogo = ref('')
-const primaryColor = ref('#FF8C41')
-const buttonColor = ref('#FF8C41')
+const primaryColor = ref(defaultBranding.primaryColor)
+const buttonColor = ref(defaultBranding.buttonColor)
 const { geolocation: userGeolocation } = useGeolocationCapture()
 const showDeviceGate = ref(true)
 const deviceLink = ref('')
@@ -2656,8 +2654,8 @@ const fetchReferenceByToken = async () => {
     // Extract company branding
     if (reference.value.companies) {
       companyLogo.value = reference.value.companies.logo_url || ''
-      primaryColor.value = reference.value.companies.primary_color || '#FF8C41'
-      buttonColor.value = reference.value.companies.button_color || '#FF8C41'
+      primaryColor.value = reference.value.companies.primary_color || defaultBranding.primaryColor
+      buttonColor.value = reference.value.companies.button_color || defaultBranding.buttonColor
     }
 
     // Don't pre-fill form - guarantor enters their own details

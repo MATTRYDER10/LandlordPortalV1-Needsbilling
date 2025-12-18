@@ -8,10 +8,7 @@
             <img :src="companyLogo" alt="Company Logo" class="h-14 object-contain" />
           </template>
           <template v-else>
-            <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="h-12 w-12" />
-            <span class="text-2xl font-bold">
-              <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-            </span>
+            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12" />
           </template>
         </div>
         <h1 class="text-3xl font-bold text-gray-900">Landlord Verification</h1>
@@ -232,6 +229,7 @@ import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import DeviceHandoffGate from '../components/DeviceHandoffGate.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
+import { defaultBranding } from '../config/colors'
 
 const route = useRoute()
 const toast = useToast()
@@ -246,8 +244,8 @@ const submitting = ref(false)
 const landlord = ref<any>(null)
 const idDocument = ref<File | null>(null)
 const selfie = ref<File | null>(null)
-const buttonColor = ref('#f97316')
-const primaryColor = ref('#f97316')
+const buttonColor = ref(defaultBranding.buttonColor)
+const primaryColor = ref(defaultBranding.primaryColor)
 const companyLogo = ref('')
 const companyDetails = ref<any>(null)
 const showDeviceGate = ref(true)

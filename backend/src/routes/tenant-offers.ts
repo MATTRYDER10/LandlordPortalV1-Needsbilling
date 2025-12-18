@@ -8,6 +8,7 @@ import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
 import * as billingService from '../services/billingService'
 import { auditReferenceAction } from '../services/auditLog'
 import { logOfferAuditAction } from '../services/offerAuditService'
+import { BRAND_COLORS } from '../config/colors'
 
 const router = Router()
 
@@ -571,7 +572,7 @@ router.post('/submit', async (req, res) => {
                 <li><strong>Proposed Move-in Date:</strong> ${proposed_move_in_date}</li>
                 <li><strong>Tenancy Length:</strong> ${proposed_tenancy_length_months} months</li>
               </ul>
-              <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offers/${offer.id}" style="background-color: #FF8C41; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Offer</a></p>
+              <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offers/${offer.id}" style="background-color: ${BRAND_COLORS.primary}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Offer</a></p>
             </body>
           </html>
         `

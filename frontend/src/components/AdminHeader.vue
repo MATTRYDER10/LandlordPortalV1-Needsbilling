@@ -5,15 +5,10 @@
       <div class="flex justify-between items-center py-6">
         <!-- Logo and Branding -->
         <div class="flex items-center">
-          <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="w-8 h-8 mr-3" />
-          <div>
-            <h1 class="text-2xl font-bold">
-              <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-            </h1>
-            <span class="inline-block px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">
-              Admin Portal
-            </span>
-          </div>
+          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-8 mr-3" />
+          <span class="inline-block px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">
+            Admin Portal
+          </span>
         </div>
 
         <!-- User Info and Sign Out - Desktop -->

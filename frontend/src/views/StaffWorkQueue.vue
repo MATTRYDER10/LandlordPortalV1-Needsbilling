@@ -830,7 +830,7 @@ onUnmounted(() => {
 }
 
 .stat-card.chase {
-  border-color: #f97316;
+  border-color: var(--color-primary);
 }
 
 .stat-card.verify {
@@ -916,8 +916,8 @@ onUnmounted(() => {
 }
 
 .tab.active {
-  color: #f97316;
-  border-bottom-color: #f97316;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 .tab-help {
@@ -934,7 +934,7 @@ onUnmounted(() => {
   width: 40px;
   height: 40px;
   border: 4px solid #e5e7eb;
-  border-top-color: #f97316;
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 1rem;
@@ -1157,7 +1157,7 @@ td {
 }
 
 .btn-primary {
-  background: #f97316;
+  background: var(--color-primary);
   color: white;
 }
 
@@ -1225,7 +1225,7 @@ td {
 .chase-tenant-name {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #f97316;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -1350,7 +1350,7 @@ td {
 }
 
 .chase-contact-email {
-  color: #f97316;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -1507,7 +1507,7 @@ td {
 
 .form-input:focus {
   outline: none;
-  border-color: #f97316;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 

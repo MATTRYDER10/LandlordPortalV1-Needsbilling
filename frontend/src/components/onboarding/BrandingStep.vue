@@ -80,7 +80,7 @@
           <input
             v-model="formData.primaryColor"
             type="text"
-            placeholder="#FF8C41"
+            placeholder="#fe7a0f"
             class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             :class="{ 'border-red-500': errors.primaryColor }"
           />
@@ -104,7 +104,7 @@
           <input
             v-model="formData.buttonColor"
             type="text"
-            placeholder="#FF8C41"
+            placeholder="#fe7a0f"
             class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             :class="{ 'border-red-500': errors.buttonColor }"
           />
@@ -183,6 +183,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/auth'
+import { defaultBranding } from '../../config/colors'
 
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL
@@ -199,8 +200,8 @@ interface FormData {
 }
 
 const formData = ref<FormData>({
-  primaryColor: '#f97316',
-  buttonColor: '#f97316'
+  primaryColor: defaultBranding.primaryColor,
+  buttonColor: defaultBranding.buttonColor
 })
 
 const logoFile = ref<File | null>(null)
@@ -227,8 +228,8 @@ onMounted(async () => {
     if (response.ok) {
       const data = await response.json()
       formData.value = {
-        primaryColor: data.primaryColor || '#f97316',
-        buttonColor: data.buttonColor || '#f97316'
+        primaryColor: data.primaryColor || defaultBranding.primaryColor,
+        buttonColor: data.buttonColor || defaultBranding.buttonColor
       }
 
       if (data.logoUrl) {
@@ -287,12 +288,12 @@ const validateForm = (): boolean => {
   const hexRegex = /^#[0-9A-Fa-f]{6}$/
 
   if (!hexRegex.test(formData.value.primaryColor)) {
-    errors.value.primaryColor = 'Please enter a valid hex color (e.g., #FF8C41)'
+    errors.value.primaryColor = 'Please enter a valid hex color (e.g., #fe7a0f)'
     isValid = false
   }
 
   if (!hexRegex.test(formData.value.buttonColor)) {
-    errors.value.buttonColor = 'Please enter a valid hex color (e.g., #FF8C41)'
+    errors.value.buttonColor = 'Please enter a valid hex color (e.g., #fe7a0f)'
     isValid = false
   }
 

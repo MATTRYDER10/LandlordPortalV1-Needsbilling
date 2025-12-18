@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit'
 import fs from 'fs'
 import path from 'path'
+import { BRAND_COLORS } from '../config/colors'
 
 interface ConsentData {
   firstName: string
@@ -12,7 +13,7 @@ interface ConsentData {
 }
 
 export class PDFService {
-  private readonly BRAND_COLOR = '#FF8C41' // PropertyGoose orange
+  private readonly BRAND_COLOR = BRAND_COLORS.primary
   private readonly LOGO_PATH = path.join(__dirname, '../../assets/PropertyGooseIcon.png')
 
   /**

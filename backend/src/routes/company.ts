@@ -5,6 +5,7 @@ import multer from 'multer'
 import crypto from 'crypto'
 import { createAuditLog, formatUserName } from '../services/auditLog'
 import { encrypt, decrypt } from '../services/encryption'
+import { DEFAULT_BRANDING } from '../config/colors'
 
 const router = Router()
 
@@ -26,8 +27,8 @@ router.get('/branding/:companyId', async (req, res) => {
     res.json({
       branding: {
         logo_url: company.logo_url,
-        primary_color: company.primary_color || '#FF8C41',
-        button_color: company.button_color || '#FF8C41'
+        primary_color: company.primary_color || DEFAULT_BRANDING.primaryColor,
+        button_color: company.button_color || DEFAULT_BRANDING.buttonColor
       }
     })
   } catch (error: any) {

@@ -238,7 +238,7 @@ const closeFullView = () => {
 }
 
 .evidence-preview:hover {
-  border-color: #f97316;
+  border-color: var(--color-primary);
   box-shadow: 0 2px 8px rgba(249, 115, 22, 0.1);
 }
 
@@ -341,7 +341,7 @@ const closeFullView = () => {
 
 .action-btn:hover {
   background: #f3f4f6;
-  color: #f97316;
+  color: var(--color-primary);
 }
 
 .action-btn svg {
@@ -481,7 +481,7 @@ const closeFullView = () => {
 .download-link {
   margin-top: 1rem;
   padding: 0.5rem 1rem;
-  background: #f97316;
+  background: var(--color-primary);
   color: white;
   text-decoration: none;
   border-radius: 0.25rem;

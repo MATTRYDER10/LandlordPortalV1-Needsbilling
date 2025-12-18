@@ -7,11 +7,8 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex justify-between items-center py-4">
             <div class="flex items-center">
-              <img src="/PropertyGooseIcon.webp" alt="PropertyGoose" class="w-10 h-10 mr-3" />
-              <h1 class="text-2xl font-bold">
-                <span class="text-gray-900">Property</span><span class="text-primary">Goose</span>
-                <span class="ml-3 text-sm font-semibold px-3 py-1 bg-primary/10 text-primary rounded-full">Verify Case</span>
-              </h1>
+              <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-9 mr-3" />
+              <span class="text-sm font-semibold px-3 py-1 bg-primary/10 text-primary rounded-full">Verify Case</span>
             </div>
             <div class="flex items-center gap-4">
               <router-link

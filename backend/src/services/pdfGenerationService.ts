@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer'
 import { marked } from 'marked'
 import fs from 'fs'
 import path from 'path'
+import { BRAND_COLORS } from '../config/colors'
 
 export type TemplateType = 'dps' | 'mydeposits' | 'tds' | 'no_deposit' | 'reposit'
 export type Language = 'english' | 'welsh'
@@ -647,7 +648,7 @@ class PDFGenerationService {
 
     return `
       <div class="audit-certificate" style="page-break-before: always; padding: 40px;">
-        <h1 style="text-align: center; color: #f97316; margin-bottom: 30px;">Certificate of Completion</h1>
+        <h1 style="text-align: center; color: ${BRAND_COLORS.primary}; margin-bottom: 30px;">Certificate of Completion</h1>
 
         <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
           <h2 style="margin-top: 0;">Document Details</h2>
@@ -704,6 +705,9 @@ class PDFGenerationService {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tenancy Agreement</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     @page {
       size: A4;
@@ -715,7 +719,7 @@ class PDFGenerationService {
     }
 
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Space Grotesk', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       font-size: ${fontSize};
       line-height: 1.6;
       color: #1f2937;
@@ -819,7 +823,7 @@ class PDFGenerationService {
       text-align: center;
       margin-bottom: 30pt;
       padding-bottom: 15pt;
-      border-bottom: 2px solid #f97316;
+      border-bottom: 2px solid ${BRAND_COLORS.primary};
     }
 
     .document-header img {

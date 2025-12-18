@@ -2,9 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Custom Properties - sourced from src/config/colors.ts via Tailwind */
+:root {
+  --color-primary: theme('colors.primary');
+  --color-dark: theme('colors.dark');
+  --color-secondary: theme('colors.secondary');
+  --color-background: theme('colors.background');
+}
+
+/* Apply Space Grotesk globally */
+body {
+  font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
 /* Toast Customization */
 .Vue-Toastification__toast--success {
-  background-color: #FF8C41 !important;
+  background-color: var(--color-primary) !important;
 }
 
 .Vue-Toastification__toast--success .Vue-Toastification__progress-bar {

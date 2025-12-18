@@ -356,7 +356,7 @@ const formatCurrency = (amount?: number) => {
 }
 
 .meter-fill.poor {
-  background: #f97316;
+  background: var(--color-primary);
 }
 
 .meter-fill.very-poor {
@@ -452,7 +452,7 @@ const formatCurrency = (amount?: number) => {
 }
 
 .flag-item.medium {
-  border-left-color: #f97316;
+  border-left-color: var(--color-primary);
 }
 
 .flag-item.high {
@@ -470,7 +470,7 @@ const formatCurrency = (amount?: number) => {
 }
 
 .flag-item.medium .flag-icon {
-  color: #f97316;
+  color: var(--color-primary);
 }
 
 .flag-item.high .flag-icon {

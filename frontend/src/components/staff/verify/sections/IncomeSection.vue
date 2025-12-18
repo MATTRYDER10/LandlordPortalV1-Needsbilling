@@ -1056,7 +1056,7 @@ const formatHomeOwnership = (status: string) => {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  background: #f97316;
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 0.5rem;
@@ -1521,7 +1521,7 @@ const formatHomeOwnership = (status: string) => {
 .use-calculated {
   background: none;
   border: none;
-  color: #f97316;
+  color: var(--color-primary);
   font-size: 0.75rem;
   cursor: pointer;
   text-decoration: underline;
@@ -1553,7 +1553,7 @@ const formatHomeOwnership = (status: string) => {
 
 .btn-primary {
   padding: 0.625rem 1.25rem;
-  background: #f97316;
+  background: var(--color-primary);
   border: none;
   border-radius: 0.375rem;
   font-size: 0.875rem;
