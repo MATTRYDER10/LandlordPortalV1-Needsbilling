@@ -18,10 +18,19 @@
             {{ tenancy.propertyCity }}{{ tenancy.propertyPostcode ? `, ${tenancy.propertyPostcode}` : '' }}
           </p>
         </div>
-        <div class="ml-4 flex-shrink-0 text-right">
+        <div class="ml-4 flex-shrink-0 flex items-center gap-2">
           <span class="text-sm text-gray-500">
             {{ formatDate(tenancy.moveInDate) }}
           </span>
+          <svg
+            class="w-5 h-5 text-gray-400 transition-transform duration-200"
+            :class="{ 'rotate-180': isExpanded }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </div>
 
@@ -52,18 +61,6 @@
         <ProgressChips :failures="tenancy.progressSummary.checkFailures" />
       </div>
 
-      <!-- Expand indicator -->
-      <div class="absolute right-6 top-1/2 -translate-y-1/2">
-        <svg
-          class="w-5 h-5 text-gray-400 transition-transform duration-200"
-          :class="{ 'rotate-180': isExpanded }"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
     </div>
 
     <!-- Expanded View -->
