@@ -32,6 +32,14 @@ export const useAuthStore = defineStore('auth', () => {
         if (data.company && data.role) {
           company.value = { name: data.company.name, role: data.role }
         }
+      } else if (response.status === 403) {
+        // Check if token is invalid (not just permission denied)
+        const data = await response.json().catch(() => ({}))
+        if (data.error === 'Invalid token') {
+          console.log('Invalid token detected, forcing logout...')
+          await signOut()
+          window.location.href = '/login'
+        }
       } else if (response.status === 404) {
         // User is not associated with any company (likely removed from team)
         // Log them out automatically
@@ -219,19 +227,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Sign out
+  // Sign out - always clears local state even if Supabase signOut fails
   const signOut = async () => {
     loading.value = true
     error.value = null
     try {
-      const { error: signOutError } = await supabase.auth.signOut()
-      if (signOutError) throw signOutError
-
+      await supabase.auth.signOut()
+    } catch (err: any) {
+      // Log but don't block - we still want to clear local state
+      console.error('Supabase signOut error:', err.message)
+    } finally {
+      // ALWAYS clear local state, even if Supabase fails
       user.value = null
       session.value = null
-    } catch (err: any) {
-      error.value = err.message
-    } finally {
+      company.value = null
+      onboardingCompleted.value = true
+      isStaff.value = false
+      isAdmin.value = false
       loading.value = false
     }
   }
