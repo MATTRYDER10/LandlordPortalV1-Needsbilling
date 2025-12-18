@@ -5668,6 +5668,81 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
 })
 
 /**
+ * PATCH /:id/tenant-name
+ * Update tenant's first and last name
+ */
+router.patch('/:id/tenant-name', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+    const { first_name, last_name } = req.body
+
+    if (!first_name || !last_name) {
+      return res.status(400).json({ error: 'First name and last name are required' })
+    }
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyId = companyUsers[0].company_id
+
+    // Verify reference belongs to company
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get old values for audit log
+    const oldFirstName = decrypt(reference.tenant_first_name_encrypted) || ''
+    const oldLastName = decrypt(reference.tenant_last_name_encrypted) || ''
+
+    // Update with encrypted values
+    const { error: updateError } = await supabase
+      .from('tenant_references')
+      .update({
+        tenant_first_name_encrypted: encrypt(first_name),
+        tenant_last_name_encrypted: encrypt(last_name)
+      })
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message })
+    }
+
+    // Audit log
+    await auditReferenceAction(
+      companyId,
+      userId!,
+      referenceId,
+      'reference.updated',
+      `Updated tenant name from "${oldFirstName} ${oldLastName}" to "${first_name} ${last_name}"`,
+      req,
+      { old_first_name: oldFirstName, old_last_name: oldLastName, new_first_name: first_name, new_last_name: last_name }
+    )
+
+    res.json({ message: 'Tenant name updated successfully' })
+  } catch (error: any) {
+    console.error('Error updating tenant name:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * PATCH /:id/referee
  * Update referee email (employer, landlord, or accountant)
  * Will create new referee reference record if email changed

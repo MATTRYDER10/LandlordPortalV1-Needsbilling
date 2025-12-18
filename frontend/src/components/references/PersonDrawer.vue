@@ -199,6 +199,15 @@
                   </svg>
                   Update Referee Email
                 </button>
+                <button
+                  @click="openEditNameModal"
+                  class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 hover:bg-blue-50 rounded-md flex items-center gap-1"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  Edit Name
+                </button>
               </div>
             </div>
 
@@ -1368,6 +1377,70 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Edit Name Modal -->
+    <Transition
+      enter-active-class="transition-opacity duration-200"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-200"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="showEditNameModal" class="fixed inset-0 z-[60] flex items-center justify-center" @click="showEditNameModal = false">
+        <div class="absolute inset-0 bg-black/50"></div>
+        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4" @click.stop>
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Edit Tenant Name</h3>
+            <p class="text-sm text-gray-500 mt-1">Update the tenant's name for this reference</p>
+          </div>
+          <div class="p-6 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+              <input
+                v-model="editFirstName"
+                type="text"
+                placeholder="First name"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+              <input
+                v-model="editLastName"
+                type="text"
+                placeholder="Last name"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-md p-3">
+              <p class="text-sm text-amber-800">
+                <strong>Note:</strong> This will update the name on guarantor forms and future emails. Already-sent emails will retain the old name.
+              </p>
+            </div>
+          </div>
+          <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <button
+              @click="showEditNameModal = false"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              @click="handleUpdateName"
+              :disabled="!editFirstName || !editLastName || updatingName"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <svg v-if="updatingName" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ updatingName ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -1427,6 +1500,12 @@ const refereeType = ref<'employer' | 'landlord' | 'accountant' | ''>('')
 const newRefereeEmail = ref('')
 const newRefereeName = ref('')
 const updatingReferee = ref(false)
+
+// Edit name modal state
+const showEditNameModal = ref(false)
+const editFirstName = ref('')
+const editLastName = ref('')
+const updatingName = ref(false)
 
 // Loading states for actions
 const resendingForm = ref(false)
@@ -2127,6 +2206,50 @@ async function handleUpdateRefereeEmail() {
     showToast(error.message || 'Failed to update referee', 'error')
   } finally {
     updatingReferee.value = false
+  }
+}
+
+function openEditNameModal() {
+  // Populate the edit fields with current values
+  editFirstName.value = fullDetails.value?.tenant_first_name || ''
+  editLastName.value = fullDetails.value?.tenant_last_name || ''
+  showEditNameModal.value = true
+}
+
+async function handleUpdateName() {
+  if (!props.person?.id || !editFirstName.value || !editLastName.value) return
+
+  updatingName.value = true
+  try {
+    const response = await fetch(`${API_BASE}/api/references/${props.person.id}/tenant-name`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        first_name: editFirstName.value,
+        last_name: editLastName.value
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to update name')
+    }
+
+    showToast('Tenant name updated successfully', 'success')
+    // Reset modal state
+    showEditNameModal.value = false
+    editFirstName.value = ''
+    editLastName.value = ''
+    // Reload the reference details
+    await loadFullDetails(props.person.id)
+    emit('updated')
+  } catch (error: any) {
+    showToast(error.message || 'Failed to update name', 'error')
+  } finally {
+    updatingName.value = false
   }
 }
 </script>
