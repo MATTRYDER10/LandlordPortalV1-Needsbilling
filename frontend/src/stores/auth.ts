@@ -177,6 +177,14 @@ export const useAuthStore = defineStore('auth', () => {
       })
     } catch (err: any) {
       error.value = err.message
+      // If we get an invalid refresh token error, clear the stale auth data
+      if (err.message?.includes('Refresh Token') || err.name === 'AuthApiError') {
+        console.log('Invalid refresh token detected, clearing auth state...')
+        await supabase.auth.signOut()
+        session.value = null
+        user.value = null
+        company.value = null
+      }
     } finally {
       loading.value = false
     }
