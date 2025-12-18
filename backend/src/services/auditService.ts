@@ -16,15 +16,22 @@ export async function logAuditAction({
   userId
 }: AuditLogParams): Promise<void> {
   try {
-    await supabase
+    // Validate userId is a valid UUID or null (e.g., 'SYSTEM' is not a valid UUID)
+    const isValidUuid = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+
+    const { error } = await supabase
       .from('reference_audit_log')
       .insert({
         reference_id: referenceId,
         action,
         description,
         metadata,
-        created_by: userId || null
+        created_by: isValidUuid ? userId : null
       })
+
+    if (error) {
+      console.error('Failed to log audit action:', error.message)
+    }
   } catch (error) {
     console.error('Failed to log audit action:', error)
     // Don't throw - audit logging shouldn't break the main flow

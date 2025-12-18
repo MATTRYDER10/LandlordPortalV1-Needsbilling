@@ -23,13 +23,17 @@ async function logEmailToAuditLog(
         ? `Email notification sent to ${typeLabel.toLowerCase()}`
         : `Email notification failed: ${errorMessage || 'Unknown error'}`;
 
-    await supabase.from('reference_audit_log').insert({
+    const { error } = await supabase.from('reference_audit_log').insert({
       reference_id: referenceId,
       action,
       description,
       metadata: { reference_type: referenceType, status, error_message: errorMessage },
       created_by: null, // System action
     });
+
+    if (error) {
+      console.error('Failed to log email to audit log:', error.message);
+    }
   } catch (error) {
     console.error('Failed to log email to audit log:', error);
   }
