@@ -2090,21 +2090,46 @@ function mapReferenceToForm(
     }]
   }
 
-  // Build guarantors array
-  if (guarantorReferences && guarantorReferences.length > 0) {
-    formData.value.guarantors = guarantorReferences.map((g: any) => ({
-      name: `${g.tenant_first_name} ${g.tenant_last_name}`,
-      address: {
-        line1: g.property_address || '',
-        line2: '',
-        city: g.property_city || '',
-        county: '',
-        postcode: g.property_postcode || ''
+  // Build guarantors array - collect from both childReferences (for group parents) and top-level guarantorReferences
+  const allGuarantors: any[] = []
+
+  // Extract guarantors from childReferences (for group parent / multi-tenant references)
+  if (childReferences && childReferences.length > 0) {
+    childReferences.forEach((child: any) => {
+      if (child.guarantors && child.guarantors.length > 0) {
+        child.guarantors.forEach((g: any) => {
+          allGuarantors.push({
+            name: `${g.tenant_first_name} ${g.tenant_last_name}`,
+            address: {
+              line1: g.current_address || g.property_address || '',
+              line2: '',
+              city: g.current_city || g.property_city || '',
+              county: '',
+              postcode: g.current_postcode || g.property_postcode || ''
+            }
+          })
+        })
       }
-    }))
-  } else {
-    formData.value.guarantors = []
+    })
   }
+
+  // Also include top-level guarantorReferences (for single tenant references)
+  if (guarantorReferences && guarantorReferences.length > 0) {
+    guarantorReferences.forEach((g: any) => {
+      allGuarantors.push({
+        name: `${g.tenant_first_name} ${g.tenant_last_name}`,
+        address: {
+          line1: g.current_address || g.property_address || '',
+          line2: '',
+          city: g.current_city || g.property_city || '',
+          county: '',
+          postcode: g.current_postcode || g.property_postcode || ''
+        }
+      })
+    })
+  }
+
+  formData.value.guarantors = allGuarantors
 
   // Landlord data if available
   if (landlordReference) {
