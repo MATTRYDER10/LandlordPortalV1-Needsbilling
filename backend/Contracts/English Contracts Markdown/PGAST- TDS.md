@@ -14,15 +14,13 @@ At the same time, please be aware that you have the right to seek independent ad
 
 As well as this Agreement, you may be asked to sign the Check-In or Inventory which will list the Landlord’s Fixtures and Fittings and the other items which the Landlord provides for your use during the Tenancy. You will also be given copies of the following documents, receipt of which is acknowledged on the final page of the Agreement itself:
 
-1. ‘How to Rent’ guide produced by HM Government  
-2. Energy Performance Certificate (EPC) for your property  
-3. A current Gas Safety Certificate for your property—if there is a gas supply  
-4. A copy of the electrical installation inspection report for your property  
-5. Details of the scheme with which your Deposit will be registered, including details as to how you will
-
-recover your Deposit on your departure
-
-* A checklist of the key Deposit registration information generally described as ‘Prescribed Information’ (to be provided within 30 days of paying your Security Deposit)
+1. 'How to Rent' guide produced by HM Government
+2. Energy Performance Certificate (EPC) for your property
+3. A current Gas Safety Certificate for your property—if there is a gas supply
+4. A copy of the electrical installation inspection report for your property
+5. Details of the scheme with which your Deposit will be registered
+6. Details of how you will recover your Deposit on your departure
+7. A checklist of the key Deposit registration information generally described as 'Prescribed Information' (to be provided within 30 days of paying your Security Deposit)
 
 If any of these documents are missing when you come to sign this Tenancy Agreement, speak with your letting agent or Landlord  as these documents are just as important as the Agreement itself.
 
