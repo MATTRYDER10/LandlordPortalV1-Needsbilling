@@ -977,7 +977,7 @@
             </CollapsibleSection>
 
             <!-- Documents -->
-            <CollapsibleSection title="Documents" :badge="referenceDocuments.length > 0 ? referenceDocuments.length.toString() : undefined">
+            <CollapsibleSection title="Documents" :badge="totalDocumentCount > 0 ? totalDocumentCount.toString() : undefined">
               <div v-if="referenceDocuments.length > 0" class="space-y-2">
                 <div
                   v-for="doc in referenceDocuments"
@@ -1005,7 +1005,37 @@
                   </button>
                 </div>
               </div>
-              <div v-else class="text-center py-4">
+
+              <!-- Additional Uploaded Documents (from reference_documents table) -->
+              <div v-if="fullDetails?.documents?.length > 0" class="mt-4 pt-4 border-t border-gray-200">
+                <p class="text-xs font-medium text-gray-500 uppercase mb-2">Additional Evidence</p>
+                <div class="space-y-2">
+                  <div
+                    v-for="doc in fullDetails.documents"
+                    :key="doc.id"
+                    class="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
+                  >
+                    <div class="flex items-center gap-3">
+                      <File class="w-5 h-5 text-blue-400" />
+                      <div>
+                        <p class="text-sm font-medium text-gray-900">{{ doc.file_name }}</p>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          Uploaded {{ formatDateTime(doc.created_at) }}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      v-if="doc.file_url"
+                      @click="viewDocument(doc.file_url)"
+                      class="px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 rounded"
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="referenceDocuments.length === 0 && (!fullDetails?.documents || fullDetails.documents.length === 0)" class="text-center py-4">
                 <FileText class="mx-auto h-8 w-8 text-gray-300" />
                 <p class="mt-2 text-sm text-gray-500">No documents uploaded</p>
               </div>
@@ -1622,6 +1652,13 @@ const referenceDocuments = computed(() => {
   }
 
   return docs
+})
+
+// Total document count including reference_documents
+const totalDocumentCount = computed(() => {
+  const refDocs = referenceDocuments.value.length
+  const additionalDocs = fullDetails.value?.documents?.length || 0
+  return refDocs + additionalDocs
 })
 
 function formatCurrency(amount: number): string {

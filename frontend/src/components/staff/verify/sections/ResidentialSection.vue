@@ -104,6 +104,40 @@
         <h4 class="subsection-title">
           {{ previousAddressType === 'AGENT' ? 'Agent' : 'Landlord' }} Reference
         </h4>
+
+        <!-- Good Tenant Badge -->
+        <div v-if="evidenceLandlordRef.goodTenant" class="good-tenant-badge-container">
+          <div :class="['good-tenant-badge', getGoodTenantClass(evidenceLandlordRef.goodTenant)]">
+            <CheckCircle v-if="evidenceLandlordRef.goodTenant === 'yes'" class="badge-icon" />
+            <AlertTriangle v-else-if="evidenceLandlordRef.goodTenant === 'with_reservations'" class="badge-icon" />
+            <X v-else class="badge-icon" />
+            <span>{{ formatGoodTenant(evidenceLandlordRef.goodTenant) }}</span>
+          </div>
+        </div>
+
+        <!-- Address Discrepancy Warning -->
+        <div v-if="evidenceLandlordRef.addressCorrect === 'no'" class="address-discrepancy-warning">
+          <div class="warning-header">
+            <AlertTriangle class="warning-icon" />
+            <span>Address Discrepancy</span>
+          </div>
+          <p class="warning-description">The referee indicated the address provided was incorrect.</p>
+          <div class="address-comparison">
+            <div class="address-box claimed">
+              <span class="address-box-label">Claimed Address:</span>
+              <p class="address-box-text">{{ previousAddress || 'Not provided' }}</p>
+            </div>
+            <div class="address-box corrected">
+              <span class="address-box-label">Corrected Address:</span>
+              <p class="address-box-text">
+                {{ evidenceLandlordRef.correctedAddressLine1 }}<br v-if="evidenceLandlordRef.correctedAddressLine2" />
+                {{ evidenceLandlordRef.correctedAddressLine2 }}<br v-if="evidenceLandlordRef.correctedCity || evidenceLandlordRef.correctedPostcode" />
+                {{ [evidenceLandlordRef.correctedCity, evidenceLandlordRef.correctedPostcode].filter(Boolean).join(', ') }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div class="reference-card">
           <div class="reference-header">
             <div class="reference-info">
@@ -119,6 +153,14 @@
             <div v-if="evidenceLandlordRef.monthlyRent" class="response-item">
               <span class="response-label">Monthly Rent:</span>
               <span class="response-value">£{{ evidenceLandlordRef.monthlyRent.toLocaleString() }}</span>
+            </div>
+            <div v-if="evidenceLandlordRef.tenancyLengthMonths" class="response-item">
+              <span class="response-label">Tenancy Length:</span>
+              <span class="response-value">{{ evidenceLandlordRef.tenancyLengthMonths }} months</span>
+            </div>
+            <div v-if="evidenceLandlordRef.propertyCity || evidenceLandlordRef.propertyPostcode" class="response-item">
+              <span class="response-label">Property Location:</span>
+              <span class="response-value">{{ [evidenceLandlordRef.propertyCity, evidenceLandlordRef.propertyPostcode].filter(Boolean).join(', ') }}</span>
             </div>
             <div v-if="evidenceLandlordRef.rentPaidOnTime" class="response-item">
               <span class="response-label">Rent Paid on Time:</span>
@@ -142,12 +184,55 @@
             <p class="comments-label">Comments:</p>
             <p class="comments-text">{{ evidenceLandlordRef.additionalComments }}</p>
           </div>
+
+          <!-- Signature -->
+          <div v-if="evidenceLandlordRef.signatureName || evidenceLandlordRef.signatureDate" class="reference-signature-info">
+            <p class="signature-label">Signed by:</p>
+            <p class="signature-details">
+              {{ evidenceLandlordRef.signatureName || 'Unknown' }}
+              <span v-if="evidenceLandlordRef.signatureDate"> on {{ formatDate(evidenceLandlordRef.signatureDate) }}</span>
+            </p>
+          </div>
         </div>
       </div>
 
       <!-- Agent Reference (from evidence data) -->
       <div v-else-if="evidenceAgentRef" class="reference-section">
         <h4 class="subsection-title">Agent Reference</h4>
+
+        <!-- Good Tenant Badge -->
+        <div v-if="evidenceAgentRef.goodTenant" class="good-tenant-badge-container">
+          <div :class="['good-tenant-badge', getGoodTenantClass(evidenceAgentRef.goodTenant)]">
+            <CheckCircle v-if="evidenceAgentRef.goodTenant === 'yes'" class="badge-icon" />
+            <AlertTriangle v-else-if="evidenceAgentRef.goodTenant === 'with_reservations'" class="badge-icon" />
+            <X v-else class="badge-icon" />
+            <span>{{ formatGoodTenant(evidenceAgentRef.goodTenant) }}</span>
+          </div>
+        </div>
+
+        <!-- Address Discrepancy Warning -->
+        <div v-if="evidenceAgentRef.addressCorrect === 'no'" class="address-discrepancy-warning">
+          <div class="warning-header">
+            <AlertTriangle class="warning-icon" />
+            <span>Address Discrepancy</span>
+          </div>
+          <p class="warning-description">The referee indicated the address provided was incorrect.</p>
+          <div class="address-comparison">
+            <div class="address-box claimed">
+              <span class="address-box-label">Claimed Address:</span>
+              <p class="address-box-text">{{ previousAddress || 'Not provided' }}</p>
+            </div>
+            <div class="address-box corrected">
+              <span class="address-box-label">Corrected Address:</span>
+              <p class="address-box-text">
+                {{ evidenceAgentRef.correctedAddressLine1 }}<br v-if="evidenceAgentRef.correctedAddressLine2" />
+                {{ evidenceAgentRef.correctedAddressLine2 }}<br v-if="evidenceAgentRef.correctedCity || evidenceAgentRef.correctedPostcode" />
+                {{ [evidenceAgentRef.correctedCity, evidenceAgentRef.correctedPostcode].filter(Boolean).join(', ') }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div class="reference-card">
           <div class="reference-header">
             <div class="reference-info">
@@ -163,6 +248,10 @@
             <div v-if="evidenceAgentRef.monthlyRent" class="response-item">
               <span class="response-label">Monthly Rent:</span>
               <span class="response-value">£{{ evidenceAgentRef.monthlyRent.toLocaleString() }}</span>
+            </div>
+            <div v-if="evidenceAgentRef.propertyCity || evidenceAgentRef.propertyPostcode" class="response-item">
+              <span class="response-label">Property Location:</span>
+              <span class="response-value">{{ [evidenceAgentRef.propertyCity, evidenceAgentRef.propertyPostcode].filter(Boolean).join(', ') }}</span>
             </div>
             <div v-if="evidenceAgentRef.rentPaidOnTime" class="response-item">
               <span class="response-label">Rent Paid on Time:</span>
@@ -181,6 +270,15 @@
           <div v-if="evidenceAgentRef.additionalComments" class="reference-comments">
             <p class="comments-label">Comments:</p>
             <p class="comments-text">{{ evidenceAgentRef.additionalComments }}</p>
+          </div>
+
+          <!-- Signature -->
+          <div v-if="evidenceAgentRef.signatureName || evidenceAgentRef.signatureDate" class="reference-signature-info">
+            <p class="signature-label">Signed by:</p>
+            <p class="signature-details">
+              {{ evidenceAgentRef.signatureName || 'Unknown' }}
+              <span v-if="evidenceAgentRef.signatureDate"> on {{ formatDate(evidenceAgentRef.signatureDate) }}</span>
+            </p>
           </div>
         </div>
       </div>
@@ -599,6 +697,20 @@ interface EvidenceLandlordRef {
   additionalComments?: string
   submittedAt?: string
   tenancyStillInProgress?: boolean
+  // Additional fields from third-party reference
+  propertyCity?: string
+  propertyPostcode?: string
+  tenancyLengthMonths?: number
+  monthlyRentConfirm?: number
+  goodTenant?: string
+  addressCorrect?: string
+  correctedAddressLine1?: string
+  correctedAddressLine2?: string
+  correctedCity?: string
+  correctedPostcode?: string
+  signatureName?: string
+  signature?: string
+  signatureDate?: string
 }
 
 interface EvidenceAgentRef {
@@ -621,6 +733,18 @@ interface EvidenceAgentRef {
   additionalComments?: string
   submittedAt?: string
   tenancyStillInProgress?: boolean
+  // Additional fields from third-party reference
+  propertyCity?: string
+  propertyPostcode?: string
+  goodTenant?: string
+  addressCorrect?: string
+  correctedAddressLine1?: string
+  correctedAddressLine2?: string
+  correctedCity?: string
+  correctedPostcode?: string
+  signatureName?: string
+  signature?: string
+  signatureDate?: string
 }
 
 interface CurrentAddress {
@@ -809,6 +933,23 @@ const formatTimeAtAddress = (years?: number, months?: number) => {
     parts.push(`${months} month${months !== 1 ? 's' : ''}`)
   }
   return parts.length > 0 ? parts.join(', ') : 'Not specified'
+}
+
+const getGoodTenantClass = (value?: string) => {
+  if (!value) return ''
+  if (value === 'yes') return 'good'
+  if (value === 'with_reservations') return 'reservations'
+  return 'bad'
+}
+
+const formatGoodTenant = (value?: string) => {
+  if (!value) return 'Not specified'
+  const labels: Record<string, string> = {
+    'yes': 'Good Tenant',
+    'with_reservations': 'Good Tenant (with reservations)',
+    'no': 'Not Recommended'
+  }
+  return labels[value] || value
 }
 </script>
 
@@ -1459,5 +1600,138 @@ const formatTimeAtAddress = (years?: number, months?: number) => {
 .btn-primary:disabled {
   background: #fdba74;
   cursor: not-allowed;
+}
+
+/* Good Tenant Badge */
+.good-tenant-badge-container {
+  margin-bottom: 1rem;
+}
+
+.good-tenant-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.good-tenant-badge.good {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+.good-tenant-badge.reservations {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.good-tenant-badge.bad {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
+}
+
+.good-tenant-badge .badge-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Address Discrepancy Warning */
+.address-discrepancy-warning {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #fef3c7;
+  border: 2px solid #f59e0b;
+  border-radius: 0.5rem;
+}
+
+.address-discrepancy-warning .warning-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #92400e;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.address-discrepancy-warning .warning-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #d97706;
+}
+
+.address-discrepancy-warning .warning-description {
+  font-size: 0.875rem;
+  color: #78350f;
+  margin: 0 0 0.75rem;
+}
+
+.address-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .address-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
+.address-box {
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+}
+
+.address-box.claimed {
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.address-box.corrected {
+  background: #fff7ed;
+  border: 2px solid #f97316;
+}
+
+.address-box-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.address-box-text {
+  font-size: 0.875rem;
+  color: #1f2937;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Reference Signature Info */
+.reference-signature-info {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.reference-signature-info .signature-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  margin: 0 0 0.25rem;
+}
+
+.reference-signature-info .signature-details {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+  margin: 0;
 }
 </style>

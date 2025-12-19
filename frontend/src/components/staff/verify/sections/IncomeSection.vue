@@ -341,21 +341,41 @@
                     <span class="ref-label">Employer</span>
                     <span class="ref-value">{{ evidenceEmployerRef.employerName }}</span>
                   </div>
+                  <div v-if="evidenceEmployerRef.companyName" class="ref-row">
+                    <span class="ref-label">Company Name</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.companyName }}</span>
+                  </div>
                   <div v-if="evidenceEmployerRef.jobTitle" class="ref-row">
                     <span class="ref-label">Job Title</span>
                     <span class="ref-value">{{ evidenceEmployerRef.jobTitle }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.employerPosition" class="ref-row">
+                    <span class="ref-label">Referee Position</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.employerPosition }}</span>
                   </div>
                   <div v-if="evidenceEmployerRef.employmentType" class="ref-row">
                     <span class="ref-label">Employment Type</span>
                     <span class="ref-value">{{ formatEmploymentTypeLabel(evidenceEmployerRef.employmentType) }}</span>
                   </div>
+                  <div v-if="evidenceEmployerRef.contractTypeConfirmation" class="ref-row">
+                    <span class="ref-label">Contract Confirmed</span>
+                    <span class="ref-value">{{ formatYesNo(evidenceEmployerRef.contractTypeConfirmation) }}</span>
+                  </div>
                   <div class="ref-row">
                     <span class="ref-label">Confirmed Salary</span>
                     <span class="ref-value highlight">{{ formatCurrency(evidenceEmployerRef.salary || 0) }}/year</span>
                   </div>
+                  <div v-if="evidenceEmployerRef.salaryFrequency" class="ref-row">
+                    <span class="ref-label">Pay Frequency</span>
+                    <span class="ref-value">{{ formatFrequency(evidenceEmployerRef.salaryFrequency) }}</span>
+                  </div>
                   <div class="ref-row">
                     <span class="ref-label">Start Date</span>
                     <span class="ref-value">{{ formatDate(evidenceEmployerRef.employmentStartDate) }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.employmentEndDate" class="ref-row">
+                    <span class="ref-label">End Date</span>
+                    <span class="ref-value">{{ formatDate(evidenceEmployerRef.employmentEndDate) }}</span>
                   </div>
                   <div class="ref-row">
                     <span class="ref-label">Status</span>
@@ -365,6 +385,46 @@
                     <span class="ref-label">Probation</span>
                     <span class="ref-value">{{ formatProbationStatus(evidenceEmployerRef) }}</span>
                   </div>
+                  <div v-if="evidenceEmployerRef.employmentStable" class="ref-row">
+                    <span class="ref-label">Employment Stable</span>
+                    <span class="ref-value">{{ formatYesNo(evidenceEmployerRef.employmentStable) }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.employmentStableDetails" class="ref-row full-width">
+                    <span class="ref-label">Stability Details</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.employmentStableDetails }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.incomeExpectation" class="ref-row">
+                    <span class="ref-label">Income Expectation</span>
+                    <span class="ref-value">{{ formatIncomeExpectation(evidenceEmployerRef.incomeExpectation) }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.incomeExpectationDetails" class="ref-row full-width">
+                    <span class="ref-label">Income Details</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.incomeExpectationDetails }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.clarificationDetails" class="ref-row full-width">
+                    <span class="ref-label">Clarification</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.clarificationDetails }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.performanceDetails" class="ref-row full-width">
+                    <span class="ref-label">Performance</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.performanceDetails }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.disciplinaryDetails" class="ref-row full-width">
+                    <span class="ref-label">Disciplinary</span>
+                    <span class="ref-value warning">{{ evidenceEmployerRef.disciplinaryDetails }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.absenceDetails" class="ref-row full-width">
+                    <span class="ref-label">Absence</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.absenceDetails }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.wouldReemployDetails" class="ref-row full-width">
+                    <span class="ref-label">Would Re-employ</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.wouldReemployDetails }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.additionalComments" class="ref-row full-width">
+                    <span class="ref-label">Additional Comments</span>
+                    <span class="ref-value">{{ evidenceEmployerRef.additionalComments }}</span>
+                  </div>
                   <div v-if="evidenceEmployerRef.contactPhone" class="ref-row">
                     <span class="ref-label">Contact Phone</span>
                     <span class="ref-value">{{ evidenceEmployerRef.contactPhone }}</span>
@@ -372,6 +432,10 @@
                   <div class="ref-row">
                     <span class="ref-label">Submitted</span>
                     <span class="ref-value">{{ formatDate(evidenceEmployerRef.submittedAt) }}</span>
+                  </div>
+                  <div v-if="evidenceEmployerRef.signatureDate" class="ref-row">
+                    <span class="ref-label">Signed</span>
+                    <span class="ref-value">{{ formatDate(evidenceEmployerRef.signatureDate) }}</span>
                   </div>
                 </div>
               </div>
@@ -384,13 +448,83 @@
                     <span class="ref-label">Firm</span>
                     <span class="ref-value">{{ evidenceAccountantRef.firmName }}</span>
                   </div>
+                  <div v-if="evidenceAccountantRef.businessName" class="ref-row">
+                    <span class="ref-label">Business Name</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.businessName }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.natureOfBusiness" class="ref-row">
+                    <span class="ref-label">Nature of Business</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.natureOfBusiness }}</span>
+                  </div>
                   <div class="ref-row">
                     <span class="ref-label">Annual Income</span>
                     <span class="ref-value highlight">{{ formatCurrency(evidenceAccountantRef.annualIncome || 0) }}/year</span>
                   </div>
+                  <div v-if="evidenceAccountantRef.annualTurnover" class="ref-row">
+                    <span class="ref-label">Annual Turnover</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.annualTurnover }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.annualProfit" class="ref-row">
+                    <span class="ref-label">Annual Profit</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.annualProfit }}</span>
+                  </div>
                   <div class="ref-row">
                     <span class="ref-label">Years Trading</span>
                     <span class="ref-value">{{ evidenceAccountantRef.yearsTrading }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.businessStartDate" class="ref-row">
+                    <span class="ref-label">Business Started</span>
+                    <span class="ref-value">{{ formatDate(evidenceAccountantRef.businessStartDate) }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.businessTradingStatus" class="ref-row">
+                    <span class="ref-label">Trading Status</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.businessTradingStatus }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.taxReturnsFiled" class="ref-row">
+                    <span class="ref-label">Tax Returns Filed</span>
+                    <span class="ref-value">{{ formatYesNo(evidenceAccountantRef.taxReturnsFiled) }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.lastTaxReturnDate" class="ref-row">
+                    <span class="ref-label">Last Tax Return</span>
+                    <span class="ref-value">{{ formatDate(evidenceAccountantRef.lastTaxReturnDate) }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.accountsPrepared" class="ref-row">
+                    <span class="ref-label">Accounts Prepared</span>
+                    <span class="ref-value">{{ formatYesNo(evidenceAccountantRef.accountsPrepared) }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.accountsYearEnd" class="ref-row">
+                    <span class="ref-label">Accounts Year End</span>
+                    <span class="ref-value">{{ formatDate(evidenceAccountantRef.accountsYearEnd) }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.anyOutstandingTaxLiabilities" class="ref-row">
+                    <span class="ref-label">Outstanding Tax</span>
+                    <span :class="['ref-value', evidenceAccountantRef.anyOutstandingTaxLiabilities === 'yes' ? 'warning' : '']">
+                      {{ formatYesNo(evidenceAccountantRef.anyOutstandingTaxLiabilities) }}
+                    </span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.taxLiabilitiesDetails" class="ref-row full-width">
+                    <span class="ref-label">Tax Liabilities Details</span>
+                    <span class="ref-value warning">{{ evidenceAccountantRef.taxLiabilitiesDetails }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.businessFinanciallyStable" class="ref-row">
+                    <span class="ref-label">Financially Stable</span>
+                    <span class="ref-value">{{ formatYesNo(evidenceAccountantRef.businessFinanciallyStable) }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.accountantConfirmsIncome" class="ref-row">
+                    <span class="ref-label">Confirms Income</span>
+                    <span class="ref-value">{{ formatYesNo(evidenceAccountantRef.accountantConfirmsIncome) }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.wouldRecommend" class="ref-row">
+                    <span class="ref-label">Would Recommend</span>
+                    <span class="ref-value">{{ formatYesNo(evidenceAccountantRef.wouldRecommend) }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.recommendationComments" class="ref-row full-width">
+                    <span class="ref-label">Recommendation Comments</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.recommendationComments }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.additionalComments" class="ref-row full-width">
+                    <span class="ref-label">Additional Comments</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.additionalComments }}</span>
                   </div>
                   <div v-if="evidenceAccountantRef.contactPhone" class="ref-row">
                     <span class="ref-label">Contact Phone</span>
@@ -399,6 +533,10 @@
                   <div class="ref-row">
                     <span class="ref-label">Submitted</span>
                     <span class="ref-value">{{ formatDate(evidenceAccountantRef.submittedAt) }}</span>
+                  </div>
+                  <div v-if="evidenceAccountantRef.signatureDate" class="ref-row">
+                    <span class="ref-label">Signed</span>
+                    <span class="ref-value">{{ formatDate(evidenceAccountantRef.signatureDate) }}</span>
                   </div>
                 </div>
               </div>
@@ -596,6 +734,24 @@ interface EvidenceEmployerRef {
   isProbation: boolean | string | null
   probationEndDate: string | null
   contactPhone: string | null
+  // Additional fields from third-party reference
+  companyName: string | null
+  employerPosition: string | null
+  salaryFrequency: string | null
+  employmentEndDate: string | null
+  clarificationDetails: string | null
+  contractTypeConfirmation: string | null
+  incomeExpectation: string | null
+  incomeExpectationDetails: string | null
+  employmentStable: string | null
+  employmentStableDetails: string | null
+  additionalComments: string | null
+  wouldReemployDetails: string | null
+  performanceDetails: string | null
+  disciplinaryDetails: string | null
+  absenceDetails: string | null
+  signature: string | null
+  signatureDate: string | null
 }
 
 interface EvidenceAccountantRef {
@@ -604,6 +760,26 @@ interface EvidenceAccountantRef {
   yearsTrading: number
   submittedAt: string
   contactPhone: string | null
+  // Additional fields from third-party reference
+  businessName: string | null
+  natureOfBusiness: string | null
+  annualTurnover: string | null
+  annualProfit: string | null
+  businessStartDate: string | null
+  businessTradingStatus: string | null
+  taxReturnsFiled: string | null
+  lastTaxReturnDate: string | null
+  accountsPrepared: string | null
+  accountsYearEnd: string | null
+  anyOutstandingTaxLiabilities: string | null
+  taxLiabilitiesDetails: string | null
+  businessFinanciallyStable: string | null
+  accountantConfirmsIncome: string | null
+  wouldRecommend: string | null
+  additionalComments: string | null
+  recommendationComments: string | null
+  signature: string | null
+  signatureDate: string | null
 }
 
 interface GuarantorFinancialData {
@@ -907,6 +1083,25 @@ const formatHomeOwnership = (status: string) => {
     'other': 'Other'
   }
   return statuses[status] || status.replace(/_/g, ' ')
+}
+
+const formatYesNo = (value: string | null | undefined) => {
+  if (!value) return 'Not specified'
+  const normalized = value.toLowerCase()
+  if (normalized === 'yes' || normalized === 'true') return 'Yes'
+  if (normalized === 'no' || normalized === 'false') return 'No'
+  return value
+}
+
+const formatIncomeExpectation = (value: string | null | undefined) => {
+  if (!value) return 'Not specified'
+  const expectations: Record<string, string> = {
+    'increase': 'Expected to increase',
+    'decrease': 'Expected to decrease',
+    'stable': 'Expected to remain stable',
+    'uncertain': 'Uncertain'
+  }
+  return expectations[value.toLowerCase()] || value
 }
 </script>
 
@@ -1429,6 +1624,22 @@ const formatHomeOwnership = (status: string) => {
 .ref-value.highlight {
   color: #059669;
   font-weight: 600;
+}
+
+.ref-value.warning {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.ref-row.full-width {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.ref-row.full-width .ref-value {
+  width: 100%;
+  white-space: pre-wrap;
 }
 
 .confirm-description {

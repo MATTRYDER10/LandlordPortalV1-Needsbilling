@@ -1101,6 +1101,13 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       .eq('reference_id', referenceId)
       .single();
 
+    // Get uploaded documents from reference_documents table
+    const { data: referenceDocuments } = await supabaseAdmin
+      .from('reference_documents')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .order('created_at', { ascending: false });
+
     // Get staff names for confirmed by fields
     let incomeConfirmedByName = null;
     let residentialConfirmedByName = null;
@@ -1181,14 +1188,32 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         contactPhone: employerReference.employer_phone_encrypted ? decrypt(employerReference.employer_phone_encrypted) : null,
         jobTitle: employerReference.employee_position_encrypted ? decrypt(employerReference.employee_position_encrypted) : null,
         employmentStartDate: employerReference.employment_start_date,
+        employmentEndDate: employerReference.employment_end_date,
         salary: employerReference.annual_salary_encrypted ? parseFloat(decrypt(employerReference.annual_salary_encrypted) || '0') : null,
+        salaryFrequency: employerReference.salary_frequency,
         employmentStatus: employerReference.employment_status,
-        isCurrentlyEmployed: employerReference.is_currently_employed,
+        isCurrentlyEmployed: employerReference.is_current_employee,
         employmentType: employerReference.employment_type || null,
         isProbation: employerReference.is_probation,
         probationEndDate: employerReference.probation_end_date,
         submittedAt: employerReference.submitted_at,
-        signaturePath: employerReference.signature_path
+        signaturePath: employerReference.signature_path,
+        // Additional fields
+        companyName: employerReference.company_name_encrypted ? decrypt(employerReference.company_name_encrypted) : null,
+        employerPosition: employerReference.employer_position_encrypted ? decrypt(employerReference.employer_position_encrypted) : null,
+        clarificationDetails: employerReference.clarification_details,
+        contractTypeConfirmation: employerReference.contract_type_confirmation,
+        incomeExpectation: employerReference.income_expectation,
+        incomeExpectationDetails: employerReference.income_expectation_details,
+        employmentStable: employerReference.employment_stable,
+        employmentStableDetails: employerReference.employment_stable_details,
+        additionalComments: employerReference.additional_comments_encrypted ? decrypt(employerReference.additional_comments_encrypted) : null,
+        wouldReemployDetails: employerReference.would_reemploy_details_encrypted ? decrypt(employerReference.would_reemploy_details_encrypted) : null,
+        performanceDetails: employerReference.performance_details_encrypted ? decrypt(employerReference.performance_details_encrypted) : null,
+        disciplinaryDetails: employerReference.disciplinary_details_encrypted ? decrypt(employerReference.disciplinary_details_encrypted) : null,
+        absenceDetails: employerReference.absence_details_encrypted ? decrypt(employerReference.absence_details_encrypted) : null,
+        signature: employerReference.signature_encrypted ? decrypt(employerReference.signature_encrypted) : null,
+        signatureDate: employerReference.date
       };
     }
 
@@ -1220,7 +1245,27 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         annualIncome,
         yearsTrading,
         submittedAt: accountantReference.submitted_at,
-        signaturePath: accountantReference.signature_path
+        signaturePath: accountantReference.signature_path,
+        // Additional fields
+        businessName: accountantReference.business_name_encrypted ? decrypt(accountantReference.business_name_encrypted) : null,
+        natureOfBusiness: accountantReference.nature_of_business_encrypted ? decrypt(accountantReference.nature_of_business_encrypted) : null,
+        annualTurnover: accountantReference.annual_turnover_encrypted ? parseFloat(decrypt(accountantReference.annual_turnover_encrypted) || '0') : null,
+        annualProfit: accountantReference.annual_profit_encrypted ? parseFloat(decrypt(accountantReference.annual_profit_encrypted) || '0') : null,
+        businessStartDate: accountantReference.business_start_date,
+        businessTradingStatus: accountantReference.business_trading_status,
+        taxReturnsFiled: accountantReference.tax_returns_filed,
+        lastTaxReturnDate: accountantReference.last_tax_return_date,
+        accountsPrepared: accountantReference.accounts_prepared,
+        accountsYearEnd: accountantReference.accounts_year_end,
+        anyOutstandingTaxLiabilities: accountantReference.any_outstanding_tax_liabilities,
+        taxLiabilitiesDetails: accountantReference.tax_liabilities_details_encrypted ? decrypt(accountantReference.tax_liabilities_details_encrypted) : null,
+        businessFinanciallyStable: accountantReference.business_financially_stable,
+        accountantConfirmsIncome: accountantReference.accountant_confirms_income,
+        wouldRecommend: accountantReference.would_recommend,
+        additionalComments: accountantReference.additional_comments_encrypted ? decrypt(accountantReference.additional_comments_encrypted) : null,
+        recommendationComments: accountantReference.recommendation_comments_encrypted ? decrypt(accountantReference.recommendation_comments_encrypted) : null,
+        signature: accountantReference.signature_encrypted ? decrypt(accountantReference.signature_encrypted) : null,
+        signatureDate: accountantReference.date
       };
     }
 
@@ -1233,13 +1278,17 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         landlordEmail: landlordReference.landlord_email_encrypted ? decrypt(landlordReference.landlord_email_encrypted) : null,
         landlordPhone: landlordReference.landlord_phone_encrypted ? decrypt(landlordReference.landlord_phone_encrypted) : null,
         propertyAddress: landlordReference.property_address_encrypted ? decrypt(landlordReference.property_address_encrypted) : null,
+        propertyCity: landlordReference.property_city_encrypted ? decrypt(landlordReference.property_city_encrypted) : null,
+        propertyPostcode: landlordReference.property_postcode_encrypted ? decrypt(landlordReference.property_postcode_encrypted) : null,
         tenancyStartDate: landlordReference.tenancy_start_date,
         tenancyEndDate: landlordReference.tenancy_end_date,
+        tenancyLengthMonths: landlordReference.tenancy_length_months,
         monthlyRent: landlordReference.monthly_rent_encrypted ? parseFloat(decrypt(landlordReference.monthly_rent_encrypted) || '0') : null,
+        monthlyRentConfirm: landlordReference.monthly_rent_confirm,
         rentPaidOnTime: landlordReference.rent_paid_on_time,
         wouldRentAgain: landlordReference.would_rent_again,
         propertyCondition: landlordReference.property_condition,
-        additionalComments: landlordReference.additional_comments,
+        additionalComments: landlordReference.additional_comments_encrypted ? decrypt(landlordReference.additional_comments_encrypted) : null,
         submittedAt: landlordReference.submitted_at,
         signaturePath: landlordReference.signature_path,
         // Additional reference questions
@@ -1250,7 +1299,17 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         breachOfTenancy: landlordReference.breach_of_tenancy,
         breachOfTenancyDetails: landlordReference.breach_of_tenancy_details,
         wouldRentAgainDetails: landlordReference.would_rent_again_details,
-        tenancyStillInProgress: landlordReference.tenancy_still_in_progress
+        tenancyStillInProgress: landlordReference.tenancy_still_in_progress,
+        // Good tenant and address correction fields
+        goodTenant: landlordReference.good_tenant,
+        addressCorrect: landlordReference.address_correct,
+        correctedAddressLine1: landlordReference.corrected_address_line1_encrypted ? decrypt(landlordReference.corrected_address_line1_encrypted) : null,
+        correctedAddressLine2: landlordReference.corrected_address_line2_encrypted ? decrypt(landlordReference.corrected_address_line2_encrypted) : null,
+        correctedCity: landlordReference.corrected_city_encrypted ? decrypt(landlordReference.corrected_city_encrypted) : null,
+        correctedPostcode: landlordReference.corrected_postcode_encrypted ? decrypt(landlordReference.corrected_postcode_encrypted) : null,
+        signatureName: landlordReference.signature_name_encrypted ? decrypt(landlordReference.signature_name_encrypted) : null,
+        signature: landlordReference.signature_encrypted ? decrypt(landlordReference.signature_encrypted) : null,
+        signatureDate: landlordReference.date
       };
     }
 
@@ -1279,7 +1338,20 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         breachOfTenancy: agentReference.breach_of_tenancy,
         breachOfTenancyDetails: agentReference.breach_of_tenancy_details,
         wouldRentAgainDetails: agentReference.would_rent_again_details,
-        tenancyStillInProgress: agentReference.tenancy_still_in_progress
+        tenancyStillInProgress: agentReference.tenancy_still_in_progress,
+        // Property city and postcode
+        propertyCity: agentReference.property_city_encrypted ? decrypt(agentReference.property_city_encrypted) : null,
+        propertyPostcode: agentReference.property_postcode_encrypted ? decrypt(agentReference.property_postcode_encrypted) : null,
+        // Good tenant and address correction fields
+        goodTenant: agentReference.good_tenant,
+        addressCorrect: agentReference.address_correct,
+        correctedAddressLine1: agentReference.corrected_address_line1_encrypted ? decrypt(agentReference.corrected_address_line1_encrypted) : null,
+        correctedAddressLine2: agentReference.corrected_address_line2_encrypted ? decrypt(agentReference.corrected_address_line2_encrypted) : null,
+        correctedCity: agentReference.corrected_city_encrypted ? decrypt(agentReference.corrected_city_encrypted) : null,
+        correctedPostcode: agentReference.corrected_postcode_encrypted ? decrypt(agentReference.corrected_postcode_encrypted) : null,
+        signatureName: agentReference.signature_name_encrypted ? decrypt(agentReference.signature_name_encrypted) : null,
+        signature: agentReference.signature_encrypted ? decrypt(agentReference.signature_encrypted) : null,
+        signatureDate: agentReference.date
       };
     }
 
@@ -1376,7 +1448,8 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       },
       monthlyRent: rentForDisplay,
       isGuarantor: reference.is_guarantor,
-      guarantorFinancialData
+      guarantorFinancialData,
+      referenceDocuments: referenceDocuments || []
     });
   } catch (error: any) {
     console.error('Error fetching evidence:', error);
