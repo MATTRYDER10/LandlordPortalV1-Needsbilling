@@ -2813,7 +2813,7 @@ router.post('/upload/:token', (req, res, next) => {
     // Get reference by token hash
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
-      .select('id, company_id, status')
+      .select('id, company_id, status, payslip_files, bank_statements_paths')
       .eq('reference_token_hash', tokenHash)
       .gte('token_expires_at', new Date().toISOString())
       .single()
@@ -3010,6 +3010,35 @@ router.post('/upload/:token', (req, res, next) => {
         }
 
         payslipPaths.push(fileName)
+      }
+    }
+
+    // Save all uploaded file paths to the database
+    const pathUpdates: Record<string, any> = {}
+    if (idDocumentPath) pathUpdates.id_document_path = idDocumentPath
+    if (selfiePath) pathUpdates.selfie_path = selfiePath
+    if (proofOfAddressPath) pathUpdates.proof_of_address_path = proofOfAddressPath
+    if (proofOfFundsPath) pathUpdates.proof_of_funds_path = proofOfFundsPath
+    if (proofOfAdditionalIncomePath) pathUpdates.proof_of_additional_income_path = proofOfAdditionalIncomePath
+    if (rtrAlternativeDocumentPath) pathUpdates.rtr_alternative_document_path = rtrAlternativeDocumentPath
+    if (taxReturnPath) pathUpdates.tax_return_path = taxReturnPath
+    if (payslipPaths.length > 0) {
+      const existingPayslips = reference.payslip_files || []
+      pathUpdates.payslip_files = [...existingPayslips, ...payslipPaths]
+    }
+    if (bankStatementPaths.length > 0) {
+      const existingBankStatements = reference.bank_statements_paths || []
+      pathUpdates.bank_statements_paths = [...existingBankStatements, ...bankStatementPaths]
+    }
+
+    if (Object.keys(pathUpdates).length > 0) {
+      const { error: updateError } = await supabase
+        .from('tenant_references')
+        .update(pathUpdates)
+        .eq('id', reference.id)
+
+      if (updateError) {
+        throw new Error(`Failed to save document paths: ${updateError.message}`)
       }
     }
 
@@ -5467,7 +5496,7 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
     // Verify reference belongs to company
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
-      .select('id, status, payslip_files')
+      .select('id, status, payslip_files, bank_statements_paths')
       .eq('id', referenceId)
       .eq('company_id', companyId)
       .single()
@@ -5633,7 +5662,9 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
         newBankStatementPaths.push(fileName)
       }
 
-      // Note: bank_statements might need to be stored differently based on existing schema
+      // Save bank statement paths to database (append to existing)
+      const existingBankStatements = reference.bank_statements_paths || []
+      updates.bank_statements_paths = [...existingBankStatements, ...newBankStatementPaths]
       uploadedFiles.push(`bank_statements (${newBankStatementPaths.length})`)
     }
 

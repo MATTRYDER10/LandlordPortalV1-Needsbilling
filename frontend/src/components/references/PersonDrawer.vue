@@ -1614,12 +1614,13 @@ const referenceDocuments = computed(() => {
     path: fullDetails.value.proof_of_address_path || null
   })
 
-  // Proof of Funds / Employment docs (only for employed/relevant statuses)
+  // Payslips / Employment docs (only for employed/relevant statuses)
   if (fullDetails.value.employment_status === 'employed' || fullDetails.value.employment_status === 'contractor') {
+    const payslipFiles = fullDetails.value.payslip_files || []
     docs.push({
-      type: 'proof_of_funds',
+      type: 'payslips',
       label: 'Payslips / Proof of Income',
-      path: fullDetails.value.proof_of_funds_path || null
+      path: payslipFiles.length > 0 ? payslipFiles[0] : null
     })
   }
 

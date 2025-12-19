@@ -1806,7 +1806,7 @@ const documentTypeToField: Record<string, string> = {
   'proof_of_funds': 'proof_of_funds_path',
   'proof_of_additional_income': 'proof_of_additional_income_path',
   'bank_statements': 'bank_statements_paths',
-  'payslips': 'payslips_paths',
+  'payslips': 'payslip_files',  // Array field - ends with _files not _paths
   'tax_return': 'tax_return_path',
   'rtr_alternative_document': 'rtr_alternative_document_path'
 }
@@ -1868,8 +1868,9 @@ router.post('/references/:id/upload-document', authenticateStaff, upload.single(
     const fieldName = documentTypeToField[document_type]
     const updateData: Record<string, any> = {}
 
-    // Handle array fields (bank_statements, payslips)
-    if (fieldName.endsWith('_paths')) {
+    // Handle array fields (bank_statements_paths, payslip_files)
+    const isArrayField = fieldName.endsWith('_paths') || fieldName.endsWith('_files')
+    if (isArrayField) {
       // Get existing paths and append
       const { data: currentRef } = await supabase
         .from('tenant_references')

@@ -1010,6 +1010,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         is_guarantor,
         created_at,
         payslip_files,
+        bank_statements_paths,
         tax_return_path,
         proof_of_additional_income_path,
         proof_of_funds_path,
@@ -1053,6 +1054,13 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       if (reference.payslip_files && Array.isArray(reference.payslip_files)) {
         reference.payslip_files.forEach((path: string, idx: number) => {
           addEvidence(path, 'PAYSLIP', `Payslip ${idx + 1}`);
+        });
+      }
+
+      // Add bank statements (array - stored as bank_statements_paths)
+      if (reference.bank_statements_paths && Array.isArray(reference.bank_statements_paths)) {
+        reference.bank_statements_paths.forEach((path: string, idx: number) => {
+          addEvidence(path, 'BANK_STATEMENT', `Bank Statement ${idx + 1}`);
         });
       }
 
