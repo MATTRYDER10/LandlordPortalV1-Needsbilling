@@ -6196,7 +6196,7 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
       .from('tenant_references')
       .select(`
         id, status, is_guarantor,
-        employer_email_encrypted, previous_landlord_email_encrypted, accountant_email_encrypted,
+        previous_landlord_email_encrypted,
         id_document_path, selfie_path, payslip_files, tax_return_path,
         proof_of_additional_income_path, confirmed_residential_status,
         income_student, income_regular_employment, income_self_employed, income_benefits,
@@ -6217,20 +6217,40 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
 
     console.log(`[submit-for-re-referencing] Found reference: ${reference.id}, status=${reference.status}`)
 
-    // Check if there are any ACTION_REQUIRED sections
+    // Check if there are any ACTION_REQUIRED sections (from manual verification)
     const { data: actionRequiredSections } = await supabase
       .from('verification_sections')
       .select('id, section_type, action_reason_code')
       .eq('reference_id', referenceId)
       .eq('decision', 'ACTION_REQUIRED')
 
-    if (!actionRequiredSections || actionRequiredSections.length === 0) {
-      return res.status(400).json({ error: 'No ACTION_REQUIRED sections to resubmit' })
+    // Also check for ACTION_REQUIRED chase dependencies (from chase exhaustion)
+    const { data: actionRequiredDependencies } = await supabase
+      .from('chase_dependencies')
+      .select('id, dependency_type, status')
+      .eq('reference_id', referenceId)
+      .eq('status', 'ACTION_REQUIRED')
+
+    const hasActionRequiredSections = actionRequiredSections && actionRequiredSections.length > 0
+    const hasActionRequiredDependencies = actionRequiredDependencies && actionRequiredDependencies.length > 0
+
+    if (!hasActionRequiredSections && !hasActionRequiredDependencies) {
+      return res.status(400).json({ error: 'No ACTION_REQUIRED sections or dependencies to resubmit' })
     }
+
+    console.log(`[submit-for-re-referencing] Found ${actionRequiredSections?.length || 0} sections, ${actionRequiredDependencies?.length || 0} dependencies`)
 
     // Check if any section required a new referee (and the referee hasn't responded yet)
     const refereeCodes = ['NEW_EMPLOYER_REF', 'NEW_LANDLORD_REF', 'NEW_ACCOUNTANT_REF']
-    const needsReferee = actionRequiredSections.some(s => refereeCodes.includes(s.action_reason_code || ''))
+    const needsRefereeFromSections = hasActionRequiredSections &&
+      actionRequiredSections.some(s => refereeCodes.includes(s.action_reason_code || ''))
+
+    // Check if chase dependencies need referees (employer, landlord, accountant)
+    const refereeDepTypes = ['EMPLOYER_REF', 'RESIDENTIAL_REF', 'ACCOUNTANT_REF']
+    const needsRefereeFromDeps = hasActionRequiredDependencies &&
+      actionRequiredDependencies.some(d => refereeDepTypes.includes(d.dependency_type))
+
+    const needsReferee = needsRefereeFromSections || needsRefereeFromDeps
 
     // Check if referees have NOT yet submitted
     const employerSubmitted = reference.employer_references?.some((er: any) => er.submitted_at)
@@ -6241,10 +6261,25 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
     let newStatus = 'pending_verification' // Default: go to Verify queue
 
     if (needsReferee) {
-      // Check if waiting for specific referee
-      const needsEmployer = actionRequiredSections.some(s => s.action_reason_code === 'NEW_EMPLOYER_REF')
-      const needsLandlord = actionRequiredSections.some(s => s.action_reason_code === 'NEW_LANDLORD_REF')
-      const needsAccountant = actionRequiredSections.some(s => s.action_reason_code === 'NEW_ACCOUNTANT_REF')
+      // Check if waiting for specific referee from sections
+      const needsEmployerFromSections = hasActionRequiredSections &&
+        actionRequiredSections.some(s => s.action_reason_code === 'NEW_EMPLOYER_REF')
+      const needsLandlordFromSections = hasActionRequiredSections &&
+        actionRequiredSections.some(s => s.action_reason_code === 'NEW_LANDLORD_REF')
+      const needsAccountantFromSections = hasActionRequiredSections &&
+        actionRequiredSections.some(s => s.action_reason_code === 'NEW_ACCOUNTANT_REF')
+
+      // Check if waiting for specific referee from chase dependencies
+      const needsEmployerFromDeps = hasActionRequiredDependencies &&
+        actionRequiredDependencies.some(d => d.dependency_type === 'EMPLOYER_REF')
+      const needsLandlordFromDeps = hasActionRequiredDependencies &&
+        actionRequiredDependencies.some(d => d.dependency_type === 'RESIDENTIAL_REF')
+      const needsAccountantFromDeps = hasActionRequiredDependencies &&
+        actionRequiredDependencies.some(d => d.dependency_type === 'ACCOUNTANT_REF')
+
+      const needsEmployer = needsEmployerFromSections || needsEmployerFromDeps
+      const needsLandlord = needsLandlordFromSections || needsLandlordFromDeps
+      const needsAccountant = needsAccountantFromSections || needsAccountantFromDeps
 
       if ((needsEmployer && !employerSubmitted) ||
           (needsLandlord && !landlordSubmitted) ||
@@ -6262,15 +6297,40 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
     }
 
     // Reset ACTION_REQUIRED sections to NOT_REVIEWED
-    await supabase
-      .from('verification_sections')
-      .update({
-        decision: 'NOT_REVIEWED',
-        decision_by: null,
-        decision_at: null
-      })
-      .eq('reference_id', referenceId)
-      .eq('decision', 'ACTION_REQUIRED')
+    if (hasActionRequiredSections) {
+      await supabase
+        .from('verification_sections')
+        .update({
+          decision: 'NOT_REVIEWED',
+          decision_by: null,
+          decision_at: null
+        })
+        .eq('reference_id', referenceId)
+        .eq('decision', 'ACTION_REQUIRED')
+    }
+
+    // Reset ACTION_REQUIRED chase dependencies to PENDING (restart chase cycle)
+    if (hasActionRequiredDependencies) {
+      const now = new Date()
+      const nextChaseDue = new Date(now.getTime() + 8 * 60 * 60 * 1000) // 8 hours from now
+
+      await supabase
+        .from('chase_dependencies')
+        .update({
+          status: 'PENDING',
+          chase_cycle: 0,
+          email_attempts: 0,
+          sms_attempts: 0,
+          last_chase_sent_at: null,
+          next_chase_due_at: nextChaseDue.toISOString(),
+          metadata: {
+            reset_for_re_referencing: true,
+            reset_at: now.toISOString()
+          }
+        })
+        .eq('reference_id', referenceId)
+        .eq('status', 'ACTION_REQUIRED')
+    }
 
     // Update reference status and set urgent_reverify
     await supabase
@@ -6281,16 +6341,24 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
       })
       .eq('id', referenceId)
 
+    // Build metadata for audit log
+    const auditMetadata: any = {
+      newStatus,
+      urgentReverify: true
+    }
+    if (hasActionRequiredSections) {
+      auditMetadata.previousSections = actionRequiredSections.map(s => s.section_type)
+    }
+    if (hasActionRequiredDependencies) {
+      auditMetadata.previousDependencies = actionRequiredDependencies.map(d => d.dependency_type)
+    }
+
     // Log to audit trail
     await logAuditAction({
       referenceId,
       action: 'SUBMITTED_FOR_RE_REFERENCING',
       description: `Reference submitted for re-referencing. New status: ${newStatus}`,
-      metadata: {
-        previousSections: actionRequiredSections.map(s => s.section_type),
-        newStatus,
-        urgentReverify: true
-      },
+      metadata: auditMetadata,
       userId
     })
 
