@@ -88,15 +88,15 @@ router.post('/reference/:referenceId/create', staffAuth, async (req: StaffAuthRe
 router.post('/:dependencyId/chase', staffAuth, async (req: StaffAuthRequest, res: Response) => {
   try {
     const { dependencyId } = req.params;
-    const { method } = req.body; // 'email' or 'sms'
+    const { method } = req.body; // 'email', 'sms', or 'call'
     const staffUser = req.staffUser;
 
     if (!staffUser) {
       return res.status(401).json({ error: 'Staff authentication required' });
     }
 
-    if (!['email', 'sms'].includes(method)) {
-      return res.status(400).json({ error: 'Method must be "email" or "sms"' });
+    if (!['email', 'sms', 'call'].includes(method)) {
+      return res.status(400).json({ error: 'Method must be "email", "sms", or "call"' });
     }
 
     const dependency = await recordChase(dependencyId, method, staffUser.id);

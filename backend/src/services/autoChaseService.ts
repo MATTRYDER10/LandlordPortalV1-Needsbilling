@@ -1,17 +1,19 @@
 /**
  * Auto-Chase Service
- * Automatically sends chase emails/SMS on a schedule
+ * Automatically sends chase emails/SMS/calls on a schedule
  *
  * Chase Logic:
  * - Initial chase: 8 hours after request sent
  * - Subsequent chases: every 8 hours
- * - Only between 08:00-20:00 GMT (quiet hours)
- * - After 3 full cycles (email + SMS each): auto push to Action Required
- * - Chase order per cycle: Email first, then SMS 4 hours later
+ * - Only between 08:00-20:00 GMT (quiet hours for email/SMS)
+ * - Calls have stricter hours: 09:00-19:00 GMT, weekdays only
+ * - After 3 full cycles (email + SMS + call each): auto push to Action Required
+ * - Chase order per cycle: Email first, then SMS, then Call
  */
 
 import { supabase } from '../config/supabase'
 import { recordChase, processExhaustedDependencies } from './chaseDependencyService'
+import { isWithinCallHours } from './vapiService'
 
 // Chase timing constants
 const CHASE_RULES = {
@@ -82,16 +84,19 @@ async function getDependenciesDueForAutoChase(): Promise<any[]> {
 
 /**
  * Determine what chase method to use for a dependency
- * Returns 'email' or 'sms' or null if nothing should be sent
+ * Returns 'email', 'sms', 'call', or null if nothing should be sent
+ * Chase order per cycle: Email -> SMS -> Call
  */
-function determineChaseMethod(dep: any): 'email' | 'sms' | null {
-  const { email_attempts, sms_attempts, chase_cycle } = dep
+function determineChaseMethod(dep: any): 'email' | 'sms' | 'call' | null {
+  const { email_attempts, sms_attempts, call_attempts, chase_cycle } = dep
+  const callAttempts = call_attempts || 0
 
-  // Each cycle consists of: 1 email, then 1 SMS
-  // Cycle 0: email_attempts=0, sms_attempts=0 -> send email
-  // After email: email_attempts=1, sms_attempts=0 -> wait, then send SMS
-  // After SMS: email_attempts=1, sms_attempts=1 -> cycle_complete, cycle becomes 1
-  // Cycle 1: email_attempts=1, sms_attempts=1 -> send email (email_attempts becomes 2)
+  // Each cycle consists of: 1 email, then 1 SMS, then 1 call
+  // Cycle 0: email_attempts=0, sms_attempts=0, call_attempts=0 -> send email
+  // After email: email_attempts=1, sms_attempts=0, call_attempts=0 -> send SMS
+  // After SMS: email_attempts=1, sms_attempts=1, call_attempts=0 -> send call
+  // After call: email_attempts=1, sms_attempts=1, call_attempts=1 -> cycle_complete, cycle becomes 1
+  // Cycle 1: email_attempts=1, sms_attempts=1, call_attempts=1 -> send email (email_attempts becomes 2)
   // etc.
 
   // If email attempts <= chase_cycle, send email
@@ -104,7 +109,12 @@ function determineChaseMethod(dep: any): 'email' | 'sms' | null {
     return 'sms'
   }
 
-  // Both email and SMS sent for this cycle, nothing to do until cycle advances
+  // If call attempts <= chase_cycle AND we've sent email and SMS this cycle, send call
+  if (callAttempts <= chase_cycle && email_attempts > chase_cycle && sms_attempts > chase_cycle) {
+    return 'call'
+  }
+
+  // All three sent for this cycle, nothing to do until cycle advances
   return null
 }
 
@@ -142,6 +152,13 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
         continue
       }
 
+      // Skip calls if outside call hours (stricter than email/SMS quiet hours)
+      if (method === 'call' && !isWithinCallHours()) {
+        console.log(`[AutoChase] Skipping call for ${dep.id}: outside call hours (9 AM - 7 PM GMT, weekdays)`)
+        stats.skipped++
+        continue
+      }
+
       try {
         // Record and send the chase
         await recordChase(dep.id, method, 'SYSTEM', true)
@@ -149,6 +166,7 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
         console.log(`[AutoChase] Sent ${method} for ${dep.dependency_type} (ref: ${dep.reference_id})`)
 
         // Rate limit: Resend allows 2 req/sec, add 600ms delay to stay well under limit
+        // VAPI also has rate limits, so this delay applies to all methods
         await new Promise(resolve => setTimeout(resolve, 600))
       } catch (error: any) {
         stats.errors++

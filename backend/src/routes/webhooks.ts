@@ -5,6 +5,7 @@ import * as billingService from '../services/billingService';
 import * as creditService from '../services/creditService';
 import { supabase } from '../config/supabase';
 import { updateSMSDeliveryStatus } from '../services/smsService';
+import { updateCallStatus } from '../services/vapiService';
 
 const router = Router();
 
@@ -172,6 +173,85 @@ router.post('/twilio', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error handling Twilio webhook:', error);
     // Still return 200 to prevent Twilio from retrying
+    res.status(200).send('OK');
+  }
+});
+
+// ============================================================================
+// VAPI WEBHOOK HANDLER
+// ============================================================================
+
+/**
+ * VAPI Voice Call Status Webhook Handler
+ *
+ * Receives call status updates and end-of-call reports from VAPI.
+ * Updates the call_delivery_logs table with the current status.
+ *
+ * Event types from VAPI:
+ * - status-update: Call status changed (ringing, in-progress, etc.)
+ * - end-of-call-report: Call ended, includes transcript and summary
+ */
+router.post('/vapi', async (req: Request, res: Response) => {
+  const { message } = req.body;
+
+  // VAPI sends events with a 'message' wrapper containing 'type' and data
+  const eventType = message?.type;
+  const call = message?.call;
+
+  console.log(`[VAPI Webhook] Received: type=${eventType}, callId=${call?.id || 'unknown'}`);
+
+  if (!call?.id) {
+    console.log('[VAPI Webhook] No call ID in payload, acknowledging');
+    return res.status(200).send('OK');
+  }
+
+  try {
+    switch (eventType) {
+      case 'status-update':
+        // Call status changed (queued, ringing, in-progress, forwarding, ended)
+        await updateCallStatus(call.id, message.status || call.status, {
+          startedAt: call.startedAt,
+          endedAt: call.endedAt
+        });
+        break;
+
+      case 'end-of-call-report':
+        // Call ended - includes final status, duration, transcript, summary
+        await updateCallStatus(call.id, 'ended', {
+          endedReason: message.endedReason,
+          duration: message.durationSeconds,
+          transcript: message.transcript,
+          summary: message.summary,
+          startedAt: call.startedAt,
+          endedAt: call.endedAt
+        });
+        break;
+
+      case 'hang':
+        // Call was hung up
+        await updateCallStatus(call.id, 'ended', {
+          endedReason: 'hang',
+          endedAt: call.endedAt
+        });
+        break;
+
+      case 'speech-update':
+      case 'transcript':
+      case 'function-call':
+      case 'tool-calls':
+        // Informational events during call - log but don't update status
+        console.log(`[VAPI Webhook] Informational event: ${eventType}`);
+        break;
+
+      default:
+        console.log(`[VAPI Webhook] Unhandled event type: ${eventType}`);
+    }
+
+    // Always return 200 to acknowledge receipt
+    res.status(200).send('OK');
+  } catch (error: any) {
+    console.error('[VAPI Webhook] Error handling webhook:', error);
+    // Still return 200 to prevent VAPI from retrying
     res.status(200).send('OK');
   }
 });

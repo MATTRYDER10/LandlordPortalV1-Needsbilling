@@ -18,6 +18,11 @@ import {
   sendAccountantReferenceRequestSMS,
   sendGuarantorReferenceRequestSMS
 } from './smsService'
+import {
+  initiateCall,
+  isWithinCallHours,
+  isVapiConfigured
+} from './vapiService'
 
 // Chase timing constants
 const CHASE_RULES = {
@@ -44,6 +49,7 @@ export interface ChaseDependency {
   chaseCycle: number
   emailAttempts: number
   smsAttempts: number
+  callAttempts: number
   linkedTable?: string
   linkedRecordId?: string
   createdAt: string
@@ -309,15 +315,15 @@ export async function getDependenciesForReference(referenceId: string): Promise<
 }
 
 /**
- * Record that a chase was sent (email or SMS)
+ * Record that a chase was sent (email, SMS, or call)
  * @param dependencyId - The dependency ID
- * @param method - 'email' or 'sms'
+ * @param method - 'email', 'sms', or 'call'
  * @param staffId - Staff user ID (use 'SYSTEM' for auto-chases)
- * @param actualSend - Whether to actually send the email/SMS (default true)
+ * @param actualSend - Whether to actually send the email/SMS/call (default true)
  */
 export async function recordChase(
   dependencyId: string,
-  method: 'email' | 'sms',
+  method: 'email' | 'sms' | 'call',
   staffId: string,
   actualSend: boolean = true
 ): Promise<ChaseDependency> {
@@ -349,10 +355,11 @@ export async function recordChase(
     const now = new Date()
     const emailAttempts = method === 'email' ? current.email_attempts + 1 : current.email_attempts
     const smsAttempts = method === 'sms' ? current.sms_attempts + 1 : current.sms_attempts
+    const callAttempts = method === 'call' ? (current.call_attempts || 0) + 1 : (current.call_attempts || 0)
 
-    // Increment cycle if both email and SMS sent in this cycle
+    // Increment cycle if email, SMS, AND call sent in this cycle
     let newChaseCycle = current.chase_cycle
-    if (emailAttempts > newChaseCycle && smsAttempts > newChaseCycle) {
+    if (emailAttempts > newChaseCycle && smsAttempts > newChaseCycle && callAttempts > newChaseCycle) {
       newChaseCycle++
     }
 
@@ -376,6 +383,7 @@ export async function recordChase(
         chase_cycle: newChaseCycle,
         email_attempts: emailAttempts,
         sms_attempts: smsAttempts,
+        call_attempts: callAttempts,
         initial_request_sent_at: current.initial_request_sent_at || now.toISOString()
       })
       .eq('id', dependencyId)
@@ -395,6 +403,7 @@ export async function recordChase(
         chaseCycle: newChaseCycle,
         emailAttempts,
         smsAttempts,
+        callAttempts,
         actualSend
       },
       userId: staffId
@@ -826,6 +835,7 @@ function mapDependencyFromDb(dbDep: any): ChaseDependency {
     chaseCycle: dbDep.chase_cycle || 0,
     emailAttempts: dbDep.email_attempts || 0,
     smsAttempts: dbDep.sms_attempts || 0,
+    callAttempts: dbDep.call_attempts || 0,
     linkedTable: dbDep.linked_table,
     linkedRecordId: dbDep.linked_record_id,
     createdAt: dbDep.created_at,
@@ -834,12 +844,12 @@ function mapDependencyFromDb(dbDep: any): ChaseDependency {
 }
 
 /**
- * Send a chase email or SMS for a dependency
+ * Send a chase email, SMS, or voice call for a dependency
  * Handles token generation and link creation based on dependency type
  */
 export async function sendChaseForDependency(
   dependencyId: string,
-  method: 'email' | 'sms'
+  method: 'email' | 'sms' | 'call'
 ): Promise<{ sent: boolean; skipped: boolean; reason?: string }> {
   try {
     // Get dependency with reference data
@@ -906,6 +916,20 @@ export async function sendChaseForDependency(
     if (method === 'sms' && !contactPhone) {
       return { sent: false, skipped: true, reason: 'No phone number' }
     }
+    if (method === 'call') {
+      if (!contactPhone) {
+        return { sent: false, skipped: true, reason: 'No phone number' }
+      }
+      // Check if VAPI is configured
+      const vapiConfig = isVapiConfigured()
+      if (!vapiConfig.configured) {
+        return { sent: false, skipped: true, reason: `VAPI not configured: ${vapiConfig.missing.join(', ')}` }
+      }
+      // Check call hours (stricter than email/SMS)
+      if (!isWithinCallHours()) {
+        return { sent: false, skipped: true, reason: 'Outside call hours (9 AM - 7 PM GMT, weekdays)' }
+      }
+    }
 
     // Get reference data
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
@@ -915,7 +939,30 @@ export async function sendChaseForDependency(
     const companyEmail = reference.company?.email_encrypted ? decrypt(reference.company.email_encrypted) || '' : ''
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
 
-    // Send based on dependency type
+    // For calls, we handle all dependency types the same way (generic reminder)
+    if (method === 'call') {
+      const contactName = dependency.contact_name_encrypted
+        ? decrypt(dependency.contact_name_encrypted)
+        : 'there'
+
+      const callResult = await initiateCall({
+        to: contactPhone!,
+        contactName: contactName || 'there',
+        tenantName,
+        dependencyType: dependency.dependency_type,
+        referenceId: reference.id,
+        dependencyId
+      })
+
+      if (callResult.success) {
+        console.log(`[Chase] CALL initiated for ${dependency.dependency_type} dependency ${dependencyId}, callId: ${callResult.callId}`)
+        return { sent: true, skipped: false }
+      } else {
+        return { sent: false, skipped: false, reason: callResult.error || 'Call failed' }
+      }
+    }
+
+    // Send email/SMS based on dependency type
     switch (dependency.dependency_type) {
       case 'TENANT_FORM': {
         // Generate new token for tenant

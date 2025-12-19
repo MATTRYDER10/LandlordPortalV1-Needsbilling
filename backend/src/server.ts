@@ -33,6 +33,7 @@ import adminRoutes from './routes/admin'
 import adminReportsRoutes from './routes/adminReports'
 import agreementSigningRoutes from './routes/agreementSigning'
 import tenanciesRoutes from './routes/tenancies'
+import vapiRoutes from './routes/vapi'
 
 dotenv.config()
 
@@ -113,6 +114,9 @@ app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }))
 // Twilio webhook sends URL-encoded data
 app.use('/api/webhooks/twilio', express.urlencoded({ extended: false }))
 
+// VAPI webhook sends JSON data
+app.use('/api/webhooks/vapi', express.json())
+
 // Mount webhook routes
 app.use('/api/webhooks', webhookRoutes)
 
@@ -148,6 +152,7 @@ app.use('/api/contact-attempts', contactAttemptsRoutes)
 app.use('/api/verification-steps', verificationStepsRoutes)
 app.use('/api/verify', verifyRoutes)
 app.use('/api/chase', chaseRoutes)
+app.use('/api/vapi', vapiRoutes)
 app.use('/api/landlords', landlordsRoutes)
 app.use('/api/tenant-offers', tenantOffersRoutes)
 app.use('/api/admin', adminRoutes)

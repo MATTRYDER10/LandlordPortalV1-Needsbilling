@@ -25,6 +25,7 @@ import StaffReferenceDetail from '../views/StaffReferenceDetail.vue'
 import StaffVerification from '../views/StaffVerification.vue'
 import StaffVerificationNew from '../views/StaffVerificationNew.vue'
 import StaffReferenceView from '../views/StaffReferenceView.vue'
+import StaffVapiTest from '../views/StaffVapiTest.vue'
 import StaffPortal from '../views/StaffPortal.vue'
 import StaffChasePanel from '../views/StaffChasePanel.vue'
 import VerifyCaseView from '../components/staff/verify/VerifyCaseView.vue'
@@ -308,6 +309,12 @@ const router = createRouter({
       path: '/staff/view/:id',
       name: 'StaffReferenceView',
       component: StaffReferenceView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/staff/vapi-test',
+      name: 'StaffVapiTest',
+      component: StaffVapiTest,
       meta: { requiresAuth: true }
     },
     {
