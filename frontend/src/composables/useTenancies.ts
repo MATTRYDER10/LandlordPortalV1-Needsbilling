@@ -36,6 +36,7 @@ export interface SectionStatus {
 export interface ActionRequiredTask {
   sectionType: string
   reasonCode: string
+  reasonLabel: string
   staffNote: string
   requiredActionType: string
 }

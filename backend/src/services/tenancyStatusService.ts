@@ -51,6 +51,7 @@ export interface TenancyPerson {
 export interface ActionRequiredTask {
   sectionType: string
   reasonCode: string
+  reasonLabel: string
   staffNote: string
   requiredActionType: string
 }
@@ -409,26 +410,105 @@ export async function getPersonSectionStatuses(referenceId: string): Promise<Sec
   }))
 }
 
+// Map chase dependency types to section types (or keep as-is for form types)
+function mapDependencyTypeToSection(dependencyType: string): string {
+  const mapping: Record<string, string> = {
+    'EMPLOYER_REF': 'INCOME',
+    'ACCOUNTANT_REF': 'INCOME',
+    'RESIDENTIAL_REF': 'RESIDENTIAL',
+    'TENANT_FORM': 'TENANT_FORM',
+    'GUARANTOR_FORM': 'GUARANTOR_FORM'
+  }
+  return mapping[dependencyType] || dependencyType
+}
+
+// Get human-readable label for dependency type
+function getDependencyTypeLabel(dependencyType: string): string {
+  const labels: Record<string, string> = {
+    'EMPLOYER_REF': 'Employer Reference',
+    'ACCOUNTANT_REF': 'Accountant Reference',
+    'RESIDENTIAL_REF': 'Landlord Reference',
+    'TENANT_FORM': 'Tenant',
+    'GUARANTOR_FORM': 'Guarantor'
+  }
+  return labels[dependencyType] || dependencyType
+}
+
 /**
  * Get action required tasks for a person
  */
 export async function getPersonActionRequiredTasks(referenceId: string): Promise<ActionRequiredTask[]> {
+  // Fetch verification sections with ACTION_REQUIRED
   const { data: sections, error } = await supabase
     .from('verification_sections')
     .select('section_type, action_reason_code, action_agent_note')
     .eq('reference_id', referenceId)
     .eq('decision', 'ACTION_REQUIRED')
 
-  if (error || !sections) {
-    return []
+  // Also fetch chase dependencies with ACTION_REQUIRED status
+  const { data: chaseDeps } = await supabase
+    .from('chase_dependencies')
+    .select('dependency_type, metadata')
+    .eq('reference_id', referenceId)
+    .eq('status', 'ACTION_REQUIRED')
+
+  const tasks: ActionRequiredTask[] = []
+
+  // Collect all reason codes to look up display labels
+  const reasonCodes = new Set<string>()
+  if (sections) {
+    sections.forEach(s => {
+      if (s.action_reason_code) reasonCodes.add(s.action_reason_code)
+    })
+  }
+  // Add CHASE_EXHAUSTED if we have exhausted chase dependencies
+  if (chaseDeps && chaseDeps.length > 0) {
+    reasonCodes.add('CHASE_EXHAUSTED')
   }
 
-  return sections.map(s => ({
-    sectionType: s.section_type,
-    reasonCode: s.action_reason_code || '',
-    staffNote: s.action_agent_note || '',
-    requiredActionType: mapReasonToActionType(s.action_reason_code)
-  }))
+  let reasonCodeLabels: Record<string, string> = {}
+  if (reasonCodes.size > 0) {
+    const { data: codes } = await supabase
+      .from('action_reason_codes')
+      .select('code, display_label')
+      .in('code', Array.from(reasonCodes))
+
+    if (codes) {
+      reasonCodeLabels = codes.reduce((acc, c) => {
+        acc[c.code] = c.display_label
+        return acc
+      }, {} as Record<string, string>)
+    }
+  }
+
+  // Add tasks from verification sections
+  if (sections) {
+    for (const s of sections) {
+      tasks.push({
+        sectionType: s.section_type,
+        reasonCode: s.action_reason_code || '',
+        reasonLabel: s.action_reason_code ? (reasonCodeLabels[s.action_reason_code] || s.action_reason_code) : '',
+        staffNote: s.action_agent_note || '',
+        requiredActionType: mapReasonToActionType(s.action_reason_code)
+      })
+    }
+  }
+
+  // Add tasks from exhausted chase dependencies
+  if (chaseDeps) {
+    for (const dep of chaseDeps) {
+      const depLabel = getDependencyTypeLabel(dep.dependency_type)
+      tasks.push({
+        sectionType: mapDependencyTypeToSection(dep.dependency_type),
+        reasonCode: 'CHASE_EXHAUSTED',
+        reasonLabel: reasonCodeLabels['CHASE_EXHAUSTED'] || 'Reference Not Responding',
+        staffNote: `${depLabel} has not responded after multiple contact attempts`,
+        requiredActionType: 'UPDATE_REFEREE'
+      })
+    }
+  }
+
+  return tasks
 }
 
 /**
@@ -575,6 +655,28 @@ export async function batchGetChaseDependencies(referenceIds: string[]): Promise
 }
 
 /**
+ * Batch fetch all action reason code labels
+ * Returns a Map of code -> display_label
+ */
+export async function batchGetReasonCodeLabels(): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from('action_reason_codes')
+    .select('code, display_label')
+    .eq('active', true)
+
+  if (error) {
+    console.error('Error batch fetching reason code labels:', error)
+    return new Map()
+  }
+
+  const labels = new Map<string, string>()
+  for (const code of data || []) {
+    labels.set(code.code, code.display_label)
+  }
+  return labels
+}
+
+/**
  * Sync version of derivePersonStatus that uses pre-fetched data
  * No database queries - uses passed-in sections and dependencies
  *
@@ -677,21 +779,46 @@ export function getSectionStatusesFromData(sections: any[] | undefined): Section
 }
 
 /**
- * Get action required tasks from pre-fetched sections
+ * Get action required tasks from pre-fetched sections and dependencies
  */
-export function getActionRequiredTasksFromData(sections: any[] | undefined): ActionRequiredTask[] {
-  if (!sections) {
-    return []
+export function getActionRequiredTasksFromData(
+  sections: any[] | undefined,
+  dependencies: any[] | undefined,
+  reasonCodeLabels: Map<string, string>
+): ActionRequiredTask[] {
+  const tasks: ActionRequiredTask[] = []
+
+  // Add tasks from verification sections with ACTION_REQUIRED
+  if (sections) {
+    const actionRequired = sections.filter(s => s.decision === 'ACTION_REQUIRED')
+    for (const s of actionRequired) {
+      const reasonCode = s.action_reason_code || ''
+      tasks.push({
+        sectionType: s.section_type,
+        reasonCode,
+        reasonLabel: reasonCode ? (reasonCodeLabels.get(reasonCode) || reasonCode) : '',
+        staffNote: s.action_agent_note || '',
+        requiredActionType: mapReasonToActionType(s.action_reason_code)
+      })
+    }
   }
 
-  const actionRequired = sections.filter(s => s.decision === 'ACTION_REQUIRED')
+  // Add tasks from chase dependencies with ACTION_REQUIRED status
+  if (dependencies) {
+    const exhaustedDeps = dependencies.filter(d => d.status === 'ACTION_REQUIRED')
+    for (const dep of exhaustedDeps) {
+      const depLabel = getDependencyTypeLabel(dep.dependency_type)
+      tasks.push({
+        sectionType: mapDependencyTypeToSection(dep.dependency_type),
+        reasonCode: 'CHASE_EXHAUSTED',
+        reasonLabel: reasonCodeLabels.get('CHASE_EXHAUSTED') || 'Reference Not Responding',
+        staffNote: `${depLabel} has not responded after multiple contact attempts`,
+        requiredActionType: 'UPDATE_REFEREE'
+      })
+    }
+  }
 
-  return actionRequired.map(s => ({
-    sectionType: s.section_type,
-    reasonCode: s.action_reason_code || '',
-    staffNote: s.action_agent_note || '',
-    requiredActionType: mapReasonToActionType(s.action_reason_code)
-  }))
+  return tasks
 }
 
 /**
@@ -701,7 +828,8 @@ export function getActionRequiredTasksFromData(sections: any[] | undefined): Act
 export function buildTenancyPersonSync(
   reference: any,
   sectionsMap: Map<string, any[]>,
-  dependenciesMap: Map<string, any[]>
+  dependenciesMap: Map<string, any[]>,
+  reasonCodeLabels: Map<string, string>
 ): TenancyPerson {
   const sections = sectionsMap.get(reference.id)
   const dependencies = dependenciesMap.get(reference.id)
@@ -709,7 +837,7 @@ export function buildTenancyPersonSync(
   const status = derivePersonStatusSync(reference, sections, dependencies)
   const sectionStatuses = getSectionStatusesFromData(sections)
   const actionRequiredTasks = status === 'ACTION_REQUIRED'
-    ? getActionRequiredTasksFromData(sections)
+    ? getActionRequiredTasksFromData(sections, dependencies, reasonCodeLabels)
     : []
 
   return {

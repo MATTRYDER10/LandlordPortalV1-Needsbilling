@@ -14,6 +14,7 @@ import {
   // Batch functions for performance
   batchGetVerificationSections,
   batchGetChaseDependencies,
+  batchGetReasonCodeLabels,
   buildTenancyPersonSync,
   generateBlockingSentenceSync
 } from '../services/tenancyStatusService'
@@ -189,10 +190,11 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     console.log(`[Tenancies API] Batch fetching data for ${allReferenceIds.length} references`)
 
-    // Fetch all data in parallel (2 queries instead of 500+)
-    const [sectionsMap, dependenciesMap] = await Promise.all([
+    // Fetch all data in parallel (3 queries instead of 500+)
+    const [sectionsMap, dependenciesMap, reasonCodeLabels] = await Promise.all([
       batchGetVerificationSections(allReferenceIds),
-      batchGetChaseDependencies(allReferenceIds)
+      batchGetChaseDependencies(allReferenceIds),
+      batchGetReasonCodeLabels()
     ])
 
     // Build tenancy objects (no more database queries needed!)
@@ -208,18 +210,18 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       if (children.length > 0) {
         // Multi-tenant: use children as tenants
         for (const child of children) {
-          const person = buildTenancyPersonSync(child, sectionsMap, dependenciesMap)
+          const person = buildTenancyPersonSync(child, sectionsMap, dependenciesMap, reasonCodeLabels)
           people.push(person)
         }
       } else {
         // Single tenant: use parent as tenant
-        const person = buildTenancyPersonSync(parentRef, sectionsMap, dependenciesMap)
+        const person = buildTenancyPersonSync(parentRef, sectionsMap, dependenciesMap, reasonCodeLabels)
         people.push(person)
       }
 
       // Add guarantors
       for (const guarantor of guarantors) {
-        const person = buildTenancyPersonSync(guarantor, sectionsMap, dependenciesMap)
+        const person = buildTenancyPersonSync(guarantor, sectionsMap, dependenciesMap, reasonCodeLabels)
         people.push(person)
       }
 
@@ -379,11 +381,12 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .in('guarantor_for_reference_id', referenceIds)
       .eq('is_guarantor', true)
 
-    // Batch fetch verification sections and dependencies for performance
+    // Batch fetch verification sections, dependencies, and reason code labels for performance
     const allRefIds = [tenancyId, ...(children?.map(c => c.id) || []), ...(guarantors?.map(g => g.id) || [])]
-    const [sectionsMap, dependenciesMap] = await Promise.all([
+    const [sectionsMap, dependenciesMap, reasonCodeLabels] = await Promise.all([
       batchGetVerificationSections(allRefIds),
-      batchGetChaseDependencies(allRefIds)
+      batchGetChaseDependencies(allRefIds),
+      batchGetReasonCodeLabels()
     ])
 
     // Build people array using sync functions
@@ -391,14 +394,14 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     if (children && children.length > 0) {
       for (const child of children) {
-        people.push(buildTenancyPersonSync(child, sectionsMap, dependenciesMap))
+        people.push(buildTenancyPersonSync(child, sectionsMap, dependenciesMap, reasonCodeLabels))
       }
     } else {
-      people.push(buildTenancyPersonSync(parentRef, sectionsMap, dependenciesMap))
+      people.push(buildTenancyPersonSync(parentRef, sectionsMap, dependenciesMap, reasonCodeLabels))
     }
 
     for (const guarantor of guarantors || []) {
-      people.push(buildTenancyPersonSync(guarantor, sectionsMap, dependenciesMap))
+      people.push(buildTenancyPersonSync(guarantor, sectionsMap, dependenciesMap, reasonCodeLabels))
     }
 
     // Derive status and generate blocking sentence

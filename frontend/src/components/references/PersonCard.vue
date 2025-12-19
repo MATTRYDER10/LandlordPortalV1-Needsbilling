@@ -77,7 +77,8 @@
       >
         <AlertCircle class="w-4 h-4 flex-shrink-0 mt-0.5" />
         <span>
-          <strong>{{ task.sectionType }}:</strong> {{ task.staffNote || task.reasonCode }}
+          <strong>{{ formatSectionLabel(task.sectionType) }}:</strong>
+          {{ formatActionReason(task) }}
         </span>
       </div>
     </div>
@@ -86,7 +87,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { TenancyPerson, SectionStatus, SectionDecision } from '@/composables/useTenancies'
+import type { TenancyPerson, SectionStatus, SectionDecision, ActionRequiredTask } from '@/composables/useTenancies'
 import StatusPill from './StatusPill.vue'
 import { AlertCircle } from 'lucide-vue-next'
 
@@ -174,16 +175,33 @@ function getSectionIcon(decision: SectionDecision): string {
   }
 }
 
-function getSectionTitle(section: SectionStatus): string {
-  const labels: Record<string, string> = {
-    'IDENTITY_SELFIE': 'ID/Selfie',
-    'RTR': 'Right to Rent',
-    'INCOME': 'Income',
-    'RESIDENTIAL': 'Residential',
-    'CREDIT': 'Credit',
-    'AML': 'AML'
+const sectionLabels: Record<string, string> = {
+  'IDENTITY_SELFIE': 'ID/Selfie',
+  'RTR': 'Right to Rent',
+  'INCOME': 'Income',
+  'RESIDENTIAL': 'Residential',
+  'CREDIT': 'Credit',
+  'AML': 'AML'
+}
+
+function formatSectionLabel(sectionType: string): string {
+  return sectionLabels[sectionType] || sectionType
+}
+
+function formatActionReason(task: ActionRequiredTask): string {
+  // Prioritize showing meaningful information
+  const reason = task.reasonLabel || task.staffNote || 'Action required'
+
+  // If we have both a reason label and a different staff note, combine them
+  if (task.reasonLabel && task.staffNote && task.staffNote !== task.reasonLabel) {
+    return `${task.reasonLabel} - ${task.staffNote}`
   }
-  return `${labels[section.type] || section.type}: ${section.decision}`
+
+  return reason
+}
+
+function getSectionTitle(section: SectionStatus): string {
+  return `${sectionLabels[section.type] || section.type}: ${section.decision}`
 }
 
 function formatCurrency(amount: number): string {

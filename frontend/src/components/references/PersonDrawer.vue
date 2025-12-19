@@ -135,6 +135,10 @@
                     </div>
                   </div>
                 </div>
+                <!-- Helpful guidance message -->
+                <p class="text-sm text-gray-600 mt-2">
+                  Please verify the contact details are correct and update if needed, or provide alternative referee details.
+                </p>
               </div>
 
               <!-- Fallback to person.actionRequiredTasks if available -->
@@ -146,12 +150,16 @@
                 >
                   <div class="flex items-start gap-3">
                     <div>
-                      <p class="text-sm font-medium text-gray-900">{{ task.sectionType }}</p>
-                      <p class="text-sm text-gray-600 mt-1">{{ task.staffNote || task.reasonCode }}</p>
-                      <p class="text-xs text-gray-500 mt-1">Required: {{ task.requiredActionType }}</p>
+                      <p class="text-sm font-medium text-gray-900">{{ formatSectionType(task.sectionType) }}</p>
+                      <p class="text-sm font-semibold text-red-700 mt-1">{{ task.reasonLabel || 'Action needed' }}</p>
+                      <p v-if="task.staffNote" class="text-sm text-gray-600 mt-1">{{ task.staffNote }}</p>
                     </div>
                   </div>
                 </div>
+                <!-- Helpful guidance message -->
+                <p class="text-sm text-gray-600 mt-2">
+                  Please verify the contact details are correct and update if needed, or provide alternative referee details.
+                </p>
               </div>
 
               <!-- Generic message when no specific reason is available -->
@@ -1849,6 +1857,25 @@ function getSectionLabel(type: SectionType): string {
     'AML': 'AML'
   }
   return labels[type] || type
+}
+
+// Format section type for action required tasks (handles both section types and dependency types)
+function formatSectionType(type: string): string {
+  const labels: Record<string, string> = {
+    'IDENTITY_SELFIE': 'ID & Selfie',
+    'RTR': 'Right to Rent',
+    'INCOME': 'Income',
+    'RESIDENTIAL': 'Residential',
+    'CREDIT': 'Credit',
+    'AML': 'AML',
+    // Dependency types
+    'TENANT_FORM': 'Tenant Form',
+    'GUARANTOR_FORM': 'Guarantor Form',
+    'EMPLOYER_REF': 'Employer Reference',
+    'RESIDENTIAL_REF': 'Landlord Reference',
+    'ACCOUNTANT_REF': 'Accountant Reference'
+  }
+  return labels[type] || type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function getSectionDecisionLabel(decision: SectionDecision): string {
