@@ -232,32 +232,40 @@
 
         <div v-else-if="signingStatus" class="space-y-3 mb-6">
           <div v-for="signer in signingStatus.signers" :key="signer.id"
-               class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div class="flex items-center">
-              <div :class="[
-                'w-8 h-8 rounded-full flex items-center justify-center mr-3',
-                signer.status === 'signed' ? 'bg-green-100' : 'bg-gray-200'
-              ]">
-                <Check v-if="signer.status === 'signed'" class="w-4 h-4 text-green-600" />
-                <Clock v-else class="w-4 h-4 text-gray-400" />
+               class="p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <div :class="[
+                  'w-8 h-8 rounded-full flex items-center justify-center mr-3',
+                  signer.status === 'signed' ? 'bg-green-100' : 'bg-gray-200'
+                ]">
+                  <Check v-if="signer.status === 'signed'" class="w-4 h-4 text-green-600" />
+                  <Clock v-else class="w-4 h-4 text-gray-400" />
+                </div>
+                <div>
+                  <span class="text-sm font-medium text-gray-900">{{ signer.signer_name }}</span>
+                  <span class="text-xs text-gray-500 ml-2 capitalize">({{ signer.signer_type }})</span>
+                </div>
               </div>
-              <div>
-                <span class="text-sm font-medium text-gray-900">{{ signer.signer_name }}</span>
-                <span class="text-xs text-gray-500 ml-2 capitalize">({{ signer.signer_type }})</span>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
               <span :class="getSignerStatusClass(signer.status)" class="text-xs font-medium px-2 py-1 rounded-full">
                 {{ getSignerStatusLabel(signer.status) }}
               </span>
+            </div>
+            <!-- Email and Remind section for unsigned signers -->
+            <div v-if="signer.status !== 'signed' && signer.status !== 'declined'" class="mt-2 flex items-center gap-2">
+              <input
+                v-model="signerEmails[signer.id]"
+                type="email"
+                :placeholder="signer.signer_email || 'Enter email address'"
+                class="flex-1 text-sm px-2 py-1 border border-gray-300 rounded focus:ring-primary focus:border-primary"
+              />
               <button
-                v-if="signer.status !== 'signed' && signer.status !== 'declined'"
-                @click="sendReminder(signer.id)"
-                :disabled="sendingReminder === signer.id"
-                class="text-xs text-primary hover:text-primary-dark disabled:text-gray-400"
+                @click="sendReminder(signer.id, signerEmails[signer.id])"
+                :disabled="sendingReminder === signer.id || !signerEmails[signer.id]"
+                class="text-xs px-3 py-1 bg-primary text-white rounded hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed"
                 title="Send Reminder"
               >
-                {{ sendingReminder === signer.id ? 'Sending...' : 'Remind' }}
+                {{ sendingReminder === signer.id ? 'Sending...' : 'Send Reminder' }}
               </button>
             </div>
           </div>
@@ -327,6 +335,7 @@ const selectedAgreement = ref<any>(null)
 // Action states
 const initiatingSign = ref(false)
 const loadingSigningStatus = ref(false)
+const signerEmails = ref<Record<string, string>>({})
 const signingStatus = ref<any>(null)
 const sendingReminder = ref<string | null>(null)
 const deleting = ref(false)
@@ -507,6 +516,7 @@ const openStatusModal = async (agreement: any) => {
 const fetchSigningStatus = async (agreementId: string) => {
   loadingSigningStatus.value = true
   signingStatus.value = null
+  signerEmails.value = {}
 
   try {
     const token = authStore.session?.access_token
@@ -522,6 +532,13 @@ const fetchSigningStatus = async (agreementId: string) => {
 
     const data = await response.json()
     signingStatus.value = data
+
+    // Initialize signerEmails with existing emails
+    if (data.signers) {
+      data.signers.forEach((signer: any) => {
+        signerEmails.value[signer.id] = signer.signer_email || ''
+      })
+    }
   } catch (err) {
     console.error('Error fetching signing status:', err)
     toast.error('Failed to load signing status')
@@ -562,7 +579,7 @@ const initiateSigning = async () => {
   }
 }
 
-const sendReminder = async (signatureId: string) => {
+const sendReminder = async (signatureId: string, email?: string) => {
   if (!selectedAgreement.value) return
 
   sendingReminder.value = signatureId
@@ -575,7 +592,8 @@ const sendReminder = async (signatureId: string) => {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ email })
     })
 
     if (!response.ok) {

@@ -48,6 +48,7 @@ export interface ClientInfo {
 export interface SigningStatus {
   id: string
   signer_name: string
+  signer_email: string
   signer_type: 'landlord' | 'tenant' | 'guarantor'
   status: 'pending' | 'sent' | 'viewed' | 'signed' | 'declined'
   signedAt: string | null
@@ -204,6 +205,7 @@ class SignatureService {
       signaturePromises.push(
         this.createSignatureRecord(agreementId, 'guarantor', i, {
           name: guarantor.name,
+          email: guarantor.email,
           address: guarantor.address
         })
       )
@@ -708,16 +710,17 @@ class SignatureService {
   async getSigningStatus(agreementId: string): Promise<SigningStatus[]> {
     const { data: signatures } = await supabase
       .from('agreement_signatures')
-      .select('id, signer_name, signer_type, status, signed_at')
+      .select('id, signer_name, signer_email, signer_type, status, signed_at')
       .eq('agreement_id', agreementId)
       .order('signer_type')
       .order('signer_index')
 
     if (!signatures) return []
 
-    return signatures.map((sig: { id: string; signer_name: string; signer_type: 'landlord' | 'tenant' | 'guarantor'; status: string; signed_at: string | null }) => ({
+    return signatures.map((sig: { id: string; signer_name: string; signer_email: string | null; signer_type: 'landlord' | 'tenant' | 'guarantor'; status: string; signed_at: string | null }) => ({
       id: sig.id,
       signer_name: sig.signer_name,
+      signer_email: sig.signer_email || '',
       signer_type: sig.signer_type,
       status: sig.status as 'pending' | 'sent' | 'viewed' | 'signed' | 'declined',
       signedAt: sig.signed_at

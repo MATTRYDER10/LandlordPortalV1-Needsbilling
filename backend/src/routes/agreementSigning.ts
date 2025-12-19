@@ -339,10 +339,12 @@ router.get('/agreements/:id/signing-status', authenticateToken, async (req: Auth
 /**
  * POST /api/agreements/:id/send-reminder/:signatureId
  * Manually trigger reminder for specific signer
+ * Body: { email?: string } - optionally update the signer's email before sending
  */
 router.post('/agreements/:id/send-reminder/:signatureId', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id, signatureId } = req.params
+    const { email } = req.body
     const userId = req.user?.id
 
     // Get user's company
@@ -365,6 +367,14 @@ router.post('/agreements/:id/send-reminder/:signatureId', authenticateToken, asy
 
     if (!agreement || agreement.company_id !== companyUser.company_id) {
       return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // If email provided, update the signature record first
+    if (email) {
+      await supabase
+        .from('agreement_signatures')
+        .update({ signer_email: email })
+        .eq('id', signatureId)
     }
 
     await signatureService.sendReminderEmail(signatureId)

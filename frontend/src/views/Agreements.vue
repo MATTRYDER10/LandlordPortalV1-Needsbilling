@@ -902,6 +902,17 @@
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white"
                   />
                 </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input
+                    v-model="guarantor.email"
+                    type="email"
+                    required
+                    placeholder="guarantor@example.com"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Required for sending signing request</p>
+                </div>
                 <AddressAutocomplete
                   v-model="guarantor.address.line1"
                   label="Guarantor Address"
@@ -1289,6 +1300,7 @@ interface Address {
 
 interface Party {
   name: string
+  email?: string
   address: Address
 }
 
@@ -1737,6 +1749,7 @@ function addGuarantor() {
   if (formData.value.guarantors.length < 20) {
     formData.value.guarantors.push({
       name: '',
+      email: '',
       address: { line1: '', line2: '', city: '', county: '', postcode: '' }
     })
   }
@@ -2089,6 +2102,7 @@ function mapReferenceToForm(
         child.guarantors.forEach((g: any) => {
           allGuarantors.push({
             name: `${g.tenant_first_name} ${g.tenant_last_name}`,
+            email: g.tenant_email || g.email || '',
             address: {
               line1: g.current_address || g.property_address || '',
               line2: '',
@@ -2107,6 +2121,7 @@ function mapReferenceToForm(
     guarantorReferences.forEach((g: any) => {
       allGuarantors.push({
         name: `${g.tenant_first_name} ${g.tenant_last_name}`,
+        email: g.tenant_email || g.email || '',
         address: {
           line1: g.current_address || g.property_address || '',
           line2: '',
