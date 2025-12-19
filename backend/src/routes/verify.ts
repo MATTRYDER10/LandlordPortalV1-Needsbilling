@@ -1084,7 +1084,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
     const { data: accountantReference } = await supabaseAdmin
       .from('accountant_references')
       .select('*')
-      .eq('reference_id', referenceId)
+      .eq('tenant_reference_id', referenceId)
       .single();
 
     // Get landlord reference if exists
@@ -1195,14 +1195,30 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
     // Decrypt accountant reference fields if exists
     let decryptedAccountantReference = null;
     if (accountantReference) {
+      // Calculate years trading from business_start_date
+      let yearsTrading = null;
+      if (accountantReference.business_start_date) {
+        const startDate = new Date(accountantReference.business_start_date);
+        yearsTrading = Math.floor((Date.now() - startDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      }
+
+      // Get annual income - prefer estimated_monthly_income * 12, fallback to annual_profit
+      let annualIncome = null;
+      if (accountantReference.estimated_monthly_income_encrypted) {
+        const monthly = parseFloat(decrypt(accountantReference.estimated_monthly_income_encrypted) || '0');
+        annualIncome = monthly * 12;
+      } else if (accountantReference.annual_profit_encrypted) {
+        annualIncome = parseFloat(decrypt(accountantReference.annual_profit_encrypted) || '0');
+      }
+
       decryptedAccountantReference = {
         id: accountantReference.id,
         accountantName: accountantReference.accountant_name_encrypted ? decrypt(accountantReference.accountant_name_encrypted) : null,
-        firmName: accountantReference.firm_name_encrypted ? decrypt(accountantReference.firm_name_encrypted) : null,
-        contactEmail: accountantReference.contact_email_encrypted ? decrypt(accountantReference.contact_email_encrypted) : null,
+        firmName: accountantReference.accountant_firm_encrypted ? decrypt(accountantReference.accountant_firm_encrypted) : null,
+        contactEmail: accountantReference.accountant_email_encrypted ? decrypt(accountantReference.accountant_email_encrypted) : null,
         contactPhone: accountantReference.accountant_phone_encrypted ? decrypt(accountantReference.accountant_phone_encrypted) : null,
-        annualIncome: accountantReference.annual_income_encrypted ? parseFloat(decrypt(accountantReference.annual_income_encrypted) || '0') : null,
-        yearsTrading: accountantReference.years_trading,
+        annualIncome,
+        yearsTrading,
         submittedAt: accountantReference.submitted_at,
         signaturePath: accountantReference.signature_path
       };
