@@ -40,6 +40,8 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         is_guarantor,
         requires_guarantor,
         guarantor_for_reference_id,
+        guarantor_email_encrypted,
+        guarantor_first_name_encrypted,
         income_student,
         income_regular_employment,
         income_self_employed,
@@ -92,7 +94,19 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
     }
 
     // 2. GUARANTOR FORM - Check if required and submitted
+    // EXCEPTION: Students with guarantors can proceed to verification without waiting for guarantor form
     if (reference.requires_guarantor && !reference.is_guarantor) {
+      const isStudentOnly = reference.income_student &&
+                            !reference.income_regular_employment &&
+                            !reference.income_self_employed &&
+                            !reference.income_benefits
+
+      // Check if guarantor contact details are provided
+      const hasGuarantorContactDetails = !!(
+        reference.guarantor_email_encrypted ||
+        reference.guarantor_first_name_encrypted
+      )
+
       // Find guarantor reference for this tenant
       const { data: guarantorRef } = await supabase
         .from('tenant_references')
@@ -101,7 +115,13 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         .eq('is_guarantor', true)
         .single()
 
-      if (!guarantorRef) {
+      if (isStudentOnly && hasGuarantorContactDetails) {
+        // Student with guarantor - skip guarantor form check
+        sectionStatus.guarantorForm = {
+          complete: true,
+          reason: 'Student with guarantor - form pending but not blocking'
+        }
+      } else if (!guarantorRef) {
         missingItems.push('Guarantor form not submitted')
         sectionStatus.guarantorForm = { complete: false, reason: 'Guarantor reference not found' }
       } else if (guarantorRef.status === 'pending') {
