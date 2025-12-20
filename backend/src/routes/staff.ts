@@ -477,12 +477,20 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       .eq('tenant_reference_id', id)
       .single()
 
-    // Get guarantor reference if exists
+    // Get guarantor reference if exists (OLD SYSTEM - guarantor_references table)
     const { data: guarantorReference } = await supabase
       .from('guarantor_references')
       .select('*')
       .eq('reference_id', id)
       .single()
+
+    // Get guarantor references (NEW SYSTEM - tenant_references with is_guarantor = true)
+    const { data: guarantorReferences } = await supabase
+      .from('tenant_references')
+      .select('*')
+      .eq('guarantor_for_reference_id', id)
+      .eq('is_guarantor', true)
+      .order('created_at', { ascending: true })
 
     // Get documents
     const { data: documents } = await supabase
@@ -715,6 +723,9 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
     const { data: sanctionsScreening } = await supabase.from('sanctions_screenings').select('*').eq('reference_id', reference.id).single()
     const { data: score } = await supabase.from('reference_scores').select('*').eq('reference_id', reference.id).single()
 
+    // Decrypt guarantor references (NEW SYSTEM)
+    const decryptedGuarantorReferences = guarantorReferences?.map(decryptTenantReference) || []
+
     res.json({
       reference: decryptedReference,
       landlordReference: decryptedLandlordReference,
@@ -722,6 +733,7 @@ router.get('/references/:id', authenticateStaff, async (req: StaffAuthRequest, r
       employerReference: decryptedEmployerReference,
       accountantReference: decryptedAccountantReference,
       guarantorReference: decryptedGuarantorReference,
+      guarantorReferences: decryptedGuarantorReferences, // NEW SYSTEM
       previousAddresses: decryptedPreviousAddresses || [],
       documents,
       creditsafeVerification: creditsafeVerification,

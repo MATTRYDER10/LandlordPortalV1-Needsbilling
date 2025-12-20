@@ -73,6 +73,7 @@
         :person="selectedPerson"
         :tenancy="selectedTenancy"
         @updated="loadTenancies"
+        @addGuarantor="handleAddGuarantorFromDrawer"
       />
     </div>
 
@@ -975,6 +976,23 @@ const handleAddGuarantor = (tenancy: Tenancy) => {
   } else {
     selectedTenantForGuarantor.value = ''
   }
+
+  showAddGuarantorModal.value = true
+}
+
+// Handler for when add guarantor is triggered from the PersonDrawer
+const handleAddGuarantorFromDrawer = (tenantId: string) => {
+  // Use the selectedTenancy which should still be set from the drawer
+  if (!selectedTenancy.value) return
+
+  // Set the tenancy and reset form
+  tenancyForGuarantor.value = selectedTenancy.value
+  guarantorForm.value = { first_name: '', last_name: '', email: '', phone: '' }
+  guarantorError.value = ''
+  guarantorSuccess.value = ''
+
+  // Pre-select the tenant that was clicked
+  selectedTenantForGuarantor.value = tenantId
 
   showAddGuarantorModal.value = true
 }

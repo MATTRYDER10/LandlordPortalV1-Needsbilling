@@ -59,7 +59,7 @@
           </div>
 
           <!-- Quick Actions -->
-          <div class="mt-4 flex items-center gap-2">
+          <div class="mt-4 flex items-center gap-2 flex-wrap">
             <button
               @click="handleResend"
               :disabled="resendingForm"
@@ -82,6 +82,13 @@
                 Loading...
               </span>
               <span v-else>View Certificate</span>
+            </button>
+            <button
+              v-if="canAddGuarantor"
+              @click="handleAddGuarantor"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90"
+            >
+              + Add Guarantor
             </button>
           </div>
         </div>
@@ -1455,6 +1462,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:open': [value: boolean]
   'updated': []
+  'addGuarantor': [tenantId: string]
 }>()
 
 const authStore = useAuthStore()
@@ -1575,6 +1583,32 @@ const canSubmitForReReferencing = computed(() => {
 const canEdit = computed(() => {
   const finalStatuses = ['VERIFIED_PASS', 'VERIFIED_CONDITIONAL', 'VERIFIED_FAIL', 'ARCHIVED']
   return props.person?.status && !finalStatuses.includes(props.person.status)
+})
+
+// Check if this tenant already has a guarantor
+const hasGuarantor = computed(() => {
+  if (!props.person || !props.tenancy) return false
+  // Check if any person in the tenancy is a guarantor for this tenant
+  return props.tenancy.people.some(p =>
+    p.role === 'GUARANTOR' && p.guarantorForTenantId === props.person?.id
+  )
+})
+
+// Show Add Guarantor button:
+// - Person is a tenant (not a guarantor)
+// - Doesn't already have a guarantor
+// - Either not verified yet, OR verified with PASS_WITH_GUARANTOR decision
+const canAddGuarantor = computed(() => {
+  if (!props.person) return false
+  if (props.person.role !== 'TENANT') return false
+  if (hasGuarantor.value) return false
+
+  // If verified, only show if decision is PASS_WITH_GUARANTOR
+  if (isVerified.value) {
+    return score.value?.decision === 'PASS_WITH_GUARANTOR'
+  }
+
+  return true
 })
 
 // Check if we have any "About the Tenant" data to display
@@ -2037,6 +2071,12 @@ async function handleResend() {
   } finally {
     resendingForm.value = false
   }
+}
+
+function handleAddGuarantor() {
+  if (!props.person?.id) return
+  emit('addGuarantor', props.person.id)
+  emit('update:open', false) // Close the drawer
 }
 
 function showToast(message: string, type: 'success' | 'error') {

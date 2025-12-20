@@ -69,7 +69,7 @@
           <h3 class="text-lg font-semibold text-gray-900">Reference Score</h3>
           <div class="flex gap-2">
             <button
-              v-if="!reference.is_guarantor && !hasGuarantor && reference.status !== 'cancelled' && reference.status !== 'rejected'"
+              v-if="canAddGuarantor"
               @click="showAddGuarantorModal = true"
               class="flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
             >
@@ -1988,6 +1988,23 @@ const guarantorForm = ref({
 
 const hasGuarantor = computed(() => {
   return guarantorReferences.value.length > 0 || guarantorReference.value !== null
+})
+
+// Show Add Guarantor button:
+// - Before verification (not completed/cancelled/rejected)
+// - After verification if decision is PASS_WITH_GUARANTOR and no guarantor yet
+const canAddGuarantor = computed(() => {
+  if (!reference.value) return false
+  if (reference.value.is_guarantor) return false
+  if (hasGuarantor.value) return false
+  if (reference.value.status === 'cancelled' || reference.value.status === 'rejected') return false
+
+  // If completed, only show if decision is PASS_WITH_GUARANTOR
+  if (reference.value.status === 'completed') {
+    return score.value?.decision === 'PASS_WITH_GUARANTOR'
+  }
+
+  return true
 })
 
 // Document viewer modal state
