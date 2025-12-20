@@ -539,6 +539,15 @@ router.patch('/:id/status', staffAuth, async (req: StaffAuthRequest, res: Respon
       return res.status(404).json({ error: 'Work item not found' });
     }
 
+    // Prevent marking VERIFY work items as COMPLETED directly
+    // They must go through the /verify/finalize/:referenceId endpoint
+    // to ensure the reference status is also updated
+    if (status === 'COMPLETED' && workItem.work_type === 'VERIFY') {
+      return res.status(400).json({
+        error: 'VERIFY work items cannot be marked as COMPLETED directly. Use the finalize endpoint instead.'
+      });
+    }
+
     const updates: any = {
       status,
       last_activity_at: new Date().toISOString()

@@ -18,6 +18,7 @@ import {
 } from '../services/verificationSectionService';
 import { logAuditAction } from '../services/auditService';
 import { isReadyForVerification } from '../services/verificationReadinessService';
+import { cleanupStaleDependencies } from '../services/chaseDependencyService';
 import { generatePassedPdfService } from '../services/generatePassedPdfService';
 
 const router = Router();
@@ -949,6 +950,9 @@ router.post('/confirm-residential/:referenceId', staffAuth, async (req: StaffAut
       },
       userId: staffUser.id
     });
+
+    // Cleanup any stale chase dependencies (e.g., RESIDENTIAL_REF no longer needed)
+    await cleanupStaleDependencies(referenceId);
 
     // Get staff name for response
     const { data: staffData } = await supabaseAdmin

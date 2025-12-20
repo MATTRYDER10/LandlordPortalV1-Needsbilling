@@ -126,10 +126,13 @@ export async function createDependenciesForReference(referenceId: string): Promi
     }
 
     // Check residential reference (landlord or agent)
+    // Skip if confirmed_residential_status is set (e.g., living with family, owner occupier)
+    // These tenants don't need a landlord/agent reference
     const hasLandlordRef = reference.landlord_references?.some((lr: any) => lr.submitted_at)
     const hasAgentRef = reference.agent_references?.some((ar: any) => ar.submitted_at)
+    const hasConfirmedResidentialStatus = !!reference.confirmed_residential_status
 
-    if (!hasLandlordRef && !hasAgentRef && reference.previous_landlord_email_encrypted) {
+    if (!hasLandlordRef && !hasAgentRef && !hasConfirmedResidentialStatus && reference.previous_landlord_email_encrypted) {
       dependenciesToCreate.push({
         reference_id: referenceId,
         dependency_type: 'RESIDENTIAL_REF',
@@ -156,19 +159,33 @@ export async function createDependenciesForReference(referenceId: string): Promi
     }
 
     // Check guarantor (if required)
+    // EXCEPTION: Students with guarantor contact details bypass guarantor form requirement
+    // They can proceed to verification without waiting for the guarantor form
     if (reference.requires_guarantor) {
-      const hasGuarantorRef = reference.guarantor_references?.some((gr: any) => gr.submitted_at)
-      if (!hasGuarantorRef && reference.guarantor_email_encrypted) {
-        const guarantorName = `${decrypt(reference.guarantor_first_name_encrypted) || ''} ${decrypt(reference.guarantor_last_name_encrypted) || ''}`.trim()
-        dependenciesToCreate.push({
-          reference_id: referenceId,
-          dependency_type: 'GUARANTOR_FORM',
-          contact_name_encrypted: encrypt(guarantorName) ?? undefined,
-          contact_email_encrypted: reference.guarantor_email_encrypted,
-          contact_phone_encrypted: reference.guarantor_phone_encrypted,
-          linked_table: 'guarantor_references',
-          initial_request_sent_at: now
-        })
+      const isStudentOnly = reference.income_student &&
+                            !reference.income_regular_employment &&
+                            !reference.income_self_employed &&
+                            !reference.income_benefits
+      const hasGuarantorContactDetails = !!(reference.guarantor_email_encrypted || reference.guarantor_first_name_encrypted)
+
+      // Skip creating GUARANTOR_FORM dependency for student-only tenants with guarantor details
+      if (isStudentOnly && hasGuarantorContactDetails) {
+        // Student with guarantor - no need to chase guarantor form
+        console.log(`[Chase] Skipping GUARANTOR_FORM dependency for student with guarantor: ${referenceId}`)
+      } else {
+        const hasGuarantorRef = reference.guarantor_references?.some((gr: any) => gr.submitted_at)
+        if (!hasGuarantorRef && reference.guarantor_email_encrypted) {
+          const guarantorName = `${decrypt(reference.guarantor_first_name_encrypted) || ''} ${decrypt(reference.guarantor_last_name_encrypted) || ''}`.trim()
+          dependenciesToCreate.push({
+            reference_id: referenceId,
+            dependency_type: 'GUARANTOR_FORM',
+            contact_name_encrypted: encrypt(guarantorName) ?? undefined,
+            contact_email_encrypted: reference.guarantor_email_encrypted,
+            contact_phone_encrypted: reference.guarantor_phone_encrypted,
+            linked_table: 'guarantor_references',
+            initial_request_sent_at: now
+          })
+        }
       }
     }
 
@@ -515,6 +532,102 @@ export async function markDependencyReceivedByType(
     await checkAndTransitionToVerify(referenceId)
   } catch (error) {
     console.error(`[Chase] Error in markDependencyReceivedByType:`, error)
+  }
+}
+
+/**
+ * Cleanup stale chase dependencies based on current reference data.
+ * Call this when a reference is updated to ensure dependencies match current state.
+ *
+ * This handles cases where:
+ * - Tenant sets confirmed_residential_status (living at home) -> RESIDENTIAL_REF not needed
+ * - Student with guarantor details -> GUARANTOR_FORM not needed
+ */
+export async function cleanupStaleDependencies(referenceId: string): Promise<void> {
+  try {
+    // Get current reference data
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select(`
+        confirmed_residential_status,
+        income_student,
+        income_regular_employment,
+        income_self_employed,
+        income_benefits,
+        requires_guarantor,
+        guarantor_email_encrypted,
+        guarantor_first_name_encrypted
+      `)
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      console.log(`[Chase] Reference not found for cleanup: ${referenceId}`)
+      return
+    }
+
+    // Get active dependencies
+    const { data: dependencies } = await supabase
+      .from('chase_dependencies')
+      .select('id, dependency_type, status')
+      .eq('reference_id', referenceId)
+      .in('status', ['PENDING', 'CHASING', 'EXHAUSTED', 'ACTION_REQUIRED'])
+
+    if (!dependencies || dependencies.length === 0) {
+      return // No active dependencies to cleanup
+    }
+
+    const depsToReceive: string[] = []
+
+    for (const dep of dependencies) {
+      // Check RESIDENTIAL_REF - not needed if confirmed_residential_status is set
+      if (dep.dependency_type === 'RESIDENTIAL_REF' && reference.confirmed_residential_status) {
+        console.log(`[Chase] Cleanup: RESIDENTIAL_REF not needed - tenant has confirmed_residential_status: ${reference.confirmed_residential_status}`)
+        depsToReceive.push(dep.id)
+      }
+
+      // Check GUARANTOR_FORM - not needed for student-only with guarantor details
+      if (dep.dependency_type === 'GUARANTOR_FORM') {
+        const isStudentOnly = reference.income_student &&
+                              !reference.income_regular_employment &&
+                              !reference.income_self_employed &&
+                              !reference.income_benefits
+        const hasGuarantorContactDetails = !!(reference.guarantor_email_encrypted || reference.guarantor_first_name_encrypted)
+
+        if (isStudentOnly && hasGuarantorContactDetails) {
+          console.log(`[Chase] Cleanup: GUARANTOR_FORM not needed - student with guarantor details`)
+          depsToReceive.push(dep.id)
+        }
+      }
+    }
+
+    // Mark identified dependencies as RECEIVED
+    if (depsToReceive.length > 0) {
+      const { error: updateError } = await supabase
+        .from('chase_dependencies')
+        .update({
+          status: 'RECEIVED',
+          next_chase_due_at: null,
+          metadata: {
+            auto_cleanup: true,
+            auto_cleanup_at: new Date().toISOString(),
+            auto_cleanup_reason: 'Dependency no longer required based on reference data'
+          }
+        })
+        .in('id', depsToReceive)
+
+      if (updateError) {
+        console.error(`[Chase] Error cleaning up dependencies:`, updateError)
+        return
+      }
+
+      console.log(`[Chase] Cleaned up ${depsToReceive.length} stale dependencies for ${referenceId}`)
+
+      // Check if reference can now transition to verify
+      await checkAndTransitionToVerify(referenceId)
+    }
+  } catch (error) {
+    console.error(`[Chase] Error in cleanupStaleDependencies:`, error)
   }
 }
 
