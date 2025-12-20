@@ -4,7 +4,8 @@ import { supabase as supabaseAdmin } from '../config/supabase';
 import { generatePassedPdfService } from '../services/generatePassedPdfService';
 import { validateSubmitAssessmentBody } from '../utils/verification-validation';
 import { assessApplicationScore } from '../services/application-assesment/assessApplication';
-import { encrypt } from '../services/encryption';
+import { encrypt, decrypt, generateToken, hash } from '../services/encryption';
+import { sendTenantAddGuarantorRequest } from '../services/emailService';
 
 const router = Router();
 
@@ -511,10 +512,20 @@ router.post(
         return res.status(400).json({ error: 'Final remarks are required' });
       }
 
-      // Get reference to check if it's a guarantor
+      // Get reference to check if it's a guarantor and get details for email
       const { data: reference, error: fetchError } = await supabaseAdmin
         .from('tenant_references')
-        .select('is_guarantor')
+        .select(`
+          is_guarantor,
+          tenant_email_encrypted,
+          tenant_first_name_encrypted,
+          tenant_last_name_encrypted,
+          property_address_encrypted,
+          company_id,
+          companies:company_id (
+            name_encrypted
+          )
+        `)
         .eq('id', referenceId)
         .single();
 
@@ -719,6 +730,73 @@ router.post(
       } catch (pdfError) {
         console.error('Error generating passed PDF:', pdfError);
         // Don't fail the entire request if PDF generation fails
+      }
+
+      // If PASS_WITH_GUARANTOR and no guarantor exists, send email to tenant to add one
+      if (tas_category === 'PASS_WITH_GUARANTOR' && !isGuarantor) {
+        try {
+          // Check if guarantor already exists
+          const { data: existingGuarantor } = await supabaseAdmin
+            .from('tenant_references')
+            .select('id')
+            .eq('guarantor_for_reference_id', referenceId)
+            .eq('is_guarantor', true)
+            .maybeSingle();
+
+          if (!existingGuarantor) {
+            // Generate add-guarantor token
+            const addGuarantorToken = generateToken();
+            const addGuarantorTokenHash = hash(addGuarantorToken);
+            const tokenExpiresAt = new Date();
+            tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 14); // 14-day expiry
+
+            // Save token to reference
+            await supabaseAdmin
+              .from('tenant_references')
+              .update({
+                add_guarantor_token_hash: addGuarantorTokenHash,
+                add_guarantor_token_expires_at: tokenExpiresAt.toISOString()
+              })
+              .eq('id', referenceId);
+
+            // Prepare email data
+            const tenantEmail = reference.tenant_email_encrypted
+              ? decrypt(reference.tenant_email_encrypted)
+              : null;
+            const tenantFirstName = reference.tenant_first_name_encrypted
+              ? decrypt(reference.tenant_first_name_encrypted) || ''
+              : '';
+            const tenantLastName = reference.tenant_last_name_encrypted
+              ? decrypt(reference.tenant_last_name_encrypted) || ''
+              : '';
+            const tenantName = `${tenantFirstName} ${tenantLastName}`.trim() || 'Tenant';
+            const propertyAddress = reference.property_address_encrypted
+              ? decrypt(reference.property_address_encrypted) || 'the property'
+              : 'the property';
+            const companyData = reference.companies as { name_encrypted?: string } | null;
+            const companyName = companyData?.name_encrypted
+              ? decrypt(companyData.name_encrypted) || 'Your agent'
+              : 'Your agent';
+            const formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-add-guarantor/${addGuarantorToken}`;
+
+            if (tenantEmail) {
+              await sendTenantAddGuarantorRequest(
+                tenantEmail,
+                tenantName,
+                propertyAddress,
+                companyName,
+                formLink,
+                referenceId
+              );
+              console.log('[Assessment] Sent add guarantor email to:', tenantEmail);
+            }
+          } else {
+            console.log('[Assessment] Guarantor already exists, skipping email');
+          }
+        } catch (guarantorEmailError: any) {
+          console.error('[Assessment] Error sending add guarantor email:', guarantorEmailError);
+          // Don't fail the verification if email fails
+        }
       }
 
       return res.status(200).json({
