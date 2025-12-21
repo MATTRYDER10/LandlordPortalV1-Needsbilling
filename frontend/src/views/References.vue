@@ -74,6 +74,7 @@
         :tenancy="selectedTenancy"
         @updated="loadTenancies"
         @addGuarantor="handleAddGuarantorFromDrawer"
+        @deleteReference="handleDeleteFromDrawer"
       />
     </div>
 
@@ -521,7 +522,7 @@ const createError = ref('')
 
 // Delete modal state
 const showDeleteModal = ref(false)
-const referenceToDelete = ref<TenancyPerson | null>(null)
+const referenceToDelete = ref<{ id: string, name: string } | null>(null)
 const deleteLoading = ref(false)
 
 // Add Guarantor modal state
@@ -995,6 +996,12 @@ const handleAddGuarantorFromDrawer = (tenantId: string) => {
   selectedTenantForGuarantor.value = tenantId
 
   showAddGuarantorModal.value = true
+}
+
+// Handler for when delete is triggered from the PersonDrawer
+const handleDeleteFromDrawer = (person: { id: string, name: string }) => {
+  referenceToDelete.value = person
+  showDeleteModal.value = true
 }
 
 const closeGuarantorModal = () => {

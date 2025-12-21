@@ -90,6 +90,14 @@
             >
               + Add Guarantor
             </button>
+            <button
+              v-if="canDelete"
+              @click="handleDelete"
+              class="px-3 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50 flex items-center gap-1"
+            >
+              <Trash2 class="w-4 h-4" />
+              Delete
+            </button>
           </div>
         </div>
 
@@ -1446,7 +1454,7 @@ import { useAuthStore } from '@/stores/auth'
 import StatusPill from './StatusPill.vue'
 import ReferenceAuditLog from '@/components/ReferenceAuditLog.vue'
 import CollapsibleSection from './CollapsibleSection.vue'
-import { X, AlertTriangle, Upload, Mail, Pencil, Loader2, CheckCircle, FileText, File } from 'lucide-vue-next'
+import { X, AlertTriangle, Upload, Mail, Pencil, Loader2, CheckCircle, FileText, File, Trash2 } from 'lucide-vue-next'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -1463,6 +1471,7 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
   'updated': []
   'addGuarantor': [tenantId: string]
+  'deleteReference': [person: { id: string, name: string }]
 }>()
 
 const authStore = useAuthStore()
@@ -1609,6 +1618,12 @@ const canAddGuarantor = computed(() => {
   }
 
   return true
+})
+
+// Show Delete Reference button only for pending references (tenant hasn't submitted form)
+const canDelete = computed(() => {
+  if (!props.person) return false
+  return props.person.status === 'NOT_STARTED'
 })
 
 // Check if we have any "About the Tenant" data to display
@@ -2076,6 +2091,12 @@ async function handleResend() {
 function handleAddGuarantor() {
   if (!props.person?.id) return
   emit('addGuarantor', props.person.id)
+  emit('update:open', false) // Close the drawer
+}
+
+function handleDelete() {
+  if (!props.person?.id || !props.person?.name) return
+  emit('deleteReference', { id: props.person.id, name: props.person.name })
   emit('update:open', false) // Close the drawer
 }
 
