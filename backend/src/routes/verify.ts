@@ -1532,13 +1532,18 @@ router.post('/person/:referenceId/finalize', staffAuth, async (req: StaffAuthReq
     }
 
     // Update reference
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('tenant_references')
       .update(updateData)
       .eq('id', referenceId);
 
+    if (updateError) {
+      console.error(`[Finalize] Failed to update reference status:`, updateError);
+      return res.status(500).json({ error: 'Failed to update reference status' });
+    }
+
     // Complete any open work items for this reference
-    await supabaseAdmin
+    const { error: workItemError } = await supabaseAdmin
       .from('work_items')
       .update({
         status: 'COMPLETED',
@@ -1547,6 +1552,11 @@ router.post('/person/:referenceId/finalize', staffAuth, async (req: StaffAuthReq
       })
       .eq('reference_id', referenceId)
       .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED']);
+
+    if (workItemError) {
+      console.error(`[Finalize] Failed to complete work items:`, workItemError);
+      // Don't fail the request - reference status is already updated
+    }
 
     // Log audit
     await logAuditAction({
@@ -1666,13 +1676,18 @@ router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, r
     }
 
     // Update reference
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('tenant_references')
       .update(updateData)
       .eq('id', referenceId);
 
+    if (updateError) {
+      console.error(`[Finalize] Failed to update reference status:`, updateError);
+      return res.status(500).json({ error: 'Failed to update reference status' });
+    }
+
     // Complete any open work items for this reference
-    await supabaseAdmin
+    const { error: workItemError } = await supabaseAdmin
       .from('work_items')
       .update({
         status: 'COMPLETED',
@@ -1681,6 +1696,11 @@ router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, r
       })
       .eq('reference_id', referenceId)
       .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED']);
+
+    if (workItemError) {
+      console.error(`[Finalize] Failed to complete work items:`, workItemError);
+      // Don't fail the request - reference status is already updated
+    }
 
     // Log audit
     await logAuditAction({
