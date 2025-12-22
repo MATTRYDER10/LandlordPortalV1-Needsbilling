@@ -1518,17 +1518,23 @@ router.post('/person/:referenceId/finalize', staffAuth, async (req: StaffAuthReq
     let newStatus = 'completed';
     if (finalDecision === 'FAIL') {
       newStatus = 'rejected';
-    } else if (finalDecision === 'PASS_WITH_GUARANTOR' && !reference.is_guarantor) {
-      newStatus = 'awaiting_guarantor';
+    }
+
+    // Build update object
+    const updateData: Record<string, any> = {
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    };
+
+    // If PASS_WITH_GUARANTOR, set requires_guarantor flag
+    if (finalDecision === 'PASS_WITH_GUARANTOR' && !reference.is_guarantor) {
+      updateData.requires_guarantor = true;
     }
 
     // Update reference
     await supabaseAdmin
       .from('tenant_references')
-      .update({
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', referenceId);
 
     // Complete any open work items for this reference
@@ -1646,17 +1652,23 @@ router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, r
     let newStatus = 'completed';
     if (finalDecision === 'FAIL') {
       newStatus = 'rejected';
-    } else if (finalDecision === 'PASS_WITH_GUARANTOR' && !reference.is_guarantor) {
-      newStatus = 'awaiting_guarantor';
+    }
+
+    // Build update object
+    const updateData: Record<string, any> = {
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    };
+
+    // If PASS_WITH_GUARANTOR, set requires_guarantor flag
+    if (finalDecision === 'PASS_WITH_GUARANTOR' && !reference.is_guarantor) {
+      updateData.requires_guarantor = true;
     }
 
     // Update reference
     await supabaseAdmin
       .from('tenant_references')
-      .update({
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', referenceId);
 
     // Complete any open work items for this reference
