@@ -6372,6 +6372,36 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
       })
       .eq('id', referenceId)
 
+    // If status is pending_verification, create/reactivate work item for VERIFY queue
+    if (newStatus === 'pending_verification') {
+      const { data: existingWorkItem } = await supabase
+        .from('work_items')
+        .select('id, status')
+        .eq('reference_id', referenceId)
+        .eq('work_type', 'VERIFY')
+        .neq('status', 'COMPLETED')
+        .single()
+
+      if (existingWorkItem) {
+        // Reactivate existing work item
+        await supabase
+          .from('work_items')
+          .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null })
+          .eq('id', existingWorkItem.id)
+      } else {
+        // Create new work item
+        await supabase
+          .from('work_items')
+          .insert({
+            reference_id: referenceId,
+            work_type: 'VERIFY',
+            status: 'AVAILABLE'
+          })
+      }
+
+      console.log(`[submit-for-re-referencing] Created/reactivated VERIFY work item for reference ${referenceId}`)
+    }
+
     // Build metadata for audit log
     const auditMetadata: any = {
       newStatus,

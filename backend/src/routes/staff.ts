@@ -25,6 +25,7 @@ import {
 } from '../services/smsService'
 import { logAuditAction } from '../services/auditService'
 import {  reAssessApplicationScore, ReAssessmentPayload } from '../services/application-assesment/assessApplication'
+import { isReadyForVerification } from '../services/verificationReadinessService'
 
 const router = Router()
 
@@ -1913,6 +1914,53 @@ router.post('/references/:id/upload-document', authenticateStaff, upload.single(
       metadata: { document_type, file_name: fileName },
       userId: req.staffUser?.id
     })
+
+    // Check if reference is now ready for verification and update status/work item if needed
+    const { data: currentReference } = await supabase
+      .from('tenant_references')
+      .select('status')
+      .eq('id', id)
+      .single()
+
+    if (currentReference?.status === 'in_progress') {
+      const readiness = await isReadyForVerification(id)
+
+      if (readiness.isReady) {
+        // Update status to pending_verification
+        await supabase
+          .from('tenant_references')
+          .update({ status: 'pending_verification' })
+          .eq('id', id)
+
+        // Create or reactivate work item in VERIFY queue
+        const { data: existingWorkItem } = await supabase
+          .from('work_items')
+          .select('id, status')
+          .eq('reference_id', id)
+          .eq('work_type', 'VERIFY')
+          .neq('status', 'COMPLETED')
+          .single()
+
+        if (existingWorkItem) {
+          // Reactivate existing work item
+          await supabase
+            .from('work_items')
+            .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null })
+            .eq('id', existingWorkItem.id)
+        } else {
+          // Create new work item
+          await supabase
+            .from('work_items')
+            .insert({
+              reference_id: id,
+              work_type: 'VERIFY',
+              status: 'AVAILABLE'
+            })
+        }
+
+        console.log(`[staff/upload-document] Reference ${id} is now ready for verification, created/reactivated work item`)
+      }
+    }
 
     res.json({
       message: 'Document uploaded successfully',
