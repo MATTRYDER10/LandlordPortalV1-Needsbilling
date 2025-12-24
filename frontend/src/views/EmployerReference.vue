@@ -428,6 +428,10 @@ import { CheckCircle2 } from 'lucide-vue-next'
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+// Support both token-based (/submit-employer-reference/:token) and referenceId-based (/employer-reference/:referenceId) routes
+const token = route.params.token as string | undefined
+const referenceId = route.params.referenceId as string | undefined
+
 const loading = ref(false)
 const submitted = ref(false)
 const submitting = ref(false)
@@ -532,13 +536,17 @@ const handleSubmit = async () => {
       return
     }
 
-    const referenceId = route.params.referenceId
     const payload = {
       ...formData.value,
       geolocation: userGeolocation.value
     }
 
-    const response = await fetch(`${API_URL}/api/references/employer/${referenceId}`, {
+    // Use token-based endpoint if token is available, otherwise use referenceId
+    const endpoint = token
+      ? `${API_URL}/api/references/employer/${token}`
+      : `${API_URL}/api/references/employer/${referenceId}`
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -562,10 +570,13 @@ const handleSubmit = async () => {
 // Fetch company branding on mount
 onMounted(async () => {
   try {
-    const referenceId = route.params.referenceId
+    // Use token-based endpoints if token is available, otherwise use referenceId
+    const checkEndpoint = token
+      ? `${API_URL}/api/references/employer/${token}/check`
+      : `${API_URL}/api/references/employer/${referenceId}/check`
 
     // Check if reference already submitted
-    const checkResponse = await fetch(`${API_URL}/api/references/employer/${referenceId}/check`)
+    const checkResponse = await fetch(checkEndpoint)
     if (checkResponse.ok) {
       const checkData = await checkResponse.json()
       if (checkData.submitted) {
@@ -575,8 +586,12 @@ onMounted(async () => {
       }
     }
 
-    // Load branding and tenant info
-    const response = await fetch(`${API_URL}/api/references/branding/${referenceId}`)
+    // Load branding and tenant info - use token-based endpoint if available
+    const brandingEndpoint = token
+      ? `${API_URL}/api/references/employer/branding/${token}`
+      : `${API_URL}/api/references/branding/${referenceId}`
+
+    const response = await fetch(brandingEndpoint)
 
     if (response.ok) {
       const data = await response.json()

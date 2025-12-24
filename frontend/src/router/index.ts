@@ -155,6 +155,11 @@ const router = createRouter({
       component: EmployerReference
     },
     {
+      path: '/submit-employer-reference/:token',
+      name: 'SubmitEmployerReference',
+      component: EmployerReference
+    },
+    {
       path: '/accountant-reference/:token',
       name: 'AccountantReference',
       component: AccountantReference
@@ -403,6 +408,7 @@ router.beforeEach(async (to, _from, next) => {
                                  to.path.startsWith('/landlord-reference') ||
                                  to.path.startsWith('/agent-reference') ||
                                  to.path.startsWith('/employer-reference') ||
+                                 to.path.startsWith('/submit-employer-reference') ||
                                  to.path.startsWith('/accountant-reference') ||
                                  to.path.startsWith('/sign/')
   const skipOnboardingCheck = to.meta.skipOnboardingCheck === true

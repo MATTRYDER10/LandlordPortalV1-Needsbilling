@@ -3381,6 +3381,78 @@ router.get('/accountant/branding/:token', async (req, res) => {
   }
 })
 
+// Get company branding for employer reference by token (public route)
+router.get('/employer/branding/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+    const tokenHash = hash(token)
+
+    // Get the reference_id using token hash
+    const { data: employerRef, error: employerError } = await supabase
+      .from('employer_references')
+      .select('reference_id')
+      .eq('reference_token_hash', tokenHash)
+      .single()
+
+    if (employerError || !employerRef) {
+      return res.status(404).json({ error: 'Employer reference not found' })
+    }
+
+    // Now fetch the branding and tenant info using the reference_id
+    const { data: reference, error } = await supabase
+      .from('tenant_references')
+      .select(`
+        company_id,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        employment_company_name_encrypted,
+        employment_position_encrypted,
+        employment_start_date,
+        employment_contract_type,
+        employment_salary_amount_encrypted,
+        employment_salary_frequency,
+        employer_ref_name_encrypted,
+        employer_ref_email_encrypted,
+        employer_ref_phone_encrypted,
+        employer_ref_position,
+        companies:company_id (
+          logo_url,
+          primary_color,
+          button_color
+        )
+      `)
+      .eq('id', employerRef.reference_id)
+      .single()
+
+    if (error || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Decrypt tenant-provided information for employer form
+    const tenantInfo = {
+      tenantFirstName: reference.tenant_first_name_encrypted ? decrypt(reference.tenant_first_name_encrypted) : '',
+      tenantLastName: reference.tenant_last_name_encrypted ? decrypt(reference.tenant_last_name_encrypted) : '',
+      companyName: reference.employment_company_name_encrypted ? decrypt(reference.employment_company_name_encrypted) : '',
+      employeePosition: reference.employment_position_encrypted ? decrypt(reference.employment_position_encrypted) : '',
+      employmentStartDate: reference.employment_start_date || '',
+      employmentType: reference.employment_contract_type || '',
+      annualSalary: reference.employment_salary_amount_encrypted ? decrypt(reference.employment_salary_amount_encrypted) : '',
+      salaryFrequency: reference.employment_salary_frequency || 'annual',
+      employerName: reference.employer_ref_name_encrypted ? decrypt(reference.employer_ref_name_encrypted) : '',
+      employerEmail: reference.employer_ref_email_encrypted ? decrypt(reference.employer_ref_email_encrypted) : '',
+      employerPhone: reference.employer_ref_phone_encrypted ? decrypt(reference.employer_ref_phone_encrypted) : '',
+      employerPosition: reference.employer_ref_position || ''
+    }
+
+    res.json({
+      branding: reference.companies,
+      tenantInfo
+    })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Check if landlord reference already submitted (public route)
 router.get('/landlord/:referenceId/check', async (req, res) => {
   try {
@@ -3415,18 +3487,20 @@ router.get('/agent/:referenceId/check', async (req, res) => {
   }
 })
 
-// Check if employer reference already submitted (public route)
-router.get('/employer/:referenceId/check', async (req, res) => {
+// Check if employer reference already submitted (public route) - supports token-based lookup
+router.get('/employer/:token/check', async (req, res) => {
   try {
-    const { referenceId } = req.params
+    const { token } = req.params
+    const tokenHash = hash(token)
 
+    // Look up by token hash first
     const { data: employerRef } = await supabase
       .from('employer_references')
-      .select('id')
-      .eq('reference_id', referenceId)
+      .select('id, submitted_at')
+      .eq('reference_token_hash', tokenHash)
       .single()
 
-    res.json({ submitted: !!employerRef })
+    res.json({ submitted: !!(employerRef && employerRef.submitted_at) })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -3668,10 +3742,10 @@ router.post('/agent/:referenceId', async (req: Request, res) => {
   }
 })
 
-// Employer submits reference (public route)
-router.post('/employer/:referenceId', async (req: Request, res) => {
+// Employer submits reference (public route) - supports token-based lookup
+router.post('/employer/:token', async (req: Request, res) => {
   try {
-    const { referenceId } = req.params
+    const { token } = req.params
     const formData = req.body
     const clientIpAddress = getClientIpAddress(req)
     const geolocationPayload = normalizeGeolocationPayload(formData.geolocation)
@@ -3679,65 +3753,63 @@ router.post('/employer/:referenceId', async (req: Request, res) => {
       delete formData.geolocation
     }
 
-    // Verify reference exists
-    const { data: reference, error: refError } = await supabase
-      .from('tenant_references')
-      .select('id, status')
-      .eq('id', referenceId)
+    // Hash the token to look up securely
+    const tokenHash = hash(token)
+
+    // Verify employer reference exists using token hash
+    const { data: employerRef, error: refError } = await supabase
+      .from('employer_references')
+      .select('id, reference_id, submitted_at')
+      .eq('reference_token_hash', tokenHash)
       .single()
 
-    if (refError || !reference) {
+    if (refError || !employerRef) {
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    // Convert camelCase to snake_case for database
-    const dbData: any = {
-      reference_id: referenceId,
-      company_name_encrypted: encrypt(formData.companyName),
-      employer_name_encrypted: encrypt(formData.employerName),
-      employer_position_encrypted: encrypt(formData.employerPosition),
-      employer_email_encrypted: encrypt(formData.employerEmail),
-      employer_phone_encrypted: encrypt(formData.employerPhone),
-      employee_position_encrypted: encrypt(formData.employeePosition),
-      employment_type: formData.employmentType,
-      employment_start_date: formData.employmentStartDate,
-      is_current_employee: formData.isCurrentEmployee,
-      annual_salary_encrypted: encrypt(formData.annualSalary ? String(formData.annualSalary) : null),
-      salary_frequency: formData.salaryFrequency,
-      is_probation: formData.isProbation,
-      employment_stable: formData.employmentStable,
-      employment_status: formData.employmentStatus,
-      performance_rating: formData.performanceRating,
-      performance_details_encrypted: encrypt(formData.performanceDetails || ''),
-      disciplinary_issues: formData.disciplinaryIssues,
-      disciplinary_details_encrypted: encrypt(formData.disciplinaryDetails || ''),
-      absence_record: formData.absenceRecord,
-      absence_details_encrypted: encrypt(formData.absenceDetails || ''),
-      would_reemploy: formData.wouldReemploy,
-      would_reemploy_details_encrypted: encrypt(formData.wouldReemployDetails || ''),
-      additional_comments_encrypted: encrypt(formData.additionalComments || ''),
-      signature_encrypted: encrypt(formData.signature),
-      date: formData.date,
-      submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : null,
-      submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : null,
-      submitted_at: new Date().toISOString()
+    // Check if already submitted
+    if (employerRef.submitted_at) {
+      return res.status(400).json({ error: 'Reference already submitted' })
     }
 
-    // Add optional date fields only if they have values
-    if (formData.employmentEndDate) {
-      dbData.employment_end_date = formData.employmentEndDate
-    }
-    if (formData.probationEndDate) {
-      dbData.probation_end_date = formData.probationEndDate
-    }
+    const referenceId = employerRef.reference_id
 
-    // Store employer reference data
-    const { error: insertError } = await supabase
+    // Update employer reference with form data
+    const { error: updateError } = await supabase
       .from('employer_references')
-      .insert(dbData)
+      .update({
+        company_name_encrypted: encrypt(formData.companyName),
+        employer_name_encrypted: encrypt(formData.employerName),
+        employer_position_encrypted: encrypt(formData.employerPosition),
+        employer_email_encrypted: encrypt(formData.employerEmail),
+        employer_phone_encrypted: encrypt(formData.employerPhone),
+        employee_position_encrypted: encrypt(formData.employeePosition),
+        employment_type: formData.employmentType,
+        employment_start_date: formData.employmentStartDate,
+        employment_end_date: formData.employmentEndDate || null,
+        is_current_employee: formData.isCurrentEmployee,
+        annual_salary_encrypted: encrypt(formData.annualSalary ? String(formData.annualSalary) : null),
+        salary_frequency: formData.salaryFrequency,
+        is_probation: formData.isProbation,
+        probation_end_date: formData.probationEndDate || null,
+        employment_stable: formData.employmentStable,
+        employment_stable_details_encrypted: encrypt(formData.employmentStableDetails || ''),
+        employment_status: formData.employmentStatus,
+        clarification_details_encrypted: encrypt(formData.clarificationDetails || ''),
+        contract_type_confirmation: formData.contractTypeConfirmation,
+        additional_comments_encrypted: encrypt(formData.additionalComments || ''),
+        signature_name_encrypted: encrypt(formData.signatureName || ''),
+        signature_encrypted: encrypt(formData.signature),
+        date: formData.date,
+        submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : null,
+        submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : null,
+        submitted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', employerRef.id)
 
-    if (insertError) {
-      return res.status(400).json({ error: insertError.message })
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message })
     }
 
     // Mark employer ref chase dependency as received
