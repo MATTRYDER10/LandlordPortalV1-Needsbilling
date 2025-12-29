@@ -1443,13 +1443,13 @@ router.get('/references/search', authenticateAdmin, async (req: AdminAuthRequest
     if (guarantorRefIds.length > 0) {
       const { data: guarantors } = await supabase
         .from('tenant_references')
-        .select('parent_reference_id, tenant_first_name_encrypted, tenant_last_name_encrypted, status, tas_category')
+        .select('guarantor_for_reference_id, tenant_first_name_encrypted, tenant_last_name_encrypted, status, tas_category')
         .eq('is_guarantor', true)
-        .in('parent_reference_id', guarantorRefIds)
+        .in('guarantor_for_reference_id', guarantorRefIds)
 
       if (guarantors) {
         guarantors.forEach(g => {
-          guarantorMap[g.parent_reference_id] = {
+          guarantorMap[g.guarantor_for_reference_id] = {
             name: `${decrypt(g.tenant_first_name_encrypted) || ''} ${decrypt(g.tenant_last_name_encrypted) || ''}`.trim(),
             status: g.status,
             tas_category: g.tas_category
