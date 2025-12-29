@@ -137,6 +137,22 @@
                   <option :value="36">36 months</option>
                 </select>
               </div>
+              <div v-if="Number(formData.tenancyTerm) !== 0" class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tenancy End Date</label>
+                <input
+                  v-model="formData.tenancyEndDate"
+                  type="date"
+                  :min="formData.tenancyStartDate"
+                  :disabled="!formData.tenancyStartDate"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary disabled:bg-gray-100"
+                />
+                <p v-if="isEndDateOverridden" class="text-xs text-amber-600 mt-1">
+                  Custom end date (calculated: {{ displayCalculatedEndDate }})
+                </p>
+                <p v-else class="text-xs text-gray-500 mt-1">
+                  Auto-calculated from start date + term. Edit for non-standard terms.
+                </p>
+              </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Rent Due Day</label>
                 <select
@@ -470,12 +486,83 @@ const rentDueDays = [
   'Last'
 ]
 
+// Track whether user has manually edited the end date
+const endDateManuallyEdited = ref(false)
+
+// Calculate end date from start date + term
+const calculatedEndDate = computed(() => {
+  if (!formData.value.tenancyStartDate) {
+    return null
+  }
+
+  const months = Number(formData.value.tenancyTerm)
+
+  // 0 months means rolling tenancy
+  if (isNaN(months) || months === 0) {
+    return null
+  }
+
+  const startDate = new Date(formData.value.tenancyStartDate)
+  startDate.setMonth(startDate.getMonth() + months)
+  // Subtract 1 day (UK tenancy convention)
+  startDate.setDate(startDate.getDate() - 1)
+  return startDate.toISOString().split('T')[0]
+})
+
+// Display-friendly calculated end date
+const displayCalculatedEndDate = computed(() => {
+  if (!calculatedEndDate.value) {
+    return 'Rolling'
+  }
+  const date = new Date(calculatedEndDate.value)
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+})
+
+// Check if end date differs from calculated value
+const isEndDateOverridden = computed(() => {
+  if (!formData.value.tenancyEndDate || !calculatedEndDate.value) {
+    return false
+  }
+  return formData.value.tenancyEndDate !== calculatedEndDate.value
+})
+
+// Auto-update tenancy end date when start date changes (if not manually edited)
+watch(() => formData.value.tenancyStartDate, () => {
+  if (!endDateManuallyEdited.value) {
+    formData.value.tenancyEndDate = calculatedEndDate.value || ''
+  }
+})
+
+// Auto-update tenancy end date when term changes (if not manually edited)
+watch(() => formData.value.tenancyTerm, () => {
+  if (!endDateManuallyEdited.value) {
+    formData.value.tenancyEndDate = calculatedEndDate.value || ''
+  }
+})
+
+// Track manual edits to end date field
+watch(() => formData.value.tenancyEndDate, (newDate, oldDate) => {
+  if (newDate !== calculatedEndDate.value && newDate !== oldDate && oldDate !== undefined) {
+    endDateManuallyEdited.value = true
+  }
+  if (newDate === calculatedEndDate.value || newDate === '') {
+    endDateManuallyEdited.value = false
+  }
+})
+
 // Watch for agreement changes and populate form
 watch(() => props.agreement, (newAgreement) => {
   if (newAgreement) {
     formData.value = agreementToFormData(newAgreement)
+    // Reset manual edit flag - check if loaded end date differs from calculated
+    endDateManuallyEdited.value = formData.value.tenancyEndDate !== calculatedEndDate.value
   } else {
     formData.value = getDefaultFormData()
+    endDateManuallyEdited.value = false
   }
 }, { immediate: true })
 

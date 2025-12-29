@@ -97,6 +97,7 @@ export function getDefaultFormData(): AgreementFormData {
     depositAmount: undefined,
     tenancyStartDate: '',
     tenancyTerm: 12,
+    tenancyEndDate: '',
     rentDueDay: '1st',
     depositSchemeType: '',
     permittedOccupiers: '',

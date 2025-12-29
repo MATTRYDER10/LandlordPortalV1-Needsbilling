@@ -506,6 +506,23 @@
               </div>
             </div>
 
+            <div v-if="Number(formData.tenancyTerm) !== 0">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tenancy End Date</label>
+              <input
+                v-model="formData.tenancyEndDate"
+                type="date"
+                :min="formData.tenancyStartDate"
+                :disabled="!formData.tenancyStartDate"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+              <p v-if="isEndDateOverridden" class="text-xs text-amber-600 mt-1">
+                Custom end date (calculated: {{ displayCalculatedEndDate }})
+              </p>
+              <p v-else class="text-xs text-gray-500 mt-1">
+                Auto-calculated from start date + term. Edit for non-standard terms.
+              </p>
+            </div>
+
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Rent Due Date *</label>
               <select
@@ -1313,6 +1330,7 @@ const formData = ref<{
   depositAmount?: number
   tenancyStartDate?: string
   tenancyTerm: string | number
+  tenancyEndDate?: string
   rentDueDay: string
   depositSchemeType: string
   permittedOccupiers?: string
@@ -1345,6 +1363,7 @@ const formData = ref<{
   depositAmount: undefined,
   tenancyStartDate: '',
   tenancyTerm: 12,
+  tenancyEndDate: '',
   rentDueDay: '1st',
   depositSchemeType: '',
   permittedOccupiers: '',
@@ -1417,6 +1436,32 @@ watch(() => formData.value.tenancyStartDate, (newDate) => {
   }
 })
 
+// Auto-update tenancy end date when start date changes (if not manually edited)
+watch(() => formData.value.tenancyStartDate, () => {
+  if (!endDateManuallyEdited.value) {
+    formData.value.tenancyEndDate = calculatedEndDate.value || ''
+  }
+})
+
+// Auto-update tenancy end date when term changes (if not manually edited)
+watch(() => formData.value.tenancyTerm, () => {
+  if (!endDateManuallyEdited.value) {
+    formData.value.tenancyEndDate = calculatedEndDate.value || ''
+  }
+})
+
+// Track manual edits to end date field
+watch(() => formData.value.tenancyEndDate, (newDate, oldDate) => {
+  // If user changes end date value manually (not from our auto-calculation)
+  if (newDate !== calculatedEndDate.value && newDate !== oldDate && oldDate !== undefined) {
+    endDateManuallyEdited.value = true
+  }
+  // If user clears the end date or sets it back to calculated, reset the flag
+  if (newDate === calculatedEndDate.value || newDate === '') {
+    endDateManuallyEdited.value = false
+  }
+})
+
 // Computed property to calculate end date from start date + term
 // Returns ISO format (YYYY-MM-DD) for database storage
 const calculatedEndDate = computed(() => {
@@ -1441,14 +1486,38 @@ const calculatedEndDate = computed(() => {
 
 // Display-friendly end date for the review page
 const displayEndDate = computed(() => {
-  if (!calculatedEndDate.value) {
+  const endDate = formData.value.tenancyEndDate || calculatedEndDate.value
+  if (!endDate) {
     return 'Rolling (month-to-month)'
+  }
+  return formatUkDate(endDate, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+})
+
+// Display-friendly calculated end date (for showing what was auto-calculated)
+const displayCalculatedEndDate = computed(() => {
+  if (!calculatedEndDate.value) {
+    return 'Rolling'
   }
   return formatUkDate(calculatedEndDate.value, {
     day: 'numeric',
     month: 'short',
     year: 'numeric'
   })
+})
+
+// Track whether user has manually edited the end date
+const endDateManuallyEdited = ref(false)
+
+// Check if end date differs from calculated value
+const isEndDateOverridden = computed(() => {
+  if (!formData.value.tenancyEndDate || !calculatedEndDate.value) {
+    return false
+  }
+  return formData.value.tenancyEndDate !== calculatedEndDate.value
 })
 
 // Computed property to calculate 5 weeks deposit from monthly rent
@@ -2202,10 +2271,10 @@ async function generateAgreement() {
       throw new Error('You must be logged in to generate an agreement')
     }
 
-    // Create the agreement with calculated end date and generated break clause
+    // Create the agreement with end date (user-edited or calculated) and generated break clause
     const agreementData = {
       ...formData.value,
-      tenancyEndDate: calculatedEndDate.value,
+      tenancyEndDate: formData.value.tenancyEndDate || calculatedEndDate.value || null,
       breakClause: formData.value.breakClauseEnabled ? generatedBreakClause.value : ''
     }
 
