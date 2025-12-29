@@ -22,7 +22,7 @@ import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/reques
 import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
 import { isReadyForVerification } from '../services/verificationReadinessService'
-import { markDependencyReceivedByType } from '../services/chaseDependencyService'
+import { markDependencyReceivedByType, createDependenciesForReference } from '../services/chaseDependencyService'
 import { DEFAULT_BRANDING } from '../config/colors'
 
 const router = Router()
@@ -1169,6 +1169,22 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           ).catch(err => console.error('Failed to send SMS to', tenant.phone, err))
         }
 
+        // Create TENANT_FORM chase dependency for auto-chase
+        try {
+          await supabase.from('chase_dependencies').upsert({
+            reference_id: childReference.id,
+            dependency_type: 'TENANT_FORM',
+            contact_name_encrypted: encrypt(`${tenant.first_name} ${tenant.last_name}`),
+            contact_email_encrypted: encrypt(tenant.email),
+            contact_phone_encrypted: tenant.phone ? encrypt(tenant.phone) : null,
+            status: 'PENDING',
+            initial_request_sent_at: new Date().toISOString()
+          }, { onConflict: 'reference_id,dependency_type' })
+          console.log('Chase dependency created for tenant form:', childReference.id)
+        } catch (err) {
+          console.error('Failed to create chase dependency:', err)
+        }
+
         // Create guarantor reference if guarantor details provided for this tenant
         if (tenant.guarantor?.first_name && tenant.guarantor?.last_name && tenant.guarantor?.email) {
           try {
@@ -1244,6 +1260,24 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                   guarantorUrl,
                   guarantorRef.id
                 ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+              }
+
+              // Create GUARANTOR_FORM chase dependency on the parent reference
+              try {
+                await supabase.from('chase_dependencies').upsert({
+                  reference_id: childReference.id,
+                  dependency_type: 'GUARANTOR_FORM',
+                  contact_name_encrypted: encrypt(`${tenant.guarantor.first_name} ${tenant.guarantor.last_name}`),
+                  contact_email_encrypted: encrypt(tenant.guarantor.email),
+                  contact_phone_encrypted: tenant.guarantor.phone ? encrypt(tenant.guarantor.phone) : null,
+                  linked_table: 'tenant_references',
+                  linked_record_id: guarantorRef.id,
+                  status: 'PENDING',
+                  initial_request_sent_at: new Date().toISOString()
+                }, { onConflict: 'reference_id,dependency_type' })
+                console.log('Chase dependency created for guarantor form:', childReference.id)
+              } catch (err) {
+                console.error('Failed to create guarantor chase dependency:', err)
               }
 
               // Deduct 0.5 credits for guarantor reference
@@ -1387,6 +1421,22 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
         ).catch(err => console.error('Failed to send SMS to tenant:', err))
       }
 
+      // Create TENANT_FORM chase dependency for auto-chase
+      try {
+        await supabase.from('chase_dependencies').upsert({
+          reference_id: reference.id,
+          dependency_type: 'TENANT_FORM',
+          contact_name_encrypted: encrypt(`${tenant_first_name} ${tenant_last_name}`),
+          contact_email_encrypted: encrypt(tenant_email),
+          contact_phone_encrypted: tenant_phone ? encrypt(tenant_phone) : null,
+          status: 'PENDING',
+          initial_request_sent_at: new Date().toISOString()
+        }, { onConflict: 'reference_id,dependency_type' })
+        console.log('Chase dependency created for tenant form:', reference.id)
+      } catch (err) {
+        console.error('Failed to create chase dependency:', err)
+      }
+
       // Create guarantor reference if guarantor details provided
       let guarantorReference = null
       if (guarantor_first_name && guarantor_last_name && guarantor_email) {
@@ -1464,6 +1514,24 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 guarantorUrl,
                 guarantorRef.id
               ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+            }
+
+            // Create GUARANTOR_FORM chase dependency on the parent reference
+            try {
+              await supabase.from('chase_dependencies').upsert({
+                reference_id: reference.id,
+                dependency_type: 'GUARANTOR_FORM',
+                contact_name_encrypted: encrypt(`${guarantor_first_name} ${guarantor_last_name}`),
+                contact_email_encrypted: encrypt(guarantor_email),
+                contact_phone_encrypted: guarantor_phone ? encrypt(guarantor_phone) : null,
+                linked_table: 'tenant_references',
+                linked_record_id: guarantorRef.id,
+                status: 'PENDING',
+                initial_request_sent_at: new Date().toISOString()
+              }, { onConflict: 'reference_id,dependency_type' })
+              console.log('Chase dependency created for guarantor form:', reference.id)
+            } catch (err) {
+              console.error('Failed to create guarantor chase dependency:', err)
             }
 
             // Deduct 0.5 credits for guarantor reference
@@ -2401,6 +2469,24 @@ router.post('/submit/:token', async (req: Request, res) => {
               ).catch(err => console.error('Failed to send SMS to guarantor:', err))
             }
 
+            // Create GUARANTOR_FORM chase dependency on the parent reference
+            try {
+              await supabase.from('chase_dependencies').upsert({
+                reference_id: updatedReference.id,
+                dependency_type: 'GUARANTOR_FORM',
+                contact_name_encrypted: encrypt(`${data.guarantor_first_name} ${data.guarantor_last_name || ''}`),
+                contact_email_encrypted: encrypt(data.guarantor_email),
+                contact_phone_encrypted: data.guarantor_phone ? encrypt(data.guarantor_phone) : null,
+                linked_table: 'tenant_references',
+                linked_record_id: guarantorRef.id,
+                status: 'PENDING',
+                initial_request_sent_at: new Date().toISOString()
+              }, { onConflict: 'reference_id,dependency_type' })
+              console.log('Chase dependency created for guarantor form:', updatedReference.id)
+            } catch (err) {
+              console.error('Failed to create guarantor chase dependency:', err)
+            }
+
             // Deduct 0.5 credits for guarantor reference
             console.log('💳 Deducting 0.5 credits for guarantor reference...')
             try {
@@ -2712,6 +2798,16 @@ router.post('/submit/:token', async (req: Request, res) => {
 
     // Mark tenant form chase dependency as received
     await markDependencyReceivedByType(updatedReference.id, 'TENANT_FORM')
+
+    // Create chase dependencies for referee forms (employer, landlord, accountant, guarantor)
+    // These will only be created if the tenant provided the relevant contact info
+    try {
+      await createDependenciesForReference(updatedReference.id)
+      console.log('Chase dependencies created for referee forms:', updatedReference.id)
+    } catch (depError) {
+      console.error('Failed to create referee chase dependencies:', depError)
+      // Non-blocking - don't fail the submission
+    }
 
     // If this is a guarantor reference, also mark GUARANTOR_FORM on parent reference
     if (reference.is_guarantor && reference.guarantor_for_reference_id) {
@@ -4324,6 +4420,27 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
       ).catch(err => console.error('Failed to send SMS to tenant:', err))
     }
 
+    // Update/create TENANT_FORM chase dependency (reset initial_request_sent_at on resend)
+    try {
+      await supabase.from('chase_dependencies').upsert({
+        reference_id: referenceId,
+        dependency_type: 'TENANT_FORM',
+        contact_name_encrypted: encrypt(tenantName),
+        contact_email_encrypted: encrypt(tenantEmail),
+        contact_phone_encrypted: tenantPhone ? encrypt(tenantPhone) : null,
+        status: 'PENDING',
+        initial_request_sent_at: new Date().toISOString(),
+        last_chase_sent_at: null,
+        chase_cycle: 0,
+        email_attempts: 0,
+        sms_attempts: 0,
+        call_attempts: 0
+      }, { onConflict: 'reference_id,dependency_type' })
+      console.log('Chase dependency updated for tenant form resend:', referenceId)
+    } catch (err) {
+      console.error('Failed to update chase dependency:', err)
+    }
+
     // Log to audit trail
     await logAuditAction({
       referenceId,
@@ -4708,6 +4825,24 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
       ).catch(err => console.error('Failed to send SMS to guarantor:', err))
     }
 
+    // Create GUARANTOR_FORM chase dependency on the parent reference
+    try {
+      await supabase.from('chase_dependencies').upsert({
+        reference_id: referenceId,
+        dependency_type: 'GUARANTOR_FORM',
+        contact_name_encrypted: encrypt(`${guarantor_first_name} ${guarantor_last_name}`),
+        contact_email_encrypted: encrypt(guarantor_email),
+        contact_phone_encrypted: guarantor_phone ? encrypt(guarantor_phone) : null,
+        linked_table: 'tenant_references',
+        linked_record_id: guarantorReference.id,
+        status: 'PENDING',
+        initial_request_sent_at: new Date().toISOString()
+      }, { onConflict: 'reference_id,dependency_type' })
+      console.log('Chase dependency created for guarantor form:', referenceId)
+    } catch (err) {
+      console.error('Failed to create guarantor chase dependency:', err)
+    }
+
     // Deduct 0.5 credits for guarantor reference
     console.log('💳 Deducting 0.5 credits for guarantor reference...')
     try {
@@ -4929,6 +5064,29 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
       ).catch(err => console.error('Failed to send SMS to guarantor:', err))
     }
 
+    // Update/create GUARANTOR_FORM chase dependency (reset on resend)
+    try {
+      await supabase.from('chase_dependencies').upsert({
+        reference_id: referenceId,
+        dependency_type: 'GUARANTOR_FORM',
+        contact_name_encrypted: encrypt(guarantorName),
+        contact_email_encrypted: encrypt(guarantorEmail),
+        contact_phone_encrypted: guarantorPhone ? encrypt(guarantorPhone) : null,
+        linked_table: isLegacyGuarantor ? 'guarantor_references' : 'tenant_references',
+        linked_record_id: guarantorId,
+        status: 'PENDING',
+        initial_request_sent_at: new Date().toISOString(),
+        last_chase_sent_at: null,
+        chase_cycle: 0,
+        email_attempts: 0,
+        sms_attempts: 0,
+        call_attempts: 0
+      }, { onConflict: 'reference_id,dependency_type' })
+      console.log('Chase dependency updated for guarantor form resend:', referenceId)
+    } catch (err) {
+      console.error('Failed to update guarantor chase dependency:', err)
+    }
+
     // Log to audit trail
     await logAuditAction({
       referenceId,
@@ -5079,6 +5237,31 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
         formLink,
         guarantorReferenceId
       ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+    }
+
+    // Update/create GUARANTOR_FORM chase dependency on parent reference (reset on resend)
+    if (guarantorRef.guarantor_for_reference_id) {
+      try {
+        await supabase.from('chase_dependencies').upsert({
+          reference_id: guarantorRef.guarantor_for_reference_id,
+          dependency_type: 'GUARANTOR_FORM',
+          contact_name_encrypted: encrypt(guarantorName),
+          contact_email_encrypted: encrypt(guarantorEmail),
+          contact_phone_encrypted: guarantorPhoneValue ? encrypt(guarantorPhoneValue) : null,
+          linked_table: 'tenant_references',
+          linked_record_id: guarantorReferenceId,
+          status: 'PENDING',
+          initial_request_sent_at: new Date().toISOString(),
+          last_chase_sent_at: null,
+          chase_cycle: 0,
+          email_attempts: 0,
+          sms_attempts: 0,
+          call_attempts: 0
+        }, { onConflict: 'reference_id,dependency_type' })
+        console.log('Chase dependency updated for guarantor form resend:', guarantorRef.guarantor_for_reference_id)
+      } catch (err) {
+        console.error('Failed to update guarantor chase dependency:', err)
+      }
     }
 
     // Log to audit trail
@@ -5367,6 +5550,24 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
         formLink,
         guarantorReference.id
       ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+    }
+
+    // Create GUARANTOR_FORM chase dependency on the parent reference
+    try {
+      await supabase.from('chase_dependencies').upsert({
+        reference_id: parentReference.id,
+        dependency_type: 'GUARANTOR_FORM',
+        contact_name_encrypted: encrypt(`${guarantor_first_name} ${guarantor_last_name}`),
+        contact_email_encrypted: encrypt(guarantor_email),
+        contact_phone_encrypted: guarantor_phone ? encrypt(guarantor_phone) : null,
+        linked_table: 'tenant_references',
+        linked_record_id: guarantorReference.id,
+        status: 'PENDING',
+        initial_request_sent_at: new Date().toISOString()
+      }, { onConflict: 'reference_id,dependency_type' })
+      console.log('Chase dependency created for guarantor form:', parentReference.id)
+    } catch (err) {
+      console.error('Failed to create guarantor chase dependency:', err)
     }
 
     // Deduct 0.5 credits for guarantor reference
@@ -6298,6 +6499,27 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
         propertyAddress,
         referenceId
       ).catch(err => console.error('Failed to send SMS to tenant:', err))
+    }
+
+    // Update/create TENANT_FORM chase dependency (reset initial_request_sent_at on resend)
+    try {
+      await supabase.from('chase_dependencies').upsert({
+        reference_id: referenceId,
+        dependency_type: 'TENANT_FORM',
+        contact_name_encrypted: encrypt(tenantName),
+        contact_email_encrypted: encrypt(tenantEmail),
+        contact_phone_encrypted: tenantPhone ? encrypt(tenantPhone) : null,
+        status: 'PENDING',
+        initial_request_sent_at: new Date().toISOString(),
+        last_chase_sent_at: null,
+        chase_cycle: 0,
+        email_attempts: 0,
+        sms_attempts: 0,
+        call_attempts: 0
+      }, { onConflict: 'reference_id,dependency_type' })
+      console.log('Chase dependency updated for tenant form resend:', referenceId)
+    } catch (err) {
+      console.error('Failed to update chase dependency:', err)
     }
 
     // Log to audit trail
