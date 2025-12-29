@@ -1215,7 +1215,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import AgreementPaymentModal from '../components/AgreementPaymentModal.vue'
@@ -1225,6 +1225,7 @@ import { isValidEmail } from '../utils/validation'
 import { Check, FileText, Users, X } from 'lucide-vue-next'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
 
@@ -2255,15 +2256,15 @@ async function generateAgreement() {
       throw new Error(generateData.error || 'Failed to generate agreement file')
     }
 
-    const { fileUrl } = generateData
+    const { agreementId } = generateData
 
     success.value = 'Agreement generated successfully!'
-    toast.success('Agreement generated successfully!')
+    toast.success('Agreement generated! Redirecting to preview...')
 
-    // Download the file
+    // Redirect to preview page
     setTimeout(() => {
-      window.open(fileUrl, '_blank')
-    }, 1500)
+      router.push(`/agreements/${agreementId || agreement.id}/preview`)
+    }, 1000)
   } catch (err: any) {
     console.error('Error generating agreement:', err)
     error.value = err.message || 'Failed to generate agreement'
@@ -2297,18 +2298,20 @@ async function handleAgreementPaid() {
       throw new Error(errorData.error || errorData.message || 'Failed to generate agreement file')
     }
 
-    const { fileUrl } = await generateResponse.json()
+    const { agreementId } = await generateResponse.json()
 
     success.value = 'Agreement generated successfully!'
-    toast.success('Agreement generated successfully!')
+    toast.success('Agreement generated! Redirecting to preview...')
 
-    // Download the file
-    setTimeout(() => {
-      window.open(fileUrl, '_blank')
-    }, 1000)
+    // Redirect to preview page
+    const previewId = agreementId || pendingAgreementId.value
 
-    // Clear pending agreement
+    // Clear pending agreement before redirecting
     pendingAgreementId.value = null
+
+    setTimeout(() => {
+      router.push(`/agreements/${previewId}/preview`)
+    }, 1000)
   } catch (err: any) {
     console.error('Error generating agreement after payment:', err)
     error.value = err.message || 'Failed to generate agreement'

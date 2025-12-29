@@ -302,22 +302,30 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
     // Update agreement with file URL
     await agreementService.updateAgreementPdfUrl(id, fileUrl)
 
-    // Automatically initiate signing and send emails to all signers
-    try {
-      console.log(`Initiating signing for agreement ${id}`)
-      await signatureService.initiateSigning(id)
-      console.log(`Signing initiated successfully for agreement ${id}`)
-    } catch (signingError: any) {
-      console.error('Failed to initiate signing:', signingError)
-      // Don't fail the whole request - agreement was generated successfully
-      // User can manually initiate signing from Agreement History
+    // Check if signing should be initiated immediately (for backward compatibility)
+    // By default, we no longer auto-initiate signing - user goes to preview page first
+    const initiateSigning = req.query.initiateSigning === 'true'
+    let signingInitiated = false
+
+    if (initiateSigning) {
+      try {
+        console.log(`Initiating signing for agreement ${id}`)
+        await signatureService.initiateSigning(id)
+        console.log(`Signing initiated successfully for agreement ${id}`)
+        signingInitiated = true
+      } catch (signingError: any) {
+        console.error('Failed to initiate signing:', signingError)
+        // Don't fail the whole request - agreement was generated successfully
+        // User can manually initiate signing from Agreement History or Preview page
+      }
     }
 
     res.json({
       message: 'Agreement generated successfully',
       fileUrl,
       fileName,
-      signingInitiated: true
+      signingInitiated,
+      agreementId: id
     })
   } catch (error: any) {
     console.error('Error generating agreement:', error)
@@ -435,8 +443,319 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 /**
+ * PUT /api/agreements/:id
+ * Update a draft agreement
+ * Only allowed for agreements with signing_status = 'draft' or null
+ */
+router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const userId = req.user?.id
+
+    // Get user's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .single()
+
+    const companyId = companyUser?.company_id
+
+    if (!companyId) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    // Get the agreement to verify ownership and status
+    const agreement = await agreementService.getAgreement(id)
+
+    // Verify company ownership
+    if (agreement.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Only allow editing draft agreements
+    if (agreement.signing_status && agreement.signing_status !== 'draft') {
+      return res.status(400).json({
+        error: 'Cannot edit agreement',
+        message: 'Only draft agreements can be edited directly. Use recall-and-edit for sent agreements.'
+      })
+    }
+
+    const {
+      templateType,
+      propertyAddress,
+      landlords,
+      tenants,
+      guarantors,
+      depositAmount,
+      rentAmount,
+      tenancyStartDate,
+      tenancyEndDate,
+      rentDueDay,
+      depositSchemeType,
+      permittedOccupiers,
+      bankAccountName,
+      bankAccountNumber,
+      bankSortCode,
+      tenantEmail,
+      landlordEmail,
+      agentEmail,
+      managementType,
+      breakClause,
+      specialClauses,
+      language
+    }: AgreementData = req.body
+
+    // Update the agreement
+    const { error } = await supabase
+      .from('agreements')
+      .update({
+        template_type: templateType,
+        property_address: propertyAddress,
+        landlords,
+        tenants,
+        guarantors: guarantors || [],
+        deposit_amount: depositAmount,
+        rent_amount: rentAmount,
+        tenancy_start_date: tenancyStartDate,
+        tenancy_end_date: tenancyEndDate,
+        rent_due_day: rentDueDay,
+        deposit_scheme_type: depositSchemeType,
+        permitted_occupiers: permittedOccupiers,
+        bank_account_name: bankAccountName,
+        bank_account_number: bankAccountNumber,
+        bank_sort_code: bankSortCode,
+        tenant_email: tenantEmail,
+        landlord_email: landlordEmail,
+        agent_email: agentEmail,
+        management_type: managementType,
+        break_clause: breakClause,
+        special_clauses: specialClauses,
+        language: language || 'english',
+        // Clear PDF since content has changed - user will need to regenerate
+        pdf_url: null,
+        pdf_generated_at: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (error) {
+      throw new Error(`Failed to update agreement: ${error.message}`)
+    }
+
+    // Fetch updated agreement
+    const updatedAgreement = await agreementService.getAgreement(id)
+
+    res.json({
+      message: 'Agreement updated successfully',
+      agreement: updatedAgreement
+    })
+  } catch (error: any) {
+    console.error('Error updating agreement:', error)
+    res.status(500).json({
+      error: 'Failed to update agreement',
+      details: error.message
+    })
+  }
+})
+
+/**
+ * POST /api/agreements/:id/recall-and-edit
+ * Cancel a sent agreement and create a new draft with the provided data
+ * Only allowed for pending_signatures or partially_signed agreements
+ */
+router.post('/:id/recall-and-edit', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const userId = req.user?.id
+
+    // Get user's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .single()
+
+    const companyId = companyUser?.company_id
+
+    if (!userId || !companyId) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    // Get the original agreement
+    const originalAgreement = await agreementService.getAgreement(id)
+
+    // Verify company ownership
+    if (originalAgreement.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Only allow recall for sent agreements
+    const recallableStatuses = ['pending_signatures', 'partially_signed']
+    if (!recallableStatuses.includes(originalAgreement.signing_status)) {
+      return res.status(400).json({
+        error: 'Cannot recall agreement',
+        message: `Agreements with status "${originalAgreement.signing_status}" cannot be recalled. Only pending or partially signed agreements can be recalled.`
+      })
+    }
+
+    // Cancel the original agreement's signing process
+    await signatureService.cancelSigning(id)
+    console.log(`Cancelled signing for agreement ${id} during recall-and-edit`)
+
+    // Get the modified data from request body (or use original values)
+    const agreementData: AgreementData = {
+      templateType: req.body.templateType || originalAgreement.template_type,
+      propertyAddress: req.body.propertyAddress || originalAgreement.property_address,
+      landlords: req.body.landlords || originalAgreement.landlords,
+      tenants: req.body.tenants || originalAgreement.tenants,
+      guarantors: req.body.guarantors || originalAgreement.guarantors || [],
+      depositAmount: req.body.depositAmount ?? originalAgreement.deposit_amount,
+      rentAmount: req.body.rentAmount ?? originalAgreement.rent_amount,
+      tenancyStartDate: req.body.tenancyStartDate || originalAgreement.tenancy_start_date,
+      tenancyEndDate: req.body.tenancyEndDate || originalAgreement.tenancy_end_date,
+      rentDueDay: req.body.rentDueDay || originalAgreement.rent_due_day,
+      depositSchemeType: req.body.depositSchemeType || originalAgreement.deposit_scheme_type,
+      permittedOccupiers: req.body.permittedOccupiers ?? originalAgreement.permitted_occupiers,
+      bankAccountName: req.body.bankAccountName || originalAgreement.bank_account_name,
+      bankAccountNumber: req.body.bankAccountNumber || originalAgreement.bank_account_number,
+      bankSortCode: req.body.bankSortCode || originalAgreement.bank_sort_code,
+      tenantEmail: req.body.tenantEmail || originalAgreement.tenant_email,
+      landlordEmail: req.body.landlordEmail || originalAgreement.landlord_email,
+      agentEmail: req.body.agentEmail || originalAgreement.agent_email,
+      managementType: req.body.managementType || originalAgreement.management_type,
+      breakClause: req.body.breakClause ?? originalAgreement.break_clause,
+      specialClauses: req.body.specialClauses ?? originalAgreement.special_clauses,
+      language: req.body.language || originalAgreement.language || 'english'
+    }
+
+    // Create new draft agreement
+    const newAgreementId = await agreementService.saveAgreement(
+      agreementData,
+      companyId,
+      userId,
+      originalAgreement.reference_id // Link to same reference if exists
+    )
+
+    // Get the new agreement
+    const newAgreement = await agreementService.getAgreement(newAgreementId)
+
+    res.status(201).json({
+      message: 'Agreement recalled and new draft created',
+      originalAgreementId: id,
+      newAgreementId,
+      agreement: newAgreement
+    })
+  } catch (error: any) {
+    console.error('Error in recall-and-edit:', error)
+    res.status(500).json({
+      error: 'Failed to recall and edit agreement',
+      details: error.message
+    })
+  }
+})
+
+/**
+ * PUT /api/agreements/:id/recipients
+ * Update recipient emails for a draft agreement
+ * Only allowed for draft agreements
+ */
+router.put('/:id/recipients', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const userId = req.user?.id
+
+    // Get user's company
+    const { data: companyUser } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .single()
+
+    const companyId = companyUser?.company_id
+
+    if (!companyId) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    // Get the agreement to verify ownership and status
+    const agreement = await agreementService.getAgreement(id)
+
+    // Verify company ownership
+    if (agreement.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Only allow updating recipients for draft agreements
+    if (agreement.signing_status && agreement.signing_status !== 'draft') {
+      return res.status(400).json({
+        error: 'Cannot update recipients',
+        message: 'Recipients can only be updated for draft agreements.'
+      })
+    }
+
+    const { recipients } = req.body
+
+    if (!recipients || !Array.isArray(recipients)) {
+      return res.status(400).json({ error: 'Recipients array is required' })
+    }
+
+    // Build update object
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    }
+
+    // Update email fields based on recipient type and index
+    for (const recipient of recipients) {
+      if (recipient.type === 'landlord' && recipient.index === 0) {
+        updateData.landlord_email = recipient.email
+      } else if (recipient.type === 'tenant' && recipient.index === 0) {
+        updateData.tenant_email = recipient.email
+      } else if (recipient.type === 'guarantor') {
+        // For guarantors, we need to update the guarantors array
+        const guarantors = [...(agreement.guarantors || [])]
+        if (guarantors[recipient.index]) {
+          guarantors[recipient.index] = {
+            ...guarantors[recipient.index],
+            email: recipient.email
+          }
+          updateData.guarantors = guarantors
+        }
+      }
+    }
+
+    // Update the agreement
+    const { error } = await supabase
+      .from('agreements')
+      .update(updateData)
+      .eq('id', id)
+
+    if (error) {
+      throw new Error(`Failed to update recipients: ${error.message}`)
+    }
+
+    // Fetch updated agreement
+    const updatedAgreement = await agreementService.getAgreement(id)
+
+    res.json({
+      message: 'Recipients updated successfully',
+      agreement: updatedAgreement
+    })
+  } catch (error: any) {
+    console.error('Error updating recipients:', error)
+    res.status(500).json({
+      error: 'Failed to update recipients',
+      details: error.message
+    })
+  }
+})
+
+/**
  * DELETE /api/agreements/:id
- * Delete an agreement
+ * Delete an agreement (with status validation)
+ *
+ * Allowed statuses: draft, pending_signatures, cancelled
+ * Not allowed: partially_signed, fully_signed, expired
  */
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -456,7 +775,7 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    // Get the agreement to verify ownership
+    // Get the agreement to verify ownership and status
     const agreement = await agreementService.getAgreement(id)
 
     // Verify company ownership
@@ -464,7 +783,51 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Delete from Supabase
+    // Validate signing status - only allow delete for certain statuses
+    const deletableStatuses = ['draft', 'pending_signatures', 'cancelled', null, undefined]
+    const currentStatus = agreement.signing_status
+
+    if (!deletableStatuses.includes(currentStatus)) {
+      return res.status(400).json({
+        error: 'Cannot delete agreement',
+        message: `Agreements with status "${currentStatus}" cannot be deleted. Only draft, pending, or cancelled agreements can be deleted.`,
+        signing_status: currentStatus
+      })
+    }
+
+    // If pending_signatures, cancel signing first
+    if (currentStatus === 'pending_signatures') {
+      try {
+        await signatureService.cancelSigning(id)
+        console.log(`Cancelled signing for agreement ${id} before deletion`)
+      } catch (cancelError) {
+        console.error('Error cancelling signing before delete:', cancelError)
+        // Continue with deletion even if cancel fails
+      }
+    }
+
+    // Delete associated signature records first (foreign key constraint)
+    const { error: signaturesError } = await supabase
+      .from('agreement_signatures')
+      .delete()
+      .eq('agreement_id', id)
+
+    if (signaturesError) {
+      console.error('Error deleting signatures:', signaturesError)
+      // Continue - some agreements may not have signatures
+    }
+
+    // Delete signature events
+    const { error: eventsError } = await supabase
+      .from('agreement_signature_events')
+      .delete()
+      .eq('agreement_id', id)
+
+    if (eventsError) {
+      console.error('Error deleting signature events:', eventsError)
+    }
+
+    // Delete the agreement
     const { error } = await supabase
       .from('agreements')
       .delete()
@@ -474,7 +837,10 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       throw new Error(`Failed to delete agreement: ${error.message}`)
     }
 
-    res.json({ message: 'Agreement deleted successfully' })
+    res.json({
+      message: 'Agreement deleted successfully',
+      wasPending: currentStatus === 'pending_signatures'
+    })
   } catch (error: any) {
     console.error('Error deleting agreement:', error)
     res.status(500).json({

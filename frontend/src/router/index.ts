@@ -188,6 +188,11 @@ const router = createRouter({
           path: 'history',
           name: 'AgreementHistory',
           component: AgreementHistory
+        },
+        {
+          path: ':id/preview',
+          name: 'AgreementPreview',
+          component: () => import('../views/AgreementPreview.vue')
         }
       ]
     },
