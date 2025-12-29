@@ -2348,7 +2348,7 @@ router.post('/submit/:token', async (req: Request, res) => {
               status: guarantorRef?.status
             })
 
-            // Send email to guarantor with tenant reference form link (not custom guarantor form)
+            // Send email to guarantor with guarantor-specific form link
             const tenantName = `${data.first_name} ${data.last_name}`
             const guarantorName = `${data.guarantor_first_name} ${data.guarantor_last_name || ''}`
             const propertyAddress = (reference.property_address_encrypted
