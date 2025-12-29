@@ -5761,6 +5761,56 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
       userId
     })
 
+    // Check if reference should move to pending_verification after document upload
+    // This handles the case where staff uploads documents that complete the requirements
+    if (reference.status === 'in_progress' && uploadedFiles.length > 0) {
+      const readiness = await isReadyForVerification(referenceId)
+
+      if (readiness.isReady) {
+        // Update status to pending_verification
+        await supabase
+          .from('tenant_references')
+          .update({ status: 'pending_verification' })
+          .eq('id', referenceId)
+
+        // Create or reactivate work item in VERIFY queue
+        const { data: existingWorkItem } = await supabase
+          .from('work_items')
+          .select('id, status')
+          .eq('reference_id', referenceId)
+          .eq('work_type', 'VERIFY')
+          .maybeSingle()
+
+        if (existingWorkItem) {
+          // Reactivate existing work item
+          await supabase
+            .from('work_items')
+            .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null, metadata: {} })
+            .eq('id', existingWorkItem.id)
+        } else {
+          // Create new work item
+          await supabase
+            .from('work_items')
+            .insert({
+              reference_id: referenceId,
+              work_type: 'VERIFY',
+              status: 'AVAILABLE'
+            })
+        }
+
+        // Add note about document upload triggering verification
+        await supabase
+          .from('reference_notes')
+          .insert({
+            reference_id: referenceId,
+            note: 'Agent uploaded document(s). Reference is now ready for verification.',
+            created_by: userId
+          })
+
+        console.log(`Reference ${referenceId} moved to pending_verification after agent document upload`)
+      }
+    }
+
     res.json({
       message: 'Documents uploaded successfully',
       uploadedFiles
