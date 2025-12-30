@@ -54,7 +54,7 @@
             </td>
             <td>
               <span :class="['issue-badge', item.issueType]">
-                {{ item.issueType === 'bounced' ? 'Bounced' : 'Spam' }}
+                {{ getIssueBadgeText(item) }}
               </span>
             </td>
             <td>
@@ -98,6 +98,20 @@ defineEmits<{
   (e: 'open', item: EmailIssueItem): void
   (e: 'refresh'): void
 }>()
+
+const getIssueBadgeText = (item: EmailIssueItem): string => {
+  const contactLabels: Record<string, string> = {
+    tenant: 'Tenant',
+    guarantor: 'Guarantor',
+    employer: 'Employer Ref',
+    landlord: 'Landlord Ref',
+    accountant: 'Accountant Ref',
+    agent: 'Agent Ref'
+  }
+  const label = contactLabels[item.contactType] || item.contactType
+  const issue = item.issueType === 'bounced' ? 'Bounced' : 'Spam'
+  return `${label} ${issue}`
+}
 
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr)
