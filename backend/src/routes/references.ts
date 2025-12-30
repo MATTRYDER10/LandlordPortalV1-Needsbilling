@@ -2178,29 +2178,47 @@ router.post('/submit/:token', async (req: Request, res) => {
           .eq('id', reference.company_id)
           .single()
 
-        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${updatedReference.id}`
+        // Create employer reference record with unique token and hash
+        const employerToken = generateToken()
+        const employerTokenHash = hash(employerToken)
 
-        await sendEmployerReferenceRequest(
-          data.employer_ref_email,
-          data.employer_ref_name,
-          `${data.first_name} ${data.last_name}`,
-          employerReferenceUrl,
-          companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
-          companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
-          companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
-          updatedReference.id
-        )
-        console.log('Employer reference email sent successfully to:', data.employer_ref_email)
+        const { data: employerRef, error: employerError } = await supabase
+          .from('employer_references')
+          .insert({
+            reference_id: updatedReference.id,
+            reference_token_hash: employerTokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          })
+          .select()
+          .single()
 
-        // Send SMS to employer (non-blocking)
-        if (data.employer_ref_phone) {
-          sendEmployerReferenceRequestSMS(
-            data.employer_ref_phone,
+        if (employerError) {
+          console.error('Failed to create employer reference:', employerError)
+        } else {
+          const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerToken}`
+
+          await sendEmployerReferenceRequest(
+            data.employer_ref_email,
             data.employer_ref_name,
             `${data.first_name} ${data.last_name}`,
             employerReferenceUrl,
+            companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+            companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+            companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
             updatedReference.id
-          ).catch(err => console.error('Failed to send SMS to employer:', err))
+          )
+          console.log('Employer reference email sent successfully to:', data.employer_ref_email)
+
+          // Send SMS to employer (non-blocking)
+          if (data.employer_ref_phone) {
+            sendEmployerReferenceRequestSMS(
+              data.employer_ref_phone,
+              data.employer_ref_name,
+              `${data.first_name} ${data.last_name}`,
+              employerReferenceUrl,
+              updatedReference.id
+            ).catch(err => console.error('Failed to send SMS to employer:', err))
+          }
         }
       } catch (emailError: any) {
         console.error('Failed to send employer reference email:', emailError)
