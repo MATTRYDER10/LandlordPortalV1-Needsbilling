@@ -1,19 +1,18 @@
 /**
  * Auto-Chase Service
- * Automatically sends chase emails/SMS/calls on a schedule
+ * Automatically sends chase emails/SMS on a schedule
  *
  * Chase Logic:
  * - Initial chase: 8 hours after request sent
  * - Subsequent chases: every 8 hours
- * - Only between 08:00-20:00 GMT (quiet hours for email/SMS)
- * - Calls have stricter hours: 09:00-19:00 GMT, weekdays only
- * - After 3 full cycles (email + SMS + call each): auto push to Action Required
- * - Chase order per cycle: Email first, then SMS, then Call
+ * - Only between 08:00-20:00 GMT (quiet hours)
+ * - Each chase sends BOTH email AND SMS together
+ * - After 3 cycles: auto push to Action Required
  */
 
 import { supabase } from '../config/supabase'
 import { recordChase, processExhaustedDependencies } from './chaseDependencyService'
-import { isWithinCallHours } from './vapiService'
+// import { isWithinCallHours } from './vapiService' // Calls disabled for now
 import { sendEmail } from './emailService'
 import { decrypt } from './encryption'
 
@@ -22,7 +21,7 @@ const SUMMARY_EMAIL_RECIPIENT = 'craig@propertygoose.co.uk'
 
 interface ChaseDetail {
   dependencyType: string
-  method: 'email' | 'sms' | 'call'
+  method: string // 'email+sms', 'email', 'sms', etc.
   referenceId: string
   contactName: string
   contactEmail: string
@@ -98,40 +97,61 @@ async function getDependenciesDueForAutoChase(): Promise<any[]> {
 }
 
 /**
- * Determine what chase method to use for a dependency
- * Returns 'email', 'sms', 'call', or null if nothing should be sent
- * Chase order per cycle: Email -> SMS -> Call
+ * Determine if a dependency should be chased
+ * Returns true if email+sms should be sent, false if cycle is complete
+ *
+ * New logic: Email and SMS are sent together each cycle
+ * After 3 cycles (chase_cycle >= 3), dependency is exhausted
  */
-function determineChaseMethod(dep: any): 'email' | 'sms' | 'call' | null {
-  const { email_attempts, sms_attempts, call_attempts, chase_cycle } = dep
-  const callAttempts = call_attempts || 0
+function shouldChase(dep: any): boolean {
+  const { email_attempts, chase_cycle } = dep
 
-  // Each cycle consists of: 1 email, then 1 SMS, then 1 call
-  // Cycle 0: email_attempts=0, sms_attempts=0, call_attempts=0 -> send email
-  // After email: email_attempts=1, sms_attempts=0, call_attempts=0 -> send SMS
-  // After SMS: email_attempts=1, sms_attempts=1, call_attempts=0 -> send call
-  // After call: email_attempts=1, sms_attempts=1, call_attempts=1 -> cycle_complete, cycle becomes 1
-  // Cycle 1: email_attempts=1, sms_attempts=1, call_attempts=1 -> send email (email_attempts becomes 2)
-  // etc.
-
-  // If email attempts <= chase_cycle, send email
+  // If we haven't sent email+sms for this cycle yet, we should chase
+  // email_attempts tracks the number of chase cycles completed
   if (email_attempts <= chase_cycle) {
-    return 'email'
+    return true
   }
 
-  // If sms attempts <= chase_cycle AND we've sent email this cycle, send SMS
-  if (sms_attempts <= chase_cycle && email_attempts > chase_cycle) {
-    return 'sms'
-  }
-
-  // If call attempts <= chase_cycle AND we've sent email and SMS this cycle, send call
-  if (callAttempts <= chase_cycle && email_attempts > chase_cycle && sms_attempts > chase_cycle) {
-    return 'call'
-  }
-
-  // All three sent for this cycle, nothing to do until cycle advances
-  return null
+  // Already chased for this cycle
+  return false
 }
+
+// DISABLED: Call functionality commented out for now
+// /**
+//  * Determine what chase method to use for a dependency
+//  * Returns 'email', 'sms', 'call', or null if nothing should be sent
+//  * Chase order per cycle: Email -> SMS -> Call
+//  */
+// function determineChaseMethod(dep: any): 'email' | 'sms' | 'call' | null {
+//   const { email_attempts, sms_attempts, call_attempts, chase_cycle } = dep
+//   const callAttempts = call_attempts || 0
+//
+//   // Each cycle consists of: 1 email, then 1 SMS, then 1 call
+//   // Cycle 0: email_attempts=0, sms_attempts=0, call_attempts=0 -> send email
+//   // After email: email_attempts=1, sms_attempts=0, call_attempts=0 -> send SMS
+//   // After SMS: email_attempts=1, sms_attempts=1, call_attempts=0 -> send call
+//   // After call: email_attempts=1, sms_attempts=1, call_attempts=1 -> cycle_complete, cycle becomes 1
+//   // Cycle 1: email_attempts=1, sms_attempts=1, call_attempts=1 -> send email (email_attempts becomes 2)
+//   // etc.
+//
+//   // If email attempts <= chase_cycle, send email
+//   if (email_attempts <= chase_cycle) {
+//     return 'email'
+//   }
+//
+//   // If sms attempts <= chase_cycle AND we've sent email this cycle, send SMS
+//   if (sms_attempts <= chase_cycle && email_attempts > chase_cycle) {
+//     return 'sms'
+//   }
+//
+//   // If call attempts <= chase_cycle AND we've sent email and SMS this cycle, send call
+//   if (callAttempts <= chase_cycle && email_attempts > chase_cycle && sms_attempts > chase_cycle) {
+//     return 'call'
+//   }
+//
+//   // All three sent for this cycle, nothing to do until cycle advances
+//   return null
+// }
 
 /**
  * Send summary email with auto-chase results
@@ -261,16 +281,8 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
     for (const dep of dueForChase) {
       stats.processed++
 
-      // Determine what to send
-      const method = determineChaseMethod(dep)
-      if (!method) {
-        stats.skipped++
-        continue
-      }
-
-      // Skip calls if outside call hours (stricter than email/SMS quiet hours)
-      if (method === 'call' && !isWithinCallHours()) {
-        console.log(`[AutoChase] Skipping call for ${dep.id}: outside call hours (9 AM - 7 PM GMT, weekdays)`)
+      // Check if we should chase this dependency
+      if (!shouldChase(dep)) {
         stats.skipped++
         continue
       }
@@ -280,34 +292,78 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
       const contactEmail = decrypt(dep.contact_email_encrypted) || 'No email'
 
       try {
-        // Record and send the chase
-        await recordChase(dep.id, method, 'SYSTEM', true)
-        stats.sent++
-        chaseDetails.push({
-          dependencyType: dep.dependency_type,
-          method,
-          referenceId: dep.reference_id,
-          contactName,
-          contactEmail,
-          success: true
-        })
-        console.log(`[AutoChase] Sent ${method} for ${dep.dependency_type} to ${contactName} (ref: ${dep.reference_id})`)
+        // Send BOTH email and SMS together
+        let emailSent = false
+        let smsSent = false
+        const errors: string[] = []
 
-        // Rate limit: Resend allows 2 req/sec, add 600ms delay to stay well under limit
-        // VAPI also has rate limits, so this delay applies to all methods
+        // Send email
+        try {
+          await recordChase(dep.id, 'email', 'SYSTEM', true)
+          emailSent = true
+          console.log(`[AutoChase] Sent email for ${dep.dependency_type} to ${contactName} (ref: ${dep.reference_id})`)
+        } catch (emailError: any) {
+          errors.push(`Email: ${emailError.message}`)
+          console.error(`[AutoChase] Error sending email for ${dep.id}:`, emailError.message)
+        }
+
+        // Rate limit delay between email and SMS
+        await new Promise(resolve => setTimeout(resolve, 600))
+
+        // Send SMS
+        try {
+          await recordChase(dep.id, 'sms', 'SYSTEM', true)
+          smsSent = true
+          console.log(`[AutoChase] Sent SMS for ${dep.dependency_type} to ${contactName} (ref: ${dep.reference_id})`)
+        } catch (smsError: any) {
+          errors.push(`SMS: ${smsError.message}`)
+          console.error(`[AutoChase] Error sending SMS for ${dep.id}:`, smsError.message)
+        }
+
+        // Track results
+        const methodSummary = [emailSent ? 'email' : null, smsSent ? 'sms' : null].filter(Boolean).join('+') || 'none'
+
+        if (emailSent || smsSent) {
+          stats.sent++
+          chaseDetails.push({
+            dependencyType: dep.dependency_type,
+            method: methodSummary,
+            referenceId: dep.reference_id,
+            contactName,
+            contactEmail,
+            success: true
+          })
+        }
+
+        if (errors.length > 0) {
+          stats.errors++
+          if (!emailSent && !smsSent) {
+            chaseDetails.push({
+              dependencyType: dep.dependency_type,
+              method: 'email+sms',
+              referenceId: dep.reference_id,
+              contactName,
+              contactEmail,
+              success: false,
+              error: errors.join('; ')
+            })
+          }
+        }
+
+        // Rate limit between dependencies
         await new Promise(resolve => setTimeout(resolve, 600))
       } catch (error: any) {
         stats.errors++
         chaseDetails.push({
           dependencyType: dep.dependency_type,
-          method,
+          method: 'email+sms',
           referenceId: dep.reference_id,
           contactName,
           contactEmail,
           success: false,
           error: error.message
         })
-        console.error(`[AutoChase] Error sending ${method} for ${dep.id}:`, error.message)
+        console.error(`[AutoChase] Error processing ${dep.id}:`, error.message)
       }
     }
 
