@@ -29,9 +29,18 @@
         </div>
       </div>
 
-      <!-- Line 2: Status pill and URGENT tag -->
+      <!-- Line 2: Status pill, email warning, and URGENT tag -->
       <div class="mt-2 flex items-center gap-2">
         <StatusPill :status="tenancy.tenancyStatus" />
+        <!-- Email delivery issue warning -->
+        <span
+          v-if="hasEmailIssue"
+          class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 flex items-center gap-1"
+          :title="emailIssueTooltip"
+        >
+          <MailWarning class="w-3 h-3" />
+          EMAIL ISSUE
+        </span>
         <span
           v-if="tenancy.urgentReverify"
           class="px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800"
@@ -116,7 +125,7 @@ import type { Tenancy, TenancyPerson } from '@/composables/useTenancies'
 import StatusPill from './StatusPill.vue'
 import ProgressChips from './ProgressChips.vue'
 import PersonCard from './PersonCard.vue'
-import { ChevronDown, AlertTriangle } from 'lucide-vue-next'
+import { ChevronDown, AlertTriangle, MailWarning } from 'lucide-vue-next'
 
 const props = defineProps<{
   tenancy: Tenancy
@@ -150,6 +159,20 @@ const sortedPeople = computed(() => {
 const canAddGuarantor = computed(() => {
   return props.tenancy.tenancyStatus !== 'COMPLETED' &&
          props.tenancy.tenancyStatus !== 'REJECTED'
+})
+
+// Check if any person has email delivery issues
+const hasEmailIssue = computed(() => {
+  return props.tenancy.people.some(p => p.emailDeliveryIssue)
+})
+
+const emailIssueTooltip = computed(() => {
+  const person = props.tenancy.people.find(p => p.emailDeliveryIssue)
+  if (!person?.emailDeliveryIssue) return ''
+  const type = person.emailDeliveryIssue.type
+  return type === 'bounced'
+    ? `Email to ${person.name} bounced - check email address`
+    : `Email to ${person.name} marked as spam`
 })
 
 function formatDate(dateStr: string | null): string {
