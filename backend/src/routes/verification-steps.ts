@@ -361,9 +361,10 @@ router.post('/reference/:referenceId/finalize', staffAuth, async (req: StaffAuth
 
     // Update reference status
     const newReferenceStatus = finalDecision === 'passed' ? 'completed' : 'rejected';
+    const newVerificationState = finalDecision === 'passed' ? 'COMPLETED' : 'REJECTED';
     const { error: refError } = await supabaseAdmin
       .from('tenant_references')
-      .update({ status: newReferenceStatus })
+      .update({ status: newReferenceStatus, verification_state: newVerificationState })
       .eq('id', referenceId);
 
     if (refError) throw refError;

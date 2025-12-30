@@ -758,6 +758,7 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
       .from('tenant_references')
       .update({
         status: 'completed',
+        verification_state: 'COMPLETED',
         completed_at: new Date().toISOString(),
         verified_by: staffUserId,
         verified_at: new Date().toISOString(),
