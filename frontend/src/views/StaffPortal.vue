@@ -41,6 +41,9 @@
         <button :class="['tab', { active: activeTab === 'my-tasks' }]" @click="activeTab = 'my-tasks'">
           My Active Tasks ({{ myTasksCount }})
         </button>
+        <button :class="['tab', 'email-issues-tab', { active: activeTab === 'email-issues' }]" @click="activeTab = 'email-issues'">
+          Email Issues ({{ stats.emailIssues.total }})
+        </button>
       </div>
 
       <!-- Tab Content -->
@@ -82,6 +85,15 @@
         @release="releaseTask"
         @refresh="fetchMyTasks"
       />
+
+      <EmailIssuesTab
+        v-if="activeTab === 'email-issues'"
+        :items="emailIssueItems"
+        :loading="loadingEmailIssues"
+        :error="errorEmailIssues"
+        @open="openEmailIssue"
+        @refresh="fetchEmailIssues"
+      />
     </div>
   </div>
 </template>
@@ -96,7 +108,8 @@ import QueueStatsBar from '../components/staff/portal/QueueStatsBar.vue'
 import VerifyQueueTab from '../components/staff/portal/VerifyQueueTab.vue'
 import ChaseQueueTab from '../components/staff/portal/ChaseQueueTab.vue'
 import MyActiveTasksTab from '../components/staff/portal/MyActiveTasksTab.vue'
-import type { VerifyQueueItem, ChaseQueueItem, ActiveTask, QueueStats } from '@/types/staff'
+import EmailIssuesTab from '../components/staff/portal/EmailIssuesTab.vue'
+import type { VerifyQueueItem, ChaseQueueItem, ActiveTask, QueueStats, EmailIssueItem } from '@/types/staff'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -105,7 +118,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 // State
 const MAX_ACTIVE_ITEMS = 10
-const activeTab = ref<'verify' | 'chase' | 'my-tasks'>('verify')
+const activeTab = ref<'verify' | 'chase' | 'my-tasks' | 'email-issues'>('verify')
 
 // Verify Queue State
 const verifyQueueItems = ref<VerifyQueueItem[]>([])
@@ -122,10 +135,16 @@ const myActiveTasks = ref<ActiveTask[]>([])
 const loadingMyTasks = ref(false)
 const errorMyTasks = ref<string | null>(null)
 
+// Email Issues State
+const emailIssueItems = ref<EmailIssueItem[]>([])
+const loadingEmailIssues = ref(false)
+const errorEmailIssues = ref<string | null>(null)
+
 // Stats
 const stats = ref<QueueStats>({
   chase: { available: 0, assigned: 0, inProgress: 0, myItems: 0, total: 0 },
-  verify: { available: 0, assigned: 0, inProgress: 0, awaitingDocs: 0, myItems: 0, total: 0 }
+  verify: { available: 0, assigned: 0, inProgress: 0, awaitingDocs: 0, myItems: 0, total: 0 },
+  emailIssues: { total: 0 }
 })
 
 // Action state
@@ -231,6 +250,32 @@ const fetchMyTasks = async () => {
     console.error('Error fetching my tasks:', err)
   } finally {
     loadingMyTasks.value = false
+  }
+}
+
+const fetchEmailIssues = async () => {
+  try {
+    loadingEmailIssues.value = true
+    errorEmailIssues.value = null
+
+    const response = await fetch(`${API_URL}/api/email-issues/queue`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch email issues')
+    }
+
+    const data = await response.json()
+    emailIssueItems.value = data.items || []
+  } catch (err: any) {
+    errorEmailIssues.value = err.message
+    console.error('Error fetching email issues:', err)
+  } finally {
+    loadingEmailIssues.value = false
   }
 }
 
@@ -436,6 +481,11 @@ const releaseTask = async (task: ActiveTask) => {
   }
 }
 
+// Email Issues Actions
+const openEmailIssue = (item: EmailIssueItem) => {
+  router.push(`/staff/reference/${item.referenceId}`)
+}
+
 // Auto-refresh
 const startAutoRefresh = () => {
   refreshInterval.value = window.setInterval(() => {
@@ -443,6 +493,7 @@ const startAutoRefresh = () => {
     fetchChaseQueue()
     fetchStats()
     fetchMyTasks()
+    fetchEmailIssues()
   }, 30000)
 }
 
@@ -459,6 +510,7 @@ onMounted(() => {
   fetchChaseQueue()
   fetchStats()
   fetchMyTasks()
+  fetchEmailIssues()
   startAutoRefresh()
 })
 
@@ -467,6 +519,7 @@ onActivated(() => {
   fetchChaseQueue()
   fetchStats()
   fetchMyTasks()
+  fetchEmailIssues()
 })
 
 onUnmounted(() => {
@@ -506,5 +559,14 @@ onUnmounted(() => {
 .tab.active {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
+}
+
+.tab.email-issues-tab {
+  color: #dc2626;
+}
+
+.tab.email-issues-tab.active {
+  color: #dc2626;
+  border-bottom-color: #dc2626;
 }
 </style>

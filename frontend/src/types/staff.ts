@@ -113,6 +113,8 @@ export interface VerifyQueueItem {
 export type DependencyType = 'TENANT_FORM' | 'GUARANTOR_FORM' | 'EMPLOYER_REF' | 'RESIDENTIAL_REF' | 'ACCOUNTANT_REF'
 export type DependencyStatus = 'PENDING' | 'CHASING' | 'RECEIVED' | 'EXHAUSTED' | 'ACTION_REQUIRED'
 
+export type ContactType = 'tenant' | 'guarantor' | 'employer' | 'landlord' | 'accountant' | 'agent'
+
 export interface ChaseDependency {
   id: string
   referenceId: string
@@ -139,6 +141,24 @@ export interface ChaseQueueItem extends ChaseDependency {
   companyName: string
   daysSinceRequest: number
   urgency: Urgency
+}
+
+// ============================================================================
+// EMAIL ISSUES
+// ============================================================================
+
+export interface EmailIssueItem {
+  id: string
+  referenceId: string
+  personName: string
+  personRole: PersonType
+  contactType: ContactType
+  email: string
+  issueType: 'bounced' | 'complained'
+  errorMessage?: string
+  propertyAddress: string
+  companyName: string
+  createdAt: string
 }
 
 // ============================================================================
@@ -226,6 +246,9 @@ export interface QueueStats {
     inProgress: number
     awaitingDocs: number
     myItems: number
+    total: number
+  }
+  emailIssues: {
     total: number
   }
 }
@@ -319,4 +342,16 @@ export function getVerificationStateColor(state: VerificationState): string {
     REJECTED: 'red'
   }
   return colors[state] || 'gray'
+}
+
+export function getContactTypeLabel(type: ContactType): string {
+  const labels: Record<ContactType, string> = {
+    tenant: 'Tenant',
+    guarantor: 'Guarantor',
+    employer: 'Employer',
+    landlord: 'Landlord',
+    accountant: 'Accountant',
+    agent: 'Agent'
+  }
+  return labels[type] || type
 }

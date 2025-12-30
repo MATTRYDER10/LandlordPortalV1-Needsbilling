@@ -26,6 +26,10 @@
       <div class="stat-label">My Active Tasks</div>
       <div class="stat-value">{{ myTasksCount }}</div>
     </div>
+    <div class="stat-card email-issues">
+      <div class="stat-label">Email Issues</div>
+      <div class="stat-value">{{ stats.emailIssues.total }}</div>
+    </div>
   </div>
 </template>
 
@@ -68,6 +72,10 @@ const myTasksCount = computed(() => {
 
 .stat-card.my-items {
   border-left: 4px solid #6366f1;
+}
+
+.stat-card.email-issues {
+  border-left: 4px solid #dc2626;
 }
 
 .stat-label {

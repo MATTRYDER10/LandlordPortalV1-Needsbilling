@@ -34,6 +34,7 @@ import adminReportsRoutes from './routes/adminReports'
 import agreementSigningRoutes from './routes/agreementSigning'
 import tenanciesRoutes from './routes/tenancies'
 import vapiRoutes from './routes/vapi'
+import emailIssuesRoutes from './routes/email-issues'
 
 dotenv.config()
 
@@ -166,6 +167,7 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/admin/reports', adminReportsRoutes)
 app.use('/api/signing', agreementSigningRoutes) // Public signing routes (magic link authenticated)
 app.use('/api/tenancies', tenanciesRoutes)
+app.use('/api/email-issues', emailIssuesRoutes)
 
 // Start server
 app.listen(PORT, () => {

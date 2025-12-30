@@ -165,6 +165,24 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
       return timestampDate <= eightHoursAgo;
     }).length;
 
+    // Get email issues count
+    const { data: emailIssues, error: emailError } = await supabaseAdmin
+      .from('email_delivery_logs')
+      .select(`
+        id,
+        reference:tenant_references!email_delivery_logs_reference_id_fkey (status)
+      `)
+      .in('status', ['bounced', 'complained']);
+
+    if (emailError) throw emailError;
+
+    // Filter out issues where reference is completed/rejected
+    const excludedEmailStatuses = ['completed', 'rejected', 'cancelled'];
+    const activeEmailIssues = (emailIssues || []).filter((issue: any) => {
+      if (!issue.reference) return false;
+      return !excludedEmailStatuses.includes(issue.reference.status);
+    });
+
     const summary = {
       chase: {
         available: activeChaseCount,
@@ -180,6 +198,9 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
         awaitingDocs: 0,
         myItems: 0,
         total: 0
+      },
+      emailIssues: {
+        total: activeEmailIssues.length
       }
     };
 
