@@ -483,7 +483,7 @@ const releaseTask = async (task: ActiveTask) => {
 
 // Email Issues Actions
 const openEmailIssue = (item: EmailIssueItem) => {
-  router.push(`/staff/reference/${item.referenceId}`)
+  router.push(`/staff/references/${item.referenceId}`)
 }
 
 // Auto-refresh
