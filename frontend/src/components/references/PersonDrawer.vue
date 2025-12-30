@@ -2126,12 +2126,11 @@ async function handleResendEmployerRef() {
 
   resendingEmployerRef.value = true
   try {
-    const token = localStorage.getItem('token')
     const response = await fetch(`${API_BASE}/api/references/${props.person.id}/resend-employer-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${authStore.session?.access_token}`
       }
     })
 
@@ -2153,12 +2152,11 @@ async function handleResendLandlordRef() {
 
   resendingLandlordRef.value = true
   try {
-    const token = localStorage.getItem('token')
     const response = await fetch(`${API_BASE}/api/references/${props.person.id}/resend-landlord-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${authStore.session?.access_token}`
       }
     })
 
@@ -2180,12 +2178,11 @@ async function handleResendAccountantRef() {
 
   resendingAccountantRef.value = true
   try {
-    const token = localStorage.getItem('token')
     const response = await fetch(`${API_BASE}/api/references/${props.person.id}/resend-accountant-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${authStore.session?.access_token}`
       }
     })
 
