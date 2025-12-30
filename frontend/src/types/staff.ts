@@ -16,6 +16,15 @@ export type FinalDecision = 'PASS' | 'PASS_WITH_CONDITION' | 'PASS_WITH_GUARANTO
 
 export type Urgency = 'NORMAL' | 'WARNING' | 'URGENT'
 
+// Verification state (explicit state machine for verify queue)
+export type VerificationState =
+  | 'COLLECTING_EVIDENCE'
+  | 'READY_FOR_REVIEW'
+  | 'IN_VERIFICATION'
+  | 'ACTION_REQUIRED'
+  | 'COMPLETED'
+  | 'REJECTED'
+
 // ============================================================================
 // VERIFICATION SECTION
 // ============================================================================
@@ -75,6 +84,7 @@ export interface VerifyQueueItem {
   referenceId: string
   workType: 'VERIFY'
   status: 'AVAILABLE' | 'ASSIGNED' | 'IN_PROGRESS' | 'RETURNED'
+  verificationState: VerificationState
   priority: number
   urgency: Urgency
   urgencyReason?: string
@@ -285,4 +295,28 @@ export function getDependencyTypeLabel(type: DependencyType): string {
     ACCOUNTANT_REF: 'Accountant Reference'
   }
   return labels[type] || type
+}
+
+export function getVerificationStateLabel(state: VerificationState): string {
+  const labels: Record<VerificationState, string> = {
+    COLLECTING_EVIDENCE: 'Collecting Evidence',
+    READY_FOR_REVIEW: 'Ready for Review',
+    IN_VERIFICATION: 'In Verification',
+    ACTION_REQUIRED: 'Action Required',
+    COMPLETED: 'Completed',
+    REJECTED: 'Rejected'
+  }
+  return labels[state] || state
+}
+
+export function getVerificationStateColor(state: VerificationState): string {
+  const colors: Record<VerificationState, string> = {
+    COLLECTING_EVIDENCE: 'gray',
+    READY_FOR_REVIEW: 'blue',
+    IN_VERIFICATION: 'purple',
+    ACTION_REQUIRED: 'orange',
+    COMPLETED: 'green',
+    REJECTED: 'red'
+  }
+  return colors[state] || 'gray'
 }

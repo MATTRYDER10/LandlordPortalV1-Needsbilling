@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase'
 import { logAuditAction } from './auditService'
+import { transitionState } from './verificationStateService'
 
 // Section types
 export type SectionDecision = 'NOT_REVIEWED' | 'PASS' | 'PASS_WITH_CONDITION' | 'ACTION_REQUIRED' | 'FAIL'
@@ -214,6 +215,14 @@ export async function setActionRequired(
     failReason: null,
     correctionCycle: currentSection.correctionCycle + 1
   })
+
+  // Transition verification state to ACTION_REQUIRED
+  await transitionState(
+    section.referenceId,
+    'ACTION_REQUIRED',
+    `Section ${section.sectionType} requires action: ${params.reasonCode}`,
+    staffId
+  )
 
   // Log audit with agent visibility
   await logAuditAction({

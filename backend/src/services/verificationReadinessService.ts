@@ -3,9 +3,10 @@ import { supabase } from '../config/supabase'
 /**
  * Verification Readiness Service
  *
- * Determines if a reference has ALL required data to enter the Verify queue.
- * A reference should only be in 'pending_verification' status and appear in
- * the Verify queue if ALL required fields are filled out OR evidence is uploaded.
+ * Determines if a reference has minimum viable evidence to enter the Verify queue.
+ * Uses simplified "one item per category" rules instead of complex employment-type logic.
+ *
+ * UPDATED: Now uses minimum viable evidence approach per GitHub Issue #40.
  */
 
 export interface SectionStatus {
@@ -19,15 +20,27 @@ export interface ReadinessCheck {
   sectionStatus: {
     tenantForm: SectionStatus
     guarantorForm?: SectionStatus
+    identity: SectionStatus
+    rightToRent: SectionStatus
     income: SectionStatus
     residential: SectionStatus
-    identity: SectionStatus
   }
 }
 
 /**
  * Check if a reference is ready for verification.
  * Returns detailed status of each required section.
+ *
+ * TENANTS require:
+ * - Identity: selfie_path AND id_document_path (both required)
+ * - Right to Rent: is_british_citizen=true OR RTR document uploaded
+ * - Income: ONE OF - employer ref, payslip, accountant ref, tax return, other_proof_of_funds
+ * - Residential: ONE OF - confirmed_residential_status, landlord ref, agent ref, tenancy_agreement
+ *
+ * GUARANTORS require ONLY:
+ * - Identity: selfie_path AND id_document_path
+ * - Income: Same as tenant
+ * - NO Residential, NO Right to Rent
  */
 export async function isReadyForVerification(referenceId: string): Promise<ReadinessCheck> {
   try {
@@ -46,16 +59,16 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         income_regular_employment,
         income_self_employed,
         income_benefits,
-        employment_salary_amount_encrypted,
-        benefits_annual_amount_encrypted,
-        self_employed_annual_income_encrypted,
+        is_british_citizen,
         id_document_path,
         selfie_path,
+        rtr_share_code,
+        rtr_alternative_document_path,
         tax_return_path,
         payslip_files,
-        proof_of_additional_income_path,
+        other_proof_of_funds_path,
+        tenancy_agreement_path,
         confirmed_residential_status,
-        previous_landlord_email_encrypted,
         employer_references (id, submitted_at),
         landlord_references (id, submitted_at),
         agent_references (id, submitted_at),
@@ -70,22 +83,27 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         missingItems: ['Reference not found'],
         sectionStatus: {
           tenantForm: { complete: false, reason: 'Reference not found' },
+          identity: { complete: false },
+          rightToRent: { complete: false },
           income: { complete: false },
-          residential: { complete: false },
-          identity: { complete: false }
+          residential: { complete: false }
         }
       }
     }
 
+    const isGuarantor = reference.is_guarantor === true
     const missingItems: string[] = []
     const sectionStatus: ReadinessCheck['sectionStatus'] = {
       tenantForm: { complete: false },
+      identity: { complete: false },
+      rightToRent: { complete: false },
       income: { complete: false },
-      residential: { complete: false },
-      identity: { complete: false }
+      residential: { complete: false }
     }
 
+    // -------------------------------------------------------------------------
     // 1. TENANT FORM - Check tenant has submitted (not in 'pending' status)
+    // -------------------------------------------------------------------------
     if (reference.status === 'pending') {
       missingItems.push('Tenant form not submitted')
       sectionStatus.tenantForm = { complete: false, reason: 'Tenant has not submitted their form' }
@@ -93,21 +111,20 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
       sectionStatus.tenantForm = { complete: true }
     }
 
+    // -------------------------------------------------------------------------
     // 2. GUARANTOR FORM - Check if required and submitted
-    // EXCEPTION: Students with guarantors can proceed to verification without waiting for guarantor form
-    if (reference.requires_guarantor && !reference.is_guarantor) {
+    // -------------------------------------------------------------------------
+    if (reference.requires_guarantor && !isGuarantor) {
       const isStudentOnly = reference.income_student &&
                             !reference.income_regular_employment &&
                             !reference.income_self_employed &&
                             !reference.income_benefits
 
-      // Check if guarantor contact details are provided
       const hasGuarantorContactDetails = !!(
         reference.guarantor_email_encrypted ||
         reference.guarantor_first_name_encrypted
       )
 
-      // Find guarantor reference for this tenant
       const { data: guarantorRef } = await supabase
         .from('tenant_references')
         .select('id, status')
@@ -116,7 +133,6 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         .single()
 
       if (isStudentOnly && hasGuarantorContactDetails) {
-        // Student with guarantor - skip guarantor form check
         sectionStatus.guarantorForm = {
           complete: true,
           reason: 'Student with guarantor - form pending but not blocking'
@@ -132,34 +148,54 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
       }
     }
 
-    // 3. INCOME SECTION - Complex logic based on employment type
-    const incomeComplete = checkIncomeSection(reference)
-    sectionStatus.income = incomeComplete
-    if (!incomeComplete.complete) {
-      missingItems.push(incomeComplete.reason || 'Income verification incomplete')
-    }
-
-    // 4. RESIDENTIAL SECTION - Landlord/Agent reference or alternative status
-    // NOTE: Guarantors do NOT require residential verification
-    if (reference.is_guarantor) {
-      sectionStatus.residential = { complete: true, reason: 'Guarantors do not require residential verification' }
-    } else {
-      const residentialComplete = checkResidentialSection(reference)
-      sectionStatus.residential = residentialComplete
-      if (!residentialComplete.complete) {
-        missingItems.push(residentialComplete.reason || 'Residential verification incomplete')
-      }
-    }
-
-    // 5. IDENTITY SECTION - ID document and selfie required
+    // -------------------------------------------------------------------------
+    // 3. IDENTITY - Both selfie AND ID document required
+    // -------------------------------------------------------------------------
     if (!reference.id_document_path || !reference.selfie_path) {
       const missing = []
       if (!reference.id_document_path) missing.push('ID document')
       if (!reference.selfie_path) missing.push('selfie')
-      missingItems.push(`Missing identity documents: ${missing.join(', ')}`)
+      missingItems.push(`Missing identity: ${missing.join(', ')}`)
       sectionStatus.identity = { complete: false, reason: `Missing: ${missing.join(', ')}` }
     } else {
       sectionStatus.identity = { complete: true }
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. RIGHT TO RENT - British citizen auto-completes, else need document
+    // Guarantors skip this check entirely
+    // -------------------------------------------------------------------------
+    if (isGuarantor) {
+      sectionStatus.rightToRent = { complete: true, reason: 'Guarantors do not require Right to Rent' }
+    } else {
+      const rightToRentCheck = checkRightToRentSection(reference)
+      sectionStatus.rightToRent = rightToRentCheck
+      if (!rightToRentCheck.complete) {
+        missingItems.push(rightToRentCheck.reason || 'Right to Rent verification incomplete')
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. INCOME - ONE of: employer ref, payslip, accountant ref, tax return, other proof of funds
+    // -------------------------------------------------------------------------
+    const incomeCheck = checkIncomeSection(reference)
+    sectionStatus.income = incomeCheck
+    if (!incomeCheck.complete) {
+      missingItems.push(incomeCheck.reason || 'Income verification incomplete')
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. RESIDENTIAL - ONE of: confirmed status, landlord ref, agent ref, tenancy agreement
+    // Guarantors skip this check entirely
+    // -------------------------------------------------------------------------
+    if (isGuarantor) {
+      sectionStatus.residential = { complete: true, reason: 'Guarantors do not require residential verification' }
+    } else {
+      const residentialCheck = checkResidentialSection(reference)
+      sectionStatus.residential = residentialCheck
+      if (!residentialCheck.complete) {
+        missingItems.push(residentialCheck.reason || 'Residential verification incomplete')
+      }
     }
 
     const isReady = missingItems.length === 0
@@ -176,140 +212,110 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
       missingItems: ['Error checking readiness'],
       sectionStatus: {
         tenantForm: { complete: false },
+        identity: { complete: false },
+        rightToRent: { complete: false },
         income: { complete: false },
-        residential: { complete: false },
-        identity: { complete: false }
+        residential: { complete: false }
       }
     }
   }
 }
 
 /**
- * Check if income section is complete based on employment type
+ * Check Right to Rent section
  *
  * Rules:
- * - Student ONLY (no other income): Auto-complete
- * - Student + other income: Need evidence for the other income type
- * - Employed: ANY payslips uploaded OR employer reference submitted
- * - Self-employed: Tax return uploaded OR accountant reference submitted
- * - Benefits: Evidence uploaded AND amount declared
- * - No income declared: Auto-complete
+ * - British citizen (is_british_citizen=true) -> auto-complete
+ * - Otherwise need RTR share code OR alternative document
  */
-function checkIncomeSection(reference: any): SectionStatus {
-  const isStudent = !!reference.income_student
-  const isEmployed = !!reference.income_regular_employment
-  const isSelfEmployed = !!reference.income_self_employed
-  const hasBenefits = !!reference.income_benefits
-
-  // Student ONLY (no other income types) - auto-complete
-  if (isStudent && !isEmployed && !isSelfEmployed && !hasBenefits) {
-    return { complete: true, reason: 'Student only - no income proof required' }
+function checkRightToRentSection(reference: any): SectionStatus {
+  // British citizen - auto-complete
+  if (reference.is_british_citizen === true) {
+    return { complete: true, reason: 'British citizen - Right to Rent verified' }
   }
 
-  // Check each income type that was selected (student may have additional income)
-  const incomeIssues: string[] = []
+  // Check for RTR documentation
+  const hasShareCode = !!reference.rtr_share_code
+  const hasAlternativeDoc = !!reference.rtr_alternative_document_path
 
-  // If employed - need employer reference OR ANY payslips
-  if (isEmployed) {
-    const hasEmployerRef = reference.employer_references?.some((er: any) => er.submitted_at)
-    const payslipCount = reference.payslip_files?.length || 0
-    const hasPayslips = payslipCount > 0
-
-    if (!hasEmployerRef && !hasPayslips) {
-      incomeIssues.push('Employed: need employer reference OR payslips')
-    }
+  if (hasShareCode || hasAlternativeDoc) {
+    return { complete: true, reason: hasShareCode ? 'RTR share code provided' : 'RTR document uploaded' }
   }
 
-  // If self-employed - need accountant reference OR tax return
-  if (isSelfEmployed) {
-    const hasAccountantRef = reference.accountant_references?.some((ar: any) => ar.submitted_at)
-    const hasTaxReturn = !!reference.tax_return_path
-
-    if (!hasAccountantRef && !hasTaxReturn) {
-      incomeIssues.push('Self-employed: need accountant reference OR tax return')
-    }
+  // Not British and no RTR documentation
+  // Only require RTR if explicitly not British (is_british_citizen === false)
+  // If is_british_citizen is null, they haven't answered yet
+  if (reference.is_british_citizen === false) {
+    return { complete: false, reason: 'Right to Rent documentation required (non-British citizen)' }
   }
 
-  // If benefits - need amount declared AND evidence uploaded
-  if (hasBenefits) {
-    const hasAmount = !!reference.benefits_annual_amount_encrypted
-    const hasEvidence = !!reference.proof_of_additional_income_path
-
-    if (!hasAmount || !hasEvidence) {
-      const missing = []
-      if (!hasAmount) missing.push('amount declared')
-      if (!hasEvidence) missing.push('evidence uploaded')
-      incomeIssues.push(`Benefits: need ${missing.join(' and ')}`)
-    }
-  }
-
-  // If any income issues, return incomplete
-  if (incomeIssues.length > 0) {
-    return {
-      complete: false,
-      reason: incomeIssues.join('; ')
-    }
-  }
-
-  // If we had any income types selected and passed all checks, we're complete
-  if (isEmployed || isSelfEmployed || hasBenefits) {
-    return { complete: true }
-  }
-
-  // No income type selected - check if any income fields are filled
-  const hasSalary = !!reference.employment_salary_amount_encrypted
-  const hasBenefitsAmount = !!reference.benefits_annual_amount_encrypted
-  const hasSelfEmployedIncome = !!reference.self_employed_annual_income_encrypted
-
-  if (hasSalary || hasBenefitsAmount || hasSelfEmployedIncome) {
-    // Some income declared but no type selected - check if verification evidence exists
-    const hasEmployerRef = reference.employer_references?.some((er: any) => er.submitted_at)
-    const hasAccountantRef = reference.accountant_references?.some((ar: any) => ar.submitted_at)
-    const payslipCount = reference.payslip_files?.length || 0
-    const hasTaxReturn = !!reference.tax_return_path
-
-    if (hasEmployerRef || hasAccountantRef || payslipCount > 0 || hasTaxReturn) {
-      return { complete: true }
-    }
-
-    return {
-      complete: false,
-      reason: 'Income declared but no verification evidence'
-    }
-  }
-
-  // No income type and no income declared - might be zero income which is valid
-  return { complete: true, reason: 'No income declared' }
+  // is_british_citizen is null - question not answered yet, don't block
+  return { complete: true, reason: 'Citizenship status not yet confirmed' }
 }
 
 /**
- * Check if residential section is complete
+ * Check income section - simplified "one item" rule
+ *
+ * Rules:
+ * - ONE of: employer reference, payslip, accountant reference, tax return, other proof of funds
+ */
+function checkIncomeSection(reference: any): SectionStatus {
+  const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
+  const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
+  const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
+  const hasTaxReturn = !!reference.tax_return_path
+  const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
+
+  // Check if ANY income evidence exists
+  if (hasEmployerRef) {
+    return { complete: true, reason: 'Employer reference received' }
+  }
+  if (hasPayslips) {
+    return { complete: true, reason: 'Payslips uploaded' }
+  }
+  if (hasAccountantRef) {
+    return { complete: true, reason: 'Accountant reference received' }
+  }
+  if (hasTaxReturn) {
+    return { complete: true, reason: 'Tax return uploaded' }
+  }
+  if (hasOtherProofOfFunds) {
+    return { complete: true, reason: 'Other proof of funds uploaded' }
+  }
+
+  return { complete: false, reason: 'Income evidence required (payslip, employer ref, tax return, or other proof)' }
+}
+
+/**
+ * Check residential section - simplified "one item" rule
+ *
+ * Rules:
+ * - ONE of: confirmed residential status, landlord reference, agent reference, tenancy agreement
  */
 function checkResidentialSection(reference: any): SectionStatus {
-  // If confirmed residential status is set (e.g., living with family, owner occupier)
-  // then no landlord/agent reference is needed
+  // Confirmed status (living with family, owner occupier, etc.)
   if (reference.confirmed_residential_status) {
     return { complete: true, reason: `Residential status: ${reference.confirmed_residential_status}` }
   }
 
-  // Check if landlord or agent reference exists
-  const hasLandlordRef = reference.landlord_references?.some((lr: any) => lr.submitted_at)
-  const hasAgentRef = reference.agent_references?.some((ar: any) => ar.submitted_at)
-
-  if (hasLandlordRef || hasAgentRef) {
-    return { complete: true }
+  // Landlord reference
+  const hasLandlordRef = (reference.landlord_references || []).some((lr: any) => lr.submitted_at)
+  if (hasLandlordRef) {
+    return { complete: true, reason: 'Landlord reference received' }
   }
 
-  // Check if landlord email was provided (meaning they expect a reference)
-  if (reference.previous_landlord_email_encrypted) {
-    return {
-      complete: false,
-      reason: 'Landlord/Agent reference requested but not received'
-    }
+  // Agent reference
+  const hasAgentRef = (reference.agent_references || []).some((ar: any) => ar.submitted_at)
+  if (hasAgentRef) {
+    return { complete: true, reason: 'Agent reference received' }
   }
 
-  // No landlord email provided - assume not renting or alternative living situation
-  return { complete: true, reason: 'No landlord reference required' }
+  // Tenancy agreement (new evidence type)
+  if (reference.tenancy_agreement_path) {
+    return { complete: true, reason: 'Tenancy agreement uploaded' }
+  }
+
+  return { complete: false, reason: 'Residential evidence required (landlord ref, tenancy agreement, or confirm status)' }
 }
 
 /**
@@ -325,14 +331,15 @@ export async function isReady(referenceId: string): Promise<boolean> {
  * This is used by the /references page to determine display status without additional DB calls.
  *
  * The reference object must include these fields:
- * - is_guarantor, status
- * - income_student, income_regular_employment, income_self_employed, income_benefits
- * - id_document_path, selfie_path, tax_return_path, payslip_files
- * - proof_of_additional_income_path, benefits_annual_amount_encrypted
- * - confirmed_residential_status, previous_landlord_email_encrypted
+ * - is_guarantor, status, is_british_citizen
+ * - id_document_path, selfie_path, rtr_share_code, rtr_alternative_document_path
+ * - tax_return_path, payslip_files, other_proof_of_funds_path
+ * - tenancy_agreement_path, confirmed_residential_status
  * - employer_references, landlord_references, agent_references, accountant_references (as arrays with submitted_at)
  */
 export function isReadyForVerificationSync(reference: any): { isReady: boolean; reason?: string } {
+  const isGuarantor = reference.is_guarantor === true
+
   // 1. Check identity (ID + selfie required)
   if (!reference.id_document_path || !reference.selfie_path) {
     const missing = []
@@ -341,14 +348,22 @@ export function isReadyForVerificationSync(reference: any): { isReady: boolean; 
     return { isReady: false, reason: `Missing: ${missing.join(', ')}` }
   }
 
-  // 2. Check income
+  // 2. Check Right to Rent (tenants only)
+  if (!isGuarantor) {
+    const rtrCheck = checkRightToRentSectionSync(reference)
+    if (!rtrCheck.complete) {
+      return { isReady: false, reason: rtrCheck.reason }
+    }
+  }
+
+  // 3. Check income
   const incomeCheck = checkIncomeSectionSync(reference)
   if (!incomeCheck.complete) {
     return { isReady: false, reason: incomeCheck.reason }
   }
 
-  // 3. Check residential (only for tenants, not guarantors)
-  if (!reference.is_guarantor) {
+  // 4. Check residential (tenants only)
+  if (!isGuarantor) {
     const residentialCheck = checkResidentialSectionSync(reference)
     if (!residentialCheck.complete) {
       return { isReady: false, reason: residentialCheck.reason }
@@ -359,90 +374,59 @@ export function isReadyForVerificationSync(reference: any): { isReady: boolean; 
 }
 
 /**
- * Sync version of income check
+ * Sync version of Right to Rent check
  */
-function checkIncomeSectionSync(reference: any): SectionStatus {
-  const isStudent = !!reference.income_student
-  const isEmployed = !!reference.income_regular_employment
-  const isSelfEmployed = !!reference.income_self_employed
-  const hasBenefits = !!reference.income_benefits
-
-  // Student ONLY (no other income types) - auto-complete
-  if (isStudent && !isEmployed && !isSelfEmployed && !hasBenefits) {
-    return { complete: true, reason: 'Student only - no income proof required' }
+function checkRightToRentSectionSync(reference: any): SectionStatus {
+  if (reference.is_british_citizen === true) {
+    return { complete: true, reason: 'British citizen' }
   }
 
-  const incomeIssues: string[] = []
+  const hasShareCode = !!reference.rtr_share_code
+  const hasAlternativeDoc = !!reference.rtr_alternative_document_path
 
-  // If employed - need employer reference OR ANY payslips
-  if (isEmployed) {
-    const hasEmployerRef = reference.employer_references?.some((er: any) => er.submitted_at)
-    const payslipCount = reference.payslip_files?.length || 0
-    const hasPayslips = payslipCount > 0
-
-    if (!hasEmployerRef && !hasPayslips) {
-      incomeIssues.push('Employed: need employer reference OR payslips')
-    }
-  }
-
-  // If self-employed - need accountant reference OR tax return
-  if (isSelfEmployed) {
-    const hasAccountantRef = reference.accountant_references?.some((ar: any) => ar.submitted_at)
-    const hasTaxReturn = !!reference.tax_return_path
-
-    if (!hasAccountantRef && !hasTaxReturn) {
-      incomeIssues.push('Self-employed: need accountant reference OR tax return')
-    }
-  }
-
-  // If benefits - need amount declared AND evidence uploaded
-  if (hasBenefits) {
-    const hasAmount = !!reference.benefits_annual_amount_encrypted
-    const hasEvidence = !!reference.proof_of_additional_income_path
-
-    if (!hasAmount || !hasEvidence) {
-      const missing = []
-      if (!hasAmount) missing.push('amount declared')
-      if (!hasEvidence) missing.push('evidence uploaded')
-      incomeIssues.push(`Benefits: need ${missing.join(' and ')}`)
-    }
-  }
-
-  if (incomeIssues.length > 0) {
-    return { complete: false, reason: incomeIssues.join('; ') }
-  }
-
-  // If any income types selected and passed all checks, we're complete
-  if (isEmployed || isSelfEmployed || hasBenefits) {
+  if (hasShareCode || hasAlternativeDoc) {
     return { complete: true }
   }
 
-  // No income type selected - auto-complete (no income declared)
-  return { complete: true, reason: 'No income declared' }
+  if (reference.is_british_citizen === false) {
+    return { complete: false, reason: 'Right to Rent documentation required' }
+  }
+
+  return { complete: true, reason: 'Citizenship status not confirmed' }
 }
 
 /**
- * Sync version of residential check
+ * Sync version of income check - simplified "one item" rule
+ */
+function checkIncomeSectionSync(reference: any): SectionStatus {
+  const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
+  const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
+  const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
+  const hasTaxReturn = !!reference.tax_return_path
+  const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
+
+  if (hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds) {
+    return { complete: true }
+  }
+
+  return { complete: false, reason: 'Income evidence required' }
+}
+
+/**
+ * Sync version of residential check - simplified "one item" rule
  */
 function checkResidentialSectionSync(reference: any): SectionStatus {
-  // If confirmed residential status is set (e.g., living with family, owner occupier)
   if (reference.confirmed_residential_status) {
     return { complete: true, reason: `Residential status: ${reference.confirmed_residential_status}` }
   }
 
-  // Check if landlord or agent reference exists
-  const hasLandlordRef = reference.landlord_references?.some((lr: any) => lr.submitted_at)
-  const hasAgentRef = reference.agent_references?.some((ar: any) => ar.submitted_at)
+  const hasLandlordRef = (reference.landlord_references || []).some((lr: any) => lr.submitted_at)
+  const hasAgentRef = (reference.agent_references || []).some((ar: any) => ar.submitted_at)
+  const hasTenancyAgreement = !!reference.tenancy_agreement_path
 
-  if (hasLandlordRef || hasAgentRef) {
+  if (hasLandlordRef || hasAgentRef || hasTenancyAgreement) {
     return { complete: true }
   }
 
-  // Check if landlord email was provided (meaning they expect a reference)
-  if (reference.previous_landlord_email_encrypted) {
-    return { complete: false, reason: 'Landlord/Agent reference requested but not received' }
-  }
-
-  // No landlord email provided - assume not renting or alternative living situation
-  return { complete: true, reason: 'No landlord reference required' }
+  return { complete: false, reason: 'Residential evidence required' }
 }

@@ -8,6 +8,7 @@ import { logAuditAction } from '../services/auditService';
 import { isValidEmail } from '../utils/validation';
 import { acquireLock, releaseLock, extendLock, checkLockStatus, getStaffLocks, forceReleaseLock } from '../services/lockService';
 import { isReadyForVerification } from '../services/verificationReadinessService';
+import { transitionState } from '../services/verificationStateService';
 
 const router = Router();
 
@@ -437,6 +438,16 @@ router.post('/:id/claim', staffAuth, async (req: StaffAuthRequest, res: Response
 
     if (updateError) throw updateError;
 
+    // If this is a VERIFY work item, transition state to IN_VERIFICATION
+    if (workItem.work_type === 'VERIFY') {
+      await transitionState(
+        workItem.reference_id,
+        'IN_VERIFICATION',
+        'Staff claimed work item for verification',
+        staffUser.id
+      );
+    }
+
     // Log to audit
     await supabaseAdmin.from('reference_audit_log').insert({
       reference_id: workItem.reference_id,
@@ -497,6 +508,16 @@ router.post('/:id/release', staffAuth, async (req: StaffAuthRequest, res: Respon
       .single();
 
     if (updateError) throw updateError;
+
+    // If this is a VERIFY work item, transition state back to READY_FOR_REVIEW
+    if (workItem.work_type === 'VERIFY') {
+      await transitionState(
+        workItem.reference_id,
+        'READY_FOR_REVIEW',
+        'Staff released work item back to queue',
+        staffUser.id
+      );
+    }
 
     // Log to audit
     await supabaseAdmin.from('reference_audit_log').insert({

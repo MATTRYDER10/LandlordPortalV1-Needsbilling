@@ -18,6 +18,7 @@ import {
 } from '../services/verificationSectionService';
 import { logAuditAction } from '../services/auditService';
 import { isReadyForVerification } from '../services/verificationReadinessService';
+import { isInVerifyQueueState, VerificationState, transitionState } from '../services/verificationStateService';
 import { cleanupStaleDependencies } from '../services/chaseDependencyService';
 import { generatePassedPdfService } from '../services/generatePassedPdfService';
 
@@ -69,6 +70,7 @@ router.get('/queue', staffAuth, async (req: StaffAuthRequest, res: Response) => 
           property_address_encrypted,
           is_guarantor,
           status,
+          verification_state,
           created_at,
           company:companies!inner(id, name_encrypted)
         ),
@@ -95,34 +97,29 @@ router.get('/queue', staffAuth, async (req: StaffAuthRequest, res: Response) => 
       query = query.eq('assigned_to', assigned_to);
     }
 
-    // Filter out items in cooldown
-    query = query.or('cooldown_until.is.null,cooldown_until.lte.now()');
+    // NOTE: Cooldown filter removed as per new state model (Issue #40)
+    // Queue visibility is now controlled by verification_state, not cooldowns
 
     const { data: workItems, error } = await query;
 
     if (error) throw error;
 
-    // Filter out completed/rejected/action_required references
+    // Filter by verification_state - only show items ready for review or in verification
+    // This replaces the old readiness check with explicit state filtering
     const filteredItems = (workItems || []).filter((item: any) => {
       if (!item.reference) return false;
-      // Exclude references that shouldn't be in verify queue
-      const excludedStatuses = ['completed', 'rejected', 'action_required', 'cancelled'];
-      if (excludedStatuses.includes(item.reference.status)) return false;
+
+      // Use verification_state for queue visibility
+      const verificationState = item.reference.verification_state as VerificationState | null;
+      if (!isInVerifyQueueState(verificationState)) {
+        return false;
+      }
+
       return true;
     });
 
-    // Validate readiness for each item and enrich with data
-    const enrichedItems = await Promise.all(
-      filteredItems.map(async (item: any) => {
-        // Check if reference is actually ready for verification
-        const readiness = await isReadyForVerification(item.reference_id);
-
-        if (!readiness.isReady) {
-          // Log that this item shouldn't be in verify queue (for debugging)
-          console.log(`Reference ${item.reference_id} in verify queue but not ready:`, readiness.missingItems);
-          return null; // Exclude from queue results
-        }
-
+    // Enrich items with display data (no longer re-evaluating evidence)
+    const enrichedItems = filteredItems.map((item: any) => {
         const hoursInQueue = (Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60);
 
         let urgency: 'NORMAL' | 'WARNING' | 'URGENT' = 'NORMAL';
@@ -148,6 +145,7 @@ router.get('/queue', staffAuth, async (req: StaffAuthRequest, res: Response) => 
           assignedTo: item.assigned_to,
           assignedAt: item.assigned_at,
           assignedStaffName: item.assigned_staff?.full_name || null,
+          verificationState: item.reference.verification_state,
           person: {
             name: `${decrypt(item.reference.tenant_first_name_encrypted) || ''} ${decrypt(item.reference.tenant_last_name_encrypted) || ''}`.trim(),
             email: decrypt(item.reference.tenant_email_encrypted) || '',
@@ -160,14 +158,10 @@ router.get('/queue', staffAuth, async (req: StaffAuthRequest, res: Response) => 
             name: decrypt(item.reference.company?.name_encrypted) || ''
           }
         };
-      })
-    );
-
-    // Filter out null items (those not ready for verification)
-    const validItems = enrichedItems.filter(item => item !== null);
+    });
 
     // Sort by urgency and age
-    validItems.sort((a: any, b: any) => {
+    enrichedItems.sort((a: any, b: any) => {
       const urgencyOrder: Record<string, number> = { URGENT: 0, WARNING: 1, NORMAL: 2 };
       if (urgencyOrder[a.urgency as string] !== urgencyOrder[b.urgency as string]) {
         return urgencyOrder[a.urgency as string] - urgencyOrder[b.urgency as string];
@@ -176,8 +170,8 @@ router.get('/queue', staffAuth, async (req: StaffAuthRequest, res: Response) => 
     });
 
     res.json({
-      items: validItems,
-      total: validItems.length
+      items: enrichedItems,
+      total: enrichedItems.length
     });
   } catch (error: any) {
     console.error('Error fetching verify queue:', error);
@@ -1516,13 +1510,16 @@ router.post('/person/:referenceId/finalize', staffAuth, async (req: StaffAuthReq
 
     // Update reference status based on decision
     let newStatus = 'completed';
+    let newVerificationState: VerificationState = 'COMPLETED';
     if (finalDecision === 'FAIL') {
       newStatus = 'rejected';
+      newVerificationState = 'REJECTED';
     }
 
     // Build update object
     const updateData: Record<string, any> = {
       status: newStatus,
+      verification_state: newVerificationState,
       updated_at: new Date().toISOString()
     };
 
@@ -1660,13 +1657,16 @@ router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, r
 
     // Update reference status based on decision
     let newStatus = 'completed';
+    let newVerificationState: VerificationState = 'COMPLETED';
     if (finalDecision === 'FAIL') {
       newStatus = 'rejected';
+      newVerificationState = 'REJECTED';
     }
 
     // Build update object
     const updateData: Record<string, any> = {
       status: newStatus,
+      verification_state: newVerificationState,
       updated_at: new Date().toISOString()
     };
 

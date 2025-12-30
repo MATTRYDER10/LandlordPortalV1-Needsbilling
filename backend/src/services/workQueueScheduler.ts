@@ -95,6 +95,10 @@ export async function autoUnassignIdleChaseItems() {
 /**
  * Reset status of items past their cooldown period
  * Items in RETURNED status with cooldown_until in the past should become AVAILABLE
+ *
+ * NOTE: As of Issue #40, cooldowns are deprecated in the new state model.
+ * This function is kept for backwards compatibility with any legacy items.
+ * New items should not have cooldowns set.
  */
 export async function processCooldownExpiry() {
   try {
@@ -225,14 +229,16 @@ export async function escalateUrgentItems() {
 }
 
 /**
- * Ensure VERIFY work items exist for all references in pending_verification
+ * Ensure VERIFY work items exist for all references ready for verification
+ * Updated to use verification_state instead of status (Issue #40)
  */
 export async function syncMissingVerifyItems() {
   try {
+    // Check for references that are READY_FOR_REVIEW but don't have a work item
     const { data: pendingReferences, error: pendingError } = await supabaseAdmin
       .from('tenant_references')
       .select('id')
-      .eq('status', 'pending_verification');
+      .eq('verification_state', 'READY_FOR_REVIEW');
 
     if (pendingError) {
       console.error('Error fetching pending verification references:', pendingError);

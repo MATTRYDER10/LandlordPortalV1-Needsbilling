@@ -22,6 +22,7 @@ import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/reques
 import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
 import { isReadyForVerification } from '../services/verificationReadinessService'
+import { handleEvidenceUpload } from '../services/verificationStateService'
 import { markDependencyReceivedByType, createDependenciesForReference } from '../services/chaseDependencyService'
 import { DEFAULT_BRANDING } from '../config/colors'
 
@@ -2889,7 +2890,9 @@ router.post('/upload/:token', (req, res, next) => {
     { name: 'rtr_alternative_document', maxCount: 1 },
     { name: 'bank_statements', maxCount: 10 },
     { name: 'payslips', maxCount: 10 },
-    { name: 'tax_return', maxCount: 1 }
+    { name: 'tax_return', maxCount: 1 },
+    { name: 'other_proof_of_funds', maxCount: 1 },
+    { name: 'tenancy_agreement', maxCount: 1 }
   ])
 
   uploadMiddleware(req, res, (err) => {
@@ -2925,6 +2928,8 @@ router.post('/upload/:token', (req, res, next) => {
     let proofOfAdditionalIncomePath: string | null = null
     let rtrAlternativeDocumentPath: string | null = null
     let taxReturnPath: string | null = null
+    let otherProofOfFundsPath: string | null = null
+    let tenancyAgreementPath: string | null = null
     const bankStatementPaths: string[] = []
     const payslipPaths: string[] = []
 
@@ -3109,6 +3114,46 @@ router.post('/upload/:token', (req, res, next) => {
       }
     }
 
+    // Upload other proof of funds (new income evidence type)
+    if (files.other_proof_of_funds && files.other_proof_of_funds[0]) {
+      const file = files.other_proof_of_funds[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/other_proof_of_funds/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload other proof of funds: ${uploadError.message}`)
+      }
+
+      otherProofOfFundsPath = fileName
+    }
+
+    // Upload tenancy agreement (new residential evidence type)
+    if (files.tenancy_agreement && files.tenancy_agreement[0]) {
+      const file = files.tenancy_agreement[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/tenancy_agreement/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload tenancy agreement: ${uploadError.message}`)
+      }
+
+      tenancyAgreementPath = fileName
+    }
+
     // Save all uploaded file paths to the database
     const pathUpdates: Record<string, any> = {}
     if (idDocumentPath) pathUpdates.id_document_path = idDocumentPath
@@ -3118,6 +3163,8 @@ router.post('/upload/:token', (req, res, next) => {
     if (proofOfAdditionalIncomePath) pathUpdates.proof_of_additional_income_path = proofOfAdditionalIncomePath
     if (rtrAlternativeDocumentPath) pathUpdates.rtr_alternative_document_path = rtrAlternativeDocumentPath
     if (taxReturnPath) pathUpdates.tax_return_path = taxReturnPath
+    if (otherProofOfFundsPath) pathUpdates.other_proof_of_funds_path = otherProofOfFundsPath
+    if (tenancyAgreementPath) pathUpdates.tenancy_agreement_path = tenancyAgreementPath
     if (payslipPaths.length > 0) {
       const existingPayslips = reference.payslip_files || []
       pathUpdates.payslip_files = [...existingPayslips, ...payslipPaths]
@@ -3138,67 +3185,31 @@ router.post('/upload/:token', (req, res, next) => {
       }
     }
 
-    // Auto-return to verify queue if reference was pushed back to in_progress
-    // and tenant has now uploaded documents
-    if (reference.status === 'in_progress') {
-      const hasNewDocuments = idDocumentPath || selfiePath || proofOfAddressPath ||
-        proofOfFundsPath || proofOfAdditionalIncomePath || rtrAlternativeDocumentPath ||
-        taxReturnPath || bankStatementPaths.length > 0 || payslipPaths.length > 0
+    // Trigger state transition check if any documents were uploaded
+    // This handles auto-transition to READY_FOR_REVIEW if minimum evidence is met
+    // and supports the ACTION_REQUIRED -> upload -> back to queue loop
+    const hasNewDocuments = idDocumentPath || selfiePath || proofOfAddressPath ||
+      proofOfFundsPath || proofOfAdditionalIncomePath || rtrAlternativeDocumentPath ||
+      taxReturnPath || bankStatementPaths.length > 0 || payslipPaths.length > 0 ||
+      otherProofOfFundsPath || tenancyAgreementPath
 
-      if (hasNewDocuments) {
-        // Check if reference is ready for verification (includes guarantor check)
-        const readiness = await isReadyForVerification(reference.id)
+    if (hasNewDocuments) {
+      // Determine evidence type for logging
+      const evidenceTypes: string[] = []
+      if (idDocumentPath) evidenceTypes.push('id_document')
+      if (selfiePath) evidenceTypes.push('selfie')
+      if (proofOfAddressPath) evidenceTypes.push('proof_of_address')
+      if (proofOfFundsPath) evidenceTypes.push('proof_of_funds')
+      if (proofOfAdditionalIncomePath) evidenceTypes.push('proof_of_additional_income')
+      if (rtrAlternativeDocumentPath) evidenceTypes.push('rtr_document')
+      if (taxReturnPath) evidenceTypes.push('tax_return')
+      if (payslipPaths.length > 0) evidenceTypes.push('payslips')
+      if (bankStatementPaths.length > 0) evidenceTypes.push('bank_statements')
+      if (otherProofOfFundsPath) evidenceTypes.push('other_proof_of_funds')
+      if (tenancyAgreementPath) evidenceTypes.push('tenancy_agreement')
 
-        if (readiness.isReady) {
-          // Update status to pending_verification
-          await supabase
-            .from('tenant_references')
-            .update({ status: 'pending_verification' })
-            .eq('id', reference.id)
-
-          // Create or reactivate work item in VERIFY queue
-          const { data: existingWorkItem } = await supabase
-            .from('work_items')
-            .select('id, status')
-            .eq('reference_id', reference.id)
-            .eq('work_type', 'VERIFY')
-            .single()
-
-          if (existingWorkItem) {
-            // Reactivate existing work item and clear awaiting_documentation flag
-            await supabase
-              .from('work_items')
-              .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null, metadata: {} })
-              .eq('id', existingWorkItem.id)
-          } else {
-            // Create new work item
-            await supabase
-              .from('work_items')
-              .insert({
-                reference_id: reference.id,
-                work_type: 'VERIFY',
-                status: 'AVAILABLE'
-              })
-          }
-
-          // Add note about document upload
-          await supabase
-            .from('reference_notes')
-            .insert({
-              reference_id: reference.id,
-              note: 'Tenant uploaded requested document(s). Reference returned to verification queue.',
-              created_by: null // System-generated note
-            })
-
-          // Log audit action
-          await logAuditAction({
-            referenceId: reference.id,
-            action: 'DOCUMENT_UPLOADED_BY_TENANT',
-            description: 'Tenant uploaded document(s), reference returned to verification queue',
-            metadata: { previous_status: 'in_progress' }
-          })
-        }
-      }
+      // Use new state service for automatic transitions
+      await handleEvidenceUpload(reference.id, evidenceTypes.join(', '))
     }
 
     res.json({
@@ -3211,7 +3222,9 @@ router.post('/upload/:token', (req, res, next) => {
       rtr_alternative_document: rtrAlternativeDocumentPath,
       bank_statements: bankStatementPaths,
       payslips: payslipPaths,
-      tax_return: taxReturnPath
+      tax_return: taxReturnPath,
+      other_proof_of_funds: otherProofOfFundsPath,
+      tenancy_agreement: tenancyAgreementPath
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -5738,7 +5751,9 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
     { name: 'bank_statement', maxCount: 10 },
     { name: 'proof_of_address', maxCount: 1 },
     { name: 'tax_return', maxCount: 1 },
-    { name: 'proof_of_additional_income', maxCount: 1 }
+    { name: 'proof_of_additional_income', maxCount: 1 },
+    { name: 'other_proof_of_funds', maxCount: 1 },
+    { name: 'tenancy_agreement', maxCount: 1 }
   ])
 
   uploadMiddleware(req, res, (err) => {
@@ -5941,6 +5956,48 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
       uploadedFiles.push(`bank_statements (${newBankStatementPaths.length})`)
     }
 
+    // Upload other proof of funds (new income evidence type)
+    if (files.other_proof_of_funds && files.other_proof_of_funds[0]) {
+      const file = files.other_proof_of_funds[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/other_proof_of_funds/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload other proof of funds: ${uploadError.message}`)
+      }
+
+      updates.other_proof_of_funds_path = fileName
+      uploadedFiles.push('other_proof_of_funds')
+    }
+
+    // Upload tenancy agreement (new residential evidence type)
+    if (files.tenancy_agreement && files.tenancy_agreement[0]) {
+      const file = files.tenancy_agreement[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/tenancy_agreement/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload tenancy agreement: ${uploadError.message}`)
+      }
+
+      updates.tenancy_agreement_path = fileName
+      uploadedFiles.push('tenancy_agreement')
+    }
+
     // Update reference if we have any updates
     if (Object.keys(updates).length > 0) {
       const { error: updateError } = await supabase
@@ -5962,54 +6019,11 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
       userId
     })
 
-    // Check if reference should move to pending_verification after document upload
-    // This handles the case where staff uploads documents that complete the requirements
-    if (reference.status === 'in_progress' && uploadedFiles.length > 0) {
-      const readiness = await isReadyForVerification(referenceId)
-
-      if (readiness.isReady) {
-        // Update status to pending_verification
-        await supabase
-          .from('tenant_references')
-          .update({ status: 'pending_verification' })
-          .eq('id', referenceId)
-
-        // Create or reactivate work item in VERIFY queue
-        const { data: existingWorkItem } = await supabase
-          .from('work_items')
-          .select('id, status')
-          .eq('reference_id', referenceId)
-          .eq('work_type', 'VERIFY')
-          .maybeSingle()
-
-        if (existingWorkItem) {
-          // Reactivate existing work item
-          await supabase
-            .from('work_items')
-            .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null, metadata: {} })
-            .eq('id', existingWorkItem.id)
-        } else {
-          // Create new work item
-          await supabase
-            .from('work_items')
-            .insert({
-              reference_id: referenceId,
-              work_type: 'VERIFY',
-              status: 'AVAILABLE'
-            })
-        }
-
-        // Add note about document upload triggering verification
-        await supabase
-          .from('reference_notes')
-          .insert({
-            reference_id: referenceId,
-            note: 'Agent uploaded document(s). Reference is now ready for verification.',
-            created_by: userId
-          })
-
-        console.log(`Reference ${referenceId} moved to pending_verification after agent document upload`)
-      }
+    // Trigger state transition check if any documents were uploaded
+    // This handles auto-transition to READY_FOR_REVIEW if minimum evidence is met
+    // and supports the ACTION_REQUIRED -> upload -> back to queue loop
+    if (uploadedFiles.length > 0) {
+      await handleEvidenceUpload(referenceId, uploadedFiles.join(', '))
     }
 
     res.json({
