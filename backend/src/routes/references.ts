@@ -4568,7 +4568,8 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
         .update({
           reference_token_hash: newTokenHash,
           token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          submitted_at: null // Reset submission status
+          submitted_at: null, // Reset submission status
+          employer_email_encrypted: encrypt(employerEmail) // Update email if changed
         })
         .eq('id', existingRef.id)
 
@@ -4583,7 +4584,10 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
         .insert({
           reference_id: referenceId,
           reference_token_hash: newTokenHash,
-          token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          employer_email_encrypted: encrypt(employerEmail),
+          employer_name_encrypted: reference.employer_ref_name_encrypted,
+          employer_phone_encrypted: reference.employer_ref_phone_encrypted
         })
 
       if (insertError) {

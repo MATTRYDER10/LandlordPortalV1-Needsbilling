@@ -4386,6 +4386,11 @@ const handleEditEmailSubmit = async (newEmail: string) => {
 
     // Refresh reference data to show updated email
     await fetchReference()
+
+    // If this was a child reference update, also refresh its cached details
+    if (childReferenceDetails.value[editEmailReferenceId.value]) {
+      await fetchChildDetails(editEmailReferenceId.value)
+    }
   } catch (err: any) {
     console.error('Error sending email:', err)
     toast.error('Failed to send email: ' + err.message)
