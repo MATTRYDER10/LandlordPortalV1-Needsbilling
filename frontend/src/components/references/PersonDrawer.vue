@@ -662,18 +662,28 @@
                 <div v-if="fullDetails?.employer_ref_email" class="mt-4 p-3 bg-blue-50 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
                     <p class="text-xs font-medium text-blue-700 uppercase">Employer Reference Request Sent To</p>
-                    <span
-                      v-if="!employerRef?.submitted_at"
-                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
-                    >
-                      Awaiting Response
-                    </span>
-                    <span
-                      v-else
-                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
-                    >
-                      Received
-                    </span>
+                    <div class="flex items-center gap-2">
+                      <button
+                        v-if="!employerRef?.submitted_at"
+                        @click="handleResendEmployerRef"
+                        :disabled="resendingEmployerRef"
+                        class="px-2 py-0.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {{ resendingEmployerRef ? 'Sending...' : 'Resend' }}
+                      </button>
+                      <span
+                        v-if="!employerRef?.submitted_at"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                      >
+                        Awaiting Response
+                      </span>
+                      <span
+                        v-else
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                      >
+                        Received
+                      </span>
+                    </div>
                   </div>
                   <div class="text-sm text-gray-700 space-y-1">
                     <p v-if="fullDetails.employer_ref_name">{{ fullDetails.employer_ref_name }}</p>
@@ -709,18 +719,28 @@
                 <div v-if="fullDetails?.accountant_email" class="mt-4 p-3 bg-blue-50 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
                     <p class="text-xs font-medium text-blue-700 uppercase">Accountant Reference Request Sent To</p>
-                    <span
-                      v-if="!accountantRef?.submitted_at"
-                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
-                    >
-                      Awaiting Response
-                    </span>
-                    <span
-                      v-else
-                      class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
-                    >
-                      Received
-                    </span>
+                    <div class="flex items-center gap-2">
+                      <button
+                        v-if="!accountantRef?.submitted_at"
+                        @click="handleResendAccountantRef"
+                        :disabled="resendingAccountantRef"
+                        class="px-2 py-0.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {{ resendingAccountantRef ? 'Sending...' : 'Resend' }}
+                      </button>
+                      <span
+                        v-if="!accountantRef?.submitted_at"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                      >
+                        Awaiting Response
+                      </span>
+                      <span
+                        v-else
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                      >
+                        Received
+                      </span>
+                    </div>
                   </div>
                   <div class="text-sm text-gray-700 space-y-1">
                     <p v-if="fullDetails.accountant_name">{{ fullDetails.accountant_name }}</p>
@@ -791,18 +811,28 @@
                   <div v-if="fullDetails.previous_landlord_name || fullDetails.previous_landlord_email" class="mt-2 pt-2 border-t border-blue-200">
                     <div class="flex items-center justify-between mb-1">
                       <p class="text-xs font-medium text-blue-700 uppercase">Reference Request Sent To</p>
-                      <span
-                        v-if="!landlordRef?.submitted_at && !agentRef?.submitted_at"
-                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
-                      >
-                        Awaiting Response
-                      </span>
-                      <span
-                        v-else
-                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
-                      >
-                        Received
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <button
+                          v-if="!landlordRef?.submitted_at && !agentRef?.submitted_at"
+                          @click="handleResendLandlordRef"
+                          :disabled="resendingLandlordRef"
+                          class="px-2 py-0.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {{ resendingLandlordRef ? 'Sending...' : 'Resend' }}
+                        </button>
+                        <span
+                          v-if="!landlordRef?.submitted_at && !agentRef?.submitted_at"
+                          class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                        >
+                          Awaiting Response
+                        </span>
+                        <span
+                          v-else
+                          class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                        >
+                          Received
+                        </span>
+                      </div>
                     </div>
                     <p v-if="fullDetails.previous_landlord_name" class="text-sm text-gray-700">{{ fullDetails.previous_landlord_name }}</p>
                     <p v-if="fullDetails.previous_landlord_email" class="text-xs text-gray-500">{{ fullDetails.previous_landlord_email }}</p>
@@ -1516,6 +1546,9 @@ const updatingName = ref(false)
 const resendingForm = ref(false)
 const submittingForReRef = ref(false)
 const loadingCertificate = ref(false)
+const resendingEmployerRef = ref(false)
+const resendingLandlordRef = ref(false)
+const resendingAccountantRef = ref(false)
 
 // Toast messages
 const toastMessage = ref<string | null>(null)
@@ -2085,6 +2118,87 @@ async function handleResend() {
     showToast(error.message || 'Failed to resend form', 'error')
   } finally {
     resendingForm.value = false
+  }
+}
+
+async function handleResendEmployerRef() {
+  if (!props.person?.id) return
+
+  resendingEmployerRef.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${API_BASE}/api/references/${props.person.id}/resend-employer-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to resend employer reference email')
+    }
+
+    showToast('Employer reference email resent successfully', 'success')
+  } catch (error: any) {
+    showToast(error.message || 'Failed to resend employer reference email', 'error')
+  } finally {
+    resendingEmployerRef.value = false
+  }
+}
+
+async function handleResendLandlordRef() {
+  if (!props.person?.id) return
+
+  resendingLandlordRef.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${API_BASE}/api/references/${props.person.id}/resend-landlord-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to resend landlord reference email')
+    }
+
+    showToast('Landlord reference email resent successfully', 'success')
+  } catch (error: any) {
+    showToast(error.message || 'Failed to resend landlord reference email', 'error')
+  } finally {
+    resendingLandlordRef.value = false
+  }
+}
+
+async function handleResendAccountantRef() {
+  if (!props.person?.id) return
+
+  resendingAccountantRef.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${API_BASE}/api/references/${props.person.id}/resend-accountant-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to resend accountant reference email')
+    }
+
+    showToast('Accountant reference email resent successfully', 'success')
+  } catch (error: any) {
+    showToast(error.message || 'Failed to resend accountant reference email', 'error')
+  } finally {
+    resendingAccountantRef.value = false
   }
 }
 
