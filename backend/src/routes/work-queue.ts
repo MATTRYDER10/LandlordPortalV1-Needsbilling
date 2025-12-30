@@ -168,20 +168,33 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
     // Get email issues count
     const { data: emailIssues, error: emailError } = await supabaseAdmin
       .from('email_delivery_logs')
-      .select(`
-        id,
-        reference:tenant_references!email_delivery_logs_reference_id_fkey (status)
-      `)
-      .in('status', ['bounced', 'complained']);
+      .select('id, reference_id')
+      .in('status', ['bounced', 'complained'])
+      .not('reference_id', 'is', null);
 
     if (emailError) throw emailError;
 
-    // Filter out issues where reference is completed/rejected
-    const excludedEmailStatuses = ['completed', 'rejected', 'cancelled'];
-    const activeEmailIssues = (emailIssues || []).filter((issue: any) => {
-      if (!issue.reference) return false;
-      return !excludedEmailStatuses.includes(issue.reference.status);
-    });
+    // Get reference statuses for email issues
+    let activeEmailIssuesCount = 0;
+    if (emailIssues && emailIssues.length > 0) {
+      const emailRefIds = [...new Set(emailIssues.map(i => i.reference_id).filter(Boolean))] as string[];
+      const { data: emailRefs } = await supabaseAdmin
+        .from('tenant_references')
+        .select('id, status')
+        .in('id', emailRefIds);
+
+      const emailRefStatusMap = new Map<string, string>();
+      for (const ref of (emailRefs || [])) {
+        emailRefStatusMap.set(ref.id, ref.status);
+      }
+
+      const excludedEmailStatuses = ['completed', 'rejected', 'cancelled'];
+      activeEmailIssuesCount = emailIssues.filter((issue: any) => {
+        const status = emailRefStatusMap.get(issue.reference_id);
+        if (!status) return false;
+        return !excludedEmailStatuses.includes(status);
+      }).length;
+    }
 
     const summary = {
       chase: {
@@ -200,7 +213,7 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
         total: 0
       },
       emailIssues: {
-        total: activeEmailIssues.length
+        total: activeEmailIssuesCount
       }
     };
 
