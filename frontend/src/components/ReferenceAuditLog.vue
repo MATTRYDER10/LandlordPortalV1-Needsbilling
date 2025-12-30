@@ -76,6 +76,8 @@ const formatAction = (action: string) => {
     'EMAIL_SENT': 'Email Sent',
     'EMAIL_FAILED': 'Email Failed',
     'EMAIL_RESENT': 'Email Resent',
+    'EMAIL_BOUNCED': 'Email Bounced',
+    'EMAIL_COMPLAINED': 'Marked as Spam',
     'NOTE_ADDED': 'Note Added',
     'NOTE_UPDATED': 'Note Updated',
     'NOTE_DELETED': 'Note Deleted',
@@ -90,7 +92,7 @@ const formatAction = (action: string) => {
 const getActionClass = (action: string) => {
   // Return CSS class for different action types
   if (action === 'EMAIL_SENT' || action === 'EMAIL_RESENT') return 'action-email'
-  if (action === 'EMAIL_FAILED') return 'action-email-failed'
+  if (action === 'EMAIL_FAILED' || action === 'EMAIL_BOUNCED' || action === 'EMAIL_COMPLAINED') return 'action-email-failed'
   if (action.includes('NOTE')) return 'action-note'
   if (action.includes('STATUS')) return 'action-status'
   if (action.includes('SCORE')) return 'action-score'
