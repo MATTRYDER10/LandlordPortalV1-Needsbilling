@@ -181,16 +181,18 @@ export async function logEmailDeliveryToAuditLog(
   try {
     const typeLabel = referenceType.charAt(0).toUpperCase() + referenceType.slice(1);
     const action = status === 'bounced' ? 'EMAIL_BOUNCED' : 'EMAIL_COMPLAINED';
+
+    // Friendly descriptions for agents (technical details stored in metadata)
     const description =
       status === 'bounced'
-        ? `Email to ${typeLabel.toLowerCase()} bounced${errorMessage ? `: ${errorMessage}` : ''}`
-        : `Email to ${typeLabel.toLowerCase()} was marked as spam by recipient`;
+        ? `Email to ${typeLabel.toLowerCase()} could not be delivered. Please check the email address is correct and try resending.`
+        : `Email to ${typeLabel.toLowerCase()} was marked as spam. Consider contacting them by phone instead.`;
 
     const { error } = await supabase.from('reference_audit_log').insert({
       reference_id: referenceId,
       action,
       description,
-      metadata: { reference_type: referenceType, status, error_message: errorMessage },
+      metadata: { reference_type: referenceType, status, technical_error: errorMessage },
       created_by: null, // System action
     });
 
