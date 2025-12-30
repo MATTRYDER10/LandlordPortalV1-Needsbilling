@@ -4563,7 +4563,7 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
 
     if (existingRef) {
       // Update existing with new token
-      await supabase
+      const { error: updateError } = await supabase
         .from('employer_references')
         .update({
           reference_token_hash: newTokenHash,
@@ -4571,15 +4571,25 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
           submitted_at: null // Reset submission status
         })
         .eq('id', existingRef.id)
+
+      if (updateError) {
+        console.error('Failed to update employer reference token:', updateError)
+        return res.status(500).json({ error: 'Failed to update employer reference' })
+      }
     } else {
       // Create new employer reference record
-      await supabase
+      const { error: insertError } = await supabase
         .from('employer_references')
         .insert({
           reference_id: referenceId,
           reference_token_hash: newTokenHash,
           token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         })
+
+      if (insertError) {
+        console.error('Failed to create employer reference:', insertError)
+        return res.status(500).json({ error: 'Failed to create employer reference' })
+      }
     }
 
     // Get company info
@@ -6243,7 +6253,7 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
 
       if (existingRef) {
         // Update existing with new token
-        await supabase
+        const { error: updateError } = await supabase
           .from('employer_references')
           .update({
             reference_token_hash: newTokenHash,
@@ -6251,15 +6261,25 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
             submitted_at: null // Reset submission
           })
           .eq('id', existingRef.id)
+
+        if (updateError) {
+          console.error('Failed to update employer reference token:', updateError)
+          return res.status(500).json({ error: 'Failed to update employer reference' })
+        }
       } else {
         // Create new employer reference
-        await supabase
+        const { error: insertError } = await supabase
           .from('employer_references')
           .insert({
             reference_id: referenceId,
             reference_token_hash: newTokenHash,
             token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
           })
+
+        if (insertError) {
+          console.error('Failed to create employer reference:', insertError)
+          return res.status(500).json({ error: 'Failed to create employer reference' })
+        }
       }
 
       // Send email to new employer
