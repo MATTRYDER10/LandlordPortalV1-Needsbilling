@@ -6539,86 +6539,175 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
       .eq('id', companyId)
       .single()
 
-    const tenantEmail = decrypt(reference.tenant_email_encrypted) || ''
-    const tenantFirstName = decrypt(reference.tenant_first_name_encrypted) || ''
-    const tenantLastName = decrypt(reference.tenant_last_name_encrypted) || ''
-    const tenantName = `${tenantFirstName} ${tenantLastName}`
+    const recipientEmail = decrypt(reference.tenant_email_encrypted) || ''
+    const recipientFirstName = decrypt(reference.tenant_first_name_encrypted) || ''
+    const recipientLastName = decrypt(reference.tenant_last_name_encrypted) || ''
+    const recipientName = `${recipientFirstName} ${recipientLastName}`
     const propertyAddress = decrypt(reference.property_address_encrypted) || ''
 
     // Generate a new token for this resend
     const newToken = generateToken()
     const newTokenHash = hash(newToken)
 
+    // Set token expiry (21 days from now)
+    const tokenExpiresAt = new Date()
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21)
+
     // Update the reference with the new token hash
     await supabase
       .from('tenant_references')
-      .update({ reference_token_hash: newTokenHash })
+      .update({
+        reference_token_hash: newTokenHash,
+        token_expires_at: tokenExpiresAt.toISOString()
+      })
       .eq('id', referenceId)
-
-    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${newToken}`
 
     const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : ''
     const companyPhone = companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : ''
     const companyEmail = companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : ''
 
-    await sendTenantReferenceRequest(
-      tenantEmail,
-      tenantName,
-      tenantReferenceUrl,
-      companyName,
-      propertyAddress,
-      companyPhone || undefined,
-      companyEmail || undefined,
-      referenceId
-    )
+    const recipientPhone = decrypt(reference.tenant_phone_encrypted)
 
-    // Send SMS to tenant (non-blocking)
-    const tenantPhone = decrypt(reference.tenant_phone_encrypted)
-    if (tenantPhone) {
-      sendTenantReferenceRequestSMS(
-        tenantPhone,
-        tenantName,
+    // Check if this is a guarantor reference
+    if (reference.is_guarantor) {
+      // This is a GUARANTOR reference - send guarantor form
+      const guarantorReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${newToken}`
+
+      // Get parent tenant name
+      let parentTenantName = recipientName
+      if (reference.guarantor_for_reference_id) {
+        const { data: parentRef } = await supabase
+          .from('tenant_references')
+          .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
+          .eq('id', reference.guarantor_for_reference_id)
+          .single()
+
+        if (parentRef) {
+          const parentFirstName = decrypt(parentRef.tenant_first_name_encrypted) || ''
+          const parentLastName = decrypt(parentRef.tenant_last_name_encrypted) || ''
+          parentTenantName = `${parentFirstName} ${parentLastName}`
+        }
+      }
+
+      await sendGuarantorReferenceRequest(
+        recipientEmail,
+        recipientName,
+        parentTenantName,
+        propertyAddress,
+        companyName,
+        companyPhone || '',
+        companyEmail || '',
+        guarantorReferenceUrl,
+        referenceId
+      )
+
+      // Send SMS to guarantor (non-blocking)
+      if (recipientPhone) {
+        sendGuarantorReferenceRequestSMS(
+          recipientPhone,
+          recipientName,
+          parentTenantName,
+          guarantorReferenceUrl,
+          referenceId
+        ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+      }
+
+      // Update/create GUARANTOR_FORM chase dependency
+      try {
+        await supabase.from('chase_dependencies').upsert({
+          reference_id: referenceId,
+          dependency_type: 'GUARANTOR_FORM',
+          contact_name_encrypted: encrypt(recipientName),
+          contact_email_encrypted: encrypt(recipientEmail),
+          contact_phone_encrypted: recipientPhone ? encrypt(recipientPhone) : null,
+          status: 'PENDING',
+          initial_request_sent_at: new Date().toISOString(),
+          last_chase_sent_at: null,
+          chase_cycle: 0,
+          email_attempts: 0,
+          sms_attempts: 0,
+          call_attempts: 0
+        }, { onConflict: 'reference_id,dependency_type' })
+        console.log('Chase dependency updated for guarantor form resend:', referenceId)
+      } catch (err) {
+        console.error('Failed to update chase dependency:', err)
+      }
+
+      // Log to audit trail
+      await logAuditAction({
+        referenceId,
+        action: 'FORM_RESENT_FOR_CORRECTION',
+        description: `Guarantor form resent to ${recipientEmail} for corrections`,
+        metadata: { emailType: 'guarantor', recipient: recipientEmail, reason: 'action_required_correction' },
+        userId
+      })
+
+      res.json({
+        message: 'Form resent to guarantor successfully',
+        email: recipientEmail
+      })
+    } else {
+      // This is a TENANT reference - send tenant form
+      const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${newToken}`
+
+      await sendTenantReferenceRequest(
+        recipientEmail,
+        recipientName,
         tenantReferenceUrl,
         companyName,
         propertyAddress,
+        companyPhone || undefined,
+        companyEmail || undefined,
         referenceId
-      ).catch(err => console.error('Failed to send SMS to tenant:', err))
+      )
+
+      // Send SMS to tenant (non-blocking)
+      if (recipientPhone) {
+        sendTenantReferenceRequestSMS(
+          recipientPhone,
+          recipientName,
+          tenantReferenceUrl,
+          companyName,
+          propertyAddress,
+          referenceId
+        ).catch(err => console.error('Failed to send SMS to tenant:', err))
+      }
+
+      // Update/create TENANT_FORM chase dependency (reset initial_request_sent_at on resend)
+      try {
+        await supabase.from('chase_dependencies').upsert({
+          reference_id: referenceId,
+          dependency_type: 'TENANT_FORM',
+          contact_name_encrypted: encrypt(recipientName),
+          contact_email_encrypted: encrypt(recipientEmail),
+          contact_phone_encrypted: recipientPhone ? encrypt(recipientPhone) : null,
+          status: 'PENDING',
+          initial_request_sent_at: new Date().toISOString(),
+          last_chase_sent_at: null,
+          chase_cycle: 0,
+          email_attempts: 0,
+          sms_attempts: 0,
+          call_attempts: 0
+        }, { onConflict: 'reference_id,dependency_type' })
+        console.log('Chase dependency updated for tenant form resend:', referenceId)
+      } catch (err) {
+        console.error('Failed to update chase dependency:', err)
+      }
+
+      // Log to audit trail
+      await logAuditAction({
+        referenceId,
+        action: 'FORM_RESENT_FOR_CORRECTION',
+        description: `Tenant form resent to ${recipientEmail} for corrections`,
+        metadata: { emailType: 'tenant', recipient: recipientEmail, reason: 'action_required_correction' },
+        userId
+      })
+
+      res.json({
+        message: 'Form resent to tenant successfully',
+        email: recipientEmail
+      })
     }
-
-    // Update/create TENANT_FORM chase dependency (reset initial_request_sent_at on resend)
-    try {
-      await supabase.from('chase_dependencies').upsert({
-        reference_id: referenceId,
-        dependency_type: 'TENANT_FORM',
-        contact_name_encrypted: encrypt(tenantName),
-        contact_email_encrypted: encrypt(tenantEmail),
-        contact_phone_encrypted: tenantPhone ? encrypt(tenantPhone) : null,
-        status: 'PENDING',
-        initial_request_sent_at: new Date().toISOString(),
-        last_chase_sent_at: null,
-        chase_cycle: 0,
-        email_attempts: 0,
-        sms_attempts: 0,
-        call_attempts: 0
-      }, { onConflict: 'reference_id,dependency_type' })
-      console.log('Chase dependency updated for tenant form resend:', referenceId)
-    } catch (err) {
-      console.error('Failed to update chase dependency:', err)
-    }
-
-    // Log to audit trail
-    await logAuditAction({
-      referenceId,
-      action: 'FORM_RESENT_FOR_CORRECTION',
-      description: `Tenant form resent to ${tenantEmail} for corrections`,
-      metadata: { emailType: 'tenant', recipient: tenantEmail, reason: 'action_required_correction' },
-      userId
-    })
-
-    res.json({
-      message: 'Form resent to tenant successfully',
-      email: tenantEmail
-    })
   } catch (error: any) {
     console.error('Failed to resend form:', error)
     res.status(500).json({ error: error.message })
