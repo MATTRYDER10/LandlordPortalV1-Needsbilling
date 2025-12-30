@@ -15,6 +15,7 @@ import { supabase } from '../config/supabase'
 import { recordChase, processExhaustedDependencies } from './chaseDependencyService'
 import { isWithinCallHours } from './vapiService'
 import { sendEmail } from './emailService'
+import { decrypt } from './encryption'
 
 // Temporary: Send summary emails to this address for monitoring
 const SUMMARY_EMAIL_RECIPIENT = 'craig@propertygoose.co.uk'
@@ -23,6 +24,8 @@ interface ChaseDetail {
   dependencyType: string
   method: 'email' | 'sms' | 'call'
   referenceId: string
+  contactName: string
+  contactEmail: string
   success: boolean
   error?: string
 }
@@ -171,15 +174,18 @@ async function sendAutoSummaryEmail(
           <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #10b981;">Successful Chases (${successfulChases.length})</h3>
           <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
             <tr style="background: #f3f4f6;">
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">Contact</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">Type</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">Method</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">Reference ID</th>
             </tr>
             ${successfulChases.map(chase => `
               <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
+                  <div style="font-weight: 500;">${chase.contactName || 'Unknown'}</div>
+                  <div style="font-size: 11px; color: #6b7280;">${chase.contactEmail || 'No email'}</div>
+                </td>
                 <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${chase.dependencyType}</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${chase.method.toUpperCase()}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-family: monospace; font-size: 11px;">${chase.referenceId}</td>
               </tr>
             `).join('')}
           </table>
@@ -191,14 +197,17 @@ async function sendAutoSummaryEmail(
           <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #ef4444;">Failed Chases (${failedChases.length})</h3>
           <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
             <tr style="background: #fef2f2;">
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #fecaca;">Contact</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #fecaca;">Type</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #fecaca;">Method</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #fecaca;">Error</th>
             </tr>
             ${failedChases.map(chase => `
               <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #fecaca;">
+                  <div style="font-weight: 500;">${chase.contactName || 'Unknown'}</div>
+                  <div style="font-size: 11px; color: #6b7280;">${chase.contactEmail || 'No email'}</div>
+                </td>
                 <td style="padding: 8px; border-bottom: 1px solid #fecaca;">${chase.dependencyType}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #fecaca;">${chase.method.toUpperCase()}</td>
                 <td style="padding: 8px; border-bottom: 1px solid #fecaca; color: #ef4444;">${chase.error || 'Unknown error'}</td>
               </tr>
             `).join('')}
@@ -266,6 +275,10 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
         continue
       }
 
+      // Decrypt contact info for summary email
+      const contactName = decrypt(dep.contact_name_encrypted) || 'Unknown'
+      const contactEmail = decrypt(dep.contact_email_encrypted) || 'No email'
+
       try {
         // Record and send the chase
         await recordChase(dep.id, method, 'SYSTEM', true)
@@ -274,9 +287,11 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
           dependencyType: dep.dependency_type,
           method,
           referenceId: dep.reference_id,
+          contactName,
+          contactEmail,
           success: true
         })
-        console.log(`[AutoChase] Sent ${method} for ${dep.dependency_type} (ref: ${dep.reference_id})`)
+        console.log(`[AutoChase] Sent ${method} for ${dep.dependency_type} to ${contactName} (ref: ${dep.reference_id})`)
 
         // Rate limit: Resend allows 2 req/sec, add 600ms delay to stay well under limit
         // VAPI also has rate limits, so this delay applies to all methods
@@ -287,6 +302,8 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
           dependencyType: dep.dependency_type,
           method,
           referenceId: dep.reference_id,
+          contactName,
+          contactEmail,
           success: false,
           error: error.message
         })
