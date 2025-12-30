@@ -4532,6 +4532,38 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
     // Use new email if provided, otherwise use current
     const employerEmail = newEmail || currentEmail
 
+    // Generate new token for the form link
+    const newToken = generateToken()
+    const newTokenHash = hash(newToken)
+
+    // Check if employer reference exists
+    const { data: existingRef } = await supabase
+      .from('employer_references')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .single()
+
+    if (existingRef) {
+      // Update existing with new token
+      await supabase
+        .from('employer_references')
+        .update({
+          reference_token_hash: newTokenHash,
+          token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          submitted_at: null // Reset submission status
+        })
+        .eq('id', existingRef.id)
+    } else {
+      // Create new employer reference record
+      await supabase
+        .from('employer_references')
+        .insert({
+          reference_id: referenceId,
+          reference_token_hash: newTokenHash,
+          token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        })
+    }
+
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
@@ -4541,7 +4573,7 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
 
     const employerName = decrypt(reference.employer_ref_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
-    const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${reference.id}`
+    const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${newToken}`
 
     await sendEmployerReferenceRequest(
       employerEmail,
@@ -4551,7 +4583,7 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
       companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
-      reference.id
+      referenceId
     )
 
     // Send SMS to employer (non-blocking)
