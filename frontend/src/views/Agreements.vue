@@ -2100,11 +2100,13 @@ async function selectReference(referenceId: string) {
 }
 
 // Map reference data to agreement form
+// Note: landlordReference parameter is intentionally unused - it contains the tenant's
+// PREVIOUS landlord (reference provider), not the new property's landlord
 function mapReferenceToForm(
   reference: any,
   childReferences: any[] = [],
   guarantorReferences: any[] = [],
-  landlordReference: any = null
+  _landlordReference: any = null
 ) {
   // Property address - use reference address, or first child's address for group parents
   const addressSource = reference.property_address
@@ -2231,19 +2233,9 @@ function mapReferenceToForm(
 
   formData.value.guarantors = allGuarantors
 
-  // Landlord data if available
-  if (landlordReference) {
-    formData.value.landlords = [{
-      name: landlordReference.landlord_name || '',
-      address: {
-        line1: landlordReference.property_address || '',
-        line2: '',
-        city: landlordReference.property_city || '',
-        county: '',
-        postcode: landlordReference.property_postcode || ''
-      }
-    }]
-  }
+  // NOTE: Landlord data is NOT autofilled from landlordReference because that contains
+  // the tenant's PREVIOUS landlord (who provided a reference), not the new property's landlord.
+  // Landlord details should only be populated when explicitly imported from the landlords database.
 }
 
 // Clear imported reference data
