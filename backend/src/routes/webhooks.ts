@@ -297,23 +297,33 @@ router.post('/resend', async (req: Request, res: Response) => {
       return res.status(400).send('Invalid timestamp');
     }
 
-    // Compute expected signature
-    const signedContent = `${svixId}.${svixTimestamp}.${JSON.stringify(req.body)}`;
+    // Get raw body (set by express.json verify callback in server.ts)
+    const rawBody = (req as any).rawBody || JSON.stringify(req.body);
+
+    // Construct signed content: id.timestamp.rawBody
+    const signedContent = `${svixId}.${svixTimestamp}.${rawBody}`;
+
+    // Extract signatures from header (format: "v1,sig1 v1,sig2")
     const expectedSignatures = svixSignature.split(' ').map(sig => {
-      const [version, signature] = sig.split(',');
-      return signature;
+      const parts = sig.split(',');
+      return parts[1]; // Get the signature part after "v1,"
     });
 
+    // Base64 decode the secret (after removing whsec_ prefix)
+    const secretBase64 = webhookSecret.replace('whsec_', '');
+    const secretBytes = Buffer.from(secretBase64, 'base64');
+
+    // Compute HMAC-SHA256 signature
     const computedSignature = crypto
-      .createHmac('sha256', webhookSecret.replace('whsec_', ''))
+      .createHmac('sha256', secretBytes)
       .update(signedContent)
       .digest('base64');
 
     const isValid = expectedSignatures.some(sig => sig === computedSignature);
 
     if (!isValid) {
-      console.warn('[Resend Webhook] Invalid signature - allowing anyway for now');
-      // TODO: Fix signature verification - Resend uses Svix which may have different signing format
+      console.warn('[Resend Webhook] Invalid signature');
+      return res.status(401).send('Invalid signature');
     }
   }
 

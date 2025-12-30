@@ -117,8 +117,12 @@ app.use('/api/webhooks/twilio', express.urlencoded({ extended: false }))
 // VAPI webhook sends JSON data
 app.use('/api/webhooks/vapi', express.json())
 
-// Resend webhook sends JSON data
-app.use('/api/webhooks/resend', express.json())
+// Resend webhook needs raw body for signature verification + JSON parsing
+app.use('/api/webhooks/resend', express.json({
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf.toString('utf8')
+  }
+}))
 
 // Mount webhook routes
 app.use('/api/webhooks', webhookRoutes)
