@@ -33,6 +33,12 @@ export interface SectionStatus {
   actionAgentNote?: string
 }
 
+// Email delivery issue (bounced or complained)
+export interface EmailDeliveryIssue {
+  type: 'bounced' | 'complained'
+  errorMessage?: string
+}
+
 // Person data for tenancy response
 export interface TenancyPerson {
   id: string
@@ -45,6 +51,7 @@ export interface TenancyPerson {
   guarantorForTenantId?: string
   sectionStatuses: SectionStatus[]
   actionRequiredTasks: ActionRequiredTask[]
+  emailDeliveryIssue?: EmailDeliveryIssue
 }
 
 // Action required task
@@ -65,13 +72,6 @@ export interface ProgressSummary {
   checkFailures: Record<string, number>
 }
 
-// Email delivery issue (bounced or complained)
-export interface EmailDeliveryIssue {
-  type: 'bounced' | 'complained'
-  personName: string
-  errorMessage?: string
-}
-
 // Full tenancy data
 export interface Tenancy {
   id: string
@@ -82,7 +82,6 @@ export interface Tenancy {
   monthlyRent: number
   tenancyStatus: TenancyStatus
   urgentReverify: boolean
-  emailDeliveryIssue?: EmailDeliveryIssue
   blockingSentence: string
   progressSummary: ProgressSummary
   people: TenancyPerson[]

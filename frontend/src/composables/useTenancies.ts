@@ -41,6 +41,11 @@ export interface ActionRequiredTask {
   requiredActionType: string
 }
 
+export interface EmailDeliveryIssue {
+  type: 'bounced' | 'complained'
+  errorMessage?: string
+}
+
 export interface TenancyPerson {
   id: string
   role: 'TENANT' | 'GUARANTOR'
@@ -52,6 +57,7 @@ export interface TenancyPerson {
   guarantorForTenantId?: string
   sectionStatuses: SectionStatus[]
   actionRequiredTasks: ActionRequiredTask[]
+  emailDeliveryIssue?: EmailDeliveryIssue
 }
 
 export interface ProgressSummary {
@@ -60,12 +66,6 @@ export interface ProgressSummary {
   guarantorsVerified: number
   guarantorsTotal: number
   checkFailures: Record<string, number>
-}
-
-export interface EmailDeliveryIssue {
-  type: 'bounced' | 'complained'
-  personName: string
-  errorMessage?: string
 }
 
 export interface Tenancy {
@@ -77,7 +77,6 @@ export interface Tenancy {
   monthlyRent: number
   tenancyStatus: TenancyStatus
   urgentReverify: boolean
-  emailDeliveryIssue?: EmailDeliveryIssue
   blockingSentence: string
   progressSummary: ProgressSummary
   people: TenancyPerson[]

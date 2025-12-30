@@ -22,6 +22,16 @@
           <div class="flex items-center gap-2">
             <span class="font-medium text-gray-900 truncate">{{ person.name }}</span>
             <StatusPill :status="person.status" />
+            <!-- Email delivery issue badge -->
+            <span
+              v-if="person.emailDeliveryIssue"
+              class="px-2 py-0.5 text-xs font-semibold rounded-full flex items-center gap-1"
+              :class="person.emailDeliveryIssue.type === 'bounced' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'"
+              :title="getEmailIssueTooltip()"
+            >
+              <MailWarning class="w-3 h-3" />
+              {{ person.emailDeliveryIssue.type === 'bounced' ? 'BOUNCED' : 'SPAM' }}
+            </span>
             <span
               v-if="isVerified"
               class="px-2 py-0.5 text-xs font-medium rounded-full"
@@ -89,7 +99,7 @@
 import { computed } from 'vue'
 import type { TenancyPerson, SectionStatus, SectionDecision, ActionRequiredTask } from '@/composables/useTenancies'
 import StatusPill from './StatusPill.vue'
-import { AlertCircle } from 'lucide-vue-next'
+import { AlertCircle, MailWarning } from 'lucide-vue-next'
 
 const props = defineProps<{
   person: TenancyPerson
@@ -211,5 +221,16 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(amount)
+}
+
+function getEmailIssueTooltip(): string {
+  const issue = props.person.emailDeliveryIssue
+  if (!issue) return ''
+
+  if (issue.type === 'bounced') {
+    return `Email bounced - please check the email address is correct`
+  } else {
+    return `Email was marked as spam - consider calling instead`
+  }
 }
 </script>

@@ -7,7 +7,6 @@ import {
   TenancyPerson,
   TenancyStatus,
   StatusCounts,
-  EmailDeliveryIssue,
   deriveTenancyStatus,
   generateBlockingSentence,
   calculateProgressSummary,
@@ -231,17 +230,41 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         // Multi-tenant: use children as tenants
         for (const child of children) {
           const person = buildTenancyPersonSync(child, sectionsMap, dependenciesMap, reasonCodeLabels)
+          // Check for email delivery issues for this person
+          const emailIssue = emailIssuesMap.get(person.id)
+          if (emailIssue) {
+            person.emailDeliveryIssue = {
+              type: emailIssue.status as 'bounced' | 'complained',
+              errorMessage: emailIssue.errorMessage
+            }
+          }
           people.push(person)
         }
       } else {
         // Single tenant: use parent as tenant
         const person = buildTenancyPersonSync(parentRef, sectionsMap, dependenciesMap, reasonCodeLabels)
+        // Check for email delivery issues for this person
+        const emailIssue = emailIssuesMap.get(person.id)
+        if (emailIssue) {
+          person.emailDeliveryIssue = {
+            type: emailIssue.status as 'bounced' | 'complained',
+            errorMessage: emailIssue.errorMessage
+          }
+        }
         people.push(person)
       }
 
       // Add guarantors
       for (const guarantor of guarantors) {
         const person = buildTenancyPersonSync(guarantor, sectionsMap, dependenciesMap, reasonCodeLabels)
+        // Check for email delivery issues for this person
+        const emailIssue = emailIssuesMap.get(person.id)
+        if (emailIssue) {
+          person.emailDeliveryIssue = {
+            type: emailIssue.status as 'bounced' | 'complained',
+            errorMessage: emailIssue.errorMessage
+          }
+        }
         people.push(person)
       }
 
@@ -259,20 +282,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         children.some(c => c.urgent_reverify) ||
         guarantors.some(g => g.urgent_reverify)
 
-      // Check for email delivery issues (bounced/complained)
-      let emailDeliveryIssue: EmailDeliveryIssue | undefined
-      for (const person of people) {
-        const issue = emailIssuesMap.get(person.id)
-        if (issue) {
-          emailDeliveryIssue = {
-            type: issue.status as 'bounced' | 'complained',
-            personName: person.name,
-            errorMessage: issue.errorMessage
-          }
-          break // Show first issue found
-        }
-      }
-
       const tenancy: Tenancy = {
         id: tenancyId,
         propertyAddress: decrypt(parentRef.property_address_encrypted) || '',
@@ -282,7 +291,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         monthlyRent: parentRef.monthly_rent || 0,
         tenancyStatus,
         urgentReverify: urgentReverify || false,
-        emailDeliveryIssue,
         blockingSentence,
         progressSummary,
         people,

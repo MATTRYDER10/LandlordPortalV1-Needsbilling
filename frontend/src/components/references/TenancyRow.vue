@@ -29,7 +29,7 @@
         </div>
       </div>
 
-      <!-- Line 2: Status pill, URGENT tag, and email delivery warning -->
+      <!-- Line 2: Status pill and URGENT tag -->
       <div class="mt-2 flex items-center gap-2">
         <StatusPill :status="tenancy.tenancyStatus" />
         <span
@@ -37,15 +37,6 @@
           class="px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800"
         >
           URGENT
-        </span>
-        <span
-          v-if="tenancy.emailDeliveryIssue"
-          class="px-2 py-0.5 text-xs font-semibold rounded-full flex items-center gap-1"
-          :class="tenancy.emailDeliveryIssue.type === 'bounced' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'"
-          :title="getEmailIssueTooltip()"
-        >
-          <MailWarning class="w-3 h-3" />
-          {{ tenancy.emailDeliveryIssue.type === 'bounced' ? 'EMAIL BOUNCED' : 'MARKED SPAM' }}
         </span>
       </div>
 
@@ -125,7 +116,7 @@ import type { Tenancy, TenancyPerson } from '@/composables/useTenancies'
 import StatusPill from './StatusPill.vue'
 import ProgressChips from './ProgressChips.vue'
 import PersonCard from './PersonCard.vue'
-import { ChevronDown, AlertTriangle, MailWarning } from 'lucide-vue-next'
+import { ChevronDown, AlertTriangle } from 'lucide-vue-next'
 
 const props = defineProps<{
   tenancy: Tenancy
@@ -180,16 +171,5 @@ function getActionRequiredSummary(): string {
   const sections = [...new Set(tasks.map(t => t.sectionType))]
 
   return `${names} - ${sections.join(', ')}`
-}
-
-function getEmailIssueTooltip(): string {
-  const issue = props.tenancy.emailDeliveryIssue
-  if (!issue) return ''
-
-  if (issue.type === 'bounced') {
-    return `Email to ${issue.personName} bounced${issue.errorMessage ? ': ' + issue.errorMessage : ''}`
-  } else {
-    return `Email to ${issue.personName} was marked as spam`
-  }
 }
 </script>
