@@ -117,6 +117,9 @@ app.use('/api/webhooks/twilio', express.urlencoded({ extended: false }))
 // VAPI webhook sends JSON data
 app.use('/api/webhooks/vapi', express.json())
 
+// Resend webhook sends JSON data
+app.use('/api/webhooks/resend', express.json())
+
 // Mount webhook routes
 app.use('/api/webhooks', webhookRoutes)
 
