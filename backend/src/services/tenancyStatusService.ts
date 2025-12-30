@@ -36,6 +36,7 @@ export interface SectionStatus {
 // Email delivery issue (bounced or complained)
 export interface EmailDeliveryIssue {
   type: 'bounced' | 'complained'
+  referenceType: 'tenant' | 'guarantor' | 'employer' | 'landlord' | 'accountant' | 'agent'
   errorMessage?: string
 }
 

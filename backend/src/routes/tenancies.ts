@@ -203,15 +203,18 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         .in('status', ['bounced', 'complained'])
     ])
 
-    // Build a map of reference_id -> email delivery issue
-    const emailIssuesMap = new Map<string, { status: string; errorMessage?: string }>()
+    // Build a map of reference_id -> array of email delivery issues (multiple types per reference)
+    const emailIssuesMap = new Map<string, Array<{ status: string; referenceType: string; errorMessage?: string }>>()
     if (emailIssuesData.data) {
       for (const issue of emailIssuesData.data) {
         if (issue.reference_id) {
-          emailIssuesMap.set(issue.reference_id, {
+          const existing = emailIssuesMap.get(issue.reference_id) || []
+          existing.push({
             status: issue.status,
+            referenceType: issue.reference_type || 'tenant',
             errorMessage: issue.error_message
           })
+          emailIssuesMap.set(issue.reference_id, existing)
         }
       }
     }
@@ -230,12 +233,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         // Multi-tenant: use children as tenants
         for (const child of children) {
           const person = buildTenancyPersonSync(child, sectionsMap, dependenciesMap, reasonCodeLabels)
-          // Check for email delivery issues for this person
-          const emailIssue = emailIssuesMap.get(person.id)
-          if (emailIssue) {
+          // Check for email delivery issues for this person (tenant's own email or referee emails)
+          const emailIssues = emailIssuesMap.get(person.id)
+          if (emailIssues && emailIssues.length > 0) {
+            const firstIssue = emailIssues[0]
             person.emailDeliveryIssue = {
-              type: emailIssue.status as 'bounced' | 'complained',
-              errorMessage: emailIssue.errorMessage
+              type: firstIssue.status as 'bounced' | 'complained',
+              referenceType: firstIssue.referenceType as any,
+              errorMessage: firstIssue.errorMessage
             }
           }
           people.push(person)
@@ -243,12 +248,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       } else {
         // Single tenant: use parent as tenant
         const person = buildTenancyPersonSync(parentRef, sectionsMap, dependenciesMap, reasonCodeLabels)
-        // Check for email delivery issues for this person
-        const emailIssue = emailIssuesMap.get(person.id)
-        if (emailIssue) {
+        // Check for email delivery issues for this person (tenant's own email or referee emails)
+        const emailIssues = emailIssuesMap.get(person.id)
+        if (emailIssues && emailIssues.length > 0) {
+          const firstIssue = emailIssues[0]
           person.emailDeliveryIssue = {
-            type: emailIssue.status as 'bounced' | 'complained',
-            errorMessage: emailIssue.errorMessage
+            type: firstIssue.status as 'bounced' | 'complained',
+            referenceType: firstIssue.referenceType as any,
+            errorMessage: firstIssue.errorMessage
           }
         }
         people.push(person)
@@ -258,11 +265,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       for (const guarantor of guarantors) {
         const person = buildTenancyPersonSync(guarantor, sectionsMap, dependenciesMap, reasonCodeLabels)
         // Check for email delivery issues for this person
-        const emailIssue = emailIssuesMap.get(person.id)
-        if (emailIssue) {
+        const emailIssues = emailIssuesMap.get(person.id)
+        if (emailIssues && emailIssues.length > 0) {
+          const firstIssue = emailIssues[0]
           person.emailDeliveryIssue = {
-            type: emailIssue.status as 'bounced' | 'complained',
-            errorMessage: emailIssue.errorMessage
+            type: firstIssue.status as 'bounced' | 'complained',
+            referenceType: firstIssue.referenceType as any,
+            errorMessage: firstIssue.errorMessage
           }
         }
         people.push(person)

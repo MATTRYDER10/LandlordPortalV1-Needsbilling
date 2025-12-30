@@ -39,7 +39,7 @@
           :title="emailIssueTooltip"
         >
           <MailWarning class="w-3 h-3" />
-          EMAIL ISSUE
+          {{ emailIssueBadgeText }}
         </span>
         <span
           v-if="tenancy.urgentReverify"
@@ -169,11 +169,34 @@ const hasEmailIssue = computed(() => {
 const emailIssueTooltip = computed(() => {
   const person = props.tenancy.people.find(p => p.emailDeliveryIssue)
   if (!person?.emailDeliveryIssue) return ''
+  const refType = person.emailDeliveryIssue.referenceType
   const type = person.emailDeliveryIssue.type
+  const contactLabel = getContactLabel(refType)
   return type === 'bounced'
-    ? `Email to ${person.name} bounced - check email address`
-    : `Email to ${person.name} marked as spam`
+    ? `${contactLabel} email for ${person.name} bounced - check email address`
+    : `${contactLabel} email for ${person.name} marked as spam`
 })
+
+const emailIssueBadgeText = computed(() => {
+  const person = props.tenancy.people.find(p => p.emailDeliveryIssue)
+  if (!person?.emailDeliveryIssue) return ''
+  const refType = person.emailDeliveryIssue.referenceType
+  const type = person.emailDeliveryIssue.type
+  const label = getContactLabel(refType).toUpperCase()
+  return type === 'bounced' ? `${label} BOUNCED` : `${label} SPAM`
+})
+
+function getContactLabel(refType: string): string {
+  const labels: Record<string, string> = {
+    'tenant': 'Tenant',
+    'guarantor': 'Guarantor',
+    'employer': 'Employer',
+    'landlord': 'Landlord',
+    'accountant': 'Accountant',
+    'agent': 'Agent'
+  }
+  return labels[refType] || 'Email'
+}
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return 'Not set'

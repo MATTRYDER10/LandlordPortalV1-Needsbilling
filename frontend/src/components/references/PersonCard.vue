@@ -30,7 +30,7 @@
               :title="getEmailIssueTooltip()"
             >
               <MailWarning class="w-3 h-3" />
-              {{ person.emailDeliveryIssue.type === 'bounced' ? 'BOUNCED' : 'SPAM' }}
+              {{ getEmailBadgeText() }}
             </span>
             <span
               v-if="isVerified"
@@ -227,10 +227,40 @@ function getEmailIssueTooltip(): string {
   const issue = props.person.emailDeliveryIssue
   if (!issue) return ''
 
+  const contactLabel = getContactLabel(issue.referenceType)
   if (issue.type === 'bounced') {
-    return `Email bounced - please check the email address is correct`
+    return `${contactLabel} email bounced - please check the email address is correct`
   } else {
-    return `Email was marked as spam - consider calling instead`
+    return `${contactLabel} email was marked as spam - consider calling instead`
   }
+}
+
+function getEmailBadgeText(): string {
+  const issue = props.person.emailDeliveryIssue
+  if (!issue) return ''
+
+  // For tenant/guarantor's own email, don't show the type prefix (it's obvious)
+  // For referee emails (employer, landlord, etc.), show the prefix
+  const refType = issue.referenceType
+  const isOwnEmail = refType === 'tenant' || refType === 'guarantor'
+
+  if (isOwnEmail) {
+    return issue.type === 'bounced' ? 'BOUNCED' : 'SPAM'
+  }
+
+  const label = getContactLabel(refType).toUpperCase()
+  return issue.type === 'bounced' ? `${label} BOUNCED` : `${label} SPAM`
+}
+
+function getContactLabel(refType: string): string {
+  const labels: Record<string, string> = {
+    'tenant': 'Tenant',
+    'guarantor': 'Guarantor',
+    'employer': 'Employer',
+    'landlord': 'Landlord',
+    'accountant': 'Accountant',
+    'agent': 'Agent'
+  }
+  return labels[refType] || 'Email'
 }
 </script>
