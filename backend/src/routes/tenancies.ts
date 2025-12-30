@@ -7,6 +7,7 @@ import {
   TenancyPerson,
   TenancyStatus,
   StatusCounts,
+  EmailDeliveryIssue,
   deriveTenancyStatus,
   generateBlockingSentence,
   calculateProgressSummary,
@@ -190,12 +191,31 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     console.log(`[Tenancies API] Batch fetching data for ${allReferenceIds.length} references`)
 
-    // Fetch all data in parallel (3 queries instead of 500+)
-    const [sectionsMap, dependenciesMap, reasonCodeLabels] = await Promise.all([
+    // Fetch all data in parallel (4 queries instead of 500+)
+    const [sectionsMap, dependenciesMap, reasonCodeLabels, emailIssuesData] = await Promise.all([
       batchGetVerificationSections(allReferenceIds),
       batchGetChaseDependencies(allReferenceIds),
-      batchGetReasonCodeLabels()
+      batchGetReasonCodeLabels(),
+      // Fetch email delivery issues (bounced or complained)
+      supabase
+        .from('email_delivery_logs')
+        .select('reference_id, reference_type, status, error_message')
+        .in('reference_id', allReferenceIds)
+        .in('status', ['bounced', 'complained'])
     ])
+
+    // Build a map of reference_id -> email delivery issue
+    const emailIssuesMap = new Map<string, { status: string; errorMessage?: string }>()
+    if (emailIssuesData.data) {
+      for (const issue of emailIssuesData.data) {
+        if (issue.reference_id) {
+          emailIssuesMap.set(issue.reference_id, {
+            status: issue.status,
+            errorMessage: issue.error_message
+          })
+        }
+      }
+    }
 
     // Build tenancy objects (no more database queries needed!)
     const tenancies: Tenancy[] = []
@@ -239,6 +259,20 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         children.some(c => c.urgent_reverify) ||
         guarantors.some(g => g.urgent_reverify)
 
+      // Check for email delivery issues (bounced/complained)
+      let emailDeliveryIssue: EmailDeliveryIssue | undefined
+      for (const person of people) {
+        const issue = emailIssuesMap.get(person.id)
+        if (issue) {
+          emailDeliveryIssue = {
+            type: issue.status as 'bounced' | 'complained',
+            personName: person.name,
+            errorMessage: issue.errorMessage
+          }
+          break // Show first issue found
+        }
+      }
+
       const tenancy: Tenancy = {
         id: tenancyId,
         propertyAddress: decrypt(parentRef.property_address_encrypted) || '',
@@ -248,6 +282,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         monthlyRent: parentRef.monthly_rent || 0,
         tenancyStatus,
         urgentReverify: urgentReverify || false,
+        emailDeliveryIssue,
         blockingSentence,
         progressSummary,
         people,

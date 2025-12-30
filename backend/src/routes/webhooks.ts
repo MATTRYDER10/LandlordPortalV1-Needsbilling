@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
 import Twilio from 'twilio';
+import crypto from 'crypto';
 import * as stripeService from '../services/stripeService';
 import * as billingService from '../services/billingService';
 import * as creditService from '../services/creditService';
 import { supabase } from '../config/supabase';
 import { updateSMSDeliveryStatus } from '../services/smsService';
 import { updateCallStatus } from '../services/vapiService';
+import { updateEmailDeliveryStatus, logEmailDeliveryToAuditLog } from '../services/emailService';
 
 const router = Router();
 
@@ -252,6 +254,142 @@ router.post('/vapi', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('[VAPI Webhook] Error handling webhook:', error);
     // Still return 200 to prevent VAPI from retrying
+    res.status(200).send('OK');
+  }
+});
+
+// ============================================================================
+// RESEND WEBHOOK HANDLER
+// ============================================================================
+
+/**
+ * Resend Email Delivery Status Webhook Handler
+ *
+ * Receives delivery status updates from Resend for emails.
+ * Updates the email_delivery_logs table with the current status.
+ *
+ * Event types from Resend:
+ * - email.sent: Email accepted by Resend (initial status)
+ * - email.delivered: Successfully delivered to recipient's mail server
+ * - email.bounced: Permanently rejected by recipient's mail server
+ * - email.complained: Recipient marked as spam
+ * - email.delivery_delayed: Temporary delivery issues
+ */
+router.post('/resend', async (req: Request, res: Response) => {
+  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+
+  // Verify webhook signature if secret is configured
+  if (webhookSecret) {
+    const svixId = req.headers['svix-id'] as string;
+    const svixTimestamp = req.headers['svix-timestamp'] as string;
+    const svixSignature = req.headers['svix-signature'] as string;
+
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      console.warn('[Resend Webhook] Missing Svix headers');
+      return res.status(400).send('Missing signature headers');
+    }
+
+    // Verify timestamp is within 5 minutes to prevent replay attacks
+    const timestamp = parseInt(svixTimestamp, 10);
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - timestamp) > 300) {
+      console.warn('[Resend Webhook] Timestamp too old or in future');
+      return res.status(400).send('Invalid timestamp');
+    }
+
+    // Compute expected signature
+    const signedContent = `${svixId}.${svixTimestamp}.${JSON.stringify(req.body)}`;
+    const expectedSignatures = svixSignature.split(' ').map(sig => {
+      const [version, signature] = sig.split(',');
+      return signature;
+    });
+
+    const computedSignature = crypto
+      .createHmac('sha256', webhookSecret.replace('whsec_', ''))
+      .update(signedContent)
+      .digest('base64');
+
+    const isValid = expectedSignatures.some(sig => sig === computedSignature);
+
+    if (!isValid) {
+      console.warn('[Resend Webhook] Invalid signature');
+      // Log but don't reject in development/testing
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(401).send('Invalid signature');
+      }
+    }
+  }
+
+  const { type, data } = req.body;
+  const emailId = data?.email_id;
+
+  console.log(`[Resend Webhook] Received: type=${type}, emailId=${emailId || 'unknown'}`);
+
+  if (!emailId) {
+    console.log('[Resend Webhook] No email ID in payload, acknowledging');
+    return res.status(200).send('OK');
+  }
+
+  try {
+    let status: string;
+    let bounceType: string | undefined;
+    let errorMessage: string | undefined;
+
+    switch (type) {
+      case 'email.sent':
+        status = 'sent';
+        break;
+
+      case 'email.delivered':
+        status = 'delivered';
+        break;
+
+      case 'email.bounced':
+        status = 'bounced';
+        bounceType = data.bounce?.type || 'hard';
+        errorMessage = data.bounce?.message || data.bounce?.reason || 'Email bounced';
+        break;
+
+      case 'email.complained':
+        status = 'complained';
+        errorMessage = 'Recipient marked email as spam';
+        break;
+
+      case 'email.delivery_delayed':
+        status = 'delivery_delayed';
+        errorMessage = data.delay?.message || 'Delivery delayed';
+        break;
+
+      default:
+        console.log(`[Resend Webhook] Unhandled event type: ${type}`);
+        return res.status(200).send('OK');
+    }
+
+    // Update delivery status in database
+    const result = await updateEmailDeliveryStatus(
+      emailId,
+      status,
+      bounceType,
+      errorMessage
+    );
+
+    // Log bounces and complaints to audit log for visibility
+    if (result?.referenceId && result?.referenceType) {
+      if (status === 'bounced' || status === 'complained') {
+        await logEmailDeliveryToAuditLog(
+          result.referenceId,
+          result.referenceType,
+          status as 'bounced' | 'complained',
+          errorMessage
+        );
+      }
+    }
+
+    // Return 200 to acknowledge receipt
+    res.status(200).send('OK');
+  } catch (error: any) {
+    console.error('[Resend Webhook] Error handling webhook:', error);
+    // Still return 200 to prevent Resend from retrying
     res.status(200).send('OK');
   }
 });

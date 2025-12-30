@@ -65,6 +65,13 @@ export interface ProgressSummary {
   checkFailures: Record<string, number>
 }
 
+// Email delivery issue (bounced or complained)
+export interface EmailDeliveryIssue {
+  type: 'bounced' | 'complained'
+  personName: string
+  errorMessage?: string
+}
+
 // Full tenancy data
 export interface Tenancy {
   id: string
@@ -75,6 +82,7 @@ export interface Tenancy {
   monthlyRent: number
   tenancyStatus: TenancyStatus
   urgentReverify: boolean
+  emailDeliveryIssue?: EmailDeliveryIssue
   blockingSentence: string
   progressSummary: ProgressSummary
   people: TenancyPerson[]

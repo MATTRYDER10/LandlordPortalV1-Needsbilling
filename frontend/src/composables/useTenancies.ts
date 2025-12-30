@@ -62,6 +62,12 @@ export interface ProgressSummary {
   checkFailures: Record<string, number>
 }
 
+export interface EmailDeliveryIssue {
+  type: 'bounced' | 'complained'
+  personName: string
+  errorMessage?: string
+}
+
 export interface Tenancy {
   id: string
   propertyAddress: string
@@ -71,6 +77,7 @@ export interface Tenancy {
   monthlyRent: number
   tenancyStatus: TenancyStatus
   urgentReverify: boolean
+  emailDeliveryIssue?: EmailDeliveryIssue
   blockingSentence: string
   progressSummary: ProgressSummary
   people: TenancyPerson[]

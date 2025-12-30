@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import * as fs from 'fs';
 import * as path from 'path';
 import { supabase } from '../config/supabase';
+import { encrypt } from './encryption';
 
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY || '');
@@ -49,6 +50,8 @@ interface EmailOptions {
     content: Buffer | string;
   }[];
   contactDetails?: ContactDetails;
+  referenceId?: string;
+  referenceType?: 'tenant' | 'guarantor' | 'landlord' | 'employer' | 'accountant' | 'agent';
 }
 
 interface ContactDetails {
@@ -100,6 +103,106 @@ function buildContactFooter(details?: ContactDetails): string {
 }
 
 /**
+ * Log email to delivery tracking table
+ */
+async function logEmailDelivery(data: {
+  resendEmailId: string;
+  referenceId?: string;
+  referenceType?: string;
+  toEmailEncrypted: string;
+  subject: string;
+  status: string;
+}): Promise<void> {
+  try {
+    await supabase.from('email_delivery_logs').insert({
+      resend_email_id: data.resendEmailId,
+      reference_id: data.referenceId || null,
+      reference_type: data.referenceType || null,
+      to_email_encrypted: data.toEmailEncrypted,
+      subject: data.subject,
+      status: data.status,
+    });
+  } catch (error) {
+    console.error('Failed to log email delivery:', error);
+  }
+}
+
+/**
+ * Update email delivery status from webhook
+ * Called by the Resend webhook handler when delivery status changes
+ */
+export async function updateEmailDeliveryStatus(
+  resendEmailId: string,
+  status: string,
+  bounceType?: string,
+  errorMessage?: string
+): Promise<{ referenceId: string | null; referenceType: string | null } | null> {
+  try {
+    // First get the existing record to return reference info
+    const { data: existing } = await supabase
+      .from('email_delivery_logs')
+      .select('reference_id, reference_type')
+      .eq('resend_email_id', resendEmailId)
+      .single();
+
+    // Update the status
+    const { error } = await supabase
+      .from('email_delivery_logs')
+      .update({
+        status,
+        bounce_type: bounceType || null,
+        error_message: errorMessage || null,
+        status_updated_at: new Date().toISOString(),
+      })
+      .eq('resend_email_id', resendEmailId);
+
+    if (error) {
+      console.error('Failed to update email delivery status:', error);
+      return null;
+    }
+
+    console.log(`Email status updated: ${resendEmailId} -> ${status}`);
+    return existing ? { referenceId: existing.reference_id, referenceType: existing.reference_type } : null;
+  } catch (error) {
+    console.error('Failed to update email delivery status:', error);
+    return null;
+  }
+}
+
+/**
+ * Log email delivery event to audit log (for bounces/complaints)
+ */
+export async function logEmailDeliveryToAuditLog(
+  referenceId: string,
+  referenceType: string,
+  status: 'bounced' | 'complained',
+  errorMessage?: string
+): Promise<void> {
+  try {
+    const typeLabel = referenceType.charAt(0).toUpperCase() + referenceType.slice(1);
+    const action = status === 'bounced' ? 'EMAIL_BOUNCED' : 'EMAIL_COMPLAINED';
+    const description =
+      status === 'bounced'
+        ? `Email to ${typeLabel.toLowerCase()} bounced${errorMessage ? `: ${errorMessage}` : ''}`
+        : `Email to ${typeLabel.toLowerCase()} was marked as spam by recipient`;
+
+    const { error } = await supabase.from('reference_audit_log').insert({
+      reference_id: referenceId,
+      action,
+      description,
+      metadata: { reference_type: referenceType, status, error_message: errorMessage },
+      created_by: null, // System action
+    });
+
+    if (error) {
+      console.error('Failed to log email delivery to audit log:', error.message);
+    }
+  } catch (error) {
+    console.error('Failed to log email delivery to audit log:', error);
+  }
+}
+
+/**
  * Send an email using Resend
  */
 export async function sendEmail(options: EmailOptions): Promise<void> {
@@ -127,6 +230,21 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
     }
 
     console.log(`Email sent successfully to ${options.to}`);
+
+    // Log to email delivery tracking table
+    if (data?.id) {
+      const encryptedEmail = encrypt(options.to);
+      if (encryptedEmail) {
+        await logEmailDelivery({
+          resendEmailId: data.id,
+          referenceId: options.referenceId,
+          referenceType: options.referenceType,
+          toEmailEncrypted: encryptedEmail,
+          subject: options.subject,
+          status: 'sent',
+        });
+      }
+    }
   } catch (error) {
     console.error('Error sending email:', error);
     throw error;
@@ -194,7 +312,9 @@ export async function sendTenantReferenceRequest(
         companyName,
         phone: companyPhone,
         email: companyEmail || undefined
-      }
+      },
+      referenceId,
+      referenceType: 'tenant'
     });
 
     if (referenceId) {
@@ -239,7 +359,9 @@ export async function sendEmployerReferenceRequest(
         companyName: agentCompanyName || undefined,
         phone: agentPhone || undefined,
         email: agentEmail || undefined
-      }
+      },
+      referenceId,
+      referenceType: 'employer'
     });
 
     if (referenceId) {
@@ -284,7 +406,9 @@ export async function sendLandlordReferenceRequest(
         companyName: agentCompanyName || undefined,
         phone: agentPhone || undefined,
         email: agentEmail || undefined
-      }
+      },
+      referenceId,
+      referenceType: 'landlord'
     });
 
     if (referenceId) {
@@ -330,7 +454,9 @@ export async function sendAccountantReferenceRequest(
         companyName: agentCompanyName || undefined,
         phone: agentPhone || undefined,
         email: agentEmail || undefined
-      }
+      },
+      referenceId,
+      referenceType: 'accountant'
     });
 
     if (referenceId) {
@@ -375,7 +501,9 @@ export async function sendAgentReferenceRequest(
         companyName: agentCompanyName || undefined,
         phone: agentPhone || undefined,
         email: agentEmailContact || undefined
-      }
+      },
+      referenceId,
+      referenceType: 'agent'
     });
 
     if (referenceId) {
@@ -482,7 +610,9 @@ export async function sendGuarantorReferenceRequest(
         companyName: agentName,
         phone: agentPhone,
         email: agentEmail
-      }
+      },
+      referenceId,
+      referenceType: 'guarantor'
     });
 
     if (referenceId) {
@@ -522,7 +652,9 @@ export async function sendTenantAddGuarantorRequest(
       html,
       contactDetails: {
         companyName: agentName
-      }
+      },
+      referenceId,
+      referenceType: 'tenant'
     });
 
     if (referenceId) {
