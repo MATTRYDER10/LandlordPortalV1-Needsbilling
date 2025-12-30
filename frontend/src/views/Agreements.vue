@@ -1959,55 +1959,81 @@ async function fetchLandlordsForImport() {
 }
 
 // Select landlord for import and auto-fill form
-function selectLandlordForImport(landlord: any) {
+async function selectLandlordForImport(landlord: any) {
   selectedLandlordId.value = landlord.id
   importedFromLandlord.value = true
 
+  // Fetch full landlord details to get address
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const token = authStore.session?.access_token
+
+  let fullLandlord = landlord
+  if (token) {
+    try {
+      const response = await fetch(`${API_URL}/api/landlords/${landlord.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        fullLandlord = data.landlord || landlord
+      }
+    } catch (err) {
+      console.error('Error fetching landlord details:', err)
+    }
+  }
+
   // Auto-fill landlord email (Step 3)
-  if (landlord.email) {
-    formData.value.landlordEmail = landlord.email
+  if (fullLandlord.email) {
+    formData.value.landlordEmail = fullLandlord.email
   }
 
   // Auto-fill bank details (Step 3)
-  if (landlord.bank_details) {
-    if (landlord.bank_details.account_number) {
-      formData.value.bankAccountNumber = landlord.bank_details.account_number
+  if (fullLandlord.bank_details) {
+    if (fullLandlord.bank_details.account_number) {
+      formData.value.bankAccountNumber = fullLandlord.bank_details.account_number
     }
-    if (landlord.bank_details.sort_code) {
-      formData.value.bankSortCode = landlord.bank_details.sort_code
+    if (fullLandlord.bank_details.sort_code) {
+      formData.value.bankSortCode = fullLandlord.bank_details.sort_code
     }
   }
 
   // Add landlord to landlords array (Step 4)
-  const landlordName = landlord.full_name_displayed_on_contracts || `${landlord.first_name} ${landlord.last_name}`
+  const landlordName = fullLandlord.full_name_displayed_on_contracts || `${fullLandlord.first_name} ${fullLandlord.last_name}`
+  const landlordData = {
+    name: landlordName,
+    address: {
+      line1: fullLandlord.residential_address?.line1 || '',
+      line2: fullLandlord.residential_address?.line2 || '',
+      city: fullLandlord.residential_address?.city || '',
+      county: fullLandlord.residential_address?.county || '',
+      postcode: fullLandlord.residential_address?.postcode || ''
+    }
+  }
+
   const existingIndex = formData.value.landlords.findIndex(
     (l: any) => l.name === landlordName
   )
 
   if (existingIndex >= 0) {
     // Update existing
-    formData.value.landlords[existingIndex] = {
-      name: landlordName,
-      address: {
-        line1: landlord.residential_address?.line1 || '',
-        line2: landlord.residential_address?.line2 || '',
-        city: landlord.residential_address?.city || '',
-        county: landlord.residential_address?.county || '',
-        postcode: landlord.residential_address?.postcode || ''
-      }
-    }
+    formData.value.landlords[existingIndex] = landlordData
   } else {
-    // Add new
-    formData.value.landlords.push({
-      name: landlordName,
-      address: {
-        line1: landlord.residential_address?.line1 || '',
-        line2: landlord.residential_address?.line2 || '',
-        city: landlord.residential_address?.city || '',
-        county: landlord.residential_address?.county || '',
-        postcode: landlord.residential_address?.postcode || ''
-      }
-    })
+    // Check if first landlord is blank and should be replaced
+    const firstLandlord = formData.value.landlords[0]
+    const isFirstBlank = formData.value.landlords.length === 1 &&
+      !firstLandlord?.name &&
+      !firstLandlord?.address?.line1
+
+    if (isFirstBlank) {
+      // Replace the blank placeholder
+      formData.value.landlords[0] = landlordData
+    } else {
+      // Add new
+      formData.value.landlords.push(landlordData)
+    }
   }
 
   // Auto-collapse the landlord selector after selection

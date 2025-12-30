@@ -783,14 +783,13 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Validate signing status - only allow delete for certain statuses
-    const deletableStatuses = ['draft', 'pending_signatures', 'cancelled', null, undefined]
+    // Validate signing status - only block delete for fully_signed (completed) agreements
     const currentStatus = agreement.signing_status
 
-    if (!deletableStatuses.includes(currentStatus)) {
+    if (currentStatus === 'fully_signed') {
       return res.status(400).json({
         error: 'Cannot delete agreement',
-        message: `Agreements with status "${currentStatus}" cannot be deleted. Only draft, pending, or cancelled agreements can be deleted.`,
+        message: 'Fully signed agreements cannot be deleted.',
         signing_status: currentStatus
       })
     }

@@ -811,10 +811,8 @@ const canEdit = (agreement: any): boolean => {
 }
 
 const canDelete = (agreement: any): boolean => {
-  // Allow delete for: draft, pending_signatures, cancelled
-  // Disallow for: partially_signed, fully_signed, expired
-  const deletableStatuses = ['draft', 'pending_signatures', 'cancelled']
-  return !agreement.signing_status || deletableStatuses.includes(agreement.signing_status)
+  // Allow delete for all statuses except fully_signed (completed)
+  return agreement.signing_status !== 'fully_signed'
 }
 
 const canGeneratePdf = (agreement: any): boolean => {
