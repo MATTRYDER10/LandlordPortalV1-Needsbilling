@@ -984,7 +984,9 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
       guarantor_first_name,
       guarantor_last_name,
       guarantor_email,
-      guarantor_phone
+      guarantor_phone,
+      // Property integration
+      linked_property_id
     } = req.body
 
     // Check if user is invited (to handle duplicate company entries from trigger bug)
@@ -1088,7 +1090,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           reference_token_hash: parentTokenHash,
           token_expires_at: expiresAt.toISOString(),
           status: 'pending',
-          is_group_parent: true
+          is_group_parent: true,
+          linked_property_id: linked_property_id || null
         })
         .select()
         .single()
@@ -1381,7 +1384,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           notes_encrypted: encrypt(notes || ''),
           reference_token_hash: tokenHash,
           token_expires_at: expiresAt.toISOString(),
-          status: 'pending'
+          status: 'pending',
+          linked_property_id: linked_property_id || null
         })
         .select()
         .single()

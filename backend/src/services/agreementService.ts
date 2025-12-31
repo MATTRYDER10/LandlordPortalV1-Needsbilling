@@ -56,6 +56,16 @@ export interface AgreementData {
   language?: Language
 }
 
+export interface ComplianceOverride {
+  acknowledged: boolean
+  reason?: string
+}
+
+export interface PropertyIntegration {
+  propertyId?: string
+  complianceOverride?: ComplianceOverride
+}
+
 export class AgreementService {
   /**
    * Save agreement to database
@@ -64,7 +74,8 @@ export class AgreementService {
     agreementData: AgreementData,
     companyId: string,
     userId: string,
-    referenceId?: string
+    referenceId?: string,
+    propertyIntegration?: PropertyIntegration
   ): Promise<string> {
     const { data, error } = await supabase
       .from('agreements')
@@ -93,7 +104,13 @@ export class AgreementService {
         language: agreementData.language || 'english',
         company_id: companyId,
         reference_id: referenceId || null,
-        created_by: userId
+        created_by: userId,
+        // Property integration
+        property_id: propertyIntegration?.propertyId || null,
+        compliance_override_acknowledged: propertyIntegration?.complianceOverride?.acknowledged || false,
+        compliance_override_reason: propertyIntegration?.complianceOverride?.reason || null,
+        compliance_override_at: propertyIntegration?.complianceOverride?.acknowledged ? new Date().toISOString() : null,
+        compliance_override_by: propertyIntegration?.complianceOverride?.acknowledged ? userId : null
       })
       .select('id')
       .single()

@@ -112,21 +112,119 @@
             <!-- Property Information (shown once) -->
             <div>
               <h4 class="text-md font-semibold text-gray-700 mb-3">Property Information</h4>
+
+              <!-- Entry Mode Toggle -->
+              <div class="mb-4 flex gap-3">
+                <button
+                  @click="propertyEntryMode = 'select'; fetchProperties()"
+                  type="button"
+                  class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2"
+                  :class="propertyEntryMode === 'select'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  "
+                >
+                  <Building class="w-4 h-4" />
+                  Select from Properties
+                </button>
+                <button
+                  @click="propertyEntryMode = 'manual'; clearPropertySelection()"
+                  type="button"
+                  class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                  :class="propertyEntryMode === 'manual'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  "
+                >
+                  Enter Manually
+                </button>
+              </div>
+
+              <!-- Selected Property Banner -->
+              <div v-if="selectedPropertyId" class="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center">
+                  <Building class="w-4 h-4 text-green-600 mr-2" />
+                  <span class="text-sm font-medium text-green-900">{{ formData.property_address }}, {{ formData.property_city }} {{ formData.property_postcode }}</span>
+                </div>
+                <button
+                  @click="clearPropertySelection"
+                  type="button"
+                  class="text-sm text-green-700 hover:text-green-900 font-medium"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <!-- Property Selector -->
+              <div v-if="propertyEntryMode === 'select' && !selectedPropertyId" class="mb-4 space-y-3">
+                <div class="flex gap-3">
+                  <div class="flex-1">
+                    <input
+                      v-model="propertySearchQuery"
+                      type="text"
+                      placeholder="Search by address or postcode..."
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      @keyup.enter="fetchProperties"
+                    />
+                  </div>
+                  <button
+                    @click="fetchProperties"
+                    type="button"
+                    :disabled="loadingProperties"
+                    class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {{ loadingProperties ? 'Loading...' : 'Search' }}
+                  </button>
+                </div>
+
+                <!-- Loading State -->
+                <div v-if="loadingProperties" class="text-center py-4">
+                  <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </div>
+
+                <!-- No Properties -->
+                <div v-else-if="!loadingProperties && availableProperties.length === 0" class="text-center py-4">
+                  <p class="text-sm text-gray-600">{{ propertySearchQuery ? 'No properties match your search' : 'No properties found. Enter address manually.' }}</p>
+                </div>
+
+                <!-- Property Cards -->
+                <div v-else class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                  <div
+                    v-for="property in availableProperties"
+                    :key="property.id"
+                    @click="selectPropertyForReference(property)"
+                    class="border rounded-md p-3 cursor-pointer transition-all hover:shadow-sm hover:border-primary/50 flex items-center justify-between"
+                  >
+                    <div>
+                      <span class="font-medium text-gray-900">{{ property.address_line1 }}</span>
+                      <span class="text-sm text-gray-600 ml-2">{{ property.city }}, {{ property.postcode }}</span>
+                    </div>
+                    <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Manual Entry / Display Fields -->
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <AddressAutocomplete v-model="formData.property_address" label="Property Address" :required="true"
                     id="address" placeholder="Start typing address..."
+                    :disabled="!!selectedPropertyId"
                     @addressSelected="handlePropertyAddressSelected" />
                 </div>
                 <div>
                   <label for="city" class="block text-sm font-medium text-gray-700">City *</label>
                   <input id="city" v-model="formData.property_city" type="text" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                    :disabled="!!selectedPropertyId"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary disabled:bg-gray-100" />
                 </div>
                 <div>
                   <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
                   <input id="postcode" v-model="formData.property_postcode" type="text" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                    :disabled="!!selectedPropertyId"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary disabled:bg-gray-100" />
                 </div>
                 <div>
                   <label for="rent" class="block text-sm font-medium text-gray-700">Total Monthly Rent (£) *</label>
@@ -483,7 +581,7 @@ import TenancyRow from '../components/references/TenancyRow.vue'
 import PersonDrawer from '../components/references/PersonDrawer.vue'
 import { useTenancies, type Tenancy, type TenancyPerson, type TenancyStatus } from '../composables/useTenancies'
 import { isValidEmail } from '../utils/validation'
-import { FileText } from 'lucide-vue-next'
+import { Building, FileText } from 'lucide-vue-next'
 
 const router = useRouter()
 const route = useRoute()
@@ -583,6 +681,62 @@ const formData = ref({
   guarantor_email: '',
   guarantor_phone: ''
 })
+
+// Property selection state (for linking to Properties module)
+const propertyEntryMode = ref<'select' | 'manual'>('manual')
+const availableProperties = ref<any[]>([])
+const loadingProperties = ref(false)
+const propertySearchQuery = ref('')
+const selectedPropertyId = ref<string | null>(null)
+
+// Fetch properties for selection
+async function fetchProperties() {
+  loadingProperties.value = true
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const token = authStore.session?.access_token
+
+    if (!token) return
+
+    const searchParam = propertySearchQuery.value ? `?search=${encodeURIComponent(propertySearchQuery.value)}` : ''
+    const response = await fetch(`${API_URL}/api/properties${searchParam}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const { properties } = await response.json()
+      availableProperties.value = properties || []
+    }
+  } catch (err) {
+    console.error('Error fetching properties:', err)
+    toast.error('Failed to load properties')
+  } finally {
+    loadingProperties.value = false
+  }
+}
+
+// Select a property and auto-fill address
+function selectPropertyForReference(property: any) {
+  selectedPropertyId.value = property.id
+
+  // Auto-fill the address fields
+  formData.value.property_address = property.address_line1 || ''
+  formData.value.property_city = property.city || ''
+  formData.value.property_postcode = property.postcode || ''
+
+  toast.success('Property selected - address fields filled')
+}
+
+// Clear property selection
+function clearPropertySelection() {
+  selectedPropertyId.value = null
+  formData.value.property_address = ''
+  formData.value.property_city = ''
+  formData.value.property_postcode = ''
+  propertyEntryMode.value = 'manual'
+}
 
 // Computed
 const filteredTenancies = computed(() => {
@@ -784,6 +938,10 @@ const handleCreate = async () => {
 
     if (tenantCount.value === 1) {
       payload = { ...formData.value }
+      // Include linked_property_id if a property was selected
+      if (selectedPropertyId.value) {
+        payload.linked_property_id = selectedPropertyId.value
+      }
     } else {
       if (!rentSharesValid.value) {
         createError.value = 'Rent shares must sum to the total monthly rent'
@@ -801,6 +959,10 @@ const handleCreate = async () => {
         term_years: formData.value.term_years,
         term_months: formData.value.term_months,
         notes: formData.value.notes
+      }
+      // Include linked_property_id if a property was selected
+      if (selectedPropertyId.value) {
+        payload.linked_property_id = selectedPropertyId.value
       }
     }
 
@@ -877,6 +1039,11 @@ const closeCreateModal = () => {
   }
   showGuarantorFields.value = false
   createError.value = ''
+  // Reset property selection state
+  propertyEntryMode.value = 'manual'
+  selectedPropertyId.value = null
+  propertySearchQuery.value = ''
+  availableProperties.value = []
 }
 
 const handleCreditsPurchased = () => {

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
-import { agreementService, AgreementData } from '../services/agreementService'
+import { agreementService, AgreementData, PropertyIntegration } from '../services/agreementService'
 import { pdfGenerationService, AgreementPDFData } from '../services/pdfGenerationService'
 import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
@@ -69,8 +69,14 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       breakClause,
       specialClauses,
       language,
-      referenceId
-    }: AgreementData & { referenceId?: string } = req.body
+      referenceId,
+      propertyId,
+      complianceOverride
+    }: AgreementData & {
+      referenceId?: string
+      propertyId?: string
+      complianceOverride?: { acknowledged: boolean; reason?: string }
+    } = req.body
 
     console.log('DEBUG Extracted values:')
     console.log('  rentDueDay:', rentDueDay)
@@ -103,6 +109,39 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       })
     }
 
+    // If propertyId is provided, check compliance status
+    let hasExpiredCompliance = false
+    let expiredComplianceTypes: string[] = []
+
+    if (propertyId) {
+      // Fetch compliance records for the property
+      const { data: complianceRecords, error: complianceError } = await supabase
+        .from('compliance_records')
+        .select('compliance_type, status, expiry_date')
+        .eq('property_id', propertyId)
+
+      if (complianceError) {
+        console.error('Error fetching compliance records:', complianceError)
+      } else if (complianceRecords) {
+        // Check for expired compliance
+        const expired = complianceRecords.filter(r => r.status === 'expired')
+        if (expired.length > 0) {
+          hasExpiredCompliance = true
+          expiredComplianceTypes = expired.map(r => r.compliance_type)
+        }
+      }
+
+      // If there's expired compliance but no override acknowledgment, reject
+      if (hasExpiredCompliance && !complianceOverride?.acknowledged) {
+        return res.status(400).json({
+          error: 'Compliance override required',
+          message: 'The selected property has expired compliance certificates. Please acknowledge the override to proceed.',
+          expiredComplianceTypes,
+          requiresComplianceOverride: true
+        })
+      }
+    }
+
     const agreementData: AgreementData = {
       templateType,
       propertyAddress,
@@ -128,12 +167,18 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       language: language || 'english'
     }
 
-    // Save to database
+    // Save to database with optional property integration
+    const propertyIntegration = propertyId ? {
+      propertyId,
+      complianceOverride: complianceOverride || undefined
+    } : undefined
+
     const agreementId = await agreementService.saveAgreement(
       agreementData,
       companyId,
       userId,
-      referenceId
+      referenceId,
+      propertyIntegration
     )
 
     // Get the saved agreement

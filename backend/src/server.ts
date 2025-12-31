@@ -27,6 +27,7 @@ import verifyRoutes from './routes/verify'
 import chaseRoutes from './routes/chase'
 import landlordsRoutes from './routes/landlords'
 import { startSchedulers } from './services/workQueueScheduler'
+import { startComplianceScheduler } from './services/propertyComplianceScheduler'
 import tenantOffersRoutes from './routes/tenant-offers'
 import googlePlaces from './routes/google-places'
 import adminRoutes from './routes/admin'
@@ -35,6 +36,8 @@ import agreementSigningRoutes from './routes/agreementSigning'
 import tenanciesRoutes from './routes/tenancies'
 import vapiRoutes from './routes/vapi'
 import emailIssuesRoutes from './routes/email-issues'
+import propertiesRoutes from './routes/properties'
+import notificationsRoutes from './routes/notifications'
 
 dotenv.config()
 
@@ -168,6 +171,8 @@ app.use('/api/admin/reports', adminReportsRoutes)
 app.use('/api/signing', agreementSigningRoutes) // Public signing routes (magic link authenticated)
 app.use('/api/tenancies', tenanciesRoutes)
 app.use('/api/email-issues', emailIssuesRoutes)
+app.use('/api/properties', propertiesRoutes)
+app.use('/api/notifications', notificationsRoutes)
 
 // Start server
 app.listen(PORT, () => {
@@ -175,4 +180,7 @@ app.listen(PORT, () => {
 
   // Start background schedulers for work queue management
   startSchedulers()
+
+  // Start property compliance scheduler
+  startComplianceScheduler()
 })

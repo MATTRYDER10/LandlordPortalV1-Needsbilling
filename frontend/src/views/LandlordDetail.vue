@@ -86,16 +86,66 @@
             </div>
           </div>
 
-          <!-- Properties Card -->
+          <!-- Linked Properties Card (from Properties module) -->
           <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-lg font-semibold text-gray-900">Properties</h3>
+              <h3 class="text-lg font-semibold text-gray-900">Linked Properties</h3>
+              <router-link to="/properties?add=true"
+                class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80">
+                + Link Property
+              </router-link>
+            </div>
+            <div v-if="landlord.linked_properties && landlord.linked_properties.length > 0" class="space-y-3">
+              <router-link
+                v-for="lp in landlord.linked_properties"
+                :key="lp.id"
+                :to="`/properties/${lp.property_id}`"
+                class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div class="flex justify-between items-start">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-gray-900">
+                      {{ getPropertyDisplayAddress(lp) }}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                      <span v-if="lp.property_type" class="capitalize">{{ lp.property_type }}</span>
+                      <span v-if="lp.number_of_bedrooms">{{ lp.number_of_bedrooms }} bed</span>
+                      <span :class="lp.status === 'in_tenancy' ? 'text-green-600' : 'text-gray-500'">
+                        {{ lp.status === 'in_tenancy' ? 'In Tenancy' : 'Vacant' }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 ml-3">
+                    <span v-if="lp.is_primary_contact"
+                      class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                      Primary
+                    </span>
+                    <span class="text-sm font-semibold text-gray-900 bg-gray-200 px-2 py-0.5 rounded">
+                      {{ lp.ownership_percentage }}%
+                    </span>
+                  </div>
+                </div>
+                <!-- Ownership bar -->
+                <div class="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div class="h-full bg-primary rounded-full" :style="{ width: `${lp.ownership_percentage}%` }"></div>
+                </div>
+              </router-link>
+            </div>
+            <div v-else class="text-sm text-gray-500">
+              No properties linked to this landlord
+            </div>
+          </div>
+
+          <!-- Legacy Properties Card (if any exist) -->
+          <div v-if="landlord.properties && landlord.properties.length > 0" class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold text-gray-900">Properties (Legacy)</h3>
               <button @click="showAddPropertyModal = true"
                 class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80">
                 + Add
               </button>
             </div>
-            <div v-if="landlord.properties && landlord.properties.length > 0" class="space-y-3">
+            <div class="space-y-3">
               <div v-for="property in landlord.properties" :key="property.id" class="p-3 bg-gray-50 rounded-lg">
                 <div class="text-sm font-medium text-gray-900">
                   {{ property.address.line1 }}{{ property.address.line2 ? ', ' + property.address.line2 : '' }}
@@ -104,9 +154,6 @@
                   {{ property.address.city }}, {{ property.address.postcode }}
                 </div>
               </div>
-            </div>
-            <div v-else class="text-sm text-gray-500">
-              No Properties listed
             </div>
           </div>
 
@@ -599,6 +646,18 @@ const formatDateTime = (dateString?: string | null, fallback = 'n/a') =>
     },
     fallback
   )
+
+const getPropertyDisplayAddress = (lp: any) => {
+  if (!lp.address) return lp.postcode || 'Unknown address'
+  if (lp.address.full_address) return lp.address.full_address
+  if (lp.address.line1) {
+    let addr = lp.address.line1
+    if (lp.address.city) addr += `, ${lp.address.city}`
+    if (lp.address.postcode) addr += `, ${lp.address.postcode}`
+    return addr
+  }
+  return lp.address.postcode || 'Unknown address'
+}
 
 onMounted(() => {
   fetchLandlord()

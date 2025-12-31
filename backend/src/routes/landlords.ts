@@ -191,10 +191,31 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Landlord not found' })
     }
 
-    // Get properties
+    // Get properties (legacy landlord_properties table)
     const { data: properties } = await supabase
       .from('landlord_properties')
       .select('*')
+      .eq('landlord_id', landlordId)
+
+    // Get linked properties from property_landlords table (new properties module)
+    const { data: linkedProperties } = await supabase
+      .from('property_landlords')
+      .select(`
+        id,
+        ownership_percentage,
+        is_primary_contact,
+        property:properties (
+          id,
+          postcode,
+          address_line1_encrypted,
+          address_line2_encrypted,
+          city_encrypted,
+          full_address_encrypted,
+          property_type,
+          number_of_bedrooms,
+          status
+        )
+      `)
       .eq('landlord_id', landlordId)
 
     // Get AML check if exists
@@ -282,6 +303,22 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         verified_at: amlCheck.verified_at,
         fraud_indicators: amlCheck.fraud_indicators,
       } : null,
+      linked_properties: linkedProperties?.map((lp: any) => ({
+        id: lp.id,
+        property_id: lp.property?.id,
+        ownership_percentage: lp.ownership_percentage,
+        is_primary_contact: lp.is_primary_contact,
+        address: lp.property ? {
+          line1: decrypt(lp.property.address_line1_encrypted),
+          line2: decrypt(lp.property.address_line2_encrypted),
+          city: decrypt(lp.property.city_encrypted),
+          full_address: decrypt(lp.property.full_address_encrypted),
+          postcode: lp.property.postcode
+        } : null,
+        property_type: lp.property?.property_type,
+        number_of_bedrooms: lp.property?.number_of_bedrooms,
+        status: lp.property?.status
+      })) || [],
       created_at: landlord.created_at,
       updated_at: landlord.updated_at
     }

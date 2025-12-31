@@ -1,16 +1,19 @@
 <template>
   <div class="flex flex-col md:flex-row h-screen bg-background">
     <!-- Mobile top header bar -->
-    <div class="md:hidden fixed top-0 left-0 right-0 z-30 h-14 bg-white shadow-sm flex items-center px-4">
-      <button
-        @click="isMobileMenuOpen = true"
-        class="p-2 -ml-2 rounded-md text-gray-700 hover:bg-gray-100"
-      >
-        <Menu class="w-6 h-6" />
-      </button>
-      <div class="flex items-center ml-3">
-        <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-8" />
+    <div class="md:hidden fixed top-0 left-0 right-0 z-30 h-14 bg-white shadow-sm flex items-center justify-between px-4">
+      <div class="flex items-center">
+        <button
+          @click="isMobileMenuOpen = true"
+          class="p-2 -ml-2 rounded-md text-gray-700 hover:bg-gray-100"
+        >
+          <Menu class="w-6 h-6" />
+        </button>
+        <div class="flex items-center ml-3">
+          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-8" />
+        </div>
       </div>
+      <NotificationBell />
     </div>
 
     <!-- Mobile overlay backdrop -->
@@ -31,7 +34,7 @@
     >
       <div class="flex flex-col h-full">
         <!-- Logo -->
-        <div class="flex items-center justify-center h-16 px-4 border-b border-gray-200">
+        <div class="flex items-center h-16 px-4 border-b border-gray-200">
           <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-9" />
         </div>
 
@@ -72,6 +75,13 @@
                 >
                   <Building2 class="w-5 h-5 text-gray-500" />
                   Landlord
+                </button>
+                <button
+                  @click="handleAddProperty"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <Home class="w-5 h-5 text-gray-500" />
+                  Property
                 </button>
               </div>
             </div>
@@ -150,6 +160,10 @@
                 <p class="text-sm font-medium text-gray-900 truncate">{{ userEmail }}</p>
                 <p class="text-xs text-gray-500 truncate">{{ userRole }}</p>
               </div>
+              <!-- Notification Bell -->
+              <div class="hidden md:block ml-2">
+                <NotificationBell />
+              </div>
             </div>
             <button
               @click="handleSignOut"
@@ -175,11 +189,13 @@ import { computed, ref, markRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import CreditsDisplay from './CreditsDisplay.vue'
+import NotificationBell from './NotificationBell.vue'
 import {
   LayoutDashboard,
   ClipboardList,
   HandCoins,
   Building2,
+  Home,
   FileSignature,
   FilePlus,
   History,
@@ -224,6 +240,11 @@ const navigation = [
     name: 'Landlords',
     path: '/landlords',
     icon: markRaw(Building2)
+  },
+  {
+    name: 'Properties',
+    path: '/properties',
+    icon: markRaw(Home)
   },
   {
     name: 'Agreements',
@@ -300,5 +321,11 @@ const handleAddLandlord = () => {
   showCreateMenu.value = false
   closeMobileMenu()
   router.push('/landlords?add=true')
+}
+
+const handleAddProperty = () => {
+  showCreateMenu.value = false
+  closeMobileMenu()
+  router.push('/properties?add=true')
 }
 </script>

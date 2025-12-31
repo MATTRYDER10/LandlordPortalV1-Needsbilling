@@ -390,12 +390,130 @@
         <!-- Step 2: Property Address -->
         <div v-if="currentStep === 2">
           <h3 class="text-xl font-semibold text-gray-900 mb-4">Property Address</h3>
-          <div class="space-y-4 max-w-2xl">
+
+          <!-- Entry Mode Toggle -->
+          <div class="mb-6 flex gap-3">
+            <button
+              @click="propertyEntryMode = 'select'; fetchProperties()"
+              type="button"
+              class="px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2"
+              :class="propertyEntryMode === 'select'
+                ? 'bg-primary text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              "
+            >
+              <Building class="w-4 h-4" />
+              Select from Properties
+            </button>
+            <button
+              @click="propertyEntryMode = 'manual'; clearPropertySelection()"
+              type="button"
+              class="px-4 py-2 text-sm font-medium rounded-md transition-colors"
+              :class="propertyEntryMode === 'manual'
+                ? 'bg-primary text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              "
+            >
+              Enter Manually
+            </button>
+          </div>
+
+          <!-- Selected Property Banner -->
+          <div v-if="selectedPropertyId && propertyEntryMode === 'select'" class="mb-4 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+            <div class="flex items-center">
+              <Building class="w-5 h-5 text-green-600 mr-2" />
+              <span class="text-sm font-medium text-green-900">{{ selectedPropertyAddress }}</span>
+              <span v-if="complianceOverrideReason" class="ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-800 rounded">Compliance Override</span>
+            </div>
+            <button
+              @click="clearPropertySelection"
+              type="button"
+              class="text-sm text-green-700 hover:text-green-900 font-medium"
+            >
+              Clear
+            </button>
+          </div>
+
+          <!-- Property Selector -->
+          <div v-if="propertyEntryMode === 'select' && !selectedPropertyId" class="mb-6 space-y-4">
+            <div class="flex gap-4">
+              <div class="flex-1">
+                <input
+                  v-model="propertySearchQuery"
+                  type="text"
+                  placeholder="Search by address or postcode..."
+                  class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  @keyup.enter="fetchProperties"
+                />
+              </div>
+              <button
+                @click="fetchProperties"
+                type="button"
+                :disabled="loadingProperties"
+                class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50"
+              >
+                {{ loadingProperties ? 'Loading...' : 'Search' }}
+              </button>
+            </div>
+
+            <!-- Loading State -->
+            <div v-if="loadingProperties" class="text-center py-8">
+              <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p class="mt-2 text-gray-600">Loading properties...</p>
+            </div>
+
+            <!-- No Properties -->
+            <div v-else-if="!loadingProperties && availableProperties.length === 0" class="text-center py-8">
+              <Building class="mx-auto h-12 w-12 text-gray-400" />
+              <p class="mt-2 text-gray-600">{{ propertySearchQuery ? 'No properties match your search' : 'No properties found. Add properties in the Properties module or enter address manually.' }}</p>
+            </div>
+
+            <!-- Property Cards -->
+            <div v-else class="grid grid-cols-1 gap-3 max-h-72 overflow-y-auto">
+              <div
+                v-for="property in availableProperties"
+                :key="property.id"
+                @click="selectProperty(property)"
+                class="border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <h4 class="font-medium text-gray-900">
+                      {{ property.address_line1 }}
+                    </h4>
+                    <p class="text-sm text-gray-600">
+                      {{ property.city }}, {{ property.postcode }}
+                    </p>
+                    <div class="flex items-center gap-2 mt-2">
+                      <span v-if="property.status" class="px-2 py-0.5 text-xs rounded" :class="{
+                        'bg-green-100 text-green-800': property.status === 'vacant',
+                        'bg-blue-100 text-blue-800': property.status === 'in_tenancy'
+                      }">
+                        {{ property.status === 'in_tenancy' ? 'In Tenancy' : 'Vacant' }}
+                      </span>
+                      <span v-if="property.compliance_status === 'expired'" class="px-2 py-0.5 text-xs bg-red-100 text-red-800 rounded">
+                        Compliance Expired
+                      </span>
+                    </div>
+                  </div>
+                  <div class="ml-4 text-primary">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual Entry Form -->
+          <div v-if="propertyEntryMode === 'manual' || selectedPropertyId" class="space-y-4 max-w-2xl">
             <AddressAutocomplete
               v-model="formData.propertyAddress.line1"
               label="Property Address"
               :required="true"
               placeholder="Start typing the property address..."
+              :disabled="!!selectedPropertyId"
               @addressSelected="handlePropertyAddressSelected"
             />
             <div>
@@ -1150,6 +1268,15 @@
     @paid="handleAgreementPaid"
   />
 
+  <!-- Compliance Override Modal -->
+  <ComplianceOverrideModal
+    :show="showComplianceOverrideModal"
+    :property-address="selectedPropertyAddress"
+    :expired-types="expiredComplianceTypes"
+    @close="handleComplianceOverrideCancel"
+    @confirm="handleComplianceOverrideConfirm"
+  />
+
   <!-- Landlord Selector Modal -->
   <div
     v-if="showLandlordSelector"
@@ -1239,7 +1366,8 @@ import AgreementPaymentModal from '../components/AgreementPaymentModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { isValidEmail } from '../utils/validation'
-import { Check, FileText, Users, X } from 'lucide-vue-next'
+import { Building, Check, FileText, Users, X } from 'lucide-vue-next'
+import ComplianceOverrideModal from '../components/properties/ComplianceOverrideModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -1279,6 +1407,17 @@ const landlordImportSearchQuery = ref('')
 const showLandlordImportSelector = ref(false)
 const selectedLandlordId = ref<string | null>(null)
 const importedFromLandlord = ref(false)
+
+// Property selection state (for Step 2)
+const availableProperties = ref<any[]>([])
+const loadingProperties = ref(false)
+const propertySearchQuery = ref('')
+const selectedPropertyId = ref<string | null>(null)
+const propertyEntryMode = ref<'select' | 'manual'>('manual')
+const showComplianceOverrideModal = ref(false)
+const expiredComplianceTypes = ref<string[]>([])
+const complianceOverrideReason = ref<string | null>(null)
+const selectedPropertyAddress = ref('')
 
 const templateOptions = [
   {
@@ -2049,6 +2188,130 @@ function clearLandlordImport() {
   // Don't clear form data as user might want to keep it
 }
 
+// Fetch properties for selection (Step 2)
+async function fetchProperties() {
+  loadingProperties.value = true
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const token = authStore.session?.access_token
+
+    if (!token) return
+
+    const searchParam = propertySearchQuery.value ? `?search=${encodeURIComponent(propertySearchQuery.value)}` : ''
+    const response = await fetch(`${API_URL}/api/properties${searchParam}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const { properties } = await response.json()
+      availableProperties.value = properties || []
+    }
+  } catch (err) {
+    console.error('Error fetching properties:', err)
+    toast.error('Failed to load properties')
+  } finally {
+    loadingProperties.value = false
+  }
+}
+
+// Get display address for a property
+function getPropertyDisplayAddress(property: any) {
+  const parts = [
+    property.address_line1,
+    property.address_line2,
+    property.city,
+    property.postcode
+  ].filter(Boolean)
+  return parts.join(', ')
+}
+
+// Select a property and check compliance
+async function selectProperty(property: any) {
+  selectedPropertyId.value = property.id
+  selectedPropertyAddress.value = getPropertyDisplayAddress(property)
+
+  // Auto-fill the property address
+  formData.value.propertyAddress = {
+    line1: property.address_line1 || '',
+    line2: property.address_line2 || '',
+    city: property.city || '',
+    county: property.county || '',
+    postcode: property.postcode || ''
+  }
+
+  // Check compliance status
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const token = authStore.session?.access_token
+
+    const response = await fetch(`${API_URL}/api/properties/${property.id}/compliance`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const { compliance } = await response.json()
+      const expired = compliance?.filter((r: any) => r.status === 'expired') || []
+
+      if (expired.length > 0) {
+        expiredComplianceTypes.value = expired.map((r: any) => r.compliance_type)
+        showComplianceOverrideModal.value = true
+      } else {
+        // No expired compliance - clear any previous override
+        expiredComplianceTypes.value = []
+        complianceOverrideReason.value = null
+        toast.success('Property selected successfully')
+      }
+    }
+  } catch (err) {
+    console.error('Error checking compliance:', err)
+    // Allow proceeding even if compliance check fails
+    toast.warning('Could not verify compliance status')
+  }
+}
+
+// Handle compliance override confirmation
+function handleComplianceOverrideConfirm(reason: string) {
+  complianceOverrideReason.value = reason
+  showComplianceOverrideModal.value = false
+  toast.success('Property selected with compliance override')
+}
+
+// Handle compliance override cancel
+function handleComplianceOverrideCancel() {
+  showComplianceOverrideModal.value = false
+  // Clear property selection
+  selectedPropertyId.value = null
+  selectedPropertyAddress.value = ''
+  formData.value.propertyAddress = {
+    line1: '',
+    line2: '',
+    city: '',
+    county: '',
+    postcode: ''
+  }
+  expiredComplianceTypes.value = []
+}
+
+// Clear property selection
+function clearPropertySelection() {
+  selectedPropertyId.value = null
+  selectedPropertyAddress.value = ''
+  complianceOverrideReason.value = null
+  expiredComplianceTypes.value = []
+  formData.value.propertyAddress = {
+    line1: '',
+    line2: '',
+    city: '',
+    county: '',
+    postcode: ''
+  }
+  propertyEntryMode.value = 'manual'
+}
+
 // Helper function to get ordinal suffix for rent due day
 function getOrdinalSuffixForDay(day: number): string {
   if (day >= 11 && day <= 13) return 'th'
@@ -2290,10 +2553,21 @@ async function generateAgreement() {
     }
 
     // Create the agreement with end date (user-edited or calculated) and generated break clause
-    const agreementData = {
+    const agreementData: Record<string, any> = {
       ...formData.value,
       tenancyEndDate: formData.value.tenancyEndDate || calculatedEndDate.value || null,
       breakClause: formData.value.breakClauseEnabled ? generatedBreakClause.value : ''
+    }
+
+    // Add property integration if a property was selected
+    if (selectedPropertyId.value) {
+      agreementData.propertyId = selectedPropertyId.value
+      if (complianceOverrideReason.value) {
+        agreementData.complianceOverride = {
+          acknowledged: true,
+          reason: complianceOverrideReason.value
+        }
+      }
     }
 
     const createResponse = await fetch(`${API_URL}/api/agreements`, {
@@ -2307,6 +2581,14 @@ async function generateAgreement() {
 
     if (!createResponse.ok) {
       const errorData = await createResponse.json()
+
+      // Handle compliance override required error
+      if (errorData.requiresComplianceOverride && errorData.expiredComplianceTypes) {
+        expiredComplianceTypes.value = errorData.expiredComplianceTypes
+        showComplianceOverrideModal.value = true
+        throw new Error('Please acknowledge the expired compliance to proceed')
+      }
+
       throw new Error(errorData.error || 'Failed to create agreement')
     }
 
