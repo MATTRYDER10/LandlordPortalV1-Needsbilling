@@ -579,7 +579,7 @@ import ReferencesTopBar from '../components/references/ReferencesTopBar.vue'
 import ReferencesStatusTabs from '../components/references/ReferencesStatusTabs.vue'
 import TenancyRow from '../components/references/TenancyRow.vue'
 import PersonDrawer from '../components/references/PersonDrawer.vue'
-import { useTenancies, type Tenancy, type TenancyPerson, type TenancyStatus } from '../composables/useTenancies'
+import { useTenancies, type Tenancy, type TenancyPerson, type TabKey } from '../composables/useTenancies'
 import { isValidEmail } from '../utils/validation'
 import { Building, FileText } from 'lucide-vue-next'
 
@@ -608,7 +608,7 @@ const {
 const search = ref('')
 const sortBy = ref<'move_in_date' | 'created_at'>('move_in_date')
 const sortOrder = ref<'asc' | 'desc'>('asc')
-const activeTab = ref<TenancyStatus | 'ALL'>('ALL')
+const activeTab = ref<TabKey>('ALL')
 
 // Create modal state
 const showCreateModal = ref(false)
@@ -744,7 +744,18 @@ const filteredTenancies = computed(() => {
 
   // Filter by status tab
   if (activeTab.value !== 'ALL') {
-    filtered = filtered.filter(t => t.tenancyStatus === activeTab.value)
+    const today = new Date().toISOString().slice(0, 10)
+    if (activeTab.value === 'MOVED_IN') {
+      filtered = filtered.filter(t =>
+        t.tenancyStatus === 'COMPLETED' && t.moveInDate && t.moveInDate < today
+      )
+    } else if (activeTab.value === 'COMPLETED') {
+      filtered = filtered.filter(t =>
+        t.tenancyStatus === 'COMPLETED' && (!t.moveInDate || t.moveInDate >= today)
+      )
+    } else {
+      filtered = filtered.filter(t => t.tenancyStatus === activeTab.value)
+    }
   }
 
   // Filter by search
@@ -1341,8 +1352,8 @@ onMounted(async () => {
 
   if (route.query.status && typeof route.query.status === 'string') {
     const status = route.query.status.toUpperCase()
-    if (['IN_PROGRESS', 'AWAITING_VERIFICATION', 'ACTION_REQUIRED', 'COMPLETED', 'REJECTED'].includes(status)) {
-      activeTab.value = status as TenancyStatus
+    if (['IN_PROGRESS', 'AWAITING_VERIFICATION', 'ACTION_REQUIRED', 'COMPLETED', 'MOVED_IN', 'REJECTED'].includes(status)) {
+      activeTab.value = status as TabKey
     }
   }
 

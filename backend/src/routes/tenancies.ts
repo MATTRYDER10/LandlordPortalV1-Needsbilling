@@ -337,12 +337,18 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // Calculate status counts
+    const today = new Date().toISOString().split('T')[0]
     const statusCounts: StatusCounts = {
       all: tenancies.length,
       inProgress: tenancies.filter(t => t.tenancyStatus === 'IN_PROGRESS').length,
       awaitingVerification: tenancies.filter(t => t.tenancyStatus === 'AWAITING_VERIFICATION').length,
       actionRequired: tenancies.filter(t => t.tenancyStatus === 'ACTION_REQUIRED').length,
-      completed: tenancies.filter(t => t.tenancyStatus === 'COMPLETED').length,
+      completed: tenancies.filter(t =>
+        t.tenancyStatus === 'COMPLETED' && (!t.moveInDate || t.moveInDate >= today)
+      ).length,
+      movedIn: tenancies.filter(t =>
+        t.tenancyStatus === 'COMPLETED' && t.moveInDate && t.moveInDate < today
+      ).length,
       rejected: tenancies.filter(t => t.tenancyStatus === 'REJECTED').length
     }
 

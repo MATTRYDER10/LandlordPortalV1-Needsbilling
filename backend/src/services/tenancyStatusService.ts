@@ -96,6 +96,7 @@ export interface StatusCounts {
   awaitingVerification: number
   actionRequired: number
   completed: number
+  movedIn: number
   rejected: number
 }
 

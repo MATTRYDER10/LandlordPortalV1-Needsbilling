@@ -4,7 +4,7 @@
       <button
         v-for="tab in tabs"
         :key="tab.key"
-        @click="$emit('update:modelValue', tab.key as TenancyStatus | 'ALL')"
+        @click="$emit('update:modelValue', tab.key as TabKey)"
         class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors"
         :class="[
           modelValue === tab.key
@@ -31,15 +31,15 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { TenancyStatus, StatusCounts } from '@/composables/useTenancies'
+import type { TabKey, StatusCounts } from '@/composables/useTenancies'
 
 const props = defineProps<{
-  modelValue: TenancyStatus | 'ALL'
+  modelValue: TabKey
   counts: StatusCounts
 }>()
 
 defineEmits<{
-  'update:modelValue': [value: TenancyStatus | 'ALL']
+  'update:modelValue': [value: TabKey]
 }>()
 
 const tabs = computed(() => [
@@ -48,6 +48,7 @@ const tabs = computed(() => [
   { key: 'AWAITING_VERIFICATION', label: 'Awaiting Verification', count: props.counts.awaitingVerification },
   { key: 'ACTION_REQUIRED', label: 'Action Required', count: props.counts.actionRequired },
   { key: 'COMPLETED', label: 'Completed', count: props.counts.completed },
+  { key: 'MOVED_IN', label: 'Moved In', count: props.counts.movedIn },
   { key: 'REJECTED', label: 'Rejected', count: props.counts.rejected }
 ])
 </script>

@@ -22,6 +22,8 @@ export type TenancyStatus =
   | 'COMPLETED'
   | 'REJECTED'
 
+export type TabKey = TenancyStatus | 'ALL' | 'MOVED_IN'
+
 export type SectionType = 'IDENTITY_SELFIE' | 'RTR' | 'INCOME' | 'RESIDENTIAL' | 'CREDIT' | 'AML'
 export type SectionDecision = 'NOT_REVIEWED' | 'PASS' | 'PASS_WITH_CONDITION' | 'ACTION_REQUIRED' | 'FAIL'
 
@@ -90,6 +92,7 @@ export interface StatusCounts {
   awaitingVerification: number
   actionRequired: number
   completed: number
+  movedIn: number
   rejected: number
 }
 
@@ -141,6 +144,7 @@ export function useTenancies() {
     awaitingVerification: 0,
     actionRequired: 0,
     completed: 0,
+    movedIn: 0,
     rejected: 0
   })
   const loading = ref(false)
@@ -154,7 +158,7 @@ export function useTenancies() {
 
   // Filters
   const searchQuery = ref('')
-  const activeTab = ref<TenancyStatus | 'ALL'>('ALL')
+  const activeTab = ref<TabKey>('ALL')
   const sortBy = ref<'move_in_date' | 'created_at'>('move_in_date')
   const sortOrder = ref<'asc' | 'desc'>('asc')
 
@@ -164,7 +168,18 @@ export function useTenancies() {
 
     // Filter by tab
     if (activeTab.value !== 'ALL') {
-      result = result.filter(t => t.tenancyStatus === activeTab.value)
+      const today = new Date().toISOString().slice(0, 10)
+      if (activeTab.value === 'MOVED_IN') {
+        result = result.filter(t =>
+          t.tenancyStatus === 'COMPLETED' && t.moveInDate && t.moveInDate < today
+        )
+      } else if (activeTab.value === 'COMPLETED') {
+        result = result.filter(t =>
+          t.tenancyStatus === 'COMPLETED' && (!t.moveInDate || t.moveInDate >= today)
+        )
+      } else {
+        result = result.filter(t => t.tenancyStatus === activeTab.value)
+      }
     }
 
     // Filter by search
@@ -257,7 +272,7 @@ export function useTenancies() {
     selectedTenancy.value = null
   }
 
-  function setActiveTab(tab: TenancyStatus | 'ALL') {
+  function setActiveTab(tab: TabKey) {
     activeTab.value = tab
   }
 
