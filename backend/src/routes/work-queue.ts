@@ -7,8 +7,7 @@ import { sendTenantReferenceRequestSMS, sendLandlordReferenceRequestSMS, sendEmp
 import { logAuditAction } from '../services/auditService';
 import { isValidEmail } from '../utils/validation';
 import { acquireLock, releaseLock, extendLock, checkLockStatus, getStaffLocks, forceReleaseLock } from '../services/lockService';
-import { isReadyForVerification } from '../services/verificationReadinessService';
-import { transitionState } from '../services/verificationStateService';
+import { transitionState, isInVerifyQueueState, VerificationState } from '../services/verificationStateService';
 
 const router = Router();
 
@@ -130,7 +129,7 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
         metadata,
         assigned_to,
         cooldown_until,
-        reference:tenant_references!work_items_reference_id_fkey (status)
+        reference:tenant_references!work_items_reference_id_fkey (status, verification_state)
       `)
       .eq('work_type', 'VERIFY')
       .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS', 'RETURNED']);
@@ -218,26 +217,16 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
     };
 
     // Filter verify items same as /api/verify/queue does
-    const excludedVerifyStatuses = ['completed', 'rejected', 'action_required', 'cancelled'];
-    const now = new Date();
+    // Use verification_state for queue visibility (Issue #40 - state-based model)
+    const readyItems = (verifyItems || []).filter((item: any) => {
+      if (!item.reference) return false;
 
-    // Check readiness for each item (same as verify queue endpoint)
-    const readyItems = await Promise.all(
-      (verifyItems || []).map(async (item: any) => {
-        // Filter out items with excluded reference status
-        if (!item.reference) return null;
-        if (excludedVerifyStatuses.includes(item.reference.status)) return null;
+      // Check verification_state (same as verify queue endpoint)
+      const verificationState = item.reference.verification_state as VerificationState | null;
+      if (!isInVerifyQueueState(verificationState)) return false;
 
-        // Filter out items in cooldown
-        if (item.cooldown_until && new Date(item.cooldown_until) > now) return null;
-
-        // Check if reference is actually ready for verification
-        const readiness = await isReadyForVerification(item.reference_id);
-        if (!readiness.isReady) return null;
-
-        return item;
-      })
-    );
+      return true;
+    });
 
     // Count the ready items
     readyItems.filter(item => item !== null).forEach((item: any) => {

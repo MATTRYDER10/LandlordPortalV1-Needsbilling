@@ -323,10 +323,11 @@ export async function handleEvidenceUpload(
       return { transitioned: false }
     }
 
-    const currentState = reference.verification_state as VerificationState
+    const currentState = reference.verification_state as VerificationState | null
 
-    // Only auto-transition from these states
-    if (!['COLLECTING_EVIDENCE', 'ACTION_REQUIRED'].includes(currentState)) {
+    // Only auto-transition from these states (null is treated as COLLECTING_EVIDENCE)
+    const allowedStates: (VerificationState | null)[] = ['COLLECTING_EVIDENCE', 'ACTION_REQUIRED', null]
+    if (!allowedStates.includes(currentState)) {
       console.log(`[VerificationState] Reference ${referenceId} in ${currentState}, skipping auto-transition`)
       return { transitioned: false }
     }
