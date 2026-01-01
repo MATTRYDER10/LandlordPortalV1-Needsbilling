@@ -560,6 +560,61 @@ router.post('/:id/documents', authenticateToken, requireMember, upload.single('d
 })
 
 /**
+ * GET /api/properties/:id/documents/:documentId/download
+ * Download a property document
+ */
+router.get('/:id/documents/:documentId/download', authenticateToken, requireMember, async (req: AuthRequest, res) => {
+  try {
+    const companyId = req.companyId!
+    const { id: propertyId, documentId } = req.params
+
+    // Get the document record
+    const { data: document, error: docError } = await supabase
+      .from('property_documents')
+      .select('*')
+      .eq('id', documentId)
+      .eq('property_id', propertyId)
+      .single()
+
+    if (docError || !document) {
+      return res.status(404).json({ error: 'Document not found' })
+    }
+
+    // Verify company ownership through property
+    const { data: property } = await supabase
+      .from('properties')
+      .select('company_id')
+      .eq('id', propertyId)
+      .single()
+
+    if (!property || property.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Download from Supabase storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('property-documents')
+      .download(document.file_path)
+
+    if (downloadError || !fileData) {
+      console.error('[Properties] Error downloading property document:', downloadError)
+      return res.status(500).json({ error: 'Failed to download document' })
+    }
+
+    // Convert to buffer and send
+    const buffer = Buffer.from(await fileData.arrayBuffer())
+
+    res.setHeader('Content-Type', document.file_type || 'application/octet-stream')
+    res.setHeader('Content-Disposition', `inline; filename="${document.file_name}"`)
+    res.setHeader('Content-Length', buffer.length)
+    res.send(buffer)
+  } catch (error: any) {
+    console.error('[Properties] Error downloading property document:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * DELETE /api/properties/:id/documents/:documentId
  * Remove document association (does not delete the file)
  */
