@@ -603,13 +603,34 @@ router.post('/import-csv', authenticateToken, requireMember, upload.single('csv'
 
     // Parse header
     const headerLine = lines[0]
-    const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().trim())
+    const headers = parseCSVLine(headerLine)
+    const headersLower = headers.map(h => h.toLowerCase().trim())
 
-    // Auto-detect column mappings
-    const columnMapping = detectColumnMapping(headers)
+    // Check for manual field mapping from frontend
+    let columnMapping: Record<string, number | undefined>
+    const fieldMappingStr = req.body.fieldMapping
 
-    if (!columnMapping.postcode && columnMapping.postcode !== 0) {
-      return res.status(400).json({ error: 'CSV must have a postcode column' })
+    if (fieldMappingStr) {
+      // Use manual mapping provided by frontend
+      const fieldMapping = JSON.parse(fieldMappingStr) as Record<string, string>
+      columnMapping = {}
+
+      // Convert header names to column indices
+      for (const [field, headerName] of Object.entries(fieldMapping)) {
+        if (headerName) {
+          const index = headers.findIndex(h => h === headerName)
+          if (index !== -1) {
+            columnMapping[field] = index
+          }
+        }
+      }
+    } else {
+      // Fall back to auto-detect column mappings
+      columnMapping = detectColumnMapping(headersLower)
+    }
+
+    if (columnMapping.postcode === undefined) {
+      return res.status(400).json({ error: 'CSV must have a postcode column mapped' })
     }
 
     // Parse and import data rows
