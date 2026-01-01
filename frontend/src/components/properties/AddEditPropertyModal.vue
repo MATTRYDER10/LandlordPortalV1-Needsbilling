@@ -158,6 +158,17 @@
                   </select>
                 </div>
                 <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Management Type</label>
+                  <select
+                    v-model="form.management_type"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  >
+                    <option value="">Select...</option>
+                    <option value="managed">Managed</option>
+                    <option value="let_only">Let Only</option>
+                  </select>
+                </div>
+                <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
                   <input
                     v-model.number="form.number_of_bedrooms"
@@ -405,6 +416,7 @@ interface PropertyForm {
   number_of_bedrooms: number | null
   number_of_bathrooms: number | null
   furnishing_status: string
+  management_type: string
   notes: string
   landlords: LandlordAssignment[]
 }
@@ -446,6 +458,7 @@ const form = ref<PropertyForm>({
   number_of_bedrooms: null,
   number_of_bathrooms: null,
   furnishing_status: '',
+  management_type: '',
   notes: '',
   landlords: []
 })
@@ -572,6 +585,7 @@ const fetchProperty = async () => {
     form.value.number_of_bedrooms = property.number_of_bedrooms
     form.value.number_of_bathrooms = property.number_of_bathrooms
     form.value.furnishing_status = property.furnishing_status || ''
+    form.value.management_type = property.management_type || ''
     form.value.notes = property.notes || ''
     form.value.landlords = property.landlords.map((l: any) => ({
       landlord_id: l.landlord_id,
@@ -620,6 +634,7 @@ const handleSubmit = async () => {
       number_of_bedrooms: form.value.number_of_bedrooms || undefined,
       number_of_bathrooms: form.value.number_of_bathrooms || undefined,
       furnishing_status: form.value.furnishing_status || undefined,
+      management_type: form.value.management_type || undefined,
       notes: form.value.notes || undefined,
       landlords: form.value.landlords
     }
@@ -667,6 +682,7 @@ const resetForm = () => {
     number_of_bedrooms: null,
     number_of_bathrooms: null,
     furnishing_status: '',
+    management_type: '',
     notes: '',
     landlords: []
   }

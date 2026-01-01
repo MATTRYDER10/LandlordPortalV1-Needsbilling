@@ -171,6 +171,11 @@ router.put('/:id', authenticateToken, requireMember, async (req: AuthRequest, re
 
     await propertyService.updateProperty(propertyId, data, companyId, userId)
 
+    // Also update landlords if provided in the request
+    if (data.landlords !== undefined) {
+      await propertyService.updatePropertyLandlords(propertyId, data.landlords || [], companyId, userId)
+    }
+
     // Audit log
     const changedFields = Object.keys(data)
     await auditPropertyUpdated(propertyId, companyId, userId, changedFields)
