@@ -275,7 +275,8 @@
 
                 <div v-else class="space-y-2">
                   <div v-for="doc in filteredDocuments" :key="doc.id"
-                    class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    class="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                    @click="openDocumentPreview(doc)">
                     <div class="flex items-center gap-2 min-w-0">
                       <FileText class="w-4 h-4 text-gray-400 flex-shrink-0" />
                       <div class="min-w-0">
@@ -287,7 +288,7 @@
                       <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
                         {{ formatDocumentTag(doc.tag) }}
                       </span>
-                      <button @click="downloadDocument(doc)" class="text-gray-400 hover:text-primary">
+                      <button @click.stop="downloadDocument(doc, true)" class="text-gray-400 hover:text-primary" title="Download">
                         <Download class="w-4 h-4" />
                       </button>
                     </div>
@@ -327,6 +328,68 @@
       @close="showUploadDocumentModal = false"
       @uploaded="handleDocumentUploaded"
     />
+
+    <!-- Document Preview Modal -->
+    <div v-if="showDocumentPreview" class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-black/50" @click="closeDocumentPreview"></div>
+      <div class="relative bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b">
+          <div class="min-w-0 flex-1">
+            <h3 class="text-lg font-semibold text-gray-900 truncate">{{ previewDocument?.file_name }}</h3>
+            <p class="text-sm text-gray-500">{{ previewDocument ? formatFileSize(previewDocument.file_size) : '' }}</p>
+          </div>
+          <div class="flex items-center gap-2 ml-4">
+            <button
+              @click="previewDocument && downloadDocument(previewDocument, true)"
+              class="p-2 text-gray-500 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors"
+              title="Download"
+            >
+              <Download class="w-5 h-5" />
+            </button>
+            <button
+              @click="closeDocumentPreview"
+              class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Close"
+            >
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-auto p-4 min-h-[400px] flex items-center justify-center bg-gray-50">
+          <div v-if="previewLoading" class="text-gray-500">Loading preview...</div>
+          <template v-else-if="previewUrl && previewDocument">
+            <!-- Image Preview -->
+            <img
+              v-if="previewDocument.file_type.startsWith('image/')"
+              :src="previewUrl"
+              :alt="previewDocument.file_name"
+              class="max-w-full max-h-full object-contain"
+            />
+            <!-- PDF Preview -->
+            <iframe
+              v-else-if="previewDocument.file_type === 'application/pdf'"
+              :src="previewUrl"
+              class="w-full h-full min-h-[500px]"
+              frameborder="0"
+            ></iframe>
+            <!-- Non-previewable file -->
+            <div v-else class="text-center">
+              <FileText class="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p class="text-gray-600 mb-4">This file type cannot be previewed</p>
+              <button
+                @click="downloadDocument(previewDocument, true)"
+                class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Download File
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
   </Sidebar>
 </template>
 
@@ -334,7 +397,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import { ArrowLeft, Pencil, FileText, Download, AlertTriangle } from 'lucide-vue-next'
+import { ArrowLeft, Pencil, FileText, Download, AlertTriangle, Eye, X } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import AddEditPropertyModal from '../components/properties/AddEditPropertyModal.vue'
 import AddComplianceModal from '../components/properties/AddComplianceModal.vue'
@@ -424,6 +487,10 @@ const showEditModal = ref(false)
 const showAddComplianceModal = ref(false)
 const showUploadDocumentModal = ref(false)
 const editingComplianceRecord = ref<ComplianceRecord | null>(null)
+const showDocumentPreview = ref(false)
+const previewDocument = ref<PropertyDocument | null>(null)
+const previewUrl = ref<string | null>(null)
+const previewLoading = ref(false)
 
 const documentTags = [
   { value: 'gas', label: 'Gas' },
@@ -538,7 +605,7 @@ const handleDocumentUploaded = () => {
   fetchProperty()
 }
 
-const downloadDocument = async (doc: PropertyDocument) => {
+const downloadDocument = async (doc: PropertyDocument, forceDownload = false) => {
   try {
     // Use different endpoint for compliance documents vs property documents
     let url: string
@@ -559,11 +626,68 @@ const downloadDocument = async (doc: PropertyDocument) => {
     const blob = await response.blob()
     const blobUrl = window.URL.createObjectURL(blob)
 
-    // Open in new tab for viewing
-    window.open(blobUrl, '_blank')
+    if (forceDownload) {
+      // Force download
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = doc.file_name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(blobUrl)
+    } else {
+      // Open in new tab for viewing
+      window.open(blobUrl, '_blank')
+    }
   } catch (err) {
     toast.error('Failed to download document')
   }
+}
+
+const openDocumentPreview = async (doc: PropertyDocument) => {
+  previewDocument.value = doc
+  showDocumentPreview.value = true
+  previewLoading.value = true
+  previewUrl.value = null
+
+  try {
+    // Use different endpoint for compliance documents vs property documents
+    let url: string
+    if (doc.source === 'compliance' && doc.compliance_record_id) {
+      url = `${API_URL}/api/properties/${property.value?.id}/compliance/${doc.compliance_record_id}/document/${doc.id}`
+    } else {
+      url = `${API_URL}/api/properties/${property.value?.id}/documents/${doc.id}/download`
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      }
+    })
+
+    if (!response.ok) throw new Error('Failed to load document')
+
+    const blob = await response.blob()
+    previewUrl.value = window.URL.createObjectURL(blob)
+  } catch (err) {
+    toast.error('Failed to load document preview')
+    closeDocumentPreview()
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+const closeDocumentPreview = () => {
+  if (previewUrl.value) {
+    window.URL.revokeObjectURL(previewUrl.value)
+  }
+  showDocumentPreview.value = false
+  previewDocument.value = null
+  previewUrl.value = null
+}
+
+const isPreviewableFile = (fileType: string) => {
+  return fileType.startsWith('image/') || fileType === 'application/pdf'
 }
 
 const getComplianceBorderClass = (status: string) => {
