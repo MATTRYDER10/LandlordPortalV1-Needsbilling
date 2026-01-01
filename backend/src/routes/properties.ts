@@ -510,7 +510,7 @@ router.post('/:id/documents', authenticateToken, requireMember, upload.single('d
     const companyId = req.companyId!
     const userId = req.user!.id
     const propertyId = req.params.id
-    const { tag, custom_tag_name, description } = req.body
+    const { tag, custom_tag_name, description, file_name: customFileName } = req.body
 
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' })
@@ -535,9 +535,10 @@ router.post('/:id/documents', authenticateToken, requireMember, upload.single('d
       return res.status(500).json({ error: 'Failed to upload document' })
     }
 
-    // Create document record
+    // Create document record - use custom file name if provided, otherwise use original
+    const displayFileName = customFileName?.trim() || req.file.originalname
     const result = await propertyService.addPropertyDocument(propertyId, {
-      file_name: req.file.originalname,
+      file_name: displayFileName,
       file_path: filePath,
       file_size: req.file.size,
       file_type: req.file.mimetype,
@@ -547,7 +548,7 @@ router.post('/:id/documents', authenticateToken, requireMember, upload.single('d
     }, userId)
 
     // Audit log
-    await auditDocumentUploaded(propertyId, companyId, userId, req.file.originalname, tag)
+    await auditDocumentUploaded(propertyId, companyId, userId, displayFileName, tag)
 
     res.status(201).json({
       message: 'Document uploaded successfully',
