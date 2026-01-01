@@ -128,6 +128,19 @@
                   <label class="block text-sm font-medium text-gray-500">Furnishing</label>
                   <p class="mt-1 text-sm text-gray-900">{{ formatFurnishing(property.furnishing_status) || 'Not specified' }}</p>
                 </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Management Type</label>
+                  <p class="mt-1 text-sm text-gray-900">
+                    <span v-if="property.management_type" :class="{
+                      'px-2 py-0.5 text-xs font-medium rounded-full': true,
+                      'bg-blue-100 text-blue-800': property.management_type === 'managed',
+                      'bg-purple-100 text-purple-800': property.management_type === 'let_only'
+                    }">
+                      {{ formatManagementType(property.management_type) }}
+                    </span>
+                    <span v-else class="text-gray-400">Not specified</span>
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -459,6 +472,7 @@ interface Property {
   number_of_bedrooms: number | null
   number_of_bathrooms: number | null
   furnishing_status: string | null
+  management_type: 'managed' | 'let_only' | null
   status: 'vacant' | 'in_tenancy'
   status_override: boolean
   status_override_reason?: string | null
@@ -738,6 +752,15 @@ const formatFurnishing = (status: string | null) => {
     'unfurnished': 'Unfurnished'
   }
   return statuses[status] || status
+}
+
+const formatManagementType = (type: string | null) => {
+  if (!type) return null
+  const types: Record<string, string> = {
+    'managed': 'Managed',
+    'let_only': 'Let Only'
+  }
+  return types[type] || type
 }
 
 const formatDocumentTag = (tag: string) => {
