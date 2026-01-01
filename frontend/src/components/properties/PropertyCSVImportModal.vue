@@ -49,7 +49,56 @@
             </div>
           </div>
 
-          <!-- Step 2: Preview -->
+          <!-- Step 2: Map Fields -->
+          <div v-else-if="step === 'mapping'">
+            <div class="mb-4">
+              <p class="text-sm text-gray-600 mb-2">
+                <FileText class="inline h-4 w-4 mr-1" />
+                {{ file?.name }} ({{ rowCount }} rows)
+              </p>
+              <p class="text-sm text-gray-600 mb-4">
+                Map your CSV columns to the PropertyGoose fields. Columns are auto-matched but you can adjust as needed.
+              </p>
+            </div>
+
+            <!-- Preview of first row -->
+            <div class="bg-gray-50 p-3 rounded-lg mb-4">
+              <p class="text-xs font-medium text-gray-700 mb-2">Preview (first row):</p>
+              <div class="text-xs text-gray-600 font-mono max-h-24 overflow-y-auto">
+                <div v-for="(value, key) in csvPreview" :key="key" class="mb-1">
+                  <span class="font-semibold">{{ key }}:</span> {{ value }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Field mapping -->
+            <div class="space-y-3 max-h-64 overflow-y-auto">
+              <div v-for="field in propertyFields" :key="field.key" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
+                  <p class="text-xs text-gray-500">{{ field.required ? 'Required' : 'Optional' }}</p>
+                </div>
+                <select
+                  v-model="fieldMapping[field.key]"
+                  class="ml-4 block w-48 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary text-sm"
+                >
+                  <option value="">-- Select Column --</option>
+                  <option v-for="header in headers" :key="header" :value="header">
+                    {{ header }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div v-if="!isMappingValid" class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p class="text-sm text-yellow-800">
+                <AlertCircle class="inline h-4 w-4 mr-1" />
+                Please map the required postcode column before importing.
+              </p>
+            </div>
+          </div>
+
+          <!-- Step 3: Preview -->
           <div v-else-if="step === 'preview'">
             <div class="mb-4">
               <p class="text-sm text-gray-600 mb-2">
@@ -87,13 +136,13 @@
 
             <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p class="text-sm text-blue-800">
-                <AlertCircle class="inline h-4 w-4 mr-1" />
-                Columns will be auto-detected. Required: postcode column.
+                <CheckCircle class="inline h-4 w-4 mr-1" />
+                Column mapping complete. Ready to import {{ rowCount }} properties.
               </p>
             </div>
           </div>
 
-          <!-- Step 3: Importing -->
+          <!-- Step 4: Importing -->
           <div v-else-if="step === 'importing'">
             <div class="text-center py-8">
               <div class="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -101,7 +150,7 @@
             </div>
           </div>
 
-          <!-- Step 4: Results -->
+          <!-- Step 5: Results -->
           <div v-else-if="step === 'results'">
             <div class="text-center py-4">
               <CheckCircle class="h-12 w-12 text-green-500 mx-auto mb-4" />
@@ -129,11 +178,36 @@
         <!-- Footer -->
         <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3">
           <button
+            v-if="step === 'mapping'"
+            type="button"
+            @click="step = 'upload'; file = null"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Back
+          </button>
+          <button
+            v-if="step === 'preview'"
+            type="button"
+            @click="step = 'mapping'"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Back
+          </button>
+          <button
             type="button"
             @click="handleClose"
             class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
           >
             {{ step === 'results' ? 'Close' : 'Cancel' }}
+          </button>
+          <button
+            v-if="step === 'mapping'"
+            type="button"
+            @click="step = 'preview'"
+            :disabled="!isMappingValid"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next: Preview
           </button>
           <button
             v-if="step === 'preview'"
@@ -158,7 +232,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../../stores/auth'
 import { X, Upload, FileText, CheckCircle, AlertCircle } from 'lucide-vue-next'
@@ -182,13 +256,65 @@ const toast = useToast()
 const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-const step = ref<'upload' | 'preview' | 'importing' | 'results'>('upload')
+const step = ref<'upload' | 'mapping' | 'preview' | 'importing' | 'results'>('upload')
 const isDragging = ref(false)
 const file = ref<File | null>(null)
 const headers = ref<string[]>([])
 const previewRows = ref<string[][]>([])
 const rowCount = ref(0)
 const importResult = ref<ImportResult | null>(null)
+const fieldMapping = ref<Record<string, string>>({})
+const csvPreview = ref<Record<string, string>>({})
+
+// Property fields for mapping
+const propertyFields = [
+  { key: 'postcode', label: 'Postcode', required: true },
+  { key: 'address_line1', label: 'Address Line 1', required: false },
+  { key: 'address_line2', label: 'Address Line 2', required: false },
+  { key: 'city', label: 'City/Town', required: false },
+  { key: 'county', label: 'County', required: false },
+  { key: 'full_address', label: 'Full Address', required: false },
+  { key: 'property_type', label: 'Property Type', required: false },
+  { key: 'bedrooms', label: 'Bedrooms', required: false }
+]
+
+// Field name variations for auto-matching
+const fieldAliases: Record<string, string[]> = {
+  postcode: ['postcode', 'post_code', 'post code', 'postal_code', 'postalcode', 'postal code', 'zip', 'zipcode', 'zip code'],
+  address_line1: ['address_line1', 'address line 1', 'addressline1', 'address1', 'line1', 'street', 'street address', 'streetaddress'],
+  address_line2: ['address_line2', 'address line 2', 'addressline2', 'address2', 'line2'],
+  city: ['city', 'town', 'town/city', 'town / city', 'locality'],
+  county: ['county', 'state', 'region', 'province'],
+  full_address: ['full_address', 'fulladdress', 'address', 'property_address', 'propertyaddress', 'property address'],
+  property_type: ['property_type', 'propertytype', 'property type', 'type', 'building_type', 'buildingtype', 'building type'],
+  bedrooms: ['bedrooms', 'beds', 'number_of_bedrooms', 'numberofbedrooms', 'bedroom count', 'bed count']
+}
+
+// Check if required fields are mapped
+const isMappingValid = computed(() => {
+  return propertyFields
+    .filter(f => f.required)
+    .every(f => fieldMapping.value[f.key])
+})
+
+// Auto-match fields based on header names
+const autoMatchFields = () => {
+  fieldMapping.value = {}
+
+  for (const field of propertyFields) {
+    const aliases = fieldAliases[field.key] || [field.key]
+
+    // Find a matching header
+    const matchedHeader = headers.value.find(header => {
+      const normalizedHeader = header.toLowerCase().trim()
+      return aliases.some(alias => normalizedHeader === alias)
+    })
+
+    if (matchedHeader) {
+      fieldMapping.value[field.key] = matchedHeader
+    }
+  }
+}
 
 const handleFileDrop = (event: DragEvent) => {
   isDragging.value = false
@@ -235,7 +361,19 @@ const processFile = async (selectedFile: File) => {
     previewRows.value = lines.slice(1, 6).map(line => parseCSVLine(line))
     rowCount.value = lines.length - 1
 
-    step.value = 'preview'
+    // Build preview of first row for mapping step
+    const firstDataLine = lines[1]
+    if (firstDataLine) {
+      const firstRowValues = parseCSVLine(firstDataLine)
+      csvPreview.value = {}
+      headers.value.forEach((header, index) => {
+        csvPreview.value[header] = firstRowValues[index] || ''
+      })
+    }
+
+    // Auto-match fields and go to mapping step
+    autoMatchFields()
+    step.value = 'mapping'
   } catch (err) {
     toast.error('Failed to read CSV file')
   }
@@ -274,6 +412,7 @@ const handleImport = async () => {
   try {
     const formData = new FormData()
     formData.append('csv', file.value)
+    formData.append('fieldMapping', JSON.stringify(fieldMapping.value))
 
     const response = await fetch(`${API_URL}/api/properties/import-csv`, {
       method: 'POST',
@@ -314,6 +453,8 @@ const handleClose = () => {
   previewRows.value = []
   rowCount.value = 0
   importResult.value = null
+  fieldMapping.value = {}
+  csvPreview.value = {}
   emit('close')
 }
 
