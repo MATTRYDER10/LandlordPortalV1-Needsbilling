@@ -184,24 +184,36 @@
 
                 <!-- No Properties -->
                 <div v-else-if="!loadingProperties && availableProperties.length === 0" class="text-center py-4">
-                  <p class="text-sm text-gray-600">{{ propertySearchQuery ? 'No properties match your search' : 'No properties found. Enter address manually.' }}</p>
+                  <p class="text-sm text-gray-600">
+                    {{ propertySearchQuery
+                      ? 'No properties match your search'
+                      : 'Search by address or postcode to select a property'
+                    }}
+                  </p>
                 </div>
 
                 <!-- Property Cards -->
-                <div v-else class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
-                  <div
-                    v-for="property in availableProperties"
-                    :key="property.id"
-                    @click="selectPropertyForReference(property)"
-                    class="border rounded-md p-3 cursor-pointer transition-all hover:shadow-sm hover:border-primary/50 flex items-center justify-between"
-                  >
-                    <div>
-                      <span class="font-medium text-gray-900">{{ property.address_line1 }}</span>
-                      <span class="text-sm text-gray-600 ml-2">{{ property.city }}, {{ property.postcode }}</span>
+                <div v-else class="space-y-2">
+                  <!-- Results limit warning -->
+                  <div v-if="availableProperties.length >= 20" class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                    Showing first 20 results. Refine your search for more specific results.
+                  </div>
+
+                  <div class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                    <div
+                      v-for="property in availableProperties"
+                      :key="property.id"
+                      @click="selectPropertyForReference(property)"
+                      class="border rounded-md p-3 cursor-pointer transition-all hover:shadow-sm hover:border-primary/50 flex items-center justify-between"
+                    >
+                      <div>
+                        <span class="font-medium text-gray-900">{{ property.address_line1 }}</span>
+                        <span class="text-sm text-gray-600 ml-2">{{ property.city }}, {{ property.postcode }}</span>
+                      </div>
+                      <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                      </svg>
                     </div>
-                    <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
                   </div>
                 </div>
               </div>
@@ -698,8 +710,14 @@ async function fetchProperties() {
 
     if (!token) return
 
-    const searchParam = propertySearchQuery.value ? `?search=${encodeURIComponent(propertySearchQuery.value)}` : ''
-    const response = await fetch(`${API_URL}/api/properties${searchParam}`, {
+    // Build query params with search and limit
+    const params = new URLSearchParams()
+    if (propertySearchQuery.value) {
+      params.append('search', propertySearchQuery.value)
+    }
+    params.append('limit', '20') // Limit to 20 results for performance
+
+    const response = await fetch(`${API_URL}/api/properties?${params.toString()}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

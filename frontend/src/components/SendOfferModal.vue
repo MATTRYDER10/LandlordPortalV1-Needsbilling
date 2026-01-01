@@ -44,8 +44,113 @@
                 class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm" />
             </div>
 
-            <!-- Property Address -->
-            <div class="relative overflow-visible">
+            <!-- Entry Mode Toggle -->
+            <div class="flex gap-3">
+              <button
+                @click="propertyEntryMode = 'select'; propertySearchQuery && fetchProperties()"
+                type="button"
+                class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2"
+                :class="propertyEntryMode === 'select'
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                "
+              >
+                <Building class="w-4 h-4" />
+                Select from Properties
+              </button>
+              <button
+                @click="propertyEntryMode = 'manual'; clearPropertySelection()"
+                type="button"
+                class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                :class="propertyEntryMode === 'manual'
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                "
+              >
+                Enter Manually
+              </button>
+            </div>
+
+            <!-- Selected Property Banner -->
+            <div v-if="selectedPropertyId" class="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+              <div class="flex items-center">
+                <Building class="w-4 h-4 text-green-600 mr-2" />
+                <span class="text-sm font-medium text-green-900">{{ formData.property_address }}, {{ formData.property_city }} {{ formData.property_postcode }}</span>
+              </div>
+              <button
+                @click="clearPropertySelection"
+                type="button"
+                class="text-sm text-green-700 hover:text-green-900 font-medium"
+              >
+                Clear
+              </button>
+            </div>
+
+            <!-- Property Selector -->
+            <div v-if="propertyEntryMode === 'select' && !selectedPropertyId" class="space-y-3">
+              <div class="flex gap-3">
+                <div class="flex-1">
+                  <input
+                    v-model="propertySearchQuery"
+                    type="text"
+                    placeholder="Search by address or postcode..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary text-sm"
+                    @keyup.enter="fetchProperties"
+                  />
+                </div>
+                <button
+                  @click="fetchProperties"
+                  type="button"
+                  :disabled="loadingProperties"
+                  class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 text-sm"
+                >
+                  {{ loadingProperties ? 'Loading...' : 'Search' }}
+                </button>
+              </div>
+
+              <!-- Loading State -->
+              <div v-if="loadingProperties" class="text-center py-4">
+                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+
+              <!-- No Properties -->
+              <div v-else-if="!loadingProperties && availableProperties.length === 0" class="text-center py-4">
+                <p class="text-sm text-gray-600">
+                  {{ propertySearchQuery
+                    ? 'No properties match your search'
+                    : 'Search by address or postcode to select a property'
+                  }}
+                </p>
+              </div>
+
+              <!-- Property Cards -->
+              <div v-else class="space-y-2">
+                <!-- Results limit warning -->
+                <div v-if="availableProperties.length >= 20" class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                  Showing first 20 results. Refine your search for more specific results.
+                </div>
+
+                <div class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                  <div
+                    v-for="property in availableProperties"
+                    :key="property.id"
+                    @click="selectPropertyForOffer(property)"
+                    class="border rounded-md p-3 cursor-pointer transition-all hover:shadow-sm hover:border-primary/50 flex items-center justify-between"
+                  >
+                    <div>
+                      <span class="font-medium text-gray-900">{{ property.address_line1 }}</span>
+                      <span class="text-sm text-gray-600 ml-2">{{ property.city }}, {{ property.postcode }}</span>
+                    </div>
+                    <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Property Address (Manual Entry) -->
+            <div v-if="propertyEntryMode === 'manual'" class="relative overflow-visible">
               <AddressAutocomplete v-model="formData.property_address" label="Property Address to Rent"
                 :required="true" id="property-address" placeholder="Start typing address..."
                 @addressSelected="handlePropertyAddressSelected" />
@@ -101,7 +206,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import AddressAutocomplete from './AddressAutocomplete.vue'
 import { isValidEmail } from '../utils/validation'
-import { X } from 'lucide-vue-next'
+import { X, Building } from 'lucide-vue-next'
 
 const props = defineProps<{
   show: boolean
@@ -128,6 +233,13 @@ const formData = ref({
 const errorMessage = ref<string | null>(null)
 const loading = ref(false)
 
+// Property selection
+const propertyEntryMode = ref('select')
+const availableProperties = ref<any[]>([])
+const selectedPropertyId = ref<string | null>(null)
+const propertySearchQuery = ref('')
+const loadingProperties = ref(false)
+
 const resetForm = () => {
   formData.value = {
     applicant_email: '',
@@ -138,13 +250,63 @@ const resetForm = () => {
     offer_deposit_replacement: false
   }
   errorMessage.value = null
+  propertyEntryMode.value = 'select'
+  selectedPropertyId.value = null
+  availableProperties.value = []
+  propertySearchQuery.value = ''
 }
 
 watch(() => props.show, (newVal) => {
   if (newVal) {
     resetForm()
+    // Don't auto-load properties - let user search first
   }
 })
+
+// Fetch properties from API
+async function fetchProperties() {
+  loadingProperties.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    // Build query params with search and limit
+    const params = new URLSearchParams()
+    if (propertySearchQuery.value) {
+      params.append('search', propertySearchQuery.value)
+    }
+    params.append('limit', '20') // Limit to 20 results for performance
+
+    const response = await fetch(`${API_URL}/api/properties?${params.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      availableProperties.value = data.properties || []
+    }
+  } catch (error) {
+    console.error('Failed to fetch properties:', error)
+  } finally {
+    loadingProperties.value = false
+  }
+}
+
+// Select a property from the list
+function selectPropertyForOffer(property: any) {
+  selectedPropertyId.value = property.id
+  formData.value.property_address = property.address_line1
+  formData.value.property_city = property.city
+  formData.value.property_postcode = property.postcode
+}
+
+// Clear property selection
+function clearPropertySelection() {
+  selectedPropertyId.value = null
+  propertyEntryMode.value = 'manual'
+}
 
 const close = () => {
   emit('close')
@@ -190,7 +352,8 @@ const handleSubmit = async () => {
         property_city: formData.value.property_city,
         property_postcode: formData.value.property_postcode,
         rent_amount: formData.value.rent_amount,
-        offer_deposit_replacement: formData.value.offer_deposit_replacement
+        offer_deposit_replacement: formData.value.offer_deposit_replacement,
+        linked_property_id: selectedPropertyId.value
       })
     })
 

@@ -8,6 +8,7 @@ import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
 import * as billingService from '../services/billingService'
 import { auditReferenceAction } from '../services/auditLog'
 import { logOfferAuditAction } from '../services/offerAuditService'
+import { auditOfferSent, auditOfferCompleted } from '../services/propertyAuditService'
 import { BRAND_COLORS } from '../config/colors'
 
 const router = Router()
@@ -26,7 +27,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             property_city,
             property_postcode,
             rent_amount,
-            offer_deposit_replacement
+            offer_deposit_replacement,
+            linked_property_id
         } = req.body
 
         // Validate required fields
@@ -92,11 +94,27 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
                     property_city_encrypted: property_city ? encrypt(property_city) : null,
                     property_postcode_encrypted: property_postcode ? encrypt(property_postcode) : null,
                     rent_amount: rent_amount || null,
-                    offer_deposit_replacement: !!offer_deposit_replacement
+                    offer_deposit_replacement: !!offer_deposit_replacement,
+                    linked_property_id: linked_property_id || null
                 })
         } catch (dbError: any) {
             console.error('Failed to store sent offer form record:', dbError)
             // Don't fail the request if DB insert fails
+        }
+
+        // Log property audit if property is linked
+        if (linked_property_id) {
+            try {
+                await auditOfferSent(
+                    linked_property_id,
+                    companyUser.company_id,
+                    userId,
+                    tenant_email
+                )
+            } catch (auditError: any) {
+                console.error('Failed to log property audit:', auditError)
+                // Don't fail - audit logging is non-critical
+            }
         }
 
         res.status(200).json({
@@ -416,7 +434,8 @@ router.post('/submit', async (req, res) => {
             special_conditions,
             tenants, // Array of tenant objects
             deposit_replacement_offered,
-            deposit_replacement_requested
+            deposit_replacement_requested,
+            linked_property_id
         } = req.body
 
         // Validate required fields
@@ -494,7 +513,8 @@ router.post('/submit', async (req, res) => {
                 special_conditions_encrypted: special_conditions ? encrypt(special_conditions) : null,
                 status: 'pending',
                 deposit_replacement_offered: depositReplacementOffered,
-                deposit_replacement_requested: depositReplacementRequested
+                deposit_replacement_requested: depositReplacementRequested,
+                linked_property_id: linked_property_id || null
             })
             .select()
             .single()
@@ -585,6 +605,22 @@ router.post('/submit', async (req, res) => {
             } catch (emailError) {
                 console.error('Failed to send offer notification email:', emailError)
                 // Don't fail the request if email fails
+            }
+        }
+
+        // Log property audit if property is linked
+        if (linked_property_id) {
+            try {
+                const tenantNames = tenants.map((t: any) => t.name).join(', ')
+                await auditOfferCompleted(
+                    linked_property_id,
+                    companyId,
+                    tenantNames,
+                    offer.id
+                )
+            } catch (auditError: any) {
+                console.error('Failed to log property audit:', auditError)
+                // Don't fail - audit logging is non-critical
             }
         }
 

@@ -21,6 +21,11 @@ export type PropertyAuditAction =
   | 'TENANCY_UNLINKED'
   | 'REMINDER_SENT'
   | 'CSV_IMPORTED'
+  | 'OFFER_SENT'
+  | 'OFFER_COMPLETED'
+  | 'REFERENCE_STARTED'
+  | 'REFERENCE_COMPLETED'
+  | 'AGREEMENT_SENT'
 
 export interface PropertyAuditParams {
   propertyId: string
@@ -293,4 +298,102 @@ function formatComplianceType(type: string): string {
     other: 'Other'
   }
   return types[type] || type
+}
+
+/**
+ * Helper to log offer sent
+ */
+export async function auditOfferSent(
+  propertyId: string,
+  companyId: string,
+  userId: string,
+  tenantName: string,
+  offerId?: string
+): Promise<void> {
+  await logPropertyAuditAction({
+    propertyId,
+    companyId,
+    action: 'OFFER_SENT',
+    description: `Offer form sent to ${tenantName}`,
+    metadata: { tenant_name: tenantName, offer_id: offerId },
+    userId
+  })
+}
+
+/**
+ * Helper to log offer completed
+ */
+export async function auditOfferCompleted(
+  propertyId: string,
+  companyId: string,
+  tenantName: string,
+  offerId: string
+): Promise<void> {
+  await logPropertyAuditAction({
+    propertyId,
+    companyId,
+    action: 'OFFER_COMPLETED',
+    description: `Offer form completed by ${tenantName}`,
+    metadata: { tenant_name: tenantName, offer_id: offerId },
+    userId: null
+  })
+}
+
+/**
+ * Helper to log reference started
+ */
+export async function auditReferenceStarted(
+  propertyId: string,
+  companyId: string,
+  userId: string,
+  tenantName: string,
+  referenceId: string
+): Promise<void> {
+  await logPropertyAuditAction({
+    propertyId,
+    companyId,
+    action: 'REFERENCE_STARTED',
+    description: `Reference started for ${tenantName}`,
+    metadata: { tenant_name: tenantName, reference_id: referenceId },
+    userId
+  })
+}
+
+/**
+ * Helper to log reference completed
+ */
+export async function auditReferenceCompleted(
+  propertyId: string,
+  companyId: string,
+  tenantName: string,
+  referenceId: string
+): Promise<void> {
+  await logPropertyAuditAction({
+    propertyId,
+    companyId,
+    action: 'REFERENCE_COMPLETED',
+    description: `Reference completed for ${tenantName}`,
+    metadata: { tenant_name: tenantName, reference_id: referenceId },
+    userId: null
+  })
+}
+
+/**
+ * Helper to log agreement sent
+ */
+export async function auditAgreementSent(
+  propertyId: string,
+  companyId: string,
+  userId: string,
+  tenantName: string,
+  agreementId?: string
+): Promise<void> {
+  await logPropertyAuditAction({
+    propertyId,
+    companyId,
+    action: 'AGREEMENT_SENT',
+    description: `Agreement sent to ${tenantName}`,
+    metadata: { tenant_name: tenantName, agreement_id: agreementId },
+    userId
+  })
 }

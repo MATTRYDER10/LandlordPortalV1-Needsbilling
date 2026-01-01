@@ -6,7 +6,8 @@ import {
   auditPropertyUpdated,
   auditPropertyDeleted,
   auditComplianceAdded,
-  auditDocumentUploaded
+  auditDocumentUploaded,
+  getPropertyAuditLog
 } from '../services/propertyAuditService'
 import { supabase } from '../config/supabase'
 import multer from 'multer'
@@ -828,5 +829,37 @@ function detectColumnMapping(headers: string[]): Record<string, number | undefin
 
   return mapping
 }
+
+/**
+ * GET /api/properties/:id/activity
+ * Get activity/audit log for a property
+ */
+router.get('/:id/activity', authenticateToken, requireMember, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const companyId = req.companyId!
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50
+    const offset = req.query.offset ? parseInt(req.query.offset as string) : 0
+
+    // Verify property belongs to company
+    const property = await propertyService.getProperty(id, companyId)
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' })
+    }
+
+    // Get audit log entries
+    const { logs, total } = await getPropertyAuditLog(id, companyId, { limit, offset })
+
+    res.json({
+      activities: logs,
+      total,
+      limit,
+      offset
+    })
+  } catch (error: any) {
+    console.error('Error fetching property activity:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
 
 export default router

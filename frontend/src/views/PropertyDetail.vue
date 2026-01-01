@@ -197,6 +197,14 @@
                   ]">
                     Documents
                   </button>
+                  <button @click="rightTab = 'activity'; fetchActivity()" :class="[
+                    'flex-1 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-center',
+                    rightTab === 'activity'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ]">
+                    Activity
+                  </button>
                 </nav>
               </div>
 
@@ -305,6 +313,46 @@
                         <Download class="w-4 h-4" />
                       </button>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Activity Tab Content -->
+              <div v-if="rightTab === 'activity'" class="p-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-4">Property Activity</h4>
+
+                <!-- Loading State -->
+                <div v-if="loadingActivity" class="text-center py-8">
+                  <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </div>
+
+                <!-- No Activity -->
+                <div v-else-if="activities.length === 0" class="text-sm text-gray-500 text-center py-8">
+                  No activity recorded yet
+                </div>
+
+                <!-- Activity Timeline -->
+                <div v-else class="space-y-3">
+                  <div
+                    v-for="activity in activities"
+                    :key="activity.id"
+                    class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <div class="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-primary"></div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm text-gray-900">{{ activity.description }}</p>
+                      <p class="text-xs text-gray-500 mt-1">
+                        {{ formatActivityDate(activity.created_at) }}
+                      </p>
+                    </div>
+                    <!-- Clickable action based on activity type -->
+                    <button
+                      v-if="getActivityLink(activity)"
+                      @click="navigateToActivity(activity)"
+                      class="flex-shrink-0 text-xs text-primary hover:text-primary/80 font-medium"
+                    >
+                      View
+                    </button>
                   </div>
                 </div>
               </div>
@@ -495,7 +543,7 @@ const propertyLandlords = ref<PropertyLandlord[]>([])
 const complianceRecords = ref<ComplianceRecord[]>([])
 const propertyDocuments = ref<PropertyDocument[]>([])
 
-const rightTab = ref<'landlords' | 'documents'>('landlords')
+const rightTab = ref<'landlords' | 'documents' | 'activity'>('landlords')
 const documentTagFilter = ref('')
 const showEditModal = ref(false)
 const showAddComplianceModal = ref(false)
@@ -505,6 +553,10 @@ const showDocumentPreview = ref(false)
 const previewDocument = ref<PropertyDocument | null>(null)
 const previewUrl = ref<string | null>(null)
 const previewLoading = ref(false)
+
+// Activity tracking
+const activities = ref<any[]>([])
+const loadingActivity = ref(false)
 
 const documentTags = [
   { value: 'gas', label: 'Gas' },
@@ -617,6 +669,76 @@ const handleComplianceSaved = () => {
 const handleDocumentUploaded = () => {
   showUploadDocumentModal.value = false
   fetchProperty()
+}
+
+// Fetch property activity/audit log
+const fetchActivity = async () => {
+  if (!property.value) return
+
+  loadingActivity.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/properties/${property.value.id}/activity`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch activity')
+    }
+
+    const data = await response.json()
+    activities.value = data.activities || []
+  } catch (err: any) {
+    console.error('Failed to fetch activity:', err)
+    toast.error('Failed to load activity')
+  } finally {
+    loadingActivity.value = false
+  }
+}
+
+// Format activity date
+const formatActivityDate = (dateString: string) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) {
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    if (diffHours === 0) {
+      const diffMinutes = Math.floor(diffMs / (1000 * 60))
+      return diffMinutes <= 1 ? 'Just now' : `${diffMinutes} minutes ago`
+    }
+    return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`
+  } else if (diffDays === 1) {
+    return 'Yesterday'
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`
+  } else {
+    return formatDate(dateString)
+  }
+}
+
+// Get clickable link for activity
+const getActivityLink = (activity: any) => {
+  if (!activity.metadata) return null
+
+  // Check if activity has reference_id, offer_id, or agreement_id
+  if (activity.metadata.reference_id) return `/references/${activity.metadata.reference_id}`
+  if (activity.metadata.offer_id) return `/tenant-offers/${activity.metadata.offer_id}`
+  if (activity.metadata.agreement_id) return `/agreements/${activity.metadata.agreement_id}`
+
+  return null
+}
+
+// Navigate to activity item
+const navigateToActivity = (activity: any) => {
+  const link = getActivityLink(activity)
+  if (link) {
+    window.location.href = link
+  }
 }
 
 const downloadDocument = async (doc: PropertyDocument, forceDownload = false) => {
