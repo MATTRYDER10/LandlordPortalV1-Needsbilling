@@ -397,7 +397,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import { ArrowLeft, Pencil, FileText, Download, AlertTriangle, Eye, X } from 'lucide-vue-next'
+import { ArrowLeft, Pencil, FileText, Download, AlertTriangle, X } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import AddEditPropertyModal from '../components/properties/AddEditPropertyModal.vue'
 import AddComplianceModal from '../components/properties/AddComplianceModal.vue'
@@ -684,10 +684,6 @@ const closeDocumentPreview = () => {
   showDocumentPreview.value = false
   previewDocument.value = null
   previewUrl.value = null
-}
-
-const isPreviewableFile = (fileType: string) => {
-  return fileType.startsWith('image/') || fileType === 'application/pdf'
 }
 
 const getComplianceBorderClass = (status: string) => {
