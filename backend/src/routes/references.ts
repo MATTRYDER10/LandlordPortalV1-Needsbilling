@@ -3742,15 +3742,10 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
       .eq('id', referenceId)
       .single()
 
-    // Skip status update for guarantor references - they have their own verification flow
-    if (tenantRef?.is_guarantor) {
-      // Still mark residential ref as received for guarantors
-      await markDependencyReceivedByType(referenceId, 'RESIDENTIAL_REF')
-      res.json({ message: 'Landlord reference submitted successfully' })
-      return
-    }
+    // Mark residential ref chase dependency as received
+    await markDependencyReceivedByType(referenceId, 'RESIDENTIAL_REF')
 
-    // Check if reference is ready for verification (includes guarantor check)
+    // Check if reference is ready for verification (handles both tenants and guarantors)
     const readiness = await isReadyForVerification(referenceId)
     if (readiness.isReady) {
       await supabase
@@ -3760,9 +3755,6 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
       // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
       await transitionState(referenceId, 'READY_FOR_REVIEW', 'Landlord reference completed requirements')
     }
-
-    // Mark residential ref chase dependency as received
-    await markDependencyReceivedByType(referenceId, 'RESIDENTIAL_REF')
 
     res.json({ message: 'Landlord reference submitted successfully' })
   } catch (error: any) {
@@ -3857,13 +3849,7 @@ router.post('/agent/:referenceId', async (req: Request, res) => {
       .eq('id', referenceId)
       .single()
 
-    // Skip status update for guarantor references - they have their own verification flow
-    if (tenantRef?.is_guarantor) {
-      res.json({ message: 'Agent reference submitted successfully' })
-      return
-    }
-
-    // Check if reference is ready for verification (includes guarantor check)
+    // Check if reference is ready for verification (handles both tenants and guarantors)
     const readiness = await isReadyForVerification(referenceId)
     if (readiness.isReady) {
       await supabase
@@ -3960,13 +3946,7 @@ router.post('/employer/:token', async (req: Request, res) => {
       .eq('id', referenceId)
       .single()
 
-    // Skip status update for guarantor references - they have their own verification flow
-    if (tenantRef?.is_guarantor) {
-      res.json({ message: 'Employer reference submitted successfully' })
-      return
-    }
-
-    // Check if reference is ready for verification (includes guarantor check)
+    // Check if reference is ready for verification (handles both tenants and guarantors)
     const readiness = await isReadyForVerification(referenceId)
     if (readiness.isReady) {
       await supabase
@@ -4058,13 +4038,7 @@ router.post('/accountant/:token', async (req: Request, res) => {
       .eq('id', accountantRef.tenant_reference_id)
       .single()
 
-    // Skip status update for guarantor references - they have their own verification flow
-    if (tenantRef?.is_guarantor) {
-      res.json({ message: 'Accountant reference submitted successfully' })
-      return
-    }
-
-    // Check if reference is ready for verification (includes guarantor check)
+    // Check if reference is ready for verification (handles both tenants and guarantors)
     const readiness = await isReadyForVerification(accountantRef.tenant_reference_id)
     if (readiness.isReady) {
       await supabase
