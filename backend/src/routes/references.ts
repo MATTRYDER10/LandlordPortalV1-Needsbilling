@@ -1,5 +1,5 @@
 import { Router, Request } from 'express'
-import { authenticateToken, AuthRequest } from '../middleware/auth'
+import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { checkCredits } from '../middleware/checkCredits'
 import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
 import { supabase } from '../config/supabase'
@@ -363,30 +363,22 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 // Get single reference
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id
     const referenceId = req.params.id
 
     // await assessApplicationScore(referenceId,'System')
 
-    // Get user's company (use limit(1) to handle duplicates)
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyUser = companyUsers[0]
 
     // Get reference
     const { data: reference, error } = await supabase
       .from('tenant_references')
       .select('*')
       .eq('id', referenceId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     if (error || !reference) {
@@ -4059,29 +4051,21 @@ router.post('/accountant/:token', async (req: Request, res) => {
 // Download consent PDF from reference-documents bucket
 router.get('/download/consent-pdfs/:referenceId/:filename', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id
     const { referenceId, filename } = req.params
     const filePath = `consent-pdfs/${referenceId}/${filename}`
 
-    // Get user's company (use limit(1) to handle duplicates)
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyUser = companyUsers[0]
 
     // Verify reference belongs to user's company
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('company_id')
       .eq('id', referenceId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     if (refError || !reference) {
@@ -4110,29 +4094,21 @@ router.get('/download/consent-pdfs/:referenceId/:filename', authenticateToken, a
 
 router.get('/download/:referenceId/:folder/:filename', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id
     const { referenceId, folder, filename } = req.params
     const filePath = `${referenceId}/${folder}/${filename}`
 
-    // Get user's company (use limit(1) to handle duplicates)
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyUser = companyUsers[0]
 
     // Verify reference belongs to user's company
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('company_id')
       .eq('id', referenceId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     if (refError || !reference) {
@@ -4752,27 +4728,22 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
       return res.status(400).json({ error: 'Missing required guarantor fields: first_name, last_name, email' })
     }
 
-    // Get the parent reference
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    // Get the parent reference (filtered by company)
     const { data: parentReference, error: refError } = await supabase
       .from('tenant_references')
       .select('*, companies!inner(id, name_encrypted, phone_encrypted, email_encrypted)')
       .eq('id', referenceId)
+      .eq('company_id', companyId)
       .single()
 
     if (refError || !parentReference) {
       return res.status(404).json({ error: 'Reference not found' })
-    }
-
-    // Verify user has access to this reference's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .eq('company_id', parentReference.company_id)
-      .single()
-
-    if (!companyUser) {
-      return res.status(403).json({ error: 'Access denied' })
     }
 
     // Check if parent reference is itself a guarantor (can't add guarantor to a guarantor)
@@ -5704,21 +5675,13 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
  */
 router.get('/:id/action-required-details', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id
     const referenceId = req.params.id
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyId = companyUsers[0].company_id
 
     // Verify reference belongs to company
     const { data: reference, error: refError } = await supabase
@@ -5821,18 +5784,11 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
     const referenceId = req.params.id
     const files = req.files as { [fieldname: string]: Express.Multer.File[] }
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyId = companyUsers[0].company_id
 
     // Verify reference belongs to company
     const { data: reference, error: refError } = await supabase
@@ -6183,18 +6139,11 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(400).json({ error: 'Invalid email address' })
     }
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyId = companyUsers[0].company_id
 
     // Verify reference belongs to company and get current details
     const { data: reference, error: refError } = await supabase
@@ -6500,18 +6449,11 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
     const referenceId = req.params.id
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyId = companyUsers[0].company_id
 
     // Verify reference belongs to company
     const { data: reference, error: refError } = await supabase
@@ -6719,18 +6661,11 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
     const referenceId = req.params.id
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyId = companyUsers[0].company_id
 
     // Verify reference belongs to company and get current status
     const { data: reference, error: refError } = await supabase
