@@ -67,8 +67,10 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         tax_return_path,
         payslip_files,
         other_proof_of_funds_path,
+        proof_of_additional_income_path,
         tenancy_agreement_path,
         confirmed_residential_status,
+        reference_type,
         employer_references (id, submitted_at),
         landlord_references (id, submitted_at),
         agent_references (id, submitted_at),
@@ -265,6 +267,7 @@ function checkIncomeSection(reference: any): SectionStatus {
   const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
   const hasTaxReturn = !!reference.tax_return_path
   const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
+  const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
 
   // Check if ANY income evidence exists
   if (hasEmployerRef) {
@@ -282,6 +285,9 @@ function checkIncomeSection(reference: any): SectionStatus {
   if (hasOtherProofOfFunds) {
     return { complete: true, reason: 'Other proof of funds uploaded' }
   }
+  if (hasAdditionalIncomeProof) {
+    return { complete: true, reason: 'Proof of additional income uploaded' }
+  }
 
   return { complete: false, reason: 'Income evidence required (payslip, employer ref, tax return, or other proof)' }
 }
@@ -296,6 +302,11 @@ function checkResidentialSection(reference: any): SectionStatus {
   // Confirmed status (living with family, owner occupier, etc.)
   if (reference.confirmed_residential_status) {
     return { complete: true, reason: `Residential status: ${reference.confirmed_residential_status}` }
+  }
+
+  // Tenant selected "living with family" - no landlord reference required
+  if (reference.reference_type === 'living_with_family') {
+    return { complete: true, reason: 'Living with family - no landlord reference required' }
   }
 
   // Landlord reference
@@ -404,8 +415,9 @@ function checkIncomeSectionSync(reference: any): SectionStatus {
   const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
   const hasTaxReturn = !!reference.tax_return_path
   const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
+  const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
 
-  if (hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds) {
+  if (hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof) {
     return { complete: true }
   }
 
@@ -418,6 +430,11 @@ function checkIncomeSectionSync(reference: any): SectionStatus {
 function checkResidentialSectionSync(reference: any): SectionStatus {
   if (reference.confirmed_residential_status) {
     return { complete: true, reason: `Residential status: ${reference.confirmed_residential_status}` }
+  }
+
+  // Tenant selected "living with family" - no landlord reference required
+  if (reference.reference_type === 'living_with_family') {
+    return { complete: true, reason: 'Living with family' }
   }
 
   const hasLandlordRef = (reference.landlord_references || []).some((lr: any) => lr.submitted_at)

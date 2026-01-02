@@ -22,7 +22,7 @@ import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/reques
 import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
 import { isReadyForVerification } from '../services/verificationReadinessService'
-import { handleEvidenceUpload } from '../services/verificationStateService'
+import { handleEvidenceUpload, transitionState } from '../services/verificationStateService'
 import { markDependencyReceivedByType, createDependenciesForReference } from '../services/chaseDependencyService'
 import { DEFAULT_BRANDING } from '../config/colors'
 
@@ -2787,6 +2787,9 @@ router.post('/submit/:token', async (req: Request, res) => {
         .update({ status: 'pending_verification' })
         .eq('id', updatedReference.id)
 
+      // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+      await transitionState(updatedReference.id, 'READY_FOR_REVIEW', 'Form submitted with all evidence requirements met')
+
       // Create VERIFY work item if none exists (check ALL statuses to avoid duplicates)
       const { data: existingVerify } = await supabase
         .from('work_items')
@@ -3754,6 +3757,8 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
         .from('tenant_references')
         .update({ status: 'pending_verification' })
         .eq('id', referenceId)
+      // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+      await transitionState(referenceId, 'READY_FOR_REVIEW', 'Landlord reference completed requirements')
     }
 
     // Mark residential ref chase dependency as received
@@ -3865,6 +3870,8 @@ router.post('/agent/:referenceId', async (req: Request, res) => {
         .from('tenant_references')
         .update({ status: 'pending_verification' })
         .eq('id', referenceId)
+      // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+      await transitionState(referenceId, 'READY_FOR_REVIEW', 'Agent reference completed requirements')
     }
 
     res.json({ message: 'Agent reference submitted successfully' })
@@ -3966,6 +3973,8 @@ router.post('/employer/:token', async (req: Request, res) => {
         .from('tenant_references')
         .update({ status: 'pending_verification' })
         .eq('id', referenceId)
+      // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+      await transitionState(referenceId, 'READY_FOR_REVIEW', 'Employer reference completed requirements')
     }
 
     res.json({ message: 'Employer reference submitted successfully' })
@@ -4062,6 +4071,8 @@ router.post('/accountant/:token', async (req: Request, res) => {
         .from('tenant_references')
         .update({ status: 'pending_verification' })
         .eq('id', accountantRef.tenant_reference_id)
+      // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+      await transitionState(accountantRef.tenant_reference_id, 'READY_FOR_REVIEW', 'Accountant reference completed requirements')
     }
 
     res.json({ message: 'Accountant reference submitted successfully' })
@@ -6925,6 +6936,8 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
       }
 
       console.log(`[submit-for-re-referencing] Created/reactivated VERIFY work item for reference ${referenceId}`)
+      // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+      await transitionState(referenceId, 'READY_FOR_REVIEW', 'Re-referencing completed requirements')
     }
 
     // Build metadata for audit log

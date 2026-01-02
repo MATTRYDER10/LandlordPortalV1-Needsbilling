@@ -73,8 +73,10 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
       tax_return_path,
       payslip_files,
       other_proof_of_funds_path,
+      proof_of_additional_income_path,
       tenancy_agreement_path,
       confirmed_residential_status,
+      reference_type,
       employer_references (id, submitted_at),
       landlord_references (id, submitted_at),
       agent_references (id, submitted_at),
@@ -122,31 +124,33 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
   }
 
   // -------------------------------------------------------------------------
-  // INCOME: ONE of employer ref, payslip, accountant ref, tax return, other proof of funds
+  // INCOME: ONE of employer ref, payslip, accountant ref, tax return, other proof of funds, additional income proof
   // -------------------------------------------------------------------------
   const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
   const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
   const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
   const hasTaxReturn = !!reference.tax_return_path
   const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
+  const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
 
-  const hasIncome = hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds
+  const hasIncome = hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof
   if (!hasIncome) {
     missingCategories.push('Income')
   }
 
   // -------------------------------------------------------------------------
-  // RESIDENTIAL: ONE of confirmed status, landlord ref, agent ref, tenancy agreement
+  // RESIDENTIAL: ONE of confirmed status, living_with_family, landlord ref, agent ref, tenancy agreement
   // Guarantors skip this check entirely
   // -------------------------------------------------------------------------
   let hasResidential = true
   if (!isGuarantor) {
     const hasConfirmedStatus = !!reference.confirmed_residential_status
+    const isLivingWithFamily = reference.reference_type === 'living_with_family'
     const hasLandlordRef = (reference.landlord_references || []).some((lr: any) => lr.submitted_at)
     const hasAgentRef = (reference.agent_references || []).some((ar: any) => ar.submitted_at)
     const hasTenancyAgreement = !!reference.tenancy_agreement_path
 
-    hasResidential = hasConfirmedStatus || hasLandlordRef || hasAgentRef || hasTenancyAgreement
+    hasResidential = hasConfirmedStatus || isLivingWithFamily || hasLandlordRef || hasAgentRef || hasTenancyAgreement
     if (!hasResidential) {
       missingCategories.push('Residential')
     }

@@ -2,6 +2,7 @@ import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from './encryption'
 import { logAuditAction } from './auditService'
 import { isReadyForVerification } from './verificationReadinessService'
+import { transitionState } from './verificationStateService'
 import {
   sendTenantReferenceRequest,
   sendEmployerReferenceRequest,
@@ -724,6 +725,8 @@ async function checkAndTransitionToVerify(referenceId: string): Promise<boolean>
     })
 
     console.log(`Reference ${referenceId} auto-transitioned to pending_verification`)
+    // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+    await transitionState(referenceId, 'READY_FOR_REVIEW', 'All dependencies received - automatically ready for verification')
     return true
   } catch (error) {
     console.error('Error in checkAndTransitionToVerify:', error)

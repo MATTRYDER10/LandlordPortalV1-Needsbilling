@@ -26,6 +26,7 @@ import {
 import { logAuditAction } from '../services/auditService'
 import {  reAssessApplicationScore, ReAssessmentPayload } from '../services/application-assesment/assessApplication'
 import { isReadyForVerification } from '../services/verificationReadinessService'
+import { transitionState } from '../services/verificationStateService'
 
 const router = Router()
 
@@ -1960,6 +1961,8 @@ router.post('/references/:id/upload-document', authenticateStaff, upload.single(
         }
 
         console.log(`[staff/upload-document] Reference ${id} is now ready for verification, created/reactivated work item`)
+        // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+        await transitionState(id, 'READY_FOR_REVIEW', 'Staff document upload completed requirements')
       }
     }
 
