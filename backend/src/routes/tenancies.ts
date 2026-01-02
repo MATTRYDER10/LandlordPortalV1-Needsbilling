@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticateToken, AuthRequest } from '../middleware/auth'
+import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
 import {
@@ -33,24 +33,16 @@ const router = Router()
  */
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id
     const statusFilter = req.query.status as string | undefined
     const search = req.query.search as string | undefined
     const sortBy = (req.query.sortBy as string) || 'move_in_date'
     const sortOrder = (req.query.sortOrder as string) || 'asc'
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyId = companyUsers[0].company_id
 
     // Fetch all references for the company (excluding standalone guarantors)
     // We'll group them into tenancies

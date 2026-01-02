@@ -253,6 +253,8 @@ export const useAuthStore = defineStore('auth', () => {
       isStaff.value = false
       isAdmin.value = false
       loading.value = false
+      // Clear admin company override from sessionStorage
+      sessionStorage.removeItem('adminCompanyOverride')
     }
   }
 

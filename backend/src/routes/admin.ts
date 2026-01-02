@@ -846,6 +846,54 @@ router.get('/customers/leaderboard', authenticateAdmin, async (req: AdminAuthReq
   }
 })
 
+/**
+ * GET /api/admin/companies/list
+ * Get list of all companies for admin company switcher dropdown
+ * Query params: search (optional), limit (optional, defaults to 50)
+ */
+router.get('/companies/list', authenticateAdmin, async (req: AdminAuthRequest, res) => {
+  try {
+    const { search, limit = '50' } = req.query
+    const limitNum = parseInt(limit as string) || 50
+
+    // Get all companies
+    const { data: companies, error } = await supabase
+      .from('companies')
+      .select('id, name_encrypted, email_encrypted, created_at')
+      .order('created_at', { ascending: false })
+      .limit(200) // Fetch more to allow for search filtering
+
+    if (error) {
+      throw error
+    }
+
+    // Decrypt company data
+    let decryptedCompanies = companies.map(c => ({
+      id: c.id,
+      name: decrypt(c.name_encrypted) || 'Unnamed Company',
+      email: decrypt(c.email_encrypted) || '',
+      created_at: c.created_at
+    }))
+
+    // Filter by search if provided
+    if (search && typeof search === 'string' && search.length >= 1) {
+      const searchLower = search.toLowerCase()
+      decryptedCompanies = decryptedCompanies.filter(c =>
+        c.name.toLowerCase().includes(searchLower) ||
+        c.email.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Apply limit
+    decryptedCompanies = decryptedCompanies.slice(0, limitNum)
+
+    res.json({ companies: decryptedCompanies })
+  } catch (error) {
+    console.error('Error fetching companies list:', error)
+    res.status(500).json({ error: 'Failed to fetch companies list' })
+  }
+})
+
 // Customer Search Endpoint
 router.get('/customers/search', authenticateAdmin, async (req: AdminAuthRequest, res) => {
   try {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth';
 import * as billingService from '../services/billingService';
 import * as creditService from '../services/creditService';
 
@@ -15,24 +15,13 @@ const router = Router();
  */
 router.get('/credits', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    // Get user's company
-    const { data: companyUser, error: companyError } = await (await import('../config/supabase')).supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single();
-
-    if (companyError || !companyUser) {
+    // Get company ID (supports admin override)
+    const companyId = await getCompanyIdForRequest(req);
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' });
     }
 
-    const balance = await creditService.getCreditBalance(companyUser.company_id);
+    const balance = await creditService.getCreditBalance(companyId);
 
     res.json(balance);
   } catch (error: any) {

@@ -156,7 +156,10 @@
                 </div>
               </div>
               <div class="ml-3 flex-1 min-w-0">
-                <p v-if="companyName" class="text-xs text-gray-400 truncate mb-0.5">{{ companyName }}</p>
+                <!-- Admin Company Switcher (for staff admins) -->
+                <AdminCompanySwitcher v-if="authStore.isAdmin" class="mb-0.5" />
+                <!-- Regular company name (for non-admins) -->
+                <p v-else-if="companyName" class="text-xs text-gray-400 truncate mb-0.5">{{ companyName }}</p>
                 <p class="text-sm font-medium text-gray-900 truncate">{{ userEmail }}</p>
                 <p class="text-xs text-gray-500 truncate">{{ userRole }}</p>
               </div>
@@ -190,6 +193,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import CreditsDisplay from './CreditsDisplay.vue'
 import NotificationBell from './NotificationBell.vue'
+import AdminCompanySwitcher from './AdminCompanySwitcher.vue'
 import {
   LayoutDashboard,
   ClipboardList,

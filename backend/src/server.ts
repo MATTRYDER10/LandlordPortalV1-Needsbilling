@@ -106,6 +106,7 @@ app.use(cors({
     }
   },
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Company-Id'],
   exposedHeaders: ['Content-Disposition'] // Allow frontend to read this header
 }))
 

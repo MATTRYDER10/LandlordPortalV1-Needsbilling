@@ -1,7 +1,5 @@
 import { ref, computed } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { useApi } from '@/composables/useApi'
 
 // Types matching backend
 export type PersonStatus =
@@ -135,7 +133,7 @@ export interface ReReferencingResult {
 }
 
 export function useTenancies() {
-  const authStore = useAuthStore()
+  const { apiFetch } = useApi()
 
   const tenancies = ref<Tenancy[]>([])
   const statusCounts = ref<StatusCounts>({
@@ -208,12 +206,7 @@ export function useTenancies() {
       if (sortBy.value) params.append('sortBy', sortBy.value)
       if (sortOrder.value) params.append('sortOrder', sortOrder.value)
 
-      const response = await fetch(`${API_BASE}/api/tenancies?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await apiFetch(`/api/tenancies?${params.toString()}`)
 
       if (!response.ok) {
         throw new Error('Failed to load tenancies')
@@ -232,12 +225,7 @@ export function useTenancies() {
 
   async function loadTenancy(id: string): Promise<Tenancy | null> {
     try {
-      const response = await fetch(`${API_BASE}/api/tenancies/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await apiFetch(`/api/tenancies/${id}`)
 
       if (!response.ok) {
         throw new Error('Failed to load tenancy')
@@ -335,12 +323,7 @@ export function useTenancies() {
   // Re-referencing API functions
   async function getActionRequiredDetails(referenceId: string): Promise<ActionRequiredDetails | null> {
     try {
-      const response = await fetch(`${API_BASE}/api/references/${referenceId}/action-required-details`, {
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await apiFetch(`/api/references/${referenceId}/action-required-details`)
 
       if (!response.ok) {
         throw new Error('Failed to get action required details')
@@ -367,11 +350,8 @@ export function useTenancies() {
         }
       }
 
-      const response = await fetch(`${API_BASE}/api/references/${referenceId}/upload-document`, {
+      const response = await apiFetch(`/api/references/${referenceId}/upload-document`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`
-        },
         body: formData
       })
 
@@ -394,12 +374,8 @@ export function useTenancies() {
     name?: string
   ): Promise<RefereeUpdateResult | null> {
     try {
-      const response = await fetch(`${API_BASE}/api/references/${referenceId}/referee`, {
+      const response = await apiFetch(`/api/references/${referenceId}/referee`, {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ type, email, name })
       })
 
@@ -417,12 +393,8 @@ export function useTenancies() {
 
   async function resendForm(referenceId: string): Promise<{ message: string; email: string } | null> {
     try {
-      const response = await fetch(`${API_BASE}/api/references/${referenceId}/resend-form`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await apiFetch(`/api/references/${referenceId}/resend-form`, {
+        method: 'POST'
       })
 
       if (!response.ok) {
@@ -439,12 +411,8 @@ export function useTenancies() {
 
   async function submitForReReferencing(referenceId: string): Promise<ReReferencingResult | null> {
     try {
-      const response = await fetch(`${API_BASE}/api/references/${referenceId}/submit-for-re-referencing`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await apiFetch(`/api/references/${referenceId}/submit-for-re-referencing`, {
+        method: 'POST'
       })
 
       if (!response.ok) {

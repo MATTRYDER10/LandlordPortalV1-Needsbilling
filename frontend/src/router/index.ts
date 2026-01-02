@@ -465,10 +465,11 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   // Agent portal access check - staff members cannot access agent routes
+  // Exception: Staff admins CAN access agent routes (for viewing company accounts)
   const agentPaths = ['/dashboard', '/references', '/agreements', '/landlords', '/properties', '/tenant-offers', '/settings', '/onboarding']
   const isAgentPath = agentPaths.some(path => to.path.startsWith(path))
-  if (isAgentPath && authStore.isStaff && isAuthenticated) {
-    // Staff member trying to access agent portal - redirect to staff work queue
+  if (isAgentPath && authStore.isStaff && isAuthenticated && !authStore.isAdmin) {
+    // Staff member (non-admin) trying to access agent portal - redirect to staff work queue
     next('/staff/work-queue')
     return
   }
