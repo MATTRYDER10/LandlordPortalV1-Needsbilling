@@ -236,7 +236,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
     // Download document file for rendering (check rtr_alternative_document_path first, then id_document_path)
     let documentBuffer: Buffer | null = null
     let documentIsPdf = false
-    const documentPath = reference.proof_of_funds_path || reference.id_document_path
+    const documentPath = reference.rtr_alternative_document_path || reference.id_document_path
     if (documentPath) {
         try {
             const { data: fileData, error: downloadError } = await supabase.storage
@@ -1342,7 +1342,11 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             }
 
             // ========== PAGE 4: Income Reference Evidence ==========
-            if (employerReference || accountantReference) {
+            // Only show this page if an employer or accountant reference was actually submitted
+            // (employer_references rows can exist without data if created for token/request purposes but never filled out)
+            const employerRefSubmitted = employerReference && (employerReference.company_name_encrypted || employerReference.signature_encrypted)
+            const accountantRefSubmitted = accountantReference && (accountantReference.accountant_name_encrypted || accountantReference.signature_encrypted)
+            if (employerRefSubmitted || accountantRefSubmitted) {
                 doc.addPage({ size: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } })
                 const page4Margin = 40
                 const page4SectionWidth = pageWidth - 2 * page4Margin
@@ -1405,8 +1409,8 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     .lineWidth(2)
                     .stroke()
 
-                const incomeReferenceType = employerReference ? 'Employer' : 'Accountant'
-                const incomeRefData = employerReference || accountantReference
+                const incomeReferenceType = employerRefSubmitted ? 'Employer' : 'Accountant'
+                const incomeRefData = employerRefSubmitted ? employerReference : accountantReference
                 const incomeSubmittedDate = formatDateTime(incomeRefData.submitted_at)
 
                 doc.font('SpaceGrotesk-Bold')
@@ -1431,7 +1435,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 incomeY += 20
 
                 const companyData: Array<[string, string]> = []
-                if (employerReference) {
+                if (employerRefSubmitted) {
                     const companyName = employerReference.company_name_encrypted ? decrypt(employerReference.company_name_encrypted) : (employerReference.company_name || 'N/A')
                     const employerName = employerReference.employer_name_encrypted ? decrypt(employerReference.employer_name_encrypted) : (employerReference.employer_name || 'N/A')
                     const employerPosition = employerReference.employer_position_encrypted ? decrypt(employerReference.employer_position_encrypted) : (employerReference.employer_position || 'N/A')
@@ -1445,7 +1449,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     if (employerPhone && employerPhone !== 'N/A') {
                         companyData.push(['Phone:', employerPhone])
                     }
-                } else if (accountantReference) {
+                } else if (accountantRefSubmitted) {
                     const accountantName = accountantReference.accountant_name_encrypted ? decrypt(accountantReference.accountant_name_encrypted) : (accountantReference.accountant_name || 'N/A')
                     const accountantFirm = accountantReference.accountant_firm_encrypted ? decrypt(accountantReference.accountant_firm_encrypted) : (accountantReference.accountant_firm || 'N/A')
                     const accountantEmail = accountantReference.accountant_email_encrypted ? decrypt(accountantReference.accountant_email_encrypted) : (accountantReference.accountant_email || 'N/A')
@@ -1467,7 +1471,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 incomeY += 15
 
                 // Employment Details (for employer reference)
-                if (employerReference) {
+                if (employerRefSubmitted) {
                     doc.font('SpaceGrotesk-Bold')
                         .fontSize(10)
                         .fillColor('#555555')
@@ -1551,7 +1555,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                         drawIncomeTableRow(incomeY, label, value, companyData.length + employmentData.length + compensationData.length + index)
                         incomeY += incomeRowHeight
                     })
-                } else if (accountantReference) {
+                } else if (accountantRefSubmitted) {
                     // Business Details (for accountant reference)
                     doc.font('SpaceGrotesk-Bold')
                         .fontSize(10)
