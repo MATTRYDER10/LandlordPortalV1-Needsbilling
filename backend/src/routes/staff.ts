@@ -1684,7 +1684,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
             console.error('Failed to create employer reference:', insertError)
             return res.status(500).json({ error: 'Failed to create employer reference record' })
           }
-          employerRef = newEmployerRef
+          employerRef = { ...newEmployerRef, reference_token_hash: employerTokenHash }
         } else {
           // Generate new token for existing record
           employerToken = generateToken()

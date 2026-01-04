@@ -1154,7 +1154,7 @@ export async function sendChaseForDependency(
             console.error('Failed to create employer reference:', insertError)
             return { sent: false, skipped: true, reason: 'Failed to create employer reference record' }
           }
-          employerRef = newEmployerRef
+          employerRef = { ...newEmployerRef, reference_token_hash: employerTokenHash }
         } else {
           // Generate new token for existing record
           employerToken = generateToken()
