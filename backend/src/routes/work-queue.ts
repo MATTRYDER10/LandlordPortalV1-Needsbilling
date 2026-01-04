@@ -1011,7 +1011,49 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           });
         }
 
-        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${referenceId}`;
+        // Get or create employer reference record for token-based URL
+        let { data: employerRef } = await supabaseAdmin
+          .from('employer_references')
+          .select('id, reference_token_hash')
+          .eq('reference_id', referenceId)
+          .maybeSingle();
+
+        let employerToken: string;
+        if (!employerRef) {
+          // Create employer_references record with token
+          employerToken = generateToken();
+          const employerTokenHash = hash(employerToken);
+
+          const { data: newEmployerRef, error: insertError } = await supabaseAdmin
+            .from('employer_references')
+            .insert({
+              reference_id: referenceId,
+              reference_token_hash: employerTokenHash,
+              employer_name_encrypted: reference.employer_ref_name_encrypted,
+              employer_email_encrypted: reference.employer_ref_email_encrypted,
+              employer_phone_encrypted: reference.employer_ref_phone_encrypted,
+              employer_company_encrypted: reference.employer_company_name_encrypted,
+            })
+            .select('id')
+            .single();
+
+          if (insertError || !newEmployerRef) {
+            console.error('Failed to create employer reference:', insertError);
+            return res.status(500).json({ error: 'Failed to create employer reference record' });
+          }
+          employerRef = newEmployerRef;
+        } else {
+          // Generate new token for existing record
+          employerToken = generateToken();
+          const employerTokenHash = hash(employerToken);
+
+          await supabaseAdmin
+            .from('employer_references')
+            .update({ reference_token_hash: employerTokenHash })
+            .eq('id', employerRef.id);
+        }
+
+        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerToken}`;
 
         await sendEmployerReferenceRequest(
           targetEmail,

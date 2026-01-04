@@ -1639,7 +1639,6 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         contactEmail = newEmail || currentEmployerEmail
         contactPhone = decrypt(reference.employer_ref_phone_encrypted) || ''
         contactName = decrypt(reference.employer_ref_name_encrypted) || ''
-        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/employer-reference/${referenceId}`
 
         // Update email if changed - update both tenant_references AND employer_references
         if (newEmail && newEmail !== currentEmployerEmail) {
@@ -1654,6 +1653,50 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
             .update({ employer_email_encrypted: encrypt(newEmail) })
             .eq('reference_id', referenceId)
         }
+
+        // Get or create employer reference record for token-based URL
+        let { data: employerRef } = await supabase
+          .from('employer_references')
+          .select('id, reference_token_hash')
+          .eq('reference_id', referenceId)
+          .maybeSingle()
+
+        let employerToken: string
+        if (!employerRef) {
+          // Create employer_references record with token
+          employerToken = generateToken()
+          const employerTokenHash = hash(employerToken)
+
+          const { data: newEmployerRef, error: insertError } = await supabase
+            .from('employer_references')
+            .insert({
+              reference_id: referenceId,
+              reference_token_hash: employerTokenHash,
+              employer_name_encrypted: reference.employer_ref_name_encrypted,
+              employer_email_encrypted: reference.employer_ref_email_encrypted,
+              employer_phone_encrypted: reference.employer_ref_phone_encrypted,
+              employer_company_encrypted: reference.employer_company_name_encrypted,
+            })
+            .select('id')
+            .single()
+
+          if (insertError || !newEmployerRef) {
+            console.error('Failed to create employer reference:', insertError)
+            return res.status(500).json({ error: 'Failed to create employer reference record' })
+          }
+          employerRef = newEmployerRef
+        } else {
+          // Generate new token for existing record
+          employerToken = generateToken()
+          const employerTokenHash = hash(employerToken)
+
+          await supabase
+            .from('employer_references')
+            .update({ reference_token_hash: employerTokenHash })
+            .eq('id', employerRef.id)
+        }
+
+        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerToken}`
 
         if (method === 'email') {
           await sendEmployerReferenceRequest(

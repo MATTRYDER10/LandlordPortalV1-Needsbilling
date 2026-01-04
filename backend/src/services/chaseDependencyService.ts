@@ -1123,7 +1123,50 @@ export async function sendChaseForDependency(
 
       case 'EMPLOYER_REF': {
         const employerName = decrypt(reference.employer_ref_name_encrypted) || ''
-        const employerUrl = `${frontendUrl}/employer-reference/${reference.id}`
+
+        // Get or create employer reference record for token-based URL
+        let { data: employerRef } = await supabase
+          .from('employer_references')
+          .select('id, reference_token_hash')
+          .eq('reference_id', reference.id)
+          .maybeSingle()
+
+        let employerToken: string
+        if (!employerRef) {
+          // Create employer_references record with token
+          employerToken = generateToken()
+          const employerTokenHash = hash(employerToken)
+
+          const { data: newEmployerRef, error: insertError } = await supabase
+            .from('employer_references')
+            .insert({
+              reference_id: reference.id,
+              reference_token_hash: employerTokenHash,
+              employer_name_encrypted: reference.employer_ref_name_encrypted,
+              employer_email_encrypted: reference.employer_ref_email_encrypted,
+              employer_phone_encrypted: reference.employer_ref_phone_encrypted,
+              employer_company_encrypted: reference.employer_company_name_encrypted,
+            })
+            .select('id')
+            .single()
+
+          if (insertError || !newEmployerRef) {
+            console.error('Failed to create employer reference:', insertError)
+            return { sent: false, skipped: true, reason: 'Failed to create employer reference record' }
+          }
+          employerRef = newEmployerRef
+        } else {
+          // Generate new token for existing record
+          employerToken = generateToken()
+          const employerTokenHash = hash(employerToken)
+
+          await supabase
+            .from('employer_references')
+            .update({ reference_token_hash: employerTokenHash })
+            .eq('id', employerRef.id)
+        }
+
+        const employerUrl = `${frontendUrl}/submit-employer-reference/${employerToken}`
 
         if (method === 'email') {
           await sendEmployerReferenceRequest(
