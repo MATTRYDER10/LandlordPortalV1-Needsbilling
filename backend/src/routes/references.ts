@@ -3508,20 +3508,43 @@ router.get('/accountant/branding/:token', async (req, res) => {
 })
 
 // Get company branding for employer reference by token (public route)
-router.get('/employer/branding/:token', async (req, res) => {
+router.get('/employer/branding/:tokenOrRefId', async (req, res) => {
   try {
-    const { token } = req.params
-    const tokenHash = hash(token)
+    const { tokenOrRefId } = req.params
+    let referenceId: string
 
-    // Get the reference_id using token hash
-    const { data: employerRef, error: employerError } = await supabase
-      .from('employer_references')
-      .select('reference_id')
-      .eq('reference_token_hash', tokenHash)
-      .single()
+    // Check if this looks like a token (longer alphanumeric string) or a UUID
+    const isToken = tokenOrRefId.length > 36 && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tokenOrRefId)
 
-    if (employerError || !employerRef) {
-      return res.status(404).json({ error: 'Employer reference not found' })
+    if (isToken) {
+      // Token-based lookup
+      const tokenHash = hash(tokenOrRefId)
+
+      // Get the reference_id using token hash
+      const { data: employerRef, error: employerError } = await supabase
+        .from('employer_references')
+        .select('reference_id')
+        .eq('reference_token_hash', tokenHash)
+        .single()
+
+      if (employerError || !employerRef) {
+        return res.status(404).json({ error: 'Employer reference not found' })
+      }
+
+      referenceId = employerRef.reference_id
+    } else {
+      // ReferenceId-based lookup (UUID) - verify it exists in employer_references
+      const { data: employerRef, error: employerError } = await supabase
+        .from('employer_references')
+        .select('reference_id')
+        .eq('reference_id', tokenOrRefId)
+        .single()
+
+      if (employerError || !employerRef) {
+        return res.status(404).json({ error: 'Employer reference not found' })
+      }
+
+      referenceId = employerRef.reference_id
     }
 
     // Now fetch the branding and tenant info using the reference_id
@@ -3547,7 +3570,7 @@ router.get('/employer/branding/:token', async (req, res) => {
           button_color
         )
       `)
-      .eq('id', employerRef.reference_id)
+      .eq('id', referenceId)
       .single()
 
     if (error || !reference) {
@@ -3613,20 +3636,34 @@ router.get('/agent/:referenceId/check', async (req, res) => {
   }
 })
 
-// Check if employer reference already submitted (public route) - supports token-based lookup
-router.get('/employer/:token/check', async (req, res) => {
+// Check if employer reference already submitted (public route) - supports referenceId-based lookup
+router.get('/employer/:referenceId/check', async (req, res) => {
   try {
-    const { token } = req.params
-    const tokenHash = hash(token)
+    const { referenceId } = req.params
 
-    // Look up by token hash first
-    const { data: employerRef } = await supabase
-      .from('employer_references')
-      .select('id, submitted_at')
-      .eq('reference_token_hash', tokenHash)
-      .single()
+    // Check if this looks like a token (longer alphanumeric string) or a UUID
+    const isToken = referenceId.length > 36 && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referenceId)
 
-    res.json({ submitted: !!(employerRef && employerRef.submitted_at) })
+    if (isToken) {
+      // Token-based lookup
+      const tokenHash = hash(referenceId)
+      const { data: employerRef } = await supabase
+        .from('employer_references')
+        .select('id, submitted_at')
+        .eq('reference_token_hash', tokenHash)
+        .single()
+
+      return res.json({ submitted: !!(employerRef && employerRef.submitted_at) })
+    } else {
+      // ReferenceId-based lookup (UUID)
+      const { data: employerRef } = await supabase
+        .from('employer_references')
+        .select('id, submitted_at')
+        .eq('reference_id', referenceId)
+        .single()
+
+      return res.json({ submitted: !!(employerRef && employerRef.submitted_at) })
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }

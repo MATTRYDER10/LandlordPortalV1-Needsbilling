@@ -570,10 +570,16 @@ const handleSubmit = async () => {
 // Fetch company branding on mount
 onMounted(async () => {
   try {
-    // Use token-based endpoints if token is available, otherwise use referenceId
-    const checkEndpoint = token
-      ? `${API_URL}/api/references/employer/${token}/check`
-      : `${API_URL}/api/references/employer/${referenceId}/check`
+    // Determine which parameter to use (token or referenceId)
+    const paramValue = token || referenceId
+
+    if (!paramValue) {
+      console.error('No token or referenceId provided')
+      return
+    }
+
+    // Use employer-specific endpoints (backend now handles both token and referenceId)
+    const checkEndpoint = `${API_URL}/api/references/employer/${paramValue}/check`
 
     // Check if reference already submitted
     const checkResponse = await fetch(checkEndpoint)
@@ -586,10 +592,8 @@ onMounted(async () => {
       }
     }
 
-    // Load branding and tenant info - use token-based endpoint if available
-    const brandingEndpoint = token
-      ? `${API_URL}/api/references/employer/branding/${token}`
-      : `${API_URL}/api/references/branding/${referenceId}`
+    // Load branding and tenant info - always use employer-specific endpoint
+    const brandingEndpoint = `${API_URL}/api/references/employer/branding/${paramValue}`
 
     const response = await fetch(brandingEndpoint)
 

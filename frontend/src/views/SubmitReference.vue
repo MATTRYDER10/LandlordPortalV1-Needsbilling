@@ -280,7 +280,7 @@
                   </div> -->
 
                   <!-- Share Code Input (only if not British citizen) -->
-                  <div v-if="formData.is_british_citizen === false" class="pt-4">
+                  <div v-if="formData.is_british_citizen !== true" class="pt-4">
                     <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
                       <p class="text-sm text-yellow-800">
                         <strong>Right to Rent Check Required:</strong> As a non-British citizen, you need to provide
@@ -2387,7 +2387,7 @@ const formData = ref({
   id_document_path: '', // Uploaded file path
 
   // Page 1: Right to Rent
-  is_british_citizen: null as boolean | null,
+  is_british_citizen: false as boolean | null,
   rtr_share_code: '',
   rtr_verified: false,
   rtr_verification_data: null as any,
