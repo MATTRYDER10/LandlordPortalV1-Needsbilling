@@ -155,6 +155,43 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 /**
+ * GET /api/landlords/csv-template
+ * Download CSV template for landlord import
+ * NOTE: This route must be defined BEFORE /:id to avoid being caught by the parameterized route
+ */
+router.get('/csv-template', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const headers = [
+      'Title',
+      'First Name',
+      'Last Name',
+      'Preferred Email Greeting',
+      'Phone',
+      'Email',
+      'DOB (DD/MM/YYYY)',
+      'Address Line 1',
+      'Address Line 2',
+      'City',
+      'Postcode',
+      'Bank Account Name',
+      'Bank Account Number',
+      'Bank Sort Code',
+      'Joint Account (Y/N)',
+      'Landlord Registration Number'
+    ]
+
+    const csv = headers.join(',') + '\n'
+
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', 'attachment; filename="landlord-import-template.csv"')
+    res.send(csv)
+  } catch (error: any) {
+    console.error('Error generating CSV template:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * GET /api/landlords/:id
  * Get a single landlord by ID
  */
@@ -684,42 +721,6 @@ router.post('/bulk-delete', authenticateToken, async (req: AuthRequest, res) => 
     res.json({ message: 'Landlords deleted successfully', deleted: validIds.length })
   } catch (error: any) {
     console.error('Error bulk deleting landlords:', error)
-    res.status(500).json({ error: error.message })
-  }
-})
-
-/**
- * GET /api/landlords/csv-template
- * Download CSV template for landlord import
- */
-router.get('/csv-template', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const headers = [
-      'Title',
-      'First Name',
-      'Last Name',
-      'Preferred Email Greeting',
-      'Phone',
-      'Email',
-      'DOB (DD/MM/YYYY)',
-      'Address Line 1',
-      'Address Line 2',
-      'City',
-      'Postcode',
-      'Bank Account Name',
-      'Bank Account Number',
-      'Bank Sort Code',
-      'Joint Account (Y/N)',
-      'Landlord Registration Number'
-    ]
-
-    const csv = headers.join(',') + '\n'
-
-    res.setHeader('Content-Type', 'text/csv')
-    res.setHeader('Content-Disposition', 'attachment; filename="landlord-import-template.csv"')
-    res.send(csv)
-  } catch (error: any) {
-    console.error('Error generating CSV template:', error)
     res.status(500).json({ error: error.message })
   }
 })

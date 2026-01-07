@@ -55,6 +55,39 @@ router.get('/stats', authenticateToken, requireMember, async (req: AuthRequest, 
 })
 
 // ============================================================================
+// CSV TEMPLATE (must be before /:id route)
+// ============================================================================
+
+/**
+ * GET /api/properties/csv-template
+ * Download CSV template for property import
+ */
+router.get('/csv-template', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const headers = [
+      'Address Line 1',
+      'Address Line 2',
+      'City',
+      'County',
+      'Postcode',
+      'Property Type',
+      'Furnished Status',
+      'Management Type',
+      'Bedrooms'
+    ]
+
+    const csv = headers.join(',') + '\n'
+
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', 'attachment; filename="property-import-template.csv"')
+    res.send(csv)
+  } catch (error: any) {
+    console.error('Error generating CSV template:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
 // PROPERTY CRUD
 // ============================================================================
 
@@ -644,35 +677,6 @@ router.delete('/:id/documents/:documentId', authenticateToken, requireMember, as
 // ============================================================================
 // CSV IMPORT
 // ============================================================================
-
-/**
- * GET /api/properties/csv-template
- * Download CSV template for property import
- */
-router.get('/csv-template', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const headers = [
-      'Address Line 1',
-      'Address Line 2',
-      'City',
-      'County',
-      'Postcode',
-      'Property Type',
-      'Furnished Status',
-      'Management Type',
-      'Bedrooms'
-    ]
-
-    const csv = headers.join(',') + '\n'
-
-    res.setHeader('Content-Type', 'text/csv')
-    res.setHeader('Content-Disposition', 'attachment; filename="property-import-template.csv"')
-    res.send(csv)
-  } catch (error: any) {
-    console.error('Error generating CSV template:', error)
-    res.status(500).json({ error: error.message })
-  }
-})
 
 /**
  * POST /api/properties/import-csv
