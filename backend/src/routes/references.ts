@@ -754,10 +754,10 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const { data: sanctionsScreening } = await supabase.from('sanctions_screenings').select('*').eq('reference_id', reference.id).single()
     const { data: score } = await supabase.from('reference_scores').select('*').eq('reference_id', reference.id).single()
 
-    // Get tenant offer linked to this reference (for holding deposit info)
+    // Get tenant offer linked to this reference (for holding deposit info and to show "See Offer" button)
     const { data: tenantOffer } = await supabase
       .from('tenant_offers')
-      .select('holding_deposit_amount_paid, holding_deposit_received_at')
+      .select('id, holding_deposit_amount_paid, holding_deposit_received_at')
       .eq('reference_id', referenceId)
       .single()
 

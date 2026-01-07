@@ -264,6 +264,91 @@ router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
     }
 })
 
+// Get offer by reference ID (for viewing linked offer from reference page)
+// NOTE: This route must be defined BEFORE /:id to avoid route conflict
+router.get('/by-reference/:referenceId', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { referenceId } = req.params
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        // Get user's company
+        const { data: companyUsers } = await supabase
+            .from('company_users')
+            .select('company_id')
+            .eq('user_id', userId)
+            .limit(1)
+
+        if (!companyUsers || companyUsers.length === 0) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        const companyId = companyUsers[0].company_id
+
+        // Get offer by reference_id
+        const { data: offer, error } = await supabase
+            .from('tenant_offers')
+            .select(`
+                *,
+                tenant_offer_tenants (
+                    id,
+                    tenant_order,
+                    name_encrypted,
+                    address_encrypted,
+                    phone_encrypted,
+                    email_encrypted,
+                    annual_income_encrypted,
+                    job_title_encrypted,
+                    no_ccj_bankruptcy_iva,
+                    signature_encrypted,
+                    signature_name_encrypted,
+                    signed_at
+                )
+            `)
+            .eq('reference_id', referenceId)
+            .eq('company_id', companyId)
+            .single()
+
+        if (error || !offer) {
+            return res.status(404).json({ error: 'No offer linked to this reference' })
+        }
+
+        // Decrypt offer data
+        const tenants = (offer.tenant_offer_tenants || []).map((tenant: any) => ({
+            id: tenant.id,
+            tenant_order: tenant.tenant_order,
+            name: tenant.name_encrypted ? decrypt(tenant.name_encrypted) : '',
+            address: tenant.address_encrypted ? decrypt(tenant.address_encrypted) : '',
+            phone: tenant.phone_encrypted ? decrypt(tenant.phone_encrypted) : '',
+            email: tenant.email_encrypted ? decrypt(tenant.email_encrypted) : '',
+            annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
+            job_title: tenant.job_title_encrypted ? decrypt(tenant.job_title_encrypted) : '',
+            no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
+            signature: tenant.signature_encrypted ? decrypt(tenant.signature_encrypted) : '',
+            signature_name: tenant.signature_name_encrypted ? decrypt(tenant.signature_name_encrypted) : '',
+            signed_at: tenant.signed_at
+        }))
+
+        const decrypted = {
+            ...offer,
+            property_address: offer.property_address_encrypted ? decrypt(offer.property_address_encrypted) : '',
+            property_city: offer.property_city_encrypted ? decrypt(offer.property_city_encrypted) : '',
+            property_postcode: offer.property_postcode_encrypted ? decrypt(offer.property_postcode_encrypted) : '',
+            special_conditions: offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : '',
+            declined_reason: offer.declined_reason_encrypted ? decrypt(offer.declined_reason_encrypted) : '',
+            tenants: tenants.sort((a: any, b: any) => a.tenant_order - b.tenant_order)
+        }
+
+        res.json({ offer: decrypted })
+    } catch (error: any) {
+        console.error('Error fetching offer by reference:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Get single offer by ID
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     try {

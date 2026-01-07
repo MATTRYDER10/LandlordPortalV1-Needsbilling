@@ -84,6 +84,14 @@
               <span v-else>View Certificate</span>
             </button>
             <button
+              v-if="hasLinkedOffer"
+              @click="showOfferModal = true"
+              class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1"
+            >
+              <Eye class="w-4 h-4" />
+              See Offer
+            </button>
+            <button
               v-if="canAddGuarantor"
               @click="handleAddGuarantor"
               class="px-3 py-1.5 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90"
@@ -1473,6 +1481,13 @@
         </div>
       </div>
     </Transition>
+
+    <!-- View Offer Modal -->
+    <ViewOfferModal
+      :show="showOfferModal"
+      :reference-id="person?.id || ''"
+      @close="showOfferModal = false"
+    />
   </Teleport>
 </template>
 
@@ -1484,7 +1499,8 @@ import { useAuthStore } from '@/stores/auth'
 import StatusPill from './StatusPill.vue'
 import ReferenceAuditLog from '@/components/ReferenceAuditLog.vue'
 import CollapsibleSection from './CollapsibleSection.vue'
-import { X, AlertTriangle, Upload, Mail, Pencil, Loader2, CheckCircle, FileText, File, Trash2 } from 'lucide-vue-next'
+import ViewOfferModal from './ViewOfferModal.vue'
+import { X, AlertTriangle, Upload, Mail, Pencil, Loader2, CheckCircle, FileText, File, Trash2, Eye } from 'lucide-vue-next'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -1516,6 +1532,7 @@ const accountantRef = ref<any>(null)
 const creditsafeVerification = ref<any>(null)
 const sanctionsScreening = ref<any>(null)
 const score = ref<any>(null)
+const tenantOffer = ref<{ id: string; holding_deposit_amount_paid: number; holding_deposit_received_at: string } | null>(null)
 
 // Action Required details (enriched from API)
 const actionRequiredDetails = ref<ActionRequiredDetails | null>(null)
@@ -1523,6 +1540,7 @@ const actionRequiredDetails = ref<ActionRequiredDetails | null>(null)
 // Modal states for editing
 const showUploadModal = ref(false)
 const showRefereeModal = ref(false)
+const showOfferModal = ref(false)
 
 // Upload modal state
 const uploadDocType = ref('')
@@ -1571,6 +1589,7 @@ watch(() => [props.open, props.person?.id], async ([isOpen, personId]) => {
     creditsafeVerification.value = null
     sanctionsScreening.value = null
     score.value = null
+    tenantOffer.value = null
     actionRequiredDetails.value = null
   }
 }, { immediate: true })
@@ -1598,6 +1617,7 @@ async function loadFullDetails(referenceId: string) {
     creditsafeVerification.value = data.creditsafeVerification || null
     sanctionsScreening.value = data.sanctionsScreening || null
     score.value = data.score || null
+    tenantOffer.value = data.tenantOffer || null
   } catch (error) {
     console.error('Error loading full details:', error)
   } finally {
@@ -1625,6 +1645,11 @@ const canSubmitForReReferencing = computed(() => {
 const canEdit = computed(() => {
   const finalStatuses = ['VERIFIED_PASS', 'VERIFIED_CONDITIONAL', 'VERIFIED_FAIL', 'ARCHIVED']
   return props.person?.status && !finalStatuses.includes(props.person.status)
+})
+
+// Check if this reference was created from an offer
+const hasLinkedOffer = computed(() => {
+  return tenantOffer.value?.id != null
 })
 
 // Check if this tenant already has a guarantor
