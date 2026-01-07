@@ -322,11 +322,20 @@ class PDFGenerationService {
     const depositPayer = data.tenants[0] ? this.formatPartyWithAddress(data.tenants[0]) : '________'
     result = result.replace(/\[DEPOSIT_PAYER_NAME_AND_ADDRESS\]/gi, depositPayer)
 
-    // Break clause (English contracts)
-    result = result.replace(/\[tenancy_break_clause\]/gi, data.breakClause || '')
+    // Build special terms clauses with dynamic numbering (removes empty clause numbers)
+    const specialTermsClauses: string[] = []
+    let clauseNumber = 2 // Start at 11.2
 
-    // Special clauses
-    result = result.replace(/\[tenancy_special_clause\]/gi, data.specialClauses || '')
+    if (data.breakClause?.trim()) {
+      specialTermsClauses.push(`**11.${clauseNumber}** ${data.breakClause}`)
+      clauseNumber++
+    }
+
+    if (data.specialClauses?.trim()) {
+      specialTermsClauses.push(`**11.${clauseNumber}** ${data.specialClauses}`)
+    }
+
+    result = result.replace(/\[special_terms_numbered_clauses\]/gi, specialTermsClauses.join('\n\n'))
 
     // Welsh contracts - Contract Holders block
     result = this.processContractHoldersBlock(result, data)

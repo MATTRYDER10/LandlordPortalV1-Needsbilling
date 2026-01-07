@@ -509,9 +509,7 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 
 **11.1** Any clause contained below shall supersede the equivalent clause within the standard terms of the Agreement. These clauses are negotiated individually between the Landlord and the Tenant.
 
-**11.2** \[tenancy\_break\_clause\]
-
-**11.3** \[tenancy\_special\_clause\]
+[special_terms_numbered_clauses]
 
 **AGREEMENT SIGNED BY THE LANDLORD(S)**
 
