@@ -85,7 +85,9 @@ router.post('/upload/:token', (req, res, next) => {
     { name: 'selfie', maxCount: 1 },
     { name: 'proof_of_address', maxCount: 1 },
     { name: 'bank_statement', maxCount: 1 },
-    { name: 'payslips', maxCount: 10 }
+    { name: 'payslips', maxCount: 10 },
+    { name: 'pension_statement', maxCount: 1 },
+    { name: 'landlord_rental_bank_statement', maxCount: 1 }
   ])
 
   uploadMiddleware(req, res, (err) => {
@@ -182,6 +184,32 @@ router.post('/upload/:token', (req, res, next) => {
       }
       if (payslipPaths.length > 0) {
         uploadedPaths.payslips = payslipPaths
+      }
+    }
+
+    if (files.pension_statement && files.pension_statement[0]) {
+      const file = files.pension_statement[0]
+      const filename = `${guarantorRef.id}_pension_statement_${Date.now()}.${file.mimetype.split('/')[1]}`
+      const { error: uploadError } = await supabase.storage
+        .from('reference-documents')
+        .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+          contentType: file.mimetype
+        })
+      if (!uploadError) {
+        uploadedPaths.pension_statement = `guarantor-documents/${guarantorRef.id}/${filename}`
+      }
+    }
+
+    if (files.landlord_rental_bank_statement && files.landlord_rental_bank_statement[0]) {
+      const file = files.landlord_rental_bank_statement[0]
+      const filename = `${guarantorRef.id}_landlord_rental_bank_statement_${Date.now()}.${file.mimetype.split('/')[1]}`
+      const { error: uploadError } = await supabase.storage
+        .from('reference-documents')
+        .upload(`guarantor-documents/${guarantorRef.id}/${filename}`, file.buffer, {
+          contentType: file.mimetype
+        })
+      if (!uploadError) {
+        uploadedPaths.landlord_rental_bank_statement = `guarantor-documents/${guarantorRef.id}/${filename}`
       }
     }
 
@@ -289,9 +317,20 @@ router.post('/submit/:token', async (req: Request, res) => {
       years_trading: data.years_trading || null,
       annual_turnover_encrypted: encrypt(data.annual_turnover ? String(data.annual_turnover) : ''),
 
-      // If Retired
+      // If Retired (legacy field - kept for backwards compatibility)
       pension_amount_encrypted: encrypt(data.pension_amount ? String(data.pension_amount) : ''),
       pension_frequency: data.pension_frequency || null,
+
+      // Pension Income (new fields)
+      income_pension: data.income_pension || false,
+      pension_monthly_amount_encrypted: encrypt(data.pension_monthly_amount ? String(data.pension_monthly_amount) : ''),
+      pension_provider_encrypted: encrypt(data.pension_provider || ''),
+      pension_statement_path: data.pension_statement_path || null,
+
+      // Landlord/Rental Income (new fields)
+      income_landlord_rental: data.income_landlord_rental || false,
+      landlord_rental_monthly_amount_encrypted: encrypt(data.landlord_rental_monthly_amount ? String(data.landlord_rental_monthly_amount) : ''),
+      landlord_rental_bank_statement_path: data.landlord_rental_bank_statement_path || null,
 
       // Additional Income
       other_income_source_encrypted: encrypt(data.other_income_source || ''),

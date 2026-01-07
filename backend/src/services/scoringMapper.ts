@@ -187,11 +187,33 @@ export async function mapReferenceToScoringInput(referenceId: string): Promise<A
         }
       } else if (empStatus.includes('pension') || empStatus.includes('retired')) {
         incomeType = 'pension'
-        if (reference.pension_amount_encrypted) {
+        // Check new pension field first, fall back to old pension_amount_encrypted
+        if (reference.pension_monthly_amount_encrypted) {
+          const pensionAmount = parseFloat(decrypt(reference.pension_monthly_amount_encrypted) || '0')
+          grossAnnual = pensionAmount * 12
+        } else if (reference.pension_amount_encrypted) {
           const pensionAmount = parseFloat(decrypt(reference.pension_amount_encrypted) || '0')
           grossAnnual = pensionAmount * 12
         }
       }
+    }
+
+    // Add pension income if income_pension is selected (new income type)
+    if (reference.income_pension && reference.pension_monthly_amount_encrypted) {
+      const pensionAmount = parseFloat(decrypt(reference.pension_monthly_amount_encrypted) || '0')
+      // Add to existing income or set as primary
+      if (incomeType === 'unemployed') {
+        incomeType = 'pension'
+        grossAnnual = pensionAmount * 12
+      } else {
+        grossAnnual += pensionAmount * 12
+      }
+    }
+
+    // Add landlord/rental income if selected (new income type)
+    if (reference.income_landlord_rental && reference.landlord_rental_monthly_amount_encrypted) {
+      const rentalAmount = parseFloat(decrypt(reference.landlord_rental_monthly_amount_encrypted) || '0')
+      grossAnnual += rentalAmount * 12
     }
 
     // Independent means (savings)

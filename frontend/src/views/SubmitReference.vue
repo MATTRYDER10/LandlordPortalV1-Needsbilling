@@ -714,7 +714,17 @@
                   <label class="flex items-center">
                     <input v-model="formData.income_savings_pension_investments" type="checkbox"
                       class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
-                    <span class="ml-2 text-sm text-gray-700">Savings, Pensions or Investments</span>
+                    <span class="ml-2 text-sm text-gray-700">Savings & Investments</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input v-model="formData.income_pension" type="checkbox"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
+                    <span class="ml-2 text-sm text-gray-700">Pension Income</span>
+                  </label>
+                  <label class="flex items-center">
+                    <input v-model="formData.income_landlord_rental" type="checkbox"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
+                    <span class="ml-2 text-sm text-gray-700">Landlord/Rental Income</span>
                   </label>
                   <label class="flex items-center">
                     <input v-model="formData.income_student" type="checkbox"
@@ -1204,9 +1214,9 @@
                 </div>
               </div>
 
-              <!-- Savings, Pensions or Investments Details (shown if selected) -->
+              <!-- Savings & Investments Details (shown if selected) -->
               <div v-if="formData.income_savings_pension_investments" class="pt-6 border-t border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Savings, Pensions or Investments Details</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Savings & Investments Details</h3>
 
                 <div class="space-y-4">
                   <div>
@@ -1215,7 +1225,7 @@
                       :required="formData.income_savings_pension_investments"
                       placeholder="Enter total amount in savings"
                       class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
-                    <p class="mt-1 text-xs text-gray-500">Include savings, pensions, and investment values</p>
+                    <p class="mt-1 text-xs text-gray-500">Include savings and investment values</p>
                   </div>
 
                   <div>
@@ -1227,8 +1237,7 @@
                       :style="{ color: buttonColor }">
                       {{ proofOfFunds ? 'Change Document' : 'Upload Document' }}
                     </button>
-                    <p class="mt-1 text-xs text-gray-500">Upload bank statement, pension statement, or investment
-                      portfolio statement (max 10MB, PDF/JPG/PNG)</p>
+                    <p class="mt-1 text-xs text-gray-500">Upload bank statement or investment portfolio statement (max 10MB, PDF/JPG/PNG)</p>
                     <div v-if="proofOfFunds" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
                       <div class="flex items-center justify-between">
                         <div class="flex items-center">
@@ -1247,6 +1256,109 @@
                       <div class="flex items-center">
                         <Check class="w-4 h-4 text-green-600 mr-2" />
                         <span class="text-sm text-green-700">Proof of funds uploaded successfully</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pension Income Details (shown if selected) -->
+              <div v-if="formData.income_pension" class="pt-6 border-t border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Pension Income Details</h3>
+
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Monthly Pension Amount (£) *</label>
+                    <input v-model.number="formData.pension_monthly_amount" type="number" step="0.01" min="0"
+                      :required="formData.income_pension"
+                      placeholder="Enter monthly pension amount"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Pension Provider *</label>
+                    <input v-model="formData.pension_provider" type="text"
+                      :required="formData.income_pension"
+                      placeholder="e.g., State Pension, Scottish Widows, Aviva"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Pension Statement *</label>
+                    <input ref="pensionStatementInput" type="file" @change="handlePensionStatementUpload"
+                      accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
+                    <button type="button" @click="($refs.pensionStatementInput as any).click()"
+                      class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                      :style="{ color: buttonColor }">
+                      {{ pensionStatement ? 'Change Document' : 'Upload Document' }}
+                    </button>
+                    <p class="mt-1 text-xs text-gray-500">Upload your most recent pension statement (max 10MB, PDF/JPG/PNG)</p>
+                    <div v-if="pensionStatement" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                          <FileText class="w-5 h-5 text-blue-600 mr-2" />
+                          <span class="text-sm text-gray-700">{{ pensionStatement.name }} ({{
+                            formatFileSize(pensionStatement.size) }})</span>
+                        </div>
+                        <button type="button" @click="removePensionStatement"
+                          class="text-red-600 hover:text-red-800 text-sm">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <div v-else-if="formData.pension_statement_path"
+                      class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                      <div class="flex items-center">
+                        <Check class="w-4 h-4 text-green-600 mr-2" />
+                        <span class="text-sm text-green-700">Pension statement uploaded successfully</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Landlord/Rental Income Details (shown if selected) -->
+              <div v-if="formData.income_landlord_rental" class="pt-6 border-t border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Landlord/Rental Income Details</h3>
+
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Monthly Rental Income (£) *</label>
+                    <input v-model.number="formData.landlord_rental_monthly_amount" type="number" step="0.01" min="0"
+                      :required="formData.income_landlord_rental"
+                      placeholder="Enter monthly rental income"
+                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                    <p class="mt-1 text-xs text-gray-500">Total monthly income from property rentals</p>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statement *</label>
+                    <input ref="landlordRentalBankStatementInput" type="file" @change="handleLandlordRentalBankStatementUpload"
+                      accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
+                    <button type="button" @click="($refs.landlordRentalBankStatementInput as any).click()"
+                      class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                      :style="{ color: buttonColor }">
+                      {{ landlordRentalBankStatement ? 'Change Document' : 'Upload Document' }}
+                    </button>
+                    <p class="mt-1 text-xs text-gray-500">Upload bank statement showing rental income deposits (max 10MB, PDF/JPG/PNG)</p>
+                    <div v-if="landlordRentalBankStatement" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                          <FileText class="w-5 h-5 text-blue-600 mr-2" />
+                          <span class="text-sm text-gray-700">{{ landlordRentalBankStatement.name }} ({{
+                            formatFileSize(landlordRentalBankStatement.size) }})</span>
+                        </div>
+                        <button type="button" @click="removeLandlordRentalBankStatement"
+                          class="text-red-600 hover:text-red-800 text-sm">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <div v-else-if="formData.landlord_rental_bank_statement_path"
+                      class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                      <div class="flex items-center">
+                        <Check class="w-4 h-4 text-green-600 mr-2" />
+                        <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
                       </div>
                     </div>
                   </div>
@@ -2358,6 +2470,8 @@ const proofOfFunds = ref<File | null>(null)
 const proofOfAdditionalIncome = ref<File | null>(null)
 const taxReturn = ref<File | null>(null)
 const rtrAlternativeDocument = ref<File | null>(null)
+const pensionStatement = ref<File | null>(null)
+const landlordRentalBankStatement = ref<File | null>(null)
 
 // Previous addresses for 3-year history
 interface PreviousAddress {
@@ -2414,8 +2528,19 @@ const formData = ref({
   income_self_employed: false,
   income_benefits: false,
   income_savings_pension_investments: false,
+  income_pension: false,
+  income_landlord_rental: false,
   income_student: false,
   income_unemployed: false,
+
+  // Pension Income Details
+  pension_monthly_amount: null as number | null,
+  pension_provider: '',
+  pension_statement_path: '',
+
+  // Landlord/Rental Income Details
+  landlord_rental_monthly_amount: null as number | null,
+  landlord_rental_bank_statement_path: '',
 
   // Guarantor Details (for students/unemployed)
   requires_guarantor: false,
@@ -2828,6 +2953,40 @@ const removeProofOfFunds = () => {
   proofOfFunds.value = null
 }
 
+const handlePensionStatementUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    const file = target.files[0]
+    if (file.size > 10 * 1024 * 1024) {
+      submitError.value = 'File is too large. Max size is 10MB.'
+      return
+    }
+    pensionStatement.value = file
+    submitError.value = ''
+  }
+}
+
+const removePensionStatement = () => {
+  pensionStatement.value = null
+}
+
+const handleLandlordRentalBankStatementUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    const file = target.files[0]
+    if (file.size > 10 * 1024 * 1024) {
+      submitError.value = 'File is too large. Max size is 10MB.'
+      return
+    }
+    landlordRentalBankStatement.value = file
+    submitError.value = ''
+  }
+}
+
+const removeLandlordRentalBankStatement = () => {
+  landlordRentalBankStatement.value = null
+}
+
 const handleTaxReturnUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files[0]) {
@@ -3032,6 +3191,16 @@ const uploadCurrentPageFiles = async () => {
     hasFilesToUpload = true
   }
 
+  if (currentPage.value === 6 && pensionStatement.value && !formData.value.pension_statement_path) {
+    formDataFiles.append('pension_statement', pensionStatement.value)
+    hasFilesToUpload = true
+  }
+
+  if (currentPage.value === 6 && landlordRentalBankStatement.value && !formData.value.landlord_rental_bank_statement_path) {
+    formDataFiles.append('landlord_rental_bank_statement', landlordRentalBankStatement.value)
+    hasFilesToUpload = true
+  }
+
   if (currentPage.value === 7 && proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {
     formDataFiles.append('proof_of_additional_income', proofOfAdditionalIncome.value)
     hasFilesToUpload = true
@@ -3080,6 +3249,12 @@ const uploadCurrentPageFiles = async () => {
   }
   if (uploadedFiles.payslips && uploadedFiles.payslips.length > 0) {
     formData.value.payslip_paths = uploadedFiles.payslips
+  }
+  if (uploadedFiles.pension_statement) {
+    formData.value.pension_statement_path = uploadedFiles.pension_statement
+  }
+  if (uploadedFiles.landlord_rental_bank_statement) {
+    formData.value.landlord_rental_bank_statement_path = uploadedFiles.landlord_rental_bank_statement
   }
 }
 
@@ -3277,10 +3452,38 @@ const handlePageSubmit = async () => {
       }
     }
 
-    // Validate proof of funds if savings/pensions/investments is selected
+    // Validate proof of funds if savings/investments is selected
     if (formData.value.income_savings_pension_investments) {
       if (!proofOfFunds.value && !formData.value.proof_of_funds_path) {
-        submitError.value = 'Please upload proof of funds (bank statement, pension statement, or investment portfolio)'
+        submitError.value = 'Please upload proof of funds (bank statement or investment portfolio)'
+        return
+      }
+    }
+
+    // Validate pension statement if pension income is selected
+    if (formData.value.income_pension) {
+      if (!pensionStatement.value && !formData.value.pension_statement_path) {
+        submitError.value = 'Please upload your pension statement'
+        return
+      }
+      if (!formData.value.pension_monthly_amount) {
+        submitError.value = 'Please enter your monthly pension amount'
+        return
+      }
+      if (!formData.value.pension_provider) {
+        submitError.value = 'Please enter your pension provider'
+        return
+      }
+    }
+
+    // Validate landlord/rental income bank statement if selected
+    if (formData.value.income_landlord_rental) {
+      if (!landlordRentalBankStatement.value && !formData.value.landlord_rental_bank_statement_path) {
+        submitError.value = 'Please upload bank statement showing rental income'
+        return
+      }
+      if (!formData.value.landlord_rental_monthly_amount) {
+        submitError.value = 'Please enter your monthly rental income'
         return
       }
     }

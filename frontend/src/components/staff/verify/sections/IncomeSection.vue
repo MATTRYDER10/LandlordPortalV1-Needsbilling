@@ -310,6 +310,21 @@
                       <span v-if="additionalIncomeFrequency" class="claimed-subtext">({{ formatFrequency(additionalIncomeFrequency) }})</span>
                     </span>
                   </div>
+                  <div v-if="claimedIncome?.pension" class="claimed-item">
+                    <span class="claimed-label">Pension</span>
+                    <span class="claimed-value">
+                      {{ formatCurrency(claimedIncome.pension) }}/year
+                      <span v-if="claimedIncome.pensionMonthly" class="claimed-subtext">({{ formatCurrency(claimedIncome.pensionMonthly) }}/mo)</span>
+                      <span v-if="claimedIncome.pensionProvider" class="claimed-subtext">{{ claimedIncome.pensionProvider }}</span>
+                    </span>
+                  </div>
+                  <div v-if="claimedIncome?.landlordRental" class="claimed-item">
+                    <span class="claimed-label">Landlord/Rental</span>
+                    <span class="claimed-value">
+                      {{ formatCurrency(claimedIncome.landlordRental) }}/year
+                      <span v-if="claimedIncome.landlordRentalMonthly" class="claimed-subtext">({{ formatCurrency(claimedIncome.landlordRentalMonthly) }}/mo)</span>
+                    </span>
+                  </div>
                   <div class="claimed-item total">
                     <span class="claimed-label">Total Claimed</span>
                     <span class="claimed-value">{{ formatCurrency(claimedIncome?.total || 0) }}/year</span>
@@ -607,6 +622,34 @@
                     </div>
                   </div>
 
+                  <div v-if="claimedIncome?.pension" class="form-group">
+                    <label>Pension Income (annual)</label>
+                    <div class="input-wrapper">
+                      <span class="input-prefix">£</span>
+                      <input
+                        v-model.number="confirmedPension"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div v-if="claimedIncome?.landlordRental" class="form-group">
+                    <label>Landlord/Rental Income (annual)</label>
+                    <div class="input-wrapper">
+                      <span class="input-prefix">£</span>
+                      <input
+                        v-model.number="confirmedLandlordRental"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
                   <div class="form-group total-group">
                     <label>Confirmed Total (can override)</label>
                     <div class="input-wrapper">
@@ -696,6 +739,11 @@ interface ClaimedIncome {
   selfEmployed: number
   savings: number
   additional: number
+  pension: number
+  pensionMonthly: number
+  pensionProvider: string | null
+  landlordRental: number
+  landlordRentalMonthly: number
   total: number
 }
 
@@ -705,6 +753,8 @@ interface VerifiedIncome {
   selfEmployed: number | null
   savings: number | null
   additional: number | null
+  pension: number | null
+  landlordRental: number | null
   total: number | null
   confirmedAt: string | null
   confirmedBy: string | null
@@ -858,6 +908,8 @@ const confirmedSalary = ref(0)
 const confirmedBenefits = ref(0)
 const confirmedSelfEmployed = ref(0)
 const confirmedOther = ref(0)
+const confirmedPension = ref(0)
+const confirmedLandlordRental = ref(0)
 const confirmedTotal = ref(0)
 
 // Use verified income if available, otherwise use claimed as default
@@ -892,7 +944,7 @@ const affordabilityLabel = computed(() => {
 })
 
 const calculatedTotal = computed(() => {
-  return confirmedSalary.value + confirmedBenefits.value + confirmedSelfEmployed.value + confirmedOther.value
+  return confirmedSalary.value + confirmedBenefits.value + confirmedSelfEmployed.value + confirmedOther.value + confirmedPension.value + confirmedLandlordRental.value
 })
 
 // Initialize form with existing values
@@ -903,20 +955,24 @@ const initializeForm = () => {
     confirmedBenefits.value = props.verifiedIncome?.benefits || 0
     confirmedSelfEmployed.value = props.verifiedIncome?.selfEmployed || 0
     confirmedOther.value = (props.verifiedIncome?.savings || 0) + (props.verifiedIncome?.additional || 0)
+    confirmedPension.value = props.verifiedIncome?.pension || 0
+    confirmedLandlordRental.value = props.verifiedIncome?.landlordRental || 0
     confirmedTotal.value = props.verifiedIncome?.total || 0
   } else if (props.claimedIncome) {
     confirmedSalary.value = props.claimedIncome.salary || 0
     confirmedBenefits.value = props.claimedIncome.benefits || 0
     confirmedSelfEmployed.value = props.claimedIncome.selfEmployed || 0
     confirmedOther.value = (props.claimedIncome.savings || 0) + (props.claimedIncome.additional || 0)
+    confirmedPension.value = props.claimedIncome.pension || 0
+    confirmedLandlordRental.value = props.claimedIncome.landlordRental || 0
     confirmedTotal.value = props.claimedIncome.total || 0
   }
 }
 
 // Watch for calculated total changes and update if not manually overridden
-watch([confirmedSalary, confirmedBenefits, confirmedSelfEmployed, confirmedOther], () => {
+watch([confirmedSalary, confirmedBenefits, confirmedSelfEmployed, confirmedOther, confirmedPension, confirmedLandlordRental], () => {
   // Auto-update total if it matches the previous calculated value
-  const newCalc = confirmedSalary.value + confirmedBenefits.value + confirmedSelfEmployed.value + confirmedOther.value
+  const newCalc = confirmedSalary.value + confirmedBenefits.value + confirmedSelfEmployed.value + confirmedOther.value + confirmedPension.value + confirmedLandlordRental.value
   if (confirmedTotal.value === 0 || confirmedTotal.value === newCalc - (confirmedSalary.value !== 0 ? 0 : calculatedTotal.value)) {
     confirmedTotal.value = newCalc
   }
@@ -956,6 +1012,8 @@ const confirmIncome = async () => {
         confirmedBenefits: confirmedBenefits.value,
         confirmedSelfEmployed: confirmedSelfEmployed.value,
         confirmedSavings: confirmedOther.value,
+        confirmedPension: confirmedPension.value,
+        confirmedLandlordRental: confirmedLandlordRental.value,
         confirmedTotal: confirmedTotal.value
       })
     })

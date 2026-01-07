@@ -767,6 +767,8 @@ router.post('/confirm-income/:referenceId', staffAuth, async (req: StaffAuthRequ
       confirmedSelfEmployed,
       confirmedSavings,
       confirmedAdditional,
+      confirmedPension,
+      confirmedLandlordRental,
       confirmedTotal
     } = req.body;
 
@@ -808,6 +810,12 @@ router.post('/confirm-income/:referenceId', staffAuth, async (req: StaffAuthRequ
     }
     if (confirmedAdditional !== undefined) {
       updateData.verified_additional_income_amount_encrypted = encrypt(confirmedAdditional.toString());
+    }
+    if (confirmedPension !== undefined) {
+      updateData.verified_pension_amount_encrypted = encrypt(confirmedPension.toString());
+    }
+    if (confirmedLandlordRental !== undefined) {
+      updateData.verified_landlord_rental_amount_encrypted = encrypt(confirmedLandlordRental.toString());
     }
     if (confirmedTotal !== undefined) {
       updateData.verified_total_income_encrypted = encrypt(confirmedTotal.toString());
@@ -993,6 +1001,8 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         verified_savings_amount_encrypted,
         verified_additional_income_amount_encrypted,
         verified_total_income_encrypted,
+        verified_pension_amount_encrypted,
+        verified_landlord_rental_amount_encrypted,
         confirmed_income_at,
         confirmed_income_by,
         confirmed_residential_status,
@@ -1014,7 +1024,14 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         proof_of_funds_path,
         id_document_path,
         selfie_path,
-        proof_of_address_path
+        proof_of_address_path,
+        income_pension,
+        pension_monthly_amount_encrypted,
+        pension_provider_encrypted,
+        pension_statement_path,
+        income_landlord_rental,
+        landlord_rental_monthly_amount_encrypted,
+        landlord_rental_bank_statement_path
       `)
       .eq('id', referenceId)
       .single();
@@ -1066,6 +1083,8 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       addEvidence(reference.tax_return_path, 'TAX_RETURN', 'Tax Return');
       addEvidence(reference.proof_of_additional_income_path, 'ADDITIONAL_INCOME', 'Additional Income Proof');
       addEvidence(reference.proof_of_funds_path, 'PROOF_OF_FUNDS', 'Proof of Funds');
+      addEvidence(reference.pension_statement_path, 'PENSION_STATEMENT', 'Pension Statement');
+      addEvidence(reference.landlord_rental_bank_statement_path, 'LANDLORD_RENTAL_BANK_STATEMENT', 'Landlord/Rental Income Bank Statement');
 
       // Identity related
       addEvidence(reference.id_document_path, 'ID_DOCUMENT', 'ID Document');
@@ -1147,7 +1166,19 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
     const benefitsIncome = reference.benefits_annual_amount_encrypted
       ? parseFloat(decrypt(reference.benefits_annual_amount_encrypted) || '0') : 0;
 
-    const claimedTotal = salaryAmount + additionalIncomeAmount + selfEmployedIncome + benefitsIncome;
+    // Pension income (monthly stored, convert to annual for display)
+    const pensionMonthlyAmount = reference.pension_monthly_amount_encrypted
+      ? parseFloat(decrypt(reference.pension_monthly_amount_encrypted) || '0') : 0;
+    const pensionAnnualAmount = pensionMonthlyAmount * 12;
+    const pensionProvider = reference.pension_provider_encrypted
+      ? decrypt(reference.pension_provider_encrypted) : null;
+
+    // Landlord/Rental income (monthly stored, convert to annual for display)
+    const landlordRentalMonthlyAmount = reference.landlord_rental_monthly_amount_encrypted
+      ? parseFloat(decrypt(reference.landlord_rental_monthly_amount_encrypted) || '0') : 0;
+    const landlordRentalAnnualAmount = landlordRentalMonthlyAmount * 12;
+
+    const claimedTotal = salaryAmount + additionalIncomeAmount + selfEmployedIncome + benefitsIncome + pensionAnnualAmount + landlordRentalAnnualAmount;
 
     const claimedIncome = {
       salary: salaryAmount,
@@ -1155,6 +1186,11 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       selfEmployed: selfEmployedIncome,
       savings: 0,
       additional: additionalIncomeAmount,
+      pension: pensionAnnualAmount,
+      pensionMonthly: pensionMonthlyAmount,
+      pensionProvider: pensionProvider,
+      landlordRental: landlordRentalAnnualAmount,
+      landlordRentalMonthly: landlordRentalMonthlyAmount,
       total: claimedTotal
     };
 
@@ -1165,6 +1201,8 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       selfEmployed: reference.verified_self_employed_income_encrypted ? parseFloat(decrypt(reference.verified_self_employed_income_encrypted) || '0') : null,
       savings: reference.verified_savings_amount_encrypted ? parseFloat(decrypt(reference.verified_savings_amount_encrypted) || '0') : null,
       additional: reference.verified_additional_income_amount_encrypted ? parseFloat(decrypt(reference.verified_additional_income_amount_encrypted) || '0') : null,
+      pension: reference.verified_pension_amount_encrypted ? parseFloat(decrypt(reference.verified_pension_amount_encrypted) || '0') : null,
+      landlordRental: reference.verified_landlord_rental_amount_encrypted ? parseFloat(decrypt(reference.verified_landlord_rental_amount_encrypted) || '0') : null,
       total: reference.verified_total_income_encrypted ? parseFloat(decrypt(reference.verified_total_income_encrypted) || '0') : null,
       confirmedAt: reference.confirmed_income_at,
       confirmedBy: incomeConfirmedByName
@@ -1172,7 +1210,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
 
     // Categorize evidence files
     const incomeEvidence = (evidenceFiles || []).filter((f: any) =>
-      ['PAYSLIP', 'BANK_STATEMENT', 'EMPLOYMENT_CONTRACT', 'TAX_RETURN', 'P60', 'P45', 'ACCOUNTANT_LETTER', 'ADDITIONAL_INCOME', 'PROOF_OF_FUNDS'].includes(f.evidence_type)
+      ['PAYSLIP', 'BANK_STATEMENT', 'EMPLOYMENT_CONTRACT', 'TAX_RETURN', 'P60', 'P45', 'ACCOUNTANT_LETTER', 'ADDITIONAL_INCOME', 'PROOF_OF_FUNDS', 'PENSION_STATEMENT', 'LANDLORD_RENTAL_BANK_STATEMENT'].includes(f.evidence_type)
     );
 
     const residentialEvidence = (evidenceFiles || []).filter((f: any) =>

@@ -135,6 +135,20 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             ? parseFloat(decrypt(reference.additional_income_amount_encrypted) || '0')
             : parseFloat(reference.additional_income_amount || '0'))
 
+    // Pension income - check verified first, then claimed (monthly stored, convert to annual)
+    const pensionIncome = reference.verified_pension_amount_encrypted
+        ? parseFloat(decrypt(reference.verified_pension_amount_encrypted) || '0')
+        : (reference.pension_monthly_amount_encrypted
+            ? parseFloat(decrypt(reference.pension_monthly_amount_encrypted) || '0') * 12
+            : 0)
+
+    // Landlord/Rental income - check verified first, then claimed (monthly stored, convert to annual)
+    const landlordRentalIncome = reference.verified_landlord_rental_amount_encrypted
+        ? parseFloat(decrypt(reference.verified_landlord_rental_amount_encrypted) || '0')
+        : (reference.landlord_rental_monthly_amount_encrypted
+            ? parseFloat(decrypt(reference.landlord_rental_monthly_amount_encrypted) || '0') * 12
+            : 0)
+
     // Check if there's a total override (staff manually set total income)
     let totalIncome: number
     if (reference.verified_total_income_encrypted) {
@@ -142,7 +156,7 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
         totalIncome = parseFloat(decrypt(reference.verified_total_income_encrypted) || '0')
     } else {
         // Gross total includes all sources (as shown in frontend)
-        totalIncome = annualSalary + selfEmployedIncome + benefitsAnnual + savingsAmount + additionalIncome
+        totalIncome = annualSalary + selfEmployedIncome + benefitsAnnual + savingsAmount + additionalIncome + pensionIncome + landlordRentalIncome
     }
 
     // Extract personal data
@@ -1063,7 +1077,13 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 incomeData.push(['  Benefits', `£${benefitsAnnual.toLocaleString('en-GB')} pa`, false])
             }
             if (savingsAmount > 0) {
-                incomeData.push(['  Sav. /Pen. /Inv.  ', ` £${savingsAmount.toLocaleString('en-GB')} pa`, false])
+                incomeData.push(['  Savings/Investments', `£${savingsAmount.toLocaleString('en-GB')} pa`, false])
+            }
+            if (pensionIncome > 0) {
+                incomeData.push(['  Pension income', `£${pensionIncome.toLocaleString('en-GB')} pa`, false])
+            }
+            if (landlordRentalIncome > 0) {
+                incomeData.push(['  Landlord/Rental income', `£${landlordRentalIncome.toLocaleString('en-GB')} pa`, false])
             }
             if (additionalIncome > 0) {
                 incomeData.push(['  Additional income', `£${additionalIncome.toLocaleString('en-GB')} pa`, false])

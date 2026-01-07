@@ -2009,6 +2009,8 @@ router.post('/submit/:token', async (req: Request, res) => {
       income_self_employed: data.income_self_employed || false,
       income_benefits: data.income_benefits || false,
       income_savings_pension_investments: data.income_savings_pension_investments || false,
+      income_pension: data.income_pension || false,
+      income_landlord_rental: data.income_landlord_rental || false,
       income_student: data.income_student || false,
       income_unemployed: data.income_unemployed || false,
 
@@ -2027,6 +2029,15 @@ router.post('/submit/:token', async (req: Request, res) => {
       // Savings, Pensions or Investments Details
       savings_amount_encrypted: encrypt(data.savings_amount ? String(data.savings_amount) : null),
       proof_of_funds_path: data.proof_of_funds_path || null,
+
+      // Pension Income Details
+      pension_monthly_amount_encrypted: encrypt(data.pension_monthly_amount ? String(data.pension_monthly_amount) : null),
+      pension_provider_encrypted: encrypt(data.pension_provider || ''),
+      pension_statement_path: data.pension_statement_path || null,
+
+      // Landlord/Rental Income Details
+      landlord_rental_monthly_amount_encrypted: encrypt(data.landlord_rental_monthly_amount ? String(data.landlord_rental_monthly_amount) : null),
+      landlord_rental_bank_statement_path: data.landlord_rental_bank_statement_path || null,
 
       // Additional Income
       proof_of_additional_income_path: data.proof_of_additional_income_path || null,
@@ -2909,7 +2920,9 @@ router.post('/upload/:token', (req, res, next) => {
     { name: 'payslips', maxCount: 10 },
     { name: 'tax_return', maxCount: 1 },
     { name: 'other_proof_of_funds', maxCount: 1 },
-    { name: 'tenancy_agreement', maxCount: 1 }
+    { name: 'tenancy_agreement', maxCount: 1 },
+    { name: 'pension_statement', maxCount: 1 },
+    { name: 'landlord_rental_bank_statement', maxCount: 1 }
   ])
 
   uploadMiddleware(req, res, (err) => {
@@ -2947,6 +2960,8 @@ router.post('/upload/:token', (req, res, next) => {
     let taxReturnPath: string | null = null
     let otherProofOfFundsPath: string | null = null
     let tenancyAgreementPath: string | null = null
+    let pensionStatementPath: string | null = null
+    let landlordRentalBankStatementPath: string | null = null
     const bankStatementPaths: string[] = []
     const payslipPaths: string[] = []
 
@@ -3171,6 +3186,46 @@ router.post('/upload/:token', (req, res, next) => {
       tenancyAgreementPath = fileName
     }
 
+    // Upload pension statement
+    if (files.pension_statement && files.pension_statement[0]) {
+      const file = files.pension_statement[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/pension_statement/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload pension statement: ${uploadError.message}`)
+      }
+
+      pensionStatementPath = fileName
+    }
+
+    // Upload landlord/rental income bank statement
+    if (files.landlord_rental_bank_statement && files.landlord_rental_bank_statement[0]) {
+      const file = files.landlord_rental_bank_statement[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/landlord_rental_bank_statement/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload landlord/rental bank statement: ${uploadError.message}`)
+      }
+
+      landlordRentalBankStatementPath = fileName
+    }
+
     // Save all uploaded file paths to the database
     const pathUpdates: Record<string, any> = {}
     if (idDocumentPath) pathUpdates.id_document_path = idDocumentPath
@@ -3182,6 +3237,8 @@ router.post('/upload/:token', (req, res, next) => {
     if (taxReturnPath) pathUpdates.tax_return_path = taxReturnPath
     if (otherProofOfFundsPath) pathUpdates.other_proof_of_funds_path = otherProofOfFundsPath
     if (tenancyAgreementPath) pathUpdates.tenancy_agreement_path = tenancyAgreementPath
+    if (pensionStatementPath) pathUpdates.pension_statement_path = pensionStatementPath
+    if (landlordRentalBankStatementPath) pathUpdates.landlord_rental_bank_statement_path = landlordRentalBankStatementPath
     if (payslipPaths.length > 0) {
       const existingPayslips = reference.payslip_files || []
       pathUpdates.payslip_files = [...existingPayslips, ...payslipPaths]
@@ -3224,6 +3281,8 @@ router.post('/upload/:token', (req, res, next) => {
       if (bankStatementPaths.length > 0) evidenceTypes.push('bank_statements')
       if (otherProofOfFundsPath) evidenceTypes.push('other_proof_of_funds')
       if (tenancyAgreementPath) evidenceTypes.push('tenancy_agreement')
+      if (pensionStatementPath) evidenceTypes.push('pension_statement')
+      if (landlordRentalBankStatementPath) evidenceTypes.push('landlord_rental_bank_statement')
 
       // Use new state service for automatic transitions
       await handleEvidenceUpload(reference.id, evidenceTypes.join(', '))
@@ -3241,7 +3300,9 @@ router.post('/upload/:token', (req, res, next) => {
       payslips: payslipPaths,
       tax_return: taxReturnPath,
       other_proof_of_funds: otherProofOfFundsPath,
-      tenancy_agreement: tenancyAgreementPath
+      tenancy_agreement: tenancyAgreementPath,
+      pension_statement: pensionStatementPath,
+      landlord_rental_bank_statement: landlordRentalBankStatementPath
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -5806,7 +5867,9 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
     { name: 'tax_return', maxCount: 1 },
     { name: 'proof_of_additional_income', maxCount: 1 },
     { name: 'other_proof_of_funds', maxCount: 1 },
-    { name: 'tenancy_agreement', maxCount: 1 }
+    { name: 'tenancy_agreement', maxCount: 1 },
+    { name: 'pension_statement', maxCount: 1 },
+    { name: 'landlord_rental_bank_statement', maxCount: 1 }
   ])
 
   uploadMiddleware(req, res, (err) => {
@@ -6042,6 +6105,48 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
 
       updates.tenancy_agreement_path = fileName
       uploadedFiles.push('tenancy_agreement')
+    }
+
+    // Upload pension statement
+    if (files.pension_statement && files.pension_statement[0]) {
+      const file = files.pension_statement[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/pension_statement/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload pension statement: ${uploadError.message}`)
+      }
+
+      updates.pension_statement_path = fileName
+      uploadedFiles.push('pension_statement')
+    }
+
+    // Upload landlord/rental income bank statement
+    if (files.landlord_rental_bank_statement && files.landlord_rental_bank_statement[0]) {
+      const file = files.landlord_rental_bank_statement[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/landlord_rental_bank_statement/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload landlord/rental bank statement: ${uploadError.message}`)
+      }
+
+      updates.landlord_rental_bank_statement_path = fileName
+      uploadedFiles.push('landlord_rental_bank_statement')
     }
 
     // Update reference if we have any updates
