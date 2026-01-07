@@ -42,6 +42,7 @@
             @openPerson="(person) => openPersonDrawer(person, tenancy)"
             @chase="handleChase"
             @addGuarantor="handleAddGuarantor(tenancy)"
+            @changeMoveInDate="handleChangeMoveInDate"
           />
         </div>
 
@@ -573,6 +574,14 @@
         </form>
       </div>
     </div>
+
+    <!-- Change Move-in Date Modal -->
+    <ChangeMoveInDateModal
+      :show="showChangeMoveInDateModal"
+      :tenancy="selectedTenancyForDateChange"
+      @close="showChangeMoveInDateModal = false"
+      @saved="handleMoveInDateSaved"
+    />
   </Sidebar>
 </template>
 
@@ -591,6 +600,7 @@ import ReferencesTopBar from '../components/references/ReferencesTopBar.vue'
 import ReferencesStatusTabs from '../components/references/ReferencesStatusTabs.vue'
 import TenancyRow from '../components/references/TenancyRow.vue'
 import PersonDrawer from '../components/references/PersonDrawer.vue'
+import ChangeMoveInDateModal from '../components/references/ChangeMoveInDateModal.vue'
 import { useTenancies, type Tenancy, type TenancyPerson, type TabKey } from '../composables/useTenancies'
 import { isValidEmail } from '../utils/validation'
 import { Building, FileText } from 'lucide-vue-next'
@@ -637,6 +647,10 @@ const deleteLoading = ref(false)
 
 // Add Guarantor modal state
 const showAddGuarantorModal = ref(false)
+
+// Change Move-in Date modal state
+const showChangeMoveInDateModal = ref(false)
+const selectedTenancyForDateChange = ref<Tenancy | null>(null)
 const addingGuarantor = ref(false)
 const guarantorError = ref('')
 const guarantorSuccess = ref('')
@@ -1175,6 +1189,15 @@ const handleAddGuarantor = (tenancy: Tenancy) => {
   }
 
   showAddGuarantorModal.value = true
+}
+
+const handleChangeMoveInDate = (tenancy: Tenancy) => {
+  selectedTenancyForDateChange.value = tenancy
+  showChangeMoveInDateModal.value = true
+}
+
+const handleMoveInDateSaved = () => {
+  loadTenancies()
 }
 
 // Handler for when add guarantor is triggered from the PersonDrawer

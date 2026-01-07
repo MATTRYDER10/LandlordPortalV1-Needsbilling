@@ -22,6 +22,13 @@
           <span class="text-sm text-gray-500">
             {{ formatDate(tenancy.moveInDate) }}
           </span>
+          <button
+            @click.stop="$emit('changeMoveInDate', tenancy)"
+            class="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
+            title="Change move-in date"
+          >
+            <Pencil class="w-3.5 h-3.5" />
+          </button>
           <ChevronDown
             class="w-5 h-5 text-gray-400 transition-transform duration-200"
             :class="{ 'rotate-180': isExpanded }"
@@ -125,7 +132,7 @@ import type { Tenancy, TenancyPerson } from '@/composables/useTenancies'
 import StatusPill from './StatusPill.vue'
 import ProgressChips from './ProgressChips.vue'
 import PersonCard from './PersonCard.vue'
-import { ChevronDown, AlertTriangle, MailWarning } from 'lucide-vue-next'
+import { ChevronDown, AlertTriangle, MailWarning, Pencil } from 'lucide-vue-next'
 
 const props = defineProps<{
   tenancy: Tenancy
@@ -137,6 +144,7 @@ defineEmits<{
   openPerson: [person: TenancyPerson]
   chase: [person: TenancyPerson]
   addGuarantor: []
+  changeMoveInDate: [tenancy: Tenancy]
 }>()
 
 // Sort people: tenants first, then their guarantors underneath
