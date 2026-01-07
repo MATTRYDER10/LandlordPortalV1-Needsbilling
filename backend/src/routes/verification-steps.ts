@@ -831,7 +831,7 @@ router.post(
             const addGuarantorToken = generateToken();
             const addGuarantorTokenHash = hash(addGuarantorToken);
             const tokenExpiresAt = new Date();
-            tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 14); // 14-day expiry
+            tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60); // 60-day expiry
 
             // Save token to reference
             await supabaseAdmin

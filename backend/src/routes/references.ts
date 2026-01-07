@@ -1054,9 +1054,9 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
         }
       }
 
-      // Token expires in 21 days
+      // Token expires in 60 days
       const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 21)
+      expiresAt.setDate(expiresAt.getDate() + 60)
 
       // Create parent reference (placeholder for the property)
       const parentToken = generateToken()
@@ -1187,7 +1187,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
             const guarantorToken = generateToken()
             const guarantorTokenHash = hash(guarantorToken)
             const guarantorExpiresAt = new Date()
-            guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 21)
+            guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 60)
 
             // Encrypt parent tenant name for storage
             const parentFirstNameEncrypted = encrypt(tenant.first_name)
@@ -1352,9 +1352,9 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
       const token = generateToken()
       const tokenHash = hash(token)
 
-      // Token expires in 21 days
+      // Token expires in 60 days
       const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 21)
+      expiresAt.setDate(expiresAt.getDate() + 60)
 
       // Create reference
       const { data: reference, error } = await supabase
@@ -1441,7 +1441,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           const guarantorToken = generateToken()
           const guarantorTokenHash = hash(guarantorToken)
           const guarantorExpiresAt = new Date()
-          guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 21)
+          guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 60)
 
           // Encrypt parent tenant name for storage
           const parentFirstNameEncrypted = encrypt(tenant_first_name)
@@ -2464,7 +2464,7 @@ router.post('/submit/:token', async (req: Request, res) => {
           const guarantorToken = generateToken()
           const guarantorTokenHash = hash(guarantorToken)
           const guarantorExpiresAt = new Date()
-          guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 21)
+          guarantorExpiresAt.setDate(guarantorExpiresAt.getDate() + 60)
 
           // Create guarantor reference as a full tenant_reference
           const { data: guarantorRef, error: guarantorError } = await supabase
@@ -4942,7 +4942,7 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     const guarantorToken = generateToken()
     const guarantorTokenHash = hash(guarantorToken)
     const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 21) // 21-day expiry
+    expiresAt.setDate(expiresAt.getDate() + 60) // 60-day expiry
 
     // Create guarantor reference as a tenant_reference
     const { data: guarantorReference, error: createError } = await supabase
@@ -5217,7 +5217,7 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     const guarantorToken = generateToken()
     const guarantorTokenHash = hash(guarantorToken)
     const tokenExpiresAt = new Date()
-    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21)
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60)
 
     // Update the token hash in the appropriate table
     if (isLegacyGuarantor) {
@@ -5393,7 +5393,7 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
     const guarantorToken = generateToken()
     const guarantorTokenHash = hash(guarantorToken)
     const tokenExpiresAt = new Date()
-    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21)
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60)
 
     // Update the token hash in the guarantor reference
     await supabase
@@ -5675,7 +5675,7 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
     const guarantorToken = generateToken()
     const guarantorTokenHash = hash(guarantorToken)
     const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 21) // 21-day expiry
+    expiresAt.setDate(expiresAt.getDate() + 60) // 60-day expiry
 
     // Create guarantor reference as a tenant_reference
     const { data: guarantorReference, error: createError } = await supabase
@@ -6640,7 +6640,7 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
 
     // Set token expiry (21 days from now)
     const tokenExpiresAt = new Date()
-    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21)
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60)
 
     // Update the reference with the new token hash
     await supabase

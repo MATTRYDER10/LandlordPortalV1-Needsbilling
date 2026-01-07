@@ -1440,9 +1440,9 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
         const termYears = Math.floor(termMonths / 12)
         const remainingMonths = termMonths % 12
 
-        // Token expires in 21 days
+        // Token expires in 60 days
         const expiresAt = new Date()
-        expiresAt.setDate(expiresAt.getDate() + 21)
+        expiresAt.setDate(expiresAt.getDate() + 60)
 
         let createdReferences: any[] = []
         let referenceId: string | null = null

@@ -838,7 +838,7 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
           const addGuarantorToken = generateToken()
           const addGuarantorTokenHash = hash(addGuarantorToken)
           const tokenExpiresAt = new Date()
-          tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 14) // 14-day expiry
+          tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60) // 60-day expiry
 
           // Save token to reference
           await supabase
@@ -1500,7 +1500,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
           const guarantorToken = generateToken()
           const guarantorTokenHash = hash(guarantorToken)
           const tokenExpiresAt = new Date()
-          tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21)
+          tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60)
 
           await supabase
             .from('tenant_references')
@@ -2053,9 +2053,9 @@ router.post('/references/:id/request-document', authenticateStaff, async (req: S
     const token = generateToken()
     const tokenHash = hash(token)
 
-    // Token expires in 21 days
+    // Token expires in 60 days
     const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 21)
+    expiresAt.setDate(expiresAt.getDate() + 60)
 
     // Update status to in_progress and set new token
     const { error: statusError } = await supabase

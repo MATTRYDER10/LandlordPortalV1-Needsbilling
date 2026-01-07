@@ -1217,7 +1217,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
         const guarantorToken = generateToken();
         const guarantorTokenHash = hash(guarantorToken);
         const tokenExpiresAt = new Date();
-        tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 21);
+        tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60);
 
         if (isLegacyGuarantor) {
           await supabaseAdmin
