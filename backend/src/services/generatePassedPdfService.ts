@@ -711,6 +711,46 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                 })
             }
 
+            // Show condition notes if present (for PASS_ON_CONDITION or any status with notes)
+            const finalRemarks = score?.final_remarks as Record<string, any> | null
+            const tasReason = finalRemarks?.credit_tas?.tas_reason as string | undefined
+            if (tasReason && !isGuarantor) {
+                yPos += 35
+                const notesBoxWidth = pageWidth - (2 * margin) - 40
+                const notesBoxX = margin + 20
+
+                // Estimate height based on text length
+                const estimatedHeight = Math.max(50, Math.ceil(tasReason.length / 60) * 20 + 30)
+
+                // Blue notice box background
+                doc.rect(notesBoxX, yPos, notesBoxWidth, estimatedHeight)
+                    .fillColor('#E8F4FC')
+                    .fill()
+
+                // Border
+                doc.rect(notesBoxX, yPos, notesBoxWidth, estimatedHeight)
+                    .strokeColor('#1E88E5')
+                    .lineWidth(1.5)
+                    .stroke()
+
+                // Header text
+                doc.font('SpaceGrotesk-Bold')
+                    .fontSize(11)
+                    .fillColor('#1565C0')
+                doc.text('CONDITION:', notesBoxX + 10, yPos + 10)
+
+                // Notes text
+                doc.font('SpaceGrotesk')
+                    .fontSize(10)
+                    .fillColor('#1565C0')
+                doc.text(tasReason, notesBoxX + 10, yPos + 28, {
+                    width: notesBoxWidth - 20,
+                    align: 'left'
+                })
+
+                yPos += estimatedHeight
+            }
+
             // Tenant Name Field
             yPos = pageHeight - 150
             doc.font('SpaceGrotesk')
