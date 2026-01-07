@@ -190,10 +190,13 @@
               <dt class="text-sm font-medium text-gray-500">Holding Deposit Amount</dt>
               <dd class="mt-1 text-sm text-gray-900">£{{ holdingDepositAmount.toFixed(2) }} (one week's rent)</dd>
             </div>
-            <div v-if="offer.deposit_replacement_offered" class="sm:col-span-2">
+            <div class="sm:col-span-2">
               <dt class="text-sm font-medium text-gray-500">Deposit Replacement Service</dt>
               <dd class="mt-1 text-sm text-gray-900">
-                <span v-if="offer.deposit_replacement_requested" class="text-green-700 font-medium">
+                <span v-if="!offer.deposit_replacement_offered" class="text-gray-500">
+                  Declined by Agent
+                </span>
+                <span v-else-if="offer.deposit_replacement_requested" class="text-green-700 font-medium">
                   Deposit replacement service applied for
                 </span>
                 <span v-else class="text-gray-600">Not requested</span>
