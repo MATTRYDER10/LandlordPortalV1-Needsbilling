@@ -2131,6 +2131,9 @@ async function selectLandlordForImport(landlord: any) {
 
   // Auto-fill bank details (Step 3)
   if (fullLandlord.bank_details) {
+    if (fullLandlord.bank_details.account_name) {
+      formData.value.bankAccountName = fullLandlord.bank_details.account_name
+    }
     if (fullLandlord.bank_details.account_number) {
       formData.value.bankAccountNumber = fullLandlord.bank_details.account_number
     }
@@ -2431,24 +2434,26 @@ function mapReferenceToForm(
     // Multi-tenant scenario
     formData.value.tenants = childReferences.map((child: any) => ({
       name: `${child.tenant_first_name} ${child.tenant_last_name}`,
+      email: child.tenant_email || '',
       address: {
-        line1: child.property_address || '',
-        line2: '',
-        city: child.property_city || '',
+        line1: child.current_address_line1 || '',
+        line2: child.current_address_line2 || '',
+        city: child.current_city || '',
         county: '',
-        postcode: child.property_postcode || ''
+        postcode: child.current_postcode || ''
       }
     }))
   } else {
     // Single tenant
     formData.value.tenants = [{
       name: `${reference.tenant_first_name} ${reference.tenant_last_name}`,
+      email: reference.tenant_email || '',
       address: {
-        line1: reference.property_address || '',
-        line2: '',
-        city: reference.property_city || '',
+        line1: reference.current_address_line1 || '',
+        line2: reference.current_address_line2 || '',
+        city: reference.current_city || '',
         county: '',
-        postcode: reference.property_postcode || ''
+        postcode: reference.current_postcode || ''
       }
     }]
   }
