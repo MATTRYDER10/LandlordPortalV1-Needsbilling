@@ -358,11 +358,74 @@
 
             <!-- Key identity details -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Full Name with verification -->
               <div class="bg-gray-50 rounded p-4">
                 <p class="text-sm font-medium text-gray-700">Full Name</p>
                 <p class="mt-1 text-sm text-gray-900">
                   {{ reference?.tenant_first_name }} {{ reference?.tenant_last_name }}
                 </p>
+
+                <!-- Name match question -->
+                <div class="mt-3 pt-3 border-t border-gray-200">
+                  <p class="text-sm text-gray-700 mb-2">Does name match full ID name?</p>
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      @click="nameMatchesId = true"
+                      :class="[
+                        'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
+                        nameMatchesId === true
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      ]"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      @click="nameMatchesId = false; correctedFirstName = reference?.tenant_first_name || ''; correctedLastName = reference?.tenant_last_name || ''"
+                      :class="[
+                        'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
+                        nameMatchesId === false
+                          ? 'bg-orange-600 text-white'
+                          : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      ]"
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Name correction form (shown when No is selected) -->
+                <div v-if="nameMatchesId === false" class="mt-3 pt-3 border-t border-gray-200 space-y-3">
+                  <p class="text-sm font-medium text-gray-700">Correct name as shown on ID:</p>
+                  <div>
+                    <label class="block text-xs text-gray-500 mb-1">First Name</label>
+                    <input
+                      v-model="correctedFirstName"
+                      type="text"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="First name from ID"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 mb-1">Last Name</label>
+                    <input
+                      v-model="correctedLastName"
+                      type="text"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      placeholder="Last name from ID"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    @click="saveNameCorrection"
+                    :disabled="savingNameCorrection || !correctedFirstName.trim() || !correctedLastName.trim()"
+                    class="w-full px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {{ savingNameCorrection ? 'Saving...' : 'Save Corrected Name' }}
+                  </button>
+                </div>
               </div>
               <div class="bg-gray-50 rounded p-4">
                 <p class="text-sm font-medium text-gray-700">Date of Birth</p>
@@ -3011,6 +3074,12 @@ const steps = ref<VerificationStep[]>([
   { step_number: 5, step_type: 'CREDIT_TAS', overall_pass: null, notes: '', evidence_sources: [], checks: [] }
 ])
 
+// Name verification during ID check
+const nameMatchesId = ref<boolean | null>(null)
+const correctedFirstName = ref('')
+const correctedLastName = ref('')
+const savingNameCorrection = ref(false)
+
 // TAS decision
 const tasDecision = ref<'PASS' | 'PASS_WITH_GUARANTOR' | 'PASS_ON_CONDITION' | 'REFER' | 'FAIL' | null>(null)
 const tasReason = ref('')
@@ -3584,6 +3653,46 @@ const proceedWithAction = async () => {
 const cancelAction = () => {
   showConfirmationModal.value = false
   pendingAction.value = null
+}
+
+// Save corrected tenant name during ID verification
+const saveNameCorrection = async () => {
+  if (!reference.value?.id || !correctedFirstName.value.trim() || !correctedLastName.value.trim()) {
+    return
+  }
+
+  savingNameCorrection.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/${reference.value.id}/tenant-name`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        first_name: correctedFirstName.value.trim(),
+        last_name: correctedLastName.value.trim()
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update tenant name')
+    }
+
+    // Update local reference data
+    if (reference.value) {
+      reference.value.tenant_first_name = correctedFirstName.value.trim()
+      reference.value.tenant_last_name = correctedLastName.value.trim()
+    }
+
+    // Reset to "Yes" state since name is now corrected
+    nameMatchesId.value = true
+  } catch (error) {
+    console.error('Error updating tenant name:', error)
+    alert('Failed to update tenant name. Please try again.')
+  } finally {
+    savingNameCorrection.value = false
+  }
 }
 
 // Gather all step decisions into JSON format

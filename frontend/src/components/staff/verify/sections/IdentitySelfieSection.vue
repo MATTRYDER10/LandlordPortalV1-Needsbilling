@@ -93,9 +93,64 @@
 
       <!-- Key identity details -->
       <div class="details-grid">
-        <div class="detail-item">
+        <!-- Full Name with verification -->
+        <div class="detail-item detail-item-full">
           <p class="detail-label">Full Name</p>
           <p class="detail-value">{{ fullName }}</p>
+
+          <!-- Name match question -->
+          <div class="name-match-section">
+            <p class="name-match-label">Does name match full ID name?</p>
+            <div class="name-match-buttons">
+              <button
+                type="button"
+                @click="nameMatchesId = true"
+                :class="['match-btn', nameMatchesId === true ? 'match-btn-yes-active' : 'match-btn-inactive']"
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                @click="handleNameMismatch"
+                :class="['match-btn', nameMatchesId === false ? 'match-btn-no-active' : 'match-btn-inactive']"
+              >
+                No
+              </button>
+            </div>
+          </div>
+
+          <!-- Name correction form (shown when No is selected) -->
+          <div v-if="nameMatchesId === false" class="name-correction-form">
+            <p class="correction-label">Correct name as shown on ID:</p>
+            <div class="correction-inputs">
+              <div class="correction-field">
+                <label class="field-label">First Name</label>
+                <input
+                  v-model="correctedFirstName"
+                  type="text"
+                  class="correction-input"
+                  placeholder="First name from ID"
+                />
+              </div>
+              <div class="correction-field">
+                <label class="field-label">Last Name</label>
+                <input
+                  v-model="correctedLastName"
+                  type="text"
+                  class="correction-input"
+                  placeholder="Last name from ID"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="submitNameCorrection"
+              :disabled="savingNameCorrection || !correctedFirstName.trim() || !correctedLastName.trim()"
+              class="save-correction-btn"
+            >
+              {{ savingNameCorrection ? 'Saving...' : 'Save Corrected Name' }}
+            </button>
+          </div>
         </div>
         <div v-if="middleName" class="detail-item">
           <p class="detail-label">Middle Name</p>
@@ -158,7 +213,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
 import { RotateCw, ZoomOut, ZoomIn, X, IdCard, User, FileText, Check, Minus } from 'lucide-vue-next'
@@ -211,10 +266,17 @@ function resetSelfie() {
   selfieZoom.value = 1
 }
 
-defineProps<{
+// Name verification state
+const nameMatchesId = ref<boolean | null>(null)
+const correctedFirstName = ref('')
+const correctedLastName = ref('')
+
+const props = defineProps<{
   section: VerificationSection
   isGuarantor: boolean
   fullName: string
+  firstName?: string
+  lastName?: string
   middleName?: string
   dateOfBirth?: string
   nationality?: string
@@ -227,15 +289,41 @@ defineProps<{
   readOnly?: boolean
   loading?: boolean
   actionReasonCodes?: ActionReasonCode[]
+  savingNameCorrection?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'pass', sectionId: string): void
   (e: 'passWithCondition', sectionId: string, condition: string): void
   (e: 'actionRequired', sectionId: string, params: { reasonCode: string; agentNote: string; internalNote: string }): void
   (e: 'fail', sectionId: string, reason: string): void
   (e: 'reset', sectionId: string): void
+  (e: 'updateName', firstName: string, lastName: string): void
 }>()
+
+// Initialize corrected name fields when "No" is clicked
+function handleNameMismatch() {
+  nameMatchesId.value = false
+  correctedFirstName.value = props.firstName || ''
+  correctedLastName.value = props.lastName || ''
+}
+
+// Submit name correction
+function submitNameCorrection() {
+  if (correctedFirstName.value.trim() && correctedLastName.value.trim()) {
+    emit('updateName', correctedFirstName.value.trim(), correctedLastName.value.trim())
+  }
+}
+
+// Watch for successful name update (when savingNameCorrection goes from true to false and names match)
+watch(() => props.savingNameCorrection, (newVal, oldVal) => {
+  if (oldVal === true && newVal === false) {
+    // After save completes, check if names were updated
+    if (props.firstName === correctedFirstName.value && props.lastName === correctedLastName.value) {
+      nameMatchesId.value = true
+    }
+  }
+})
 </script>
 
 <style scoped>
@@ -483,5 +571,125 @@ defineEmits<{
 .check-notes {
   color: #9ca3af;
   font-size: 0.75rem;
+}
+
+/* Name verification styles */
+.detail-item-full {
+  grid-column: 1 / -1;
+}
+
+.name-match-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.name-match-label {
+  font-size: 0.875rem;
+  color: #374151;
+  margin: 0 0 0.5rem;
+}
+
+.name-match-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.match-btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.match-btn-inactive {
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.match-btn-inactive:hover {
+  background: #f9fafb;
+}
+
+.match-btn-yes-active {
+  background: #16a34a;
+  border: 1px solid #16a34a;
+  color: white;
+}
+
+.match-btn-no-active {
+  background: #ea580c;
+  border: 1px solid #ea580c;
+  color: white;
+}
+
+.name-correction-form {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.correction-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin: 0 0 0.75rem;
+}
+
+.correction-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.correction-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.correction-input {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.correction-input:focus {
+  border-color: #f97316;
+  box-shadow: 0 0 0 1px #f97316;
+}
+
+.save-correction-btn {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  background: #f97316;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.save-correction-btn:hover:not(:disabled) {
+  background: #ea580c;
+}
+
+.save-correction-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

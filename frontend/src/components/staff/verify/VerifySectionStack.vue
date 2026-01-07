@@ -6,6 +6,8 @@
       :section="identitySection"
       :is-guarantor="isGuarantor"
       :full-name="referenceData.fullName"
+      :first-name="referenceData.firstName"
+      :last-name="referenceData.lastName"
       :middle-name="referenceData.middleName"
       :date-of-birth="referenceData.dateOfBirth"
       :nationality="referenceData.nationality"
@@ -17,11 +19,13 @@
       :read-only="readOnly"
       :loading="loading"
       :action-reason-codes="actionReasonCodes"
+      :saving-name-correction="savingNameCorrection"
       @pass="(id) => $emit('sectionPass', id)"
       @pass-with-condition="(id, c) => $emit('sectionPassWithCondition', id, c)"
       @action-required="(id, p) => $emit('sectionActionRequired', id, p)"
       @fail="(id, r) => $emit('sectionFail', id, r)"
       @reset="(id) => $emit('sectionReset', id)"
+      @update-name="(f, l) => $emit('updateName', f, l)"
     />
 
     <!-- RTR - Only for tenants -->
@@ -186,6 +190,8 @@ import AmlSection from './sections/AmlSection.vue'
 interface ReferenceData {
   // Identity
   fullName: string
+  firstName?: string
+  lastName?: string
   middleName?: string
   dateOfBirth?: string
   nationality?: string
@@ -285,6 +291,7 @@ const props = defineProps<{
   readOnly?: boolean
   loading?: boolean
   actionReasonCodes?: ActionReasonCode[]
+  savingNameCorrection?: boolean
 }>()
 
 defineEmits<{
@@ -294,6 +301,7 @@ defineEmits<{
   (e: 'sectionFail', sectionId: string, reason: string): void
   (e: 'sectionReset', sectionId: string): void
   (e: 'dataRefreshNeeded'): void
+  (e: 'updateName', firstName: string, lastName: string): void
 }>()
 
 const findSection = (type: string) => {

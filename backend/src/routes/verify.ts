@@ -414,6 +414,70 @@ router.post('/person/:referenceId/sections/initialize', staffAuth, async (req: S
   }
 });
 
+// Update tenant name during verification (staff only)
+router.patch('/person/:referenceId/tenant-name', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const { first_name, last_name } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    if (!first_name || !last_name) {
+      return res.status(400).json({ error: 'First name and last name are required' });
+    }
+
+    // Get current values for audit
+    const { data: reference, error: refError } = await supabaseAdmin
+      .from('tenant_references')
+      .select('tenant_first_name_encrypted, tenant_last_name_encrypted, company_id')
+      .eq('id', referenceId)
+      .single();
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' });
+    }
+
+    const oldFirstName = decrypt(reference.tenant_first_name_encrypted) || '';
+    const oldLastName = decrypt(reference.tenant_last_name_encrypted) || '';
+
+    // Update with encrypted values
+    const { error: updateError } = await supabaseAdmin
+      .from('tenant_references')
+      .update({
+        tenant_first_name_encrypted: encrypt(first_name),
+        tenant_last_name_encrypted: encrypt(last_name)
+      })
+      .eq('id', referenceId);
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message });
+    }
+
+    // Audit log
+    await logAuditAction({
+      referenceId,
+      action: 'tenant_name_updated',
+      description: `Staff updated tenant name from "${oldFirstName} ${oldLastName}" to "${first_name} ${last_name}"`,
+      userId: staffUser.id,
+      metadata: {
+        old_first_name: oldFirstName,
+        old_last_name: oldLastName,
+        new_first_name: first_name,
+        new_last_name: last_name,
+        updated_by_staff: staffUser.full_name
+      }
+    });
+
+    res.json({ message: 'Tenant name updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating tenant name:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get verification progress for a reference
 router.get('/person/:referenceId/progress', staffAuth, async (req: StaffAuthRequest, res: Response) => {
   try {

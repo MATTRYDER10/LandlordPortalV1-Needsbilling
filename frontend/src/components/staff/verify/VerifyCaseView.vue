@@ -178,12 +178,14 @@
             :read-only="isReadOnly"
             :loading="!!sectionLoading"
             :action-reason-codes="actionReasonCodes"
+            :saving-name-correction="savingNameCorrection"
             @section-pass="handleSectionPass"
             @section-pass-with-condition="handleSectionPassWithCondition"
             @section-action-required="handleSectionActionRequired"
             @section-fail="handleSectionFail"
             @section-reset="handleSectionReset"
             @data-refresh-needed="refreshEvidenceData"
+            @update-name="handleUpdateName"
           />
         </div>
 
@@ -247,6 +249,7 @@ const creditsafeVerification = ref<any>(null)
 const sanctionsScreening = ref<any>(null)
 const referenceScore = ref<any>(null)
 const evidenceData = ref<any>(null)
+const savingNameCorrection = ref(false)
 
 // Computed
 const isGuarantor = computed(() => reference.value?.person_type === 'GUARANTOR')
@@ -289,6 +292,8 @@ const hasFail = computed(() =>
 const referenceData = computed(() => ({
   // Identity
   fullName: personName.value,
+  firstName: reference.value?.tenant_first_name,
+  lastName: reference.value?.tenant_last_name,
   middleName: reference.value?.middle_name,
   dateOfBirth: reference.value?.date_of_birth,
   nationality: reference.value?.nationality,
@@ -731,6 +736,39 @@ async function handleSectionFail(sectionId: string, reason: string) {
 
 async function handleSectionReset(sectionId: string) {
   await updateSectionDecision(sectionId, 'NOT_REVIEWED')
+}
+
+// Handle name correction from Identity section
+async function handleUpdateName(firstName: string, lastName: string) {
+  if (!reference.value?.id) return
+
+  savingNameCorrection.value = true
+  try {
+    const response = await fetch(`${API_BASE}/api/verify/person/${reference.value.id}/tenant-name`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        first_name: firstName,
+        last_name: lastName
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update tenant name')
+    }
+
+    // Update local reference data
+    reference.value.tenant_first_name = firstName
+    reference.value.tenant_last_name = lastName
+  } catch (err: any) {
+    console.error('Failed to update tenant name:', err)
+    alert('Failed to update tenant name. Please try again.')
+  } finally {
+    savingNameCorrection.value = false
+  }
 }
 
 async function updateSectionDecision(sectionId: string, decision: SectionDecision, extra: Record<string, any> = {}) {
