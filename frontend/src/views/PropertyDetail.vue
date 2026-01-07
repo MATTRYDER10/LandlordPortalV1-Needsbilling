@@ -212,7 +212,7 @@
               <div v-if="rightTab === 'landlords'" class="p-4">
                 <div class="flex justify-between items-center mb-4">
                   <h4 class="text-sm font-medium text-gray-700">Ownership</h4>
-                  <button @click="showEditModal = true"
+                  <button @click="showEditLandlordsModal = true"
                     class="text-sm text-primary hover:text-primary/80">
                     Edit
                   </button>
@@ -390,6 +390,16 @@
       @uploaded="handleDocumentUploaded"
     />
 
+    <!-- Edit Property Landlords Modal -->
+    <EditPropertyLandlordsModal
+      v-if="showEditLandlordsModal"
+      :show="showEditLandlordsModal"
+      :property-id="property?.id || ''"
+      :current-landlords="propertyLandlords"
+      @close="showEditLandlordsModal = false"
+      @saved="handleLandlordsSaved"
+    />
+
     <!-- Document Preview Modal -->
     <div v-if="showDocumentPreview" class="fixed inset-0 z-50 flex items-center justify-center">
       <div class="absolute inset-0 bg-black/50" @click="closeDocumentPreview"></div>
@@ -463,6 +473,7 @@ import Sidebar from '../components/Sidebar.vue'
 import AddEditPropertyModal from '../components/properties/AddEditPropertyModal.vue'
 import AddComplianceModal from '../components/properties/AddComplianceModal.vue'
 import UploadDocumentModal from '../components/properties/UploadDocumentModal.vue'
+import EditPropertyLandlordsModal from '../components/properties/EditPropertyLandlordsModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { useDownload } from '../composables/useDownload'
 import { formatDate as formatUkDate } from '../utils/date'
@@ -548,6 +559,7 @@ const propertyDocuments = ref<PropertyDocument[]>([])
 const rightTab = ref<'landlords' | 'documents' | 'activity'>('landlords')
 const documentTagFilter = ref('')
 const showEditModal = ref(false)
+const showEditLandlordsModal = ref(false)
 const showAddComplianceModal = ref(false)
 const showUploadDocumentModal = ref(false)
 const editingComplianceRecord = ref<ComplianceRecord | null>(null)
@@ -670,6 +682,11 @@ const handleComplianceSaved = () => {
 
 const handleDocumentUploaded = () => {
   showUploadDocumentModal.value = false
+  fetchProperty()
+}
+
+const handleLandlordsSaved = () => {
+  showEditLandlordsModal.value = false
   fetchProperty()
 }
 

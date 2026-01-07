@@ -587,10 +587,11 @@ const fetchProperty = async () => {
     form.value.furnishing_status = property.furnishing_status || ''
     form.value.management_type = property.management_type || ''
     form.value.notes = property.notes || ''
-    form.value.landlords = property.landlords.map((l: any) => ({
+    form.value.landlords = property.landlords?.map((l: any) => ({
       landlord_id: l.landlord_id,
-      ownership_percentage: l.ownership_percentage
-    }))
+      ownership_percentage: l.ownership_percentage,
+      is_primary_contact: l.is_primary_contact || false
+    })) || []
   } catch (err: any) {
     toast.error(err.message || 'Failed to load property')
   } finally {
