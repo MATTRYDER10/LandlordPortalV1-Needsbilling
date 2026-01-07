@@ -22,6 +22,33 @@ import {
 const router = Router()
 
 /**
+ * Check if an employer bounce should be suppressed from display
+ * Suppresses if ANY of these conditions are true:
+ * - Employer reference has been received (submitted_at is set)
+ * - Reference is verified (status is 'completed')
+ * - Proof of income exists (payslips uploaded)
+ */
+function shouldSuppressEmployerBounce(
+  reference: any,
+  emailIssue: { status: string; referenceType: string }
+): boolean {
+  // Only suppress employer bounces, not other types (landlord, tenant, etc.)
+  if (emailIssue.referenceType !== 'employer') return false
+
+  // Condition 1: Employer reference has been received
+  const employerRef = reference.employer_references?.[0]
+  if (employerRef?.submitted_at) return true
+
+  // Condition 2: Reference is verified (completed status)
+  if (reference.status === 'completed') return true
+
+  // Condition 3: Proof of income exists (payslips uploaded)
+  if (reference.payslip_files?.length > 0) return true
+
+  return false
+}
+
+/**
  * GET /api/tenancies
  * Get all tenancies for the authenticated user's company
  *
@@ -228,11 +255,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           // Check for email delivery issues for this person (tenant's own email or referee emails)
           const emailIssues = emailIssuesMap.get(person.id)
           if (emailIssues && emailIssues.length > 0) {
-            const firstIssue = emailIssues[0]
-            person.emailDeliveryIssue = {
-              type: firstIssue.status as 'bounced' | 'complained',
-              referenceType: firstIssue.referenceType as any,
-              errorMessage: firstIssue.errorMessage
+            // Find first non-suppressed issue (skip employer bounces when ref received/verified/has payslips)
+            const validIssue = emailIssues.find(issue => !shouldSuppressEmployerBounce(child, issue))
+            if (validIssue) {
+              person.emailDeliveryIssue = {
+                type: validIssue.status as 'bounced' | 'complained',
+                referenceType: validIssue.referenceType as any,
+                errorMessage: validIssue.errorMessage
+              }
             }
           }
           people.push(person)
@@ -243,11 +273,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         // Check for email delivery issues for this person (tenant's own email or referee emails)
         const emailIssues = emailIssuesMap.get(person.id)
         if (emailIssues && emailIssues.length > 0) {
-          const firstIssue = emailIssues[0]
-          person.emailDeliveryIssue = {
-            type: firstIssue.status as 'bounced' | 'complained',
-            referenceType: firstIssue.referenceType as any,
-            errorMessage: firstIssue.errorMessage
+          // Find first non-suppressed issue (skip employer bounces when ref received/verified/has payslips)
+          const validIssue = emailIssues.find(issue => !shouldSuppressEmployerBounce(parentRef, issue))
+          if (validIssue) {
+            person.emailDeliveryIssue = {
+              type: validIssue.status as 'bounced' | 'complained',
+              referenceType: validIssue.referenceType as any,
+              errorMessage: validIssue.errorMessage
+            }
           }
         }
         people.push(person)
@@ -259,11 +292,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         // Check for email delivery issues for this person
         const emailIssues = emailIssuesMap.get(person.id)
         if (emailIssues && emailIssues.length > 0) {
-          const firstIssue = emailIssues[0]
-          person.emailDeliveryIssue = {
-            type: firstIssue.status as 'bounced' | 'complained',
-            referenceType: firstIssue.referenceType as any,
-            errorMessage: firstIssue.errorMessage
+          // Find first non-suppressed issue (skip employer bounces when ref received/verified/has payslips)
+          const validIssue = emailIssues.find(issue => !shouldSuppressEmployerBounce(guarantor, issue))
+          if (validIssue) {
+            person.emailDeliveryIssue = {
+              type: validIssue.status as 'bounced' | 'complained',
+              referenceType: validIssue.referenceType as any,
+              errorMessage: validIssue.errorMessage
+            }
           }
         }
         people.push(person)
