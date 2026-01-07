@@ -5,7 +5,7 @@
         <div class="flex items-center justify-center mb-4">
           <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-10" />
         </div>
-        <h2 class="mt-6 text-3xl font-bold text-gray-900">Sign in to your account</h2>
+        <h2 class="mt-6 text-3xl font-bold text-gray-900">Change in to your account!</h2>
         <p class="mt-2 text-sm text-gray-600">
           Don't have an account?
           <router-link to="/register" class="font-medium text-primary hover:text-primary/80">
