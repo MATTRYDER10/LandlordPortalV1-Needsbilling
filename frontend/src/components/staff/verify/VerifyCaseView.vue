@@ -186,6 +186,7 @@
             @section-reset="handleSectionReset"
             @data-refresh-needed="refreshEvidenceData"
             @update-name="handleUpdateName"
+            @update-rtr-data="handleUpdateRtrData"
           />
         </div>
 

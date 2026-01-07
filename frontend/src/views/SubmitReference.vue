@@ -1948,7 +1948,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { CheckCircle, XCircle, X, Check, Info, FileText, AlertCircle } from 'lucide-vue-next'
+import { CheckCircle, X, Check, Info, FileText } from 'lucide-vue-next'
 import PhoneInput from '../components/PhoneInput.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
