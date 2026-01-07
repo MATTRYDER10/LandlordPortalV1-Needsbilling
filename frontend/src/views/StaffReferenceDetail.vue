@@ -1943,6 +1943,7 @@ import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { useDownload } from '../composables/useDownload'
 import { LogOut, Plus, FileText, Image, Eye, Download, Home, FileCheck, CheckCircle, X, ChevronRight, Loader2 } from 'lucide-vue-next'
 import ComparisonTable from '../components/ComparisonTable.vue'
 import CreditsafeVerificationCard from '../components/CreditsafeVerificationCard.vue'
@@ -1953,6 +1954,7 @@ import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { downloadFile: safariDownload, openInNewTab, fetchAsBlob } = useDownload()
 const toast = useToast()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -2210,51 +2212,11 @@ const fetchScore = async () => {
   }
 }
 
-const downloadPDFReport = async () => {
+const downloadPDFReport = () => {
   try {
     downloadingPDF.value = true
-    const token = authStore.session?.access_token
-    if (!token) {
-      toast.error('Authentication required')
-      return
-    }
-
-    const response = await fetch(`${API_URL}/api/references/${route.params.id}/report`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to generate PDF report')
-    }
-
-    // Get the PDF blob
-    const blob = await response.blob()
-
-    // Extract filename from Content-Disposition header
-    const contentDisposition = response.headers.get('Content-Disposition')
-    let filename = 'PropertyGoose_Reference_Report.pdf'
-
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="(.+)"/)
-      if (filenameMatch && filenameMatch[1]) {
-        filename = filenameMatch[1]
-      }
-    }
-
-    // Create a download link
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
-
-    toast.success('PDF report downloaded successfully')
+    safariDownload(`/api/references/${route.params.id}/report`, 'PropertyGoose_Reference_Report.pdf')
+    toast.success('PDF report download started')
   } catch (err: any) {
     console.error('Failed to download PDF report:', err)
     toast.error(err.message || 'Failed to download PDF report')
@@ -2433,37 +2395,15 @@ const copyEmployerLink = async () => {
   }
 }
 
-const downloadFile = async (filePath: string) => {
+const downloadFile = (filePath: string) => {
   try {
-    const token = authStore.session?.access_token
-    if (!token) {
-      toast.error('Authentication required')
-      return
-    }
-
     // Parse file path: referenceId/folder/filename
     const parts = filePath.split('/')
-    const downloadUrl = `${API_URL}/api/staff/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
+    const apiPath = `/api/staff/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
+    const filename = filePath.split('/').pop() || 'document'
 
-    const response = await fetch(downloadUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to download file')
-    }
-
-    const blob = await response.blob()
-    const blobUrl = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = filePath.split('/').pop() || 'document'
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(blobUrl)
-    document.body.removeChild(a)
+    // Use Safari-safe download
+    safariDownload(apiPath, filename)
   } catch (error) {
     toast.error('Failed to download file')
   }
@@ -2471,50 +2411,28 @@ const downloadFile = async (filePath: string) => {
 
 const viewFile = async (filePath: string) => {
   try {
-    const token = authStore.session?.access_token
-    if (!token) {
-      toast.error('Authentication required')
-      return
-    }
-
     // Parse file path: referenceId/folder/filename
     const parts = filePath.split('/')
-    const downloadUrl = `${API_URL}/api/staff/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
-
-    const response = await fetch(downloadUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to load file')
-    }
-
-    const blob = await response.blob()
-    const blobUrl = window.URL.createObjectURL(blob)
-
-    // Detect file type from filename
     const filename = parts[2] || ''
     const extension = filename.split('.').pop()?.toLowerCase()
     const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
     const pdfExtensions = ['pdf']
+    const apiPath = `/api/staff/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
 
-    let docType = 'image'
     if (pdfExtensions.includes(extension || '')) {
-      docType = 'pdf'
-      // For PDFs, open in new window instead of modal to avoid CORS issues
-      window.open(blobUrl, '_blank')
+      // For PDFs, use Safari-safe direct URL navigation
+      openInNewTab(apiPath)
       return
-    } else if (imageExtensions.includes(extension || '')) {
-      docType = 'image'
     }
+
+    // For images, fetch as blob for modal display
+    const blobUrl = await fetchAsBlob(apiPath)
 
     // Set modal state for images
     viewingDocumentUrl.value = blobUrl
     viewingDocumentName.value = filename
     viewingDocumentPath.value = filePath
-    viewingDocumentType.value = docType
+    viewingDocumentType.value = imageExtensions.includes(extension || '') ? 'image' : 'document'
     viewingDocument.value = true
   } catch (error) {
     toast.error('Failed to view file')
@@ -2535,50 +2453,28 @@ const closeDocumentViewer = () => {
 // Helper functions for guarantor documents
 const viewGuarantorFile = async (filePath: string, guarantorId: string) => {
   try {
-    const token = authStore.session?.access_token
-    if (!token) {
-      toast.error('Authentication required')
-      return
-    }
-
     // Extract filename from path (guarantor-documents/{guarantorId}/{filename})
     const parts = filePath.split('/')
     const filename = parts[parts.length - 1] || '_unknown_'
-    const downloadUrl = `${API_URL}/api/staff/download-guarantor/${guarantorId}/${encodeURIComponent(filename)}`
-
-    const response = await fetch(downloadUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to load file')
-    }
-
-    const blob = await response.blob()
-    const blobUrl = window.URL.createObjectURL(blob)
-
-    // Detect file type from filename
     const extension = filename.split('.').pop()?.toLowerCase()
     const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
     const pdfExtensions = ['pdf']
+    const apiPath = `/api/staff/download-guarantor/${guarantorId}/${encodeURIComponent(filename)}`
 
-    let docType = 'image'
     if (pdfExtensions.includes(extension || '')) {
-      docType = 'pdf'
-      // For PDFs, open in new window instead of modal to avoid CORS issues
-      window.open(blobUrl, '_blank')
+      // For PDFs, use Safari-safe direct URL navigation
+      openInNewTab(apiPath)
       return
-    } else if (imageExtensions.includes(extension || '')) {
-      docType = 'image'
     }
+
+    // For images, fetch as blob for modal display
+    const blobUrl = await fetchAsBlob(apiPath)
 
     // Set modal state for images
     viewingDocumentUrl.value = blobUrl
     viewingDocumentName.value = filename
     viewingDocumentPath.value = filePath
-    viewingDocumentType.value = docType
+    viewingDocumentType.value = imageExtensions.includes(extension || '') ? 'image' : 'document'
     viewingDocument.value = true
   } catch (error) {
     toast.error('Failed to view file')

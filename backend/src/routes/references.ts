@@ -4181,7 +4181,8 @@ router.get('/download/consent-pdfs/:referenceId/:filename', authenticateToken, a
 
     // Set content type for PDF
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+    const forceDownload = req.query.download === 'true'
+    res.setHeader('Content-Disposition', `${forceDownload ? 'attachment' : 'inline'}; filename="${filename}"`)
 
     const buffer = Buffer.from(await data.arrayBuffer())
     res.send(buffer)
@@ -5428,6 +5429,17 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
       .eq('user_id', userId)
       .maybeSingle()
 
+    // Fetch reference with passed_certificate_url
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, company_id, passed_certificate_url')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
     if (!staffUser) {
       // Not staff, must be company user - verify they own this reference
       const { data: companyUsers } = await supabase
@@ -5443,19 +5455,18 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
       const companyUser = companyUsers[0]
 
       // Verify reference belongs to user's company
-      const { data: reference } = await supabase
-        .from('tenant_references')
-        .select('id, company_id')
-        .eq('id', referenceId)
-        .eq('company_id', companyUser.company_id)
-        .single()
-
-      if (!reference) {
+      if (reference.company_id !== companyUser.company_id) {
         return res.status(404).json({ error: 'Reference not found' })
       }
     }
 
-    // Generate the PDF and get the URL
+    // If certificate already exists, redirect directly (fast path)
+    if (reference.passed_certificate_url) {
+      console.log('[PDF] Using existing certificate URL:', reference.passed_certificate_url)
+      return res.redirect(reference.passed_certificate_url)
+    }
+
+    // Otherwise generate the PDF and get the URL (slow path)
     const pdfUrl = await generatePassedPdfService(referenceId)
     console.log('[PDF] Generated PDF URL:', pdfUrl)
 

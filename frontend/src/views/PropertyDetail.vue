@@ -464,6 +464,7 @@ import AddEditPropertyModal from '../components/properties/AddEditPropertyModal.
 import AddComplianceModal from '../components/properties/AddComplianceModal.vue'
 import UploadDocumentModal from '../components/properties/UploadDocumentModal.vue'
 import { useAuthStore } from '../stores/auth'
+import { useDownload } from '../composables/useDownload'
 import { formatDate as formatUkDate } from '../utils/date'
 
 interface PropertyLandlord {
@@ -533,6 +534,7 @@ interface Property {
 const route = useRoute()
 const toast = useToast()
 const authStore = useAuthStore()
+const { downloadFile, openInNewTab } = useDownload()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -741,39 +743,22 @@ const navigateToActivity = (activity: any) => {
   }
 }
 
-const downloadDocument = async (doc: PropertyDocument, forceDownload = false) => {
+const downloadDocument = (doc: PropertyDocument, forceDownload = false) => {
   try {
     // Use different endpoint for compliance documents vs property documents
-    let url: string
+    let path: string
     if (doc.source === 'compliance' && doc.compliance_record_id) {
-      url = `${API_URL}/api/properties/${property.value?.id}/compliance/${doc.compliance_record_id}/document/${doc.id}`
+      path = `/api/properties/${property.value?.id}/compliance/${doc.compliance_record_id}/document/${doc.id}`
     } else {
-      url = `${API_URL}/api/properties/${property.value?.id}/documents/${doc.id}/download`
+      path = `/api/properties/${property.value?.id}/documents/${doc.id}/download`
     }
 
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`
-      }
-    })
-
-    if (!response.ok) throw new Error('Download failed')
-
-    const blob = await response.blob()
-    const blobUrl = window.URL.createObjectURL(blob)
-
     if (forceDownload) {
-      // Force download
-      const link = document.createElement('a')
-      link.href = blobUrl
-      link.download = doc.file_name
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(blobUrl)
+      // Force download using Safari-safe method
+      downloadFile(path, doc.file_name)
     } else {
-      // Open in new tab for viewing
-      window.open(blobUrl, '_blank')
+      // Open in new tab for viewing using Safari-safe method
+      openInNewTab(path)
     }
   } catch (err) {
     toast.error('Failed to download document')

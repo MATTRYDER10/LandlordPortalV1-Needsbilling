@@ -5,7 +5,8 @@ import { generatePassedPdfService } from '../services/generatePassedPdfService';
 import { validateSubmitAssessmentBody } from '../utils/verification-validation';
 import { assessApplicationScore } from '../services/application-assesment/assessApplication';
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption';
-import { sendTenantAddGuarantorRequest } from '../services/emailService';
+import { sendTenantAddGuarantorRequest, sendVerificationReportToAgent } from '../services/emailService';
+import axios from 'axios';
 
 const router = Router();
 
@@ -406,6 +407,87 @@ router.post('/reference/:referenceId/finalize', staffAuth, async (req: StaffAuth
       pdfUrl = await generatePassedPdfService(referenceId);
       pdfGenerated = true;
       console.log(`[Finalize] PDF generated and uploaded: ${pdfUrl}`);
+
+      // Send email with PDF attachment for passing decisions
+      const passingDecisions = ['PASS', 'PASS_PLUS', 'PASS_WITH_GUARANTOR'];
+      if (passingDecisions.includes(tas_category)) {
+        try {
+          // Fetch reference with company data to get agent email
+          const { data: refData } = await supabaseAdmin
+            .from('tenant_references')
+            .select(`
+              tenant_first_name_encrypted,
+              tenant_last_name_encrypted,
+              property_address_encrypted,
+              is_guarantor,
+              company:companies!inner(id, name_encrypted, email_encrypted)
+            `)
+            .eq('id', referenceId)
+            .single();
+
+          if (refData) {
+            // Type assertion for Supabase join result (comes as object due to !inner and .single())
+            const company = refData.company as unknown as { id: string; name_encrypted: string | null; email_encrypted: string | null } | null;
+
+            if (company) {
+              const agentEmail = company.email_encrypted
+                ? decrypt(company.email_encrypted)
+                : null;
+              const agentName = company.name_encrypted
+                ? (decrypt(company.name_encrypted) || 'Agent')
+                : 'Agent';
+
+              if (agentEmail) {
+                // Fetch PDF as buffer for attachment
+                const pdfResponse = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
+                const pdfBuffer = Buffer.from(pdfResponse.data);
+
+                // Build tenant name
+                const firstName = refData.tenant_first_name_encrypted
+                  ? decrypt(refData.tenant_first_name_encrypted)
+                  : '';
+                const lastName = refData.tenant_last_name_encrypted
+                  ? decrypt(refData.tenant_last_name_encrypted)
+                  : '';
+                const tenantName = `${firstName} ${lastName}`.trim() || 'Applicant';
+                const personLabel = refData.is_guarantor ? 'Guarantor' : tenantName;
+
+                // Build property address
+                const propertyAddress = refData.property_address_encrypted
+                  ? (decrypt(refData.property_address_encrypted) || 'Property')
+                  : 'Property';
+
+                // Build dashboard link
+                const frontendUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk';
+                const dashboardLink = `${frontendUrl}/references/${referenceId}`;
+
+                // Build filename
+                const safeName = tenantName.replace(/[^a-zA-Z0-9]/g, '_');
+                const pdfFilename = `Verification_Report_${safeName}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+                await sendVerificationReportToAgent(
+                  agentEmail,
+                  agentName,
+                  personLabel,
+                  propertyAddress,
+                  tas_category,
+                  dashboardLink,
+                  new Date().toISOString(),
+                  pdfBuffer,
+                  pdfFilename
+                );
+
+                console.log(`[Finalize] Verification report email sent to ${agentEmail}`);
+              } else {
+                console.warn('[Finalize] No agent email found, skipping report email');
+              }
+            }
+          }
+        } catch (emailError: any) {
+          console.error('[Finalize] Failed to send verification report email:', emailError.message);
+          // Don't fail finalization if email fails
+        }
+      }
     } catch (pdfError) {
       console.error('[Finalize] PDF generation error:', pdfError);
       // Don't fail the entire finalization if PDF fails

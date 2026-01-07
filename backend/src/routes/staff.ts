@@ -1015,7 +1015,8 @@ router.get('/download/:referenceId/:folder/:filename', authenticateStaff, async 
     const contentType = contentTypes[ext || ''] || 'application/octet-stream'
 
     res.setHeader('Content-Type', contentType)
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+    const forceDownload = req.query.download === 'true'
+    res.setHeader('Content-Disposition', `${forceDownload ? 'attachment' : 'inline'}; filename="${filename}"`)
 
     // Convert blob to buffer and send
     const buffer = Buffer.from(await data.arrayBuffer())
@@ -1066,7 +1067,8 @@ router.get('/download-guarantor/:guarantorId/:filename', authenticateStaff, asyn
     const contentType = contentTypes[ext || ''] || 'application/octet-stream'
 
     res.setHeader('Content-Type', contentType)
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+    const forceDownload = req.query.download === 'true'
+    res.setHeader('Content-Disposition', `${forceDownload ? 'attachment' : 'inline'}; filename="${filename}"`)
 
     // Convert blob to buffer and send
     const buffer = Buffer.from(await data.arrayBuffer())

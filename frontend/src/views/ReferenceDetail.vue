@@ -3370,6 +3370,7 @@ import {
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { useDownload } from '../composables/useDownload'
 import Sidebar from '../components/Sidebar.vue'
 import { getCountryName } from '../utils/countries'
 import ComparisonTable from '../components/ComparisonTable.vue'
@@ -3386,6 +3387,7 @@ import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { openInNewTab, fetchAsBlob } = useDownload()
 const toast = useToast()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -3865,50 +3867,28 @@ const fetchChildDetails = async (childId: string) => {
 
 const viewFile = async (filePath: string) => {
   try {
-    const token = authStore.session?.access_token
-    if (!token) {
-      useToast().error('Authentication required')
-      return
-    }
-
     // Parse file path: referenceId/folder/filename
     const parts = filePath.split('/')
-    const downloadUrl = `${API_URL}/api/references/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
-
-    const response = await fetch(downloadUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to load file')
-    }
-
-    const blob = await response.blob()
-    const blobUrl = window.URL.createObjectURL(blob)
-
-    // Detect file type from filename
     const filename = parts[2] || ''
     const extension = filename.split('.').pop()?.toLowerCase()
     const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']
     const pdfExtensions = ['pdf']
+    const apiPath = `/api/references/download/${parts[0]}/${parts[1]}/${encodeURIComponent(parts[2] || '')}`
 
-    let docType = 'image'
     if (pdfExtensions.includes(extension || '')) {
-      docType = 'pdf'
-      // For PDFs, open in new window instead of modal to avoid CORS issues
-      window.open(blobUrl, '_blank')
+      // For PDFs, use Safari-safe direct URL navigation
+      openInNewTab(apiPath)
       return
-    } else if (imageExtensions.includes(extension || '')) {
-      docType = 'image'
     }
+
+    // For images, fetch as blob for modal display
+    const blobUrl = await fetchAsBlob(apiPath)
 
     // Set modal state for images
     viewingDocumentUrl.value = blobUrl
     viewingDocumentName.value = filename
     viewingDocumentPath.value = filePath
-    viewingDocumentType.value = docType
+    viewingDocumentType.value = imageExtensions.includes(extension || '') ? 'image' : 'document'
     viewingDocument.value = true
   } catch (error) {
     useToast().error('Failed to view file')

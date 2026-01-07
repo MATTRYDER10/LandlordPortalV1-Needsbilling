@@ -477,7 +477,8 @@ router.get('/:id/compliance/:complianceId/document/:documentId', authenticateTok
     const buffer = Buffer.from(await fileData.arrayBuffer())
 
     res.setHeader('Content-Type', document.file_type || 'application/octet-stream')
-    res.setHeader('Content-Disposition', `inline; filename="${document.file_name}"`)
+    const forceDownload = req.query.download === 'true'
+    res.setHeader('Content-Disposition', `${forceDownload ? 'attachment' : 'inline'}; filename="${document.file_name}"`)
     res.setHeader('Content-Length', buffer.length)
     res.send(buffer)
   } catch (error: any) {
@@ -612,7 +613,8 @@ router.get('/:id/documents/:documentId/download', authenticateToken, requireMemb
     const buffer = Buffer.from(await fileData.arrayBuffer())
 
     res.setHeader('Content-Type', document.file_type || 'application/octet-stream')
-    res.setHeader('Content-Disposition', `inline; filename="${document.file_name}"`)
+    const forceDownload = req.query.download === 'true'
+    res.setHeader('Content-Disposition', `${forceDownload ? 'attachment' : 'inline'}; filename="${document.file_name}"`)
     res.setHeader('Content-Length', buffer.length)
     res.send(buffer)
   } catch (error: any) {

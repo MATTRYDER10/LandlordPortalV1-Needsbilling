@@ -1496,6 +1496,7 @@ import { ref, computed, watch } from 'vue'
 import type { TenancyPerson, Tenancy, SectionDecision, SectionType, ActionRequiredDetails } from '@/composables/useTenancies'
 import { useTenancies } from '@/composables/useTenancies'
 import { useAuthStore } from '@/stores/auth'
+import { useDownload } from '@/composables/useDownload'
 import StatusPill from './StatusPill.vue'
 import ReferenceAuditLog from '@/components/ReferenceAuditLog.vue'
 import CollapsibleSection from './CollapsibleSection.vue'
@@ -1521,6 +1522,7 @@ const emit = defineEmits<{
 }>()
 
 const authStore = useAuthStore()
+const { openInNewTab } = useDownload()
 
 // Full reference details
 const loadingDetails = ref(false)
@@ -2244,31 +2246,13 @@ function showToast(message: string, type: 'success' | 'error') {
   }, 3000)
 }
 
-async function handleViewCertificate() {
+function handleViewCertificate() {
   if (!props.person?.id) return
 
   loadingCertificate.value = true
   try {
-    // Fetch the certificate/report with authentication
-    const response = await fetch(`${API_BASE}/api/references/${props.person.id}/report`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to load certificate')
-    }
-
-    // Get the blob and create object URL
-    const blob = await response.blob()
-    const objectUrl = URL.createObjectURL(blob)
-
-    // Open in new tab
-    window.open(objectUrl, '_blank')
-
-    // Clean up object URL after a delay
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
+    // Use Safari-safe direct URL navigation
+    openInNewTab(`/api/references/${props.person.id}/report`)
   } catch (error) {
     console.error('Error viewing certificate:', error)
     showToast('Failed to load certificate', 'error')
@@ -2300,49 +2284,31 @@ async function handleSubmitForReReferencing() {
   }
 }
 
-async function viewDocumentByPath(docType: string, storagePath: string) {
+function viewDocumentByPath(docType: string, storagePath: string) {
   if (!storagePath || !props.person?.id) return
 
   // Storage path format: {referenceId}/{folder}/{filename}
   // e.g., "abc123/id_document/1234567890_xyz.pdf"
   const parts = storagePath.split('/')
-  let url = ''
+  let apiPath = ''
 
   if (parts.length >= 3) {
     const referenceId = parts[0]
     const folder = parts[1]
     const filename = parts.slice(2).join('/') // In case filename has slashes
-    url = `${API_BASE}/api/references/download/${referenceId}/${folder}/${filename}`
+    apiPath = `/api/references/download/${referenceId}/${folder}/${filename}`
   } else if (parts.length === 2 && docType === 'consent_pdf') {
     // Some paths might be simpler: consent-pdfs/{referenceId}/{filename}
     const referenceId = props.person.id
     const filename = parts[parts.length - 1]
-    url = `${API_BASE}/api/references/download/consent-pdfs/${referenceId}/${filename}`
+    apiPath = `/api/references/download/consent-pdfs/${referenceId}/${filename}`
   }
 
-  if (!url) return
+  if (!apiPath) return
 
   try {
-    // Fetch with authentication
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to load document')
-    }
-
-    // Get the blob and create object URL
-    const blob = await response.blob()
-    const objectUrl = URL.createObjectURL(blob)
-
-    // Open in new tab
-    window.open(objectUrl, '_blank')
-
-    // Clean up object URL after a delay
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
+    // Use Safari-safe direct URL navigation
+    openInNewTab(apiPath)
   } catch (error) {
     console.error('Error viewing document:', error)
   }

@@ -780,6 +780,56 @@ export async function sendReferenceCompletedNotification(
 }
 
 /**
+ * Send verification report with PDF attachment to agent
+ */
+export async function sendVerificationReportToAgent(
+  agentEmail: string,
+  agentName: string,
+  tenantName: string,
+  propertyAddress: string,
+  decision: string,
+  dashboardLink: string,
+  completedDate: string,
+  pdfBuffer: Buffer,
+  pdfFilename: string
+): Promise<void> {
+  // Format decision for display (e.g., "PASS_WITH_GUARANTOR" -> "Pass With Guarantor")
+  const formattedDecision = decision
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+
+  const html = loadEmailTemplate('verification-report-notification', {
+    AgentName: agentName,
+    TenantName: capitalizeWords(tenantName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    Decision: formattedDecision,
+    DashboardLink: dashboardLink,
+    CompletedDate: new Date(completedDate).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  });
+
+  await sendEmail({
+    to: agentEmail,
+    subject: `Verification Report - ${tenantName} - PropertyGoose`,
+    html,
+    attachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer
+      }
+    ],
+    contactDetails: DEFAULT_CONTACT_DETAILS
+  });
+}
+
+/**
  * Send landlord verification request email (for AML checks)
  */
 export async function sendLandlordVerificationRequest(
