@@ -221,7 +221,12 @@ class PDFGenerationService {
     result = result.replace(/\[ALL_LANDLORD_NAMES\]/gi, landlordNames)
 
     // Landlord address (first landlord's address for Welsh contracts)
-    const landlordAddress = data.landlords[0] ? this.formatAddress(data.landlords[0].address) : '________'
+    // For managed properties, show C/O agency address
+    const landlordAddress = data.landlords[0]
+      ? (data.managementType === 'managed' && data.companyName && data.companyAddress
+          ? `C/O ${data.companyName}, ${this.formatAddress(data.companyAddress)}`
+          : this.formatAddress(data.landlords[0].address))
+      : '________'
     result = result.replace(/\[Landlord_Address\]/gi, landlordAddress)
 
     // Landlord names and addresses - generate individual boxes for each landlord
@@ -229,13 +234,22 @@ class PDFGenerationService {
     // Pattern matches: | (1) | [ALL_LANDLORD_NAMES_AND_ADDRESSES] |\n| :---- | :---- |
     const landlordTablePattern = /\|\s*\(1\)\s*\|\s*\[ALL_LANDLORD_NAMES_AND_ADDRESSES\]\s*\|\s*\n\|\s*:----\s*\|\s*:----\s*\|/gi
     const landlordBoxes = data.landlords.map((l, index) => {
-      const address = this.formatAddress(l.address)
+      // For managed properties, show landlord C/O agency address
+      const address = data.managementType === 'managed' && data.companyName && data.companyAddress
+        ? `C/O ${data.companyName}, ${this.formatAddress(data.companyAddress)}`
+        : this.formatAddress(l.address)
       return `| **(${index + 1}) ${l.name}** |\n| :---- |\n| ${address} |`
     }).join('\n\n')
     result = result.replace(landlordTablePattern, landlordBoxes)
 
     // Fallback: Also handle plain placeholder if table pattern not found
-    const landlordNamesAndAddresses = data.landlords.map(l => this.formatPartyWithAddress(l)).join('<br><br>')
+    const landlordNamesAndAddresses = data.landlords.map(l => {
+      // For managed properties, show landlord C/O agency address
+      if (data.managementType === 'managed' && data.companyName && data.companyAddress) {
+        return `${l.name} C/O ${data.companyName}, ${this.formatAddress(data.companyAddress)}`
+      }
+      return this.formatPartyWithAddress(l)
+    }).join('<br><br>')
     result = result.replace(/\[ALL_LANDLORD_NAMES_AND_ADDRESSES\]/gi, landlordNamesAndAddresses)
 
     // Tenant names (handle both space and underscore variants)
