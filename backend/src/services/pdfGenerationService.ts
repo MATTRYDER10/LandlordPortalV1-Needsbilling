@@ -247,7 +247,7 @@ class PDFGenerationService {
     const tenantTablePattern = /\|\s*\(2\)\s*\|\s*\[ALL_TENANT_NAMES_AND_ADDRESSES\]\s*\|\s*\n\|\s*:----\s*\|\s*:----\s*\|/gi
     const tenantBoxes = data.tenants.map((t, index) => {
       const address = this.formatAddress(t.address)
-      return `| **(${index + 1}) ${t.name}** |\n| :---- |\n| ${address} |`
+      return `| **(${index + 1}) ${t.name.trim()}** |\n| :---- |\n| ${address} |`
     }).join('\n\n')
     result = result.replace(tenantTablePattern, tenantBoxes)
 
@@ -424,7 +424,7 @@ class PDFGenerationService {
       // Each contract holder gets their own table/box for better readability
       const contractHolders = data.tenants.map((tenant, index) => {
         const tenantAddress = this.formatAddress(tenant.address)
-        return `**Contract-Holder #${index + 1}:**\n\n| **${tenant.name}** |\n| :---- |\n| ${tenantAddress} |`
+        return `**Contract-Holder #${index + 1}:**\n\n| **${tenant.name.trim()}** |\n| :---- |\n| ${tenantAddress} |`
       }).join('\n\n')
 
       result = result.replace(betweenBlockMatch[0], contractHolders)
@@ -478,7 +478,7 @@ class PDFGenerationService {
     result = result.replace(landlordLoopRegex, (match, template) => {
       return data.landlords.map((landlord, index) => {
         return template
-          .replace(/\{\{display_name\}\}/gi, landlord.name)
+          .replace(/\{\{display_name\}\}/gi, landlord.name.trim())
           .replace(/\{\{id\}\}/gi, `landlord_${index}`)
       }).join('\n')
     })
@@ -488,7 +488,7 @@ class PDFGenerationService {
     result = result.replace(tenantLoopRegex, (match, template) => {
       return data.tenants.map((tenant, index) => {
         return template
-          .replace(/\{\{display_name\}\}/gi, tenant.name)
+          .replace(/\{\{display_name\}\}/gi, tenant.name.trim())
           .replace(/\{\{id\}\}/gi, `tenant_${index}`)
       }).join('\n')
     })
@@ -498,7 +498,7 @@ class PDFGenerationService {
     result = result.replace(guarantorLoopRegex, (match, template) => {
       return (data.guarantors || []).map((guarantor, index) => {
         return template
-          .replace(/\{\{display_name\}\}/gi, guarantor.name)
+          .replace(/\{\{display_name\}\}/gi, guarantor.name.trim())
           .replace(/\{\{id\}\}/gi, `guarantor_${index}`)
       }).join('\n')
     })
