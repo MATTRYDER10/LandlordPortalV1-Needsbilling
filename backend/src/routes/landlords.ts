@@ -689,6 +689,42 @@ router.post('/bulk-delete', authenticateToken, async (req: AuthRequest, res) => 
 })
 
 /**
+ * GET /api/landlords/csv-template
+ * Download CSV template for landlord import
+ */
+router.get('/csv-template', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const headers = [
+      'Title',
+      'First Name',
+      'Last Name',
+      'Preferred Email Greeting',
+      'Phone',
+      'Email',
+      'DOB (DD/MM/YYYY)',
+      'Address Line 1',
+      'Address Line 2',
+      'City',
+      'Postcode',
+      'Bank Account Name',
+      'Bank Account Number',
+      'Bank Sort Code',
+      'Joint Account (Y/N)',
+      'Landlord Registration Number'
+    ]
+
+    const csv = headers.join(',') + '\n'
+
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', 'attachment; filename="landlord-import-template.csv"')
+    res.send(csv)
+  } catch (error: any) {
+    console.error('Error generating CSV template:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * POST /api/landlords/import-csv
  * Import landlords from CSV file with field mapping
  */
@@ -779,11 +815,18 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
       }
 
       // Map fields based on fieldMapping
+      // Personal details
+      if (fieldMapping.title && row[fieldMapping.title]) {
+        landlordData.title_encrypted = encrypt(row[fieldMapping.title])
+      }
       if (fieldMapping.first_name && row[fieldMapping.first_name]) {
         landlordData.first_name_encrypted = encrypt(row[fieldMapping.first_name])
       }
       if (fieldMapping.last_name && row[fieldMapping.last_name]) {
         landlordData.last_name_encrypted = encrypt(row[fieldMapping.last_name])
+      }
+      if (fieldMapping.preferred_email_greeting && row[fieldMapping.preferred_email_greeting]) {
+        landlordData.preferred_email_greeting_encrypted = encrypt(row[fieldMapping.preferred_email_greeting])
       }
       if (fieldMapping.email && row[fieldMapping.email]) {
         landlordData.email_encrypted = encrypt(row[fieldMapping.email])
@@ -791,8 +834,27 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
       if (fieldMapping.phone && row[fieldMapping.phone]) {
         landlordData.phone_encrypted = encrypt(row[fieldMapping.phone])
       }
+      // Date of birth - parse from DD/MM/YYYY format
+      if (fieldMapping.date_of_birth && row[fieldMapping.date_of_birth]) {
+        const dobValue = row[fieldMapping.date_of_birth].trim()
+        // Try to parse DD/MM/YYYY format
+        const dobMatch = dobValue.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
+        if (dobMatch) {
+          const day = dobMatch[1].padStart(2, '0')
+          const month = dobMatch[2].padStart(2, '0')
+          const year = dobMatch[3]
+          landlordData.date_of_birth = `${year}-${month}-${day}` // ISO format for database
+        } else if (dobValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // Already in ISO format
+          landlordData.date_of_birth = dobValue
+        }
+      }
+      // Address fields
       if (fieldMapping.address_line1 && row[fieldMapping.address_line1]) {
         landlordData.residential_address_line1_encrypted = encrypt(row[fieldMapping.address_line1])
+      }
+      if (fieldMapping.address_line2 && row[fieldMapping.address_line2]) {
+        landlordData.residential_address_line2_encrypted = encrypt(row[fieldMapping.address_line2])
       }
       if (fieldMapping.city && row[fieldMapping.city]) {
         landlordData.residential_city_encrypted = encrypt(row[fieldMapping.city])
@@ -809,6 +871,15 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
       }
       if (fieldMapping.bank_sort_code && row[fieldMapping.bank_sort_code]) {
         landlordData.bank_sort_code_encrypted = encrypt(row[fieldMapping.bank_sort_code])
+      }
+      // Joint account - parse Y/N to boolean
+      if (fieldMapping.is_joint_account && row[fieldMapping.is_joint_account]) {
+        const jointValue = row[fieldMapping.is_joint_account].trim().toLowerCase()
+        landlordData.is_joint_account = jointValue === 'y' || jointValue === 'yes' || jointValue === 'true' || jointValue === '1'
+      }
+      // Regulatory
+      if (fieldMapping.landlord_registration_number && row[fieldMapping.landlord_registration_number]) {
+        landlordData.landlord_registration_number = row[fieldMapping.landlord_registration_number]
       }
 
       // Validate required fields

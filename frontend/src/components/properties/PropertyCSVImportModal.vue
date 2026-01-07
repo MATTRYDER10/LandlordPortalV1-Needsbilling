@@ -43,9 +43,18 @@
                 />
               </label>
               <p class="text-sm text-gray-500 mt-4">
-                Required column: postcode<br />
-                Optional: address_line1, address_line2, city, county, property_type, bedrooms
+                Required column: Postcode<br />
+                Optional: Address, City, County, Property Type, Furnished Status, Management Type, Bedrooms
               </p>
+            </div>
+            <div class="mt-4 flex justify-center">
+              <button
+                @click="downloadTemplate"
+                class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                <Download class="w-4 h-4 mr-2" />
+                Download CSV Template
+              </button>
             </div>
           </div>
 
@@ -235,7 +244,7 @@
 import { ref, watch, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../../stores/auth'
-import { X, Upload, FileText, CheckCircle, AlertCircle } from 'lucide-vue-next'
+import { X, Upload, FileText, CheckCircle, AlertCircle, Download } from 'lucide-vue-next'
 
 interface ImportResult {
   imported: number
@@ -268,14 +277,16 @@ const csvPreview = ref<Record<string, string>>({})
 
 // Property fields for mapping
 const propertyFields = [
-  { key: 'postcode', label: 'Postcode', required: true },
   { key: 'address_line1', label: 'Address Line 1', required: false },
   { key: 'address_line2', label: 'Address Line 2', required: false },
   { key: 'city', label: 'City/Town', required: false },
   { key: 'county', label: 'County', required: false },
-  { key: 'full_address', label: 'Full Address', required: false },
+  { key: 'postcode', label: 'Postcode', required: true },
   { key: 'property_type', label: 'Property Type', required: false },
-  { key: 'bedrooms', label: 'Bedrooms', required: false }
+  { key: 'furnishing_status', label: 'Furnished Status', required: false },
+  { key: 'management_type', label: 'Management Type', required: false },
+  { key: 'bedrooms', label: 'Bedrooms', required: false },
+  { key: 'full_address', label: 'Full Address', required: false }
 ]
 
 // Field name variations for auto-matching
@@ -287,6 +298,8 @@ const fieldAliases: Record<string, string[]> = {
   county: ['county', 'state', 'region', 'province'],
   full_address: ['full_address', 'fulladdress', 'address', 'property_address', 'propertyaddress', 'property address'],
   property_type: ['property_type', 'propertytype', 'property type', 'type', 'building_type', 'buildingtype', 'building type'],
+  furnishing_status: ['furnishing_status', 'furnishingstatus', 'furnished status', 'furnished', 'furnishing', 'furnishedstatus'],
+  management_type: ['management_type', 'managementtype', 'management type', 'management', 'letting type', 'lettingtype', 'service type'],
   bedrooms: ['bedrooms', 'beds', 'number_of_bedrooms', 'numberofbedrooms', 'bedroom count', 'bed count']
 }
 
@@ -456,6 +469,32 @@ const handleClose = () => {
   fieldMapping.value = {}
   csvPreview.value = {}
   emit('close')
+}
+
+const downloadTemplate = async () => {
+  try {
+    const response = await fetch(`${API_URL}/api/properties/csv-template`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to download template')
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'property-import-template.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  } catch (err: any) {
+    toast.error('Failed to download template: ' + err.message)
+  }
 }
 
 watch(() => props.show, (show) => {

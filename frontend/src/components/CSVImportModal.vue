@@ -64,20 +64,29 @@
                 </p>
               </div>
 
-              <div class="flex justify-end">
+              <div class="flex justify-between items-center">
                 <button
-                  @click="close"
-                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  @click="downloadTemplate"
+                  class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                 >
-                  Cancel
+                  <Download class="w-4 h-4 mr-2" />
+                  Download Template
                 </button>
-                <button
-                  @click="parseCSV"
-                  :disabled="!selectedFile || parsing"
-                  class="ml-3 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {{ parsing ? 'Parsing...' : 'Next: Map Fields' }}
-                </button>
+                <div class="flex gap-3">
+                  <button
+                    @click="close"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    @click="parseCSV"
+                    :disabled="!selectedFile || parsing"
+                    class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {{ parsing ? 'Parsing...' : 'Next: Map Fields' }}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -161,7 +170,7 @@
 import { ref, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
-import { X, Upload, CheckCircle } from 'lucide-vue-next'
+import { X, Upload, CheckCircle, Download } from 'lucide-vue-next'
 
 defineProps<{
   show: boolean
@@ -190,16 +199,22 @@ const fieldMapping = ref<Record<string, string>>({})
 const importCount = ref(0)
 
 const requiredFields = [
+  { key: 'title', label: 'Title', required: false },
   { key: 'first_name', label: 'First Name', required: true },
   { key: 'last_name', label: 'Last Name', required: true },
-  { key: 'email', label: 'Email', required: true },
+  { key: 'preferred_email_greeting', label: 'Preferred Email Greeting', required: false },
   { key: 'phone', label: 'Phone', required: false },
+  { key: 'email', label: 'Email', required: true },
+  { key: 'date_of_birth', label: 'Date of Birth (DD/MM/YYYY)', required: false },
   { key: 'address_line1', label: 'Address Line 1', required: false },
+  { key: 'address_line2', label: 'Address Line 2', required: false },
   { key: 'city', label: 'City', required: false },
   { key: 'postcode', label: 'Postcode', required: false },
   { key: 'bank_account_name', label: 'Bank Account Name', required: false },
   { key: 'bank_account_number', label: 'Bank Account Number', required: false },
-  { key: 'bank_sort_code', label: 'Bank Sort Code', required: false }
+  { key: 'bank_sort_code', label: 'Bank Sort Code', required: false },
+  { key: 'is_joint_account', label: 'Joint Account (Y/N)', required: false },
+  { key: 'landlord_registration_number', label: 'Landlord Registration Number', required: false }
 ]
 
 const isMappingValid = computed(() => {
@@ -233,16 +248,22 @@ const handleDrop = (event: DragEvent) => {
 
 // Field name variations for auto-matching
 const fieldAliases: Record<string, string[]> = {
+  title: ['title', 'salutation', 'prefix'],
   first_name: ['first_name', 'firstname', 'first name', 'forename', 'given name', 'givenname'],
   last_name: ['last_name', 'lastname', 'last name', 'surname', 'family name', 'familyname'],
+  preferred_email_greeting: ['preferred_email_greeting', 'preferred email greeting', 'greeting', 'salutation', 'dear'],
   email: ['email', 'e-mail', 'email_address', 'emailaddress', 'email address'],
   phone: ['phone', 'telephone', 'tel', 'mobile', 'phone_number', 'phonenumber', 'phone number', 'contact number'],
+  date_of_birth: ['date_of_birth', 'dob', 'date of birth', 'dateofbirth', 'birth date', 'birthdate', 'dob (dd/mm/yyyy)'],
   address_line1: ['address_line1', 'address line 1', 'addressline1', 'address1', 'address', 'street', 'street address'],
+  address_line2: ['address_line2', 'address line 2', 'addressline2', 'address2', 'line2', 'line 2'],
   city: ['city', 'town', 'town/city', 'town / city'],
   postcode: ['postcode', 'post_code', 'post code', 'postal_code', 'postalcode', 'postal code', 'zip', 'zipcode', 'zip code'],
   bank_account_name: ['bank_account_name', 'account_name', 'accountname', 'account name', 'bank account name', 'name on account'],
   bank_account_number: ['bank_account_number', 'account_number', 'accountnumber', 'account number', 'bank account number', 'account no'],
-  bank_sort_code: ['bank_sort_code', 'sort_code', 'sortcode', 'sort code', 'sorting code', 'bank sort code']
+  bank_sort_code: ['bank_sort_code', 'sort_code', 'sortcode', 'sort code', 'sorting code', 'bank sort code'],
+  is_joint_account: ['is_joint_account', 'joint_account', 'joint account', 'jointaccount', 'joint account (y/n)', 'joint'],
+  landlord_registration_number: ['landlord_registration_number', 'landlord registration number', 'registration number', 'reg number', 'landlord reg', 'registration']
 }
 
 const autoMatchFields = () => {
@@ -382,6 +403,32 @@ const importCSV = async () => {
     toast.error('Failed to import CSV: ' + err.message)
   } finally {
     importing.value = false
+  }
+}
+
+const downloadTemplate = async () => {
+  try {
+    const response = await fetch(`${API_URL}/api/landlords/csv-template`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to download template')
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'landlord-import-template.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  } catch (err: any) {
+    toast.error('Failed to download template: ' + err.message)
   }
 }
 

@@ -646,6 +646,35 @@ router.delete('/:id/documents/:documentId', authenticateToken, requireMember, as
 // ============================================================================
 
 /**
+ * GET /api/properties/csv-template
+ * Download CSV template for property import
+ */
+router.get('/csv-template', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const headers = [
+      'Address Line 1',
+      'Address Line 2',
+      'City',
+      'County',
+      'Postcode',
+      'Property Type',
+      'Furnished Status',
+      'Management Type',
+      'Bedrooms'
+    ]
+
+    const csv = headers.join(',') + '\n'
+
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', 'attachment; filename="property-import-template.csv"')
+    res.send(csv)
+  } catch (error: any) {
+    console.error('Error generating CSV template:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * POST /api/properties/import-csv
  * Import properties from CSV
  */
@@ -729,7 +758,9 @@ router.post('/import-csv', authenticateToken, requireMember, upload.single('csv'
             county: columnMapping.county !== undefined ? values[columnMapping.county]?.trim() : undefined,
             full_address: columnMapping.full_address !== undefined ? values[columnMapping.full_address]?.trim() : undefined
           },
-          property_type: columnMapping.property_type !== undefined ? values[columnMapping.property_type]?.trim() : undefined,
+          property_type: columnMapping.property_type !== undefined ? normalizePropertyType(values[columnMapping.property_type]?.trim()) : undefined,
+          furnishing_status: columnMapping.furnishing_status !== undefined ? normalizeFurnishingStatus(values[columnMapping.furnishing_status]?.trim()) : undefined,
+          management_type: columnMapping.management_type !== undefined ? normalizeManagementType(values[columnMapping.management_type]?.trim()) : undefined,
           number_of_bedrooms: columnMapping.bedrooms !== undefined ? parseInt(values[columnMapping.bedrooms]) || undefined : undefined
         }
 
@@ -823,6 +854,14 @@ function detectColumnMapping(headers: string[]): Record<string, number | undefin
     else if (['propertytype', 'type', 'buildingtype'].includes(h)) {
       mapping.property_type = index
     }
+    // Furnished status
+    else if (['furnishedstatus', 'furnished', 'furnishing', 'furnishingstatus'].includes(h)) {
+      mapping.furnishing_status = index
+    }
+    // Management type
+    else if (['managementtype', 'management', 'lettingtype', 'servicetype'].includes(h)) {
+      mapping.management_type = index
+    }
     // Bedrooms
     else if (['bedrooms', 'beds', 'numberofbedrooms'].includes(h)) {
       mapping.bedrooms = index
@@ -830,6 +869,59 @@ function detectColumnMapping(headers: string[]): Record<string, number | undefin
   })
 
   return mapping
+}
+
+/**
+ * Normalize property type value from CSV
+ */
+function normalizePropertyType(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const v = value.toLowerCase().trim()
+  const mapping: Record<string, string> = {
+    'flat': 'flat',
+    'apartment': 'flat',
+    'studio': 'studio',
+    'house': 'house',
+    'bungalow': 'bungalow',
+    'hmo': 'hmo',
+    'commercial': 'commercial',
+    'other': 'other'
+  }
+  return mapping[v] || undefined
+}
+
+/**
+ * Normalize furnishing status value from CSV
+ */
+function normalizeFurnishingStatus(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const v = value.toLowerCase().trim().replace(/[\s_-]+/g, '')
+  const mapping: Record<string, string> = {
+    'furnished': 'furnished',
+    'unfurnished': 'unfurnished',
+    'partfurnished': 'part_furnished',
+    'partlyfurnished': 'part_furnished'
+  }
+  return mapping[v] || undefined
+}
+
+/**
+ * Normalize management type value from CSV
+ */
+function normalizeManagementType(value: string | undefined): 'managed' | 'let_only' | undefined {
+  if (!value) return undefined
+  const v = value.toLowerCase().trim().replace(/[\s_-]+/g, '')
+  const mapping: Record<string, 'managed' | 'let_only'> = {
+    'managed': 'managed',
+    'fullmanagement': 'managed',
+    'fullmanaged': 'managed',
+    'agentmanaged': 'managed',
+    'letonly': 'let_only',
+    'landlordmanaged': 'let_only',
+    'tenantfind': 'let_only',
+    'introonly': 'let_only'
+  }
+  return mapping[v] || undefined
 }
 
 /**
