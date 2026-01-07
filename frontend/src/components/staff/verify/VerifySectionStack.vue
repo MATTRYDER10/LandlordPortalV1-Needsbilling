@@ -40,6 +40,12 @@
       :rtr-alternative-document-url="referenceData.rtrAlternativeDocumentUrl"
       :rtr-alternative-document-type="referenceData.rtrAlternativeDocumentType"
       :is-british-citizen="referenceData.isBritishCitizen"
+      :rtr-british-passport-url="referenceData.rtrBritishPassportUrl"
+      :rtr-british-alt-doc-url="referenceData.rtrBritishAltDocUrl"
+      :rtr-british-alt-doc-type="referenceData.rtrBritishAltDocType"
+      :has-british-no-passport="referenceData.hasBritishNoPassport"
+      :rtr-staff-expiry-date="referenceData.rtrStaffExpiryDate"
+      :rtr-staff-share-code-confirmed="referenceData.rtrStaffShareCodeConfirmed"
       :read-only="readOnly"
       :loading="loading"
       :action-reason-codes="actionReasonCodes"
@@ -48,6 +54,7 @@
       @action-required="(id, p) => $emit('sectionActionRequired', id, p)"
       @fail="(id, r) => $emit('sectionFail', id, r)"
       @reset="(id) => $emit('sectionReset', id)"
+      @update-rtr-data="(data) => $emit('updateRtrData', data)"
     />
 
     <!-- Income - Always shown -->
@@ -208,6 +215,14 @@ interface ReferenceData {
   rtrAlternativeDocumentUrl?: string | null
   rtrAlternativeDocumentType?: string
   isBritishCitizen?: boolean
+  // RTR - British citizen documents
+  rtrBritishPassportUrl?: string | null
+  rtrBritishAltDocUrl?: string | null
+  rtrBritishAltDocType?: string
+  hasBritishNoPassport?: boolean
+  // RTR - Staff verification fields
+  rtrStaffExpiryDate?: string
+  rtrStaffShareCodeConfirmed?: string
   // Income
   monthlyRent?: number
   totalIncome?: number
@@ -302,6 +317,7 @@ defineEmits<{
   (e: 'sectionReset', sectionId: string): void
   (e: 'dataRefreshNeeded'): void
   (e: 'updateName', firstName: string, lastName: string): void
+  (e: 'updateRtrData', data: { shareCodeConfirmed?: string; expiryDate?: string }): void
 }>()
 
 const findSection = (type: string) => {

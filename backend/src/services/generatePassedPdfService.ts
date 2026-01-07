@@ -1121,6 +1121,25 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             ]
             rightY += drawSection(rightColumnX, rightY, 'PEP & Sanction Checks', pepData, 'pass')
 
+            // Right to Rent Section (only for tenants, not guarantors)
+            if (!isGuarantor) {
+                const rtrData: Array<[string, string, boolean]> = []
+                const isBritishCitizen = reference.is_british_citizen === true
+
+                if (isBritishCitizen) {
+                    rtrData.push(['Status', 'British Citizen', true])
+                    rtrData.push(['Verification', 'Document verified', true])
+                } else {
+                    rtrData.push(['Status', 'International', true])
+                    const shareCode = reference.rtr_staff_share_code_confirmed || reference.rtr_share_code || 'Not provided'
+                    rtrData.push(['Share Code', shareCode, !!shareCode && shareCode !== 'Not provided'])
+                    if (reference.rtr_staff_expiry_date) {
+                        rtrData.push(['Visa Expiry', formatDate(reference.rtr_staff_expiry_date), false])
+                    }
+                }
+                rightY += drawSection(rightColumnX, rightY, 'Right to Rent', rtrData, 'pass')
+            }
+
             // Footer for page 2
             const page2FooterY = pageHeight - 30
             const generatedDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })

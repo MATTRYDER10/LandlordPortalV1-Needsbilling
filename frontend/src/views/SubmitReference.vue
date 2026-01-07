@@ -253,129 +253,173 @@
                 {{ fieldErrors.nationality }}
               </p>
 
-              <!-- British Citizenship & Right to Rent Check -->
-              <div v-if="formData.nationality && formData.nationality.toLowerCase() !== 'british'" class="mt-6 pt-6 border-t border-gray-200">
+              <!-- Right to Rent Verification -->
+              <div v-if="formData.nationality" class="mt-6 pt-6 border-t border-gray-200">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Right to Rent Verification</h3>
 
-                <div class="space-y-4">
-                  <!-- <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-3">Are you a British citizen? *</label>
-                    <div class="flex gap-3">
-                      <button type="button"
-                        @click="formData.is_british_citizen = true; formData.rtr_share_code = ''; rtrVerificationStatus = null"
-                        class="flex-1 px-4 py-3 border-2 rounded-md transition-all" :class="formData.is_british_citizen === true
-                        ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
-                        :style="formData.is_british_citizen === true ? { borderColor: buttonColor, color: buttonColor } : {}">
-                        Yes
-                      </button>
-                      <button type="button" @click="formData.is_british_citizen = false; rtrVerificationStatus = null"
-                        class="flex-1 px-4 py-3 border-2 rounded-md transition-all" :class="formData.is_british_citizen === false
-                        ? 'border-primary bg-primary bg-opacity-10 text-primary font-semibold'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
-                        :style="formData.is_british_citizen === false ? { borderColor: buttonColor, color: buttonColor } : {}">
-                        No
-                      </button>
-                    </div>
-                  </div> -->
+                <!-- BRITISH CITIZENS - Passport or alternative documents -->
+                <div v-if="formData.nationality.toLowerCase() === 'british'" class="space-y-4">
+                  <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                    <p class="text-sm text-blue-800">
+                      <strong>British Citizen Verification:</strong> Please upload your passport to verify your right to rent.
+                      If you don't have a passport, you can upload a driving licence or birth certificate instead.
+                    </p>
+                  </div>
 
-                  <!-- Share Code Input (only if not British citizen) -->
-                  <div v-if="formData.is_british_citizen !== true" class="pt-4">
-                    <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
-                      <p class="text-sm text-yellow-800">
-                        <strong>Right to Rent Check Required:</strong> As a non-British citizen, you need to provide
-                        your Home Office Right to Rent share code. You can get this from:
-                        <a href="https://www.gov.uk/prove-right-to-rent" target="_blank"
-                          class="underline">www.gov.uk/prove-right-to-rent</a>
-                      </p>
+                  <!-- Passport Upload (Primary option) -->
+                  <div v-if="!formData.rtr_british_no_passport">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Upload Passport *</label>
+                    <input ref="rtrBritishPassportInput" type="file" @change="handleBritishPassportUpload"
+                      accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
+                    <button type="button" @click="($refs.rtrBritishPassportInput as any).click()"
+                      class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                      :style="{ color: buttonColor }">
+                      {{ rtrBritishPassport ? 'Change File' : 'Choose File' }}
+                    </button>
+                    <p class="mt-1 text-xs text-gray-500">Upload PDF or image (max 10MB)</p>
+
+                    <div v-if="rtrBritishPassport"
+                      class="mt-2 p-3 bg-gray-50 rounded border border-gray-200 flex items-center justify-between">
+                      <span class="text-sm text-gray-700">
+                        {{ rtrBritishPassport.name }} ({{ formatFileSize(rtrBritishPassport.size) }})
+                      </span>
+                      <button type="button" @click="removeBritishPassport"
+                        class="text-red-600 hover:text-red-800 text-sm">
+                        Remove
+                      </button>
                     </div>
+                    <div v-else-if="formData.rtr_british_passport_path"
+                      class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                      <div class="flex items-center gap-2 text-sm text-green-700">
+                        <Check class="w-4 h-4" />
+                        Passport uploaded successfully
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- No Passport Checkbox -->
+                  <div class="flex items-center gap-2 mt-4">
+                    <input type="checkbox" id="no-passport" v-model="formData.rtr_british_no_passport"
+                      @change="handleNoPassportChange"
+                      class="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary" />
+                    <label for="no-passport" class="text-sm text-gray-700">I do not have a passport</label>
+                  </div>
+
+                  <!-- Alternative Document (if no passport) -->
+                  <div v-if="formData.rtr_british_no_passport" class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
+                    <p class="text-sm text-gray-700">
+                      Please upload <strong>either</strong> a Driving Licence or Birth Certificate to verify your identity.
+                    </p>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-2">Right to Rent Share Code *</label>
-                      <div class="flex gap-2">
-                        <input v-model="formData.rtr_share_code" type="text"
-                          placeholder="e.g., RABC1234DEF"
-                          maxlength="20"
-                          class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary uppercase"
-                          @input="formData.rtr_share_code = formData.rtr_share_code.toUpperCase(); rtrVerificationStatus = null" />
-                        <button type="button" @click="verifyRTRShareCode"
-                          :disabled="!formData.rtr_share_code || rtrVerificationStatus === 'checking'"
-                          class="px-4 py-2 text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          :class="rtrVerificationStatus === 'verified' ? 'bg-green-100 text-green-700' : 'bg-blue-50 hover:bg-blue-100'"
-                          :style="rtrVerificationStatus === 'verified' ? {} : { color: buttonColor }">
-                          {{ rtrVerificationStatus === 'verified' ? 'Verified ✓' : 'Verify' }}
-                        </button>
-                      </div>
-                      <p class="mt-1 text-xs text-gray-500">Enter your 8-11 character share code from the Home Office
-                        (starts with 'R')</p>
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Document Type *</label>
+                      <select v-model="formData.rtr_british_alt_doc_type"
+                        class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+                        <option value="">Select document type</option>
+                        <option value="driving_license">Driving Licence</option>
+                        <option value="birth_certificate">Birth Certificate</option>
+                      </select>
                     </div>
 
-                    <div v-if="rtrVerificationStatus && !rtrAlternativeDocument" class="mt-3 p-3 rounded border" :class="{
-                    'bg-green-50 border-green-200': rtrVerificationStatus === 'verified',
-                    'bg-red-50 border-red-200': rtrVerificationStatus === 'failed',
-                    'bg-blue-50 border-blue-200': rtrVerificationStatus === 'checking'
-                  }">
-                      <div class="flex items-center" :class="{
-                      'text-green-700': rtrVerificationStatus === 'verified',
-                      'text-red-700': rtrVerificationStatus === 'failed',
-                      'text-blue-700': rtrVerificationStatus === 'checking'
-                    }">
-                        <CheckCircle v-if="rtrVerificationStatus === 'verified'" class="w-4 h-4 mr-2" />
-                        <XCircle v-else-if="rtrVerificationStatus === 'failed'" class="w-4 h-4 mr-2" />
-                        <div v-else
-                          class="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin">
+                    <div v-if="formData.rtr_british_alt_doc_type">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Upload {{ formData.rtr_british_alt_doc_type === 'driving_license' ? 'Driving Licence' : 'Birth Certificate' }} *
+                      </label>
+                      <input ref="rtrBritishAltDocInput" type="file" @change="handleBritishAltDocUpload"
+                        accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
+                      <button type="button" @click="($refs.rtrBritishAltDocInput as any).click()"
+                        class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                        :style="{ color: buttonColor }">
+                        {{ rtrBritishAltDoc ? 'Change File' : 'Choose File' }}
+                      </button>
+                      <p class="mt-1 text-xs text-gray-500">Upload PDF or image (max 10MB)</p>
+
+                      <div v-if="rtrBritishAltDoc"
+                        class="mt-2 p-3 bg-gray-50 rounded border border-gray-200 flex items-center justify-between">
+                        <span class="text-sm text-gray-700">
+                          {{ rtrBritishAltDoc.name }} ({{ formatFileSize(rtrBritishAltDoc.size) }})
+                        </span>
+                        <button type="button" @click="removeBritishAltDoc"
+                          class="text-red-600 hover:text-red-800 text-sm">
+                          Remove
+                        </button>
+                      </div>
+                      <div v-else-if="formData.rtr_british_alt_doc_path"
+                        class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                        <div class="flex items-center gap-2 text-sm text-green-700">
+                          <Check class="w-4 h-4" />
+                          Document uploaded successfully
                         </div>
-                        <span class="text-sm font-medium">{{ rtrVerificationMessage }}</span>
                       </div>
                     </div>
+                  </div>
+                </div>
 
-                    <div
-                      class="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
-                      <div class="flex items-start gap-3">
-                        <AlertCircle class="w-5 h-5 text-orange-500 mt-0.5" />
-                        <p class="text-sm text-orange-900">
-                          Or you can upload either your Visa or Biometric
-                          Residence Permit (BRP) so we can manually confirm your Right to Rent.
-                        </p>
-                      </div>
+                <!-- INTERNATIONAL TENANTS - Share code + optional evidence -->
+                <div v-else class="space-y-4">
+                  <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+                    <p class="text-sm text-yellow-800">
+                      <strong>Right to Rent Check Required:</strong> Please provide your Home Office Right to Rent share code.
+                      You can get this from:
+                      <a href="https://www.gov.uk/prove-right-to-rent" target="_blank"
+                        class="underline">www.gov.uk/prove-right-to-rent</a>
+                    </p>
+                  </div>
 
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Document Type *</label>
-                        <select v-model="formData.rtr_alternative_document_type"
-                          class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
-                          <option value="">Select document type</option>
-                          <option value="visa">Visa</option>
-                          <option value="brp">Biometric Residence Permit (BRP)</option>
-                        </select>
-                      </div>
+                  <!-- Share Code Entry (Required - no API verification) -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Right to Rent Share Code *</label>
+                    <input v-model="formData.rtr_share_code" type="text"
+                      placeholder="e.g., RABC1234DEF"
+                      maxlength="20"
+                      class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary uppercase"
+                      @input="formData.rtr_share_code = formData.rtr_share_code.toUpperCase()" />
+                    <p class="mt-1 text-xs text-gray-500">Enter your share code from the Home Office (typically starts with 'R')</p>
+                  </div>
 
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Upload Document *</label>
-                        <input ref="rtrAlternativeDocumentInput" type="file" @change="handleAlternativeDocumentUpload"
-                          accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
-                        <button type="button" @click="($refs.rtrAlternativeDocumentInput as any).click()"
-                          class="px-4 py-2 text-sm font-semibold bg-orange-100 rounded-md hover:bg-orange-200"
-                          :style="{ color: buttonColor }">
-                          {{ rtrAlternativeDocument ? 'Change File' : 'Choose File' }}
+                  <!-- Evidence Upload (Optional) -->
+                  <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
+                    <p class="text-sm text-gray-700">
+                      <strong>Optional:</strong> You can also upload supporting evidence such as a screenshot of your share code verification, visa, or BRP.
+                    </p>
+
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
+                      <select v-model="formData.rtr_alternative_document_type"
+                        class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+                        <option value="">Select document type (optional)</option>
+                        <option value="screenshot">Screenshot of Share Code Verification</option>
+                        <option value="visa">Visa</option>
+                        <option value="brp">Biometric Residence Permit (BRP)</option>
+                      </select>
+                    </div>
+
+                    <div v-if="formData.rtr_alternative_document_type">
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Upload Document</label>
+                      <input ref="rtrAlternativeDocumentInput" type="file" @change="handleAlternativeDocumentUpload"
+                        accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
+                      <button type="button" @click="($refs.rtrAlternativeDocumentInput as any).click()"
+                        class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                        :style="{ color: buttonColor }">
+                        {{ rtrAlternativeDocument ? 'Change File' : 'Choose File' }}
+                      </button>
+                      <p class="mt-1 text-xs text-gray-500">Upload PDF or image (max 10MB)</p>
+
+                      <div v-if="rtrAlternativeDocument"
+                        class="mt-2 p-3 bg-gray-50 rounded border border-gray-200 flex items-center justify-between">
+                        <span class="text-sm text-gray-700">
+                          {{ rtrAlternativeDocument.name }} ({{ formatFileSize(rtrAlternativeDocument.size) }})
+                        </span>
+                        <button type="button" @click="removeAlternativeDocument"
+                          class="text-red-600 hover:text-red-800 text-sm">
+                          Remove
                         </button>
-                        <p class="mt-1 text-xs text-gray-500">Upload PDF or image (max 10MB)</p>
-
-                        <div v-if="rtrAlternativeDocument"
-                          class="mt-2 p-3 bg-gray-50 rounded border border-gray-200 flex items-center justify-between">
-                          <span class="text-sm text-gray-700">
-                            {{ rtrAlternativeDocument.name }} ({{ formatFileSize(rtrAlternativeDocument.size) }})
-                          </span>
-                          <button type="button" @click="removeAlternativeDocument"
-                            class="text-red-600 hover:text-red-800 text-sm">
-                            Remove
-                          </button>
-                        </div>
-                        <div v-else-if="formData.rtr_alternative_document_path"
-                          class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                          <div class="flex items-center gap-2 text-sm text-green-700">
-                            <Check class="w-4 h-4" />
-                            Document uploaded successfully
-                          </div>
+                      </div>
+                      <div v-else-if="formData.rtr_alternative_document_path"
+                        class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                        <div class="flex items-center gap-2 text-sm text-green-700">
+                          <Check class="w-4 h-4" />
+                          Document uploaded successfully
                         </div>
                       </div>
                     </div>
@@ -1943,10 +1987,6 @@ const landlordEmailError = ref('')
 const existingGuarantor = ref<any>(null)
 const hasExistingGuarantor = ref(false)
 
-// Right to Rent verification
-const rtrVerificationStatus = ref<'checking' | 'verified' | 'failed' | null>(null)
-const rtrVerificationMessage = ref('')
-
 // Company branding
 const companyLogo = ref('')
 const primaryColor = ref(defaultBranding.primaryColor)
@@ -2470,6 +2510,8 @@ const proofOfFunds = ref<File | null>(null)
 const proofOfAdditionalIncome = ref<File | null>(null)
 const taxReturn = ref<File | null>(null)
 const rtrAlternativeDocument = ref<File | null>(null)
+const rtrBritishPassport = ref<File | null>(null)
+const rtrBritishAltDoc = ref<File | null>(null)
 const pensionStatement = ref<File | null>(null)
 const landlordRentalBankStatement = ref<File | null>(null)
 
@@ -2507,6 +2549,11 @@ const formData = ref({
   rtr_verification_data: null as any,
   rtr_alternative_document_type: '',
   rtr_alternative_document_path: '',
+  // British citizen RTR documents
+  rtr_british_passport_path: '',
+  rtr_british_no_passport: false,
+  rtr_british_alt_doc_type: '' as '' | 'driving_license' | 'birth_certificate',
+  rtr_british_alt_doc_path: '',
 
   // Page 4: Current Address
   current_address_line1: '',
@@ -3040,6 +3087,60 @@ const removeAlternativeDocument = () => {
   formData.value.rtr_alternative_document_path = ''
 }
 
+// British citizen passport upload handlers
+const handleBritishPassportUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    const file = target.files[0]
+    if (file.size > 10 * 1024 * 1024) {
+      submitError.value = 'File is too large. Max size is 10MB.'
+      return
+    }
+    rtrBritishPassport.value = file
+    formData.value.rtr_british_passport_path = ''
+    submitError.value = ''
+  }
+}
+
+const removeBritishPassport = () => {
+  rtrBritishPassport.value = null
+  formData.value.rtr_british_passport_path = ''
+}
+
+// British citizen alternative document upload handlers
+const handleBritishAltDocUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    const file = target.files[0]
+    if (file.size > 10 * 1024 * 1024) {
+      submitError.value = 'File is too large. Max size is 10MB.'
+      return
+    }
+    rtrBritishAltDoc.value = file
+    formData.value.rtr_british_alt_doc_path = ''
+    submitError.value = ''
+  }
+}
+
+const removeBritishAltDoc = () => {
+  rtrBritishAltDoc.value = null
+  formData.value.rtr_british_alt_doc_path = ''
+}
+
+// Handle no passport checkbox change
+const handleNoPassportChange = () => {
+  if (formData.value.rtr_british_no_passport) {
+    // User checked "no passport" - clear passport data
+    rtrBritishPassport.value = null
+    formData.value.rtr_british_passport_path = ''
+  } else {
+    // User unchecked "no passport" - clear alt doc data
+    rtrBritishAltDoc.value = null
+    formData.value.rtr_british_alt_doc_type = ''
+    formData.value.rtr_british_alt_doc_path = ''
+  }
+}
+
 // Previous address management
 const addPreviousAddress = () => {
   previousAddresses.value.push({
@@ -3158,6 +3259,18 @@ const uploadCurrentPageFiles = async () => {
     hasFilesToUpload = true
   }
 
+  // British citizen passport upload (page 2)
+  if (currentPage.value === 2 && rtrBritishPassport.value && !formData.value.rtr_british_passport_path) {
+    formDataFiles.append('rtr_british_passport', rtrBritishPassport.value)
+    hasFilesToUpload = true
+  }
+
+  // British citizen alternative document upload (page 2)
+  if (currentPage.value === 2 && rtrBritishAltDoc.value && !formData.value.rtr_british_alt_doc_path) {
+    formDataFiles.append('rtr_british_alt_doc', rtrBritishAltDoc.value)
+    hasFilesToUpload = true
+  }
+
   // Check which page we're on and add appropriate files
   if (currentPage.value === 1 && idDocument.value && !formData.value.id_document_path) {
     formDataFiles.append('id_document', idDocument.value)
@@ -3247,6 +3360,14 @@ const uploadCurrentPageFiles = async () => {
     formData.value.rtr_alternative_document_path = uploadedFiles.rtr_alternative_document
     rtrAlternativeDocument.value = null
   }
+  if (uploadedFiles.rtr_british_passport) {
+    formData.value.rtr_british_passport_path = uploadedFiles.rtr_british_passport
+    rtrBritishPassport.value = null
+  }
+  if (uploadedFiles.rtr_british_alt_doc) {
+    formData.value.rtr_british_alt_doc_path = uploadedFiles.rtr_british_alt_doc
+    rtrBritishAltDoc.value = null
+  }
   if (uploadedFiles.payslips && uploadedFiles.payslips.length > 0) {
     formData.value.payslip_paths = uploadedFiles.payslips
   }
@@ -3255,68 +3376,6 @@ const uploadCurrentPageFiles = async () => {
   }
   if (uploadedFiles.landlord_rental_bank_statement) {
     formData.value.landlord_rental_bank_statement_path = uploadedFiles.landlord_rental_bank_statement
-  }
-}
-
-// Right to Rent verification function
-const verifyRTRShareCode = async () => {
-  if (!formData.value.rtr_share_code) return
-
-  // Validate required fields
-  if (!formData.value.first_name || !formData.value.last_name) {
-    rtrVerificationStatus.value = 'failed'
-    rtrVerificationMessage.value = 'Please enter your name before verifying Right to Rent'
-    return
-  }
-  if (!dobDay.value || !dobMonth.value || !dobYear.value) {
-    rtrVerificationStatus.value = 'failed'
-    rtrVerificationMessage.value = 'Please enter your date of birth before verifying Right to Rent'
-    return
-  }
-
-  rtrVerificationStatus.value = 'checking'
-  rtrVerificationMessage.value = 'Verifying your Right to Rent share code...'
-
-  try {
-    // Format date of birth as DD-MM-YYYY
-    const formattedDob = `${dobDay.value.toString().padStart(2, '0')}-${dobMonth.value}-${dobYear.value}`
-
-    // Call backend API which will proxy to UK RTR Checker API
-    const token = route.params.token
-    const response = await fetch(`${API_URL}/api/rtr/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        shareCode: formData.value.rtr_share_code,
-        firstName: formData.value.first_name,
-        lastName: formData.value.last_name,
-        dateOfBirth: formattedDob,
-        referenceToken: token
-      })
-    })
-
-    const data = await response.json()
-
-    if (response.ok && data.verified) {
-      rtrVerificationStatus.value = 'verified'
-      rtrVerificationMessage.value = '✓ Right to Rent verified successfully'
-      formData.value.rtr_verified = true
-      formData.value.rtr_verification_data = data
-    } else {
-      formData.value.rtr_share_code = ''
-      rtrVerificationStatus.value = 'failed'
-      rtrVerificationMessage.value = data.message || 'Unable to verify Right to Rent. Please check your details and share code.'
-      formData.value.rtr_verified = false
-      submitError.value = 'Right to Rent verification failed. Please check your details and share code and try again.'
-    }
-  } catch (error) {
-    console.error('RTR verification error:', error)
-    rtrVerificationStatus.value = 'failed'
-    rtrVerificationMessage.value = 'An error occurred during verification. Please try again.'
-    formData.value.rtr_verified = false
-    submitError.value = 'Unable to verify Right to Rent at this time. Please try again.'
   }
 }
 
@@ -3350,12 +3409,6 @@ const handlePageSubmit = async () => {
     if (!nationalitySearch.value?.trim()) {
       errors.nationality = 'Please select your nationality'
     }
-    if (formData.value.is_british_citizen === null) {
-      submitError.value = 'Please indicate whether you are a British citizen'
-    }
-    if (formData.value.is_british_citizen === false && (!formData.value.rtr_alternative_document_type || !formData.value.rtr_alternative_document_path) && ((formData.value.rtr_share_code && !formData.value.rtr_verified)) ){
-      submitError.value = 'Please enter your Right to Rent share code and upload your Visa or Biometric Residence Permit'
-    }
   }
 
   if (Object.keys(errors).length > 0) {
@@ -3381,23 +3434,43 @@ const handlePageSubmit = async () => {
       submitError.value = 'Please enter your contact number'
       return
     }
-    if (formData.value.is_british_citizen === null) {
-      submitError.value = 'Please indicate whether you are a British citizen'
-      return
-    }
 
-    //Verify RTR share code if not British citizen
-    if (formData.value.is_british_citizen === false && formData.value.rtr_share_code && !formData.value.rtr_verified && (!formData.value.rtr_alternative_document_type || !formData.value.rtr_alternative_document_path)) {
-      await verifyRTRShareCode()
-    }
-    if (formData.value.is_british_citizen === false && !formData.value.rtr_verified) {
-      if (!formData.value.rtr_alternative_document_type) {
-        submitError.value = 'Please select the document type you are uploading for manual Right to Rent verification'
-        return
-      }
-      if (!rtrAlternativeDocument.value && !formData.value.rtr_alternative_document_path) {
-        submitError.value = 'Please upload your Visa or Biometric Residence Permit'
-        return
+    // RTR validation based on nationality
+    if (formData.value.nationality) {
+      const isBritish = formData.value.nationality.toLowerCase() === 'british'
+
+      if (isBritish) {
+        // British citizens: Set is_british_citizen to true
+        formData.value.is_british_citizen = true
+
+        // British citizens need passport OR (no passport + alternative doc)
+        if (!formData.value.rtr_british_no_passport) {
+          // Must have passport
+          if (!rtrBritishPassport.value && !formData.value.rtr_british_passport_path) {
+            submitError.value = 'Please upload your passport for Right to Rent verification'
+            return
+          }
+        } else {
+          // No passport - must have alternative document
+          if (!formData.value.rtr_british_alt_doc_type) {
+            submitError.value = 'Please select which document you are uploading (Driving Licence or Birth Certificate)'
+            return
+          }
+          if (!rtrBritishAltDoc.value && !formData.value.rtr_british_alt_doc_path) {
+            submitError.value = `Please upload your ${formData.value.rtr_british_alt_doc_type === 'driving_license' ? 'Driving Licence' : 'Birth Certificate'}`
+            return
+          }
+        }
+      } else {
+        // International tenants: Set is_british_citizen to false
+        formData.value.is_british_citizen = false
+
+        // Share code is required
+        if (!formData.value.rtr_share_code) {
+          submitError.value = 'Please enter your Right to Rent share code'
+          return
+        }
+        // Evidence upload is optional - no validation needed
       }
     }
   } else if (currentPage.value === 3) {
@@ -3563,6 +3636,11 @@ const handleFinalSubmit = async () => {
       previous_addresses: previousAddresses.value,
       rtr_alternative_document_type: formData.value.rtr_alternative_document_type || null,
       rtr_alternative_document_path: formData.value.rtr_alternative_document_path || null,
+      // British citizen RTR documents
+      rtr_british_passport_path: formData.value.rtr_british_passport_path || null,
+      rtr_british_no_passport: formData.value.rtr_british_no_passport || false,
+      rtr_british_alt_doc_type: formData.value.rtr_british_alt_doc_type || null,
+      rtr_british_alt_doc_path: formData.value.rtr_british_alt_doc_path || null,
       geolocation: userGeolocation.value
     }
 

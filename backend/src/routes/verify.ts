@@ -290,6 +290,14 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       rtr_document_path: reference.rtr_document_path,
       rtr_alternative_document_path: reference.rtr_alternative_document_path,
       rtr_alternative_document_type: reference.rtr_alternative_document_type,
+      // British citizen RTR documents
+      rtr_british_passport_path: reference.rtr_british_passport_path,
+      rtr_british_no_passport: reference.rtr_british_no_passport,
+      rtr_british_alt_doc_type: reference.rtr_british_alt_doc_type,
+      rtr_british_alt_doc_path: reference.rtr_british_alt_doc_path,
+      // Staff RTR verification fields
+      rtr_staff_expiry_date: reference.rtr_staff_expiry_date,
+      rtr_staff_share_code_confirmed: reference.rtr_staff_share_code_confirmed,
       // Current address
       current_address_line1: decrypt(reference.current_address_line1_encrypted),
       current_address_line2: decrypt(reference.current_address_line2_encrypted),
@@ -474,6 +482,70 @@ router.patch('/person/:referenceId/tenant-name', staffAuth, async (req: StaffAut
     res.json({ message: 'Tenant name updated successfully' });
   } catch (error: any) {
     console.error('Error updating tenant name:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update RTR data during verification (staff only)
+router.patch('/person/:referenceId/rtr', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { referenceId } = req.params;
+    const { shareCodeConfirmed, expiryDate } = req.body;
+    const staffUser = req.staffUser;
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' });
+    }
+
+    // Get current reference to verify it exists
+    const { data: reference, error: refError } = await supabaseAdmin
+      .from('tenant_references')
+      .select('id, company_id, rtr_share_code, rtr_staff_share_code_confirmed, rtr_staff_expiry_date')
+      .eq('id', referenceId)
+      .single();
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' });
+    }
+
+    // Build update object
+    const updateData: Record<string, any> = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (shareCodeConfirmed !== undefined) {
+      updateData.rtr_staff_share_code_confirmed = shareCodeConfirmed || null;
+    }
+    if (expiryDate !== undefined) {
+      updateData.rtr_staff_expiry_date = expiryDate || null;
+    }
+
+    // Update tenant_references
+    const { error: updateError } = await supabaseAdmin
+      .from('tenant_references')
+      .update(updateData)
+      .eq('id', referenceId);
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message });
+    }
+
+    // Audit log
+    await logAuditAction({
+      referenceId,
+      action: 'rtr_data_updated',
+      description: `Staff updated RTR verification data`,
+      userId: staffUser.id,
+      metadata: {
+        share_code_confirmed: shareCodeConfirmed || null,
+        expiry_date: expiryDate || null,
+        updated_by_staff: staffUser.full_name
+      }
+    });
+
+    res.json({ message: 'RTR data updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating RTR data:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -33,7 +33,9 @@ export interface ReadinessCheck {
  *
  * TENANTS require:
  * - Identity: selfie_path AND id_document_path (both required)
- * - Right to Rent: is_british_citizen=true OR RTR document uploaded
+ * - Right to Rent:
+ *   - British citizen: passport OR (no_passport + driving license/birth certificate)
+ *   - International: share_code (required)
  * - Income: ONE OF - employer ref, payslip, accountant ref, tax return, other_proof_of_funds
  * - Residential: ONE OF - confirmed_residential_status, landlord ref, agent ref, tenancy_agreement
  *
@@ -64,6 +66,9 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         selfie_path,
         rtr_share_code,
         rtr_alternative_document_path,
+        rtr_british_passport_path,
+        rtr_british_no_passport,
+        rtr_british_alt_doc_path,
         tax_return_path,
         payslip_files,
         other_proof_of_funds_path,
@@ -226,29 +231,59 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
 /**
  * Check Right to Rent section
  *
- * Rules:
- * - British citizen (is_british_citizen=true) -> auto-complete
- * - Otherwise need RTR share code OR alternative document
+ * Rules (NEW references):
+ * - British citizen: Need passport OR (no_passport + driving license/birth certificate)
+ * - International: Need share code (required)
+ *
+ * Backwards compatibility (OLD references without new fields):
+ * - British citizen without new doc fields: Auto-complete (old behavior)
+ * - International with alternative_document but no share_code: Accept document
  */
 function checkRightToRentSection(reference: any): SectionStatus {
-  // British citizen - auto-complete
+  // British citizen
   if (reference.is_british_citizen === true) {
-    return { complete: true, reason: 'British citizen - Right to Rent verified' }
+    const hasPassport = !!reference.rtr_british_passport_path
+    const hasNoPassport = reference.rtr_british_no_passport === true
+    const hasAltDoc = !!reference.rtr_british_alt_doc_path
+
+    // New flow: passport or alt doc required
+    if (hasPassport) {
+      return { complete: true, reason: 'British citizen - passport uploaded' }
+    }
+    if (hasNoPassport && hasAltDoc) {
+      return { complete: true, reason: 'British citizen - alternative document uploaded' }
+    }
+    if (hasNoPassport && !hasAltDoc) {
+      return { complete: false, reason: 'British citizen without passport - driving license or birth certificate required' }
+    }
+
+    // Backwards compatibility: If no new RTR fields exist at all, this is an old reference
+    // Old British citizens were auto-complete - don't break them
+    const hasAnyNewRtrFields = hasPassport || hasNoPassport || hasAltDoc
+    if (!hasAnyNewRtrFields) {
+      return { complete: true, reason: 'British citizen (legacy reference)' }
+    }
+
+    // New reference in progress - needs documents
+    return { complete: false, reason: 'British citizen - passport or alternative document required' }
   }
 
-  // Check for RTR documentation
-  const hasShareCode = !!reference.rtr_share_code
-  const hasAlternativeDoc = !!reference.rtr_alternative_document_path
-
-  if (hasShareCode || hasAlternativeDoc) {
-    return { complete: true, reason: hasShareCode ? 'RTR share code provided' : 'RTR document uploaded' }
-  }
-
-  // Not British and no RTR documentation
-  // Only require RTR if explicitly not British (is_british_citizen === false)
-  // If is_british_citizen is null, they haven't answered yet
+  // International
   if (reference.is_british_citizen === false) {
-    return { complete: false, reason: 'Right to Rent documentation required (non-British citizen)' }
+    const hasShareCode = !!reference.rtr_share_code
+    const hasAlternativeDoc = !!reference.rtr_alternative_document_path
+
+    // New flow: share code required
+    if (hasShareCode) {
+      return { complete: true, reason: 'RTR share code provided' }
+    }
+
+    // Backwards compatibility: Old references might only have alternative document
+    if (hasAlternativeDoc) {
+      return { complete: true, reason: 'RTR document uploaded (legacy reference)' }
+    }
+
+    return { complete: false, reason: 'Share code required for international tenants' }
   }
 
   // is_british_citizen is null - question not answered yet, don't block
@@ -344,6 +379,7 @@ export async function isReady(referenceId: string): Promise<boolean> {
  * The reference object must include these fields:
  * - is_guarantor, status, is_british_citizen
  * - id_document_path, selfie_path, rtr_share_code, rtr_alternative_document_path
+ * - rtr_british_passport_path, rtr_british_no_passport, rtr_british_alt_doc_path
  * - tax_return_path, payslip_files, other_proof_of_funds_path
  * - tenancy_agreement_path, confirmed_residential_status
  * - employer_references, landlord_references, agent_references, accountant_references (as arrays with submitted_at)
@@ -385,22 +421,47 @@ export function isReadyForVerificationSync(reference: any): { isReady: boolean; 
 }
 
 /**
- * Sync version of Right to Rent check
+ * Sync version of Right to Rent check (with backwards compatibility)
  */
 function checkRightToRentSectionSync(reference: any): SectionStatus {
+  // British citizen
   if (reference.is_british_citizen === true) {
-    return { complete: true, reason: 'British citizen' }
+    const hasPassport = !!reference.rtr_british_passport_path
+    const hasNoPassport = reference.rtr_british_no_passport === true
+    const hasAltDoc = !!reference.rtr_british_alt_doc_path
+
+    if (hasPassport) {
+      return { complete: true, reason: 'British citizen - passport' }
+    }
+    if (hasNoPassport && hasAltDoc) {
+      return { complete: true, reason: 'British citizen - alt document' }
+    }
+    if (hasNoPassport && !hasAltDoc) {
+      return { complete: false, reason: 'British citizen - alternative document required' }
+    }
+
+    // Backwards compatibility: old references without new fields
+    const hasAnyNewRtrFields = hasPassport || hasNoPassport || hasAltDoc
+    if (!hasAnyNewRtrFields) {
+      return { complete: true, reason: 'British citizen (legacy)' }
+    }
+
+    return { complete: false, reason: 'British citizen - passport required' }
   }
 
-  const hasShareCode = !!reference.rtr_share_code
-  const hasAlternativeDoc = !!reference.rtr_alternative_document_path
-
-  if (hasShareCode || hasAlternativeDoc) {
-    return { complete: true }
-  }
-
+  // International
   if (reference.is_british_citizen === false) {
-    return { complete: false, reason: 'Right to Rent documentation required' }
+    const hasShareCode = !!reference.rtr_share_code
+    const hasAlternativeDoc = !!reference.rtr_alternative_document_path
+
+    if (hasShareCode) {
+      return { complete: true, reason: 'Share code provided' }
+    }
+    // Backwards compatibility: old references with only alternative document
+    if (hasAlternativeDoc) {
+      return { complete: true, reason: 'RTR document (legacy)' }
+    }
+    return { complete: false, reason: 'Share code required' }
   }
 
   return { complete: true, reason: 'Citizenship status not confirmed' }

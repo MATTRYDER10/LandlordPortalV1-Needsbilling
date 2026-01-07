@@ -28,8 +28,8 @@
           <span :class="['status-indicator', rtrStatus?.toLowerCase() || 'unknown']"></span>
           <span class="status-text">{{ rtrStatusLabel }}</span>
         </div>
-        <p v-if="rtrExpiryDate" class="expiry-date">
-          Expires: {{ formatDate(rtrExpiryDate) }}
+        <p v-if="displayExpiryDate" class="expiry-date">
+          Expires: {{ formatDate(displayExpiryDate) }}
         </p>
       </div>
 
@@ -39,37 +39,110 @@
         <p class="detail-value">{{ nationality }}</p>
       </div>
 
-      <!-- Share Code verification -->
-      <div v-if="shareCode" class="share-code-section">
-        <h4 class="subsection-title">Home Office Share Code</h4>
-        <div class="share-code-display">
-          <code class="share-code">{{ shareCode }}</code>
-          <a
-            href="https://www.gov.uk/view-right-to-rent"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="verify-link"
-          >
-            Verify on GOV.UK
-          </a>
+      <!-- BRITISH CITIZEN SECTION -->
+      <template v-if="isBritishCitizen">
+        <!-- British Passport -->
+        <div v-if="rtrBritishPassportUrl" class="document-section">
+          <h4 class="subsection-title">Passport</h4>
+          <div class="image-container">
+            <img :src="rtrBritishPassportUrl" alt="British Passport" class="document-image" />
+          </div>
         </div>
-      </div>
 
-      <!-- RTR Document -->
-      <div v-if="rtrDocumentUrl" class="document-section">
-        <h4 class="subsection-title">RTR Document</h4>
-        <div class="image-container">
-          <img :src="rtrDocumentUrl" alt="RTR Document" class="document-image" />
+        <!-- British Alternative Document (DL or Birth Certificate) -->
+        <div v-if="hasBritishNoPassport && rtrBritishAltDocUrl" class="document-section">
+          <h4 class="subsection-title">{{ britishAltDocTypeLabel }}</h4>
+          <div class="image-container">
+            <img :src="rtrBritishAltDocUrl" :alt="britishAltDocTypeLabel" class="document-image" />
+          </div>
         </div>
-      </div>
 
-      <!-- Visa / BRP Document -->
-      <div v-if="rtrAlternativeDocumentUrl" class="document-section">
-        <h4 class="subsection-title">{{ alternativeDocumentTypeLabel }}</h4>
-        <div class="image-container">
-          <img :src="rtrAlternativeDocumentUrl" :alt="alternativeDocumentTypeLabel" class="document-image" />
+        <div v-if="hasBritishNoPassport && !rtrBritishAltDocUrl && !rtrBritishPassportUrl" class="info-message">
+          <p>Tenant indicated they do not have a passport. No alternative document uploaded.</p>
         </div>
-      </div>
+
+        <!-- Legacy reference - no new RTR documents uploaded -->
+        <div v-if="!rtrBritishPassportUrl && !hasBritishNoPassport && !rtrBritishAltDocUrl" class="info-message">
+          <p>Legacy reference: British citizen status was confirmed but no passport document was uploaded (pre-update reference).</p>
+        </div>
+      </template>
+
+      <!-- INTERNATIONAL TENANT SECTION -->
+      <template v-else>
+        <!-- Share Code Display and Confirmation -->
+        <div v-if="shareCode || localShareCodeConfirmed" class="share-code-section">
+          <h4 class="subsection-title">Home Office Share Code</h4>
+
+          <!-- Tenant-provided share code -->
+          <div v-if="shareCode" class="share-code-display">
+            <div>
+              <p class="detail-label">Tenant provided:</p>
+              <code class="share-code">{{ shareCode }}</code>
+            </div>
+            <a
+              href="https://www.gov.uk/view-right-to-rent"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="verify-link"
+            >
+              Verify on GOV.UK
+            </a>
+          </div>
+
+          <!-- Staff confirmation input -->
+          <div v-if="!readOnly" class="staff-input-group">
+            <label class="input-label">Confirm/Correct Share Code</label>
+            <input
+              v-model="localShareCodeConfirmed"
+              type="text"
+              class="text-input"
+              placeholder="Enter confirmed share code"
+              @change="emitRtrUpdate"
+            />
+            <p class="input-helper">Enter the share code after verifying on GOV.UK</p>
+          </div>
+          <div v-else-if="rtrStaffShareCodeConfirmed" class="confirmed-value">
+            <p class="detail-label">Confirmed Share Code:</p>
+            <code class="share-code confirmed">{{ rtrStaffShareCodeConfirmed }}</code>
+          </div>
+        </div>
+
+        <!-- Staff Expiry Date Input (always available for international) -->
+        <div class="expiry-section">
+          <h4 class="subsection-title">Visa/Permit Expiry Date</h4>
+          <div v-if="!readOnly" class="staff-input-group">
+            <input
+              v-model="localExpiryDate"
+              type="date"
+              class="date-input"
+              @change="emitRtrUpdate"
+            />
+            <p class="input-helper">Enter the visa or permit expiry date</p>
+          </div>
+          <div v-else-if="rtrStaffExpiryDate" class="confirmed-value">
+            <p>{{ formatDate(rtrStaffExpiryDate) }}</p>
+          </div>
+          <div v-else class="no-data">
+            <p>No expiry date set</p>
+          </div>
+        </div>
+
+        <!-- RTR Document -->
+        <div v-if="rtrDocumentUrl" class="document-section">
+          <h4 class="subsection-title">RTR Document</h4>
+          <div class="image-container">
+            <img :src="rtrDocumentUrl" alt="RTR Document" class="document-image" />
+          </div>
+        </div>
+
+        <!-- Visa / BRP / Evidence Document -->
+        <div v-if="rtrAlternativeDocumentUrl" class="document-section">
+          <h4 class="subsection-title">{{ alternativeDocumentTypeLabel }}</h4>
+          <div class="image-container">
+            <img :src="rtrAlternativeDocumentUrl" :alt="alternativeDocumentTypeLabel" class="document-image" />
+          </div>
+        </div>
+      </template>
 
       <!-- Evidence files -->
       <div v-if="section.evidenceFiles && section.evidenceFiles.length > 0" class="evidence-section">
@@ -101,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { FileText, Check, X, Minus } from 'lucide-vue-next'
 import type { VerificationSection, ActionReasonCode } from '@/types/staff'
 import SectionCard from './SectionCard.vue'
@@ -120,15 +193,49 @@ const props = defineProps<{
   readOnly?: boolean
   loading?: boolean
   actionReasonCodes?: ActionReasonCode[]
+  // British citizen document props
+  rtrBritishPassportUrl?: string | null
+  rtrBritishAltDocUrl?: string | null
+  rtrBritishAltDocType?: string
+  hasBritishNoPassport?: boolean
+  // Staff verification fields
+  rtrStaffExpiryDate?: string
+  rtrStaffShareCodeConfirmed?: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'pass', sectionId: string): void
   (e: 'passWithCondition', sectionId: string, condition: string): void
   (e: 'actionRequired', sectionId: string, params: { reasonCode: string; agentNote: string; internalNote: string }): void
   (e: 'fail', sectionId: string, reason: string): void
   (e: 'reset', sectionId: string): void
+  (e: 'updateRtrData', data: { shareCodeConfirmed?: string; expiryDate?: string }): void
 }>()
+
+// Local state for staff inputs
+const localShareCodeConfirmed = ref(props.rtrStaffShareCodeConfirmed || '')
+const localExpiryDate = ref(props.rtrStaffExpiryDate || '')
+
+// Watch for prop changes
+watch(() => props.rtrStaffShareCodeConfirmed, (newVal) => {
+  localShareCodeConfirmed.value = newVal || ''
+})
+
+watch(() => props.rtrStaffExpiryDate, (newVal) => {
+  localExpiryDate.value = newVal || ''
+})
+
+const emitRtrUpdate = () => {
+  emit('updateRtrData', {
+    shareCodeConfirmed: localShareCodeConfirmed.value || undefined,
+    expiryDate: localExpiryDate.value || undefined
+  })
+}
+
+// Display the staff-entered expiry date if available, otherwise fall back to tenant-provided
+const displayExpiryDate = computed(() => {
+  return props.rtrStaffExpiryDate || props.rtrExpiryDate
+})
 
 const rtrStatusLabel = computed(() => {
   if (!props.rtrStatus) return 'Not verified'
@@ -157,7 +264,15 @@ const alternativeDocumentTypeLabel = computed(() => {
   if (!props.rtrAlternativeDocumentType) return 'Document'
   if (props.rtrAlternativeDocumentType === 'brp') return 'Biometric Residence Permit (BRP)'
   if (props.rtrAlternativeDocumentType === 'visa') return 'Visa'
+  if (props.rtrAlternativeDocumentType === 'screenshot') return 'Share Code Verification Screenshot'
   return props.rtrAlternativeDocumentType
+})
+
+const britishAltDocTypeLabel = computed(() => {
+  if (!props.rtrBritishAltDocType) return 'Document'
+  if (props.rtrBritishAltDocType === 'driving_license') return 'Driving Licence'
+  if (props.rtrBritishAltDocType === 'birth_certificate') return 'Birth Certificate'
+  return props.rtrBritishAltDocType
 })
 </script>
 
@@ -246,7 +361,8 @@ const alternativeDocumentTypeLabel = computed(() => {
 .share-code-section,
 .document-section,
 .evidence-section,
-.checks-section {
+.checks-section,
+.expiry-section {
   padding: 1rem;
   background: #f9fafb;
   border-radius: 0.5rem;
@@ -261,9 +377,11 @@ const alternativeDocumentTypeLabel = computed(() => {
 
 .share-code-display {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  margin-bottom: 1rem;
 }
 
 .share-code {
@@ -277,6 +395,11 @@ const alternativeDocumentTypeLabel = computed(() => {
   border: 1px solid #e5e7eb;
 }
 
+.share-code.confirmed {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
 .verify-link {
   color: var(--color-primary);
   font-size: 0.875rem;
@@ -285,6 +408,64 @@ const alternativeDocumentTypeLabel = computed(() => {
 
 .verify-link:hover {
   text-decoration: underline;
+}
+
+.staff-input-group {
+  margin-top: 0.75rem;
+}
+
+.input-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.text-input,
+.date-input {
+  width: 100%;
+  max-width: 300px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: #1f2937;
+}
+
+.text-input:focus,
+.date-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.input-helper {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0.25rem 0 0;
+}
+
+.confirmed-value {
+  background: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.25rem;
+  border: 1px solid #e5e7eb;
+}
+
+.no-data {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.info-message {
+  padding: 0.75rem 1rem;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 0.5rem;
+  color: #92400e;
+  font-size: 0.875rem;
 }
 
 .image-container {

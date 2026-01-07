@@ -2202,6 +2202,11 @@ router.post('/submit/:token', async (req: Request, res) => {
       rtr_verification_data: data.rtr_verification_data || null,
       rtr_alternative_document_type: data.rtr_alternative_document_type || null,
       rtr_alternative_document_path: data.rtr_alternative_document_path || null,
+      // British citizen RTR documents
+      rtr_british_passport_path: data.rtr_british_passport_path || null,
+      rtr_british_no_passport: data.rtr_british_no_passport || false,
+      rtr_british_alt_doc_type: data.rtr_british_alt_doc_type || null,
+      rtr_british_alt_doc_path: data.rtr_british_alt_doc_path || null,
 
       // Submission tracking
       submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : reference.submitted_ip_encrypted || null,
@@ -2990,6 +2995,8 @@ router.post('/upload/:token', (req, res, next) => {
     { name: 'proof_of_funds', maxCount: 1 },
     { name: 'proof_of_additional_income', maxCount: 1 },
     { name: 'rtr_alternative_document', maxCount: 1 },
+    { name: 'rtr_british_passport', maxCount: 1 },
+    { name: 'rtr_british_alt_doc', maxCount: 1 },
     { name: 'bank_statements', maxCount: 10 },
     { name: 'payslips', maxCount: 10 },
     { name: 'tax_return', maxCount: 1 },
@@ -3030,6 +3037,8 @@ router.post('/upload/:token', (req, res, next) => {
     let proofOfFundsPath: string | null = null
     let proofOfAdditionalIncomePath: string | null = null
     let rtrAlternativeDocumentPath: string | null = null
+    let rtrBritishPassportPath: string | null = null
+    let rtrBritishAltDocPath: string | null = null
     let taxReturnPath: string | null = null
     let otherProofOfFundsPath: string | null = null
     let tenancyAgreementPath: string | null = null
@@ -3155,6 +3164,46 @@ router.post('/upload/:token', (req, res, next) => {
       }
 
       rtrAlternativeDocumentPath = fileName
+    }
+
+    // Upload British citizen passport
+    if (files.rtr_british_passport && files.rtr_british_passport[0]) {
+      const file = files.rtr_british_passport[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/rtr_british_passport/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload British passport: ${uploadError.message}`)
+      }
+
+      rtrBritishPassportPath = fileName
+    }
+
+    // Upload British citizen alternative document (DL or birth certificate)
+    if (files.rtr_british_alt_doc && files.rtr_british_alt_doc[0]) {
+      const file = files.rtr_british_alt_doc[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/rtr_british_alt_doc/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload British alternative document: ${uploadError.message}`)
+      }
+
+      rtrBritishAltDocPath = fileName
     }
 
     // Upload tax return
@@ -3307,6 +3356,8 @@ router.post('/upload/:token', (req, res, next) => {
     if (proofOfFundsPath) pathUpdates.proof_of_funds_path = proofOfFundsPath
     if (proofOfAdditionalIncomePath) pathUpdates.proof_of_additional_income_path = proofOfAdditionalIncomePath
     if (rtrAlternativeDocumentPath) pathUpdates.rtr_alternative_document_path = rtrAlternativeDocumentPath
+    if (rtrBritishPassportPath) pathUpdates.rtr_british_passport_path = rtrBritishPassportPath
+    if (rtrBritishAltDocPath) pathUpdates.rtr_british_alt_doc_path = rtrBritishAltDocPath
     if (taxReturnPath) pathUpdates.tax_return_path = taxReturnPath
     if (otherProofOfFundsPath) pathUpdates.other_proof_of_funds_path = otherProofOfFundsPath
     if (tenancyAgreementPath) pathUpdates.tenancy_agreement_path = tenancyAgreementPath
@@ -3369,6 +3420,8 @@ router.post('/upload/:token', (req, res, next) => {
       proof_of_funds: proofOfFundsPath,
       proof_of_additional_income: proofOfAdditionalIncomePath,
       rtr_alternative_document: rtrAlternativeDocumentPath,
+      rtr_british_passport: rtrBritishPassportPath,
+      rtr_british_alt_doc: rtrBritishAltDocPath,
       bank_statements: bankStatementPaths,
       payslips: payslipPaths,
       tax_return: taxReturnPath,

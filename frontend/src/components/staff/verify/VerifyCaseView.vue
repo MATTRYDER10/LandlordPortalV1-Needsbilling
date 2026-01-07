@@ -245,6 +245,8 @@ const idDocumentBlobUrl = ref<string | null>(null)
 const signatureBlobUrl = ref<string | null>(null)
 const rtrDocumentBlobUrl = ref<string | null>(null)
 const rtrAlternativeDocumentBlobUrl = ref<string | null>(null)
+const rtrBritishPassportBlobUrl = ref<string | null>(null)
+const rtrBritishAltDocBlobUrl = ref<string | null>(null)
 const creditsafeVerification = ref<any>(null)
 const sanctionsScreening = ref<any>(null)
 const referenceScore = ref<any>(null)
@@ -310,6 +312,14 @@ const referenceData = computed(() => ({
   rtrAlternativeDocumentUrl: rtrAlternativeDocumentBlobUrl.value,
   rtrAlternativeDocumentType: reference.value?.rtr_alternative_document_type,
   isBritishCitizen: reference.value?.is_british_citizen,
+  // British citizen RTR documents
+  rtrBritishPassportUrl: rtrBritishPassportBlobUrl.value,
+  rtrBritishAltDocUrl: rtrBritishAltDocBlobUrl.value,
+  rtrBritishAltDocType: reference.value?.rtr_british_alt_doc_type,
+  hasBritishNoPassport: reference.value?.rtr_british_no_passport,
+  // Staff RTR verification fields
+  rtrStaffExpiryDate: reference.value?.rtr_staff_expiry_date,
+  rtrStaffShareCodeConfirmed: reference.value?.rtr_staff_share_code_confirmed,
   // Income
   monthlyRent: evidenceData.value?.monthlyRent || reference.value?.monthly_rent,
   totalIncome: evidenceData.value?.verifiedIncome?.total || evidenceData.value?.claimedIncome?.total || reference.value?.total_income,
@@ -647,6 +657,12 @@ async function loadData() {
     if (reference.value?.rtr_alternative_document_path) {
       rtrAlternativeDocumentBlobUrl.value = await loadImageAsBlob(reference.value.rtr_alternative_document_path)
     }
+    if (reference.value?.rtr_british_passport_path) {
+      rtrBritishPassportBlobUrl.value = await loadImageAsBlob(reference.value.rtr_british_passport_path)
+    }
+    if (reference.value?.rtr_british_alt_doc_path) {
+      rtrBritishAltDocBlobUrl.value = await loadImageAsBlob(reference.value.rtr_british_alt_doc_path)
+    }
   } catch (err: any) {
     console.error('Failed to load data:', err)
     error.value = err.message
@@ -669,6 +685,38 @@ async function refreshEvidenceData() {
     }
   } catch (err) {
     console.error('Failed to refresh evidence data:', err)
+  }
+}
+
+// Update RTR data (staff confirmation of share code and expiry date)
+async function handleUpdateRtrData(data: { shareCodeConfirmed?: string; expiryDate?: string }) {
+  try {
+    const response = await fetch(`${API_BASE}/api/verify/person/${referenceId.value}/rtr`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('Failed to update RTR data:', errorData)
+      return
+    }
+
+    // Update local reference data
+    if (reference.value) {
+      if (data.shareCodeConfirmed !== undefined) {
+        reference.value.rtr_staff_share_code_confirmed = data.shareCodeConfirmed
+      }
+      if (data.expiryDate !== undefined) {
+        reference.value.rtr_staff_expiry_date = data.expiryDate
+      }
+    }
+  } catch (err) {
+    console.error('Failed to update RTR data:', err)
   }
 }
 
