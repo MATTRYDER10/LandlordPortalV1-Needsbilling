@@ -170,9 +170,7 @@ onMounted(async () => {
     referenceDetails.value = response.data
   } catch (err: any) {
     if (err.response?.status === 404) {
-      error.value = 'Invalid or expired link. Please contact your letting agent for a new link.'
-    } else if (err.response?.status === 410) {
-      error.value = err.response.data?.error || 'This link has expired. Please contact your letting agent for a new link.'
+      error.value = 'Invalid link. Please contact your letting agent for a new link.'
     } else if (err.response?.status === 400) {
       error.value = err.response.data?.error || 'A guarantor has already been added for this reference.'
     } else {
@@ -197,8 +195,6 @@ async function handleSubmit() {
       submitError.value = err.response.data?.error || 'Please check your input and try again.'
     } else if (err.response?.status === 402) {
       submitError.value = err.response.data?.message || 'Unable to process at this time. Please contact your letting agent.'
-    } else if (err.response?.status === 410) {
-      submitError.value = err.response.data?.error || 'This link has expired. Please contact your letting agent.'
     } else {
       submitError.value = 'An error occurred. Please try again.'
     }

@@ -2680,7 +2680,7 @@ const fetchReferenceByToken = async () => {
 
     if (!response.ok) {
       if (response.status === 404) {
-        tokenError.value = 'Reference not found or link has expired.'
+        tokenError.value = 'Reference not found. Please check your link or contact your letting agent.'
       } else {
         tokenError.value = 'Failed to load reference details.'
       }

@@ -2043,11 +2043,10 @@ router.post('/submit/:token', async (req: Request, res) => {
       .from('tenant_references')
       .select('*')
       .eq('reference_token_hash', tokenHash)
-      .gte('token_expires_at', new Date().toISOString())
       .single()
 
     if (refError || !reference) {
-      return res.status(404).json({ error: 'Invalid or expired reference link' })
+      return res.status(404).json({ error: 'Invalid reference link' })
     }
 
     // Check if already submitted
@@ -2941,11 +2940,10 @@ router.get('/check-guarantor/:token', async (req, res) => {
       .from('tenant_references')
       .select('id')
       .eq('reference_token_hash', tokenHash)
-      .gte('token_expires_at', new Date().toISOString())
       .single()
 
     if (refError || !reference) {
-      return res.status(404).json({ error: 'Invalid or expired reference link' })
+      return res.status(404).json({ error: 'Invalid reference link' })
     }
 
     // Check if a guarantor already exists for this reference
@@ -3020,11 +3018,10 @@ router.post('/upload/:token', (req, res, next) => {
       .from('tenant_references')
       .select('id, company_id, status, payslip_files, bank_statements_paths')
       .eq('reference_token_hash', tokenHash)
-      .gte('token_expires_at', new Date().toISOString())
       .single()
 
     if (refError || !reference) {
-      return res.status(404).json({ error: 'Invalid or expired reference link' })
+      return res.status(404).json({ error: 'Invalid reference link' })
     }
 
     let idDocumentPath: string | null = null
@@ -3425,17 +3422,16 @@ router.get('/view/:token', async (req, res) => {
         )
       `)
       .eq('reference_token_hash', tokenHash)
-      .gte('token_expires_at', new Date().toISOString())
       .single()
 
     if (error) {
       console.error('Error fetching reference:', error)
-      return res.status(404).json({ error: 'Invalid or expired reference link' })
+      return res.status(404).json({ error: 'Invalid reference link' })
     }
 
     if (!reference) {
       console.error('Reference not found for token hash')
-      return res.status(404).json({ error: 'Invalid or expired reference link' })
+      return res.status(404).json({ error: 'Invalid reference link' })
     }
 
     // Decrypt fields for display
@@ -5582,15 +5578,7 @@ router.get('/tenant-add-guarantor/:token', async (req, res) => {
       .single()
 
     if (error || !reference) {
-      return res.status(404).json({ error: 'Invalid or expired link' })
-    }
-
-    // Check if token has expired
-    if (reference.add_guarantor_token_expires_at) {
-      const expiresAt = new Date(reference.add_guarantor_token_expires_at)
-      if (expiresAt < new Date()) {
-        return res.status(410).json({ error: 'This link has expired. Please contact your letting agent for a new link.' })
-      }
+      return res.status(404).json({ error: 'Invalid link' })
     }
 
     // Check if guarantor already exists
@@ -5648,15 +5636,7 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
       .single()
 
     if (error || !parentReference) {
-      return res.status(404).json({ error: 'Invalid or expired link' })
-    }
-
-    // Check if token has expired
-    if (parentReference.add_guarantor_token_expires_at) {
-      const expiresAt = new Date(parentReference.add_guarantor_token_expires_at)
-      if (expiresAt < new Date()) {
-        return res.status(410).json({ error: 'This link has expired. Please contact your letting agent for a new link.' })
-      }
+      return res.status(404).json({ error: 'Invalid link' })
     }
 
     // Check if guarantor already exists

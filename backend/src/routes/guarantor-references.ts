@@ -29,12 +29,11 @@ router.get('/view/:token', async (req, res) => {
         )
       `)
       .eq('reference_token_hash', tokenHash)
-      .gte('token_expires_at', new Date().toISOString())
       .single()
 
     if (refError || !guarantorRef) {
       console.error('Guarantor reference fetch error:', refError)
-      return res.status(404).json({ error: 'Invalid or expired reference link' })
+      return res.status(404).json({ error: 'Invalid reference link' })
     }
 
     // Return guarantor reference data with tenant and property info
@@ -107,11 +106,10 @@ router.post('/upload/:token', (req, res, next) => {
       .from('guarantor_references')
       .select('id')
       .eq('reference_token_hash', tokenHash)
-      .gte('token_expires_at', new Date().toISOString())
       .single()
 
     if (refError || !guarantorRef) {
-      return res.status(404).json({ error: 'Invalid or expired reference link' })
+      return res.status(404).json({ error: 'Invalid reference link' })
     }
 
     const uploadedPaths: any = {}
@@ -249,12 +247,11 @@ router.post('/submit/:token', async (req: Request, res) => {
         tenant_references!inner(id, company_id, requires_guarantor, submitted_at)
       `)
       .eq('reference_token_hash', tokenHash)
-      .gte('token_expires_at', new Date().toISOString())
       .single()
 
     if (refError || !guarantorRef) {
       console.error('Guarantor reference lookup error:', refError)
-      return res.status(404).json({ error: 'Invalid or expired reference link' })
+      return res.status(404).json({ error: 'Invalid reference link' })
     }
 
     console.log('Found guarantor reference:', guarantorRef.id)
