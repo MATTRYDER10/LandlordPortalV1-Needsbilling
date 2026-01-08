@@ -202,13 +202,30 @@ export async function transitionState(
       return { success: true }
     }
 
+    // Map verification_state to legacy status field for backwards compatibility
+    // The frontend/tenancyStatusService still relies on the status field
+    const legacyStatusMap: Record<VerificationState, string | null> = {
+      'COLLECTING_EVIDENCE': null, // Don't change - could be pending or in_progress
+      'READY_FOR_REVIEW': 'pending_verification',
+      'IN_VERIFICATION': 'pending_verification',
+      'ACTION_REQUIRED': 'in_progress', // Back to in_progress while tenant fixes issues
+      'COMPLETED': 'completed',
+      'REJECTED': 'rejected'
+    }
+    const legacyStatus = legacyStatusMap[newState]
+
     // Atomic update with timestamp for optimistic locking
+    const updatePayload: Record<string, any> = {
+      verification_state: newState,
+      updated_at: new Date().toISOString()
+    }
+    if (legacyStatus) {
+      updatePayload.status = legacyStatus
+    }
+
     const { error: updateError } = await supabase
       .from('tenant_references')
-      .update({
-        verification_state: newState,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', referenceId)
       .eq('updated_at', current.updated_at)
 
