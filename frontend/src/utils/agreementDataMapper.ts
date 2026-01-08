@@ -41,6 +41,7 @@ export interface AgreementFormData {
   breakClauseNoticePeriod?: number | null
   breakClause?: string
   specialClauses?: string
+  billsIncluded: boolean
   landlords: Party[]
   tenants: Party[]
   guarantors: Party[]
@@ -72,6 +73,7 @@ export interface DatabaseAgreement {
   management_type?: string
   break_clause?: string
   special_clauses?: string
+  bills_included?: boolean
   pdf_url?: string
   pdf_generated_at?: string
   signing_status?: string
@@ -113,6 +115,7 @@ export function getDefaultFormData(): AgreementFormData {
     breakClauseNoticePeriod: null,
     breakClause: '',
     specialClauses: '',
+    billsIncluded: false,
     landlords: [
       {
         name: '',
@@ -193,6 +196,7 @@ export function agreementToFormData(agreement: DatabaseAgreement): AgreementForm
     breakClauseNoticePeriod,
     breakClause: agreement.break_clause || '',
     specialClauses: agreement.special_clauses || '',
+    billsIncluded: agreement.bills_included || false,
     landlords: agreement.landlords && agreement.landlords.length > 0
       ? agreement.landlords
       : [{ name: '', address: { line1: '', line2: '', city: '', county: '', postcode: '' } }],
@@ -229,7 +233,8 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
     bankAccountNumber: formData.bankAccountNumber,
     bankSortCode: formData.bankSortCode,
     breakClause: formData.breakClause,
-    specialClauses: formData.specialClauses
+    specialClauses: formData.specialClauses,
+    billsIncluded: formData.billsIncluded
   }
 }
 

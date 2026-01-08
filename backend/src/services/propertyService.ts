@@ -34,6 +34,7 @@ export interface PropertyData {
   number_of_bathrooms?: number
   furnishing_status?: string
   management_type?: 'managed' | 'let_only'
+  bills_included?: boolean
   is_licensed?: boolean
   license_number?: string
   license_expiry_date?: string
@@ -76,6 +77,7 @@ export interface PropertyListItem {
   status: string
   property_type: string | null
   management_type: 'managed' | 'let_only' | null
+  bills_included: boolean
   is_licensed: boolean
   landlord_count: number
   compliance_status: 'valid' | 'expiring_soon' | 'expired' | 'none'
@@ -91,6 +93,7 @@ export interface PropertyDetail {
   number_of_bathrooms: number | null
   furnishing_status: string | null
   management_type: 'managed' | 'let_only' | null
+  bills_included: boolean
   status: string
   status_override: boolean
   is_licensed: boolean
@@ -184,6 +187,7 @@ class PropertyService {
       number_of_bathrooms: data.number_of_bathrooms || null,
       furnishing_status: data.furnishing_status || null,
       management_type: data.management_type || null,
+      bills_included: data.bills_included || false,
       is_licensed: data.is_licensed || false,
       license_number: data.license_number || null,
       license_expiry_date: data.license_expiry_date || null,
@@ -227,7 +231,7 @@ class PropertyService {
     let query = supabase
       .from('properties')
       .select(`
-        id, postcode, status, property_type, management_type, is_licensed, created_at,
+        id, postcode, status, property_type, management_type, bills_included, is_licensed, created_at,
         full_address_encrypted, address_line1_encrypted, address_line2_encrypted,
         city_encrypted, county_encrypted,
         property_landlords (id),
@@ -404,6 +408,7 @@ class PropertyService {
     if (data.number_of_bathrooms !== undefined) updateData.number_of_bathrooms = data.number_of_bathrooms
     if (data.furnishing_status !== undefined) updateData.furnishing_status = data.furnishing_status
     if (data.management_type !== undefined) updateData.management_type = data.management_type
+    if (data.bills_included !== undefined) updateData.bills_included = data.bills_included
     if (data.is_licensed !== undefined) updateData.is_licensed = data.is_licensed
     if (data.license_number !== undefined) updateData.license_number = data.license_number
     if (data.license_expiry_date !== undefined) updateData.license_expiry_date = data.license_expiry_date
@@ -875,6 +880,7 @@ class PropertyService {
       status: property.status,
       property_type: property.property_type,
       management_type: property.management_type,
+      bills_included: property.bills_included || false,
       is_licensed: property.is_licensed,
       landlord_count: property.property_landlords?.length || 0,
       compliance_status: complianceStatus,
@@ -938,6 +944,7 @@ class PropertyService {
       number_of_bathrooms: property.number_of_bathrooms,
       furnishing_status: property.furnishing_status,
       management_type: property.management_type,
+      bills_included: property.bills_included || false,
       status: property.status,
       status_override: property.status_override,
       is_licensed: property.is_licensed,

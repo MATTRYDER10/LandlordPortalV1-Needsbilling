@@ -141,6 +141,15 @@
                     <span v-else class="text-gray-400">Not specified</span>
                   </p>
                 </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Bills Included</label>
+                  <p class="mt-1 text-sm text-gray-900">
+                    <span v-if="property.bills_included" class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                      Yes
+                    </span>
+                    <span v-else class="text-gray-400">No</span>
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -533,6 +542,7 @@ interface Property {
   number_of_bathrooms: number | null
   furnishing_status: string | null
   management_type: 'managed' | 'let_only' | null
+  bills_included?: boolean
   status: 'vacant' | 'in_tenancy'
   status_override: boolean
   status_override_reason?: string | null

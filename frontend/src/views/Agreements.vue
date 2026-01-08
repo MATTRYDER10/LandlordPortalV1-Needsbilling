@@ -830,6 +830,18 @@
               ></textarea>
               <p class="text-xs text-gray-500 mt-1">Optional additional clauses (leave empty if not applicable)</p>
             </div>
+
+            <div class="mt-4">
+              <label class="flex items-center">
+                <input
+                  type="checkbox"
+                  v-model="formData.billsIncluded"
+                  class="rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <span class="ml-2 text-sm text-gray-700">Bills included in rent</span>
+              </label>
+              <p class="text-xs text-gray-500 mt-1 ml-6">Check if utility bills are included in the rent amount</p>
+            </div>
           </div>
         </div>
 
@@ -1485,6 +1497,7 @@ const formData = ref<{
   breakClauseNoticePeriod?: number | null
   breakClause?: string
   specialClauses?: string
+  billsIncluded: boolean
   landlords: Party[]
   tenants: Party[]
   guarantors: Party[]
@@ -1518,6 +1531,7 @@ const formData = ref<{
   breakClauseNoticePeriod: null,
   breakClause: '',
   specialClauses: '',
+  billsIncluded: false,
   landlords: [
     {
       name: '',
@@ -2244,6 +2258,9 @@ async function selectProperty(property: any) {
     postcode: property.postcode || ''
   }
 
+  // Auto-fill bills included from property
+  formData.value.billsIncluded = property.bills_included || false
+
   // Check compliance status
   try {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -2427,6 +2444,12 @@ function mapReferenceToForm(
   const tenantEmail = reference.tenant_email || dataSource.tenant_email
   if (tenantEmail) {
     formData.value.tenantEmail = tenantEmail
+  }
+
+  // Bills included
+  const billsIncluded = reference.bills_included ?? dataSource.bills_included
+  if (billsIncluded !== undefined) {
+    formData.value.billsIncluded = billsIncluded
   }
 
   // Build tenants array

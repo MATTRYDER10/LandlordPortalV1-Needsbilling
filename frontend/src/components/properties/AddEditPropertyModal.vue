@@ -186,6 +186,16 @@
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
+                <div class="col-span-2 mt-2">
+                  <label class="flex items-center">
+                    <input
+                      type="checkbox"
+                      v-model="form.bills_included"
+                      class="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">Bills included in rent</span>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -417,6 +427,7 @@ interface PropertyForm {
   number_of_bathrooms: number | null
   furnishing_status: string
   management_type: string
+  bills_included: boolean
   notes: string
   landlords: LandlordAssignment[]
 }
@@ -459,6 +470,7 @@ const form = ref<PropertyForm>({
   number_of_bathrooms: null,
   furnishing_status: '',
   management_type: '',
+  bills_included: false,
   notes: '',
   landlords: []
 })
@@ -586,6 +598,7 @@ const fetchProperty = async () => {
     form.value.number_of_bathrooms = property.number_of_bathrooms
     form.value.furnishing_status = property.furnishing_status || ''
     form.value.management_type = property.management_type || ''
+    form.value.bills_included = property.bills_included || false
     form.value.notes = property.notes || ''
     form.value.landlords = property.landlords?.map((l: any) => ({
       landlord_id: l.landlord_id,
@@ -636,6 +649,7 @@ const handleSubmit = async () => {
       number_of_bathrooms: form.value.number_of_bathrooms || undefined,
       furnishing_status: form.value.furnishing_status || undefined,
       management_type: form.value.management_type || undefined,
+      bills_included: form.value.bills_included,
       notes: form.value.notes || undefined,
       landlords: form.value.landlords
     }
@@ -684,6 +698,7 @@ const resetForm = () => {
     number_of_bathrooms: null,
     furnishing_status: '',
     management_type: '',
+    bills_included: false,
     notes: '',
     landlords: []
   }

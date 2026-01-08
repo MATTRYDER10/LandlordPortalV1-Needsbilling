@@ -28,6 +28,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             property_postcode,
             rent_amount,
             offer_deposit_replacement,
+            bills_included,
             linked_property_id
         } = req.body
 
@@ -60,11 +61,12 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
 
         // Generate offer form link with company ID and pre-filled data
         const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
+        const billsIncludedQuery = bills_included ? '&bills_included=1' : ''
         const propertyAddressQuery = property_address ? `&property_address=${encodeURIComponent(property_address)}` : ''
         const propertyCityQuery = property_city ? `&property_city=${encodeURIComponent(property_city)}` : ''
         const propertyPostcodeQuery = property_postcode ? `&property_postcode=${encodeURIComponent(property_postcode)}` : ''
         const rentAmountQuery = rent_amount ? `&rent_amount=${encodeURIComponent(rent_amount)}` : ''
-        const offerLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
+        const offerLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
 
         // Send email to tenant with offer form link
         try {
@@ -517,6 +519,7 @@ router.post('/submit', async (req, res) => {
             proposed_tenancy_length_months,
             deposit_amount,
             special_conditions,
+            bills_included,
             tenants, // Array of tenant objects
             deposit_replacement_offered,
             deposit_replacement_requested,
@@ -596,6 +599,7 @@ router.post('/submit', async (req, res) => {
                 proposed_tenancy_length_months: parseInt(proposed_tenancy_length_months),
                 deposit_amount: deposit_amount ? parseFloat(deposit_amount) : null,
                 special_conditions_encrypted: special_conditions ? encrypt(special_conditions) : null,
+                bills_included: bills_included === true,
                 status: 'pending',
                 deposit_replacement_offered: depositReplacementOffered,
                 deposit_replacement_requested: depositReplacementRequested,
@@ -1470,6 +1474,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                     term_years: termYears,
                     term_months: remainingMonths,
                     notes_encrypted: encrypt(offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : ''),
+                    bills_included: offer.bills_included || false,
                     reference_token_hash: parentTokenHash,
                     token_expires_at: expiresAt.toISOString(),
                     status: 'pending',
@@ -1510,6 +1515,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                         term_years: termYears,
                         term_months: remainingMonths,
                         notes_encrypted: encrypt(offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : ''),
+                        bills_included: offer.bills_included || false,
                         reference_token_hash: tokenHash,
                         token_expires_at: expiresAt.toISOString(),
                         status: 'pending'
@@ -1590,6 +1596,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                     term_years: termYears,
                     term_months: remainingMonths,
                     notes_encrypted: encrypt(offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : ''),
+                    bills_included: offer.bills_included || false,
                     reference_token_hash: tokenHash,
                     token_expires_at: expiresAt.toISOString(),
                     status: 'pending'

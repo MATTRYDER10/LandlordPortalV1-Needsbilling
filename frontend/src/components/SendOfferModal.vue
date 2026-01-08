@@ -166,6 +166,21 @@
                 class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm" />
             </div>
 
+            <!-- Bills Included -->
+            <div class="flex items-start gap-3">
+              <input id="bills-included" type="checkbox"
+                v-model="formData.bills_included"
+                class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
+              <div>
+                <label for="bills-included" class="text-sm font-medium text-gray-900">
+                  Bills Included
+                </label>
+                <p class="text-xs text-gray-600 mt-0.5">
+                  Check if utility bills are included in the rent amount.
+                </p>
+              </div>
+            </div>
+
             <!-- Deposit Replacement Offer -->
             <div class="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
               <input id="offer-deposit-replacement" type="checkbox"
@@ -227,7 +242,8 @@ const formData = ref({
   property_city: '',
   property_postcode: '',
   rent_amount: null as number | null,
-  offer_deposit_replacement: false
+  offer_deposit_replacement: false,
+  bills_included: false
 })
 
 const errorMessage = ref<string | null>(null)
@@ -247,7 +263,8 @@ const resetForm = () => {
     property_city: '',
     property_postcode: '',
     rent_amount: null,
-    offer_deposit_replacement: false
+    offer_deposit_replacement: false,
+    bills_included: false
   }
   errorMessage.value = null
   propertyEntryMode.value = 'select'
@@ -300,6 +317,7 @@ function selectPropertyForOffer(property: any) {
   formData.value.property_address = property.address_line1
   formData.value.property_city = property.city
   formData.value.property_postcode = property.postcode
+  formData.value.bills_included = property.bills_included || false
 }
 
 // Clear property selection
@@ -353,6 +371,7 @@ const handleSubmit = async () => {
         property_postcode: formData.value.property_postcode,
         rent_amount: formData.value.rent_amount,
         offer_deposit_replacement: formData.value.offer_deposit_replacement,
+        bills_included: formData.value.bills_included,
         linked_property_id: selectedPropertyId.value
       })
     })

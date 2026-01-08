@@ -49,6 +49,8 @@ export interface AgreementData {
   // Clauses
   breakClause?: string
   specialClauses?: string
+  // Bills
+  billsIncluded?: boolean
   // Company details (for managed properties)
   companyName?: string
   companyAddress?: PropertyAddress
@@ -101,6 +103,7 @@ export class AgreementService {
         management_type: agreementData.managementType,
         break_clause: agreementData.breakClause,
         special_clauses: agreementData.specialClauses,
+        bills_included: agreementData.billsIncluded || false,
         language: agreementData.language || 'english',
         company_id: companyId,
         reference_id: referenceId || null,

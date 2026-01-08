@@ -108,6 +108,16 @@
                                 placeholder="Any special conditions or requests..."
                                 class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"></textarea>
                         </div>
+                        <div class="md:col-span-2 mt-2">
+                            <div class="flex items-start">
+                                <input id="bills-included" v-model="formData.bills_included" type="checkbox"
+                                    class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
+                                <label for="bills-included" class="ml-2 block text-sm text-gray-700">
+                                    Bills included in rent
+                                    <p class="text-xs text-gray-500 mt-1">Check if utility bills are included in the monthly rent</p>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -338,6 +348,7 @@ const formData = ref({
     proposed_tenancy_length_months: 12,
     deposit_amount: null as number | null,
     special_conditions: '',
+    bills_included: false,
     tenants: [
         {
             name: '',
@@ -460,6 +471,7 @@ const handleSubmit = async () => {
             proposed_tenancy_length_months: formData.value.proposed_tenancy_length_months,
             deposit_amount: formData.value.deposit_amount || null,
             special_conditions: formData.value.special_conditions || null,
+            bills_included: formData.value.bills_included,
             tenants: formData.value.tenants.map(tenant => ({
                 name: tenant.name,
                 address: tenant.address,
@@ -576,6 +588,7 @@ onMounted(async () => {
         const propertyCity = route.query.property_city as string
         const propertyPostcode = route.query.property_postcode as string
         const rentAmount = route.query.rent_amount as string
+        const billsIncluded = route.query.bills_included as string
 
         if (propertyAddress) {
             formData.value.property_address = decodeURIComponent(propertyAddress)
@@ -591,6 +604,9 @@ onMounted(async () => {
             if (!isNaN(rent)) {
                 formData.value.offered_rent_amount = rent
             }
+        }
+        if (billsIncluded) {
+            formData.value.bills_included = parseBooleanQueryParam(billsIncluded)
         }
 
         // Check for existing submission first

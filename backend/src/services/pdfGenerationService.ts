@@ -60,6 +60,7 @@ export interface AgreementPDFData {
   managementType?: 'managed' | 'let_only'
   breakClause?: string
   specialClauses?: string
+  billsIncluded?: boolean
   companyName?: string
   companyAddress?: PropertyAddress
   companyLogoUrl?: string
@@ -286,11 +287,15 @@ class PDFGenerationService {
 
     // Financial details
     // Some templates have £[amount] (need just the number), others have [amount] alone (need £ + number)
+    // Add "(bills included)" suffix if bills are included in rent
+    const rentAmountStr = data.billsIncluded
+      ? `£${this.formatCurrency(data.rentAmount)} (bills included)`
+      : `£${this.formatCurrency(data.rentAmount)}`
     // First replace £[amount] with just the number to avoid ££
-    result = result.replace(/£\[RENT_AMOUNT\]|£\[rent_amount\]/gi, `£${this.formatCurrency(data.rentAmount)}`)
+    result = result.replace(/£\[RENT_AMOUNT\]|£\[rent_amount\]/gi, rentAmountStr)
     result = result.replace(/£\[DEPOSIT_?\s*AMOUNT\]|£\[deposit_amount\]/gi, `£${this.formatCurrency(data.depositAmount)}`)
     // Then replace standalone [amount] patterns with £ + number
-    result = result.replace(/\[RENT_AMOUNT\]|\[rent_amount\]/gi, `£${this.formatCurrency(data.rentAmount)}`)
+    result = result.replace(/\[RENT_AMOUNT\]|\[rent_amount\]/gi, rentAmountStr)
     // Handle typo in template: [DEPOSIT_ AMOUNT] with space
     result = result.replace(/\[DEPOSIT_?\s*AMOUNT\]/gi, `£${this.formatCurrency(data.depositAmount)}`)
 

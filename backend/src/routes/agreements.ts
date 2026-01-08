@@ -68,6 +68,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       managementType,
       breakClause,
       specialClauses,
+      billsIncluded,
       language,
       referenceId,
       propertyId,
@@ -164,6 +165,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       managementType,
       breakClause,
       specialClauses,
+      billsIncluded,
       language: language || 'english'
     }
 
@@ -276,6 +278,7 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       managementType: agreement.management_type,
       breakClause: agreement.break_clause,
       specialClauses: agreement.special_clauses,
+      billsIncluded: agreement.bills_included,
       language: agreement.language || 'english',
       companyName,
       companyAddress
@@ -325,6 +328,7 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
       managementType: agreementData.managementType,
       breakClause: agreementData.breakClause,
       specialClauses: agreementData.specialClauses,
+      billsIncluded: agreementData.billsIncluded,
       companyName: agreementData.companyName,
       companyAddress: agreementData.companyAddress,
       companyLogoUrl
@@ -548,6 +552,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       managementType,
       breakClause,
       specialClauses,
+      billsIncluded,
       language
     }: AgreementData = req.body
 
@@ -576,6 +581,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
         management_type: managementType,
         break_clause: breakClause,
         special_clauses: specialClauses,
+        bills_included: billsIncluded,
         language: language || 'english',
         // Clear PDF since content has changed - user will need to regenerate
         pdf_url: null,
