@@ -1235,11 +1235,26 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
     const evidenceFiles = buildEvidenceFromPaths();
 
     // Get employer reference if exists
-    const { data: employerReference } = await supabaseAdmin
+    const { data: employerReferences, error: employerReferenceError } = await supabaseAdmin
       .from('employer_references')
       .select('*')
       .eq('reference_id', referenceId)
-      .single();
+      .not('submitted_at', 'is', null)
+      .order('submitted_at', { ascending: false, nullsFirst: false })
+      .limit(5);
+
+    if (employerReferenceError) {
+      console.error('Error fetching employer reference:', employerReferenceError);
+    }
+
+    const employerReference = (employerReferences || []).find((ref: any) =>
+      ref.annual_salary_encrypted ||
+      ref.employer_name_encrypted ||
+      ref.company_name_encrypted ||
+      ref.employee_position_encrypted ||
+      ref.employment_start_date ||
+      ref.employment_status
+    ) || employerReferences?.[0] || null;
 
     // Get accountant reference if exists
     const { data: accountantReference } = await supabaseAdmin
@@ -1359,17 +1374,74 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
 
     // Decrypt employer reference fields if exists
     let decryptedEmployerReference = null;
+    const decryptField = (value: any) => {
+      if (value === null || value === undefined || value === '') return null;
+      if (typeof value !== 'string') return value;
+      try {
+        return decrypt(value);
+      } catch {
+        return value;
+      }
+    };
+
+    const getFirstValue = (...values: any[]) => {
+      for (const value of values) {
+        if (value !== null && value !== undefined && value !== '') {
+          return value;
+        }
+      }
+      return null;
+    };
+
+    const getDecryptedValue = (...values: any[]) => {
+      const decryptedValues = values.map(decryptField);
+      return getFirstValue(...decryptedValues);
+    };
+
+    const getDecryptedNumber = (...values: any[]) => {
+      const raw = getDecryptedValue(...values);
+      if (raw === null || raw === undefined || raw === '') return null;
+      const parsed = typeof raw === 'number' ? raw : parseFloat(String(raw));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
     if (employerReference) {
+      const employerRefAny = employerReference as any;
       decryptedEmployerReference = {
         id: employerReference.id,
-        employerName: employerReference.employer_name_encrypted ? decrypt(employerReference.employer_name_encrypted) : null,
-        contactName: employerReference.contact_name_encrypted ? decrypt(employerReference.contact_name_encrypted) : null,
-        contactEmail: employerReference.contact_email_encrypted ? decrypt(employerReference.contact_email_encrypted) : null,
-        contactPhone: employerReference.employer_phone_encrypted ? decrypt(employerReference.employer_phone_encrypted) : null,
-        jobTitle: employerReference.employee_position_encrypted ? decrypt(employerReference.employee_position_encrypted) : null,
-        employmentStartDate: employerReference.employment_start_date,
+        employerName: getDecryptedValue(
+          employerRefAny.employer_name_encrypted,
+          employerRefAny.employer_name
+        ),
+        contactName: getDecryptedValue(
+          employerRefAny.contact_name_encrypted,
+          employerRefAny.contact_name
+        ),
+        contactEmail: getDecryptedValue(
+          employerRefAny.contact_email_encrypted,
+          employerRefAny.contact_email,
+          employerRefAny.employer_email_encrypted,
+          employerRefAny.employer_email
+        ),
+        contactPhone: getDecryptedValue(
+          employerRefAny.employer_phone_encrypted,
+          employerRefAny.employer_phone,
+          employerRefAny.contact_phone_encrypted,
+          employerRefAny.contact_phone
+        ),
+        jobTitle: getDecryptedValue(
+          employerRefAny.employee_position_encrypted,
+          employerRefAny.employee_position
+        ),
+        employmentStartDate: getFirstValue(
+          employerRefAny.employment_start_date,
+          employerRefAny.employment_start
+        ),
         employmentEndDate: employerReference.employment_end_date,
-        salary: employerReference.annual_salary_encrypted ? parseFloat(decrypt(employerReference.annual_salary_encrypted) || '0') : null,
+        salary: getDecryptedNumber(
+          employerRefAny.annual_salary_encrypted,
+          employerRefAny.annual_salary
+        ),
         salaryFrequency: employerReference.salary_frequency,
         employmentStatus: employerReference.employment_status,
         isCurrentlyEmployed: employerReference.is_current_employee,
@@ -1379,20 +1451,52 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         submittedAt: employerReference.submitted_at,
         signaturePath: employerReference.signature_path,
         // Additional fields
-        companyName: employerReference.company_name_encrypted ? decrypt(employerReference.company_name_encrypted) : null,
-        employerPosition: employerReference.employer_position_encrypted ? decrypt(employerReference.employer_position_encrypted) : null,
-        clarificationDetails: employerReference.clarification_details,
+        companyName: getDecryptedValue(
+          employerRefAny.company_name_encrypted,
+          employerRefAny.employer_company_encrypted,
+          employerRefAny.company_name,
+          employerRefAny.employer_company
+        ),
+        employerPosition: getDecryptedValue(
+          employerRefAny.employer_position_encrypted,
+          employerRefAny.employer_position
+        ),
+        clarificationDetails: getDecryptedValue(
+          employerRefAny.clarification_details_encrypted,
+          employerRefAny.clarification_details
+        ),
         contractTypeConfirmation: employerReference.contract_type_confirmation,
         incomeExpectation: employerReference.income_expectation,
         incomeExpectationDetails: employerReference.income_expectation_details,
         employmentStable: employerReference.employment_stable,
-        employmentStableDetails: employerReference.employment_stable_details,
-        additionalComments: employerReference.additional_comments_encrypted ? decrypt(employerReference.additional_comments_encrypted) : null,
-        wouldReemployDetails: employerReference.would_reemploy_details_encrypted ? decrypt(employerReference.would_reemploy_details_encrypted) : null,
-        performanceDetails: employerReference.performance_details_encrypted ? decrypt(employerReference.performance_details_encrypted) : null,
-        disciplinaryDetails: employerReference.disciplinary_details_encrypted ? decrypt(employerReference.disciplinary_details_encrypted) : null,
-        absenceDetails: employerReference.absence_details_encrypted ? decrypt(employerReference.absence_details_encrypted) : null,
-        signature: employerReference.signature_encrypted ? decrypt(employerReference.signature_encrypted) : null,
+        employmentStableDetails: getDecryptedValue(
+          employerRefAny.employment_stable_details_encrypted,
+          employerRefAny.employment_stable_details
+        ),
+        additionalComments: getDecryptedValue(
+          employerRefAny.additional_comments_encrypted,
+          employerRefAny.additional_comments
+        ),
+        wouldReemployDetails: getDecryptedValue(
+          employerRefAny.would_reemploy_details_encrypted,
+          employerRefAny.would_reemploy_details
+        ),
+        performanceDetails: getDecryptedValue(
+          employerRefAny.performance_details_encrypted,
+          employerRefAny.performance_details
+        ),
+        disciplinaryDetails: getDecryptedValue(
+          employerRefAny.disciplinary_details_encrypted,
+          employerRefAny.disciplinary_details
+        ),
+        absenceDetails: getDecryptedValue(
+          employerRefAny.absence_details_encrypted,
+          employerRefAny.absence_details
+        ),
+        signature: getDecryptedValue(
+          employerRefAny.signature_encrypted,
+          employerRefAny.signature
+        ),
         signatureDate: employerReference.date
       };
     }
