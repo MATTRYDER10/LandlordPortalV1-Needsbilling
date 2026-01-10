@@ -4090,6 +4090,13 @@ router.post('/employer/:token', async (req: Request, res) => {
   try {
     const { token } = req.params
     const formData = req.body
+
+    // DEBUG: Log what we're receiving
+    console.log('[EMPLOYER SUBMIT DEBUG] Received form data keys:', Object.keys(formData));
+    console.log('[EMPLOYER SUBMIT DEBUG] Has companyName?', !!formData.companyName);
+    console.log('[EMPLOYER SUBMIT DEBUG] Has employerName?', !!formData.employerName);
+    console.log('[EMPLOYER SUBMIT DEBUG] Has annualSalary?', !!formData.annualSalary);
+
     const clientIpAddress = getClientIpAddress(req)
     const geolocationPayload = normalizeGeolocationPayload(formData.geolocation)
     if ('geolocation' in formData) {
@@ -4118,42 +4125,51 @@ router.post('/employer/:token', async (req: Request, res) => {
     const referenceId = employerRef.reference_id
 
     // Update employer reference with form data
+    const updatePayload = {
+      company_name_encrypted: encrypt(formData.companyName),
+      employer_name_encrypted: encrypt(formData.employerName),
+      employer_position_encrypted: encrypt(formData.employerPosition),
+      employer_email_encrypted: encrypt(formData.employerEmail),
+      employer_phone_encrypted: encrypt(formData.employerPhone),
+      employee_position_encrypted: encrypt(formData.employeePosition),
+      employment_type: formData.employmentType,
+      employment_start_date: formData.employmentStartDate,
+      employment_end_date: formData.employmentEndDate || null,
+      is_current_employee: formData.isCurrentEmployee,
+      annual_salary_encrypted: encrypt(formData.annualSalary ? String(formData.annualSalary) : null),
+      salary_frequency: formData.salaryFrequency,
+      is_probation: formData.isProbation,
+      probation_end_date: formData.probationEndDate || null,
+      employment_stable: formData.employmentStable,
+      employment_stable_details_encrypted: encrypt(formData.employmentStableDetails || ''),
+      employment_status: formData.employmentStatus,
+      clarification_details_encrypted: encrypt(formData.clarificationDetails || ''),
+      contract_type_confirmation: formData.contractTypeConfirmation,
+      additional_comments_encrypted: encrypt(formData.additionalComments || ''),
+      signature_name_encrypted: encrypt(formData.signatureName || ''),
+      signature_encrypted: encrypt(formData.signature),
+      date: formData.date,
+      submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : null,
+      submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : null,
+      submitted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('[EMPLOYER SUBMIT DEBUG] Update payload keys:', Object.keys(updatePayload));
+    console.log('[EMPLOYER SUBMIT DEBUG] Encrypted company name?', !!updatePayload.company_name_encrypted);
+    console.log('[EMPLOYER SUBMIT DEBUG] Encrypted employer name?', !!updatePayload.employer_name_encrypted);
+
     const { error: updateError } = await supabase
       .from('employer_references')
-      .update({
-        company_name_encrypted: encrypt(formData.companyName),
-        employer_name_encrypted: encrypt(formData.employerName),
-        employer_position_encrypted: encrypt(formData.employerPosition),
-        employer_email_encrypted: encrypt(formData.employerEmail),
-        employer_phone_encrypted: encrypt(formData.employerPhone),
-        employee_position_encrypted: encrypt(formData.employeePosition),
-        employment_type: formData.employmentType,
-        employment_start_date: formData.employmentStartDate,
-        employment_end_date: formData.employmentEndDate || null,
-        is_current_employee: formData.isCurrentEmployee,
-        annual_salary_encrypted: encrypt(formData.annualSalary ? String(formData.annualSalary) : null),
-        salary_frequency: formData.salaryFrequency,
-        is_probation: formData.isProbation,
-        probation_end_date: formData.probationEndDate || null,
-        employment_stable: formData.employmentStable,
-        employment_stable_details_encrypted: encrypt(formData.employmentStableDetails || ''),
-        employment_status: formData.employmentStatus,
-        clarification_details_encrypted: encrypt(formData.clarificationDetails || ''),
-        contract_type_confirmation: formData.contractTypeConfirmation,
-        additional_comments_encrypted: encrypt(formData.additionalComments || ''),
-        signature_name_encrypted: encrypt(formData.signatureName || ''),
-        signature_encrypted: encrypt(formData.signature),
-        date: formData.date,
-        submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : null,
-        submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : null,
-        submitted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', employerRef.id)
 
     if (updateError) {
+      console.error('[EMPLOYER SUBMIT DEBUG] Update error:', updateError);
       return res.status(400).json({ error: updateError.message })
     }
+
+    console.log('[EMPLOYER SUBMIT DEBUG] Update successful for employer reference:', employerRef.id);
 
     // Mark employer ref chase dependency as received
     await markDependencyReceivedByType(referenceId, 'EMPLOYER_REF')
