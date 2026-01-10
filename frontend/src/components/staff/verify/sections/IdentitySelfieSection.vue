@@ -44,7 +44,15 @@
             </div>
           </div>
           <div v-if="idDocumentUrl" class="image-container">
+            <iframe
+              v-if="idDocumentIsPdf"
+              :src="idDocumentUrl"
+              class="document-frame"
+              :style="{ transform: `rotate(${idRotation}deg) scale(${idZoom})` }"
+              frameborder="0"
+            ></iframe>
             <img
+              v-else
               :src="idDocumentUrl"
               alt="ID Document"
               class="document-image"
@@ -292,6 +300,30 @@ const props = defineProps<{
   savingNameCorrection?: boolean
 }>()
 
+const idDocumentIsPdf = ref(false)
+
+const updateIdDocumentType = async (url?: string | null) => {
+  if (!url) {
+    idDocumentIsPdf.value = false
+    return
+  }
+
+  if (url.startsWith('blob:')) {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      idDocumentIsPdf.value = blob.type === 'application/pdf'
+      return
+    } catch {
+      idDocumentIsPdf.value = false
+      return
+    }
+  }
+
+  const cleanUrl = url.split('?')[0] || ''
+  idDocumentIsPdf.value = cleanUrl.toLowerCase().endsWith('.pdf')
+}
+
 const emit = defineEmits<{
   (e: 'pass', sectionId: string): void
   (e: 'passWithCondition', sectionId: string, condition: string): void
@@ -324,6 +356,10 @@ watch(() => props.savingNameCorrection, (newVal, oldVal) => {
     }
   }
 })
+
+watch(() => props.idDocumentUrl, (newUrl) => {
+  updateIdDocumentType(newUrl)
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -424,6 +460,14 @@ watch(() => props.savingNameCorrection, (newVal, oldVal) => {
   max-width: 100%;
   max-height: 300px;
   object-fit: contain;
+  border-radius: 0.25rem;
+  transition: transform 0.2s ease;
+}
+
+.document-frame {
+  width: 100%;
+  height: 300px;
+  border: 0;
   border-radius: 0.25rem;
   transition: transform 0.2s ease;
 }
