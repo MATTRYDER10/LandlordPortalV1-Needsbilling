@@ -61,6 +61,7 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         income_regular_employment,
         income_self_employed,
         income_benefits,
+        income_unemployed,
         is_british_citizen,
         id_document_path,
         selfie_path,
@@ -295,8 +296,21 @@ function checkRightToRentSection(reference: any): SectionStatus {
  *
  * Rules:
  * - ONE of: employer reference, payslip, accountant reference, tax return, other proof of funds
+ * - SPECIAL CASE: Unemployed + Living with Family = auto-pass (no income evidence required)
  */
 function checkIncomeSection(reference: any): SectionStatus {
+  // Special case: Unemployed + Living with Family
+  // These references should auto-pass to verify queue without income evidence
+  // Check both confirmed_residential_status (new field) and reference_type (legacy field)
+  const isUnemployed = reference.income_unemployed === true
+  const isLivingWithFamily =
+    reference.confirmed_residential_status === 'Living with Family' ||
+    reference.reference_type === 'living_with_family'
+
+  if (isUnemployed && isLivingWithFamily) {
+    return { complete: true, reason: 'Unemployed and living with family - no income verification required' }
+  }
+
   const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
   const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
   const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
@@ -469,8 +483,20 @@ function checkRightToRentSectionSync(reference: any): SectionStatus {
 
 /**
  * Sync version of income check - simplified "one item" rule
+ * - SPECIAL CASE: Unemployed + Living with Family = auto-pass (no income evidence required)
  */
 function checkIncomeSectionSync(reference: any): SectionStatus {
+  // Special case: Unemployed + Living with Family
+  // Check both confirmed_residential_status (new field) and reference_type (legacy field)
+  const isUnemployed = reference.income_unemployed === true
+  const isLivingWithFamily =
+    reference.confirmed_residential_status === 'Living with Family' ||
+    reference.reference_type === 'living_with_family'
+
+  if (isUnemployed && isLivingWithFamily) {
+    return { complete: true, reason: 'Unemployed and living with family - no income verification required' }
+  }
+
   const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
   const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
   const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)

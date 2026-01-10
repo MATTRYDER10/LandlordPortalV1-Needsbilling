@@ -66,6 +66,7 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
       status,
       is_guarantor,
       is_british_citizen,
+      income_unemployed,
       id_document_path,
       selfie_path,
       rtr_share_code,
@@ -125,15 +126,29 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
 
   // -------------------------------------------------------------------------
   // INCOME: ONE of employer ref, payslip, accountant ref, tax return, other proof of funds, additional income proof
+  // SPECIAL CASE: Unemployed + Living with Family = auto-pass (no income evidence required)
   // -------------------------------------------------------------------------
-  const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
-  const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
-  const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
-  const hasTaxReturn = !!reference.tax_return_path
-  const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
-  const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
+  const isUnemployed = reference.income_unemployed === true
+  // Check both confirmed_residential_status (new field) and reference_type (legacy field)
+  const isLivingWithFamily =
+    reference.confirmed_residential_status === 'Living with Family' ||
+    reference.reference_type === 'living_with_family'
 
-  const hasIncome = hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof
+  // Auto-pass income check for unemployed + living with family
+  let hasIncome = false
+  if (isUnemployed && isLivingWithFamily) {
+    hasIncome = true
+  } else {
+    const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
+    const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
+    const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
+    const hasTaxReturn = !!reference.tax_return_path
+    const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
+    const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
+
+    hasIncome = hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof
+  }
+
   if (!hasIncome) {
     missingCategories.push('Income')
   }
