@@ -1279,12 +1279,27 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
 
                 const tenancyStart = reference.previous_tenancy_start_date ? formatDate(reference.previous_tenancy_start_date) : 'N/A'
                 const tenancyEnd = reference.previous_tenancy_end_date ? formatDate(reference.previous_tenancy_end_date) : 'Ongoing'
-                const previousRent = reference.previous_monthly_rent_encrypted ? decrypt(reference.previous_monthly_rent_encrypted) : (reference.previous_monthly_rent ? `£${reference.previous_monthly_rent}` : 'N/A')
+                const previousRent = reference.previous_monthly_rent_encrypted ? (decrypt(reference.previous_monthly_rent_encrypted) || 'N/A') : (reference.previous_monthly_rent ? `£${reference.previous_monthly_rent}` : 'N/A')
+
+                // Get the PREVIOUS property address from landlord/agent reference (not the rental property address)
+                let previousPropertyAddress = 'N/A'
+                let previousPropertyCity = 'N/A'
+                let previousPropertyPostcode = 'N/A'
+
+                if (agentReference) {
+                    previousPropertyAddress = agentReference.property_address_encrypted ? decrypt(agentReference.property_address_encrypted) : agentReference.property_address || 'N/A'
+                    previousPropertyCity = agentReference.property_city_encrypted ? decrypt(agentReference.property_city_encrypted) : agentReference.property_city || 'N/A'
+                    previousPropertyPostcode = agentReference.property_postcode_encrypted ? decrypt(agentReference.property_postcode_encrypted) : agentReference.property_postcode || 'N/A'
+                } else if (landlordReference) {
+                    previousPropertyAddress = landlordReference.property_address_encrypted ? decrypt(landlordReference.property_address_encrypted) : landlordReference.property_address || 'N/A'
+                    previousPropertyCity = landlordReference.property_city_encrypted ? decrypt(landlordReference.property_city_encrypted) : landlordReference.property_city || 'N/A'
+                    previousPropertyPostcode = landlordReference.property_postcode_encrypted ? decrypt(landlordReference.property_postcode_encrypted) : landlordReference.property_postcode || 'N/A'
+                }
 
                 const propertyData: Array<[string, string]> = [
-                    ['Property Address:', propertyAddress],
-                    ['City:', propertyCity || 'N/A'],
-                    ['Postcode:', propertyPostcode || 'N/A'],
+                    ['Property Address:', previousPropertyAddress],
+                    ['City:', previousPropertyCity],
+                    ['Postcode:', previousPropertyPostcode],
                     ['Tenancy Start:', tenancyStart],
                     ['Tenancy End:', tenancyEnd],
                     ['Monthly Rent:', previousRent]
