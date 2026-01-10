@@ -375,20 +375,31 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
     let employerReferenceSummary = null;
     if (employerReferences && employerReferences.length > 0) {
       const empRef = employerReferences[0];
-      // Decrypt employer name and salary
-      const employerName = empRef.employer_name_encrypted
-        ? decrypt(empRef.employer_name_encrypted)
-        : (empRef.company_name_encrypted ? decrypt(empRef.company_name_encrypted) : null);
-      const salary = empRef.annual_salary_encrypted
-        ? parseFloat(decrypt(empRef.annual_salary_encrypted) || '0')
-        : null;
 
-      employerReferenceSummary = {
-        name: employerName || 'Not specified',
-        status: empRef.is_current_employee ? 'Currently Employed' : (empRef.employment_status || 'Not specified'),
-        salary: salary,
-        startDate: empRef.employment_start_date || null
-      };
+      // Only create summary if employer reference has actual data (not an empty submission)
+      const hasData = empRef.annual_salary_encrypted ||
+                      empRef.employer_name_encrypted ||
+                      empRef.company_name_encrypted ||
+                      empRef.employee_position_encrypted ||
+                      empRef.employment_start_date ||
+                      empRef.employment_status;
+
+      if (hasData) {
+        // Decrypt employer name and salary
+        const employerName = empRef.employer_name_encrypted
+          ? decrypt(empRef.employer_name_encrypted)
+          : (empRef.company_name_encrypted ? decrypt(empRef.company_name_encrypted) : null);
+        const salary = empRef.annual_salary_encrypted
+          ? parseFloat(decrypt(empRef.annual_salary_encrypted) || '0')
+          : null;
+
+        employerReferenceSummary = {
+          name: employerName || 'Not specified',
+          status: empRef.is_current_employee ? 'Currently Employed' : (empRef.employment_status || 'Not specified'),
+          salary: salary,
+          startDate: empRef.employment_start_date || null
+        };
+      }
     }
 
     // Get accountant reference summary for display (for self-employed)
@@ -1320,6 +1331,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       console.error('Error fetching employer reference:', employerReferenceError);
     }
 
+    // Only return employer references that have actual data (not empty submissions)
     const employerReference = (employerReferences || []).find((ref: any) =>
       ref.annual_salary_encrypted ||
       ref.employer_name_encrypted ||
@@ -1327,7 +1339,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       ref.employee_position_encrypted ||
       ref.employment_start_date ||
       ref.employment_status
-    ) || employerReferences?.[0] || null;
+    ) || null; // Changed: Don't use empty employer references as fallback
 
     // Get accountant reference if exists
     const { data: accountantReference } = await supabaseAdmin
