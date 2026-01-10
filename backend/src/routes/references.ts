@@ -7223,6 +7223,9 @@ router.get('/admin/resend-corrupted-employer-refs', async (req: Request, res) =>
           employerEmail,
           status: 'sent'
         })
+
+        // Rate limiting: Wait 600ms between emails (Resend allows 2 req/sec)
+        await new Promise(resolve => setTimeout(resolve, 600))
       } catch (error: any) {
         console.error(`[RESEND CORRUPTED] Error processing ${empRef.reference_id}:`, error)
         errorCount++
