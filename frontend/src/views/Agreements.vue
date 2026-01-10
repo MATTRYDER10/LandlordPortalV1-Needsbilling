@@ -706,6 +706,25 @@
               <p class="text-xs text-gray-500 mt-1">Managed: Agent details used. Let Only: Landlord details used.</p>
             </div>
 
+            <div v-if="formData.managementType === 'managed'" class="flex items-start space-x-2 p-3 bg-orange-50 border border-orange-200 rounded-md">
+              <input
+                id="agentSignsOnBehalf"
+                v-model="formData.agentSignsOnBehalf"
+                type="checkbox"
+                class="mt-1 h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
+              />
+              <div class="flex-1">
+                <label for="agentSignsOnBehalf" class="text-sm font-medium text-gray-900 cursor-pointer">
+                  Agent to Sign on Landlord Behalf
+                </label>
+                <p class="text-xs text-gray-600 mt-1">
+                  When checked, only the agent signs the agreement (no landlord signature required).
+                  When unchecked, the landlord will sign and receive the agreement copy.
+                  Agent always receives a copy for managed properties.
+                </p>
+              </div>
+            </div>
+
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Tenant Email *</label>
               <input
@@ -1486,6 +1505,7 @@ const formData = ref<{
   depositSchemeType: string
   permittedOccupiers?: string
   managementType: 'managed' | 'let_only'
+  agentSignsOnBehalf: boolean
   tenantEmail?: string
   landlordEmail?: string
   agentEmail?: string
@@ -1520,6 +1540,7 @@ const formData = ref<{
   depositSchemeType: '',
   permittedOccupiers: '',
   managementType: 'let_only',
+  agentSignsOnBehalf: false,
   tenantEmail: '',
   landlordEmail: '',
   agentEmail: '',
@@ -1565,6 +1586,9 @@ onMounted(async () => {
 watch(() => formData.value.managementType, () => {
   if (formData.value.managementType === 'managed') {
     fetchCompanySettings()
+    formData.value.agentSignsOnBehalf = true  // Default to true for managed properties
+  } else {
+    formData.value.agentSignsOnBehalf = false  // Set to false for let_only properties
   }
 })
 

@@ -173,6 +173,25 @@
                 </select>
               </div>
             </div>
+
+            <div v-if="formData.managementType === 'managed'" class="flex items-start space-x-2 p-3 bg-orange-50 border border-orange-200 rounded-md mt-4">
+              <input
+                id="agentSignsOnBehalf"
+                v-model="formData.agentSignsOnBehalf"
+                type="checkbox"
+                class="mt-1 h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
+              />
+              <div class="flex-1">
+                <label for="agentSignsOnBehalf" class="text-sm font-medium text-gray-900 cursor-pointer">
+                  Agent to Sign on Landlord Behalf
+                </label>
+                <p class="text-xs text-gray-600 mt-1">
+                  When checked, only the agent signs the agreement (no landlord signature required).
+                  When unchecked, the landlord will sign and receive the agreement copy.
+                  Agent always receives a copy for managed properties.
+                </p>
+              </div>
+            </div>
           </section>
 
           <!-- Landlords Section -->
@@ -565,6 +584,15 @@ watch(() => props.agreement, (newAgreement) => {
     endDateManuallyEdited.value = false
   }
 }, { immediate: true })
+
+// Update agentSignsOnBehalf when management type changes
+watch(() => formData.value.managementType, (newType) => {
+  if (newType === 'managed') {
+    formData.value.agentSignsOnBehalf = true
+  } else {
+    formData.value.agentSignsOnBehalf = false
+  }
+})
 
 const formatPropertyAddress = (address: any): string => {
   if (!address) return ''

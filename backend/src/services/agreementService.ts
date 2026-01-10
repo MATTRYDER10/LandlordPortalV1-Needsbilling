@@ -46,6 +46,8 @@ export interface AgreementData {
   agentEmail?: string
   // Property management type
   managementType?: 'managed' | 'let_only'
+  // Agent signing on behalf (for managed properties)
+  agentSignsOnBehalf?: boolean
   // Clauses
   breakClause?: string
   specialClauses?: string
@@ -101,6 +103,7 @@ export class AgreementService {
         landlord_email: agreementData.landlordEmail,
         agent_email: agreementData.agentEmail,
         management_type: agreementData.managementType,
+        agent_signs_on_behalf: agreementData.agentSignsOnBehalf || false,
         break_clause: agreementData.breakClause,
         special_clauses: agreementData.specialClauses,
         bills_included: agreementData.billsIncluded || false,
@@ -108,6 +111,7 @@ export class AgreementService {
         company_id: companyId,
         reference_id: referenceId || null,
         created_by: userId,
+        created_by_user_id: userId,
         // Property integration
         property_id: propertyIntegration?.propertyId || null,
         compliance_override_acknowledged: propertyIntegration?.complianceOverride?.acknowledged || false,

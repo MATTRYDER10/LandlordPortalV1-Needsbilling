@@ -30,6 +30,7 @@ export interface AgreementFormData {
   depositSchemeType: string
   permittedOccupiers?: string
   managementType: 'managed' | 'let_only'
+  agentSignsOnBehalf: boolean
   tenantEmail?: string
   landlordEmail?: string
   agentEmail?: string
@@ -71,6 +72,7 @@ export interface DatabaseAgreement {
   landlord_email?: string
   agent_email?: string
   management_type?: string
+  agent_signs_on_behalf?: boolean
   break_clause?: string
   special_clauses?: string
   bills_included?: boolean
@@ -104,6 +106,7 @@ export function getDefaultFormData(): AgreementFormData {
     depositSchemeType: '',
     permittedOccupiers: '',
     managementType: 'let_only',
+    agentSignsOnBehalf: false,
     tenantEmail: '',
     landlordEmail: '',
     agentEmail: '',
@@ -185,6 +188,7 @@ export function agreementToFormData(agreement: DatabaseAgreement): AgreementForm
     depositSchemeType: agreement.deposit_scheme_type || '',
     permittedOccupiers: agreement.permitted_occupiers || '',
     managementType: (agreement.management_type as 'managed' | 'let_only') || 'let_only',
+    agentSignsOnBehalf: agreement.agent_signs_on_behalf ?? (agreement.management_type === 'managed'),
     tenantEmail: agreement.tenant_email || '',
     landlordEmail: agreement.landlord_email || '',
     agentEmail: agreement.agent_email || '',
@@ -226,6 +230,7 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
     depositSchemeType: formData.depositSchemeType,
     permittedOccupiers: formData.permittedOccupiers,
     managementType: formData.managementType,
+    agentSignsOnBehalf: formData.agentSignsOnBehalf,
     tenantEmail: formData.tenantEmail,
     landlordEmail: formData.landlordEmail,
     agentEmail: formData.agentEmail,

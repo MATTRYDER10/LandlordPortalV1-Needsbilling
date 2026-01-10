@@ -175,15 +175,39 @@ class SignatureService {
     const signaturePromises: Promise<SignatureRecord>[] = []
 
     // Create records for landlords
-    for (let i = 0; i < agreement.landlords.length; i++) {
-      const landlord = agreement.landlords[i]
+    // If managed property with agent signing on behalf, create one agent signature instead
+    if (agreement.management_type === 'managed' && agreement.agent_signs_on_behalf) {
+      // Get the user who created the agreement (agent)
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
+        agreement.created_by_user_id
+      )
+
+      if (userError || !userData?.user || !userData.user.email) {
+        throw new Error('Failed to retrieve agent user details for signing')
+      }
+
+      const agentEmail = userData.user.email
+      const agentName = userData.user.user_metadata?.full_name || userData.user.email
+
+      // Create single signature record for agent signing as landlord
       signaturePromises.push(
-        this.createSignatureRecord(agreementId, 'landlord', i, {
-          name: landlord.name,
-          email: i === 0 ? agreement.landlord_email : undefined,
-          address: landlord.address
+        this.createSignatureRecord(agreementId, 'landlord', 0, {
+          name: `${agentName} (Agent on behalf of Landlord)`,
+          email: agentEmail
         })
       )
+    } else {
+      // Standard flow: create signature records for all landlords
+      for (let i = 0; i < agreement.landlords.length; i++) {
+        const landlord = agreement.landlords[i]
+        signaturePromises.push(
+          this.createSignatureRecord(agreementId, 'landlord', i, {
+            name: landlord.name,
+            email: i === 0 ? agreement.landlord_email : undefined,
+            address: landlord.address
+          })
+        )
+      }
     }
 
     // Create records for tenants
@@ -669,15 +693,43 @@ class SignatureService {
       `${sig.signer_name} (${this.capitalizeFirst(sig.signer_type)}) - Signed ${new Date(sig.signed_at || new Date()).toLocaleDateString('en-GB')}`
     ).join('\n')
 
-    const uniqueEmails = [...new Set(signatures.map((s: SignatureRecord) => s.signer_email).filter(Boolean))] as string[]
+    let uniqueEmails = [...new Set(signatures.map((s: SignatureRecord) => s.signer_email).filter(Boolean))] as string[]
+
+    // For managed properties, ALWAYS include the agent's email in recipients
+    if (agreement.management_type === 'managed' && agreement.created_by_user_id) {
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
+        agreement.created_by_user_id
+      )
+
+      if (!userError && userData?.user?.email) {
+        const agentEmail = userData.user.email
+        // Add agent email if not already in the list
+        if (!uniqueEmails.includes(agentEmail)) {
+          uniqueEmails.push(agentEmail)
+        }
+      }
+    }
 
     for (const email of uniqueEmails) {
       const signer = signatures.find((s: SignatureRecord) => s.signer_email === email)
-      if (!signer) continue
+
+      // Determine recipient name (could be a signer or the agent receiving a copy)
+      let recipientName = 'PropertyGoose User'
+      if (signer) {
+        recipientName = signer.signer_name
+      } else if (agreement.management_type === 'managed' && agreement.created_by_user_id) {
+        // This might be the agent receiving a copy (not a signer)
+        const { data: userData } = await supabase.auth.admin.getUserById(
+          agreement.created_by_user_id
+        )
+        if (userData?.user) {
+          recipientName = userData.user.user_metadata?.full_name || 'Agent'
+        }
+      }
 
       try {
         const html = loadEmailTemplate('agreement-fully-signed', {
-          SignerName: signer.signer_name,
+          SignerName: recipientName,
           PropertyAddress: propertyAddress,
           SignerList: signerList.replace(/\n/g, '<br>'),
           CompletionDate: new Date().toLocaleDateString('en-GB', {
