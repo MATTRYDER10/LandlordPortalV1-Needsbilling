@@ -4202,6 +4202,18 @@ router.post('/employer/:token', async (req: Request, res) => {
         .eq('id', referenceId)
       // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
       await transitionState(referenceId, 'READY_FOR_REVIEW', 'Employer reference completed requirements')
+
+      // Explicitly update work item to AVAILABLE if it was RETURNED (waiting for this employer ref)
+      await supabase
+        .from('work_items')
+        .update({
+          status: 'AVAILABLE',
+          assigned_to: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('reference_id', referenceId)
+        .eq('work_type', 'VERIFY')
+        .eq('status', 'RETURNED')
     }
 
     res.json({ message: 'Employer reference submitted successfully' })
