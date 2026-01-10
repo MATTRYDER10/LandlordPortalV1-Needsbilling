@@ -3880,11 +3880,17 @@ router.get('/accountant/:token/check', async (req, res) => {
     // Check using token hash
     const { data: accountantRef } = await supabase
       .from('accountant_references')
-      .select('id, submitted_at')
+      .select('id, submitted_at, business_name_encrypted, annual_turnover_encrypted, annual_profit_encrypted')
       .eq('token_hash', tokenHash)
       .single()
 
-    res.json({ submitted: !!(accountantRef && accountantRef.submitted_at) })
+    // Only consider it submitted if it has submitted_at AND actual form data
+    const hasData = accountantRef && (
+      accountantRef.business_name_encrypted ||
+      accountantRef.annual_turnover_encrypted ||
+      accountantRef.annual_profit_encrypted
+    )
+    res.json({ submitted: !!(accountantRef && accountantRef.submitted_at && hasData) })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
