@@ -7114,14 +7114,11 @@ router.get('/admin/resend-corrupted-employer-refs', async (req: Request, res) =>
     console.log('[RESEND CORRUPTED] Starting resend process...')
 
     // Find all employer references that have a token but no submitted_at (were reset)
-    // Exclude recently updated tokens (within last 10 mins) to avoid resending to successful ones
-    const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
     const { data: employerRefs, error: fetchError } = await supabase
       .from('employer_references')
-      .select('id, reference_id, reference_token_hash, token_expires_at, updated_at')
+      .select('id, reference_id, reference_token_hash')
       .is('submitted_at', null)
       .not('reference_token_hash', 'is', null)
-      .or(`token_expires_at.is.null,token_expires_at.lt.${tenMinsAgo},updated_at.lt.${tenMinsAgo}`)
 
     if (fetchError) {
       console.error('[RESEND CORRUPTED] Error fetching employer refs:', fetchError)
