@@ -3839,20 +3839,32 @@ router.get('/employer/:referenceId/check', async (req, res) => {
       const tokenHash = hash(referenceId)
       const { data: employerRef } = await supabase
         .from('employer_references')
-        .select('id, submitted_at')
+        .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, employer_name_encrypted')
         .eq('reference_token_hash', tokenHash)
         .single()
 
-      return res.json({ submitted: !!(employerRef && employerRef.submitted_at) })
+      // Only consider it submitted if it has submitted_at AND actual data
+      const hasData = employerRef && (
+        employerRef.company_name_encrypted ||
+        employerRef.annual_salary_encrypted ||
+        employerRef.employer_name_encrypted
+      )
+      return res.json({ submitted: !!(employerRef && employerRef.submitted_at && hasData) })
     } else {
       // ReferenceId-based lookup (UUID)
       const { data: employerRef } = await supabase
         .from('employer_references')
-        .select('id, submitted_at')
+        .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, employer_name_encrypted')
         .eq('reference_id', referenceId)
         .single()
 
-      return res.json({ submitted: !!(employerRef && employerRef.submitted_at) })
+      // Only consider it submitted if it has submitted_at AND actual data
+      const hasData = employerRef && (
+        employerRef.company_name_encrypted ||
+        employerRef.annual_salary_encrypted ||
+        employerRef.employer_name_encrypted
+      )
+      return res.json({ submitted: !!(employerRef && employerRef.submitted_at && hasData) })
     }
   } catch (error: any) {
     res.status(500).json({ error: error.message })
