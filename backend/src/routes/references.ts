@@ -7100,4 +7100,139 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
   }
 })
 
+// ============================================================================
+// TEMPORARY: Resend corrupted employer references (REMOVE AFTER RUNNING)
+// ============================================================================
+router.get('/admin/resend-corrupted-employer-refs', async (req: Request, res) => {
+  try {
+    // Security: require secret token
+    const { secret } = req.query
+    if (secret !== process.env.ADMIN_SECRET_TOKEN) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+
+    console.log('[RESEND CORRUPTED] Starting resend process...')
+
+    // Find all employer references that have a token but no submitted_at (were reset)
+    const { data: employerRefs, error: fetchError } = await supabase
+      .from('employer_references')
+      .select('id, reference_id, reference_token_hash')
+      .is('submitted_at', null)
+      .not('reference_token_hash', 'is', null)
+
+    if (fetchError) {
+      console.error('[RESEND CORRUPTED] Error fetching employer refs:', fetchError)
+      return res.status(500).json({ error: fetchError.message })
+    }
+
+    console.log(`[RESEND CORRUPTED] Found ${employerRefs?.length || 0} employer references to resend`)
+
+    const results = []
+    let successCount = 0
+    let errorCount = 0
+
+    for (const empRef of employerRefs || []) {
+      try {
+        // Get tenant reference to get contact details and company
+        const { data: tenantRef, error: tenantError } = await supabase
+          .from('tenant_references')
+          .select(`
+            id,
+            tenant_first_name_encrypted,
+            tenant_last_name_encrypted,
+            employer_ref_name_encrypted,
+            employer_ref_email_encrypted,
+            company_id,
+            companies!inner(name_encrypted)
+          `)
+          .eq('id', empRef.reference_id)
+          .single()
+
+        if (tenantError || !tenantRef) {
+          console.error(`[RESEND CORRUPTED] Error fetching tenant ref ${empRef.reference_id}:`, tenantError)
+          errorCount++
+          results.push({
+            referenceId: empRef.reference_id,
+            status: 'error',
+            error: 'Tenant reference not found'
+          })
+          continue
+        }
+
+        const tenantName = `${decrypt(tenantRef.tenant_first_name_encrypted)} ${decrypt(tenantRef.tenant_last_name_encrypted)}`
+        const employerName = decrypt(tenantRef.employer_ref_name_encrypted)
+        const employerEmail = decrypt(tenantRef.employer_ref_email_encrypted)
+        const companyName = tenantRef.companies?.name_encrypted ? decrypt(tenantRef.companies.name_encrypted) : ''
+
+        // Generate new token
+        const newToken = generateToken()
+        const tokenHash = hash(newToken)
+
+        // Update employer reference with new token
+        const { error: updateError } = await supabase
+          .from('employer_references')
+          .update({
+            reference_token_hash: tokenHash,
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+          })
+          .eq('id', empRef.id)
+
+        if (updateError) {
+          console.error(`[RESEND CORRUPTED] Error updating token for ${empRef.id}:`, updateError)
+          errorCount++
+          results.push({
+            referenceId: empRef.reference_id,
+            tenantName,
+            status: 'error',
+            error: 'Failed to update token'
+          })
+          continue
+        }
+
+        // Send email
+        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${newToken}`
+
+        await sendEmployerReferenceRequest(
+          employerEmail,
+          employerName,
+          tenantName,
+          employerReferenceUrl,
+          companyName
+        )
+
+        console.log(`[RESEND CORRUPTED] ✅ Sent to ${employerEmail} for ${tenantName}`)
+        successCount++
+        results.push({
+          referenceId: empRef.reference_id,
+          tenantName,
+          employerName,
+          employerEmail,
+          status: 'sent'
+        })
+      } catch (error: any) {
+        console.error(`[RESEND CORRUPTED] Error processing ${empRef.reference_id}:`, error)
+        errorCount++
+        results.push({
+          referenceId: empRef.reference_id,
+          status: 'error',
+          error: error.message
+        })
+      }
+    }
+
+    console.log(`[RESEND CORRUPTED] Complete: ${successCount} sent, ${errorCount} errors`)
+
+    return res.json({
+      message: 'Resend complete',
+      total: employerRefs?.length || 0,
+      successCount,
+      errorCount,
+      results
+    })
+  } catch (error: any) {
+    console.error('[RESEND CORRUPTED] Fatal error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router
