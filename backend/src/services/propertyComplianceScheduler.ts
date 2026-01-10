@@ -121,7 +121,6 @@ export async function checkExpiringCompliance(): Promise<{
         certificate_number
       `)
       .lte('expiry_date', thirtyDaysFromNow.toISOString())
-      .is('deleted_at', null)
       .order('expiry_date', { ascending: true })
 
     if (fetchError) {
@@ -320,7 +319,6 @@ export async function updateComplianceStatuses(): Promise<number> {
       .update({ status: 'expired' })
       .lt('expiry_date', today.toISOString())
       .neq('status', 'expired')
-      .is('deleted_at', null)
       .select('id')
 
     if (expiredError) {
@@ -334,7 +332,6 @@ export async function updateComplianceStatuses(): Promise<number> {
       .gte('expiry_date', today.toISOString())
       .lte('expiry_date', fourteenDaysFromNow.toISOString())
       .neq('status', 'expiring_soon')
-      .is('deleted_at', null)
       .select('id')
 
     if (expiringSoonError) {
