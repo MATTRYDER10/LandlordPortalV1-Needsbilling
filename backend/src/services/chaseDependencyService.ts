@@ -689,7 +689,7 @@ async function checkAndTransitionToVerify(referenceId: string): Promise<boolean>
       return false
     }
 
-    // Create VERIFY work item if none exists (check ALL statuses to avoid duplicates)
+    // Create VERIFY work item or reactivate if completed (uses UPSERT to prevent duplicates)
     const { data: existingVerify } = await supabase
       .from('work_items')
       .select('id, status')
@@ -697,16 +697,20 @@ async function checkAndTransitionToVerify(referenceId: string): Promise<boolean>
       .eq('work_type', 'VERIFY')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (!existingVerify) {
+      // Use upsert with ON CONFLICT to prevent duplicates
       await supabase
         .from('work_items')
-        .insert({
+        .upsert({
           reference_id: referenceId,
           work_type: 'VERIFY',
           status: 'AVAILABLE',
           priority: 0
+        }, {
+          onConflict: 'reference_id,work_type',
+          ignoreDuplicates: true
         })
     } else if (existingVerify.status === 'COMPLETED') {
       // Reactivate the completed work item instead of creating a duplicate

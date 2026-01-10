@@ -2873,7 +2873,7 @@ router.post('/submit/:token', async (req: Request, res) => {
       // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
       await transitionState(updatedReference.id, 'READY_FOR_REVIEW', 'Form submitted with all evidence requirements met')
 
-      // Create VERIFY work item if none exists (check ALL statuses to avoid duplicates)
+      // Create VERIFY work item or reactivate if completed (uses UPSERT to prevent duplicates)
       const { data: existingVerify } = await supabase
         .from('work_items')
         .select('id, status')
@@ -2881,16 +2881,20 @@ router.post('/submit/:token', async (req: Request, res) => {
         .eq('work_type', 'VERIFY')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
 
       if (!existingVerify) {
+        // Use upsert with ON CONFLICT to prevent duplicates
         await supabase
           .from('work_items')
-          .insert({
+          .upsert({
             reference_id: updatedReference.id,
             work_type: 'VERIFY',
             status: 'AVAILABLE',
             priority: 0
+          }, {
+            onConflict: 'reference_id,work_type',
+            ignoreDuplicates: true
           })
       } else if (existingVerify.status === 'COMPLETED') {
         // Reactivate the completed work item instead of creating a duplicate

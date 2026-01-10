@@ -280,9 +280,13 @@ export async function syncMissingVerifyItems() {
       last_activity_at: now
     }));
 
+    // Use upsert with ON CONFLICT to prevent duplicates in case of race conditions
     const { error: insertError } = await supabaseAdmin
       .from('work_items')
-      .insert(newItems);
+      .upsert(newItems, {
+        onConflict: 'reference_id,work_type',
+        ignoreDuplicates: true
+      });
 
     if (insertError) {
       console.error('Error inserting missing verify work items:', insertError);

@@ -363,8 +363,81 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       .eq('reference_id', referenceId)
       .single();
 
+    // Get employer reference summary for display
+    const { data: employerReferences } = await supabaseAdmin
+      .from('employer_references')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .not('submitted_at', 'is', null)
+      .order('submitted_at', { ascending: false, nullsFirst: false })
+      .limit(1);
+
+    let employerReferenceSummary = null;
+    if (employerReferences && employerReferences.length > 0) {
+      const empRef = employerReferences[0];
+      // Decrypt employer name and salary
+      const employerName = empRef.employer_name_encrypted
+        ? decrypt(empRef.employer_name_encrypted)
+        : (empRef.company_name_encrypted ? decrypt(empRef.company_name_encrypted) : null);
+      const salary = empRef.annual_salary_encrypted
+        ? parseFloat(decrypt(empRef.annual_salary_encrypted) || '0')
+        : null;
+
+      employerReferenceSummary = {
+        name: employerName || 'Not specified',
+        status: empRef.is_current_employee ? 'Currently Employed' : (empRef.employment_status || 'Not specified'),
+        salary: salary,
+        startDate: empRef.employment_start_date || null
+      };
+    }
+
+    // Get accountant reference summary for display (for self-employed)
+    const { data: accountantReferences } = await supabaseAdmin
+      .from('accountant_references')
+      .select('*')
+      .eq('tenant_reference_id', referenceId)
+      .not('submitted_at', 'is', null)
+      .order('submitted_at', { ascending: false, nullsFirst: false })
+      .limit(1);
+
+    let accountantReferenceSummary = null;
+    if (accountantReferences && accountantReferences.length > 0) {
+      const accRef = accountantReferences[0];
+      const firmName = accRef.firm_name_encrypted ? decrypt(accRef.firm_name_encrypted) : null;
+
+      // Calculate annual income
+      let annualIncome = null;
+      if (accRef.estimated_monthly_income_encrypted) {
+        const monthly = parseFloat(decrypt(accRef.estimated_monthly_income_encrypted) || '0');
+        annualIncome = monthly * 12;
+      } else if (accRef.annual_profit_encrypted) {
+        annualIncome = parseFloat(decrypt(accRef.annual_profit_encrypted) || '0');
+      }
+
+      // Calculate years trading
+      let yearsTrading = null;
+      if (accRef.business_start_date) {
+        const startDate = new Date(accRef.business_start_date);
+        yearsTrading = Math.floor((Date.now() - startDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      }
+
+      accountantReferenceSummary = {
+        firm: firmName || 'Not specified',
+        status: accRef.submitted_at ? 'received' : 'pending',
+        annualIncome: annualIncome,
+        yearsTrading: yearsTrading
+      };
+    }
+
+    // Add reference summaries to decryptedReference
+    const referenceWithSummaries = {
+      ...decryptedReference,
+      employer_reference: employerReferenceSummary,
+      accountant_reference: accountantReferenceSummary
+    };
+
     res.json({
-      reference: decryptedReference,
+      reference: referenceWithSummaries,
       sections,
       workItemId: workItem?.id || null,
       creditsafeVerification: creditsafeVerification || null,

@@ -17,7 +17,7 @@ BEGIN
        AND (OLD.status IS NULL OR OLD.status != 'pending_verification') THEN
         INSERT INTO work_items (reference_id, work_type, status, priority)
         VALUES (NEW.id, 'VERIFY', 'AVAILABLE', 0)
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT (reference_id, work_type) DO NOTHING;
     END IF;
 
     RETURN NEW;
