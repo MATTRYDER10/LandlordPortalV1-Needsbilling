@@ -7114,11 +7114,14 @@ router.get('/admin/resend-corrupted-employer-refs', async (req: Request, res) =>
     console.log('[RESEND CORRUPTED] Starting resend process...')
 
     // Find all employer references that have a token but no submitted_at (were reset)
+    // Exclude recently updated tokens (within last 10 mins) to avoid resending to successful ones
+    const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
     const { data: employerRefs, error: fetchError } = await supabase
       .from('employer_references')
-      .select('id, reference_id, reference_token_hash')
+      .select('id, reference_id, reference_token_hash, token_expires_at, updated_at')
       .is('submitted_at', null)
       .not('reference_token_hash', 'is', null)
+      .or(`token_expires_at.is.null,token_expires_at.lt.${tenMinsAgo},updated_at.lt.${tenMinsAgo}`)
 
     if (fetchError) {
       console.error('[RESEND CORRUPTED] Error fetching employer refs:', fetchError)
@@ -7181,8 +7184,18 @@ router.get('/admin/resend-corrupted-employer-refs', async (req: Request, res) =>
         // Generate new token
         const newToken = generateToken()
         const tokenHash = hash(newToken)
+        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${newToken}`
 
-        // Update employer reference with new token
+        // Try to send email first
+        await sendEmployerReferenceRequest(
+          employerEmail,
+          employerName,
+          tenantName,
+          employerReferenceUrl,
+          companyName
+        )
+
+        // Only update token if email was sent successfully
         const { error: updateError } = await supabase
           .from('employer_references')
           .update({
@@ -7192,27 +7205,8 @@ router.get('/admin/resend-corrupted-employer-refs', async (req: Request, res) =>
           .eq('id', empRef.id)
 
         if (updateError) {
-          console.error(`[RESEND CORRUPTED] Error updating token for ${empRef.id}:`, updateError)
-          errorCount++
-          results.push({
-            referenceId: empRef.reference_id,
-            tenantName,
-            status: 'error',
-            error: 'Failed to update token'
-          })
-          continue
+          console.error(`[RESEND CORRUPTED] Email sent but failed to update token for ${empRef.id}:`, updateError)
         }
-
-        // Send email
-        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${newToken}`
-
-        await sendEmployerReferenceRequest(
-          employerEmail,
-          employerName,
-          tenantName,
-          employerReferenceUrl,
-          companyName
-        )
 
         console.log(`[RESEND CORRUPTED] ✅ Sent to ${employerEmail} for ${tenantName}`)
         successCount++
