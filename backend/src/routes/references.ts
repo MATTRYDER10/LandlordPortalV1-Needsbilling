@@ -7160,9 +7160,23 @@ router.get('/admin/resend-corrupted-employer-refs', async (req: Request, res) =>
         }
 
         const tenantName = `${decrypt(tenantRef.tenant_first_name_encrypted)} ${decrypt(tenantRef.tenant_last_name_encrypted)}`
-        const employerName = decrypt(tenantRef.employer_ref_name_encrypted)
+        const employerName = decrypt(tenantRef.employer_ref_name_encrypted) || ''
         const employerEmail = decrypt(tenantRef.employer_ref_email_encrypted)
-        const companyName = tenantRef.companies?.name_encrypted ? decrypt(tenantRef.companies.name_encrypted) : ''
+        const companyData = tenantRef.companies as any
+        const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : ''
+
+        // Skip if no employer email
+        if (!employerEmail) {
+          console.error(`[RESEND CORRUPTED] No employer email for ${empRef.reference_id}`)
+          errorCount++
+          results.push({
+            referenceId: empRef.reference_id,
+            tenantName,
+            status: 'error',
+            error: 'No employer email'
+          })
+          continue
+        }
 
         // Generate new token
         const newToken = generateToken()
