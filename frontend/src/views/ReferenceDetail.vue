@@ -748,7 +748,7 @@
                       </div>
 
                       <!-- Employer Reference -->
-                      <div v-if="childReferenceDetails[child.id].employerReference"
+                      <div v-if="childReferenceDetails[child.id].employerReference && childReferenceDetails[child.id].employerReference.submitted_at"
                         class="mt-6 bg-green-50 border border-green-200 rounded-lg">
                         <div class="p-4">
                           <div class="flex items-center justify-between mb-4">
@@ -1223,7 +1223,7 @@
 
                     <!-- Landlord Reference -->
                     <div
-                      v-if="childReferenceDetails[child.id].landlordReference && childReferenceDetails[child.id].reference.reference_type === 'landlord'"
+                      v-if="childReferenceDetails[child.id].landlordReference && childReferenceDetails[child.id].landlordReference.submitted_at && childReferenceDetails[child.id].reference.reference_type === 'landlord'"
                       class="mt-6 bg-green-50 border border-green-200 rounded-lg">
                       <div class="p-4">
                         <div class="flex items-center justify-between mb-4">
@@ -1338,7 +1338,7 @@
 
                     <!-- Agent Reference -->
                     <div
-                      v-if="childReferenceDetails[child.id].agentReference && childReferenceDetails[child.id].reference.reference_type === 'agent'"
+                      v-if="childReferenceDetails[child.id].agentReference && childReferenceDetails[child.id].agentReference.submitted_at && childReferenceDetails[child.id].reference.reference_type === 'agent'"
                       class="mt-6 bg-green-50 border border-green-200 rounded-lg">
                       <div class="p-4">
                         <div class="flex items-center justify-between mb-4">
@@ -2041,7 +2041,7 @@
               </div>
 
               <!-- Employer Reference Status -->
-              <div v-if="reference.employer_ref_email && !employerReference"
+              <div v-if="reference.employer_ref_email && (!employerReference || !employerReference.submitted_at)"
                 class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div class="flex items-center justify-between">
                   <div>
@@ -2058,7 +2058,7 @@
               </div>
 
               <!-- Employer Reference Submitted -->
-              <div v-if="employerReference" class="mt-4 bg-green-50 border border-green-200 rounded-lg">
+              <div v-if="employerReference && employerReference.submitted_at" class="mt-4 bg-green-50 border border-green-200 rounded-lg">
                 <div class="p-4">
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-lg font-semibold text-green-900">✓ Employer Reference Completed</h4>
@@ -2793,7 +2793,7 @@
 
               <!-- Landlord Reference Status -->
               <div
-                v-if="reference.previous_landlord_email && reference.reference_type === 'landlord' && !landlordReference"
+                v-if="reference.previous_landlord_email && reference.reference_type === 'landlord' && (!landlordReference || !landlordReference.submitted_at)"
                 class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                 <div class="flex items-center justify-between">
                   <div>
@@ -2810,7 +2810,7 @@
               </div>
 
               <!-- Agent Reference Status -->
-              <div v-if="reference.previous_landlord_email && reference.reference_type === 'agent' && !agentReference"
+              <div v-if="reference.previous_landlord_email && reference.reference_type === 'agent' && (!agentReference || !agentReference.submitted_at)"
                 class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                 <div class="flex items-center justify-between">
                   <div>
@@ -2827,7 +2827,7 @@
               </div>
 
               <!-- Landlord Reference Submitted -->
-              <div v-if="landlordReference && reference.reference_type === 'landlord'"
+              <div v-if="landlordReference && landlordReference.submitted_at && reference.reference_type === 'landlord'"
                 class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-sm font-semibold text-green-900">✓ Landlord Reference Completed</h4>
@@ -2966,7 +2966,7 @@
               </div>
 
               <!-- Agent Reference Submitted -->
-              <div v-if="agentReference && reference.reference_type === 'agent'"
+              <div v-if="agentReference && agentReference.submitted_at && reference.reference_type === 'agent'"
                 class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-sm font-semibold text-green-900">✓ Letting Agent Reference Completed</h4>
