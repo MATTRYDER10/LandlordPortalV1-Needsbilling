@@ -1578,8 +1578,8 @@ const toastType = ref<'success' | 'error'>('success')
 watch(() => [props.open, props.person?.id], async ([isOpen, personId]) => {
   if (isOpen && personId) {
     await loadFullDetails(personId as string)
-    // Also load action required details if status is ACTION_REQUIRED
-    if (props.person?.status === 'ACTION_REQUIRED') {
+    // Also load action required details if verification state is ACTION_REQUIRED
+    if (props.person?.verificationState === 'ACTION_REQUIRED') {
       actionRequiredDetails.value = await getActionRequiredDetails(personId as string)
     }
   } else {

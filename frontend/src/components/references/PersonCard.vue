@@ -100,7 +100,6 @@ import { computed } from 'vue'
 import type { TenancyPerson, SectionStatus, SectionDecision, ActionRequiredTask } from '@/composables/useTenancies'
 import StatusPill from './StatusPill.vue'
 import { AlertCircle, MailWarning } from 'lucide-vue-next'
-import { requiresUserAction, isTerminalState } from '@/utils/verificationStateLabels'
 
 const props = defineProps<{
   person: TenancyPerson
