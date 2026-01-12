@@ -1,16 +1,8 @@
 import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 
-// Types matching backend
-export type PersonStatus =
-  | 'NOT_STARTED'
-  | 'IN_PROGRESS'
-  | 'AWAITING_VERIFICATION'
-  | 'ACTION_REQUIRED'
-  | 'VERIFIED_PASS'
-  | 'VERIFIED_CONDITIONAL'
-  | 'VERIFIED_FAIL'
-  | 'ARCHIVED'
+// PersonStatus type removed - Phase 5-6 cleanup
+// Now using verification_state field directly instead of derived status
 
 export type TenancyStatus =
   | 'SENT'
@@ -54,7 +46,7 @@ export interface TenancyPerson {
   email: string
   phone: string
   rentShare: number
-  status: PersonStatus
+  verificationState: string  // Direct from database verification_state field
   guarantorForTenantId?: string
   sectionStatuses: SectionStatus[]
   actionRequiredTasks: ActionRequiredTask[]
@@ -274,23 +266,18 @@ export function useTenancies() {
     loadTenancies() // Reload with new sort
   }
 
-  // Status helpers
-  function getStatusColor(status: TenancyStatus | PersonStatus): string {
+  // Status helpers (for tenancy-level status only)
+  function getStatusColor(status: TenancyStatus): string {
     switch (status) {
       case 'COMPLETED':
-      case 'VERIFIED_PASS':
-      case 'VERIFIED_CONDITIONAL':
         return 'green'
       case 'AWAITING_VERIFICATION':
       case 'IN_PROGRESS':
         return 'amber'
       case 'ACTION_REQUIRED':
       case 'REJECTED':
-      case 'VERIFIED_FAIL':
         return 'red'
       case 'SENT':
-      case 'NOT_STARTED':
-      case 'ARCHIVED':
       default:
         return 'gray'
     }

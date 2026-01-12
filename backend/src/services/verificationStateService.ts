@@ -9,11 +9,13 @@ import { logAuditAction } from './auditService'
  *
  * State Model:
  * - COLLECTING_EVIDENCE: Tenant/Guarantor still uploading evidence
- * - READY_FOR_REVIEW: Minimum evidence met, appears in verify queue
+ * - WAITING_ON_REFERENCES: Evidence uploaded but waiting for external references (employer/landlord)
+ * - READY_FOR_REVIEW: All requirements met, appears in verify queue
  * - IN_VERIFICATION: Staff has picked up item, actively reviewing
  * - ACTION_REQUIRED: Staff requested more info, tenant must upload
  * - COMPLETED: Verification passed
  * - REJECTED: Verification failed
+ * - CANCELLED: Reference cancelled by agent or tenant
  *
  * Key Behaviors:
  * 1. No cooldowns, no awaiting_documentation flag
@@ -24,11 +26,13 @@ import { logAuditAction } from './auditService'
 
 export type VerificationState =
   | 'COLLECTING_EVIDENCE'
+  | 'WAITING_ON_REFERENCES'
   | 'READY_FOR_REVIEW'
   | 'IN_VERIFICATION'
   | 'ACTION_REQUIRED'
   | 'COMPLETED'
   | 'REJECTED'
+  | 'CANCELLED'
 
 export interface EvidenceCategory {
   identity: boolean
@@ -221,11 +225,13 @@ export async function transitionState(
     // The frontend/tenancyStatusService still relies on the status field
     const legacyStatusMap: Record<VerificationState, string | null> = {
       'COLLECTING_EVIDENCE': null, // Don't change - could be pending or in_progress
+      'WAITING_ON_REFERENCES': 'in_progress', // Still collecting data, but waiting on external parties
       'READY_FOR_REVIEW': 'pending_verification',
       'IN_VERIFICATION': 'pending_verification',
       'ACTION_REQUIRED': 'in_progress', // Back to in_progress while tenant fixes issues
       'COMPLETED': 'completed',
-      'REJECTED': 'rejected'
+      'REJECTED': 'rejected',
+      'CANCELLED': 'cancelled'
     }
     const legacyStatus = legacyStatusMap[newState]
 
@@ -259,7 +265,7 @@ export async function transitionState(
         oldState: current.verification_state,
         newState,
         reason,
-        visible_to_agent: ['ACTION_REQUIRED', 'COMPLETED', 'REJECTED'].includes(newState)
+        visible_to_agent: ['ACTION_REQUIRED', 'COMPLETED', 'REJECTED', 'CANCELLED'].includes(newState)
       },
       userId: staffUserId
     })
@@ -337,61 +343,26 @@ export async function ensureVerifyWorkItem(referenceId: string): Promise<{ succe
 }
 
 /**
- * Handle evidence upload - check if minimum evidence is now met and auto-transition.
+ * Handle evidence upload - delegates to consolidated state machine.
  * Called after any evidence is uploaded (document, reference returned, etc.)
  *
- * Only auto-transitions from COLLECTING_EVIDENCE or ACTION_REQUIRED states.
+ * @deprecated Use evaluateAndTransition() directly for new code
  */
 export async function handleEvidenceUpload(
   referenceId: string,
   evidenceType: string
 ): Promise<{ transitioned: boolean; newState?: VerificationState }> {
-  try {
-    // Get current state
-    const { data: reference, error } = await supabase
-      .from('tenant_references')
-      .select('verification_state')
-      .eq('id', referenceId)
-      .single()
+  console.log(`[VerificationState] handleEvidenceUpload: ${evidenceType} uploaded for ${referenceId}`)
 
-    if (error || !reference) {
-      console.error(`[VerificationState] handleEvidenceUpload: Reference ${referenceId} not found`)
-      return { transitioned: false }
-    }
+  // Delegate to consolidated state machine
+  const result = await evaluateAndTransition(
+    referenceId,
+    `Evidence uploaded: ${evidenceType}`
+  )
 
-    const currentState = reference.verification_state as VerificationState | null
-
-    // Only auto-transition from these states (null is treated as COLLECTING_EVIDENCE)
-    const allowedStates: (VerificationState | null)[] = ['COLLECTING_EVIDENCE', 'ACTION_REQUIRED', null]
-    if (!allowedStates.includes(currentState)) {
-      console.log(`[VerificationState] Reference ${referenceId} in ${currentState}, skipping auto-transition`)
-      return { transitioned: false }
-    }
-
-    // Evaluate if minimum evidence is now met
-    const evidence = await evaluateMinimumEvidence(referenceId)
-
-    if (evidence.isComplete) {
-      // Transition to READY_FOR_REVIEW
-      const reason = currentState === 'ACTION_REQUIRED'
-        ? `Evidence uploaded after action required: ${evidenceType}`
-        : `Minimum evidence requirements met: ${evidenceType} uploaded`
-
-      await transitionState(referenceId, 'READY_FOR_REVIEW', reason)
-
-      // Ensure work item exists
-      await ensureVerifyWorkItem(referenceId)
-
-      console.log(`[VerificationState] Reference ${referenceId} auto-transitioned to READY_FOR_REVIEW after ${evidenceType} upload`)
-
-      return { transitioned: true, newState: 'READY_FOR_REVIEW' }
-    }
-
-    console.log(`[VerificationState] Reference ${referenceId} still missing: ${evidence.missingCategories.join(', ')}`)
-    return { transitioned: false }
-  } catch (error) {
-    console.error(`[VerificationState] handleEvidenceUpload failed:`, error)
-    return { transitioned: false }
+  return {
+    transitioned: result.transitioned,
+    newState: result.newState
   }
 }
 
@@ -418,4 +389,130 @@ export async function getVerificationState(referenceId: string): Promise<Verific
  */
 export function isInVerifyQueueState(state: VerificationState | null): boolean {
   return state === 'READY_FOR_REVIEW' || state === 'IN_VERIFICATION'
+}
+
+/**
+ * CONSOLIDATED STATE MACHINE - Single source of truth for state transitions
+ *
+ * Evaluates ALL conditions and determines the correct verification_state:
+ * 1. Checks evidence completeness
+ * 2. Checks external reference sections (EMPLOYER_REFERENCE, LANDLORD_REFERENCE, ACCOUNTANT_REFERENCE)
+ * 3. Determines target state based on all conditions
+ * 4. Performs transition if needed
+ *
+ * Called from:
+ * - Evidence upload handlers
+ * - External reference submission
+ * - Staff actions that affect evidence/sections
+ *
+ * State Transition Rules:
+ * - COLLECTING_EVIDENCE: Evidence incomplete
+ * - WAITING_ON_REFERENCES: Evidence complete, but external refs pending (NOT_REVIEWED)
+ * - READY_FOR_REVIEW: Everything complete, ready for staff verification
+ * - Terminal states (COMPLETED, REJECTED, CANCELLED): Never auto-transition FROM these
+ * - IN_VERIFICATION: Don't auto-transition (staff is working on it)
+ * - ACTION_REQUIRED: Can transition back to COLLECTING_EVIDENCE or WAITING_ON_REFERENCES or READY_FOR_REVIEW
+ */
+export async function evaluateAndTransition(
+  referenceId: string,
+  reason?: string,
+  staffUserId?: string
+): Promise<{ success: boolean; transitioned: boolean; newState?: VerificationState; error?: string }> {
+  try {
+    // Get current state
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('verification_state, status')
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      return { success: false, transitioned: false, error: 'Reference not found' }
+    }
+
+    const currentState = reference.verification_state as VerificationState | null
+
+    // Don't auto-transition from terminal states
+    const terminalStates: VerificationState[] = ['COMPLETED', 'REJECTED', 'CANCELLED']
+    if (currentState && terminalStates.includes(currentState)) {
+      console.log(`[VerificationState] Reference ${referenceId} in terminal state ${currentState}, skipping evaluation`)
+      return { success: true, transitioned: false }
+    }
+
+    // Don't auto-transition from IN_VERIFICATION (staff is actively working)
+    if (currentState === 'IN_VERIFICATION') {
+      console.log(`[VerificationState] Reference ${referenceId} in IN_VERIFICATION, skipping evaluation`)
+      return { success: true, transitioned: false }
+    }
+
+    // Step 1: Evaluate minimum evidence
+    const evidence = await evaluateMinimumEvidence(referenceId)
+
+    // If evidence incomplete, target state is COLLECTING_EVIDENCE
+    if (!evidence.isComplete) {
+      const targetState: VerificationState = 'COLLECTING_EVIDENCE'
+      if (currentState !== targetState) {
+        await transitionState(
+          referenceId,
+          targetState,
+          reason || `Evidence incomplete: ${evidence.missingCategories.join(', ')}`,
+          staffUserId
+        )
+        return { success: true, transitioned: true, newState: targetState }
+      }
+      return { success: true, transitioned: false }
+    }
+
+    // Step 2: Evidence complete - check for pending external references
+    const { data: pendingExternalRefs, error: sectionsError } = await supabase
+      .from('verification_sections')
+      .select('id, section_type, decision')
+      .eq('reference_id', referenceId)
+      .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'ACCOUNTANT_REFERENCE'])
+      .eq('decision', 'NOT_REVIEWED')
+
+    if (sectionsError) {
+      console.error(`[VerificationState] Failed to check external refs for ${referenceId}:`, sectionsError.message)
+      return { success: false, transitioned: false, error: 'Failed to check external references' }
+    }
+
+    const hasPendingExternalRefs = (pendingExternalRefs || []).length > 0
+
+    // Determine target state
+    let targetState: VerificationState
+
+    if (hasPendingExternalRefs) {
+      // Evidence complete but waiting on external refs
+      targetState = 'WAITING_ON_REFERENCES'
+    } else {
+      // Everything complete - ready for staff review
+      targetState = 'READY_FOR_REVIEW'
+    }
+
+    // Perform transition if state changed
+    if (currentState !== targetState) {
+      const transitionReason = reason || (
+        targetState === 'WAITING_ON_REFERENCES'
+          ? `Evidence complete, waiting on: ${pendingExternalRefs!.map(r => r.section_type).join(', ')}`
+          : 'All evidence and external references received'
+      )
+
+      await transitionState(referenceId, targetState, transitionReason, staffUserId)
+
+      // Ensure work item exists if transitioning to READY_FOR_REVIEW
+      if (targetState === 'READY_FOR_REVIEW') {
+        await ensureVerifyWorkItem(referenceId)
+      }
+
+      console.log(`[VerificationState] Reference ${referenceId}: ${currentState} -> ${targetState}`)
+      return { success: true, transitioned: true, newState: targetState }
+    }
+
+    console.log(`[VerificationState] Reference ${referenceId} already in correct state: ${targetState}`)
+    return { success: true, transitioned: false }
+
+  } catch (error) {
+    console.error(`[VerificationState] evaluateAndTransition failed for ${referenceId}:`, error)
+    return { success: false, transitioned: false, error: String(error) }
+  }
 }

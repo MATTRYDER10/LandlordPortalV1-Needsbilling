@@ -47,7 +47,7 @@
                 </div>
               </div>
               <div class="mt-2">
-                <StatusPill :status="person.status" />
+                <StatusPill :verificationState="person.verificationState" />
               </div>
             </div>
             <button
@@ -136,7 +136,7 @@
 
           <template v-else>
             <!-- Action Required Banner - Always show when status is ACTION_REQUIRED -->
-            <div v-if="person.status === 'ACTION_REQUIRED'" class="p-6 bg-red-50 border-b border-red-200">
+            <div v-if="person.verificationState === 'ACTION_REQUIRED'" class="p-6 bg-red-50 border-b border-red-200">
               <h3 class="text-sm font-semibold text-red-900 mb-3 flex items-center gap-2">
                 <AlertTriangle class="w-5 h-5" />
                 Action Required
@@ -1628,25 +1628,26 @@ async function loadFullDetails(referenceId: string) {
 }
 
 const hasCertificate = computed(() => {
-  return props.person?.status === 'VERIFIED_PASS' ||
-         props.person?.status === 'VERIFIED_CONDITIONAL'
+  return props.person?.verificationState === 'COMPLETED'
 })
 
-// Check if person is verified (has completed verification) - for legacy references without section data
+// Check if person is verified (has completed verification)
 const isVerified = computed(() => {
-  return props.person?.status === 'VERIFIED_PASS' ||
-         props.person?.status === 'VERIFIED_CONDITIONAL' ||
-         props.person?.status === 'VERIFIED_FAIL'
+  return props.person?.verificationState === 'COMPLETED' ||
+         props.person?.verificationState === 'REJECTED'
 })
 
 const canSubmitForReReferencing = computed(() => {
-  return props.person?.status === 'ACTION_REQUIRED'
+  return props.person?.verificationState === 'ACTION_REQUIRED'
 })
 
-// Allow editing until a final decision is made (VERIFIED_PASS, VERIFIED_CONDITIONAL, VERIFIED_FAIL)
+// Allow editing until a final decision is made
 const canEdit = computed(() => {
-  const finalStatuses = ['VERIFIED_PASS', 'VERIFIED_CONDITIONAL', 'VERIFIED_FAIL', 'ARCHIVED']
-  return props.person?.status && !finalStatuses.includes(props.person.status)
+  const state = props.person?.verificationState
+  if (!state) return false
+
+  const finalStatuses = ['COMPLETED', 'REJECTED', 'CANCELLED']
+  return !finalStatuses.includes(state)
 })
 
 // Check if this reference was created from an offer
@@ -1679,11 +1680,9 @@ const canAddGuarantor = computed(() => {
   if (hasGuarantor.value) return false
 
   // If verified, show button when:
-  // - Status is VERIFIED_CONDITIONAL (always requires guarantor), OR
-  // - Status is VERIFIED_PASS with income section PASS_WITH_CONDITION (conditional on guarantor)
+  // - Status is COMPLETED with income section PASS_WITH_CONDITION (conditional on guarantor)
   if (isVerified.value) {
-    return props.person.status === 'VERIFIED_CONDITIONAL' ||
-           (props.person.status === 'VERIFIED_PASS' && hasGuarantorCondition.value)
+    return props.person.verificationState === 'COMPLETED' && hasGuarantorCondition.value
   }
 
   return true
@@ -1692,7 +1691,9 @@ const canAddGuarantor = computed(() => {
 // Show Delete Reference button only for pending references (tenant hasn't submitted form)
 const canDelete = computed(() => {
   if (!props.person) return false
-  return props.person.status === 'NOT_STARTED'
+
+  // Can delete if: collecting evidence (early stage, form not submitted yet)
+  return props.person.verificationState === 'COLLECTING_EVIDENCE'
 })
 
 // Check if we have any "About the Tenant" data to display

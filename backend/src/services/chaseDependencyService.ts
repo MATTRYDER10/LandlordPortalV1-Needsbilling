@@ -2,7 +2,7 @@ import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from './encryption'
 import { logAuditAction } from './auditService'
 import { isReadyForVerification } from './verificationReadinessService'
-import { transitionState } from './verificationStateService'
+import { evaluateAndTransition } from './verificationStateService'
 import {
   sendTenantReferenceRequest,
   sendEmployerReferenceRequest,
@@ -210,35 +210,57 @@ export async function createDependenciesForReference(referenceId: string): Promi
 }
 
 /**
- * Get all active chase dependencies (for chase queue)
+ * Get all active chase items (for chase queue)
+ * NOW QUERIES VERIFICATION_SECTIONS instead of chase_dependencies
  *
  * Chase Queue Timing Logic:
  * - Items appear 8 hours after initial_request_sent_at (when form was first sent)
  * - After a chase is sent, item leaves queue and reappears 8 hours after last_chase_sent_at
- * - Items are excluded if reference is already completed, rejected, action_required, or pending_verification
+ * - Items are excluded if reference is completed, rejected, or in verification
  */
 export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
   try {
-    const { data: dependencies, error } = await supabase
-      .from('chase_dependencies')
+    // Query verification_sections for external references
+    const { data: sections, error } = await supabase
+      .from('verification_sections')
       .select(`
-        *,
-        reference:tenant_references!chase_dependencies_reference_id_fkey (
+        id,
+        reference_id,
+        section_type,
+        decision,
+        contact_name_encrypted,
+        contact_email_encrypted,
+        contact_phone_encrypted,
+        initial_request_sent_at,
+        last_chase_sent_at,
+        chase_cycle,
+        email_attempts,
+        sms_attempts,
+        call_attempts,
+        form_url,
+        linked_table,
+        linked_record_id,
+        chase_metadata,
+        created_at,
+        updated_at,
+        reference:tenant_references!verification_sections_reference_id_fkey (
           id,
           tenant_first_name_encrypted,
           tenant_last_name_encrypted,
           property_address_encrypted,
           status,
+          verification_state,
           company:companies!inner(name_encrypted)
         )
       `)
-      .in('status', ['PENDING', 'CHASING'])
+      .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'ACCOUNTANT_REFERENCE'])
+      .eq('decision', 'NOT_REVIEWED')
       .order('initial_request_sent_at', { ascending: true })
       .order('created_at', { ascending: true })
 
     if (error) throw error
 
-    console.log(`[ChaseQueue] Raw dependencies count: ${dependencies?.length || 0}`)
+    console.log(`[ChaseQueue] Raw sections count: ${sections?.length || 0}`)
 
     // Calculate 8-hour threshold
     const eightHoursAgo = new Date()
@@ -246,48 +268,49 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
 
     console.log(`[ChaseQueue] 8 hours ago threshold: ${eightHoursAgo.toISOString()}`)
 
-    // Filter dependencies based on:
-    // 1. Reference must exist and not be in terminal/processed status
+    // Filter sections based on:
+    // 1. Reference must exist and not be in terminal/processed state
     // 2. Initial request must have been sent
     // 3. Must be 8+ hours since initial request OR last chase
-    const activeDeps = (dependencies || []).filter((dep: any) => {
-      if (!dep.reference) {
-        console.log(`[ChaseQueue] Filtered out dep ${dep.id}: no reference`)
+    const activeSections = (sections || []).filter((section: any) => {
+      if (!section.reference) {
+        console.log(`[ChaseQueue] Filtered out section ${section.id}: no reference`)
         return false
       }
 
-      // Exclude references that are completed, rejected, action_required, or already in pending_verification
-      const excludedStatuses = ['completed', 'rejected', 'cancelled', 'action_required', 'pending_verification']
-      if (excludedStatuses.includes(dep.reference.status)) {
-        console.log(`[ChaseQueue] Filtered out dep ${dep.id}: reference status is ${dep.reference.status}`)
+      // Exclude references in terminal or verification states
+      const excludedVerificationStates = ['COMPLETED', 'REJECTED', 'CANCELLED', 'IN_VERIFICATION', 'READY_FOR_REVIEW']
+      if (excludedVerificationStates.includes(section.reference.verification_state)) {
+        console.log(`[ChaseQueue] Filtered out section ${section.id}: reference verification_state is ${section.reference.verification_state}`)
         return false
       }
 
       // Must have initial request sent (form was actually sent to the referee)
-      if (!dep.initial_request_sent_at) {
-        console.log(`[ChaseQueue] Filtered out dep ${dep.id}: no initial_request_sent_at`)
+      if (!section.initial_request_sent_at) {
+        console.log(`[ChaseQueue] Filtered out section ${section.id}: no initial_request_sent_at`)
         return false
       }
 
       // Check 8-hour window:
       // - If no chase sent yet -> check initial_request_sent_at > 8 hours ago
       // - If chase was sent -> check last_chase_sent_at > 8 hours ago
-      const relevantTimestamp = dep.last_chase_sent_at || dep.initial_request_sent_at
+      const relevantTimestamp = section.last_chase_sent_at || section.initial_request_sent_at
       const timestampDate = new Date(relevantTimestamp)
 
       // Item should appear in queue only if 8+ hours have passed since relevant timestamp
       const passesTimeFilter = timestampDate <= eightHoursAgo
       if (!passesTimeFilter) {
-        console.log(`[ChaseQueue] Filtered out dep ${dep.id}: timestamp ${timestampDate.toISOString()} is after ${eightHoursAgo.toISOString()}`)
+        console.log(`[ChaseQueue] Filtered out section ${section.id}: timestamp ${timestampDate.toISOString()} is after ${eightHoursAgo.toISOString()}`)
       }
       return passesTimeFilter
     })
 
-    console.log(`[ChaseQueue] Active deps after filter: ${activeDeps.length}`)
+    console.log(`[ChaseQueue] Active sections after filter: ${activeSections.length}`)
 
-    return activeDeps.map((dep: any) => {
-      const daysSinceRequest = dep.initial_request_sent_at
-        ? Math.floor((Date.now() - new Date(dep.initial_request_sent_at).getTime()) / (1000 * 60 * 60 * 24))
+    // Map sections to ChaseQueueItem format (maintains backward compatibility)
+    return activeSections.map((section: any) => {
+      const daysSinceRequest = section.initial_request_sent_at
+        ? Math.floor((Date.now() - new Date(section.initial_request_sent_at).getTime()) / (1000 * 60 * 60 * 24))
         : 0
 
       let urgency: 'NORMAL' | 'WARNING' | 'URGENT' = 'NORMAL'
@@ -297,14 +320,36 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
         urgency = 'WARNING'
       }
 
+      // Map section_type to dependency_type for backward compatibility
+      const dependencyTypeMap: Record<string, string> = {
+        'EMPLOYER_REFERENCE': 'EMPLOYER_REF',
+        'LANDLORD_REFERENCE': 'RESIDENTIAL_REF',
+        'ACCOUNTANT_REFERENCE': 'ACCOUNTANT_REF'
+      }
+
       return {
-        ...mapDependencyFromDb(dep),
-        tenantName: `${decrypt(dep.reference.tenant_first_name_encrypted) || ''} ${decrypt(dep.reference.tenant_last_name_encrypted) || ''}`.trim(),
-        propertyAddress: decrypt(dep.reference.property_address_encrypted) || '',
-        companyName: decrypt(dep.reference.company?.name_encrypted) || '',
+        id: section.id,
+        referenceId: section.reference_id,
+        dependencyType: dependencyTypeMap[section.section_type] || section.section_type,
+        status: 'PENDING', // All items in chase queue are effectively pending
+        contactName: section.contact_name_encrypted ? decrypt(section.contact_name_encrypted) : undefined,
+        contactEmail: section.contact_email_encrypted ? decrypt(section.contact_email_encrypted) : undefined,
+        contactPhone: section.contact_phone_encrypted ? decrypt(section.contact_phone_encrypted) : undefined,
+        initialRequestSentAt: section.initial_request_sent_at,
+        lastChaseSentAt: section.last_chase_sent_at,
+        chaseCycle: section.chase_cycle || 0,
+        emailAttempts: section.email_attempts || 0,
+        smsAttempts: section.sms_attempts || 0,
+        linkedTable: section.linked_table,
+        linkedRecordId: section.linked_record_id,
+        createdAt: section.created_at,
+        updatedAt: section.updated_at,
+        tenantName: `${decrypt(section.reference.tenant_first_name_encrypted) || ''} ${decrypt(section.reference.tenant_last_name_encrypted) || ''}`.trim(),
+        propertyAddress: decrypt(section.reference.property_address_encrypted) || '',
+        companyName: decrypt(section.reference.company?.name_encrypted) || '',
         daysSinceRequest,
         urgency
-      }
+      } as ChaseQueueItem
     })
   } catch (error) {
     console.error('Failed to get chase queue:', error)
@@ -633,105 +678,37 @@ export async function cleanupStaleDependencies(referenceId: string): Promise<voi
 }
 
 /**
- * Check if all dependencies are received and reference is ready for verification
- * If ready, automatically transition to pending_verification and create VERIFY work item
+ * Check if reference is ready for verification and transition state accordingly
+ * Delegates to consolidated state machine (evaluateAndTransition)
+ *
+ * @deprecated This function is kept for backward compatibility but now uses the consolidated state machine
  */
 async function checkAndTransitionToVerify(referenceId: string): Promise<boolean> {
   try {
-    // Get all dependencies for this reference
-    const allDeps = await getDependenciesForReference(referenceId)
+    console.log(`[Chase] Checking if reference ${referenceId} can transition to verify`)
 
-    // Check if any dependencies are still pending/chasing
-    const hasUnresolvedDeps = allDeps.some(dep =>
-      dep.status === 'PENDING' || dep.status === 'CHASING' || dep.status === 'EXHAUSTED'
+    // Delegate to consolidated state machine
+    // This will check evidence completeness AND external reference sections
+    const result = await evaluateAndTransition(
+      referenceId,
+      'External reference received - checking if ready for verification'
     )
 
-    if (hasUnresolvedDeps) {
-      return false // Still waiting on some dependencies
-    }
+    if (result.success && result.transitioned) {
+      console.log(`[Chase] Reference ${referenceId} transitioned to ${result.newState}`)
 
-    // Get current reference status
-    const { data: reference, error: refError } = await supabase
-      .from('tenant_references')
-      .select('status')
-      .eq('id', referenceId)
-      .single()
-
-    if (refError || !reference) {
-      return false
-    }
-
-    // Only transition if reference is in a state that can move to verify
-    const canTransitionStatuses = ['in_progress', 'action_required']
-    if (!canTransitionStatuses.includes(reference.status)) {
-      return false
-    }
-
-    // Check if reference is actually ready for verification
-    const readiness = await isReadyForVerification(referenceId)
-
-    if (!readiness.isReady) {
-      console.log(`Reference ${referenceId} not ready for verification:`, readiness.missingItems)
-      return false
-    }
-
-    // Update reference status to pending_verification
-    const { error: updateError } = await supabase
-      .from('tenant_references')
-      .update({
-        status: 'pending_verification',
-        updated_at: new Date().toISOString()
+      // Log audit for visibility
+      await logAuditAction({
+        referenceId,
+        action: 'AUTO_TRANSITION_CHECK',
+        description: `Reference automatically transitioned to ${result.newState} after external reference received`,
+        metadata: { visible_to_agent: false, newState: result.newState }
       })
-      .eq('id', referenceId)
 
-    if (updateError) {
-      console.error('Failed to update reference status:', updateError)
-      return false
+      return true
     }
 
-    // Create VERIFY work item or reactivate if completed (uses UPSERT to prevent duplicates)
-    const { data: existingVerify } = await supabase
-      .from('work_items')
-      .select('id, status')
-      .eq('reference_id', referenceId)
-      .eq('work_type', 'VERIFY')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (!existingVerify) {
-      // Use upsert with ON CONFLICT to prevent duplicates
-      await supabase
-        .from('work_items')
-        .upsert({
-          reference_id: referenceId,
-          work_type: 'VERIFY',
-          status: 'AVAILABLE',
-          priority: 0
-        }, {
-          onConflict: 'reference_id,work_type',
-          ignoreDuplicates: true
-        })
-    } else if (existingVerify.status === 'COMPLETED') {
-      // Reactivate the completed work item instead of creating a duplicate
-      await supabase
-        .from('work_items')
-        .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null, completed_at: null })
-        .eq('id', existingVerify.id)
-    }
-
-    // Log audit
-    await logAuditAction({
-      referenceId,
-      action: 'AUTO_MOVED_TO_VERIFY',
-      description: 'All dependencies received - automatically moved to verification queue',
-      metadata: { visible_to_agent: false }
-    })
-
-    console.log(`Reference ${referenceId} auto-transitioned to pending_verification`)
-    // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
-    await transitionState(referenceId, 'READY_FOR_REVIEW', 'All dependencies received - automatically ready for verification')
-    return true
+    return false
   } catch (error) {
     console.error('Error in checkAndTransitionToVerify:', error)
     return false

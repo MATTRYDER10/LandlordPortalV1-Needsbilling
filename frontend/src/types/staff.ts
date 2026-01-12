@@ -8,7 +8,8 @@ export type SectionDecision = 'NOT_REVIEWED' | 'PASS' | 'PASS_WITH_CONDITION' | 
 
 export type TenantSectionType = 'IDENTITY_SELFIE' | 'RTR' | 'INCOME' | 'RESIDENTIAL' | 'CREDIT' | 'AML'
 export type GuarantorSectionType = 'IDENTITY_SELFIE' | 'INCOME' | 'CREDIT' | 'AML'
-export type SectionType = TenantSectionType | GuarantorSectionType
+export type ExternalReferenceSectionType = 'EMPLOYER_REFERENCE' | 'LANDLORD_REFERENCE' | 'ACCOUNTANT_REFERENCE'
+export type SectionType = TenantSectionType | GuarantorSectionType | ExternalReferenceSectionType
 
 export type PersonType = 'TENANT' | 'GUARANTOR'
 
@@ -19,11 +20,13 @@ export type Urgency = 'NORMAL' | 'WARNING' | 'URGENT'
 // Verification state (explicit state machine for verify queue)
 export type VerificationState =
   | 'COLLECTING_EVIDENCE'
+  | 'WAITING_ON_REFERENCES'
   | 'READY_FOR_REVIEW'
   | 'IN_VERIFICATION'
   | 'ACTION_REQUIRED'
   | 'COMPLETED'
   | 'REJECTED'
+  | 'CANCELLED'
 
 // ============================================================================
 // VERIFICATION SECTION
@@ -284,7 +287,10 @@ export function getSectionLabel(type: SectionType): string {
     INCOME: 'Income & Affordability',
     RESIDENTIAL: 'Residential',
     CREDIT: 'Credit',
-    AML: 'AML / PEP / Sanctions'
+    AML: 'AML / PEP / Sanctions',
+    EMPLOYER_REFERENCE: 'Employer Reference',
+    LANDLORD_REFERENCE: 'Landlord Reference',
+    ACCOUNTANT_REFERENCE: 'Accountant Reference'
   }
   return labels[type] || type
 }
@@ -323,11 +329,13 @@ export function getDependencyTypeLabel(type: DependencyType): string {
 export function getVerificationStateLabel(state: VerificationState): string {
   const labels: Record<VerificationState, string> = {
     COLLECTING_EVIDENCE: 'Collecting Evidence',
+    WAITING_ON_REFERENCES: 'Waiting on References',
     READY_FOR_REVIEW: 'Ready for Review',
     IN_VERIFICATION: 'In Verification',
     ACTION_REQUIRED: 'Action Required',
     COMPLETED: 'Completed',
-    REJECTED: 'Rejected'
+    REJECTED: 'Rejected',
+    CANCELLED: 'Cancelled'
   }
   return labels[state] || state
 }
@@ -335,11 +343,13 @@ export function getVerificationStateLabel(state: VerificationState): string {
 export function getVerificationStateColor(state: VerificationState): string {
   const colors: Record<VerificationState, string> = {
     COLLECTING_EVIDENCE: 'gray',
+    WAITING_ON_REFERENCES: 'yellow',
     READY_FOR_REVIEW: 'blue',
     IN_VERIFICATION: 'purple',
     ACTION_REQUIRED: 'orange',
     COMPLETED: 'green',
-    REJECTED: 'red'
+    REJECTED: 'red',
+    CANCELLED: 'gray'
   }
   return colors[state] || 'gray'
 }

@@ -9,52 +9,71 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { TenancyStatus, PersonStatus } from '@/composables/useTenancies'
+import type { TenancyStatus } from '@/composables/useTenancies'
+import { getVerificationStateLabel, getVerificationStateColor } from '@/utils/verificationStateLabels'
 
 const props = defineProps<{
-  status: TenancyStatus | PersonStatus
+  verificationState?: string  // For person-level status
+  status?: TenancyStatus       // For tenancy-level status
 }>()
 
 const pillClasses = computed(() => {
-  switch (props.status) {
-    case 'COMPLETED':
-    case 'VERIFIED_PASS':
-      return 'bg-green-100 text-green-800'
-    case 'VERIFIED_CONDITIONAL':
-      return 'bg-green-100 text-green-700'
-    case 'AWAITING_VERIFICATION':
-      return 'bg-amber-100 text-amber-800'
-    case 'IN_PROGRESS':
-      return 'bg-blue-100 text-blue-800'
-    case 'ACTION_REQUIRED':
-      return 'bg-red-100 text-red-800'
-    case 'REJECTED':
-    case 'VERIFIED_FAIL':
-      return 'bg-red-100 text-red-800'
-    case 'SENT':
-    case 'NOT_STARTED':
-      return 'bg-gray-100 text-gray-800'
-    case 'ARCHIVED':
-      return 'bg-gray-200 text-gray-500'
-    default:
-      return 'bg-gray-100 text-gray-800'
+  // Handle person-level verificationState
+  if (props.verificationState) {
+    const color = getVerificationStateColor(props.verificationState)
+    const colorMap: Record<string, string> = {
+      'green': 'bg-green-100 text-green-800',
+      'blue': 'bg-blue-100 text-blue-800',
+      'yellow': 'bg-yellow-100 text-yellow-800',
+      'purple': 'bg-purple-100 text-purple-800',
+      'orange': 'bg-orange-100 text-orange-800',
+      'red': 'bg-red-100 text-red-800',
+      'gray': 'bg-gray-100 text-gray-800'
+    }
+    return colorMap[color] || 'bg-gray-100 text-gray-800'
   }
+
+  // Handle tenancy-level status
+  if (props.status) {
+    switch (props.status) {
+      case 'COMPLETED':
+        return 'bg-green-100 text-green-800'
+      case 'AWAITING_VERIFICATION':
+        return 'bg-amber-100 text-amber-800'
+      case 'IN_PROGRESS':
+        return 'bg-blue-100 text-blue-800'
+      case 'ACTION_REQUIRED':
+        return 'bg-red-100 text-red-800'
+      case 'REJECTED':
+        return 'bg-red-100 text-red-800'
+      case 'SENT':
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  return 'bg-gray-100 text-gray-800'
 })
 
 const label = computed(() => {
-  switch (props.status) {
-    case 'SENT': return 'Sent'
-    case 'NOT_STARTED': return 'Not Started'
-    case 'IN_PROGRESS': return 'In Progress'
-    case 'AWAITING_VERIFICATION': return 'Awaiting Verification'
-    case 'ACTION_REQUIRED': return 'Action Required'
-    case 'VERIFIED_PASS': return 'Verified'
-    case 'VERIFIED_CONDITIONAL': return 'Conditional'
-    case 'VERIFIED_FAIL': return 'Failed'
-    case 'COMPLETED': return 'Completed'
-    case 'REJECTED': return 'Rejected'
-    case 'ARCHIVED': return 'Archived'
-    default: return props.status
+  // Handle person-level verificationState
+  if (props.verificationState) {
+    return getVerificationStateLabel(props.verificationState)
   }
+
+  // Handle tenancy-level status
+  if (props.status) {
+    switch (props.status) {
+      case 'SENT': return 'Sent'
+      case 'IN_PROGRESS': return 'In Progress'
+      case 'AWAITING_VERIFICATION': return 'Awaiting Verification'
+      case 'ACTION_REQUIRED': return 'Action Required'
+      case 'COMPLETED': return 'Completed'
+      case 'REJECTED': return 'Rejected'
+      default: return props.status
+    }
+  }
+
+  return 'Unknown'
 })
 </script>

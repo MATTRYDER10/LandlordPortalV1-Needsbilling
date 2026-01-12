@@ -217,7 +217,7 @@ function formatDate(dateStr: string | null): string {
 }
 
 function getActionRequiredSummary(): string {
-  const actionPeople = props.tenancy.people.filter(p => p.status === 'ACTION_REQUIRED')
+  const actionPeople = props.tenancy.people.filter(p => p.verificationState === 'ACTION_REQUIRED')
   if (actionPeople.length === 0) return ''
 
   const names = actionPeople.map(p => p.name).join(', ')

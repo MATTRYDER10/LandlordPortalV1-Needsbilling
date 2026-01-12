@@ -6,7 +6,8 @@ import { transitionState } from './verificationStateService'
 export type SectionDecision = 'NOT_REVIEWED' | 'PASS' | 'PASS_WITH_CONDITION' | 'ACTION_REQUIRED' | 'FAIL'
 export type TenantSectionType = 'IDENTITY_SELFIE' | 'RTR' | 'INCOME' | 'RESIDENTIAL' | 'CREDIT' | 'AML'
 export type GuarantorSectionType = 'IDENTITY_SELFIE' | 'INCOME' | 'CREDIT' | 'AML'
-export type SectionType = TenantSectionType | GuarantorSectionType
+export type ExternalReferenceSectionType = 'EMPLOYER_REFERENCE' | 'LANDLORD_REFERENCE' | 'ACCOUNTANT_REFERENCE'
+export type SectionType = TenantSectionType | GuarantorSectionType | ExternalReferenceSectionType
 export type PersonType = 'TENANT' | 'GUARANTOR'
 
 const TENANT_SECTIONS: TenantSectionType[] = ['IDENTITY_SELFIE', 'RTR', 'INCOME', 'RESIDENTIAL', 'CREDIT', 'AML']

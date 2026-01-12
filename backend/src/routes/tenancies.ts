@@ -8,9 +8,7 @@ import {
   TenancyStatus,
   StatusCounts,
   deriveTenancyStatus,
-  generateBlockingSentence,
   calculateProgressSummary,
-  buildTenancyPerson,
   // Batch functions for performance
   batchGetVerificationSections,
   batchGetChaseDependencies,
@@ -79,6 +77,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         id,
         company_id,
         status,
+        verification_state,
         is_guarantor,
         parent_reference_id,
         is_group_parent,

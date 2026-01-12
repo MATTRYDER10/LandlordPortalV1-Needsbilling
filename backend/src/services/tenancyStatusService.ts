@@ -4,16 +4,7 @@ import { DependencyStatus, DependencyType } from './chaseDependencyService'
 import { SectionDecision, SectionType } from './verificationSectionService'
 import { isReadyForVerificationSync } from './verificationReadinessService'
 
-// Person Status (derived from verification_sections + chase_dependencies)
-export type PersonStatus =
-  | 'NOT_STARTED'           // No form activity, no data submitted
-  | 'IN_PROGRESS'           // Form started OR references sent OR external dependency outstanding
-  | 'AWAITING_VERIFICATION' // All required data and references returned, awaiting staff review
-  | 'ACTION_REQUIRED'       // Staff have failed one or more verification sections
-  | 'VERIFIED_PASS'
-  | 'VERIFIED_CONDITIONAL'
-  | 'VERIFIED_FAIL'
-  | 'ARCHIVED'              // Person replaced; excluded from all rollups
+// Note: PersonStatus type removed - replaced by verification_state field (Phase 5-6 simplification)
 
 // Tenancy Status (derived from active people)
 export type TenancyStatus =
@@ -48,7 +39,7 @@ export interface TenancyPerson {
   email: string
   phone: string
   rentShare: number
-  status: PersonStatus
+  verificationState: string  // Direct from database verification_state field
   guarantorForTenantId?: string
   sectionStatuses: SectionStatus[]
   actionRequiredTasks: ActionRequiredTask[]
@@ -103,146 +94,64 @@ export interface StatusCounts {
 /**
  * Derive person status from verification sections, chase dependencies, and reference status
  */
-export async function derivePersonStatus(referenceId: string): Promise<PersonStatus> {
-  try {
-    // Get reference details
-    const { data: reference, error: refError } = await supabase
-      .from('tenant_references')
-      .select('status, is_guarantor, submitted_at')
-      .eq('id', referenceId)
-      .single()
-
-    if (refError || !reference) {
-      return 'NOT_STARTED'
-    }
-
-    // Check for terminal statuses first
-    if (reference.status === 'completed') {
-      // Need to check if it was conditional or not from verification sections
-      const { data: sections } = await supabase
-        .from('verification_sections')
-        .select('decision')
-        .eq('reference_id', referenceId)
-
-      const hasConditional = sections?.some(s => s.decision === 'PASS_WITH_CONDITION')
-      const hasFail = sections?.some(s => s.decision === 'FAIL')
-
-      if (hasFail) return 'VERIFIED_FAIL'
-      if (hasConditional) return 'VERIFIED_CONDITIONAL'
-      return 'VERIFIED_PASS'
-    }
-
-    if (reference.status === 'rejected' || reference.status === 'cancelled') {
-      return 'VERIFIED_FAIL'
-    }
-
-    // Check for action_required from verification sections
-    const { data: sections } = await supabase
-      .from('verification_sections')
-      .select('decision')
-      .eq('reference_id', referenceId)
-
-    if (sections?.some(s => s.decision === 'ACTION_REQUIRED')) {
-      return 'ACTION_REQUIRED'
-    }
-
-    // Check if in pending_verification AND form was actually submitted
-    if (reference.status === 'pending_verification') {
-      // If form not submitted yet, they're still NOT_STARTED (corrupted status from previous bug)
-      if (!reference.submitted_at) {
-        return 'NOT_STARTED'
-      }
-      return 'AWAITING_VERIFICATION'
-    }
-
-    // If reference is still pending and form hasn't been submitted, it's NOT_STARTED
-    // regardless of chase dependencies (we may be chasing them, but they haven't started yet)
-    if (reference.status === 'pending' && !reference.submitted_at) {
-      return 'NOT_STARTED'
-    }
-
-    // Check for outstanding dependencies
-    const { data: dependencies } = await supabase
-      .from('chase_dependencies')
-      .select('status')
-      .eq('reference_id', referenceId)
-      .in('status', ['PENDING', 'CHASING', 'EXHAUSTED', 'ACTION_REQUIRED'])
-
-    if (dependencies && dependencies.length > 0) {
-      // Has dependency with ACTION_REQUIRED status
-      if (dependencies.some(d => d.status === 'ACTION_REQUIRED')) {
-        return 'ACTION_REQUIRED'
-      }
-      return 'IN_PROGRESS'
-    }
-
-    // Check if form was submitted
-    if (reference.submitted_at || reference.status === 'in_progress') {
-      return 'IN_PROGRESS'
-    }
-
-    // Default - nothing started
-    if (reference.status === 'pending') {
-      return 'NOT_STARTED'
-    }
-
-    return 'IN_PROGRESS'
-  } catch (error) {
-    console.error('Error deriving person status:', error)
-    return 'NOT_STARTED'
-  }
-}
+// derivePersonStatus() REMOVED - Phase 5-6 cleanup
+// Now using verification_state field directly from database instead of derivation
 
 /**
- * Derive tenancy status from all active people
- * Priority: ACTION_REQUIRED > AWAITING_VERIFICATION > IN_PROGRESS > SENT
+ * Derive tenancy status from all active people (simplified - uses verification_state)
+ * Priority: ACTION_REQUIRED > READY_FOR_REVIEW/IN_VERIFICATION > IN_PROGRESS > SENT
  */
 export function deriveTenancyStatus(people: TenancyPerson[]): TenancyStatus {
-  // Filter out archived people
-  const activePeople = people.filter(p => p.status !== 'ARCHIVED')
+  // Filter out cancelled/archived people
+  const activePeople = people.filter(p =>
+    p.verificationState !== 'CANCELLED' && p.verificationState !== 'ARCHIVED'
+  )
 
   if (activePeople.length === 0) {
     return 'SENT'
   }
 
   // Check for ACTION_REQUIRED (highest priority)
-  if (activePeople.some(p => p.status === 'ACTION_REQUIRED')) {
+  if (activePeople.some(p => p.verificationState === 'ACTION_REQUIRED')) {
     return 'ACTION_REQUIRED'
   }
 
-  // Check if all verified (completed or failed)
-  const allVerified = activePeople.every(p =>
-    ['VERIFIED_PASS', 'VERIFIED_CONDITIONAL', 'VERIFIED_FAIL'].includes(p.status)
-  )
+  // Check if all completed or rejected
+  const allCompleted = activePeople.every(p => p.verificationState === 'COMPLETED')
+  const allRejected = activePeople.every(p => p.verificationState === 'REJECTED')
 
-  if (allVerified) {
-    // If any failed, tenancy is rejected
-    if (activePeople.some(p => p.status === 'VERIFIED_FAIL')) {
-      return 'REJECTED'
-    }
-    return 'COMPLETED'
+  if (allCompleted || allRejected) {
+    return allRejected ? 'REJECTED' : 'COMPLETED'
   }
 
-  // Check if all are either verified or awaiting verification
-  const allReadyOrVerified = activePeople.every(p =>
-    ['VERIFIED_PASS', 'VERIFIED_CONDITIONAL', 'VERIFIED_FAIL', 'AWAITING_VERIFICATION'].includes(p.status)
+  // Check if any rejected
+  if (activePeople.some(p => p.verificationState === 'REJECTED')) {
+    return 'REJECTED'
+  }
+
+  // Check if all are awaiting verification (ready for review or being verified)
+  const allAwaitingVerification = activePeople.every(p =>
+    p.verificationState === 'READY_FOR_REVIEW' ||
+    p.verificationState === 'IN_VERIFICATION' ||
+    p.verificationState === 'COMPLETED'
   )
 
-  if (allReadyOrVerified) {
+  if (allAwaitingVerification) {
     return 'AWAITING_VERIFICATION'
   }
 
   // Check if any in progress
-  if (activePeople.some(p => p.status === 'IN_PROGRESS' || p.status === 'AWAITING_VERIFICATION')) {
+  if (activePeople.some(p =>
+    p.verificationState === 'COLLECTING_EVIDENCE' ||
+    p.verificationState === 'WAITING_ON_REFERENCES' ||
+    p.verificationState === 'READY_FOR_REVIEW' ||
+    p.verificationState === 'IN_VERIFICATION'
+  )) {
     return 'IN_PROGRESS'
   }
 
-  // All NOT_STARTED
-  if (activePeople.every(p => p.status === 'NOT_STARTED')) {
-    return 'SENT'
-  }
-
-  return 'IN_PROGRESS'
+  // Default
+  return 'SENT'
 }
 
 /**
@@ -253,99 +162,8 @@ export function deriveTenancyStatus(people: TenancyPerson[]): TenancyStatus {
  * - "Waiting: Jane Doe - Awaiting Verification"
  * - "Waiting: Bob Jones - Employer Reference"
  */
-export async function generateBlockingSentence(
-  referenceIds: string[],
-  people: TenancyPerson[]
-): Promise<string> {
-  try {
-    // Priority 1: Action Required from verification sections
-    const actionRequiredPeople = people.filter(p => p.status === 'ACTION_REQUIRED')
-    if (actionRequiredPeople.length > 0) {
-      const person = actionRequiredPeople[0]
-      // Get the specific sections with action required
-      const { data: sections } = await supabase
-        .from('verification_sections')
-        .select('section_type, action_reason_code')
-        .in('reference_id', referenceIds)
-        .eq('decision', 'ACTION_REQUIRED')
-
-      if (sections && sections.length > 0) {
-        const sectionTypes = [...new Set(sections.map(s => formatSectionType(s.section_type)))]
-        if (actionRequiredPeople.length > 1) {
-          return `Waiting: ${person.name} - Action Required (${sectionTypes.join(', ')}) +${actionRequiredPeople.length - 1} more`
-        }
-        return `Waiting: ${person.name} - Action Required (${sectionTypes.join(', ')})`
-      }
-      if (actionRequiredPeople.length > 1) {
-        return `Waiting: ${person.name} - Action Required +${actionRequiredPeople.length - 1} more`
-      }
-      return `Waiting: ${person.name} - Action Required`
-    }
-
-    // Priority 2: Awaiting verification
-    const awaitingVerification = people.filter(p => p.status === 'AWAITING_VERIFICATION')
-    if (awaitingVerification.length > 0) {
-      const person = awaitingVerification[0]
-      if (awaitingVerification.length > 1) {
-        return `Waiting: ${person.name} - Awaiting Verification +${awaitingVerification.length - 1} more`
-      }
-      return `Waiting: ${person.name} - Awaiting Verification`
-    }
-
-    // Priority 3: Outstanding dependencies - find who has them
-    const { data: dependencies } = await supabase
-      .from('chase_dependencies')
-      .select('reference_id, dependency_type, status')
-      .in('reference_id', referenceIds)
-      .in('status', ['PENDING', 'CHASING'])
-
-    if (dependencies && dependencies.length > 0) {
-      // Find the person with the first dependency
-      const firstDep = dependencies[0]
-      const person = people.find(p => p.id === firstDep.reference_id)
-      const depLabel = formatDependencyType(firstDep.dependency_type)
-
-      if (person) {
-        if (dependencies.length > 1) {
-          return `Waiting: ${person.name} - ${capitalizeFirst(depLabel)} +${dependencies.length - 1} more`
-        }
-        return `Waiting: ${person.name} - ${capitalizeFirst(depLabel)}`
-      }
-
-      // Fallback if person not found
-      if (dependencies.length > 1) {
-        return `Waiting: ${capitalizeFirst(depLabel)} +${dependencies.length - 1} more`
-      }
-      return `Waiting: ${capitalizeFirst(depLabel)}`
-    }
-
-    // Priority 4: Form not started
-    const notStarted = people.filter(p => p.status === 'NOT_STARTED')
-    if (notStarted.length > 0) {
-      const person = notStarted[0]
-      const formType = person.role === 'TENANT' ? 'Tenant Form' : 'Guarantor Form'
-      if (notStarted.length > 1) {
-        return `Waiting: ${person.name} - ${formType} Not Started +${notStarted.length - 1} more`
-      }
-      return `Waiting: ${person.name} - ${formType} Not Started`
-    }
-
-    // In progress - generic
-    const inProgress = people.filter(p => p.status === 'IN_PROGRESS')
-    if (inProgress.length > 0) {
-      const person = inProgress[0]
-      if (inProgress.length > 1) {
-        return `Waiting: ${person.name} - In Progress +${inProgress.length - 1} more`
-      }
-      return `Waiting: ${person.name} - In Progress`
-    }
-
-    return ''
-  } catch (error) {
-    console.error('Error generating blocking sentence:', error)
-    return ''
-  }
-}
+// generateBlockingSentence() REMOVED - Phase 5-6 cleanup
+// Now using generateBlockingSentenceSync() which uses verification_state
 
 function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1)
@@ -382,15 +200,13 @@ export function aggregateCheckFailures(people: TenancyPerson[]): Record<string, 
  * Calculate progress summary for a tenancy
  */
 export function calculateProgressSummary(people: TenancyPerson[]): ProgressSummary {
-  const tenants = people.filter(p => p.role === 'TENANT' && p.status !== 'ARCHIVED')
-  const guarantors = people.filter(p => p.role === 'GUARANTOR' && p.status !== 'ARCHIVED')
-
-  const verifiedStatuses: PersonStatus[] = ['VERIFIED_PASS', 'VERIFIED_CONDITIONAL']
+  const tenants = people.filter(p => p.role === 'TENANT' && p.verificationState !== 'CANCELLED')
+  const guarantors = people.filter(p => p.role === 'GUARANTOR' && p.verificationState !== 'CANCELLED')
 
   return {
-    tenantsVerified: tenants.filter(t => verifiedStatuses.includes(t.status)).length,
+    tenantsVerified: tenants.filter(t => t.verificationState === 'COMPLETED').length,
     tenantsTotal: tenants.length,
-    guarantorsVerified: guarantors.filter(g => verifiedStatuses.includes(g.status)).length,
+    guarantorsVerified: guarantors.filter(g => g.verificationState === 'COMPLETED').length,
     guarantorsTotal: guarantors.length,
     checkFailures: aggregateCheckFailures(people)
   }
@@ -520,29 +336,8 @@ export async function getPersonActionRequiredTasks(referenceId: string): Promise
   return tasks
 }
 
-/**
- * Build full person data for tenancy response
- */
-export async function buildTenancyPerson(reference: any): Promise<TenancyPerson> {
-  const status = await derivePersonStatus(reference.id)
-  const sectionStatuses = await getPersonSectionStatuses(reference.id)
-  const actionRequiredTasks = status === 'ACTION_REQUIRED'
-    ? await getPersonActionRequiredTasks(reference.id)
-    : []
-
-  return {
-    id: reference.id,
-    role: reference.is_guarantor ? 'GUARANTOR' : 'TENANT',
-    name: `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim(),
-    email: decrypt(reference.tenant_email_encrypted) || '',
-    phone: decrypt(reference.tenant_phone_encrypted) || '',
-    rentShare: reference.rent_share || 0,
-    status,
-    guarantorForTenantId: reference.guarantor_for_reference_id || undefined,
-    sectionStatuses,
-    actionRequiredTasks
-  }
-}
+// buildTenancyPerson() REMOVED - Phase 5-6 cleanup
+// Now using buildTenancyPersonSync() which uses verification_state instead of deriving status
 
 // --- Helper Functions ---
 
@@ -685,87 +480,8 @@ export async function batchGetReasonCodeLabels(): Promise<Map<string, string>> {
   return labels
 }
 
-/**
- * Sync version of derivePersonStatus that uses pre-fetched data
- * No database queries - uses passed-in sections and dependencies
- *
- * The reference object should include all fields needed for readiness checking:
- * - Basic: id, status, submitted_at, is_guarantor
- * - Income: income_student, income_regular_employment, income_self_employed, income_benefits
- * - Identity: id_document_path, selfie_path
- * - Income evidence: payslip_files, tax_return_path, proof_of_additional_income_path, benefits_annual_amount_encrypted
- * - Residential: confirmed_residential_status, previous_landlord_email_encrypted
- * - References: employer_references, landlord_references, agent_references, accountant_references
- */
-export function derivePersonStatusSync(
-  reference: any,
-  sections: any[] | undefined,
-  dependencies: any[] | undefined
-): PersonStatus {
-  // Check for terminal statuses first
-  if (reference.status === 'completed') {
-    const hasConditional = sections?.some(s => s.decision === 'PASS_WITH_CONDITION')
-    const hasFail = sections?.some(s => s.decision === 'FAIL')
-
-    if (hasFail) return 'VERIFIED_FAIL'
-    if (hasConditional) return 'VERIFIED_CONDITIONAL'
-    return 'VERIFIED_PASS'
-  }
-
-  if (reference.status === 'rejected' || reference.status === 'cancelled') {
-    return 'VERIFIED_FAIL'
-  }
-
-  // Check for action_required from verification sections
-  if (sections?.some(s => s.decision === 'ACTION_REQUIRED')) {
-    return 'ACTION_REQUIRED'
-  }
-
-  // Check if in pending_verification - but verify they're actually ready
-  if (reference.status === 'pending_verification') {
-    // If form not submitted yet, they're still NOT_STARTED (corrupted status from previous bug)
-    if (!reference.submitted_at) {
-      return 'NOT_STARTED'
-    }
-
-    // Check if reference is actually ready for verification
-    // This handles cases where status was set incorrectly due to previous bugs
-    const readiness = isReadyForVerificationSync(reference)
-    if (!readiness.isReady) {
-      // Not actually ready - show as IN_PROGRESS
-      return 'IN_PROGRESS'
-    }
-
-    return 'AWAITING_VERIFICATION'
-  }
-
-  // If reference is still pending and form hasn't been submitted, it's NOT_STARTED
-  // regardless of chase dependencies (we may be chasing them, but they haven't started yet)
-  if (reference.status === 'pending' && !reference.submitted_at) {
-    return 'NOT_STARTED'
-  }
-
-  // Check for outstanding dependencies
-  if (dependencies && dependencies.length > 0) {
-    // Has dependency with ACTION_REQUIRED status
-    if (dependencies.some(d => d.status === 'ACTION_REQUIRED')) {
-      return 'ACTION_REQUIRED'
-    }
-    return 'IN_PROGRESS'
-  }
-
-  // Check if form was submitted
-  if (reference.submitted_at || reference.status === 'in_progress') {
-    return 'IN_PROGRESS'
-  }
-
-  // Default - nothing started
-  if (reference.status === 'pending') {
-    return 'NOT_STARTED'
-  }
-
-  return 'IN_PROGRESS'
-}
+// derivePersonStatusSync() REMOVED - Phase 5-6 cleanup
+// Now using verification_state field directly from database instead of derivation
 
 /**
  * Convert pre-fetched sections to SectionStatus format
@@ -841,12 +557,10 @@ export function buildTenancyPersonSync(
   reasonCodeLabels: Map<string, string>
 ): TenancyPerson {
   const sections = sectionsMap.get(reference.id)
-  const dependencies = dependenciesMap.get(reference.id)
 
-  const status = derivePersonStatusSync(reference, sections, dependencies)
   const sectionStatuses = getSectionStatusesFromData(sections)
-  const actionRequiredTasks = status === 'ACTION_REQUIRED'
-    ? getActionRequiredTasksFromData(sections, dependencies, reasonCodeLabels)
+  const actionRequiredTasks = reference.verification_state === 'ACTION_REQUIRED'
+    ? getActionRequiredTasksFromData(sections, dependenciesMap.get(reference.id), reasonCodeLabels)
     : []
 
   return {
@@ -856,7 +570,7 @@ export function buildTenancyPersonSync(
     email: decrypt(reference.tenant_email_encrypted) || '',
     phone: decrypt(reference.tenant_phone_encrypted) || '',
     rentShare: reference.rent_share || 0,
-    status,
+    verificationState: reference.verification_state,  // Direct from database
     guarantorForTenantId: reference.guarantor_for_reference_id || undefined,
     sectionStatuses,
     actionRequiredTasks
@@ -872,7 +586,7 @@ export function generateBlockingSentenceSync(
   dependenciesMap: Map<string, any[]>
 ): string {
   // Priority 1: Action Required from verification sections
-  const actionRequiredPeople = people.filter(p => p.status === 'ACTION_REQUIRED')
+  const actionRequiredPeople = people.filter(p => p.verificationState === 'ACTION_REQUIRED')
   if (actionRequiredPeople.length > 0) {
     const person = actionRequiredPeople[0]
     // Get the specific sections with action required from pre-fetched data
@@ -896,7 +610,7 @@ export function generateBlockingSentenceSync(
   }
 
   // Priority 2: Awaiting verification
-  const awaitingVerification = people.filter(p => p.status === 'AWAITING_VERIFICATION')
+  const awaitingVerification = people.filter(p => p.verificationState === 'READY_FOR_REVIEW' || p.verificationState === 'IN_VERIFICATION')
   if (awaitingVerification.length > 0) {
     const person = awaitingVerification[0]
     if (awaitingVerification.length > 1) {
@@ -935,25 +649,25 @@ export function generateBlockingSentenceSync(
     return `Waiting: ${capitalizeFirst(depLabel)}`
   }
 
-  // Priority 4: Form not started
-  const notStarted = people.filter(p => p.status === 'NOT_STARTED')
-  if (notStarted.length > 0) {
-    const person = notStarted[0]
+  // Priority 4: Collecting evidence (not started yet)
+  const collectingEvidence = people.filter(p => p.verificationState === 'COLLECTING_EVIDENCE')
+  if (collectingEvidence.length > 0) {
+    const person = collectingEvidence[0]
     const formType = person.role === 'TENANT' ? 'Tenant Form' : 'Guarantor Form'
-    if (notStarted.length > 1) {
-      return `Waiting: ${person.name} - ${formType} Not Started +${notStarted.length - 1} more`
+    if (collectingEvidence.length > 1) {
+      return `Waiting: ${person.name} - ${formType} In Progress +${collectingEvidence.length - 1} more`
     }
-    return `Waiting: ${person.name} - ${formType} Not Started`
+    return `Waiting: ${person.name} - ${formType} In Progress`
   }
 
-  // In progress - generic
-  const inProgress = people.filter(p => p.status === 'IN_PROGRESS')
-  if (inProgress.length > 0) {
-    const person = inProgress[0]
-    if (inProgress.length > 1) {
-      return `Waiting: ${person.name} - In Progress +${inProgress.length - 1} more`
+  // Priority 5: Waiting on references
+  const waitingOnRefs = people.filter(p => p.verificationState === 'WAITING_ON_REFERENCES')
+  if (waitingOnRefs.length > 0) {
+    const person = waitingOnRefs[0]
+    if (waitingOnRefs.length > 1) {
+      return `Waiting: ${person.name} - Awaiting References +${waitingOnRefs.length - 1} more`
     }
-    return `Waiting: ${person.name} - In Progress`
+    return `Waiting: ${person.name} - Awaiting References`
   }
 
   return ''
