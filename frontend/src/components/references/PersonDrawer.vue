@@ -1663,18 +1663,27 @@ const hasGuarantor = computed(() => {
   )
 })
 
+// Check if income section has PASS_WITH_CONDITION (indicates guarantor required)
+const hasGuarantorCondition = computed(() => {
+  const incomeSection = props.person?.sectionStatuses?.find(s => s.type === 'INCOME')
+  return incomeSection?.decision === 'PASS_WITH_CONDITION'
+})
+
 // Show Add Guarantor button:
 // - Person is a tenant (not a guarantor)
 // - Doesn't already have a guarantor
-// - Either not verified yet, OR verified with PASS_WITH_GUARANTOR decision
+// - Either not verified yet, OR verified with "Pass with Guarantor" status
 const canAddGuarantor = computed(() => {
   if (!props.person) return false
   if (props.person.role !== 'TENANT') return false
   if (hasGuarantor.value) return false
 
-  // If verified, only show if decision is PASS_WITH_GUARANTOR
+  // If verified, show button when:
+  // - Status is VERIFIED_CONDITIONAL (always requires guarantor), OR
+  // - Status is VERIFIED_PASS with income section PASS_WITH_CONDITION (conditional on guarantor)
   if (isVerified.value) {
-    return score.value?.decision === 'PASS_WITH_GUARANTOR'
+    return props.person.status === 'VERIFIED_CONDITIONAL' ||
+           (props.person.status === 'VERIFIED_PASS' && hasGuarantorCondition.value)
   }
 
   return true
