@@ -222,8 +222,29 @@ function getActionRequiredSummary(): string {
 
   const names = actionPeople.map(p => p.name).join(', ')
   const tasks = actionPeople.flatMap(p => p.actionRequiredTasks)
-  const sections = [...new Set(tasks.map(t => t.sectionType))]
+  const sections = [...new Set(tasks.map(t => formatSectionType(t.sectionType)))]
 
   return `${names} - ${sections.join(', ')}`
+}
+
+function formatSectionType(type: string): string {
+  const labels: Record<string, string> = {
+    'IDENTITY_SELFIE': 'ID & Selfie',
+    'RTR': 'Right to Rent',
+    'INCOME': 'Income',
+    'RESIDENTIAL': 'Residential',
+    'CREDIT': 'Credit',
+    'AML': 'AML',
+    'TENANT_FORM': 'Tenant Application Form',
+    'GUARANTOR_FORM': 'Guarantor Form',
+    'EMPLOYER_REF': 'Employer Reference',
+    'RESIDENTIAL_REF': 'Landlord Reference',
+    'ACCOUNTANT_REF': 'Accountant Reference',
+    'EMPLOYER_REFERENCE': 'Employer Reference',
+    'LANDLORD_REFERENCE': 'Landlord Reference',
+    'ACCOUNTANT_REFERENCE': 'Accountant Reference'
+  }
+  if (labels[type]) return labels[type]
+  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 </script>

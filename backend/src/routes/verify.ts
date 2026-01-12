@@ -244,7 +244,7 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       tenant_email: decrypt(reference.tenant_email_encrypted),
       contact_number: decrypt(reference.contact_number_encrypted),
       property_address: decrypt(reference.property_address_encrypted),
-      date_of_birth: reference.date_of_birth ? decrypt(reference.date_of_birth) : null,
+      date_of_birth: reference.date_of_birth_encrypted ? decrypt(reference.date_of_birth_encrypted) : null,
       nationality: reference.nationality,
       monthly_rent: rentForDisplay,
       status: reference.status,

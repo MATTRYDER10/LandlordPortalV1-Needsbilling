@@ -38,14 +38,18 @@ export const useAuthStore = defineStore('auth', () => {
         if (data.error === 'Invalid token') {
           console.log('Invalid token detected, forcing logout...')
           await signOut()
-          window.location.href = '/login'
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
         }
       } else if (response.status === 404) {
         // User is not associated with any company (likely removed from team)
         // Log them out automatically
         console.log('User no longer associated with a company, logging out...')
         await signOut()
-        window.location.href = '/login'
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
       }
     } catch (err) {
       console.error('Failed to fetch company:', err)
@@ -138,7 +142,11 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchCompany()
     await fetchOnboardingStatus()
     await fetchStaffStatus()
-    await fetchAdminStatus()
+    if (isStaff.value) {
+      await fetchAdminStatus()
+    } else {
+      isAdmin.value = false
+    }
   }
 
   // Initialize auth state
@@ -154,7 +162,11 @@ export const useAuthStore = defineStore('auth', () => {
         await fetchCompany()
         await fetchOnboardingStatus()
         await fetchStaffStatus()
-        await fetchAdminStatus()
+        if (isStaff.value) {
+          await fetchAdminStatus()
+        } else {
+          isAdmin.value = false
+        }
       }
 
       // Listen for auth changes
@@ -167,7 +179,11 @@ export const useAuthStore = defineStore('auth', () => {
           await fetchCompany()
           await fetchOnboardingStatus()
           await fetchStaffStatus()
-          await fetchAdminStatus()
+          if (isStaff.value) {
+            await fetchAdminStatus()
+          } else {
+            isAdmin.value = false
+          }
         } else {
           company.value = null
           onboardingCompleted.value = true

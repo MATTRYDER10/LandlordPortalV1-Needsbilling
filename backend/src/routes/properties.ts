@@ -7,7 +7,8 @@ import {
   auditPropertyDeleted,
   auditComplianceAdded,
   auditDocumentUploaded,
-  getPropertyAuditLog
+  getPropertyAuditLog,
+  logPropertyAuditAction
 } from '../services/propertyAuditService'
 import { supabase } from '../config/supabase'
 import multer from 'multer'
@@ -927,6 +928,43 @@ function normalizeManagementType(value: string | undefined): 'managed' | 'let_on
   }
   return mapping[v] || undefined
 }
+
+/**
+ * POST /api/properties/:id/activity
+ * Add an activity note for a property
+ */
+router.post('/:id/activity', authenticateToken, requireMember, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const companyId = req.companyId!
+    const userId = req.user!.id
+    const { description, metadata } = req.body || {}
+
+    if (!description || typeof description !== 'string') {
+      return res.status(400).json({ error: 'Description is required' })
+    }
+
+    // Verify property belongs to company
+    const property = await propertyService.getProperty(id, companyId)
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' })
+    }
+
+    await logPropertyAuditAction({
+      propertyId: id,
+      companyId,
+      userId,
+      action: 'AML_BYPASSED',
+      description,
+      metadata: metadata && typeof metadata === 'object' ? metadata : {}
+    })
+
+    res.status(201).json({ message: 'Activity logged' })
+  } catch (error: any) {
+    console.error('Error logging property activity:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
 
 /**
  * GET /api/properties/:id/activity

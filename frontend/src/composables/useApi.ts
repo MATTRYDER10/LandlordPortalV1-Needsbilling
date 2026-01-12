@@ -1,7 +1,9 @@
 import { useAuthStore } from '@/stores/auth'
 import { useAdminCompanyStore } from '@/stores/adminCompany'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
+  ? 'http://localhost:3001'
+  : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
 
 /**
  * Composable for making API calls with automatic authentication

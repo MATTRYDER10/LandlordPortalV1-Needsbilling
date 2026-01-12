@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase'
 import { logAuditAction } from './auditService'
+import { decrypt } from './encryption'
 
 /**
  * Verification State Service
@@ -71,14 +72,23 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
       is_guarantor,
       is_british_citizen,
       income_unemployed,
+      income_pension,
+      income_landlord_rental,
       id_document_path,
       selfie_path,
       rtr_share_code,
       rtr_alternative_document_path,
+      rtr_british_passport_path,
+      rtr_british_no_passport,
+      rtr_british_alt_doc_path,
       tax_return_path,
       payslip_files,
       other_proof_of_funds_path,
       proof_of_additional_income_path,
+      landlord_rental_bank_statement_path,
+      landlord_rental_monthly_amount_encrypted,
+      pension_statement_path,
+      pension_monthly_amount_encrypted,
       tenancy_agreement_path,
       confirmed_residential_status,
       reference_type,
@@ -118,10 +128,18 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
   let hasRightToRent = true
   if (!isGuarantor) {
     if (reference.is_british_citizen === true) {
-      hasRightToRent = true
+      const hasPassport = !!reference.rtr_british_passport_path
+      const hasNoPassport = reference.rtr_british_no_passport === true
+      const hasAltDoc = !!reference.rtr_british_alt_doc_path
+      const hasAnyNewRtrFields = hasPassport || hasNoPassport || hasAltDoc
+      hasRightToRent = hasPassport || (hasNoPassport && hasAltDoc) || !hasAnyNewRtrFields
+    } else if (reference.is_british_citizen === false) {
+      const hasShareCode = !!reference.rtr_share_code
+      const hasAlternativeDoc = !!reference.rtr_alternative_document_path
+      hasRightToRent = hasShareCode || hasAlternativeDoc
     } else {
-      // Need RTR document(s)
-      hasRightToRent = !!(reference.rtr_share_code || reference.rtr_alternative_document_path)
+      // Citizenship status not confirmed yet - don't block readiness
+      hasRightToRent = true
     }
     if (!hasRightToRent) {
       missingCategories.push('Right to Rent')
@@ -149,8 +167,12 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
     const hasTaxReturn = !!reference.tax_return_path
     const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
     const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
+    const landlordRentalAmount = parseFloat(decrypt(reference.landlord_rental_monthly_amount_encrypted) || '0')
+    const pensionAmount = parseFloat(decrypt(reference.pension_monthly_amount_encrypted) || '0')
+    const hasLandlordRentalProof = !!(reference.income_landlord_rental && (reference.landlord_rental_bank_statement_path || landlordRentalAmount > 0))
+    const hasPensionProof = !!(reference.income_pension && (reference.pension_statement_path || pensionAmount > 0))
 
-    hasIncome = hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof
+    hasIncome = hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof
   }
 
   if (!hasIncome) {
@@ -463,20 +485,20 @@ export async function evaluateAndTransition(
       return { success: true, transitioned: false }
     }
 
-    // Step 2: Evidence complete - check for pending external references
-    const { data: pendingExternalRefs, error: sectionsError } = await supabase
-      .from('verification_sections')
-      .select('id, section_type, decision')
+    // Step 2: Evidence complete - check for pending external references via chase dependencies
+    const { data: pendingExternalDeps, error: depsError } = await supabase
+      .from('chase_dependencies')
+      .select('id, dependency_type, status')
       .eq('reference_id', referenceId)
-      .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'ACCOUNTANT_REFERENCE'])
-      .eq('decision', 'NOT_REVIEWED')
+      .in('dependency_type', ['EMPLOYER_REF', 'RESIDENTIAL_REF', 'ACCOUNTANT_REF'])
+      .in('status', ['PENDING', 'CHASING'])
 
-    if (sectionsError) {
-      console.error(`[VerificationState] Failed to check external refs for ${referenceId}:`, sectionsError.message)
+    if (depsError) {
+      console.error(`[VerificationState] Failed to check external refs for ${referenceId}:`, depsError.message)
       return { success: false, transitioned: false, error: 'Failed to check external references' }
     }
 
-    const hasPendingExternalRefs = (pendingExternalRefs || []).length > 0
+    const hasPendingExternalRefs = (pendingExternalDeps || []).length > 0
 
     // Determine target state
     let targetState: VerificationState
@@ -493,7 +515,7 @@ export async function evaluateAndTransition(
     if (currentState !== targetState) {
       const transitionReason = reason || (
         targetState === 'WAITING_ON_REFERENCES'
-          ? `Evidence complete, waiting on: ${pendingExternalRefs!.map(r => r.section_type).join(', ')}`
+          ? `Evidence complete, waiting on: ${pendingExternalDeps!.map(d => d.dependency_type).join(', ')}`
           : 'All evidence and external references received'
       )
 

@@ -16,6 +16,7 @@ import {
   buildTenancyPersonSync,
   generateBlockingSentenceSync
 } from '../services/tenancyStatusService'
+import { evaluateAndTransition } from '../services/verificationStateService'
 
 const router = Router()
 
@@ -123,6 +124,23 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     console.log(`[Tenancies API] Found ${references?.length || 0} references for company ${companyId}`)
+
+    const shouldRefresh =
+      req.query.refresh === 'true' &&
+      (req.hostname === 'localhost' || req.hostname === '127.0.0.1')
+
+    if (shouldRefresh) {
+      const refreshCandidates = references.filter(ref =>
+        ref.verification_state === 'COLLECTING_EVIDENCE' && ref.submitted_at
+      )
+
+      await Promise.all(refreshCandidates.map(async (ref) => {
+        const evaluation = await evaluateAndTransition(ref.id, 'Auto refresh on tenancies fetch', req.user?.id)
+        if (evaluation.transitioned && evaluation.newState) {
+          ref.verification_state = evaluation.newState
+        }
+      }))
+    }
 
     // Group references into tenancies
     // A tenancy is either:

@@ -262,7 +262,7 @@
           <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-lg font-semibold text-gray-900">AML Check Status</h3>
-              <button @click="requestIdVerification" :disabled="initiatingAML"
+              <button id="aml-request" @click="requestIdVerification" :disabled="initiatingAML"
                 class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                 {{ initiatingAML ? 'Sending...' : landlord.aml_check ? 'Resend Verification Request' : 'Request ID Verification'
                 }}
@@ -308,13 +308,14 @@
                         <p class="text-sm font-semibold text-gray-800">Politically Exposed Person (PEP)</p>
                       </div>
                       <div class="flex items-center gap-2">
-                        <span :class="statusClass(landlord.aml_check.pep_check_result === false ? 'clear' : 'failed')">
-                          {{ landlord.aml_check.pep_check_result === false ? 'Clear' : 'Failed' }}
+                        <span :class="statusClass(getComplianceStatus(landlord.aml_check.pep_check_result))">
+                          {{ getComplianceStatus(landlord.aml_check.pep_check_result) }}
                         </span>
                         <span
-                          :class="statusIconWrapper(landlord.aml_check.pep_check_result === false ? 'clear' : 'failed')">
+                          :class="statusIconWrapper(getComplianceStatus(landlord.aml_check.pep_check_result))">
                           <Check v-if="landlord.aml_check.pep_check_result === false" class="h-4 w-4 text-emerald-600" />
-                          <X v-else class="h-4 w-4 text-rose-500" />
+                          <X v-else-if="landlord.aml_check.pep_check_result === true" class="h-4 w-4 text-rose-500" />
+                          <Minus v-else class="h-4 w-4 text-slate-500" />
                         </span>
                       </div>
                     </div>
@@ -326,38 +327,20 @@
                       </div>
                       <div class="flex items-center gap-2">
                         <span
-                          :class="statusClass(landlord.aml_check.sanctions_check_result === false ? 'clear' : 'failed')">
-                          {{ landlord.aml_check.sanctions_check_result === false ? 'Clear' : 'Failed' }}
+                          :class="statusClass(getComplianceStatus(landlord.aml_check.sanctions_check_result))">
+                          {{ getComplianceStatus(landlord.aml_check.sanctions_check_result) }}
                         </span>
                         <span :class="statusIconWrapper(
-                          landlord.aml_check.sanctions_check_result === false ? 'clear' : 'failed'
+                          getComplianceStatus(landlord.aml_check.sanctions_check_result)
                         )
                           ">
                           <Check v-if="landlord.aml_check.sanctions_check_result === false" class="h-4 w-4 text-emerald-600" />
-                          <X v-else class="h-4 w-4 text-rose-500" />
+                          <X v-else-if="landlord.aml_check.sanctions_check_result === true" class="h-4 w-4 text-rose-500" />
+                          <Minus v-else class="h-4 w-4 text-slate-500" />
                         </span>
                       </div>
                     </div>
 
-                    <!-- Adverse Media Check -->
-                    <div class="flex items-center justify-between py-4">
-                      <div>
-                        <p class="text-sm font-semibold text-gray-800">Adverse Media</p>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <span
-                          :class="statusClass(landlord.aml_check.adverse_media_result === false ? 'clear' : 'failed')">
-                          {{ landlord.aml_check.adverse_media_result === false ? 'Clear' : 'Failed' }}
-                        </span>
-                        <span :class="statusIconWrapper(
-                          landlord.aml_check.adverse_media_result === false ? 'clear' : 'failed'
-                        )
-                          ">
-                          <Check v-if="landlord.aml_check.adverse_media_result === false" class="h-4 w-4 text-emerald-600" />
-                          <X v-else class="h-4 w-4 text-rose-500" />
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -447,10 +430,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import { ArrowLeft, Pencil, CheckCircle, Check, X, FileText, User, ExternalLink } from 'lucide-vue-next'
+import { ArrowLeft, Pencil, CheckCircle, Check, X, Minus, FileText, User, ExternalLink } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import AddEditLandlordModal from '../components/AddEditLandlordModal.vue'
 import { useAuthStore } from '../stores/auth'
@@ -533,6 +516,11 @@ const statusClass = (value?: string) => `text-sm font-semibold ${subtleToneClass
 
 const statusIconWrapper = (value?: string) =>
   `flex h-8 w-8 items-center justify-center rounded-full border ${toneClasses[detectTone(value)]}`
+
+const getComplianceStatus = (value?: boolean | null) => {
+  if (value === null || value === undefined) return 'Pending'
+  return value === false ? 'Clear' : 'Failed'
+}
 
 const fetchLandlord = async () => {
   loading.value = true
@@ -660,7 +648,20 @@ const getPropertyDisplayAddress = (lp: any) => {
 }
 
 onMounted(() => {
+  if (route.query.tab === 'aml') {
+    activeTab.value = 'aml'
+  }
+
+  if (route.hash === '#aml-request') {
+    nextTick(() => {
+      const button = document.getElementById('aml-request')
+      if (button) {
+        button.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        button.focus()
+      }
+    })
+  }
+
   fetchLandlord()
 })
 </script>
-

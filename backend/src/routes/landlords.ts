@@ -1242,8 +1242,10 @@ router.post('/:id/submit-verification', upload.fields([
     let sanctionsResult: any = null
     let pepCheckResult: boolean | null = null  // true = flagged (bad), false = clear (good), null = not checked
     let sanctionsCheckResult: boolean | null = null
+    let adverseMediaResult: boolean | null = null
     let verificationPassed = true  // Default to passed, will be set to false if any flags found
     let riskLevel = 'low'
+    let verificationStatus = 'passed'
 
     try {
       sanctionsResult = await sanctionsService.screenTenant({
@@ -1253,27 +1255,44 @@ router.post('/:id/submit-verification', upload.fields([
       })
 
       if (sanctionsResult) {
+        const apiUnavailable = typeof sanctionsResult.summary === 'string' &&
+          sanctionsResult.summary.toLowerCase().includes('api unavailable')
         // Check if there are any sanctions matches (includes PEP list matches)
         const hasSanctionsMatches = sanctionsResult.sanctions_matches && sanctionsResult.sanctions_matches.length > 0
         const hasDonationMatches = sanctionsResult.donation_matches && sanctionsResult.donation_matches.length > 0
 
-        // true = flagged (bad), false = clear (good)
-        pepCheckResult = hasDonationMatches
-        sanctionsCheckResult = hasSanctionsMatches
+        if (apiUnavailable) {
+          verificationPassed = false
+          riskLevel = 'unknown'
+          verificationStatus = 'pending'
+          pepCheckResult = null
+          sanctionsCheckResult = null
+          adverseMediaResult = null
+        } else {
+          // true = flagged (bad), false = clear (good)
+          pepCheckResult = hasDonationMatches
+          sanctionsCheckResult = hasSanctionsMatches
+          adverseMediaResult = false
 
-        // Determine pass/fail based on PEP and Sanctions only
-        if (hasSanctionsMatches) {
-          riskLevel = 'high'
-          verificationPassed = false
-        } else if (hasDonationMatches) {
-          // Donation matches suggest PEP - medium risk, still fails
-          riskLevel = 'medium'
-          verificationPassed = false
+          // Determine pass/fail based on PEP and Sanctions only
+          if (hasSanctionsMatches) {
+            riskLevel = 'high'
+            verificationPassed = false
+          } else if (hasDonationMatches) {
+            // Donation matches suggest PEP - medium risk, still fails
+            riskLevel = 'medium'
+            verificationPassed = false
+          }
+
+          verificationStatus = verificationPassed ? 'passed' : 'failed'
         }
       }
     } catch (sanctionsError: any) {
       console.error('Sanctions screening error:', sanctionsError)
       sanctionsResult = { error: sanctionsError.message }
+      verificationPassed = false
+      riskLevel = 'unknown'
+      verificationStatus = 'pending'
     }
 
     // Update AML check with results
@@ -1281,11 +1300,12 @@ router.post('/:id/submit-verification', upload.fields([
       id_document_type: id_document_type || null,
       id_document_path: idDocumentPath,
       selfie_path: selfiePath,
-      verification_status: verificationPassed ? 'passed' : 'failed',
+      verification_status: verificationStatus,
       verification_submitted_at: new Date().toISOString(),
-      verified_at: new Date().toISOString(),
+      verified_at: verificationStatus === 'pending' ? null : new Date().toISOString(),
       pep_check_result: pepCheckResult,
       sanctions_check_result: sanctionsCheckResult,
+      adverse_media_result: adverseMediaResult,
       risk_level: riskLevel,
       sanctions_response: sanctionsResult ? JSON.stringify(sanctionsResult) : null
     }
@@ -1304,10 +1324,10 @@ router.post('/:id/submit-verification', upload.fields([
     await supabase
       .from('landlords')
       .update({
-        aml_status: verificationPassed ? 'passed' : 'failed',
-        aml_completed_at: new Date().toISOString(),
-        verification_status: verificationPassed ? 'verified' : 'failed',
-        verification_verified_at: new Date().toISOString()
+        aml_status: verificationStatus === 'pending' ? 'submitted' : (verificationPassed ? 'passed' : 'failed'),
+        aml_completed_at: verificationStatus === 'pending' ? null : new Date().toISOString(),
+        verification_status: verificationStatus === 'pending' ? 'submitted' : (verificationPassed ? 'verified' : 'failed'),
+        verification_verified_at: verificationStatus === 'pending' ? null : new Date().toISOString()
       })
       .eq('id', landlordId)
 
@@ -1418,4 +1438,3 @@ router.get('/:id/document/:type', authenticateToken, async (req: AuthRequest, re
 })
 
 export default router
-
