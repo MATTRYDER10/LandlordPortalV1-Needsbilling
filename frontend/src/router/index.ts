@@ -7,7 +7,6 @@ import ResetPassword from '../views/ResetPassword.vue'
 import AcceptInvite from '../views/AcceptInvite.vue'
 import Dashboard from '../views/Dashboard.vue'
 import References from '../views/References.vue'
-import ReferenceDetail from '../views/ReferenceDetail.vue'
 import SubmitReference from '../views/SubmitReference.vue'
 import GuarantorReference from '../views/GuarantorReference.vue'
 import TenantAddGuarantor from '../views/TenantAddGuarantor.vue'
@@ -95,12 +94,6 @@ const router = createRouter({
       path: '/references',
       name: 'References',
       component: References,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/references/:id',
-      name: 'ReferenceDetail',
-      component: ReferenceDetail,
       meta: { requiresAuth: true }
     },
     {

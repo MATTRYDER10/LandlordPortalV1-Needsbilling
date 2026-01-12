@@ -323,7 +323,7 @@ const fetchReferences = async () => {
 }
 
 const viewReference = (id: string) => {
-  router.push(`/references/${id}`)
+  router.push(`/references?person=${id}`)
 }
 
 const formatStatus = (status: string) => {
