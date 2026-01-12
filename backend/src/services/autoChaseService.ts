@@ -31,11 +31,12 @@ interface ChaseDetail {
 
 // Chase timing constants
 const CHASE_RULES = {
-  INITIAL_CHASE_DELAY_HOURS: 8,    // Hours after initial request before first chase
-  CHASE_INTERVAL_HOURS: 8,         // Hours between chases
+  INITIAL_CHASE_DELAY_HOURS: 24,   // Hours after initial request before first chase (daily)
+  CHASE_INTERVAL_HOURS: 24,        // Hours between chases (daily)
+  MAX_CHASE_DAYS: 7,               // Maximum days to keep chasing before exhaustion
   QUIET_HOURS_START: 20,           // 8 PM GMT - start of quiet hours
   QUIET_HOURS_END: 8,              // 8 AM GMT - end of quiet hours
-  SMS_DELAY_HOURS: 4               // Hours after email before sending SMS
+  SMS_DELAY_HOURS: 4               // Hours after email before sending SMS (not used in current logic)
 }
 
 /**
@@ -50,23 +51,22 @@ function isQuietHours(): boolean {
 
 /**
  * Get all chase dependencies that are due for automatic chasing
+ * Updated to use next_chase_due_at field and 7-day max chase period
  */
 async function getDependenciesDueForAutoChase(): Promise<any[]> {
   const now = new Date()
-  const chaseThreshold = new Date(now.getTime() - (CHASE_RULES.CHASE_INTERVAL_HOURS * 60 * 60 * 1000))
 
   // Get dependencies that need chasing:
   // - Status is PENDING or CHASING
-  // - Either:
-  //   a) No chase sent yet AND initial_request_sent_at > 8 hours ago
-  //   b) Last chase sent > 8 hours ago
+  // - Use next_chase_due_at field (which has quiet hours adjustments baked in)
   const { data: dependencies, error } = await supabase
     .from('chase_dependencies')
     .select(`
       *,
       reference:tenant_references!chase_dependencies_reference_id_fkey (
         id,
-        status
+        status,
+        verification_state
       )
     `)
     .in('status', ['PENDING', 'CHASING'])
@@ -81,39 +81,72 @@ async function getDependenciesDueForAutoChase(): Promise<any[]> {
   return (dependencies || []).filter((dep: any) => {
     // Skip if no reference or reference is terminal
     if (!dep.reference) return false
-    const terminalStatuses = ['completed', 'rejected', 'cancelled', 'action_required', 'pending_verification']
+
+    const terminalStatuses = ['completed', 'rejected', 'cancelled']
+    const terminalVerificationStates = ['COMPLETED', 'REJECTED', 'CANCELLED', 'IN_VERIFICATION', 'READY_FOR_REVIEW']
+
     if (terminalStatuses.includes(dep.reference.status)) return false
+    if (dep.reference.verification_state && terminalVerificationStates.includes(dep.reference.verification_state)) return false
 
     // Must have initial request sent
     if (!dep.initial_request_sent_at) return false
 
-    // Determine what's due based on chase cycle and attempts
-    const relevantTimestamp = dep.last_chase_sent_at || dep.initial_request_sent_at
-    const timestampDate = new Date(relevantTimestamp)
+    // Check if past maximum chase days (7 days)
+    const initialDate = new Date(dep.initial_request_sent_at)
+    const daysSinceInitial = Math.floor((Date.now() - initialDate.getTime()) / (1000 * 60 * 60 * 24))
 
-    // Check if 8+ hours have passed
-    return timestampDate <= chaseThreshold
+    if (daysSinceInitial >= CHASE_RULES.MAX_CHASE_DAYS) {
+      console.log(`[AutoChase] Dependency ${dep.id} past max chase days (${daysSinceInitial} days) - will be marked exhausted`)
+      return false // Will be marked exhausted by processExhaustedDependencies()
+    }
+
+    // NEW: Use next_chase_due_at if available (has quiet hours adjustments)
+    if (dep.next_chase_due_at) {
+      const nextChaseDue = new Date(dep.next_chase_due_at)
+      const isDue = nextChaseDue <= now
+
+      if (!isDue) {
+        const hoursUntilDue = Math.round((nextChaseDue.getTime() - now.getTime()) / (1000 * 60 * 60))
+        console.log(`[AutoChase] Dependency ${dep.id} not due yet - ${hoursUntilDue} hours remaining`)
+      }
+
+      return isDue
+    }
+
+    // FALLBACK: For first chase (no next_chase_due_at yet)
+    // Check if INITIAL_CHASE_DELAY_HOURS have passed since initial request
+    const firstChaseDue = new Date(initialDate)
+    firstChaseDue.setHours(firstChaseDue.getHours() + CHASE_RULES.INITIAL_CHASE_DELAY_HOURS)
+
+    // If first chase would fall during quiet hours, adjust to 8 AM
+    const hour = firstChaseDue.getUTCHours()
+    if (hour >= CHASE_RULES.QUIET_HOURS_START || hour < CHASE_RULES.QUIET_HOURS_END) {
+      // Push to 8 AM
+      firstChaseDue.setUTCHours(CHASE_RULES.QUIET_HOURS_END, 0, 0, 0)
+      if (hour >= CHASE_RULES.QUIET_HOURS_START) {
+        firstChaseDue.setDate(firstChaseDue.getDate() + 1)
+      }
+    }
+
+    return firstChaseDue <= now
   })
 }
 
 /**
  * Determine if a dependency should be chased
- * Returns true if email+sms should be sent, false if cycle is complete
+ * Returns true if email+sms should be sent
  *
- * New logic: Email and SMS are sent together each cycle
- * After 3 cycles (chase_cycle >= 3), dependency is exhausted
+ * Updated: Time-based (daily) chasing for up to 7 days
+ * The getDependenciesDueForAutoChase() filter already checks timing,
+ * so if we get here, we should chase
  */
 function shouldChase(dep: any): boolean {
-  const { email_attempts, chase_cycle } = dep
-
-  // If we haven't sent email+sms for this cycle yet, we should chase
-  // email_attempts tracks the number of chase cycles completed
-  if (email_attempts <= chase_cycle) {
-    return true
-  }
-
-  // Already chased for this cycle
-  return false
+  // In time-based model, always chase if item passed the filter
+  // The filter already checks:
+  // - 24-hour intervals via next_chase_due_at
+  // - Not past 7 days max
+  // - Not in terminal state
+  return true
 }
 
 // DISABLED: Call functionality commented out for now

@@ -27,10 +27,12 @@ import {
 
 // Chase timing constants
 const CHASE_RULES = {
-  CHASE_QUEUE_DELAY_HOURS: 8,   // Items appear in chase queue 8 hours after initial/last chase
+  CHASE_QUEUE_DELAY_HOURS: 8,   // Items appear in chase queue 8 hours after initial/last chase (legacy)
+  CHASE_INTERVAL_HOURS: 24,     // Daily chase interval (24 hours)
+  MAX_CHASE_DAYS: 7,            // Maximum days to chase before exhaustion
   QUIET_HOURS_START: 20,        // 8 PM GMT
   QUIET_HOURS_END: 8,           // 8 AM GMT
-  MAX_CYCLES: 3                 // After 3 full cycles (email + SMS each), exhausted
+  MAX_CYCLES: 3                 // After 3 full cycles (email + SMS each), exhausted (DEPRECATED - now using MAX_CHASE_DAYS)
 }
 
 export type DependencyType = 'TENANT_FORM' | 'GUARANTOR_FORM' | 'EMPLOYER_REF' | 'RESIDENTIAL_REF' | 'ACCOUNTANT_REF'
@@ -802,10 +804,45 @@ export async function getDependenciesDueForChase(): Promise<ChaseDependency[]> {
 
 /**
  * Auto-exhaust dependencies and mark as ACTION_REQUIRED
- * Also updates the reference status to 'action_required' so agents can see it needs intervention
+ * Updated to use 7-day time-based exhaustion instead of cycle-based
+ * Also updates the reference verification_state to ACTION_REQUIRED
  */
 export async function processExhaustedDependencies(): Promise<number> {
   try {
+    // STEP 1: Mark dependencies as EXHAUSTED if past 7 days
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+    const { data: oldDependencies, error: oldError } = await supabase
+      .from('chase_dependencies')
+      .select('id, reference_id, dependency_type, initial_request_sent_at')
+      .in('status', ['PENDING', 'CHASING'])
+      .lt('initial_request_sent_at', sevenDaysAgo.toISOString())
+
+    if (oldError) {
+      console.error('[Chase] Error finding old dependencies:', oldError)
+    } else if (oldDependencies && oldDependencies.length > 0) {
+      // Mark as EXHAUSTED
+      const { error: markExhaustedError } = await supabase
+        .from('chase_dependencies')
+        .update({
+          status: 'EXHAUSTED',
+          next_chase_due_at: null,
+          metadata: {
+            exhausted_at: new Date().toISOString(),
+            exhausted_reason: 'Past 7 days maximum chase period'
+          }
+        })
+        .in('id', oldDependencies.map(d => d.id))
+
+      if (markExhaustedError) {
+        console.error('[Chase] Error marking dependencies as EXHAUSTED:', markExhaustedError)
+      } else {
+        console.log(`[Chase] Marked ${oldDependencies.length} dependencies as EXHAUSTED (past 7 days)`)
+      }
+    }
+
+    // STEP 2: Process all EXHAUSTED dependencies (convert to ACTION_REQUIRED)
     const { data: exhausted, error: getError } = await supabase
       .from('chase_dependencies')
       .select('id, reference_id, dependency_type')
@@ -861,10 +898,11 @@ export async function processExhaustedDependencies(): Promise<number> {
         await logAuditAction({
           referenceId: refId,
           action: 'CHASE_EXHAUSTED_ACTION_REQUIRED',
-          description: `Chase cycles exhausted for: ${exhaustedTypes.join(', ')} - reference requires agent intervention`,
+          description: `Chase exhausted (7 days) for: ${exhaustedTypes.join(', ')} - reference requires agent intervention`,
           metadata: {
             exhaustedDependencies: exhaustedTypes,
-            visible_to_agent: true
+            visible_to_agent: true,
+            exhaustion_reason: 'Past 7-day maximum chase period'
           }
         })
       }
@@ -895,14 +933,13 @@ export async function processExhaustedDependencies(): Promise<number> {
 // --- Helper Functions ---
 
 function calculateNextChaseTime(lastChase: Date, cycle: number): Date | null {
-  if (cycle >= CHASE_RULES.MAX_CYCLES) {
-    return null // Exhausted
-  }
+  // Updated to use time-based exhaustion (MAX_CHASE_DAYS) instead of cycle-based
+  // This function still exists for backward compatibility but cycle check is less relevant
 
   const nextChase = new Date(lastChase)
 
-  // Add 8-hour interval for all chases (consistent with queue appearance timing)
-  nextChase.setHours(nextChase.getHours() + CHASE_RULES.CHASE_QUEUE_DELAY_HOURS)
+  // Add 24-hour interval for daily chases
+  nextChase.setHours(nextChase.getHours() + CHASE_RULES.CHASE_INTERVAL_HOURS)
 
   // Adjust for quiet hours (GMT)
   const hour = nextChase.getUTCHours()
