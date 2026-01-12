@@ -57,7 +57,7 @@ const pillClasses = computed(() => {
 
 const label = computed(() => {
   // Handle person-level verificationState
-  if (props.verificationState) {
+  if (props.verificationState !== undefined) {
     return getVerificationStateLabel(props.verificationState)
   }
 
@@ -74,6 +74,7 @@ const label = computed(() => {
     }
   }
 
-  return 'Unknown'
+  // Return "Not Started" for null/undefined states (matches getVerificationStateLabel)
+  return 'Not Started'
 })
 </script>
