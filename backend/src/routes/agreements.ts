@@ -566,9 +566,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }: AgreementData = req.body
 
     // Update the agreement
-    const { error } = await supabase
-      .from('agreements')
-      .update({
+    const updatePayload: Record<string, any> = {
         template_type: templateType,
         property_address: propertyAddress,
         landlords,
@@ -598,8 +596,22 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
         pdf_url: null,
         pdf_generated_at: null,
         updated_at: new Date().toISOString()
-      })
+      }
+
+    let { error } = await supabase
+      .from('agreements')
+      .update(updatePayload)
       .eq('id', id)
+
+    if (error && error.message?.includes('payment_reference')) {
+      const fallbackPayload = { ...updatePayload }
+      delete fallbackPayload.payment_reference
+      const fallback = await supabase
+        .from('agreements')
+        .update(fallbackPayload)
+        .eq('id', id)
+      error = fallback.error
+    }
 
     if (error) {
       throw new Error(`Failed to update agreement: ${error.message}`)
