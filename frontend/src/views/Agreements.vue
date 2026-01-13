@@ -911,7 +911,7 @@
               <button
                 type="button"
                 class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-                @click="openAmlCheck(pendingAmlLandlords[0])"
+                @click="openAmlCheck(pendingAmlLandlords[0]!)"
               >
                 Complete AML Check Now
               </button>
