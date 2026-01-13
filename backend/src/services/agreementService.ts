@@ -142,6 +142,10 @@ export class AgreementService {
       throw new Error(`Failed to save agreement: ${error.message}`)
     }
 
+    if (!data?.id) {
+      throw new Error('Failed to save agreement: no id returned')
+    }
+
     return data.id
   }
 

@@ -2996,7 +2996,7 @@ async function generateAgreement() {
     })
 
     if (!createResponse.ok) {
-      const errorData = await createResponse.json()
+      const errorData = await createResponse.json().catch(() => ({}))
 
       // Handle compliance override required error
       if (errorData.requiresComplianceOverride && errorData.expiredComplianceTypes) {
@@ -3005,7 +3005,7 @@ async function generateAgreement() {
         throw new Error('Please acknowledge the expired compliance to proceed')
       }
 
-      throw new Error(errorData.error || 'Failed to create agreement')
+      throw new Error(errorData.details || errorData.error || 'Failed to create agreement')
     }
 
     const { agreement } = await createResponse.json()
