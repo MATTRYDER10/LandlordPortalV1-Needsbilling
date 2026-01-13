@@ -37,6 +37,7 @@ export interface AgreementFormData {
   bankAccountName?: string
   bankAccountNumber?: string
   bankSortCode?: string
+  paymentReference?: string
   breakClauseEnabled: boolean
   breakClauseMonths?: number | null
   breakClauseNoticePeriod?: number | null
@@ -68,6 +69,7 @@ export interface DatabaseAgreement {
   bank_account_name?: string
   bank_account_number?: string
   bank_sort_code?: string
+  payment_reference?: string
   tenant_email?: string
   landlord_email?: string
   agent_email?: string
@@ -113,6 +115,7 @@ export function getDefaultFormData(): AgreementFormData {
     bankAccountName: '',
     bankAccountNumber: '',
     bankSortCode: '',
+    paymentReference: '',
     breakClauseEnabled: false,
     breakClauseMonths: null,
     breakClauseNoticePeriod: null,
@@ -195,6 +198,7 @@ export function agreementToFormData(agreement: DatabaseAgreement): AgreementForm
     bankAccountName: agreement.bank_account_name || '',
     bankAccountNumber: agreement.bank_account_number || '',
     bankSortCode: agreement.bank_sort_code || '',
+    paymentReference: agreement.payment_reference || '',
     breakClauseEnabled,
     breakClauseMonths,
     breakClauseNoticePeriod,
@@ -237,6 +241,7 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
     bankAccountName: formData.bankAccountName,
     bankAccountNumber: formData.bankAccountNumber,
     bankSortCode: formData.bankSortCode,
+    paymentReference: formData.paymentReference,
     breakClause: formData.breakClause,
     specialClauses: formData.specialClauses,
     billsIncluded: formData.billsIncluded

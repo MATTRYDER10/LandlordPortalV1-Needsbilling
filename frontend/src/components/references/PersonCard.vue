@@ -203,11 +203,20 @@ const sectionLabels: Record<string, string> = {
   'INCOME': 'Income',
   'RESIDENTIAL': 'Residential',
   'CREDIT': 'Credit',
-  'AML': 'AML'
+  'AML': 'AML',
+  'TENANT_FORM': 'Tenant Application Form',
+  'GUARANTOR_FORM': 'Guarantor Form',
+  'EMPLOYER_REF': 'Employer Reference',
+  'RESIDENTIAL_REF': 'Landlord Reference',
+  'ACCOUNTANT_REF': 'Accountant Reference',
+  'EMPLOYER_REFERENCE': 'Employer Reference',
+  'LANDLORD_REFERENCE': 'Landlord Reference',
+  'ACCOUNTANT_REFERENCE': 'Accountant Reference'
 }
 
 function formatSectionLabel(sectionType: string): string {
-  return sectionLabels[sectionType] || sectionType
+  if (sectionLabels[sectionType]) return sectionLabels[sectionType]
+  return sectionType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function formatActionReason(task: ActionRequiredTask): string {

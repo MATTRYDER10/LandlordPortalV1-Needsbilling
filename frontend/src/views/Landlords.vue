@@ -51,6 +51,25 @@
           </select>
         </div>
 
+        <div
+          v-if="outdatedAmlLandlords.length > 0"
+          class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3"
+        >
+          <p class="text-sm font-medium text-amber-900">
+            {{ outdatedAmlLandlords.length }} landlord{{ outdatedAmlLandlords.length === 1 ? '' : 's' }} have AML checks older than 2 years. Please re-check.
+          </p>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <button
+              v-for="landlord in outdatedAmlLandlords"
+              :key="landlord.id"
+              @click="goToAmlRecheck(landlord.id)"
+              class="text-sm font-medium text-amber-900 underline underline-offset-2 hover:text-amber-700"
+            >
+              Re-check AML for {{ landlord.first_name }} {{ landlord.last_name }}
+            </button>
+          </div>
+        </div>
+
         <!-- Bulk Actions Bar -->
         <div
           v-if="selectedLandlords.size > 0"
@@ -379,6 +398,17 @@ const loadMore = () => {
 
 const hasMorePages = computed(() => currentPage.value < totalPages.value)
 
+const outdatedAmlLandlords = computed(() => {
+  const cutoff = new Date()
+  cutoff.setFullYear(cutoff.getFullYear() - 2)
+  return landlords.value.filter((landlord) => {
+    if (!landlord.aml_completed_at) return false
+    const completedAt = new Date(landlord.aml_completed_at)
+    if (Number.isNaN(completedAt.getTime())) return false
+    return completedAt < cutoff
+  })
+})
+
 const viewLandlord = (id: string) => {
   router.push(`/landlords/${id}`)
 }
@@ -387,6 +417,10 @@ const editLandlord = (id: string) => {
   editingLandlordId.value = id
   showEditModal.value = true
   actionsMenuOpen.value = null
+}
+
+const goToAmlRecheck = (id: string) => {
+  router.push(`/landlords/${id}?tab=aml#aml-request`)
 }
 
 const deleteLandlord = async (id: string) => {
@@ -561,4 +595,3 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
-

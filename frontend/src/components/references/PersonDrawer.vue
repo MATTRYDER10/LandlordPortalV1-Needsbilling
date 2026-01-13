@@ -222,6 +222,14 @@
                   <Pencil class="w-4 h-4" />
                   Edit Name
                 </button>
+                <button
+                  @click="refreshReferenceStatus"
+                  :disabled="refreshingStatus"
+                  class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw class="w-4 h-4" />
+                  {{ refreshingStatus ? 'Refreshing...' : 'Refresh Status' }}
+                </button>
               </div>
             </div>
 
@@ -525,6 +533,12 @@
                   <span v-if="fullDetails?.employment_status === 'self_employed' || fullDetails?.employment_status === 'director'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                     Self-Employed
                   </span>
+                  <span v-if="fullDetails?.income_landlord_rental" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                    Landlord Income
+                  </span>
+                  <span v-if="fullDetails?.income_pension" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    Pension
+                  </span>
                   <span v-if="fullDetails?.employment_status === 'unemployed'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                     Unemployed
                   </span>
@@ -593,6 +607,56 @@
                   <div v-if="fullDetails?.hours_per_month">
                     <label class="block text-xs font-medium text-gray-500 uppercase">Hours/Month</label>
                     <p class="mt-1 text-sm text-gray-900">{{ fullDetails.hours_per_month }}</p>
+                  </div>
+                </div>
+
+                <!-- Landlord/Rental Income -->
+                <div v-if="fullDetails?.income_landlord_rental" class="pt-3 border-t border-gray-200">
+                  <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Landlord Rental Income</label>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs font-medium text-gray-400">Monthly Amount</label>
+                      <p class="mt-1 text-sm text-gray-900">
+                        {{ landlordRentalMonthlyAmount !== null ? formatCurrency(landlordRentalMonthlyAmount) : 'Not provided' }}
+                      </p>
+                    </div>
+                    <div v-if="fullDetails.landlord_rental_bank_statement_path">
+                      <label class="block text-xs font-medium text-gray-400">Bank Statement</label>
+                      <button
+                        type="button"
+                        class="mt-1 text-sm text-primary hover:text-primary/80"
+                        @click="viewDocument(fullDetails.landlord_rental_bank_statement_path)"
+                      >
+                        View document
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Pension Income -->
+                <div v-if="fullDetails?.income_pension" class="pt-3 border-t border-gray-200">
+                  <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Pension Income</label>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs font-medium text-gray-400">Monthly Amount</label>
+                      <p class="mt-1 text-sm text-gray-900">
+                        {{ pensionMonthlyAmount !== null ? formatCurrency(pensionMonthlyAmount) : 'Not provided' }}
+                      </p>
+                    </div>
+                    <div v-if="fullDetails.pension_provider">
+                      <label class="block text-xs font-medium text-gray-400">Provider</label>
+                      <p class="mt-1 text-sm text-gray-900">{{ fullDetails.pension_provider }}</p>
+                    </div>
+                    <div v-if="fullDetails.pension_statement_path">
+                      <label class="block text-xs font-medium text-gray-400">Pension Statement</label>
+                      <button
+                        type="button"
+                        class="mt-1 text-sm text-primary hover:text-primary/80"
+                        @click="viewDocument(fullDetails.pension_statement_path)"
+                      >
+                        View document
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1135,12 +1199,12 @@
                   <div v-if="score.decision">
                     <label class="block text-xs font-medium text-gray-500 uppercase">Decision</label>
                     <p class="mt-1">
-                      <span
-                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                        :class="getDecisionBadgeClass(score.decision)"
-                      >
-                        {{ formatDecision(score.decision) }}
-                      </span>
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                      :class="getScoreDecisionBadgeClass(score.decision)"
+                    >
+                      {{ formatScoreDecision(score.decision) }}
+                    </span>
                     </p>
                   </div>
                 </div>
@@ -1501,9 +1565,11 @@ import StatusPill from './StatusPill.vue'
 import ReferenceAuditLog from '@/components/ReferenceAuditLog.vue'
 import CollapsibleSection from './CollapsibleSection.vue'
 import ViewOfferModal from './ViewOfferModal.vue'
-import { X, AlertTriangle, Upload, Mail, Pencil, Loader2, CheckCircle, FileText, File, Trash2, Eye } from 'lucide-vue-next'
+import { X, AlertTriangle, Upload, Mail, Pencil, Loader2, CheckCircle, FileText, File, Trash2, Eye, RefreshCw } from 'lucide-vue-next'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
+  ? 'http://localhost:3001'
+  : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
 
 // Use tenancies composable for API actions
 const { getActionRequiredDetails, uploadDocument, updateRefereeEmail, resendForm, submitForReReferencing, loadTenancies } = useTenancies()
@@ -1564,6 +1630,7 @@ const updatingName = ref(false)
 
 // Loading states for actions
 const resendingForm = ref(false)
+const refreshingStatus = ref(false)
 const submittingForReRef = ref(false)
 const loadingCertificate = ref(false)
 const resendingEmployerRef = ref(false)
@@ -1706,6 +1773,14 @@ const hasAboutTenantData = computed(() => {
          fullDetails.value?.num_dependants !== null
 })
 
+const landlordRentalMonthlyAmount = computed(() => {
+  return parseCurrencyValue(fullDetails.value?.landlord_rental_monthly_amount)
+})
+
+const pensionMonthlyAmount = computed(() => {
+  return parseCurrencyValue(fullDetails.value?.pension_monthly_amount)
+})
+
 // Extract documents from the reference record
 const referenceDocuments = computed(() => {
   if (!fullDetails.value) return []
@@ -1761,6 +1836,24 @@ const referenceDocuments = computed(() => {
     })
   }
 
+  // Landlord rental income proof
+  if (fullDetails.value.income_landlord_rental) {
+    docs.push({
+      type: 'landlord_rental_bank_statement',
+      label: 'Landlord Rental Bank Statement',
+      path: fullDetails.value.landlord_rental_bank_statement_path || null
+    })
+  }
+
+  // Pension statement
+  if (fullDetails.value.income_pension) {
+    docs.push({
+      type: 'pension_statement',
+      label: 'Pension Statement',
+      path: fullDetails.value.pension_statement_path || null
+    })
+  }
+
   // RTR Alternative Document (for non-British citizens)
   if (fullDetails.value.is_british_citizen === false) {
     docs.push({
@@ -1798,6 +1891,14 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
+function parseCurrencyValue(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  const normalized = typeof value === 'string' ? value.replace(/,/g, '') : value
+  const numeric = typeof normalized === 'number' ? normalized : Number(normalized)
+  if (!Number.isFinite(numeric) || numeric <= 0) return null
+  return numeric
+}
+
 function capitalizeFirstLetter(str: string | null | undefined): string {
   if (!str) return ''
   return str.charAt(0).toUpperCase() + str.slice(1)
@@ -1823,9 +1924,15 @@ const hasEmploymentData = computed(() => {
          fullDetails.value.employment_job_title ||
          fullDetails.value.self_employed_business_name ||
          fullDetails.value.self_employed_annual_income ||
+         fullDetails.value.income_pension ||
+         fullDetails.value.pension_monthly_amount ||
+         fullDetails.value.pension_statement_path ||
          fullDetails.value.savings_amount ||
          fullDetails.value.additional_income_source ||
          fullDetails.value.employer_ref_email ||
+         fullDetails.value.income_landlord_rental ||
+         fullDetails.value.landlord_rental_monthly_amount ||
+         fullDetails.value.landlord_rental_bank_statement_path ||
          employerRef.value
 })
 
@@ -1908,6 +2015,8 @@ function formatEmploymentStatus(status: string | null | undefined): string {
   const statusMap: Record<string, string> = {
     'employed': 'Employed',
     'self_employed': 'Self-Employed',
+    'landlord_rental': 'Landlord Rental Income',
+    'pension': 'Pension',
     'unemployed': 'Unemployed',
     'retired': 'Retired',
     'student': 'Student',
@@ -1943,14 +2052,38 @@ function formatDateTime(dateStr: string): string {
 async function viewDocument(path: string) {
   if (!path) return
   try {
-    const response = await fetch(`${API_BASE}/api/documents/signed-url?path=${encodeURIComponent(path)}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`
+    const referenceId = fullDetails.value?.id || props.person?.id
+    if (!referenceId) return
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    let downloadUrl = ''
+    if (path.startsWith('consent-pdfs/')) {
+      const parts = path.split('/')
+      const filename = parts.slice(2).join('/')
+      downloadUrl = `${API_BASE}/api/references/download/consent-pdfs/${referenceId}/${filename}`
+    } else {
+      const parts = path.split('/')
+      if (parts.length >= 3 && parts[0] === referenceId) {
+        const folder = parts[1]
+        const filename = parts.slice(2).join('/')
+        downloadUrl = `${API_BASE}/api/references/download/${referenceId}/${folder}/${filename}`
       }
-    })
-    if (response.ok) {
-      const data = await response.json()
-      window.open(data.signedUrl, '_blank')
+    }
+
+    if (downloadUrl) {
+      const response = await fetch(downloadUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (!response.ok) {
+        throw new Error('Failed to download document')
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
   } catch (error) {
     console.error('Error getting signed URL:', error)
@@ -2048,8 +2181,22 @@ function getRTRStatus(): 'pass' | 'pending' | 'fail' | undefined {
 function getEmploymentStatus(): 'pass' | 'pending' | 'fail' | undefined {
   if (employerRef.value?.confirmed_at) return 'pass'
   if (employerRef.value) return 'pending'
+  if (fullDetails.value?.income_landlord_rental &&
+      (fullDetails.value?.landlord_rental_bank_statement_path || fullDetails.value?.landlord_rental_monthly_amount)) {
+    return 'pass'
+  }
+  if (fullDetails.value?.income_pension &&
+      (fullDetails.value?.pension_statement_path || fullDetails.value?.pension_monthly_amount)) {
+    return 'pass'
+  }
   // Show pending if tenant has provided employment details or employer reference email
-  if (fullDetails.value?.employment_status || fullDetails.value?.employer_ref_email) return 'pending'
+  if (fullDetails.value?.employment_status ||
+      fullDetails.value?.employer_ref_email ||
+      fullDetails.value?.income_landlord_rental ||
+      fullDetails.value?.landlord_rental_monthly_amount ||
+      fullDetails.value?.landlord_rental_bank_statement_path) {
+    return 'pending'
+  }
   return undefined
 }
 
@@ -2059,7 +2206,7 @@ function getResidentialStatus(): 'pass' | 'pending' | 'fail' | undefined {
   // Check if landlord/agent has responded
   if (landlordRef.value?.confirmed_at || agentRef.value?.confirmed_at) return 'pass'
   // Living with family doesn't need a landlord reference
-  if (fullDetails.value?.reference_type === 'living_with_family') return 'pending'
+  if (fullDetails.value?.reference_type === 'living_with_family') return 'pass'
   if (landlordRef.value || agentRef.value) return 'pending'
   // Show pending if tenant has provided previous landlord details (reference request sent)
   if (fullDetails.value?.previous_landlord_email || fullDetails.value?.previous_landlord_name) return 'pending'
@@ -2122,6 +2269,18 @@ function getDecisionBadgeClass(decision: string | null | undefined): string {
   return 'bg-yellow-100 text-yellow-800'
 }
 
+function formatScoreDecision(decision: string | null | undefined): string {
+  if (!decision) return 'Pending'
+  if (!isVerified.value && decision.startsWith('PASS')) return 'Pending'
+  return formatDecision(decision)
+}
+
+function getScoreDecisionBadgeClass(decision: string | null | undefined): string {
+  if (!decision) return 'bg-gray-100 text-gray-600'
+  if (!isVerified.value && decision.startsWith('PASS')) return 'bg-gray-100 text-gray-600'
+  return getDecisionBadgeClass(decision)
+}
+
 function formatSanctionsStatus(riskLevel: string | null | undefined): string {
   if (!riskLevel) return 'Pending'
   const statusMap: Record<string, string> = {
@@ -2155,6 +2314,35 @@ async function handleResend() {
     showToast(error.message || 'Failed to resend form', 'error')
   } finally {
     resendingForm.value = false
+  }
+}
+
+async function refreshReferenceStatus() {
+  if (!props.person?.id) return
+
+  refreshingStatus.value = true
+  try {
+    const response = await fetch(`${API_BASE}/api/references/${props.person.id}/refresh-status`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to refresh status')
+    }
+
+    const result = await response.json()
+    await loadFullDetails(props.person.id)
+    await loadTenancies()
+    showToast(`Status refreshed${result.newState ? `: ${result.newState}` : ''}`, 'success')
+  } catch (error: any) {
+    showToast(error.message || 'Failed to refresh status', 'error')
+  } finally {
+    refreshingStatus.value = false
   }
 }
 

@@ -26,6 +26,7 @@ export type PropertyAuditAction =
   | 'REFERENCE_STARTED'
   | 'REFERENCE_COMPLETED'
   | 'AGREEMENT_SENT'
+  | 'AML_BYPASSED'
 
 export interface PropertyAuditParams {
   propertyId: string

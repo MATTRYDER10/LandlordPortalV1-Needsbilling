@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase'
+import { decrypt } from './encryption'
 
 /**
  * Verification Readiness Service
@@ -62,6 +63,8 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         income_self_employed,
         income_benefits,
         income_unemployed,
+        income_landlord_rental,
+        income_pension,
         is_british_citizen,
         id_document_path,
         selfie_path,
@@ -74,6 +77,10 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         payslip_files,
         other_proof_of_funds_path,
         proof_of_additional_income_path,
+        landlord_rental_bank_statement_path,
+        landlord_rental_monthly_amount_encrypted,
+        pension_statement_path,
+        pension_monthly_amount_encrypted,
         tenancy_agreement_path,
         confirmed_residential_status,
         reference_type,
@@ -317,6 +324,10 @@ function checkIncomeSection(reference: any): SectionStatus {
   const hasTaxReturn = !!reference.tax_return_path
   const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
   const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
+  const landlordRentalAmount = parseFloat(decrypt(reference.landlord_rental_monthly_amount_encrypted) || '0')
+  const pensionAmount = parseFloat(decrypt(reference.pension_monthly_amount_encrypted) || '0')
+  const hasLandlordRentalProof = !!(reference.income_landlord_rental && (reference.landlord_rental_bank_statement_path || landlordRentalAmount > 0))
+  const hasPensionProof = !!(reference.income_pension && (reference.pension_statement_path || pensionAmount > 0))
 
   // Check if ANY income evidence exists
   if (hasEmployerRef) {
@@ -336,6 +347,12 @@ function checkIncomeSection(reference: any): SectionStatus {
   }
   if (hasAdditionalIncomeProof) {
     return { complete: true, reason: 'Proof of additional income uploaded' }
+  }
+  if (hasLandlordRentalProof) {
+    return { complete: true, reason: 'Landlord rental income bank statement uploaded' }
+  }
+  if (hasPensionProof) {
+    return { complete: true, reason: 'Pension statement uploaded' }
   }
 
   return { complete: false, reason: 'Income evidence required (payslip, employer ref, tax return, or other proof)' }
@@ -503,8 +520,12 @@ function checkIncomeSectionSync(reference: any): SectionStatus {
   const hasTaxReturn = !!reference.tax_return_path
   const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
   const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
+  const landlordRentalAmount = parseFloat(decrypt(reference.landlord_rental_monthly_amount_encrypted) || '0')
+  const pensionAmount = parseFloat(decrypt(reference.pension_monthly_amount_encrypted) || '0')
+  const hasLandlordRentalProof = !!(reference.income_landlord_rental && (reference.landlord_rental_bank_statement_path || landlordRentalAmount > 0))
+  const hasPensionProof = !!(reference.income_pension && (reference.pension_statement_path || pensionAmount > 0))
 
-  if (hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof) {
+  if (hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof) {
     return { complete: true }
   }
 

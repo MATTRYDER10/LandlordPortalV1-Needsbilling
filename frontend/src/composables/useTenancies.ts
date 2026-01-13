@@ -197,6 +197,9 @@ export function useTenancies() {
       const params = new URLSearchParams()
       if (sortBy.value) params.append('sortBy', sortBy.value)
       if (sortOrder.value) params.append('sortOrder', sortOrder.value)
+      if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        params.append('refresh', 'true')
+      }
 
       const response = await apiFetch(`/api/tenancies?${params.toString()}`)
 

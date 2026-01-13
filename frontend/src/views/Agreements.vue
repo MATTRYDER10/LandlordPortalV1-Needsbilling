@@ -48,7 +48,7 @@
       </div>
 
       <!-- Imported From Landlord Banner -->
-      <div v-if="importedFromLandlord && selectedLandlordId" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+      <div v-if="importedFromLandlord && selectedLandlordIds.length > 0" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center justify-between">
         <div class="flex items-center">
           <Users class="w-5 h-5 text-green-600 mr-2" />
           <span class="text-sm font-medium text-green-900">Imported landlord details and bank information</span>
@@ -233,10 +233,10 @@
               <div
                 v-for="landlord in filteredLandlordsForImport"
                 :key="landlord.id"
-                @click="selectLandlordForImport(landlord)"
+                @click="toggleLandlordImportSelection(landlord)"
                 class="border-2 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md"
                 :class="
-                  selectedLandlordId === landlord.id
+                  selectedLandlordIds.includes(landlord.id)
                     ? 'border-primary bg-primary/5'
                     : 'border-gray-200 hover:border-primary/50'
                 "
@@ -259,15 +259,25 @@
                   <div
                     class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
                     :class="
-                      selectedLandlordId === landlord.id
+                      selectedLandlordIds.includes(landlord.id)
                         ? 'border-primary bg-primary'
                         : 'border-gray-300'
                     "
                   >
-                    <div v-if="selectedLandlordId === landlord.id" class="w-2 h-2 bg-white rounded-full"></div>
+                    <div v-if="selectedLandlordIds.includes(landlord.id)" class="w-2 h-2 bg-white rounded-full"></div>
                   </div>
                 </div>
               </div>
+            </div>
+            <div class="flex justify-end">
+              <button
+                type="button"
+                class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50"
+                :disabled="selectedLandlordIds.length === 0"
+                @click="importSelectedLandlords"
+              >
+                Import selected landlords
+              </button>
             </div>
           </div>
         </div>
@@ -790,6 +800,17 @@
             </div>
 
             <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Payment Reference</label>
+              <input
+                v-model="formData.paymentReference"
+                type="text"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                placeholder="e.g., 12 High Street"
+              />
+              <p class="text-xs text-gray-500 mt-1">Defaults to the property address if left blank.</p>
+            </div>
+
+            <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Break Clause</label>
 
               <div class="mb-3">
@@ -880,6 +901,30 @@
             </button>
           </div>
 
+          <div
+            v-if="amlCheckAttempted && pendingAmlLandlords.length > 0"
+            class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          >
+            <p class="font-medium">AML check not requested for: {{ pendingAmlLandlordNames }}</p>
+            <p class="mt-1 text-xs text-red-700">Complete the AML check before merging, or ignore to continue.</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                @click="openAmlCheck(pendingAmlLandlords[0])"
+              >
+                Complete AML Check Now
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1.5 text-xs font-medium text-red-700 border border-red-300 rounded-md hover:bg-red-100"
+                @click="ignoreAmlWarning"
+              >
+                Ignore
+              </button>
+            </div>
+          </div>
+
           <div v-for="(landlord, index) in formData.landlords" :key="'landlord-' + index" class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
             <div class="flex justify-between items-center mb-4">
               <h4 class="font-medium text-gray-900">Landlord {{ index + 1 }}</h4>
@@ -901,6 +946,16 @@
                   type="text"
                   required
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Landlord Email *</label>
+                <input
+                  v-model="landlord.email"
+                  type="email"
+                  required
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white"
+                  placeholder="landlord@example.com"
                 />
               </div>
               <AddressAutocomplete
@@ -1269,7 +1324,7 @@
           <button
             v-if="currentStep < steps.length - 1"
             @click="nextStep"
-            :disabled="!canProceed"
+            :disabled="!canProceed || isLandlordSyncing"
             type="button"
             class="px-6 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -1430,13 +1485,16 @@ const availableLandlords = ref<any[]>([])
 const loadingLandlords = ref(false)
 const landlordSearchQuery = ref('')
 const showLandlordSelector = ref(false)
+const amlCheckAttempted = ref(false)
+const ignoredAmlLandlordIds = ref<string[]>([])
+const isLandlordSyncing = ref(false)
 
 // Landlord import state (for Step 0)
 const availableLandlordsForImport = ref<any[]>([])
 const loadingLandlordsImport = ref(false)
 const landlordImportSearchQuery = ref('')
 const showLandlordImportSelector = ref(false)
-const selectedLandlordId = ref<string | null>(null)
+const selectedLandlordIds = ref<string[]>([])
 const importedFromLandlord = ref(false)
 
 // Property selection state (for Step 2)
@@ -1487,8 +1545,10 @@ interface Address {
 }
 
 interface Party {
+  id?: string
   name: string
   email?: string
+  aml_status?: string | null
   address: Address
 }
 
@@ -1512,6 +1572,7 @@ const formData = ref<{
   bankAccountName?: string
   bankAccountNumber?: string
   bankSortCode?: string
+  paymentReference?: string
   breakClauseEnabled: boolean
   breakClauseMonths?: number | null
   breakClauseNoticePeriod?: number | null
@@ -1547,6 +1608,7 @@ const formData = ref<{
   bankAccountName: '',
   bankAccountNumber: '',
   bankSortCode: '',
+  paymentReference: '',
   breakClauseEnabled: false,
   breakClauseMonths: null,
   breakClauseNoticePeriod: null,
@@ -1556,6 +1618,7 @@ const formData = ref<{
   landlords: [
     {
       name: '',
+      email: '',
       address: { line1: '', line2: '', city: '', county: '', postcode: '' }
     }
   ],
@@ -1789,10 +1852,32 @@ const filteredLandlords = computed(() => {
   })
 })
 
+function isAmlNotRequested(status?: string | null): boolean {
+  return !status || status === 'not_requested'
+}
+
+const pendingAmlLandlords = computed(() =>
+  formData.value.landlords.filter((landlord) =>
+    landlord.id &&
+    isAmlNotRequested(landlord.aml_status) &&
+    !ignoredAmlLandlordIds.value.includes(landlord.id)
+  )
+)
+
+const pendingAmlLandlordNames = computed(() =>
+  pendingAmlLandlords.value.map((landlord) => landlord.name).join(', ')
+)
+
 // Watch for landlord selector modal to open and fetch landlords
 watch(() => showLandlordSelector.value, (isOpen) => {
   if (isOpen && availableLandlords.value.length === 0) {
     fetchLandlords()
+  }
+})
+
+watch(() => currentStep.value, async (step) => {
+  if (step === 4) {
+    await refreshLandlordAmlStatuses()
   }
 })
 
@@ -1827,37 +1912,56 @@ async function fetchLandlords() {
 }
 
 // Select landlord and add to form
-function selectLandlord(landlord: any) {
+async function selectLandlord(landlord: any) {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const token = authStore.session?.access_token
+  let fullLandlord = landlord
+
+  if (token) {
+    try {
+      const response = await fetch(`${API_URL}/api/landlords/${landlord.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        fullLandlord = data.landlord || landlord
+      }
+    } catch (err) {
+      console.error('Error fetching landlord details:', err)
+    }
+  }
+
+  const addressSource = fullLandlord.residential_address || fullLandlord.section48_address || {}
   // Check if landlord already exists
   const existingIndex = formData.value.landlords.findIndex(
-    (l: any) => l.name === `${landlord.first_name} ${landlord.last_name}`
+    (l: any) => l.name === `${fullLandlord.first_name} ${fullLandlord.last_name}`
   )
+
+  const landlordName = fullLandlord.full_name_displayed_on_contracts || `${fullLandlord.first_name} ${fullLandlord.last_name}`
+  const landlordData = {
+    id: fullLandlord.id,
+    name: landlordName,
+    email: fullLandlord.email || '',
+    aml_status: fullLandlord.aml_status || 'not_requested',
+    address: {
+      line1: addressSource.line1 || '',
+      line2: addressSource.line2 || '',
+      city: addressSource.city || '',
+      county: addressSource.county || '',
+      postcode: addressSource.postcode || ''
+    }
+  }
 
   if (existingIndex >= 0) {
     // Update existing landlord
-    formData.value.landlords[existingIndex] = {
-      name: landlord.full_name_displayed_on_contracts || `${landlord.first_name} ${landlord.last_name}`,
-      address: {
-        line1: landlord.residential_address?.line1 || '',
-        line2: landlord.residential_address?.line2 || '',
-        city: landlord.residential_address?.city || '',
-        county: landlord.residential_address?.county || '',
-        postcode: landlord.residential_address?.postcode || ''
-      }
-    }
+    formData.value.landlords[existingIndex] = landlordData
   } else {
     // Add new landlord if under limit
     if (formData.value.landlords.length < 20) {
-      formData.value.landlords.push({
-        name: landlord.full_name_displayed_on_contracts || `${landlord.first_name} ${landlord.last_name}`,
-        address: {
-          line1: landlord.residential_address?.line1 || '',
-          line2: landlord.residential_address?.line2 || '',
-          city: landlord.residential_address?.city || '',
-          county: landlord.residential_address?.county || '',
-          postcode: landlord.residential_address?.postcode || ''
-        }
-      })
+      formData.value.landlords.push(landlordData)
     } else {
       toast.error('Maximum of 20 landlords allowed')
       return
@@ -1865,8 +1969,8 @@ function selectLandlord(landlord: any) {
   }
 
   // Set landlord email if not already set
-  if (!formData.value.landlordEmail && landlord.email) {
-    formData.value.landlordEmail = landlord.email
+  if (!formData.value.landlordEmail && fullLandlord.email) {
+    formData.value.landlordEmail = fullLandlord.email
   }
 
   showLandlordSelector.value = false
@@ -1926,7 +2030,12 @@ const canProceed = computed(() => {
       return baseValid && breakClauseValid
     case 4: // Landlords
       return formData.value.landlords.every(
-        (l) => l.name !== '' && l.address.line1 !== '' && l.address.city !== '' && l.address.postcode !== ''
+        (l) => l.name !== '' &&
+          l.email &&
+          isValidEmail(l.email) &&
+          l.address.line1 !== '' &&
+          l.address.city !== '' &&
+          l.address.postcode !== ''
       )
     case 5: // Tenants
       return formData.value.tenants.every(
@@ -1942,7 +2051,7 @@ const canProceed = computed(() => {
   }
 })
 
-function nextStep() {
+async function nextStep() {
   // Validate emails before proceeding from step 3 (Agreement details)
   if (currentStep.value === 3) {
     if (formData.value.tenantEmail && !isValidEmail(formData.value.tenantEmail)) {
@@ -1952,6 +2061,23 @@ function nextStep() {
     if (formData.value.managementType === 'let_only' && formData.value.landlordEmail && !isValidEmail(formData.value.landlordEmail)) {
       toast.error('Please enter a valid landlord email address')
       return
+    }
+  }
+
+  if (currentStep.value === 4) {
+    if (!canProceed.value) return
+    isLandlordSyncing.value = true
+    amlCheckAttempted.value = true
+    try {
+      const ensured = await ensureLandlordRecords()
+      if (!ensured) return
+      await refreshLandlordAmlStatuses()
+      if (pendingAmlLandlords.value.length > 0) {
+        toast.error('AML check not requested for one or more landlords')
+        return
+      }
+    } finally {
+      isLandlordSyncing.value = false
     }
   }
 
@@ -1970,6 +2096,7 @@ function addLandlord() {
   if (formData.value.landlords.length < 20) {
     formData.value.landlords.push({
       name: '',
+      email: '',
       address: { line1: '', line2: '', city: '', county: '', postcode: '' }
     })
   }
@@ -1977,6 +2104,179 @@ function addLandlord() {
 
 function removeLandlord(index: number) {
   formData.value.landlords.splice(index, 1)
+}
+
+function splitLandlordName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  const firstName = parts.shift() || ''
+  const lastName = parts.join(' ') || firstName
+  return { firstName, lastName }
+}
+
+async function findLandlordByEmail(email: string) {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const token = authStore.session?.access_token
+
+  if (!token) return null
+
+  const response = await fetch(`${API_URL}/api/landlords?search=${encodeURIComponent(email)}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  })
+
+  if (!response.ok) return null
+
+  const data = await response.json()
+  const match = (data.landlords || []).find((landlord: any) =>
+    (landlord.email || '').toLowerCase() === email.toLowerCase()
+  )
+  return match || null
+}
+
+async function ensureLandlordRecords(): Promise<boolean> {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const token = authStore.session?.access_token
+
+  if (!token) return false
+
+  for (const landlord of formData.value.landlords) {
+    if (!landlord.email || !isValidEmail(landlord.email)) {
+      toast.error('Each landlord needs a valid email address')
+      return false
+    }
+  }
+
+  for (const landlord of formData.value.landlords) {
+    if (landlord.id) continue
+
+    const existing = await findLandlordByEmail(landlord.email || '')
+    if (existing) {
+      landlord.id = existing.id
+      landlord.aml_status = existing.aml_status || 'not_requested'
+      continue
+    }
+
+    const { firstName, lastName } = splitLandlordName(landlord.name || '')
+    if (!firstName || !lastName) {
+      toast.error('Landlord name must include at least a first and last name')
+      return false
+    }
+
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      email: landlord.email,
+      residential_address: landlord.address
+    }
+
+    const response = await fetch(`${API_URL}/api/landlords`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      toast.error(errorData.error || 'Failed to create landlord record')
+      return false
+    }
+
+    const data = await response.json()
+    landlord.id = data.landlord?.id
+    landlord.aml_status = 'not_requested'
+  }
+
+  return true
+}
+
+async function refreshLandlordAmlStatuses() {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const token = authStore.session?.access_token
+
+  if (!token) return
+
+  const landlordIds = Array.from(new Set(
+    formData.value.landlords.map((landlord) => landlord.id).filter(Boolean)
+  )) as string[]
+
+  for (const landlordId of landlordIds) {
+    try {
+      const response = await fetch(`${API_URL}/api/landlords/${landlordId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) continue
+
+      const data = await response.json()
+      const updated = data.landlord
+      const local = formData.value.landlords.find((landlord) => landlord.id === landlordId)
+      if (local && updated) {
+        local.aml_status = updated.aml_status || 'not_requested'
+      }
+    } catch (err) {
+      console.error('Error refreshing AML status:', err)
+    }
+  }
+}
+
+function openAmlCheck(landlord: Party) {
+  if (!landlord.id) return
+  const resolved = router.resolve({
+    path: `/landlords/${landlord.id}`,
+    query: { tab: 'aml' },
+    hash: '#aml-request'
+  })
+  window.open(resolved.href, '_blank', 'noopener')
+}
+
+async function logAmlBypassActivity(landlords: Party[]) {
+  if (!selectedPropertyId.value) {
+    toast.warning('No property linked, activity note not logged')
+    return
+  }
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const token = authStore.session?.access_token
+
+  if (!token) return
+
+  const names = landlords.map((landlord) => landlord.name).filter(Boolean).join(', ')
+  const description = names
+    ? `Agreement merged without AML check for landlord(s): ${names}.`
+    : 'Agreement merged without AML check.'
+
+  try {
+    await fetch(`${API_URL}/api/properties/${selectedPropertyId.value}/activity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        description,
+        metadata: {
+          landlord_ids: landlords.map((landlord) => landlord.id).filter(Boolean)
+        }
+      })
+    })
+  } catch (err) {
+    console.error('Error logging AML bypass activity:', err)
+  }
+}
+
+async function ignoreAmlWarning() {
+  if (pendingAmlLandlords.value.length === 0) return
+  const ids = pendingAmlLandlords.value.map((landlord) => landlord.id).filter(Boolean) as string[]
+  ignoredAmlLandlordIds.value = Array.from(new Set([...ignoredAmlLandlordIds.value, ...ids]))
+  await logAmlBypassActivity(pendingAmlLandlords.value)
 }
 
 function addTenant() {
@@ -2135,96 +2435,120 @@ async function fetchLandlordsForImport() {
   }
 }
 
-// Select landlord for import and auto-fill form
-async function selectLandlordForImport(landlord: any) {
-  selectedLandlordId.value = landlord.id
-  importedFromLandlord.value = true
+function toggleLandlordImportSelection(landlord: any) {
+  const index = selectedLandlordIds.value.indexOf(landlord.id)
+  if (index >= 0) {
+    selectedLandlordIds.value.splice(index, 1)
+  } else {
+    selectedLandlordIds.value.push(landlord.id)
+  }
+}
 
-  // Fetch full landlord details to get address
+async function fetchLandlordDetails(landlord: any) {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const token = authStore.session?.access_token
 
-  let fullLandlord = landlord
-  if (token) {
-    try {
-      const response = await fetch(`${API_URL}/api/landlords/${landlord.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        fullLandlord = data.landlord || landlord
+  if (!token) return landlord
+
+  try {
+    const response = await fetch(`${API_URL}/api/landlords/${landlord.id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
-    } catch (err) {
-      console.error('Error fetching landlord details:', err)
+    })
+    if (response.ok) {
+      const data = await response.json()
+      return data.landlord || landlord
     }
+  } catch (err) {
+    console.error('Error fetching landlord details:', err)
   }
 
-  // Auto-fill landlord email (Step 3)
-  if (fullLandlord.email) {
-    formData.value.landlordEmail = fullLandlord.email
-  }
+  return landlord
+}
 
-  // Auto-fill bank details (Step 3)
-  if (fullLandlord.bank_details) {
-    if (fullLandlord.bank_details.account_name) {
-      formData.value.bankAccountName = fullLandlord.bank_details.account_name
-    }
-    if (fullLandlord.bank_details.account_number) {
-      formData.value.bankAccountNumber = fullLandlord.bank_details.account_number
-    }
-    if (fullLandlord.bank_details.sort_code) {
-      formData.value.bankSortCode = fullLandlord.bank_details.sort_code
-    }
-  }
-
-  // Add landlord to landlords array (Step 4)
-  const landlordName = fullLandlord.full_name_displayed_on_contracts || `${fullLandlord.first_name} ${fullLandlord.last_name}`
-  const landlordData = {
-    name: landlordName,
-    address: {
-      line1: fullLandlord.residential_address?.line1 || '',
-      line2: fullLandlord.residential_address?.line2 || '',
-      city: fullLandlord.residential_address?.city || '',
-      county: fullLandlord.residential_address?.county || '',
-      postcode: fullLandlord.residential_address?.postcode || ''
-    }
-  }
-
+function addOrUpdateLandlord(landlordData: any) {
   const existingIndex = formData.value.landlords.findIndex(
-    (l: any) => l.name === landlordName
+    (l: any) => l.name === landlordData.name
   )
 
   if (existingIndex >= 0) {
-    // Update existing
     formData.value.landlords[existingIndex] = landlordData
-  } else {
-    // Check if first landlord is blank and should be replaced
-    const firstLandlord = formData.value.landlords[0]
-    const isFirstBlank = formData.value.landlords.length === 1 &&
-      !firstLandlord?.name &&
-      !firstLandlord?.address?.line1
+    return
+  }
 
-    if (isFirstBlank) {
-      // Replace the blank placeholder
-      formData.value.landlords[0] = landlordData
-    } else {
-      // Add new
-      formData.value.landlords.push(landlordData)
+  const firstLandlord = formData.value.landlords[0]
+  const isFirstBlank = formData.value.landlords.length === 1 &&
+    !firstLandlord?.name &&
+    !firstLandlord?.address?.line1
+
+  if (isFirstBlank) {
+    formData.value.landlords[0] = landlordData
+    return
+  }
+
+  if (formData.value.landlords.length < 20) {
+    formData.value.landlords.push(landlordData)
+  } else {
+    toast.error('Maximum of 20 landlords allowed')
+  }
+}
+
+// Import selected landlords and auto-fill form
+async function importSelectedLandlords() {
+  if (selectedLandlordIds.value.length === 0) return
+
+  importedFromLandlord.value = true
+
+  const selectedLandlords = availableLandlordsForImport.value.filter((landlord: any) =>
+    selectedLandlordIds.value.includes(landlord.id)
+  )
+
+  for (const landlord of selectedLandlords) {
+    const fullLandlord = await fetchLandlordDetails(landlord)
+    const landlordName = fullLandlord.full_name_displayed_on_contracts || `${fullLandlord.first_name} ${fullLandlord.last_name}`
+    const addressSource = fullLandlord.residential_address || fullLandlord.section48_address || {}
+    const landlordData = {
+      id: fullLandlord.id,
+      name: landlordName,
+      email: fullLandlord.email || '',
+      aml_status: fullLandlord.aml_status || 'not_requested',
+      address: {
+        line1: addressSource.line1 || '',
+        line2: addressSource.line2 || '',
+        city: addressSource.city || '',
+        county: addressSource.county || '',
+        postcode: addressSource.postcode || ''
+      }
+    }
+
+    addOrUpdateLandlord(landlordData)
+
+    if (!formData.value.landlordEmail && fullLandlord.email) {
+      formData.value.landlordEmail = fullLandlord.email
+    }
+
+    if (fullLandlord.bank_details) {
+      if (!formData.value.bankAccountName && fullLandlord.bank_details.account_name) {
+        formData.value.bankAccountName = fullLandlord.bank_details.account_name
+      }
+      if (!formData.value.bankAccountNumber && fullLandlord.bank_details.account_number) {
+        formData.value.bankAccountNumber = fullLandlord.bank_details.account_number
+      }
+      if (!formData.value.bankSortCode && fullLandlord.bank_details.sort_code) {
+        formData.value.bankSortCode = fullLandlord.bank_details.sort_code
+      }
     }
   }
 
-  // Auto-collapse the landlord selector after selection
   showLandlordImportSelector.value = false
-
   toast.success('Landlord details imported successfully')
 }
 
 // Clear landlord import
 function clearLandlordImport() {
-  selectedLandlordId.value = null
+  selectedLandlordIds.value = []
   importedFromLandlord.value = false
   // Don't clear form data as user might want to keep it
 }
@@ -2387,14 +2711,30 @@ async function selectReference(referenceId: string) {
     }
 
     const data = await response.json()
-    const { reference, childReferences, guarantorReferences, landlordReference } = data
+    const {
+      reference,
+      childReferences,
+      guarantorReferences,
+      landlordReference,
+      agentReference,
+      childLandlordReferences,
+      childAgentReferences
+    } = data
 
     // Mark as selected
     selectedReferenceId.value = referenceId
     importedFromReference.value = true
 
     // Map reference data to form
-    mapReferenceToForm(reference, childReferences, guarantorReferences, landlordReference)
+    mapReferenceToForm(
+      reference,
+      childReferences,
+      guarantorReferences,
+      landlordReference,
+      agentReference,
+      childLandlordReferences,
+      childAgentReferences
+    )
 
     // Auto-collapse the reference selector after selection
     showReferenceSelector.value = false
@@ -2413,8 +2753,44 @@ function mapReferenceToForm(
   reference: any,
   childReferences: any[] = [],
   guarantorReferences: any[] = [],
-  _landlordReference: any = null
+  landlordReference: any = null,
+  agentReference: any = null,
+  childLandlordReferences: Record<string, any> | null = null,
+  childAgentReferences: Record<string, any> | null = null
 ) {
+  const getCorrectedAddress = (ref: any) => {
+    if (!ref) return null
+    const line1 = ref.corrected_address_line1 || ''
+    const city = ref.corrected_city || ''
+    const postcode = ref.corrected_postcode || ''
+    if (!line1 && !city && !postcode) return null
+    return {
+      line1,
+      line2: ref.corrected_address_line2 || '',
+      city,
+      county: '',
+      postcode
+    }
+  }
+
+  const getTenantAddress = (tenantRef: any, allowCorrected: boolean, childId?: string) => {
+    const childLandlordRef = childId && childLandlordReferences ? childLandlordReferences[childId] : null
+    const childAgentRef = childId && childAgentReferences ? childAgentReferences[childId] : null
+    const corrected = allowCorrected
+      ? (getCorrectedAddress(childLandlordRef) ||
+        getCorrectedAddress(childAgentRef) ||
+        getCorrectedAddress(landlordReference) ||
+        getCorrectedAddress(agentReference))
+      : null
+    if (corrected) return corrected
+    return {
+      line1: tenantRef.current_address_line1 || '',
+      line2: tenantRef.current_address_line2 || '',
+      city: tenantRef.current_city || '',
+      county: '',
+      postcode: tenantRef.current_postcode || ''
+    }
+  }
   // Property address - use reference address, or first child's address for group parents
   const addressSource = reference.property_address
     ? reference
@@ -2482,26 +2858,14 @@ function mapReferenceToForm(
     formData.value.tenants = childReferences.map((child: any) => ({
       name: `${child.tenant_first_name} ${child.tenant_last_name}`,
       email: child.tenant_email || '',
-      address: {
-        line1: child.current_address_line1 || '',
-        line2: child.current_address_line2 || '',
-        city: child.current_city || '',
-        county: '',
-        postcode: child.current_postcode || ''
-      }
+      address: getTenantAddress(child, true, child.id)
     }))
   } else {
     // Single tenant
     formData.value.tenants = [{
       name: `${reference.tenant_first_name} ${reference.tenant_last_name}`,
       email: reference.tenant_email || '',
-      address: {
-        line1: reference.current_address_line1 || '',
-        line2: reference.current_address_line2 || '',
-        city: reference.current_city || '',
-        county: '',
-        postcode: reference.current_postcode || ''
-      }
+      address: getTenantAddress(reference, true)
     }]
   }
 

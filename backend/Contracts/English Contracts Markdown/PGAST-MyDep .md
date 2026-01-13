@@ -146,6 +146,7 @@ IT IS AGREED AS FOLLOWS:
 Account number: \[LANDLORD/AGENT\_ACCOUNT\_NUMBER\]
 
 Sort Code: \[LANDLORD/AGENT\_SORT\_CODE\]
+Payment Reference: \[PAYMENT_REFERENCE\]
 
 In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 

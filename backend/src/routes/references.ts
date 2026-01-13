@@ -22,7 +22,7 @@ import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/reques
 import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
 import { isReadyForVerification } from '../services/verificationReadinessService'
-import { handleEvidenceUpload, transitionState } from '../services/verificationStateService'
+import { evaluateAndTransition, handleEvidenceUpload, transitionState } from '../services/verificationStateService'
 import { markDependencyReceivedByType, createDependenciesForReference } from '../services/chaseDependencyService'
 import { DEFAULT_BRANDING } from '../config/colors'
 
@@ -374,15 +374,30 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // Get reference
-    const { data: reference, error } = await supabase
+    const { data: referenceData, error } = await supabase
       .from('tenant_references')
       .select('*')
       .eq('id', referenceId)
       .eq('company_id', companyId)
       .single()
 
-    if (error || !reference) {
+    if (error || !referenceData) {
       return res.status(404).json({ error: 'Reference not found' })
+    }
+    let reference = referenceData
+
+    const evaluation = await evaluateAndTransition(referenceId, 'Status refresh on detail fetch')
+    if (evaluation.transitioned) {
+      const { data: refreshedReference, error: refreshedError } = await supabase
+        .from('tenant_references')
+        .select('*')
+        .eq('id', referenceId)
+        .eq('company_id', companyId)
+        .single()
+
+      if (!refreshedError && refreshedReference) {
+        reference = refreshedReference
+      }
     }
 
     // Get documents for this reference
@@ -443,6 +458,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     // Check if this is a parent reference and fetch children
     let childReferences = null
+    let childLandlordReferences: Record<string, any> | null = null
+    let childAgentReferences: Record<string, any> | null = null
     if (reference.is_group_parent) {
       const { data: children } = await supabase
         .from('tenant_references')
@@ -459,6 +476,28 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
             .eq('guarantor_for_reference_id', child.id)
             .eq('is_guarantor', true)
             .order('created_at', { ascending: true })
+
+          const { data: childLandlordReference } = await supabase
+            .from('landlord_references')
+            .select('*')
+            .eq('reference_id', child.id)
+            .single()
+
+          const { data: childAgentReference } = await supabase
+            .from('agent_references')
+            .select('*')
+            .eq('reference_id', child.id)
+            .single()
+
+          if (!childLandlordReferences) {
+            childLandlordReferences = {}
+          }
+          if (!childAgentReferences) {
+            childAgentReferences = {}
+          }
+
+          childLandlordReferences[child.id] = childLandlordReference || null
+          childAgentReferences[child.id] = childAgentReference || null
 
           return {
             ...child,
@@ -574,6 +613,14 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         // Benefits fields
         benefits_monthly_amount: decrypt(ref.benefits_monthly_amount_encrypted),
         benefits_annual_amount: decrypt(ref.benefits_annual_amount_encrypted),
+        // Landlord rental income
+        landlord_rental_monthly_amount: decrypt(ref.landlord_rental_monthly_amount_encrypted),
+        landlord_rental_bank_statement_path: ref.landlord_rental_bank_statement_path,
+        income_landlord_rental: ref.income_landlord_rental,
+        income_pension: ref.income_pension,
+        pension_monthly_amount: decrypt(ref.pension_monthly_amount_encrypted),
+        pension_provider: decrypt(ref.pension_provider_encrypted),
+        pension_statement_path: ref.pension_statement_path,
         // Other income/savings
         savings_amount: decrypt(ref.savings_amount_encrypted),
         additional_income_source: decrypt(ref.additional_income_source_encrypted),
@@ -615,6 +662,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         // Derived employment status from boolean flags
         employment_status: ref.income_regular_employment ? 'employed' :
                           ref.income_self_employed ? 'self_employed' :
+                          ref.income_landlord_rental ? 'landlord_rental' :
+                          ref.income_pension ? 'pension' :
                           ref.income_student ? 'student' :
                           ref.income_unemployed ? 'unemployed' :
                           ref.income_retired ? 'retired' : null
@@ -649,6 +698,17 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const decryptedSiblingReferences = siblingReferences?.map(decryptTenantReference)
     const decryptedPreviousAddresses = previousAddresses?.map(decryptPreviousAddress)
 
+    const decryptCorrectedAddress = (ref: any) => {
+      if (!ref) return null
+      return {
+        address_correct: ref.address_correct,
+        corrected_address_line1: decrypt(ref.corrected_address_line1_encrypted),
+        corrected_address_line2: decrypt(ref.corrected_address_line2_encrypted),
+        corrected_city: decrypt(ref.corrected_city_encrypted),
+        corrected_postcode: decrypt(ref.corrected_postcode_encrypted)
+      }
+    }
+
     const decryptedLandlordReference = landlordReference ? {
       ...landlordReference,
       landlord_name: decrypt(landlordReference.landlord_name_encrypted),
@@ -657,6 +717,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       property_address: decrypt(landlordReference.property_address_encrypted),
       property_city: decrypt(landlordReference.property_city_encrypted),
       property_postcode: decrypt(landlordReference.property_postcode_encrypted),
+      ...decryptCorrectedAddress(landlordReference),
       monthly_rent: decrypt(landlordReference.monthly_rent_encrypted),
       additional_comments: decrypt(landlordReference.additional_comments_encrypted),
       signature_name: decrypt(landlordReference.signature_name_encrypted),
@@ -672,11 +733,30 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       property_address: decrypt(agentReference.property_address_encrypted),
       property_city: decrypt(agentReference.property_city_encrypted),
       property_postcode: decrypt(agentReference.property_postcode_encrypted),
+      ...decryptCorrectedAddress(agentReference),
       monthly_rent: decrypt(agentReference.monthly_rent_encrypted),
       additional_comments: decrypt(agentReference.additional_comments_encrypted),
       signature_name: decrypt(agentReference.signature_name_encrypted),
       signature: decrypt(agentReference.signature_encrypted)
     } : null
+
+    const decryptedChildLandlordReferences = childLandlordReferences
+      ? Object.fromEntries(
+        Object.entries(childLandlordReferences).map(([childId, ref]) => [
+          childId,
+          decryptCorrectedAddress(ref)
+        ])
+      )
+      : {}
+
+    const decryptedChildAgentReferences = childAgentReferences
+      ? Object.fromEntries(
+        Object.entries(childAgentReferences).map(([childId, ref]) => [
+          childId,
+          decryptCorrectedAddress(ref)
+        ])
+      )
+      : {}
 
     const decryptedEmployerReference = employerReference ? {
       ...employerReference,
@@ -766,6 +846,8 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       documents,
       landlordReference: decryptedLandlordReference,
       agentReference: decryptedAgentReference,
+      childLandlordReferences: decryptedChildLandlordReferences,
+      childAgentReferences: decryptedChildAgentReferences,
       employerReference: decryptedEmployerReference,
       accountantReference: decryptedAccountantReference,
       guarantorReference: decryptedGuarantorReference, // OLD SYSTEM - kept for backwards compatibility
@@ -3393,7 +3475,8 @@ router.post('/upload/:token', (req, res, next) => {
     const hasNewDocuments = idDocumentPath || selfiePath || proofOfAddressPath ||
       proofOfFundsPath || proofOfAdditionalIncomePath || rtrAlternativeDocumentPath ||
       taxReturnPath || bankStatementPaths.length > 0 || payslipPaths.length > 0 ||
-      otherProofOfFundsPath || tenancyAgreementPath
+      otherProofOfFundsPath || tenancyAgreementPath || pensionStatementPath ||
+      landlordRentalBankStatementPath
 
     if (hasNewDocuments) {
       // Determine evidence type for logging
@@ -6882,6 +6965,49 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
     }
   } catch (error: any) {
     console.error('Failed to resend form:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Refresh verification status for a reference
+router.post('/:id/refresh-status', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const referenceId = req.params.id
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const { data: reference, error: referenceError } = await supabase
+      .from('tenant_references')
+      .select('id')
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (referenceError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    const evaluation = await evaluateAndTransition(referenceId, 'Manual refresh from UI', req.user?.id)
+    const { data: updatedReference, error: updatedError } = await supabase
+      .from('tenant_references')
+      .select('status, verification_state')
+      .eq('id', referenceId)
+      .single()
+
+    if (updatedError || !updatedReference) {
+      return res.status(500).json({ error: 'Failed to fetch updated reference state' })
+    }
+
+    res.json({
+      success: evaluation.success,
+      transitioned: evaluation.transitioned,
+      newState: evaluation.newState || updatedReference.verification_state,
+      status: updatedReference.status,
+      verification_state: updatedReference.verification_state
+    })
+  } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
 })

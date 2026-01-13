@@ -54,6 +54,7 @@ export interface AgreementPDFData {
   bankAccountName?: string
   bankAccountNumber?: string
   bankSortCode?: string
+  paymentReference?: string
   tenantEmail?: string
   landlordEmail?: string
   agentEmail?: string
@@ -310,11 +311,19 @@ class PDFGenerationService {
     result = result.replace(/\[RENT DUE DATE\]|\[rent_due_date\]/gi, `${rentDueDay} of each month`)
 
     // Break clause for Welsh contracts
-    const breakClauseText = data.breakClause || '6 months'
-    result = result.replace(/\[Break_Clause\]/gi, breakClauseText)
-    // Calculate break clause notice date (1 month before break clause period from start)
-    const breakClauseNoticeDate = this.calculateBreakClauseNoticeDate(data.tenancyStartDate, breakClauseText)
-    result = result.replace(/\[Break_Clause_minus_1[ _]?Month\]/gi, breakClauseNoticeDate)
+    const hasBreakClause = !!data.breakClause?.trim()
+    if (data.language === 'welsh' && !hasBreakClause) {
+      result = result.replace(/\[Break_Clause\]/gi, '')
+      result = result.replace(/\[Break_Clause_minus_1[ _]?Month\]/gi, '')
+      result = result.replace(/\(notice cannot be served before\s*\.\s*\)/gi, '')
+      result = result.replace(/\(notice cannot be served before\s*\)/gi, '')
+    } else {
+      const breakClauseText = data.breakClause || '6 months'
+      result = result.replace(/\[Break_Clause\]/gi, breakClauseText)
+      // Calculate break clause notice date (1 month before break clause period from start)
+      const breakClauseNoticeDate = this.calculateBreakClauseNoticeDate(data.tenancyStartDate, breakClauseText)
+      result = result.replace(/\[Break_Clause_minus_1[ _]?Month\]/gi, breakClauseNoticeDate)
+    }
 
     // Deposit scheme type
     result = result.replace(/\[Insured_Custodial\]/gi, data.depositSchemeType || 'Custodial')
@@ -323,6 +332,16 @@ class PDFGenerationService {
     result = result.replace(/\[LANDLORD\/AGENT_ACCOUNT_NUMBER\]/gi, data.bankAccountNumber || '________')
     result = result.replace(/\[LANDLORD\/AGENT_SORT_CODE\]/gi, data.bankSortCode || '________')
     result = result.replace(/\[LANDLORD\/AGENT_ACCOUNT_NAME\]/gi, data.bankAccountName || '________')
+    const paymentReference = data.paymentReference?.trim()
+      ? data.paymentReference
+      : this.formatAddress(data.propertyAddress)
+    result = result.replace(/\[PAYMENT_REFERENCE\]/gi, paymentReference)
+    if (!/Payment Reference:/i.test(result)) {
+      result = result.replace(
+        /(Sort Code:\s*[^\n]+)\n/i,
+        `$1\nPayment Reference: ${paymentReference}\n`
+      )
+    }
 
     // Email addresses (handle multiple variants)
     result = result.replace(/\[TENANT_EMAIL\]/gi, data.tenantEmail || '________')

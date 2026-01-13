@@ -118,6 +118,13 @@
       </div>
     </div>
   </div>
+
+  <AgreementEditModal
+    :is-open="showEditModal"
+    :agreement="agreement"
+    @close="closeEditModal"
+    @save="handleEditSave"
+  />
 </template>
 
 <script setup lang="ts">
@@ -127,6 +134,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import { Download, FileText, AlertTriangle, Send, Pencil, ArrowLeft } from 'lucide-vue-next'
 import RecipientCard from '../components/RecipientCard.vue'
+import AgreementEditModal from '../components/AgreementEditModal.vue'
 
 interface Recipient {
   type: 'landlord' | 'tenant' | 'guarantor'
@@ -147,6 +155,7 @@ const loading = ref(true)
 const error = ref('')
 const sending = ref(false)
 const saving = ref(false)
+const showEditModal = ref(false)
 
 const agreementId = computed(() => route.params.id as string)
 
@@ -203,22 +212,28 @@ const buildRecipients = () => {
 
   // Add landlords
   agreement.value.landlords?.forEach((landlord: any, index: number) => {
+    const landlordEmail = landlord.email ||
+      (index === 0 ? (agreement.value.landlord_email || agreement.value.agent_email || '') : '')
+
     recipientsList.push({
       type: 'landlord',
       index,
       name: landlord.name,
-      email: index === 0 ? (agreement.value.landlord_email || agreement.value.agent_email || '') : '',
+      email: landlordEmail,
       isRequired: index === 0
     })
   })
 
   // Add tenants
   agreement.value.tenants?.forEach((tenant: any, index: number) => {
+    const tenantEmail = tenant.email ||
+      (index === 0 ? (agreement.value.tenant_email || '') : '')
+
     recipientsList.push({
       type: 'tenant',
       index,
       name: tenant.name,
-      email: index === 0 ? (agreement.value.tenant_email || '') : '',
+      email: tenantEmail,
       isRequired: index === 0
     })
   })
@@ -363,8 +378,41 @@ const downloadPdf = () => {
 }
 
 const goToEdit = () => {
-  // TODO: Open edit modal or navigate to edit page
-  toast.info('Edit functionality coming soon')
+  showEditModal.value = true
+}
+
+const handleEditSave = async ({ formData, isDraft, agreementId }: { formData: any; isDraft: boolean; agreementId: string }) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/agreements/${agreementId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(formData)
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to save agreement')
+    }
+
+    const result = await response.json()
+    agreement.value = result.agreement
+    buildRecipients()
+    showEditModal.value = false
+    toast.success(isDraft ? 'Agreement updated successfully' : 'Agreement recalled and new draft created')
+  } catch (err: any) {
+    console.error('Error saving agreement:', err)
+    toast.error(err.message || 'Failed to save agreement')
+  }
+}
+
+const closeEditModal = () => {
+  showEditModal.value = false
 }
 
 onMounted(() => {

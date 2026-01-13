@@ -40,6 +40,7 @@ export interface AgreementData {
   bankAccountName?: string
   bankAccountNumber?: string
   bankSortCode?: string
+  paymentReference?: string
   // Email addresses
   tenantEmail?: string
   landlordEmail?: string
@@ -99,6 +100,7 @@ export class AgreementService {
         bank_account_name: agreementData.bankAccountName,
         bank_account_number: agreementData.bankAccountNumber,
         bank_sort_code: agreementData.bankSortCode,
+        payment_reference: agreementData.paymentReference,
         tenant_email: agreementData.tenantEmail,
         landlord_email: agreementData.landlordEmail,
         agent_email: agreementData.agentEmail,

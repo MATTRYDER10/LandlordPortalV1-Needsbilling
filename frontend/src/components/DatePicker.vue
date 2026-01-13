@@ -138,7 +138,7 @@ const years = computed(() => {
 
     case 'move-in':
       // For move-in dates (current year and 2 years forward only)
-      for (let i = currentYear + 2; i >= currentYear; i--) {
+      for (let i = currentYear; i <= currentYear + 2; i++) {
         yearList.push(i)
       }
       break
