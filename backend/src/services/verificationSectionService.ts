@@ -492,6 +492,18 @@ async function updateSectionDecision(
 
   if (error) throw error
 
+  // If RTR section is passed, update tenant_references.rtr_verified
+  if (currentSection.sectionType === 'RTR' &&
+      (params.decision === 'PASS' || params.decision === 'PASS_WITH_CONDITION')) {
+    await supabase
+      .from('tenant_references')
+      .update({
+        rtr_verified: true,
+        rtr_verification_date: new Date().toISOString()
+      })
+      .eq('id', currentSection.referenceId)
+  }
+
   // Log audit (not for ACTION_REQUIRED as it's logged separately with agent visibility)
   if (params.decision !== 'ACTION_REQUIRED') {
     await logAuditAction({
