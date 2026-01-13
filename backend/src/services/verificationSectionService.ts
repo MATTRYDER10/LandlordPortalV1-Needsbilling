@@ -110,6 +110,27 @@ export async function getSections(referenceId: string): Promise<VerificationSect
       return await initializeSections(referenceId)
     }
 
+    // Check if standard verification sections are missing
+    // (might only have external reference sections from chase_dependencies migration)
+    const existingSectionTypes = sections.map(s => s.section_type)
+    const hasIdentitySection = existingSectionTypes.includes('IDENTITY_SELFIE')
+
+    if (!hasIdentitySection) {
+      // Standard sections are missing - initialize them
+      // initializeSections uses upsert so it won't duplicate existing sections
+      await initializeSections(referenceId)
+
+      // Re-fetch all sections after initialization
+      const { data: updatedSections, error: refetchError } = await supabase
+        .from('verification_sections')
+        .select('*')
+        .eq('reference_id', referenceId)
+        .order('section_order', { ascending: true })
+
+      if (refetchError) throw refetchError
+      return (updatedSections || []).map(mapSectionFromDb)
+    }
+
     return sections.map(mapSectionFromDb)
   } catch (error) {
     console.error('Failed to get sections:', error)
