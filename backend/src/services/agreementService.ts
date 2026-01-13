@@ -82,50 +82,68 @@ export class AgreementService {
     referenceId?: string,
     propertyIntegration?: PropertyIntegration
   ): Promise<string> {
-    const { data, error } = await supabase
+    const payload: Record<string, any> = {
+      template_type: agreementData.templateType,
+      property_address: agreementData.propertyAddress,
+      landlords: agreementData.landlords,
+      tenants: agreementData.tenants,
+      guarantors: agreementData.guarantors,
+      deposit_amount: agreementData.depositAmount,
+      rent_amount: agreementData.rentAmount,
+      tenancy_start_date: agreementData.tenancyStartDate,
+      tenancy_end_date: agreementData.tenancyEndDate,
+      rent_due_day: agreementData.rentDueDay,
+      deposit_scheme_type: agreementData.depositSchemeType,
+      permitted_occupiers: agreementData.permittedOccupiers,
+      bank_account_name: agreementData.bankAccountName,
+      bank_account_number: agreementData.bankAccountNumber,
+      bank_sort_code: agreementData.bankSortCode,
+      payment_reference: agreementData.paymentReference,
+      tenant_email: agreementData.tenantEmail,
+      landlord_email: agreementData.landlordEmail,
+      agent_email: agreementData.agentEmail,
+      management_type: agreementData.managementType,
+      agent_signs_on_behalf: agreementData.agentSignsOnBehalf || false,
+      break_clause: agreementData.breakClause,
+      special_clauses: agreementData.specialClauses,
+      bills_included: agreementData.billsIncluded || false,
+      language: agreementData.language || 'english',
+      company_id: companyId,
+      reference_id: referenceId || null,
+      created_by: userId,
+      created_by_user_id: userId,
+      // Property integration
+      property_id: propertyIntegration?.propertyId || null,
+      compliance_override_acknowledged: propertyIntegration?.complianceOverride?.acknowledged || false,
+      compliance_override_reason: propertyIntegration?.complianceOverride?.reason || null,
+      compliance_override_at: propertyIntegration?.complianceOverride?.acknowledged ? new Date().toISOString() : null,
+      compliance_override_by: propertyIntegration?.complianceOverride?.acknowledged ? userId : null
+    }
+
+    let { data, error } = await supabase
       .from('agreements')
-      .insert({
-        template_type: agreementData.templateType,
-        property_address: agreementData.propertyAddress,
-        landlords: agreementData.landlords,
-        tenants: agreementData.tenants,
-        guarantors: agreementData.guarantors,
-        deposit_amount: agreementData.depositAmount,
-        rent_amount: agreementData.rentAmount,
-        tenancy_start_date: agreementData.tenancyStartDate,
-        tenancy_end_date: agreementData.tenancyEndDate,
-        rent_due_day: agreementData.rentDueDay,
-        deposit_scheme_type: agreementData.depositSchemeType,
-        permitted_occupiers: agreementData.permittedOccupiers,
-        bank_account_name: agreementData.bankAccountName,
-        bank_account_number: agreementData.bankAccountNumber,
-        bank_sort_code: agreementData.bankSortCode,
-        payment_reference: agreementData.paymentReference,
-        tenant_email: agreementData.tenantEmail,
-        landlord_email: agreementData.landlordEmail,
-        agent_email: agreementData.agentEmail,
-        management_type: agreementData.managementType,
-        agent_signs_on_behalf: agreementData.agentSignsOnBehalf || false,
-        break_clause: agreementData.breakClause,
-        special_clauses: agreementData.specialClauses,
-        bills_included: agreementData.billsIncluded || false,
-        language: agreementData.language || 'english',
-        company_id: companyId,
-        reference_id: referenceId || null,
-        created_by: userId,
-        created_by_user_id: userId,
-        // Property integration
-        property_id: propertyIntegration?.propertyId || null,
-        compliance_override_acknowledged: propertyIntegration?.complianceOverride?.acknowledged || false,
-        compliance_override_reason: propertyIntegration?.complianceOverride?.reason || null,
-        compliance_override_at: propertyIntegration?.complianceOverride?.acknowledged ? new Date().toISOString() : null,
-        compliance_override_by: propertyIntegration?.complianceOverride?.acknowledged ? userId : null
-      })
+      .insert(payload)
       .select('id')
       .single()
 
+    if (error && error.message?.includes('payment_reference')) {
+      const fallbackPayload = { ...payload }
+      delete fallbackPayload.payment_reference
+      const fallback = await supabase
+        .from('agreements')
+        .insert(fallbackPayload)
+        .select('id')
+        .single()
+      data = fallback.data
+      error = fallback.error
+    }
+
     if (error) {
       throw new Error(`Failed to save agreement: ${error.message}`)
+    }
+
+    if (!data?.id) {
+      throw new Error('Failed to save agreement: no id returned')
     }
 
     return data.id

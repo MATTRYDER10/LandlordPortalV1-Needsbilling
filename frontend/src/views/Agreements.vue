@@ -1885,7 +1885,7 @@ watch(() => currentStep.value, async (step) => {
 async function fetchLandlords() {
   loadingLandlords.value = true
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -1913,7 +1913,7 @@ async function fetchLandlords() {
 
 // Select landlord and add to form
 async function selectLandlord(landlord: any) {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
   const token = authStore.session?.access_token
   let fullLandlord = landlord
 
@@ -2114,7 +2114,7 @@ function splitLandlordName(fullName: string): { firstName: string; lastName: str
 }
 
 async function findLandlordByEmail(email: string) {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
   const token = authStore.session?.access_token
 
   if (!token) return null
@@ -2136,7 +2136,7 @@ async function findLandlordByEmail(email: string) {
 }
 
 async function ensureLandlordRecords(): Promise<boolean> {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
   const token = authStore.session?.access_token
 
   if (!token) return false
@@ -2195,7 +2195,7 @@ async function ensureLandlordRecords(): Promise<boolean> {
 }
 
 async function refreshLandlordAmlStatuses() {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
   const token = authStore.session?.access_token
 
   if (!token) return
@@ -2243,7 +2243,7 @@ async function logAmlBypassActivity(landlords: Party[]) {
     return
   }
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
   const token = authStore.session?.access_token
 
   if (!token) return
@@ -2357,7 +2357,7 @@ function handleGuarantorAddressSelected(index: number, addr: any) {
 async function fetchParentReferences() {
   loadingReferences.value = true
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -2409,7 +2409,7 @@ function closeAllImportSelectors() {
 async function fetchLandlordsForImport() {
   loadingLandlordsImport.value = true
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -2445,7 +2445,7 @@ function toggleLandlordImportSelection(landlord: any) {
 }
 
 async function fetchLandlordDetails(landlord: any) {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
   const token = authStore.session?.access_token
 
   if (!token) return landlord
@@ -2557,7 +2557,7 @@ function clearLandlordImport() {
 async function fetchProperties() {
   loadingProperties.value = true
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -2611,7 +2611,7 @@ async function selectProperty(property: any) {
 
   // Check compliance status
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     const token = authStore.session?.access_token
 
     const response = await fetch(`${API_URL}/api/properties/${property.id}/compliance`, {
@@ -2694,7 +2694,7 @@ function getOrdinalSuffixForDay(day: number): string {
 // Select a reference and load its full data
 async function selectReference(referenceId: string) {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -2931,7 +2931,7 @@ function clearImport() {
 // Fetch company settings for managed properties
 async function fetchCompanySettings() {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     const token = authStore.session?.access_token
 
     const response = await fetch(`${API_URL}/api/company/settings`, {
@@ -2961,7 +2961,7 @@ async function generateAgreement() {
   success.value = ''
 
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     const token = authStore.session?.access_token
 
     if (!token) {
@@ -2996,7 +2996,7 @@ async function generateAgreement() {
     })
 
     if (!createResponse.ok) {
-      const errorData = await createResponse.json()
+      const errorData = await createResponse.json().catch(() => ({}))
 
       // Handle compliance override required error
       if (errorData.requiresComplianceOverride && errorData.expiredComplianceTypes) {
@@ -3005,7 +3005,7 @@ async function generateAgreement() {
         throw new Error('Please acknowledge the expired compliance to proceed')
       }
 
-      throw new Error(errorData.error || 'Failed to create agreement')
+      throw new Error(errorData.details || errorData.error || 'Failed to create agreement')
     }
 
     const { agreement } = await createResponse.json()
@@ -3064,7 +3064,7 @@ async function handleAgreementPaid() {
   if (!pendingAgreementId.value) return
 
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     const token = authStore.session?.access_token
 
     toast.info('Payment successful! Generating your agreement...')
