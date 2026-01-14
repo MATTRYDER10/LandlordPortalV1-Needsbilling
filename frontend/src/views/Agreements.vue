@@ -2879,13 +2879,13 @@ function mapReferenceToForm(
         child.guarantors.forEach((g: any) => {
           allGuarantors.push({
             name: `${g.tenant_first_name} ${g.tenant_last_name}`,
-            email: g.tenant_email || g.email || '',
+            email: g.tenant_email || '',
             address: {
-              line1: g.current_address || g.property_address || '',
-              line2: '',
-              city: g.current_city || g.property_city || '',
+              line1: g.current_address_line1 || '',
+              line2: g.current_address_line2 || '',
+              city: g.current_city || '',
               county: '',
-              postcode: g.current_postcode || g.property_postcode || ''
+              postcode: g.current_postcode || ''
             }
           })
         })
@@ -2898,13 +2898,13 @@ function mapReferenceToForm(
     guarantorReferences.forEach((g: any) => {
       allGuarantors.push({
         name: `${g.tenant_first_name} ${g.tenant_last_name}`,
-        email: g.tenant_email || g.email || '',
+        email: g.tenant_email || '',
         address: {
-          line1: g.current_address || g.property_address || '',
-          line2: '',
-          city: g.current_city || g.property_city || '',
+          line1: g.current_address_line1 || '',
+          line2: g.current_address_line2 || '',
+          city: g.current_city || '',
           county: '',
-          postcode: g.current_postcode || g.property_postcode || ''
+          postcode: g.current_postcode || ''
         }
       })
     })
