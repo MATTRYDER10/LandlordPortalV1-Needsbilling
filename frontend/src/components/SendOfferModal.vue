@@ -95,7 +95,7 @@
                     type="text"
                     placeholder="Search by address or postcode..."
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary text-sm"
-                    @keyup.enter="fetchProperties"
+                    @keydown.enter.prevent="fetchProperties"
                   />
                 </div>
                 <button
