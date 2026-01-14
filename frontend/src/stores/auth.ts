@@ -119,11 +119,6 @@ export const useAuthStore = defineStore('auth', () => {
         return
       }
 
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/staff')) {
-        isStaff.value = false
-        return
-      }
-
       const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
       // Try to access staff endpoint - if successful, user is staff
       const response = await fetch(`${API_URL}/api/staff/stats`, {
