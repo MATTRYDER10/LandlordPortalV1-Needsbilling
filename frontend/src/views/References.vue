@@ -491,11 +491,26 @@
     <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-lg max-w-md w-full p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Reference</h3>
-        <p class="text-sm text-gray-600 mb-6">
+        <p class="text-sm text-gray-600 mb-4">
           Are you sure you want to delete the reference for
           <span class="font-medium">{{ referenceToDelete?.name }}</span>?
           This action cannot be undone.
         </p>
+
+        <!-- Refund Information -->
+        <div v-if="refundAmount > 0" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+          <p class="text-sm text-green-800">
+            <span class="font-medium">Credit Refund:</span>
+            {{ refundAmount }} {{ refundAmount === 1 ? 'credit' : 'credits' }} will be refunded to your account.
+          </p>
+        </div>
+
+        <div v-else class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
+          <p class="text-sm text-gray-600">
+            No credits will be refunded for this reference.
+          </p>
+        </div>
+
         <div class="flex justify-end space-x-3">
           <button @click="showDeleteModal = false"
             class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
@@ -644,6 +659,55 @@ const createError = ref('')
 const showDeleteModal = ref(false)
 const referenceToDelete = ref<{ id: string, name: string } | null>(null)
 const deleteLoading = ref(false)
+
+// Calculate refund amount for the reference being deleted
+const refundAmount = computed(() => {
+  if (!referenceToDelete.value) return 0
+
+  // Find the person in the tenancies list
+  let personToDelete: TenancyPerson | undefined
+  let tenancy: Tenancy | undefined
+
+  for (const t of tenancies.value) {
+    const person = t.people.find(p => p.id === referenceToDelete.value?.id)
+    if (person) {
+      personToDelete = person
+      tenancy = t
+      break
+    }
+  }
+
+  if (!personToDelete) return 0
+
+  // Statuses that are NOT eligible for refund (same as non-deletable)
+  const nonRefundableStates = ['COMPLETED', 'REJECTED']
+
+  if (nonRefundableStates.includes(personToDelete.verificationState)) {
+    return 0
+  }
+
+  let refund = 0
+
+  // If deleting a tenant, refund 1 credit
+  if (personToDelete.role === 'TENANT') {
+    refund += 1
+
+    // Also count guarantors for this tenant
+    if (tenancy) {
+      const guarantors = tenancy.people.filter(
+        p => p.role === 'GUARANTOR' &&
+        p.guarantorForTenantId === personToDelete?.id &&
+        !nonRefundableStates.includes(p.verificationState)
+      )
+      refund += guarantors.length * 0.5
+    }
+  } else if (personToDelete.role === 'GUARANTOR') {
+    // If deleting a guarantor, refund 0.5 credits
+    refund += 0.5
+  }
+
+  return refund
+})
 
 // Add Guarantor modal state
 const showAddGuarantorModal = ref(false)
@@ -1326,10 +1390,20 @@ const handleDelete = async () => {
       throw new Error(errorData.error || 'Failed to delete reference')
     }
 
+    // Parse response to get refund information
+    const data = await response.json()
+    const creditsRefunded = data.credits_refunded || 0
+
     showDeleteModal.value = false
     referenceToDelete.value = null
     await loadTenancies()
-    toast.success('Reference deleted successfully')
+
+    // Show success message with refund info
+    if (creditsRefunded > 0) {
+      toast.success(`Reference deleted successfully. ${creditsRefunded} ${creditsRefunded === 1 ? 'credit' : 'credits'} refunded.`)
+    } else {
+      toast.success('Reference deleted successfully')
+    }
   } catch (error: any) {
     console.error('Failed to delete reference:', error)
     toast.error(error.message || 'Failed to delete reference')

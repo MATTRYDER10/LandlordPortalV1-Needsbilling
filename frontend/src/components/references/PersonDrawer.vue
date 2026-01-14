@@ -1755,12 +1755,13 @@ const canAddGuarantor = computed(() => {
   return true
 })
 
-// Show Delete Reference button only for pending references (tenant hasn't submitted form)
+// Show Delete Reference button for all statuses except completed and rejected
 const canDelete = computed(() => {
   if (!props.person) return false
 
-  // Can delete if: collecting evidence (early stage, form not submitted yet)
-  return props.person.verificationState === 'COLLECTING_EVIDENCE'
+  // Allow deletion for all statuses except COMPLETED and REJECTED
+  const nonDeletableStates = ['COMPLETED', 'REJECTED']
+  return !nonDeletableStates.includes(props.person.verificationState)
 })
 
 // Check if we have any "About the Tenant" data to display

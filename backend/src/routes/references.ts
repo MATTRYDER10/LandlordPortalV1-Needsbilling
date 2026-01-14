@@ -2041,15 +2041,18 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     // Calculate credits to refund
     let creditsToRefund = 0
 
-    // Refund 1 credit for main reference if status is 'pending' (tenant hasn't filled it out)
-    if (reference.status === 'pending' && !reference.is_guarantor) {
+    // Statuses that are eligible for full refund (all except completed and rejected)
+    const refundableStatuses = ['pending', 'in_progress', 'pending_verification', 'action_required', 'cancelled']
+
+    // Refund 1 credit for main reference if status is refundable
+    if (refundableStatuses.includes(reference.status) && !reference.is_guarantor) {
       creditsToRefund += 1
     }
 
-    // Refund 0.5 credits for each pending guarantor reference
+    // Refund 0.5 credits for each guarantor reference with refundable status
     if (guarantorRefs && guarantorRefs.length > 0) {
-      const pendingGuarantorCount = guarantorRefs.filter(g => g.status === 'pending').length
-      creditsToRefund += pendingGuarantorCount * 0.5
+      const refundableGuarantorCount = guarantorRefs.filter(g => refundableStatuses.includes(g.status)).length
+      creditsToRefund += refundableGuarantorCount * 0.5
     }
 
     // Delete reference (this will cascade delete linked guarantor references)
@@ -2070,7 +2073,7 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
           companyUser.company_id,
           creditsToRefund,
           referenceId,
-          'Refund for deleted unfilled reference',
+          'Refund for deleted reference',
           userId
         )
         console.log(`[Delete Reference] Refunded ${creditsToRefund} credit(s) for reference ${referenceId}`)
