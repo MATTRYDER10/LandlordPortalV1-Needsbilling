@@ -288,19 +288,13 @@ class SignatureService {
    */
   private async sendSigningEmail(signature: SignatureRecord, propertyAddress: string): Promise<void> {
     const signingUrl = `${FRONTEND_URL}/sign/${signature.signing_token}`
-    const expiryDate = new Date(signature.token_expires_at).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    })
 
     try {
       const html = loadEmailTemplate('agreement-signing-request', {
         SignerName: signature.signer_name,
         SignerType: this.capitalizeFirst(signature.signer_type),
         PropertyAddress: propertyAddress,
-        SigningUrl: signingUrl,
-        ExpiryDate: expiryDate
+        SigningUrl: signingUrl
       })
 
       await sendEmail({
@@ -347,24 +341,12 @@ class SignatureService {
     const agreement = signature.agreements
     const propertyAddress = this.formatAddress(agreement.property_address)
     const signingUrl = `${FRONTEND_URL}/sign/${signature.signing_token}`
-    const expiryDate = new Date(signature.token_expires_at).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    })
-
-    // Calculate days remaining
-    const now = new Date()
-    const expiry = new Date(signature.token_expires_at)
-    const daysRemaining = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
     const html = loadEmailTemplate('agreement-signing-reminder', {
       SignerName: signature.signer_name,
       SignerType: this.capitalizeFirst(signature.signer_type),
       PropertyAddress: propertyAddress,
-      SigningUrl: signingUrl,
-      ExpiryDate: expiryDate,
-      DaysRemaining: daysRemaining.toString()
+      SigningUrl: signingUrl
     })
 
     await sendEmail({
@@ -397,14 +379,44 @@ class SignatureService {
       .single()
 
     if (error || !data) {
+      // Log diagnostic info when token is not found
+      console.error('[SignatureService] Token not found in database:', {
+        token: token.substring(0, 10) + '...', // Log partial token for privacy
+        error: error?.message,
+        timestamp: new Date().toISOString()
+      })
       return null
     }
 
-    // Check if token has expired
-    if (new Date(data.token_expires_at) < new Date()) {
-      await this.logEvent(data.id, data.agreement_id, 'token_expired', {})
-      return null
-    }
+    // EXPIRY CHECK DISABLED - Signing links now work indefinitely (matching reference links behavior)
+    // The token_expires_at column is kept for audit purposes only
+    // This matches the UX improvement made to reference links in commit 854712a
+
+    // Log token details for diagnostics
+    const expiresAt = new Date(data.token_expires_at)
+    const now = new Date()
+    console.log('[SignatureService] Token validation details:', {
+      signatureId: data.id,
+      agreementId: data.agreement_id,
+      status: data.status,
+      tokenExpiresAt: expiresAt.toISOString(),
+      currentTime: now.toISOString(),
+      expiresAtTimestamp: expiresAt.getTime(),
+      nowTimestamp: now.getTime(),
+      isExpired: expiresAt.getTime() < now.getTime(),
+      daysSinceCreation: Math.floor((now.getTime() - new Date(data.created_at).getTime()) / (1000 * 60 * 60 * 24))
+    })
+
+    // Check if token has expired - COMMENTED OUT (expiry no longer enforced)
+    // if (expiresAt.getTime() < now.getTime()) {
+    //   await this.logEvent(data.id, data.agreement_id, 'token_expired', {})
+    //   console.warn('[SignatureService] Token expired:', {
+    //     signatureId: data.id,
+    //     expiresAt: expiresAt.toISOString(),
+    //     currentTime: now.toISOString()
+    //   })
+    //   return null
+    // }
 
     // Check if already used/signed
     if (data.status === 'signed') {

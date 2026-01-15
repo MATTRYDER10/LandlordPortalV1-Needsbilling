@@ -40,13 +40,6 @@
         <p class="mt-4 text-sm text-gray-500">If this was a mistake, please contact your letting agent.</p>
       </div>
 
-      <!-- Expired Token State -->
-      <div v-else-if="signingData?.signature?.status === 'expired'" class="bg-white rounded-lg shadow p-8 text-center">
-        <Clock class="mx-auto h-16 w-16 text-yellow-500" />
-        <h3 class="mt-4 text-xl font-semibold text-gray-900">Link Expired</h3>
-        <p class="mt-2 text-gray-600">This signing link has expired. Please contact your letting agent for a new link.</p>
-      </div>
-
       <!-- Success State (just signed) -->
       <div v-else-if="justSigned" class="bg-white rounded-lg shadow p-8 text-center">
         <CheckCircle class="mx-auto h-16 w-16 text-green-500" />
@@ -95,9 +88,6 @@
             <p class="text-sm text-gray-600">
               <strong>You're signing as:</strong> {{ signingData.signature.signer_name }}
             </p>
-            <p class="text-sm text-gray-500 mt-1">
-              Signing link expires: {{ formatDate(signingData.signature.token_expires_at) }}
-            </p>
           </div>
         </div>
 
@@ -140,7 +130,6 @@
                   signer.status === 'signed' ? 'bg-green-100' : 'bg-gray-200'
                 ]">
                   <Check v-if="signer.status === 'signed'" class="w-4 h-4 text-green-600" />
-                  <Clock v-else class="w-4 h-4 text-gray-400" />
                 </div>
                 <div>
                   <span class="text-sm font-medium text-gray-900">{{ signer.signer_name }}</span>
@@ -247,7 +236,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
-import { AlertTriangle, CheckCircle, XCircle, Clock, Download, Check, Loader2 } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle, XCircle, Download, Check, Loader2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const token = route.params.token as string
