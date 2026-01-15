@@ -1033,6 +1033,9 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
               employer_email_encrypted: reference.employer_ref_email_encrypted,
               employer_phone_encrypted: reference.employer_ref_phone_encrypted,
               employer_company_encrypted: reference.employer_company_name_encrypted,
+              // Explicitly set to null - database has DEFAULT NOW() which causes bug
+              submitted_at: null,
+              is_current_employee: null,
             })
             .select('id')
             .single();

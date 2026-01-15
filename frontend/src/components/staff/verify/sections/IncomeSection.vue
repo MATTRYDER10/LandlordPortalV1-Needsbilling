@@ -378,7 +378,7 @@
                   </div>
                   <div class="ref-row">
                     <span class="ref-label">Confirmed Salary</span>
-                    <span class="ref-value highlight">{{ formatCurrency(evidenceEmployerRef.salary || 0) }}/year</span>
+                    <span class="ref-value" :class="{ 'highlight': evidenceEmployerRef.salary }">{{ evidenceEmployerRef.salary ? `${formatCurrency(evidenceEmployerRef.salary)}/year` : 'Not specified' }}</span>
                   </div>
                   <div v-if="evidenceEmployerRef.salaryFrequency" class="ref-row">
                     <span class="ref-label">Pay Frequency</span>

@@ -2359,7 +2359,10 @@ router.post('/submit/:token', async (req: Request, res) => {
           .insert({
             reference_id: updatedReference.id,
             reference_token_hash: employerTokenHash,
-            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            // Explicitly set to null - database has DEFAULT NOW() which causes bug
+            submitted_at: null,
+            is_current_employee: null,
           })
           .select()
           .single()
@@ -3925,30 +3928,34 @@ router.get('/employer/:referenceId/check', async (req, res) => {
       const tokenHash = hash(referenceId)
       const { data: employerRef } = await supabase
         .from('employer_references')
-        .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, employer_name_encrypted')
+        .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, signature_encrypted')
         .eq('reference_token_hash', tokenHash)
         .single()
 
-      // Only consider it submitted if it has submitted_at AND actual data
+      // Only consider it submitted if it has submitted_at AND actual form data
+      // NOTE: employer_name_encrypted is pre-populated from tenant form, so don't use it
+      // Use fields that are ONLY set when employer actually submits: company_name, salary, or signature
       const hasData = employerRef && (
         employerRef.company_name_encrypted ||
         employerRef.annual_salary_encrypted ||
-        employerRef.employer_name_encrypted
+        employerRef.signature_encrypted
       )
       return res.json({ submitted: !!(employerRef && employerRef.submitted_at && hasData) })
     } else {
       // ReferenceId-based lookup (UUID)
       const { data: employerRef } = await supabase
         .from('employer_references')
-        .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, employer_name_encrypted')
+        .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, signature_encrypted')
         .eq('reference_id', referenceId)
         .single()
 
-      // Only consider it submitted if it has submitted_at AND actual data
+      // Only consider it submitted if it has submitted_at AND actual form data
+      // NOTE: employer_name_encrypted is pre-populated from tenant form, so don't use it
+      // Use fields that are ONLY set when employer actually submits: company_name, salary, or signature
       const hasData = employerRef && (
         employerRef.company_name_encrypted ||
         employerRef.annual_salary_encrypted ||
-        employerRef.employer_name_encrypted
+        employerRef.signature_encrypted
       )
       return res.json({ submitted: !!(employerRef && employerRef.submitted_at && hasData) })
     }
@@ -4912,7 +4919,10 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
           token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           employer_email_encrypted: encrypt(employerEmail),
           employer_name_encrypted: reference.employer_ref_name_encrypted,
-          employer_phone_encrypted: reference.employer_ref_phone_encrypted
+          employer_phone_encrypted: reference.employer_ref_phone_encrypted,
+          // Explicitly set to null - database has DEFAULT NOW() which causes bug
+          submitted_at: null,
+          is_current_employee: null,
         })
 
       if (insertError) {
