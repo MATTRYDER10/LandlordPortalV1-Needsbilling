@@ -420,12 +420,16 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .eq('reference_id', referenceId)
       .single()
 
-    // Get employer reference if exists
-    const { data: employerReference } = await supabase
+    // Get employer reference if exists - prefer submitted one, else most recent
+    const { data: employerReferences } = await supabase
       .from('employer_references')
       .select('*')
       .eq('reference_id', referenceId)
-      .single()
+      .order('submitted_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    const employerReference = employerReferences?.[0] || null
 
     // Get accountant reference if exists
     let { data: accountantReference } = await supabase
