@@ -347,8 +347,8 @@ class PDFGenerationService {
     result = result.replace(/\[TENANT_EMAIL\]/gi, data.tenantEmail || '________')
     // For managed properties, use agent email; for let only, use landlord email
     const noticeEmail = data.managementType === 'managed'
-      ? (data.agentEmail || data.landlordEmail || '________')
-      : (data.landlordEmail || data.agentEmail || '________')
+      ? (data.agentEmail || '________')
+      : (data.landlordEmail || '________')
     result = result.replace(/\[LANDLORD\/AGENT_EMAIL\]|\[Landlord\/Agent Email\]/gi, noticeEmail)
 
     // Phone numbers (leave empty for cleaner look in tables)
