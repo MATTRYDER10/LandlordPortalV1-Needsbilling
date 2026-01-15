@@ -333,6 +333,10 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       sections = await initializeSections(referenceId);
     }
 
+    // Filter out external reference sections - they're for chase queue, not verification
+    const EXTERNAL_REFERENCE_TYPES = ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'ACCOUNTANT_REFERENCE'];
+    sections = sections.filter(s => !EXTERNAL_REFERENCE_TYPES.includes(s.sectionType));
+
     // Get work item ID for this reference
     const { data: workItem } = await supabaseAdmin
       .from('work_items')

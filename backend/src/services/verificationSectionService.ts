@@ -377,7 +377,11 @@ export async function getVerificationProgress(referenceId: string): Promise<{
     decision: SectionDecision
   }>
 }> {
-  const sections = await getSections(referenceId)
+  const allSections = await getSections(referenceId)
+
+  // Filter out external reference sections - they're for chase queue, not verification
+  const EXTERNAL_REFERENCE_TYPES = ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'ACCOUNTANT_REFERENCE']
+  const sections = allSections.filter(s => !EXTERNAL_REFERENCE_TYPES.includes(s.sectionType))
 
   const completedSections = sections.filter(s =>
     s.decision !== 'NOT_REVIEWED'
