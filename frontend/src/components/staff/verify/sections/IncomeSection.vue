@@ -1144,7 +1144,7 @@ const formatHomeOwnership = (status: string) => {
 }
 
 const formatYesNo = (value: string | null | undefined) => {
-  if (!value) return 'Not specified'
+  if (!value || typeof value !== 'string') return 'Not specified'
   const normalized = value.toLowerCase()
   if (normalized === 'yes' || normalized === 'true') return 'Yes'
   if (normalized === 'no' || normalized === 'false') return 'No'
@@ -1152,7 +1152,7 @@ const formatYesNo = (value: string | null | undefined) => {
 }
 
 const formatIncomeExpectation = (value: string | null | undefined) => {
-  if (!value) return 'Not specified'
+  if (!value || typeof value !== 'string') return 'Not specified'
   const expectations: Record<string, string> = {
     'increase': 'Expected to increase',
     'decrease': 'Expected to decrease',
