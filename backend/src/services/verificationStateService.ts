@@ -72,6 +72,7 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
       is_guarantor,
       is_british_citizen,
       income_unemployed,
+      income_student,
       income_pension,
       income_landlord_rental,
       id_document_path,
@@ -148,17 +149,18 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
 
   // -------------------------------------------------------------------------
   // INCOME: ONE of employer ref, payslip, accountant ref, tax return, other proof of funds, additional income proof
-  // SPECIAL CASE: Unemployed + Living with Family = auto-pass (no income evidence required)
+  // SPECIAL CASE: (Unemployed OR Student) + Living with Family = auto-pass (no income evidence required)
   // -------------------------------------------------------------------------
   const isUnemployed = reference.income_unemployed === true
+  const isStudent = reference.income_student === true
   // Check both confirmed_residential_status (new field) and reference_type (legacy field)
   const isLivingWithFamily =
     reference.confirmed_residential_status === 'Living with Family' ||
     reference.reference_type === 'living_with_family'
 
-  // Auto-pass income check for unemployed + living with family
+  // Auto-pass income check for (unemployed OR student) + living with family
   let hasIncome = false
-  if (isUnemployed && isLivingWithFamily) {
+  if ((isUnemployed || isStudent) && isLivingWithFamily) {
     hasIncome = true
   } else {
     const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)

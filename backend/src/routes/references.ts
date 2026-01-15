@@ -2951,55 +2951,17 @@ router.post('/submit/:token', async (req: Request, res) => {
     await assessApplicationScore(updatedReference.id, 'System');
     console.log('Application assessed successfully')
 
-    // Check if reference is ready for verification using comprehensive readiness check
-    // This validates ALL required sections: tenant form, guarantor (if required), income, residential, identity
-    const readiness = await isReadyForVerification(updatedReference.id)
-
-    if (readiness.isReady) {
-      // All requirements met - move to pending_verification
-      await supabase
-        .from('tenant_references')
-        .update({ status: 'pending_verification' })
-        .eq('id', updatedReference.id)
-
-      // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
-      await transitionState(updatedReference.id, 'READY_FOR_REVIEW', 'Form submitted with all evidence requirements met')
-
-      // Create VERIFY work item or reactivate if completed (uses UPSERT to prevent duplicates)
-      const { data: existingVerify } = await supabase
-        .from('work_items')
-        .select('id, status')
-        .eq('reference_id', updatedReference.id)
-        .eq('work_type', 'VERIFY')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (!existingVerify) {
-        // Use upsert with ON CONFLICT to prevent duplicates
-        await supabase
-          .from('work_items')
-          .upsert({
-            reference_id: updatedReference.id,
-            work_type: 'VERIFY',
-            status: 'AVAILABLE',
-            priority: 0
-          }, {
-            onConflict: 'reference_id,work_type',
-            ignoreDuplicates: true
-          })
-      } else if (existingVerify.status === 'COMPLETED') {
-        // Reactivate the completed work item instead of creating a duplicate
-        await supabase
-          .from('work_items')
-          .update({ status: 'AVAILABLE', assigned_to: null, assigned_at: null, completed_at: null })
-          .eq('id', existingVerify.id)
-      }
-
-      console.log('Reference ready for verification - moved to pending_verification')
-    } else {
-      console.log('Reference not ready for verification. Missing:', readiness.missingItems)
-    }
+    // Evaluate verification state and automatically transition to correct state
+    // This comprehensive check handles:
+    // - Evidence completeness (identity, RTR, income, residential)
+    // - Special cases (unemployed/student + living with family)
+    // - External reference dependencies
+    // - Automatic state transitions and work item management
+    await evaluateAndTransition(
+      updatedReference.id,
+      'Tenant form submitted - evaluating verification readiness'
+    )
+    console.log('Verification state evaluated and transitioned if ready')
 
     // Mark tenant form chase dependency as received
     await markDependencyReceivedByType(updatedReference.id, 'TENANT_FORM')
