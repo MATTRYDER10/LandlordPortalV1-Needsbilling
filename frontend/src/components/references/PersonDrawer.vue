@@ -764,8 +764,8 @@
                   </div>
                 </div>
 
-                <!-- Employer Reference Response -->
-                <div v-if="employerRef" class="mt-4 p-3 bg-gray-50 rounded-lg">
+                <!-- Employer Reference Response (only show when employer has actually submitted) -->
+                <div v-if="employerRef?.submitted_at" class="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-700">Employer Reference Response</span>
                     <span
