@@ -762,23 +762,8 @@
                     <p class="text-xs text-gray-500">{{ fullDetails.employer_ref_email }}</p>
                     <p v-if="fullDetails.employer_ref_phone" class="text-xs text-gray-500">{{ fullDetails.employer_ref_phone }}</p>
                   </div>
-                </div>
-
-                <!-- Employer Reference Response (only show when employer has actually submitted) -->
-                <div v-if="employerRef?.submitted_at" class="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">Employer Reference Response</span>
-                    <span
-                      class="px-2 py-0.5 text-xs font-medium rounded-full"
-                      :class="employerRef.confirmed_at ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
-                    >
-                      {{ employerRef.confirmed_at ? 'Received' : 'Pending' }}
-                    </span>
-                  </div>
-                  <p v-if="employerRef.company_name" class="text-sm text-gray-700 mt-1">{{ employerRef.company_name }}</p>
-                  <p class="text-xs text-gray-500 mt-1">{{ employerRef.employer_email }}</p>
-                  <p v-if="employerRef.employer_phone" class="text-xs text-gray-500">{{ employerRef.employer_phone }}</p>
-                  <div v-if="employerRef.confirmed_at" class="mt-2 text-xs text-gray-600">
+                  <!-- Response details when received -->
+                  <div v-if="employerRef?.submitted_at" class="mt-3 pt-3 border-t border-blue-200 text-xs text-gray-600 space-y-1">
                     <p v-if="employerRef.annual_salary">Confirmed Salary: {{ formatCurrency(Number(employerRef.annual_salary)) }}</p>
                     <p v-if="employerRef.employee_position">Confirmed Title: {{ employerRef.employee_position }}</p>
                     <p v-if="employerRef.start_date">Employment Start: {{ formatDate(employerRef.start_date) }}</p>
