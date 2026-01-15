@@ -210,10 +210,21 @@ const buildRecipients = () => {
 
   const recipientsList: Recipient[] = []
 
+  const getPrimaryLandlordEmail = (landlord: any, index: number) => {
+    if (index !== 0) {
+      return landlord.email || ''
+    }
+
+    if (agreement.value.management_type === 'managed' && agreement.value.agent_signs_on_behalf) {
+      return agreement.value.agent_email || authStore.user?.email || ''
+    }
+
+    return landlord.email || agreement.value.landlord_email || ''
+  }
+
   // Add landlords
   agreement.value.landlords?.forEach((landlord: any, index: number) => {
-    const landlordEmail = landlord.email ||
-      (index === 0 ? (agreement.value.landlord_email || agreement.value.agent_email || '') : '')
+    const landlordEmail = getPrimaryLandlordEmail(landlord, index)
 
     recipientsList.push({
       type: 'landlord',

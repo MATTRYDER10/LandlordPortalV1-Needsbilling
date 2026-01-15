@@ -109,7 +109,11 @@ class SignatureService {
       if (signerType === 'tenant' && signerIndex === 0) {
         signerEmail = agreement.tenant_email || ''
       } else if (signerType === 'landlord' && signerIndex === 0) {
-        signerEmail = agreement.landlord_email || agreement.agent_email || ''
+        if (agreement.management_type === 'managed' && agreement.agent_signs_on_behalf) {
+          signerEmail = agreement.agent_email || ''
+        } else {
+          signerEmail = agreement.landlord_email || ''
+        }
       }
     }
 
@@ -186,7 +190,7 @@ class SignatureService {
         throw new Error('Failed to retrieve agent user details for signing')
       }
 
-      const agentEmail = userData.user.email
+      const agentEmail = agreement.agent_email || userData.user.email
       const agentName = userData.user.user_metadata?.full_name || userData.user.email
 
       // Create single signature record for agent signing as landlord

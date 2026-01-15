@@ -145,6 +145,10 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
+    const resolvedAgentEmail = managementType === 'managed'
+      ? (agentEmail || req.user?.email || '')
+      : agentEmail
+
     const agreementData: AgreementData = {
       templateType,
       propertyAddress,
@@ -164,7 +168,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       paymentReference,
       tenantEmail,
       landlordEmail,
-      agentEmail,
+      agentEmail: resolvedAgentEmail,
       managementType,
       agentSignsOnBehalf,
       breakClause,
@@ -783,7 +787,11 @@ router.put('/:id/recipients', authenticateToken, async (req: AuthRequest, res) =
     // Update email fields based on recipient type and index
     for (const recipient of recipients) {
       if (recipient.type === 'landlord' && recipient.index === 0) {
-        updateData.landlord_email = recipient.email
+        if (agreement.management_type === 'managed' && agreement.agent_signs_on_behalf) {
+          updateData.agent_email = recipient.email
+        } else {
+          updateData.landlord_email = recipient.email
+        }
       } else if (recipient.type === 'tenant' && recipient.index === 0) {
         updateData.tenant_email = recipient.email
       } else if (recipient.type === 'guarantor') {

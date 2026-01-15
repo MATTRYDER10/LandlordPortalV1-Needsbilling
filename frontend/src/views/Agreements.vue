@@ -1940,7 +1940,9 @@ async function selectLandlord(landlord: any) {
     (l: any) => l.name === `${fullLandlord.first_name} ${fullLandlord.last_name}`
   )
 
-  const landlordName = fullLandlord.full_name_displayed_on_contracts || `${fullLandlord.first_name} ${fullLandlord.last_name}`
+  const landlordName = fullLandlord.company_name ||
+    fullLandlord.full_name_displayed_on_contracts ||
+    `${fullLandlord.first_name} ${fullLandlord.last_name}`.trim()
   const landlordData = {
     id: fullLandlord.id,
     name: landlordName,
@@ -2507,7 +2509,9 @@ async function importSelectedLandlords() {
 
   for (const landlord of selectedLandlords) {
     const fullLandlord = await fetchLandlordDetails(landlord)
-    const landlordName = fullLandlord.full_name_displayed_on_contracts || `${fullLandlord.first_name} ${fullLandlord.last_name}`
+    const landlordName = fullLandlord.company_name ||
+      fullLandlord.full_name_displayed_on_contracts ||
+      `${fullLandlord.first_name} ${fullLandlord.last_name}`.trim()
     const addressSource = fullLandlord.residential_address || fullLandlord.section48_address || {}
     const landlordData = {
       id: fullLandlord.id,
@@ -2944,7 +2948,7 @@ async function fetchCompanySettings() {
       const { company } = await response.json()
       // Populate agent email and bank details if managed
       if (formData.value.managementType === 'managed' && company) {
-        formData.value.agentEmail = company.email || ''
+        formData.value.agentEmail = authStore.user?.email || company.email || ''
         formData.value.bankAccountName = company.bank_account_name || ''
         formData.value.bankAccountNumber = company.bank_account_number || ''
         formData.value.bankSortCode = company.bank_sort_code || ''
