@@ -499,8 +499,12 @@ export function getSectionStatusesFromData(sections: any[] | undefined): Section
     return []
   }
 
-  // Sort by section_order
-  const sorted = [...sections].sort((a, b) => (a.section_order || 0) - (b.section_order || 0))
+  // External reference types are dependencies of other sections, not standalone verification sections
+  const EXTERNAL_REFERENCE_TYPES = ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'ACCOUNTANT_REFERENCE']
+
+  // Filter out external reference types and sort by section_order
+  const filtered = sections.filter(s => !EXTERNAL_REFERENCE_TYPES.includes(s.section_type))
+  const sorted = [...filtered].sort((a, b) => (a.section_order || 0) - (b.section_order || 0))
 
   return sorted.map(s => ({
     type: s.section_type as SectionType,
