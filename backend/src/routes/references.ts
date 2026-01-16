@@ -6470,13 +6470,13 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
     let result: any = {}
 
     if (type === 'employer') {
-      // Update employer email on tenant_references
-      const oldEmail = decrypt(reference.employer_email_encrypted) || ''
+      // Update employer referee email on tenant_references
+      const oldEmail = decrypt(reference.employer_ref_email_encrypted) || ''
 
       await supabase
         .from('tenant_references')
         .update({
-          employer_email_encrypted: encrypt(email),
+          employer_ref_email_encrypted: encrypt(email),
           employer_name_encrypted: name ? encrypt(name) : reference.employer_name_encrypted
         })
         .eq('id', referenceId)
