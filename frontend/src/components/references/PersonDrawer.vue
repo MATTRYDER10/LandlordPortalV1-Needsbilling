@@ -904,8 +904,8 @@
                   <p class="text-sm text-gray-700">{{ fullDetails.reference_type === 'agent' ? 'Letting Agent Reference' : 'Landlord Reference' }}</p>
                 </div>
 
-                <!-- Landlord Reference Response -->
-                <div v-if="landlordRef" class="p-3 bg-gray-50 rounded-lg">
+                <!-- Landlord Reference Response - only show if confirmed (received and filled) -->
+                <div v-if="landlordRef && landlordRef.confirmed_at" class="p-3 bg-gray-50 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-sm font-medium text-gray-700">Landlord Reference Response</span>
                     <span
@@ -931,8 +931,8 @@
                   </div>
                 </div>
 
-                <!-- Agent Reference Response -->
-                <div v-if="agentRef" class="p-3 bg-gray-50 rounded-lg">
+                <!-- Agent Reference Response - only show if confirmed (received and filled) -->
+                <div v-if="agentRef && agentRef.confirmed_at" class="p-3 bg-gray-50 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-sm font-medium text-gray-700">Agent Reference Response</span>
                     <span

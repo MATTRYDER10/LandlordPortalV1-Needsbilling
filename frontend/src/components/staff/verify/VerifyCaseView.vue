@@ -321,6 +321,9 @@ const referenceData = computed(() => ({
   // Staff RTR verification fields
   rtrStaffExpiryDate: reference.value?.rtr_staff_expiry_date,
   rtrStaffShareCodeConfirmed: reference.value?.rtr_staff_share_code_confirmed,
+  rtrIndefiniteLeave: reference.value?.rtr_indefinite_leave,
+  rtrVerificationMethod: reference.value?.rtr_verification_method,
+  rtrVerificationNotes: reference.value?.rtr_verification_notes,
   // Income
   monthlyRent: evidenceData.value?.monthlyRent || reference.value?.monthly_rent,
   totalIncome: evidenceData.value?.verifiedIncome?.total || evidenceData.value?.claimedIncome?.total || reference.value?.total_income,
@@ -689,8 +692,14 @@ async function refreshEvidenceData() {
   }
 }
 
-// Update RTR data (staff confirmation of share code and expiry date)
-async function handleUpdateRtrData(data: { shareCodeConfirmed?: string; expiryDate?: string }) {
+// Update RTR data (staff confirmation of share code, expiry date, indefinite leave, verification method/notes)
+async function handleUpdateRtrData(data: {
+  shareCodeConfirmed?: string;
+  expiryDate?: string;
+  indefiniteLeave?: boolean;
+  verificationMethod?: string;
+  verificationNotes?: string;
+}) {
   try {
     const response = await fetch(`${API_BASE}/api/verify/person/${referenceId.value}/rtr`, {
       method: 'PATCH',
@@ -714,6 +723,15 @@ async function handleUpdateRtrData(data: { shareCodeConfirmed?: string; expiryDa
       }
       if (data.expiryDate !== undefined) {
         reference.value.rtr_staff_expiry_date = data.expiryDate
+      }
+      if (data.indefiniteLeave !== undefined) {
+        reference.value.rtr_indefinite_leave = data.indefiniteLeave
+      }
+      if (data.verificationMethod !== undefined) {
+        reference.value.rtr_verification_method = data.verificationMethod
+      }
+      if (data.verificationNotes !== undefined) {
+        reference.value.rtr_verification_notes = data.verificationNotes
       }
     }
   } catch (err) {
