@@ -4218,18 +4218,16 @@ router.post('/employer/:token', async (req: Request, res) => {
       is_probation: formData.isProbation,
       probation_end_date: formData.probationEndDate || null,
       employment_stable: formData.employmentStable,
-      employment_stable_details_encrypted: encrypt(formData.employmentStableDetails || ''),
+      employment_stable_details: formData.employmentStableDetails || '',
       employment_status: formData.employmentStatus,
       clarification_details_encrypted: encrypt(formData.clarificationDetails || ''),
       contract_type_confirmation: formData.contractTypeConfirmation,
       additional_comments_encrypted: encrypt(formData.additionalComments || ''),
-      signature_name_encrypted: encrypt(formData.signatureName || ''),
       signature_encrypted: encrypt(formData.signature),
       date: formData.date,
       submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : null,
       submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : null,
-      submitted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      submitted_at: new Date().toISOString()
     };
 
     console.log('[EMPLOYER SUBMIT DEBUG] Update payload keys:', Object.keys(updatePayload));

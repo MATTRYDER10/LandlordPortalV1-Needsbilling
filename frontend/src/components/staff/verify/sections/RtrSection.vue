@@ -109,21 +109,87 @@
 
         <!-- Staff Expiry Date Input (always available for international) -->
         <div class="expiry-section">
-          <h4 class="subsection-title">Visa/Permit Expiry Date</h4>
-          <div v-if="!readOnly" class="staff-input-group">
-            <input
-              v-model="localExpiryDate"
-              type="date"
-              class="date-input"
-              @change="emitRtrUpdate"
-            />
-            <p class="input-helper">Enter the visa or permit expiry date</p>
+          <h4 class="subsection-title">Visa/Permit Expiry</h4>
+
+          <!-- Indefinite Leave Checkbox -->
+          <div v-if="!readOnly" class="checkbox-group">
+            <label class="checkbox-label">
+              <input
+                v-model="localIndefiniteLeave"
+                type="checkbox"
+                class="checkbox-input"
+                @change="emitRtrUpdate"
+              />
+              <span>Indefinite Leave to Remain (no expiry)</span>
+            </label>
           </div>
-          <div v-else-if="rtrStaffExpiryDate" class="confirmed-value">
-            <p>{{ formatDate(rtrStaffExpiryDate) }}</p>
+          <div v-else-if="rtrIndefiniteLeave" class="confirmed-value indefinite-badge">
+            <p>Indefinite Leave to Remain</p>
+          </div>
+
+          <!-- Expiry Date Input (hidden if indefinite leave) -->
+          <div v-if="!localIndefiniteLeave">
+            <div v-if="!readOnly" class="staff-input-group">
+              <label class="input-label">Expiry Date</label>
+              <input
+                v-model="localExpiryDate"
+                type="date"
+                class="date-input"
+                @change="emitRtrUpdate"
+              />
+              <p class="input-helper">Enter the visa or permit expiry date</p>
+            </div>
+            <div v-else-if="rtrStaffExpiryDate" class="confirmed-value">
+              <p>Expires: {{ formatDate(rtrStaffExpiryDate) }}</p>
+            </div>
+            <div v-else class="no-data">
+              <p>No expiry date set</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Verification Method -->
+        <div class="verification-method-section">
+          <h4 class="subsection-title">Verification Method</h4>
+          <div v-if="!readOnly" class="staff-input-group">
+            <select
+              v-model="localVerificationMethod"
+              class="select-input"
+              @change="emitRtrUpdate"
+            >
+              <option value="">Select verification method...</option>
+              <option value="share_code_online">Share Code - GOV.UK Online Check</option>
+              <option value="share_code_phone">Share Code - Phone Verification</option>
+              <option value="passport_check">Passport/Document Check</option>
+              <option value="employer_check">Employer Sponsorship Confirmed</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div v-else-if="rtrVerificationMethod" class="confirmed-value">
+            <p>{{ verificationMethodLabel }}</p>
           </div>
           <div v-else class="no-data">
-            <p>No expiry date set</p>
+            <p>No verification method recorded</p>
+          </div>
+        </div>
+
+        <!-- Verification Notes -->
+        <div class="verification-notes-section">
+          <h4 class="subsection-title">Verification Notes</h4>
+          <div v-if="!readOnly" class="staff-input-group">
+            <textarea
+              v-model="localVerificationNotes"
+              class="textarea-input"
+              rows="3"
+              placeholder="Add any notes about the verification (e.g., share code checked on GOV.UK, expiry confirmed, etc.)"
+              @change="emitRtrUpdate"
+            ></textarea>
+          </div>
+          <div v-else-if="rtrVerificationNotes" class="confirmed-value notes-display">
+            <p>{{ rtrVerificationNotes }}</p>
+          </div>
+          <div v-else class="no-data">
+            <p>No verification notes</p>
           </div>
         </div>
 
@@ -201,6 +267,9 @@ const props = defineProps<{
   // Staff verification fields
   rtrStaffExpiryDate?: string
   rtrStaffShareCodeConfirmed?: string
+  rtrIndefiniteLeave?: boolean
+  rtrVerificationMethod?: string
+  rtrVerificationNotes?: string
 }>()
 
 const emit = defineEmits<{
@@ -209,12 +278,15 @@ const emit = defineEmits<{
   (e: 'actionRequired', sectionId: string, params: { reasonCode: string; agentNote: string; internalNote: string }): void
   (e: 'fail', sectionId: string, reason: string): void
   (e: 'reset', sectionId: string): void
-  (e: 'updateRtrData', data: { shareCodeConfirmed?: string; expiryDate?: string }): void
+  (e: 'updateRtrData', data: { shareCodeConfirmed?: string; expiryDate?: string; indefiniteLeave?: boolean; verificationMethod?: string; verificationNotes?: string }): void
 }>()
 
 // Local state for staff inputs
 const localShareCodeConfirmed = ref(props.rtrStaffShareCodeConfirmed || '')
 const localExpiryDate = ref(props.rtrStaffExpiryDate || '')
+const localIndefiniteLeave = ref(props.rtrIndefiniteLeave || false)
+const localVerificationMethod = ref(props.rtrVerificationMethod || '')
+const localVerificationNotes = ref(props.rtrVerificationNotes || '')
 
 // Watch for prop changes
 watch(() => props.rtrStaffShareCodeConfirmed, (newVal) => {
@@ -225,10 +297,25 @@ watch(() => props.rtrStaffExpiryDate, (newVal) => {
   localExpiryDate.value = newVal || ''
 })
 
+watch(() => props.rtrIndefiniteLeave, (newVal) => {
+  localIndefiniteLeave.value = newVal || false
+})
+
+watch(() => props.rtrVerificationMethod, (newVal) => {
+  localVerificationMethod.value = newVal || ''
+})
+
+watch(() => props.rtrVerificationNotes, (newVal) => {
+  localVerificationNotes.value = newVal || ''
+})
+
 const emitRtrUpdate = () => {
   emit('updateRtrData', {
     shareCodeConfirmed: localShareCodeConfirmed.value || undefined,
-    expiryDate: localExpiryDate.value || undefined
+    expiryDate: localIndefiniteLeave.value ? undefined : (localExpiryDate.value || undefined),
+    indefiniteLeave: localIndefiniteLeave.value,
+    verificationMethod: localVerificationMethod.value || undefined,
+    verificationNotes: localVerificationNotes.value || undefined
   })
 }
 
@@ -238,6 +325,10 @@ const displayExpiryDate = computed(() => {
 })
 
 const rtrStatusLabel = computed(() => {
+  // If section has been passed, show "Verified"
+  if (props.section.decision === 'PASS' || props.section.decision === 'PASS_WITH_CONDITION') {
+    return 'Verified'
+  }
   if (!props.rtrStatus) return 'Not verified'
   const labels: Record<string, string> = {
     uk_citizen: 'UK/Irish Citizen',
@@ -249,6 +340,18 @@ const rtrStatusLabel = computed(() => {
     expired: 'Expired'
   }
   return labels[props.rtrStatus] || props.rtrStatus
+})
+
+const verificationMethodLabel = computed(() => {
+  if (!props.rtrVerificationMethod) return ''
+  const labels: Record<string, string> = {
+    share_code_online: 'Share Code - GOV.UK Online Check',
+    share_code_phone: 'Share Code - Phone Verification',
+    passport_check: 'Passport/Document Check',
+    employer_check: 'Employer Sponsorship Confirmed',
+    other: 'Other'
+  }
+  return labels[props.rtrVerificationMethod] || props.rtrVerificationMethod
 })
 
 const formatDate = (dateString?: string) => {
@@ -362,7 +465,9 @@ const britishAltDocTypeLabel = computed(() => {
 .document-section,
 .evidence-section,
 .checks-section,
-.expiry-section {
+.expiry-section,
+.verification-method-section,
+.verification-notes-section {
   padding: 1rem;
   background: #f9fafb;
   border-radius: 0.5rem;
@@ -423,7 +528,8 @@ const britishAltDocTypeLabel = computed(() => {
 }
 
 .text-input,
-.date-input {
+.date-input,
+.select-input {
   width: 100%;
   max-width: 300px;
   padding: 0.5rem 0.75rem;
@@ -431,13 +537,57 @@ const britishAltDocTypeLabel = computed(() => {
   border-radius: 0.375rem;
   font-size: 0.875rem;
   color: #1f2937;
+  background: white;
+}
+
+.textarea-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: #1f2937;
+  resize: vertical;
+  min-height: 60px;
 }
 
 .text-input:focus,
-.date-input:focus {
+.date-input:focus,
+.select-input:focus,
+.textarea-input:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.checkbox-group {
+  margin-bottom: 0.75rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.checkbox-input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-primary);
+}
+
+.indefinite-badge {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #065f46;
+  font-weight: 500;
+}
+
+.notes-display {
+  white-space: pre-wrap;
 }
 
 .input-helper {

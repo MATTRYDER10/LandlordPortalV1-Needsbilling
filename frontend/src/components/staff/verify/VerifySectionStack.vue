@@ -46,6 +46,9 @@
       :has-british-no-passport="referenceData.hasBritishNoPassport"
       :rtr-staff-expiry-date="referenceData.rtrStaffExpiryDate"
       :rtr-staff-share-code-confirmed="referenceData.rtrStaffShareCodeConfirmed"
+      :rtr-indefinite-leave="referenceData.rtrIndefiniteLeave"
+      :rtr-verification-method="referenceData.rtrVerificationMethod"
+      :rtr-verification-notes="referenceData.rtrVerificationNotes"
       :read-only="readOnly"
       :loading="loading"
       :action-reason-codes="actionReasonCodes"
@@ -223,6 +226,9 @@ interface ReferenceData {
   // RTR - Staff verification fields
   rtrStaffExpiryDate?: string
   rtrStaffShareCodeConfirmed?: string
+  rtrIndefiniteLeave?: boolean
+  rtrVerificationMethod?: string
+  rtrVerificationNotes?: string
   // Income
   monthlyRent?: number
   totalIncome?: number
@@ -317,7 +323,7 @@ defineEmits<{
   (e: 'sectionReset', sectionId: string): void
   (e: 'dataRefreshNeeded'): void
   (e: 'updateName', firstName: string, lastName: string): void
-  (e: 'updateRtrData', data: { shareCodeConfirmed?: string; expiryDate?: string }): void
+  (e: 'updateRtrData', data: { shareCodeConfirmed?: string; expiryDate?: string; indefiniteLeave?: boolean; verificationMethod?: string; verificationNotes?: string }): void
 }>()
 
 const findSection = (type: string) => {

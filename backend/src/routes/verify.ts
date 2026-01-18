@@ -245,7 +245,7 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       contact_number: decrypt(reference.contact_number_encrypted),
       property_address: decrypt(reference.property_address_encrypted),
       date_of_birth: reference.date_of_birth_encrypted ? decrypt(reference.date_of_birth_encrypted) : null,
-      nationality: reference.nationality,
+      nationality: reference.nationality_encrypted ? decrypt(reference.nationality_encrypted) : null,
       monthly_rent: rentForDisplay,
       status: reference.status,
       is_guarantor: reference.is_guarantor,
@@ -281,7 +281,7 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       // RTR data - derive rtr_status from is_british_citizen if set
       rtr_status: reference.is_british_citizen ? 'uk_citizen' : reference.rtr_status,
       rtr_expiry_date: reference.rtr_expiry_date,
-      share_code: reference.share_code,
+      share_code: reference.rtr_share_code,
       is_british_citizen: reference.is_british_citizen,
       // File paths
       id_document_path: reference.id_document_path,
@@ -298,6 +298,9 @@ router.get('/person/:referenceId', staffAuth, async (req: StaffAuthRequest, res:
       // Staff RTR verification fields
       rtr_staff_expiry_date: reference.rtr_staff_expiry_date,
       rtr_staff_share_code_confirmed: reference.rtr_staff_share_code_confirmed,
+      rtr_indefinite_leave: reference.rtr_indefinite_leave,
+      rtr_verification_method: reference.rtr_verification_method,
+      rtr_verification_notes: reference.rtr_verification_notes,
       // Current address
       current_address_line1: decrypt(reference.current_address_line1_encrypted),
       current_address_line2: decrypt(reference.current_address_line2_encrypted),
@@ -578,7 +581,7 @@ router.patch('/person/:referenceId/tenant-name', staffAuth, async (req: StaffAut
 router.patch('/person/:referenceId/rtr', staffAuth, async (req: StaffAuthRequest, res: Response) => {
   try {
     const { referenceId } = req.params;
-    const { shareCodeConfirmed, expiryDate } = req.body;
+    const { shareCodeConfirmed, expiryDate, indefiniteLeave, verificationMethod, verificationNotes } = req.body;
     const staffUser = req.staffUser;
 
     if (!staffUser) {
@@ -607,6 +610,15 @@ router.patch('/person/:referenceId/rtr', staffAuth, async (req: StaffAuthRequest
     if (expiryDate !== undefined) {
       updateData.rtr_staff_expiry_date = expiryDate || null;
     }
+    if (indefiniteLeave !== undefined) {
+      updateData.rtr_indefinite_leave = indefiniteLeave;
+    }
+    if (verificationMethod !== undefined) {
+      updateData.rtr_verification_method = verificationMethod || null;
+    }
+    if (verificationNotes !== undefined) {
+      updateData.rtr_verification_notes = verificationNotes || null;
+    }
 
     // Update tenant_references
     const { error: updateError } = await supabaseAdmin
@@ -627,6 +639,9 @@ router.patch('/person/:referenceId/rtr', staffAuth, async (req: StaffAuthRequest
       metadata: {
         share_code_confirmed: shareCodeConfirmed || null,
         expiry_date: expiryDate || null,
+        indefinite_leave: indefiniteLeave,
+        verification_method: verificationMethod || null,
+        verification_notes: verificationNotes || null,
         updated_by_staff: staffUser.full_name
       }
     });
