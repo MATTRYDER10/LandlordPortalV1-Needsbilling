@@ -2,6 +2,7 @@ import { supabase as supabaseAdmin } from '../config/supabase';
 import * as creditService from './creditService';
 import { signatureService } from './signatureService';
 import { processAutoChases } from './autoChaseService';
+import { reconcileVerificationStates } from './verificationStateService';
 
 /**
  * Work Queue Scheduler Service
@@ -21,6 +22,7 @@ const EXPIRED_REFERENCE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const SIGNING_REMINDER_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const SIGNING_REMINDER_THRESHOLD_HOURS = 24; // Send reminders every 24 hours
 const AUTO_CHASE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const VERIFICATION_RECONCILE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Auto-unassign CHASE work items that have been idle for 4+ hours
@@ -515,6 +517,12 @@ export function startSchedulers() {
     await processAutoChases();
   }, AUTO_CHASE_INTERVAL_MS);
 
+  // Verification state reconciliation (every 30 minutes)
+  setInterval(async () => {
+    console.log('[Scheduler] Running verification state reconciliation...');
+    await reconcileVerificationStates();
+  }, VERIFICATION_RECONCILE_INTERVAL_MS);
+
   // Run immediately on startup
   setTimeout(async () => {
     console.log('[Scheduler] Running initial checks...');
@@ -525,6 +533,7 @@ export function startSchedulers() {
     await autoDeleteExpiredReferences();
     await sendSigningReminders();
     await processAutoChases();
+    await reconcileVerificationStates();
   }, 5000); // Wait 5 seconds after startup
 
   console.log('[Scheduler] Background schedulers started successfully');
@@ -542,7 +551,8 @@ export async function runAllScheduledTasks() {
     urgent: await escalateUrgentItems(),
     expiredReferences: await autoDeleteExpiredReferences(),
     signingReminders: await sendSigningReminders(),
-    autoChase: await processAutoChases()
+    autoChase: await processAutoChases(),
+    reconcileVerificationStates: await reconcileVerificationStates()
   };
 
   console.log('[Scheduler] Manual run complete:', results);

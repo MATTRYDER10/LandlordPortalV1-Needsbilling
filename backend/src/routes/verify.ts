@@ -1261,6 +1261,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         tax_return_path,
         proof_of_additional_income_path,
         proof_of_funds_path,
+        other_proof_of_funds_path,
         id_document_path,
         selfie_path,
         proof_of_address_path,
@@ -1289,6 +1290,27 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
     const buildEvidenceFromPaths = () => {
       const evidence: any[] = [];
 
+      const normalizePaths = (value: any): string[] => {
+        if (!value) return [];
+        if (Array.isArray(value)) {
+          return value.filter((item: any) => typeof item === 'string' && item.trim());
+        }
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (!trimmed) return [];
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              return parsed.filter((item: any) => typeof item === 'string' && item.trim());
+            }
+          } catch {
+            // Fall through to treat as single path.
+          }
+          return [trimmed];
+        }
+        return [];
+      };
+
       // Helper to create evidence object from file path
       // Paths are already in format: referenceId/folder/filename
       const addEvidence = (path: string | null, type: string, label: string) => {
@@ -1305,23 +1327,22 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       };
 
       // Add payslips (array - stored as payslip_files)
-      if (reference.payslip_files && Array.isArray(reference.payslip_files)) {
-        reference.payslip_files.forEach((path: string, idx: number) => {
-          addEvidence(path, 'PAYSLIP', `Payslip ${idx + 1}`);
-        });
-      }
+      const payslipPaths = normalizePaths(reference.payslip_files);
+      payslipPaths.forEach((path: string, idx: number) => {
+        addEvidence(path, 'PAYSLIP', `Payslip ${idx + 1}`);
+      });
 
       // Add bank statements (array - stored as bank_statements_paths)
-      if (reference.bank_statements_paths && Array.isArray(reference.bank_statements_paths)) {
-        reference.bank_statements_paths.forEach((path: string, idx: number) => {
-          addEvidence(path, 'BANK_STATEMENT', `Bank Statement ${idx + 1}`);
-        });
-      }
+      const bankStatementPaths = normalizePaths(reference.bank_statements_paths);
+      bankStatementPaths.forEach((path: string, idx: number) => {
+        addEvidence(path, 'BANK_STATEMENT', `Bank Statement ${idx + 1}`);
+      });
 
       // Add single file evidence - Income related
       addEvidence(reference.tax_return_path, 'TAX_RETURN', 'Tax Return');
       addEvidence(reference.proof_of_additional_income_path, 'ADDITIONAL_INCOME', 'Additional Income Proof');
       addEvidence(reference.proof_of_funds_path, 'PROOF_OF_FUNDS', 'Proof of Funds');
+      addEvidence(reference.other_proof_of_funds_path, 'PROOF_OF_FUNDS', 'Other Proof of Funds');
       addEvidence(reference.pension_statement_path, 'PENSION_STATEMENT', 'Pension Statement');
       addEvidence(reference.landlord_rental_bank_statement_path, 'LANDLORD_RENTAL_BANK_STATEMENT', 'Landlord/Rental Income Bank Statement');
 
@@ -1335,7 +1356,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       return evidence;
     };
 
-    const evidenceFiles = buildEvidenceFromPaths();
+    let evidenceFiles = buildEvidenceFromPaths();
 
     // Get employer reference if exists
     const { data: employerReferences, error: employerReferenceError } = await supabaseAdmin
@@ -1350,15 +1371,8 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       console.error('Error fetching employer reference:', employerReferenceError);
     }
 
-    // Only return employer references that have actual data (not empty submissions)
-    const employerReference = (employerReferences || []).find((ref: any) =>
-      ref.annual_salary_encrypted ||
-      ref.employer_name_encrypted ||
-      ref.company_name_encrypted ||
-      ref.employee_position_encrypted ||
-      ref.employment_start_date ||
-      ref.employment_status
-    ) || null; // Changed: Don't use empty employer references as fallback
+    // Use most recent submitted employer reference (even if minimally filled)
+    const employerReference = (employerReferences || [])[0] || null;
 
     // Get accountant reference if exists
     const { data: accountantReference } = await supabaseAdmin
@@ -1387,6 +1401,85 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       .select('*')
       .eq('reference_id', referenceId)
       .order('created_at', { ascending: false });
+
+    const buildEvidenceFromReferenceDocuments = (docs: any[]) => {
+      const evidence: any[] = [];
+      const docTypeMap: Record<string, { evidenceType: string; label: string }> = {
+        id_document: { evidenceType: 'ID_DOCUMENT', label: 'ID Document' },
+        selfie: { evidenceType: 'SELFIE', label: 'Selfie' },
+        proof_of_address: { evidenceType: 'PROOF_OF_ADDRESS', label: 'Proof of Address' },
+        proof_of_funds: { evidenceType: 'PROOF_OF_FUNDS', label: 'Proof of Funds' },
+        other_proof_of_funds: { evidenceType: 'PROOF_OF_FUNDS', label: 'Other Proof of Funds' },
+        proof_of_additional_income: { evidenceType: 'ADDITIONAL_INCOME', label: 'Additional Income Proof' },
+        bank_statements: { evidenceType: 'BANK_STATEMENT', label: 'Bank Statement' },
+        bank_statement: { evidenceType: 'BANK_STATEMENT', label: 'Bank Statement' },
+        payslips: { evidenceType: 'PAYSLIP', label: 'Payslip' },
+        tax_return: { evidenceType: 'TAX_RETURN', label: 'Tax Return' },
+        tenancy_agreement: { evidenceType: 'TENANCY_AGREEMENT', label: 'Tenancy Agreement' },
+        pension_statement: { evidenceType: 'PENSION_STATEMENT', label: 'Pension Statement' },
+        landlord_rental_bank_statement: { evidenceType: 'LANDLORD_RENTAL_BANK_STATEMENT', label: 'Landlord/Rental Income Bank Statement' }
+      };
+
+      const resolvePath = (doc: any) => {
+        const candidates = [
+          doc.file_path,
+          doc.file_url,
+          doc.path,
+          doc.storage_path,
+          doc.document_path,
+          doc.url
+        ];
+        return candidates.find((value: any) => typeof value === 'string' && value.trim()) || null;
+      };
+
+      const resolveFileName = (doc: any, fallbackLabel: string, path: string | null) => {
+        if (typeof doc.file_name === 'string' && doc.file_name.trim()) return doc.file_name.trim();
+        if (typeof doc.filename === 'string' && doc.filename.trim()) return doc.filename.trim();
+        if (path) return path.split('/').pop() || fallbackLabel;
+        return fallbackLabel;
+      };
+
+      docs.forEach((doc: any) => {
+        const docType = doc.document_type || doc.type || doc.documentType;
+        if (!docType || !docTypeMap[docType]) return;
+
+        const path = resolvePath(doc);
+        if (!path) return;
+
+        const { evidenceType, label } = docTypeMap[docType];
+        const fileName = resolveFileName(doc, label, path);
+        const fileType = typeof doc.file_type === 'string' && doc.file_type.trim()
+          ? doc.file_type
+          : (path.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/*');
+
+        evidence.push({
+          id: `refdoc-${doc.id || docType}-${path}`,
+          file_url: path,
+          file_name: fileName,
+          file_type: fileType,
+          evidence_type: evidenceType,
+          created_at: doc.created_at || reference.created_at
+        });
+      });
+
+      return evidence;
+    };
+
+    const mergeEvidence = (primary: any[], secondary: any[]) => {
+      const seen = new Set<string>();
+      const combined = [...primary, ...secondary];
+      return combined.filter((item) => {
+        const key = item.file_url || item.file_name || item.id;
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+
+    evidenceFiles = mergeEvidence(
+      evidenceFiles,
+      buildEvidenceFromReferenceDocuments(referenceDocuments || [])
+    );
 
     // Get staff names for confirmed by fields
     let incomeConfirmedByName = null;
@@ -1511,11 +1604,13 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
 
     if (employerReference) {
       const employerRefAny = employerReference as any;
+      const employerFallback = employerReference.submitted_at ? 'Employer reference submitted' : null;
       decryptedEmployerReference = {
         id: employerReference.id,
         employerName: getDecryptedValue(
           employerRefAny.employer_name_encrypted,
-          employerRefAny.employer_name
+          employerRefAny.employer_name,
+          employerFallback
         ),
         contactName: getDecryptedValue(
           employerRefAny.contact_name_encrypted,
@@ -1601,7 +1696,74 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
           employerRefAny.signature_encrypted,
           employerRefAny.signature
         ),
-        signatureDate: employerReference.date
+        signatureDate: employerReference.date,
+        // Snake_case aliases for frontend compatibility
+        company_name: getDecryptedValue(
+          employerRefAny.company_name_encrypted,
+          employerRefAny.employer_company_encrypted,
+          employerRefAny.company_name,
+          employerRefAny.employer_company
+        ),
+        employer_name: getDecryptedValue(
+          employerRefAny.employer_name_encrypted,
+          employerRefAny.employer_name,
+          employerFallback
+        ),
+        employer_email: getDecryptedValue(
+          employerRefAny.contact_email_encrypted,
+          employerRefAny.contact_email,
+          employerRefAny.employer_email_encrypted,
+          employerRefAny.employer_email
+        ),
+        employer_phone: getDecryptedValue(
+          employerRefAny.employer_phone_encrypted,
+          employerRefAny.employer_phone,
+          employerRefAny.contact_phone_encrypted,
+          employerRefAny.contact_phone
+        ),
+        employee_position: getDecryptedValue(
+          employerRefAny.employee_position_encrypted,
+          employerRefAny.employee_position
+        ),
+        annual_salary: getDecryptedNumber(
+          employerRefAny.annual_salary_encrypted,
+          employerRefAny.annual_salary
+        ),
+        employment_start_date: getFirstValue(
+          employerRefAny.employment_start_date,
+          employerRefAny.employment_start
+        ),
+        employment_end_date: employerReference.employment_end_date,
+        salary_frequency: employerReference.salary_frequency,
+        employment_status: employerReference.employment_status,
+        is_current_employee: employerReference.is_current_employee,
+        employment_type: employerReference.employment_type || null,
+        is_probation: employerReference.is_probation,
+        probation_end_date: employerReference.probation_end_date,
+        submitted_at: employerReference.submitted_at,
+        employer_position: getDecryptedValue(
+          employerRefAny.employer_position_encrypted,
+          employerRefAny.employer_position
+        ),
+        clarification_details: getDecryptedValue(
+          employerRefAny.clarification_details_encrypted,
+          employerRefAny.clarification_details
+        ),
+        contract_type_confirmation: employerReference.contract_type_confirmation,
+        employment_stable: employerReference.employment_stable,
+        employment_stable_details: getDecryptedValue(
+          employerRefAny.employment_stable_details_encrypted,
+          employerRefAny.employment_stable_details
+        ),
+        additional_comments: getDecryptedValue(
+          employerRefAny.additional_comments_encrypted,
+          employerRefAny.additional_comments
+        ),
+        signature_name: getDecryptedValue(
+          employerRefAny.signature_name_encrypted,
+          employerRefAny.signature_name
+        ),
+        date: employerReference.date
       };
     }
 
@@ -1653,7 +1815,21 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         additionalComments: accountantReference.additional_comments_encrypted ? decrypt(accountantReference.additional_comments_encrypted) : null,
         recommendationComments: accountantReference.recommendation_comments_encrypted ? decrypt(accountantReference.recommendation_comments_encrypted) : null,
         signature: accountantReference.signature_encrypted ? decrypt(accountantReference.signature_encrypted) : null,
-        signatureDate: accountantReference.date
+        signatureDate: accountantReference.date,
+        // Snake_case aliases for frontend compatibility
+        accountant_name: accountantReference.accountant_name_encrypted ? decrypt(accountantReference.accountant_name_encrypted) : null,
+        accountant_firm: accountantReference.accountant_firm_encrypted ? decrypt(accountantReference.accountant_firm_encrypted) : null,
+        firm_name: accountantReference.accountant_firm_encrypted ? decrypt(accountantReference.accountant_firm_encrypted) : null,
+        accountant_email: accountantReference.accountant_email_encrypted ? decrypt(accountantReference.accountant_email_encrypted) : null,
+        accountant_phone: accountantReference.accountant_phone_encrypted ? decrypt(accountantReference.accountant_phone_encrypted) : null,
+        business_name: accountantReference.business_name_encrypted ? decrypt(accountantReference.business_name_encrypted) : null,
+        nature_of_business: accountantReference.nature_of_business_encrypted ? decrypt(accountantReference.nature_of_business_encrypted) : null,
+        business_start_date: accountantReference.business_start_date,
+        estimated_monthly_income: accountantReference.estimated_monthly_income_encrypted ? decrypt(accountantReference.estimated_monthly_income_encrypted) : null,
+        annual_turnover: accountantReference.annual_turnover_encrypted ? parseFloat(decrypt(accountantReference.annual_turnover_encrypted) || '0') : null,
+        annual_profit: accountantReference.annual_profit_encrypted ? parseFloat(decrypt(accountantReference.annual_profit_encrypted) || '0') : null,
+        submitted_at: accountantReference.submitted_at,
+        date: accountantReference.date
       };
     }
 

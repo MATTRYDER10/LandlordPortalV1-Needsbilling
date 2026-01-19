@@ -37,7 +37,7 @@ export interface ReadinessCheck {
  * - Right to Rent:
  *   - British citizen: passport OR (no_passport + driving license/birth certificate)
  *   - International: share_code (required)
- * - Income: ONE OF - employer ref, payslip, accountant ref, tax return, other_proof_of_funds
+ * - Income: ONE OF - employer ref, payslip, bank statement, accountant ref, tax return, other_proof_of_funds
  * - Residential: ONE OF - confirmed_residential_status, landlord ref, agent ref, tenancy_agreement
  *
  * GUARANTORS require ONLY:
@@ -75,6 +75,7 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         rtr_british_alt_doc_path,
         tax_return_path,
         payslip_files,
+        bank_statements_paths,
         other_proof_of_funds_path,
         proof_of_additional_income_path,
         landlord_rental_bank_statement_path,
@@ -84,10 +85,10 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
         tenancy_agreement_path,
         confirmed_residential_status,
         reference_type,
-        employer_references (id, submitted_at),
+        employer_references (id, submitted_at, signature_encrypted, annual_salary_encrypted),
         landlord_references (id, submitted_at),
         agent_references (id, submitted_at),
-        accountant_references (id, submitted_at)
+        accountant_references (id, submitted_at, signature_encrypted)
       `)
       .eq('id', referenceId)
       .single()
@@ -104,6 +105,21 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
           residential: { complete: false }
         }
       }
+    }
+
+    let hasGuarantorReference = false
+    if (!reference.is_guarantor) {
+      const { data: guarantorRef, error: guarantorError } = await supabase
+        .from('tenant_references')
+        .select('id')
+        .eq('guarantor_for_reference_id', referenceId)
+        .eq('is_guarantor', true)
+        .limit(1)
+        .maybeSingle()
+      if (guarantorError) {
+        console.error(`[VerificationReadiness] Failed to fetch guarantor for ${referenceId}:`, guarantorError.message)
+      }
+      hasGuarantorReference = !!guarantorRef
     }
 
     const isGuarantor = reference.is_guarantor === true
@@ -193,7 +209,7 @@ export async function isReadyForVerification(referenceId: string): Promise<Readi
     // -------------------------------------------------------------------------
     // 5. INCOME - ONE of: employer ref, payslip, accountant ref, tax return, other proof of funds
     // -------------------------------------------------------------------------
-    const incomeCheck = checkIncomeSection(reference)
+    const incomeCheck = checkIncomeSection(reference, hasGuarantorReference)
     sectionStatus.income = incomeCheck
     if (!incomeCheck.complete) {
       missingItems.push(incomeCheck.reason || 'Income verification incomplete')
@@ -302,25 +318,46 @@ function checkRightToRentSection(reference: any): SectionStatus {
  * Check income section - simplified "one item" rule
  *
  * Rules:
- * - ONE of: employer reference, payslip, accountant reference, tax return, other proof of funds
- * - SPECIAL CASE: Unemployed + Living with Family = auto-pass (no income evidence required)
+ * - ONE of: employer reference (completed), payslip, bank statement, accountant reference (completed), tax return, other proof of funds
+ * - SPECIAL CASES:
+ *   - Student + guarantor = auto-pass (no income evidence required)
+ *   - Unemployed + Living with Family = auto-pass (no income evidence required)
+ *
+ * NOTE: Employer/accountant references must be ACTUALLY COMPLETED by the referee (have signature/salary data),
+ * not just have a request sent out. The submitted_at field is set when the request is created,
+ * so we check for actual form data (signature_encrypted, annual_salary_encrypted, etc.)
  */
-function checkIncomeSection(reference: any): SectionStatus {
+function checkIncomeSection(reference: any, hasGuarantorReference: boolean): SectionStatus {
+  const isGuarantor = reference.is_guarantor === true
   // Special case: Unemployed + Living with Family
   // These references should auto-pass to verify queue without income evidence
   // Check both confirmed_residential_status (new field) and reference_type (legacy field)
   const isUnemployed = reference.income_unemployed === true
+  const isStudent = reference.income_student === true
   const isLivingWithFamily =
     reference.confirmed_residential_status === 'Living with Family' ||
     reference.reference_type === 'living_with_family'
+
+  // Student with guarantor auto-passes - no income evidence required
+  if (!isGuarantor && isStudent && hasGuarantorReference) {
+    return { complete: true, reason: 'Student with guarantor - no income verification required' }
+  }
 
   if (isUnemployed && isLivingWithFamily) {
     return { complete: true, reason: 'Unemployed and living with family - no income verification required' }
   }
 
-  const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
+  // Check for employer reference that is ACTUALLY COMPLETED (has signature or salary data)
+  // Not just submitted_at which is set when the request is created
+  const hasCompletedEmployerRef = (reference.employer_references || []).some((er: any) =>
+    er.submitted_at && (er.signature_encrypted || er.annual_salary_encrypted)
+  )
   const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
-  const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
+  const hasBankStatements = Array.isArray(reference.bank_statements_paths) && reference.bank_statements_paths.length > 0
+  // Check for accountant reference that is ACTUALLY COMPLETED (has signature)
+  const hasCompletedAccountantRef = (reference.accountant_references || []).some((ar: any) =>
+    ar.submitted_at && ar.signature_encrypted
+  )
   const hasTaxReturn = !!reference.tax_return_path
   const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
   const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
@@ -330,13 +367,16 @@ function checkIncomeSection(reference: any): SectionStatus {
   const hasPensionProof = !!(reference.income_pension && (reference.pension_statement_path || pensionAmount > 0))
 
   // Check if ANY income evidence exists
-  if (hasEmployerRef) {
+  if (hasCompletedEmployerRef) {
     return { complete: true, reason: 'Employer reference received' }
   }
   if (hasPayslips) {
     return { complete: true, reason: 'Payslips uploaded' }
   }
-  if (hasAccountantRef) {
+  if (hasBankStatements) {
+    return { complete: true, reason: 'Bank statements uploaded' }
+  }
+  if (hasCompletedAccountantRef) {
     return { complete: true, reason: 'Accountant reference received' }
   }
   if (hasTaxReturn) {
@@ -355,7 +395,7 @@ function checkIncomeSection(reference: any): SectionStatus {
     return { complete: true, reason: 'Pension statement uploaded' }
   }
 
-  return { complete: false, reason: 'Income evidence required (payslip, employer ref, tax return, or other proof)' }
+  return { complete: false, reason: 'Income evidence required (payslip, bank statement, employer ref completed, tax return, or other proof)' }
 }
 
 /**
@@ -435,7 +475,7 @@ export function isReadyForVerificationSync(reference: any): { isReady: boolean; 
   }
 
   // 3. Check income
-  const incomeCheck = checkIncomeSectionSync(reference)
+  const incomeCheck = checkIncomeSectionSync(reference, reference.has_guarantor_reference === true)
   if (!incomeCheck.complete) {
     return { isReady: false, reason: incomeCheck.reason }
   }
@@ -500,23 +540,41 @@ function checkRightToRentSectionSync(reference: any): SectionStatus {
 
 /**
  * Sync version of income check - simplified "one item" rule
+ * - SPECIAL CASE: Student + guarantor = auto-pass (no income evidence required)
  * - SPECIAL CASE: Unemployed + Living with Family = auto-pass (no income evidence required)
+ *
+ * NOTE: Employer/accountant references must be ACTUALLY COMPLETED by the referee (have signature/salary data),
+ * not just have a request sent out.
  */
-function checkIncomeSectionSync(reference: any): SectionStatus {
+function checkIncomeSectionSync(reference: any, hasGuarantorReference: boolean): SectionStatus {
+  const isGuarantor = reference.is_guarantor === true
   // Special case: Unemployed + Living with Family
   // Check both confirmed_residential_status (new field) and reference_type (legacy field)
   const isUnemployed = reference.income_unemployed === true
+  const isStudent = reference.income_student === true
   const isLivingWithFamily =
     reference.confirmed_residential_status === 'Living with Family' ||
     reference.reference_type === 'living_with_family'
+
+  // Student with guarantor auto-passes - no income evidence required
+  if (!isGuarantor && isStudent && hasGuarantorReference) {
+    return { complete: true, reason: 'Student with guarantor' }
+  }
 
   if (isUnemployed && isLivingWithFamily) {
     return { complete: true, reason: 'Unemployed and living with family - no income verification required' }
   }
 
-  const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
+  // Check for employer reference that is ACTUALLY COMPLETED (has signature or salary data)
+  const hasCompletedEmployerRef = (reference.employer_references || []).some((er: any) =>
+    er.submitted_at && (er.signature_encrypted || er.annual_salary_encrypted)
+  )
   const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
-  const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
+  const hasBankStatements = Array.isArray(reference.bank_statements_paths) && reference.bank_statements_paths.length > 0
+  // Check for accountant reference that is ACTUALLY COMPLETED (has signature)
+  const hasCompletedAccountantRef = (reference.accountant_references || []).some((ar: any) =>
+    ar.submitted_at && ar.signature_encrypted
+  )
   const hasTaxReturn = !!reference.tax_return_path
   const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
   const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
@@ -525,7 +583,7 @@ function checkIncomeSectionSync(reference: any): SectionStatus {
   const hasLandlordRentalProof = !!(reference.income_landlord_rental && (reference.landlord_rental_bank_statement_path || landlordRentalAmount > 0))
   const hasPensionProof = !!(reference.income_pension && (reference.pension_statement_path || pensionAmount > 0))
 
-  if (hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof) {
+  if (hasCompletedEmployerRef || hasPayslips || hasBankStatements || hasCompletedAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof) {
     return { complete: true }
   }
 

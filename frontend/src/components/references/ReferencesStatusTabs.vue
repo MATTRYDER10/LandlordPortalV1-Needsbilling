@@ -45,7 +45,6 @@ defineEmits<{
 const tabs = computed(() => [
   { key: 'ALL', label: 'All', count: props.counts.all },
   { key: 'IN_PROGRESS', label: 'In Progress', count: props.counts.inProgress },
-  { key: 'AWAITING_VERIFICATION', label: 'Awaiting Verification', count: props.counts.awaitingVerification },
   { key: 'ACTION_REQUIRED', label: 'Action Required', count: props.counts.actionRequired },
   { key: 'COMPLETED', label: 'Completed', count: props.counts.completed },
   { key: 'MOVED_IN', label: 'Moved In', count: props.counts.movedIn },

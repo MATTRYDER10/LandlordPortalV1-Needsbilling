@@ -1467,9 +1467,16 @@ onMounted(async () => {
 
   if (route.query.status && typeof route.query.status === 'string') {
     const status = route.query.status.toUpperCase()
-    if (['IN_PROGRESS', 'AWAITING_VERIFICATION', 'ACTION_REQUIRED', 'COMPLETED', 'MOVED_IN', 'REJECTED'].includes(status)) {
+    if (['IN_PROGRESS', 'ACTION_REQUIRED', 'COMPLETED', 'MOVED_IN', 'REJECTED'].includes(status)) {
       activeTab.value = status as TabKey
     }
+  }
+
+  // Handle search query from URL (e.g., from dashboard calendar click)
+  if (route.query.search && typeof route.query.search === 'string') {
+    search.value = route.query.search
+    // Clear the search param from URL to avoid confusion on refresh
+    router.replace({ path: '/references', query: {} })
   }
 
   window.addEventListener('open-create-reference-modal', handleOpenCreateModal)

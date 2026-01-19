@@ -55,7 +55,7 @@ export interface EvidenceCheckResult {
  * TENANTS require (ONE each):
  * - Identity: selfie_path AND id_document_path (both required)
  * - Right to Rent: is_british_citizen=true OR RTR document uploaded
- * - Income: ONE OF - employer ref, payslip, accountant ref, tax return, other_proof_of_funds_path
+ * - Income: ONE OF - employer ref, payslip, bank statement, accountant ref, tax return, other_proof_of_funds_path
  * - Residential: ONE OF - confirmed_residential_status set, landlord ref, agent ref, tenancy_agreement_path
  *
  * GUARANTORS require ONLY:
@@ -84,6 +84,7 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
       rtr_british_alt_doc_path,
       tax_return_path,
       payslip_files,
+      bank_statements_paths,
       other_proof_of_funds_path,
       proof_of_additional_income_path,
       landlord_rental_bank_statement_path,
@@ -93,10 +94,10 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
       tenancy_agreement_path,
       confirmed_residential_status,
       reference_type,
-      employer_references (id, submitted_at),
+      employer_references (id, submitted_at, signature_encrypted, annual_salary_encrypted),
       landlord_references (id, submitted_at),
       agent_references (id, submitted_at),
-      accountant_references (id, submitted_at)
+      accountant_references (id, submitted_at, signature_encrypted)
     `)
     .eq('id', referenceId)
     .single()
@@ -112,6 +113,20 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
   }
 
   const isGuarantor = reference.is_guarantor === true
+  let hasGuarantor = false
+  if (!isGuarantor) {
+    const { data: guarantorRef, error: guarantorError } = await supabase
+      .from('tenant_references')
+      .select('id')
+      .eq('guarantor_for_reference_id', referenceId)
+      .eq('is_guarantor', true)
+      .limit(1)
+      .maybeSingle()
+    if (guarantorError) {
+      console.error(`[VerificationState] Failed to fetch guarantor for ${referenceId}:`, guarantorError.message)
+    }
+    hasGuarantor = !!guarantorRef
+  }
   const missingCategories: string[] = []
 
   // -------------------------------------------------------------------------
@@ -148,8 +163,10 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
   }
 
   // -------------------------------------------------------------------------
-  // INCOME: ONE of employer ref, payslip, accountant ref, tax return, other proof of funds, additional income proof
-  // SPECIAL CASE: (Unemployed OR Student) + Living with Family = auto-pass (no income evidence required)
+  // INCOME: ONE of employer ref, payslip, bank statement, accountant ref, tax return, other proof of funds, additional income proof
+  // SPECIAL CASES:
+  // - Student + guarantor = auto-pass (no income evidence required)
+  // - Unemployed + living with family = auto-pass (no income evidence required)
   // -------------------------------------------------------------------------
   const isUnemployed = reference.income_unemployed === true
   const isStudent = reference.income_student === true
@@ -158,14 +175,24 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
     reference.confirmed_residential_status === 'Living with Family' ||
     reference.reference_type === 'living_with_family'
 
-  // Auto-pass income check for (unemployed OR student) + living with family
+  // Auto-pass income check for student + guarantor or unemployed + living with family
   let hasIncome = false
-  if ((isUnemployed || isStudent) && isLivingWithFamily) {
+  if (!isGuarantor && isStudent && hasGuarantor) {
+    hasIncome = true
+  } else if (isUnemployed && isLivingWithFamily) {
     hasIncome = true
   } else {
-    const hasEmployerRef = (reference.employer_references || []).some((er: any) => er.submitted_at)
+    // Check for employer reference that is ACTUALLY COMPLETED (has signature or salary data)
+    // Not just submitted_at which is set when the request is created
+    const hasCompletedEmployerRef = (reference.employer_references || []).some((er: any) =>
+      er.submitted_at && (er.signature_encrypted || er.annual_salary_encrypted)
+    )
     const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
-    const hasAccountantRef = (reference.accountant_references || []).some((ar: any) => ar.submitted_at)
+    const hasBankStatements = Array.isArray(reference.bank_statements_paths) && reference.bank_statements_paths.length > 0
+    // Check for accountant reference that is ACTUALLY COMPLETED (has signature)
+    const hasCompletedAccountantRef = (reference.accountant_references || []).some((ar: any) =>
+      ar.submitted_at && ar.signature_encrypted
+    )
     const hasTaxReturn = !!reference.tax_return_path
     const hasOtherProofOfFunds = !!reference.other_proof_of_funds_path
     const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
@@ -174,7 +201,7 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
     const hasLandlordRentalProof = !!(reference.income_landlord_rental && (reference.landlord_rental_bank_statement_path || landlordRentalAmount > 0))
     const hasPensionProof = !!(reference.income_pension && (reference.pension_statement_path || pensionAmount > 0))
 
-    hasIncome = hasEmployerRef || hasPayslips || hasAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof
+    hasIncome = hasCompletedEmployerRef || hasPayslips || hasBankStatements || hasCompletedAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof
   }
 
   if (!hasIncome) {
@@ -446,7 +473,7 @@ export async function evaluateAndTransition(
     // Get current state
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
-      .select('verification_state, status')
+      .select('verification_state, status, submitted_at')
       .eq('id', referenceId)
       .single()
 
@@ -469,6 +496,12 @@ export async function evaluateAndTransition(
       return { success: true, transitioned: false }
     }
 
+    // Pending references are just sent; don't advance to COLLECTING_EVIDENCE until submitted
+    if (reference.status === 'pending' && !reference.submitted_at) {
+      console.log(`[VerificationState] Reference ${referenceId} pending and not submitted, skipping evaluation`)
+      return { success: true, transitioned: false }
+    }
+
     // Step 1: Evaluate minimum evidence
     const evidence = await evaluateMinimumEvidence(referenceId)
 
@@ -486,6 +519,9 @@ export async function evaluateAndTransition(
       }
       return { success: true, transitioned: false }
     }
+
+    // Step 1.5: Auto-receive external dependencies when submissions exist
+    await autoReceiveExternalDependencies(referenceId)
 
     // Step 2: Evidence complete - check for pending external references via chase dependencies
     const { data: pendingExternalDeps, error: depsError } = await supabase
@@ -538,5 +574,106 @@ export async function evaluateAndTransition(
   } catch (error) {
     console.error(`[VerificationState] evaluateAndTransition failed for ${referenceId}:`, error)
     return { success: false, transitioned: false, error: String(error) }
+  }
+}
+
+export async function reconcileVerificationStates(): Promise<{ processed: number; transitioned: number; errors: number }> {
+  let processed = 0
+  let transitioned = 0
+  let errors = 0
+  let from = 0
+  const size = 500
+
+  try {
+    for (;;) {
+      const { data: references, error } = await supabase
+        .from('tenant_references')
+        .select('id, status, verification_state')
+        .in('status', ['pending', 'in_progress', 'pending_verification'])
+        .range(from, from + size - 1)
+
+      if (error) {
+        console.error('[VerificationState] Failed to fetch references for reconciliation:', error)
+        errors++
+        break
+      }
+
+      if (!references || references.length === 0) {
+        break
+      }
+
+      for (const reference of references) {
+        processed++
+        const result = await evaluateAndTransition(reference.id, 'Scheduled reconciliation')
+        if (result.success && result.transitioned) {
+          transitioned++
+        } else if (!result.success) {
+          errors++
+        }
+      }
+
+      if (references.length < size) {
+        break
+      }
+      from += size
+    }
+  } catch (err) {
+    console.error('[VerificationState] Reconciliation failed:', err)
+    errors++
+  }
+
+  return { processed, transitioned, errors }
+}
+
+async function autoReceiveExternalDependencies(referenceId: string): Promise<void> {
+  try {
+    const { data: reference, error } = await supabase
+      .from('tenant_references')
+      .select(`
+        confirmed_residential_status,
+        employer_references (id, submitted_at, signature_encrypted, annual_salary_encrypted),
+        landlord_references (id, submitted_at),
+        agent_references (id, submitted_at),
+        accountant_references (id, submitted_at, signature_encrypted)
+      `)
+      .eq('id', referenceId)
+      .single()
+
+    if (error || !reference) {
+      return
+    }
+
+    // Check for employer reference that is ACTUALLY COMPLETED (has signature or salary data)
+    const hasCompletedEmployerRef = (reference.employer_references || []).some((er: any) =>
+      er.submitted_at && (er.signature_encrypted || er.annual_salary_encrypted)
+    )
+    const hasLandlordRef = (reference.landlord_references || []).some((lr: any) => lr.submitted_at)
+    const hasAgentRef = (reference.agent_references || []).some((ar: any) => ar.submitted_at)
+    // Check for accountant reference that is ACTUALLY COMPLETED (has signature)
+    const hasCompletedAccountantRef = (reference.accountant_references || []).some((ar: any) =>
+      ar.submitted_at && ar.signature_encrypted
+    )
+    const hasResidentialRef = !!reference.confirmed_residential_status || hasLandlordRef || hasAgentRef
+
+    const depTypes: string[] = []
+    if (hasCompletedEmployerRef) depTypes.push('EMPLOYER_REF')
+    if (hasResidentialRef) depTypes.push('RESIDENTIAL_REF')
+    if (hasCompletedAccountantRef) depTypes.push('ACCOUNTANT_REF')
+
+    if (depTypes.length === 0) {
+      return
+    }
+
+    await supabase
+      .from('chase_dependencies')
+      .update({
+        status: 'RECEIVED',
+        next_chase_due_at: null
+      })
+      .eq('reference_id', referenceId)
+      .in('dependency_type', depTypes)
+      .in('status', ['PENDING', 'CHASING', 'ACTION_REQUIRED', 'EXHAUSTED'])
+  } catch (error) {
+    console.error(`[VerificationState] Failed to auto-receive dependencies for ${referenceId}:`, error)
   }
 }

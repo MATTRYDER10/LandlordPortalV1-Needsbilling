@@ -582,7 +582,7 @@ export function buildTenancyPersonSync(
     email: decrypt(reference.tenant_email_encrypted) || '',
     phone: decrypt(reference.tenant_phone_encrypted) || '',
     rentShare: reference.rent_share || 0,
-    verificationState: reference.verification_state,  // Direct from database
+    verificationState: reference.verification_state ?? (reference.status === 'pending' ? 'SENT' : null),  // Show sent for pending
     guarantorForTenantId: reference.guarantor_for_reference_id || undefined,
     sectionStatuses,
     actionRequiredTasks

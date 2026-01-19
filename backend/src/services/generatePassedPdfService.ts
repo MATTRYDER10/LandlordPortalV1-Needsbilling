@@ -1133,25 +1133,8 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
                     rtrData.push(['Status', 'International', true])
                     const shareCode = reference.rtr_staff_share_code_confirmed || reference.rtr_share_code || 'Not provided'
                     rtrData.push(['Share Code', shareCode, !!shareCode && shareCode !== 'Not provided'])
-
-                    // Show indefinite leave or expiry date
-                    if (reference.rtr_indefinite_leave) {
-                        rtrData.push(['Visa Status', 'Indefinite Leave to Remain', true])
-                    } else if (reference.rtr_staff_expiry_date) {
+                    if (reference.rtr_staff_expiry_date) {
                         rtrData.push(['Visa Expiry', formatDate(reference.rtr_staff_expiry_date), false])
-                    }
-
-                    // Add verification method if recorded
-                    if (reference.rtr_verification_method) {
-                        const methodLabels: Record<string, string> = {
-                            share_code_online: 'GOV.UK Online Check',
-                            share_code_phone: 'Phone Verification',
-                            passport_check: 'Document Check',
-                            employer_check: 'Employer Confirmed',
-                            other: 'Other'
-                        }
-                        const methodLabel = methodLabels[reference.rtr_verification_method] || reference.rtr_verification_method
-                        rtrData.push(['Verified Via', methodLabel, true])
                     }
                 }
                 rightY += drawSection(rightColumnX, rightY, 'Right to Rent', rtrData, 'pass')

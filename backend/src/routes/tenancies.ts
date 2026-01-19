@@ -228,28 +228,60 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     console.log(`[Tenancies API] Batch fetching data for ${allReferenceIds.length} references`)
 
-    // Fetch all data in parallel (4 queries instead of 500+)
-    const [sectionsMap, dependenciesMap, reasonCodeLabels, emailIssuesData] = await Promise.all([
+    // Fetch all data in parallel (5 queries instead of 500+)
+    const [sectionsMap, dependenciesMap, reasonCodeLabels, emailIssuesData, emailDeliveredData] = await Promise.all([
       batchGetVerificationSections(allReferenceIds),
       batchGetChaseDependencies(allReferenceIds),
       batchGetReasonCodeLabels(),
       // Fetch email delivery issues (bounced or complained)
       supabase
         .from('email_delivery_logs')
-        .select('reference_id, reference_type, status, error_message')
+        .select('reference_id, reference_type, status, error_message, created_at')
         .in('reference_id', allReferenceIds)
-        .in('status', ['bounced', 'complained'])
+        .in('status', ['bounced', 'complained']),
+      // Fetch successful deliveries to check if bounce was superseded
+      supabase
+        .from('email_delivery_logs')
+        .select('reference_id, reference_type, created_at')
+        .in('reference_id', allReferenceIds)
+        .eq('status', 'delivered')
     ])
 
+    // Build a map of reference_id+reference_type -> latest delivery timestamp
+    const latestDeliveryMap = new Map<string, Date>()
+    if (emailDeliveredData.data) {
+      for (const delivery of emailDeliveredData.data) {
+        if (delivery.reference_id) {
+          const key = `${delivery.reference_id}:${delivery.reference_type || 'tenant'}`
+          const existingDate = latestDeliveryMap.get(key)
+          const deliveryDate = new Date(delivery.created_at)
+          if (!existingDate || deliveryDate > existingDate) {
+            latestDeliveryMap.set(key, deliveryDate)
+          }
+        }
+      }
+    }
+
     // Build a map of reference_id -> array of email delivery issues (multiple types per reference)
+    // Only include bounces that haven't been superseded by a successful delivery
     const emailIssuesMap = new Map<string, Array<{ status: string; referenceType: string; errorMessage?: string }>>()
     if (emailIssuesData.data) {
       for (const issue of emailIssuesData.data) {
         if (issue.reference_id) {
+          const refType = issue.reference_type || 'tenant'
+          const key = `${issue.reference_id}:${refType}`
+          const latestDelivery = latestDeliveryMap.get(key)
+          const bounceDate = new Date(issue.created_at)
+
+          // Skip this bounce if there's a successful delivery after it
+          if (latestDelivery && latestDelivery > bounceDate) {
+            continue
+          }
+
           const existing = emailIssuesMap.get(issue.reference_id) || []
           existing.push({
             status: issue.status,
-            referenceType: issue.reference_type || 'tenant',
+            referenceType: refType,
             errorMessage: issue.error_message
           })
           emailIssuesMap.set(issue.reference_id, existing)

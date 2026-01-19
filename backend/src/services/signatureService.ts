@@ -207,7 +207,8 @@ class SignatureService {
         signaturePromises.push(
           this.createSignatureRecord(agreementId, 'landlord', i, {
             name: landlord.name,
-            email: i === 0 ? agreement.landlord_email : undefined,
+            // Use landlord's individual email, fallback to agreement.landlord_email for first landlord
+            email: landlord.email || (i === 0 ? agreement.landlord_email : undefined),
             address: landlord.address
           })
         )
@@ -220,7 +221,8 @@ class SignatureService {
       signaturePromises.push(
         this.createSignatureRecord(agreementId, 'tenant', i, {
           name: tenant.name,
-          email: i === 0 ? agreement.tenant_email : undefined,
+          // Use tenant's individual email, fallback to agreement.tenant_email for first tenant
+          email: tenant.email || (i === 0 ? agreement.tenant_email : undefined),
           address: tenant.address
         })
       )

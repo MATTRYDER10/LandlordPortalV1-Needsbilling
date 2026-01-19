@@ -4,6 +4,7 @@ export type TemplateType = 'dps' | 'mydeposits' | 'tds' | 'no_deposit' | 'reposi
 
 export interface Party {
   name: string
+  email?: string
   address: {
     line1: string
     line2?: string

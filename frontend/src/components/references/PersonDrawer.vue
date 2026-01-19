@@ -1349,6 +1349,7 @@
                 <option value="">Select document type...</option>
                 <option value="id_document">ID Document</option>
                 <option value="selfie">Selfie</option>
+                <option value="rtr_alternative_document">Right to Rent (Document or Share Code)</option>
                 <option value="payslips">Payslips</option>
                 <option value="bank_statement">Bank Statement</option>
                 <option value="proof_of_address">Proof of Address</option>
@@ -1369,6 +1370,16 @@
               />
               <p class="text-xs text-gray-500 mt-1">Accepted: PDF, JPG, PNG{{ uploadDocType === 'payslips' ? ' (multiple files allowed)' : '' }}</p>
             </div>
+            <div v-if="uploadDocType === 'rtr_alternative_document'">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Right to Rent Share Code (optional)</label>
+              <input
+                v-model="rtrShareCode"
+                type="text"
+                placeholder="e.g. ABCD-1234-5678"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+              <p class="text-xs text-gray-500 mt-1">Provide a share code or upload a document. Either one is enough.</p>
+            </div>
             <div v-if="selectedFiles.length > 0" class="bg-gray-50 rounded-md p-3">
               <p class="text-sm font-medium text-gray-700 mb-2">Selected files:</p>
               <ul class="text-sm text-gray-600 space-y-1">
@@ -1388,7 +1399,7 @@
             </button>
             <button
               @click="handleUploadDocument"
-              :disabled="!uploadDocType || selectedFiles.length === 0 || uploadingDoc"
+              :disabled="!canUploadDocument || uploadingDoc"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Loader2 v-if="uploadingDoc" class="animate-spin h-4 w-4" />
@@ -1600,6 +1611,7 @@ const uploadDocType = ref('')
 const selectedFiles = ref<File[]>([])
 const uploadingDoc = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const rtrShareCode = ref('')
 
 // Referee modal state
 const refereeType = ref<'employer' | 'landlord' | 'accountant' | ''>('')
@@ -1647,6 +1659,12 @@ watch(() => [props.open, props.person?.id], async ([isOpen, personId]) => {
     actionRequiredDetails.value = null
   }
 }, { immediate: true })
+
+watch(uploadDocType, (newType) => {
+  if (newType !== 'rtr_alternative_document') {
+    rtrShareCode.value = ''
+  }
+})
 
 async function loadFullDetails(referenceId: string) {
   loadingDetails.value = true
@@ -2506,9 +2524,17 @@ function handleFileSelect(event: Event) {
   }
 }
 
+const canUploadDocument = computed(() => {
+  if (!uploadDocType.value) return false
+  if (uploadDocType.value === 'rtr_alternative_document') {
+    return selectedFiles.value.length > 0 || rtrShareCode.value.trim().length > 0
+  }
+  return selectedFiles.value.length > 0
+})
+
 // Handle document upload
 async function handleUploadDocument() {
-  if (!props.person?.id || !uploadDocType.value || selectedFiles.value.length === 0) return
+  if (!props.person?.id || !uploadDocType.value) return
 
   uploadingDoc.value = true
   try {
@@ -2520,13 +2546,19 @@ async function handleUploadDocument() {
       files[uploadDocType.value] = selectedFiles.value[0]
     }
 
-    const result = await uploadDocument(props.person.id, files)
+    const fields: Record<string, string> = {}
+    if (uploadDocType.value === 'rtr_alternative_document' && rtrShareCode.value.trim()) {
+      fields.rtr_share_code = rtrShareCode.value.trim()
+    }
+
+    const result = await uploadDocument(props.person.id, files, fields)
     if (result) {
       showToast(`Document(s) uploaded successfully`, 'success')
       // Reset modal state
       showUploadModal.value = false
       uploadDocType.value = ''
       selectedFiles.value = []
+      rtrShareCode.value = ''
       if (fileInput.value) {
         fileInput.value.value = ''
       }

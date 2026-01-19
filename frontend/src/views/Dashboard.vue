@@ -101,123 +101,122 @@
         </div>
       </div>
 
-      <!-- Recent References -->
+      <!-- Move-in Calendar -->
       <div class="bg-white rounded-lg shadow">
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 class="text-lg font-semibold text-gray-900">Recent References</h3>
+          <h3 class="text-lg font-semibold text-gray-900">Move-in Calendar</h3>
           <router-link to="/references" class="text-sm font-medium text-primary hover:text-primary/80">
-            View All →
+            View All References →
           </router-link>
         </div>
 
-        <!-- Empty State -->
-        <div v-if="recentReferences.length === 0" class="p-6">
-          <div class="text-center py-12">
-            <FileText class="mx-auto h-12 w-12 text-gray-400" />
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No references yet</h3>
-            <p class="mt-1 text-sm text-gray-500">Get started by creating a new tenant reference.</p>
-            <div class="mt-6">
-              <router-link to="/references?create=true"
-                class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md inline-block">
-                Create New Reference
-              </router-link>
+        <div class="p-6">
+          <!-- Loading State -->
+          <div v-if="calendarLoading" class="flex justify-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+
+          <!-- Calendar Grid -->
+          <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Current Month -->
+            <div class="calendar-month">
+              <h4 class="text-center font-semibold text-gray-900 mb-4">{{ currentMonthName }}</h4>
+              <div class="grid grid-cols-7 gap-1">
+                <!-- Day Headers -->
+                <div v-for="day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" :key="day"
+                  class="text-center text-xs font-medium text-gray-500 py-2">
+                  {{ day }}
+                </div>
+                <!-- Calendar Days -->
+                <div v-for="(day, index) in currentMonthDays" :key="'current-' + index"
+                  class="relative min-h-[80px] border border-gray-100 rounded p-1"
+                  :class="{ 'bg-gray-50': !day.isCurrentMonth }">
+                  <span v-if="day.date" class="text-xs text-gray-500">{{ day.date }}</span>
+                  <!-- Move-in entries for this day -->
+                  <div v-for="entry in day.entries" :key="entry.leadTenantId"
+                    class="mt-1 relative group">
+                    <div class="text-xs p-1 rounded cursor-pointer truncate"
+                      :class="getEntryStatusClass(entry)"
+                      @click="navigateToTenancy(entry.property.address)">
+                      {{ truncateAddress(entry.property.address) }}
+                    </div>
+                    <!-- Hover Tooltip -->
+                    <div class="absolute left-0 top-full mt-1 z-50 hidden group-hover:block w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+                      <div class="text-sm font-medium text-gray-900 mb-2">{{ entry.property.address }}</div>
+                      <div class="text-xs text-gray-500 mb-2">{{ entry.property.city }}{{ entry.property.postcode ? ', ' + entry.property.postcode : '' }}</div>
+                      <div v-if="entry.rentAmount" class="text-sm font-semibold text-primary mb-2">
+                        Rent: {{ formatCurrency(entry.rentAmount) }}/month
+                      </div>
+                      <div class="space-y-1">
+                        <div v-for="tenant in entry.tenants" :key="tenant.id" class="flex items-center justify-between">
+                          <span class="text-xs text-gray-700">
+                            {{ tenant.name }}
+                            <span v-if="tenant.isGuarantor" class="text-purple-600">(G)</span>
+                          </span>
+                          <span class="px-1.5 py-0.5 text-xs rounded-full" :class="getStatusBadgeClass(tenant.status)">
+                            {{ formatStatus(tenant.status) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Next Month -->
+            <div class="calendar-month">
+              <h4 class="text-center font-semibold text-gray-900 mb-4">{{ nextMonthName }}</h4>
+              <div class="grid grid-cols-7 gap-1">
+                <!-- Day Headers -->
+                <div v-for="day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" :key="day"
+                  class="text-center text-xs font-medium text-gray-500 py-2">
+                  {{ day }}
+                </div>
+                <!-- Calendar Days -->
+                <div v-for="(day, index) in nextMonthDays" :key="'next-' + index"
+                  class="relative min-h-[80px] border border-gray-100 rounded p-1"
+                  :class="{ 'bg-gray-50': !day.isCurrentMonth }">
+                  <span v-if="day.date" class="text-xs text-gray-500">{{ day.date }}</span>
+                  <!-- Move-in entries for this day -->
+                  <div v-for="entry in day.entries" :key="entry.leadTenantId"
+                    class="mt-1 relative group">
+                    <div class="text-xs p-1 rounded cursor-pointer truncate"
+                      :class="getEntryStatusClass(entry)"
+                      @click="navigateToTenancy(entry.property.address)">
+                      {{ truncateAddress(entry.property.address) }}
+                    </div>
+                    <!-- Hover Tooltip -->
+                    <div class="absolute left-0 top-full mt-1 z-50 hidden group-hover:block w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+                      <div class="text-sm font-medium text-gray-900 mb-2">{{ entry.property.address }}</div>
+                      <div class="text-xs text-gray-500 mb-2">{{ entry.property.city }}{{ entry.property.postcode ? ', ' + entry.property.postcode : '' }}</div>
+                      <div v-if="entry.rentAmount" class="text-sm font-semibold text-primary mb-2">
+                        Rent: {{ formatCurrency(entry.rentAmount) }}/month
+                      </div>
+                      <div class="space-y-1">
+                        <div v-for="tenant in entry.tenants" :key="tenant.id" class="flex items-center justify-between">
+                          <span class="text-xs text-gray-700">
+                            {{ tenant.name }}
+                            <span v-if="tenant.isGuarantor" class="text-purple-600">(G)</span>
+                          </span>
+                          <span class="px-1.5 py-0.5 text-xs rounded-full" :class="getStatusBadgeClass(tenant.status)">
+                            {{ formatStatus(tenant.status) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- References Table -->
-        <div v-else class="overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <template v-for="reference in recentReferences" :key="reference.id">
-                <!-- Main tenant row -->
-                <tr class="hover:bg-gray-50">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900">
-                      {{ reference.tenant_first_name }} {{ reference.tenant_last_name }}
-                    </div>
-                    <div class="text-sm text-gray-500">{{ reference.tenant_email }}</div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="text-sm text-gray-900">{{ reference.property_address }}</div>
-                    <div class="text-sm text-gray-500">
-                      {{ reference.property_city }}{{ reference.property_postcode ? ', ' + reference.property_postcode :
-                      '' }}
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
-                      'bg-yellow-100 text-yellow-800': reference.status === 'pending',
-                      'bg-blue-100 text-blue-800': reference.status === 'in_progress',
-                      'bg-orange-100 text-orange-800': reference.status === 'pending_verification',
-                      'bg-green-100 text-green-800': reference.status === 'completed',
-                      'bg-red-100 text-red-800': reference.status === 'rejected',
-                      'bg-gray-100 text-gray-800': reference.status === 'cancelled'
-                    }">
-                      {{ formatStatus(reference.status) }}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ formatDate(reference.created_at) }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button @click="viewReference(reference.id)" class="text-primary hover:text-primary/80">
-                      View
-                    </button>
-                  </td>
-                </tr>
-                <!-- Nested guarantor rows -->
-                <tr v-for="guarantor in reference.guarantors" :key="guarantor.id"
-                  class="bg-purple-50 hover:bg-purple-100">
-                  <td class="px-6 py-4 whitespace-nowrap pl-12">
-                    <div class="text-sm font-medium text-purple-900 flex items-center">
-                      <span class="mr-2">↳</span>
-                      {{ guarantor.tenant_first_name }} {{ guarantor.tenant_last_name }}
-                      <span
-                        class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-200 text-purple-800">Guarantor</span>
-                    </div>
-                    <div class="text-sm text-purple-700 pl-4">{{ guarantor.tenant_email }}</div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="text-sm text-purple-900">{{ guarantor.property_address }}</div>
-                    <div class="text-sm text-purple-700">
-                      {{ guarantor.property_city }}{{ guarantor.property_postcode ? ', ' + guarantor.property_postcode :
-                      '' }}
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="{
-                      'bg-yellow-100 text-yellow-800': guarantor.status === 'pending',
-                      'bg-blue-100 text-blue-800': guarantor.status === 'in_progress',
-                      'bg-orange-100 text-orange-800': guarantor.status === 'pending_verification',
-                      'bg-green-100 text-green-800': guarantor.status === 'completed',
-                      'bg-red-100 text-red-800': guarantor.status === 'rejected',
-                      'bg-gray-100 text-gray-800': guarantor.status === 'cancelled'
-                    }">
-                      {{ formatStatus(guarantor.status) }}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-purple-700">
-                    {{ formatDate(guarantor.created_at) }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button @click="viewReference(guarantor.id)" class="text-purple-600 hover:text-purple-800">
-                      View
-                    </button>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
+          <!-- Empty State -->
+          <div v-if="!calendarLoading && calendarEntries.length === 0" class="text-center py-8">
+            <Calendar class="mx-auto h-12 w-12 text-gray-400" />
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No move-in dates scheduled</h3>
+            <p class="mt-1 text-sm text-gray-500">References with move-in dates in this period will appear here.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -225,18 +224,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Sidebar from '../components/Sidebar.vue'
-import { formatDate as formatUkDate } from '../utils/date'
 import {
   FileText,
   Clock,
   ClipboardCheck,
   X,
-  CheckCircle
+  CheckCircle,
+  Calendar
 } from 'lucide-vue-next'
+
+interface CalendarEntry {
+  tenancyId: string
+  leadTenantId: string
+  moveInDate: string
+  property: {
+    address: string
+    city: string
+    postcode: string
+  }
+  rentAmount: number | null
+  tenants: Array<{
+    id: string
+    name: string
+    status: string
+    verificationState: string
+    isGuarantor: boolean
+  }>
+}
+
+interface CalendarDay {
+  date: number | null
+  isCurrentMonth: boolean
+  fullDate: string | null
+  entries: CalendarEntry[]
+}
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -247,40 +272,82 @@ const inProgressReferences = ref(0)
 const pendingVerificationReferences = ref(0)
 const rejectedReferences = ref(0)
 const completedReferences = ref(0)
-const recentReferences = ref<any[]>([])
+const calendarEntries = ref<CalendarEntry[]>([])
+const calendarLoading = ref(true)
 
-const fetchReferences = async () => {
+// Calendar computed values
+const now = new Date()
+const currentMonth = now.getMonth()
+const currentYear = now.getFullYear()
+const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1
+const nextMonthYear = currentMonth === 11 ? currentYear + 1 : currentYear
+
+const currentMonthName = computed(() => {
+  return new Date(currentYear, currentMonth, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+})
+
+const nextMonthName = computed(() => {
+  return new Date(nextMonthYear, nextMonth, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+})
+
+// Generate calendar days for a given month
+const generateMonthDays = (year: number, month: number): CalendarDay[] => {
+  const days: CalendarDay[] = []
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  const daysInMonth = lastDay.getDate()
+
+  // Get the day of week for the first day (0 = Sunday, adjust for Monday start)
+  let startDayOfWeek = firstDay.getDay()
+  startDayOfWeek = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1 // Convert to Monday = 0
+
+  // Add empty days for padding at start
+  for (let i = 0; i < startDayOfWeek; i++) {
+    days.push({ date: null, isCurrentMonth: false, fullDate: null, entries: [] })
+  }
+
+  // Add actual days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const fullDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const entriesForDay = calendarEntries.value.filter(e => e.moveInDate === fullDate)
+    days.push({
+      date: day,
+      isCurrentMonth: true,
+      fullDate,
+      entries: entriesForDay
+    })
+  }
+
+  // Pad to complete the grid (42 cells = 6 rows)
+  while (days.length < 42) {
+    days.push({ date: null, isCurrentMonth: false, fullDate: null, entries: [] })
+  }
+
+  return days
+}
+
+const currentMonthDays = computed(() => generateMonthDays(currentYear, currentMonth))
+const nextMonthDays = computed(() => generateMonthDays(nextMonthYear, nextMonth))
+
+const fetchStats = async () => {
   try {
     const token = authStore.session?.access_token
     if (!token) return
 
-    // Fetch stats and recent references in parallel for better performance
-    const [statsResponse, refsResponse] = await Promise.all([
-      // Fetch stats from dedicated endpoint (6 COUNT queries instead of fetching all data)
-      fetch(`${API_URL}/api/references/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }),
-      // Fetch only 5 most recent references (with limit param)
-      fetch(`${API_URL}/api/references?page=1&limit=10`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-    ])
+    const statsResponse = await fetch(`${API_URL}/api/references/stats`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
 
-    if (statsResponse.status === 404 || refsResponse.status === 404) {
-      // User no longer has access to company (likely removed from team)
+    if (statsResponse.status === 404) {
       console.log('User no longer has access, logging out...')
       await authStore.signOut()
       router.push('/login')
       return
     }
 
-    // Process stats
     if (statsResponse.ok) {
       const stats = await statsResponse.json()
       totalReferences.value = stats.total || 0
@@ -289,59 +356,93 @@ const fetchReferences = async () => {
       completedReferences.value = stats.completed || 0
       rejectedReferences.value = stats.rejected || 0
     }
-
-    // Process recent references
-    if (refsResponse.ok) {
-      const data = await refsResponse.json()
-      const allReferences = data.references || []
-
-      // Attach guarantors to their parent references
-      const guarantorMap = new Map()
-      allReferences.forEach((ref: any) => {
-        if (ref.is_guarantor && ref.guarantor_for_reference_id) {
-          if (!guarantorMap.has(ref.guarantor_for_reference_id)) {
-            guarantorMap.set(ref.guarantor_for_reference_id, [])
-          }
-          guarantorMap.get(ref.guarantor_for_reference_id).push(ref)
-        }
-      })
-
-      // Attach guarantors array to parent references and filter out standalone guarantors
-      const references = allReferences
-        .filter((ref: any) => !ref.is_guarantor)
-        .map((ref: any) => ({
-          ...ref,
-          guarantors: guarantorMap.get(ref.id) || []
-        }))
-
-      // Already sorted by created_at desc from backend, just take first 5
-      recentReferences.value = references.slice(0, 5)
-    }
   } catch (error) {
-    console.error('Failed to fetch references:', error)
+    console.error('Failed to fetch stats:', error)
   }
 }
 
-const viewReference = (id: string) => {
-  router.push(`/references?person=${id}`)
+const fetchCalendarData = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    calendarLoading.value = true
+    const response = await fetch(`${API_URL}/api/references/calendar`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      calendarEntries.value = data.entries || []
+    }
+  } catch (error) {
+    console.error('Failed to fetch calendar data:', error)
+  } finally {
+    calendarLoading.value = false
+  }
+}
+
+const navigateToTenancy = (address: string) => {
+  router.push(`/references?search=${encodeURIComponent(address)}`)
+}
+
+const truncateAddress = (address: string) => {
+  if (address.length > 20) {
+    return address.substring(0, 18) + '...'
+  }
+  return address
+}
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount)
 }
 
 const formatStatus = (status: string) => {
-  return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
-const formatDate = (date?: string | null, fallback = 'N/A') =>
-  formatUkDate(
-    date,
-    {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    },
-    fallback
-  )
+const getStatusBadgeClass = (status: string) => {
+  switch (status) {
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800'
+    case 'in_progress':
+      return 'bg-blue-100 text-blue-800'
+    case 'pending_verification':
+      return 'bg-orange-100 text-orange-800'
+    case 'completed':
+      return 'bg-green-100 text-green-800'
+    case 'rejected':
+      return 'bg-red-100 text-red-800'
+    case 'cancelled':
+      return 'bg-gray-100 text-gray-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const getEntryStatusClass = (entry: CalendarEntry) => {
+  // Determine overall status based on all tenants
+  const statuses = entry.tenants.map(t => t.status)
+  if (statuses.every(s => s === 'completed')) {
+    return 'bg-green-100 text-green-800 hover:bg-green-200'
+  }
+  if (statuses.some(s => s === 'rejected')) {
+    return 'bg-red-100 text-red-800 hover:bg-red-200'
+  }
+  if (statuses.some(s => s === 'pending_verification')) {
+    return 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+  }
+  if (statuses.some(s => s === 'in_progress')) {
+    return 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+  }
+  return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+}
 
 onMounted(() => {
-  fetchReferences()
+  fetchStats()
+  fetchCalendarData()
 })
 </script>
