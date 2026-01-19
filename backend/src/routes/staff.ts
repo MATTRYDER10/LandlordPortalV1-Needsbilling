@@ -1656,24 +1656,19 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
             .eq('reference_id', referenceId)
         }
 
-        // Get or create employer reference record for token-based URL
+        // Get or create employer reference record (using ID-based URLs, not tokens)
         let { data: employerRef } = await supabase
           .from('employer_references')
-          .select('id, reference_token_hash')
+          .select('id')
           .eq('reference_id', referenceId)
           .maybeSingle()
 
-        let employerToken: string
         if (!employerRef) {
-          // Create employer_references record with token
-          employerToken = generateToken()
-          const employerTokenHash = hash(employerToken)
-
+          // Create employer_references record
           const { data: newEmployerRef, error: insertError } = await supabase
             .from('employer_references')
             .insert({
               reference_id: referenceId,
-              reference_token_hash: employerTokenHash,
               employer_name_encrypted: reference.employer_ref_name_encrypted,
               employer_email_encrypted: reference.employer_ref_email_encrypted,
               employer_phone_encrypted: reference.employer_ref_phone_encrypted,
@@ -1689,19 +1684,11 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
             console.error('Failed to create employer reference:', insertError)
             return res.status(500).json({ error: 'Failed to create employer reference record' })
           }
-          employerRef = { ...newEmployerRef, reference_token_hash: employerTokenHash }
-        } else {
-          // Generate new token for existing record
-          employerToken = generateToken()
-          const employerTokenHash = hash(employerToken)
-
-          await supabase
-            .from('employer_references')
-            .update({ reference_token_hash: employerTokenHash })
-            .eq('id', employerRef.id)
+          employerRef = newEmployerRef
         }
 
-        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerToken}`
+        // Use employer_reference.id in URL - stable and doesn't change between chases
+        formLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerRef.id}`
 
         if (method === 'email') {
           await sendEmployerReferenceRequest(
