@@ -19,6 +19,7 @@ export type Urgency = 'NORMAL' | 'WARNING' | 'URGENT'
 
 // Verification state (explicit state machine for verify queue)
 export type VerificationState =
+  | 'SENT'
   | 'COLLECTING_EVIDENCE'
   | 'WAITING_ON_REFERENCES'
   | 'READY_FOR_REVIEW'
@@ -328,6 +329,7 @@ export function getDependencyTypeLabel(type: DependencyType): string {
 
 export function getVerificationStateLabel(state: VerificationState): string {
   const labels: Record<VerificationState, string> = {
+    SENT: 'Sent',
     COLLECTING_EVIDENCE: 'Collecting Evidence',
     WAITING_ON_REFERENCES: 'Waiting on References',
     READY_FOR_REVIEW: 'Ready for Review',
@@ -342,6 +344,7 @@ export function getVerificationStateLabel(state: VerificationState): string {
 
 export function getVerificationStateColor(state: VerificationState): string {
   const colors: Record<VerificationState, string> = {
+    SENT: 'gray',
     COLLECTING_EVIDENCE: 'gray',
     WAITING_ON_REFERENCES: 'yellow',
     READY_FOR_REVIEW: 'blue',

@@ -9,6 +9,7 @@ export type Language = 'english' | 'welsh'
 
 export interface Party {
   name: string
+  email?: string
   address: {
     line1: string
     line2?: string

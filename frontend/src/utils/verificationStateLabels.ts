@@ -6,6 +6,7 @@
  */
 
 export type VerificationState =
+  | 'SENT'
   | 'COLLECTING_EVIDENCE'
   | 'WAITING_ON_REFERENCES'
   | 'READY_FOR_REVIEW'
@@ -22,6 +23,7 @@ export function getVerificationStateLabel(state: VerificationState | string | nu
   if (!state) return 'Not Started'
 
   const labels: Record<string, string> = {
+    SENT: 'Sent',
     COLLECTING_EVIDENCE: 'In Progress',
     WAITING_ON_REFERENCES: 'Awaiting References',
     READY_FOR_REVIEW: 'Ready for Verification',
@@ -42,6 +44,7 @@ export function getVerificationStateColor(state: VerificationState | string | nu
   if (!state) return 'gray'
 
   const colors: Record<string, string> = {
+    SENT: 'gray',
     COLLECTING_EVIDENCE: 'blue',
     WAITING_ON_REFERENCES: 'yellow',
     READY_FOR_REVIEW: 'purple',
@@ -62,6 +65,7 @@ export function getVerificationStateIcon(state: VerificationState | string | nul
   if (!state) return '⏳'
 
   const icons: Record<string, string> = {
+    SENT: '✉️',
     COLLECTING_EVIDENCE: '📝',
     WAITING_ON_REFERENCES: '⏳',
     READY_FOR_REVIEW: '👀',
@@ -94,6 +98,7 @@ export function isTerminalState(state: VerificationState | string | null | undef
  */
 export function getStateProgress(state: VerificationState | string | null | undefined): number {
   const progress: Record<string, number> = {
+    SENT: 5,
     COLLECTING_EVIDENCE: 20,
     WAITING_ON_REFERENCES: 40,
     READY_FOR_REVIEW: 60,

@@ -29,10 +29,10 @@ import {
 const CHASE_RULES = {
   CHASE_QUEUE_DELAY_HOURS: 8,   // Items appear in chase queue 8 hours after initial/last chase (legacy)
   CHASE_INTERVAL_HOURS: 24,     // Daily chase interval (24 hours)
-  MAX_CHASE_DAYS: 7,            // Maximum days to chase before exhaustion
+  CHASE_HOUR_UTC: 12,           // 12:00 GMT
   QUIET_HOURS_START: 20,        // 8 PM GMT
   QUIET_HOURS_END: 8,           // 8 AM GMT
-  MAX_CYCLES: 3                 // After 3 full cycles (email + SMS each), exhausted (DEPRECATED - now using MAX_CHASE_DAYS)
+  MAX_CYCLES: 3                 // Deprecated - no auto-exhaustion
 }
 
 export type DependencyType = 'TENANT_FORM' | 'GUARANTOR_FORM' | 'EMPLOYER_REF' | 'RESIDENTIAL_REF' | 'ACCOUNTANT_REF'
@@ -428,15 +428,8 @@ export async function recordChase(
       newChaseCycle++
     }
 
-    // Check if exhausted
-    let newStatus = 'CHASING'
-    let nextChaseDueAt: string | null = null
-
-    if (newChaseCycle >= CHASE_RULES.MAX_CYCLES) {
-      newStatus = 'EXHAUSTED'
-    } else {
-      nextChaseDueAt = calculateNextChaseTime(now, newChaseCycle)?.toISOString() || null
-    }
+    const newStatus = 'CHASING'
+    const nextChaseDueAt = calculateNextChaseTime(now)?.toISOString() || null
 
     // Update dependency
     const { data: updated, error: updateError } = await supabase
@@ -782,8 +775,8 @@ export async function getDependenciesDueForChase(): Promise<ChaseDependency[]> {
     const now = new Date()
     const hour = now.getUTCHours()
 
-    // Don't chase during quiet hours (20:00-08:00 GMT)
-    if (hour >= CHASE_RULES.QUIET_HOURS_START || hour < CHASE_RULES.QUIET_HOURS_END) {
+    // Only chase at 12:00 GMT
+    if (hour !== CHASE_RULES.CHASE_HOUR_UTC) {
       return []
     }
 
@@ -804,153 +797,20 @@ export async function getDependenciesDueForChase(): Promise<ChaseDependency[]> {
 
 /**
  * Auto-exhaust dependencies and mark as ACTION_REQUIRED
- * Updated to use 7-day time-based exhaustion instead of cycle-based
- * Also updates the reference verification_state to ACTION_REQUIRED
+ * Disabled: keep dependencies in chase queue indefinitely
  */
 export async function processExhaustedDependencies(): Promise<number> {
-  try {
-    // STEP 1: Mark dependencies as EXHAUSTED if past 7 days
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-    const { data: oldDependencies, error: oldError } = await supabase
-      .from('chase_dependencies')
-      .select('id, reference_id, dependency_type, initial_request_sent_at')
-      .in('status', ['PENDING', 'CHASING'])
-      .lt('initial_request_sent_at', sevenDaysAgo.toISOString())
-
-    if (oldError) {
-      console.error('[Chase] Error finding old dependencies:', oldError)
-    } else if (oldDependencies && oldDependencies.length > 0) {
-      // Mark as EXHAUSTED
-      const { error: markExhaustedError } = await supabase
-        .from('chase_dependencies')
-        .update({
-          status: 'EXHAUSTED',
-          next_chase_due_at: null,
-          metadata: {
-            exhausted_at: new Date().toISOString(),
-            exhausted_reason: 'Past 7 days maximum chase period'
-          }
-        })
-        .in('id', oldDependencies.map(d => d.id))
-
-      if (markExhaustedError) {
-        console.error('[Chase] Error marking dependencies as EXHAUSTED:', markExhaustedError)
-      } else {
-        console.log(`[Chase] Marked ${oldDependencies.length} dependencies as EXHAUSTED (past 7 days)`)
-      }
-    }
-
-    // STEP 2: Process all EXHAUSTED dependencies (convert to ACTION_REQUIRED)
-    const { data: exhausted, error: getError } = await supabase
-      .from('chase_dependencies')
-      .select('id, reference_id, dependency_type')
-      .eq('status', 'EXHAUSTED')
-
-    if (getError) throw getError
-
-    if (!exhausted || exhausted.length === 0) return 0
-
-    // Update all exhausted dependencies to ACTION_REQUIRED
-    const { error: updateError } = await supabase
-      .from('chase_dependencies')
-      .update({
-        status: 'ACTION_REQUIRED',
-        metadata: {
-          auto_action_required: true,
-          auto_action_required_at: new Date().toISOString()
-        }
-      })
-      .eq('status', 'EXHAUSTED')
-
-    if (updateError) throw updateError
-
-    // Group exhausted dependencies by reference_id
-    const referenceIds = [...new Set(exhausted.map(d => d.reference_id))]
-
-    // Update each affected reference to 'action_required' status
-    for (const refId of referenceIds) {
-      // Get reference current status
-      const { data: ref } = await supabase
-        .from('tenant_references')
-        .select('status')
-        .eq('id', refId)
-        .single()
-
-      // Only update if reference is not already in a terminal status
-      const terminalStatuses = ['completed', 'rejected', 'cancelled']
-      if (ref && !terminalStatuses.includes(ref.status)) {
-        await supabase
-          .from('tenant_references')
-          .update({
-            status: 'action_required',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', refId)
-
-        // Get all exhausted dependency types for this reference for logging
-        const exhaustedTypes = exhausted
-          .filter(d => d.reference_id === refId)
-          .map(d => d.dependency_type)
-
-        // Log audit with agent visibility
-        await logAuditAction({
-          referenceId: refId,
-          action: 'CHASE_EXHAUSTED_ACTION_REQUIRED',
-          description: `Chase exhausted (7 days) for: ${exhaustedTypes.join(', ')} - reference requires agent intervention`,
-          metadata: {
-            exhaustedDependencies: exhaustedTypes,
-            visible_to_agent: true,
-            exhaustion_reason: 'Past 7-day maximum chase period'
-          }
-        })
-      }
-    }
-
-    // Log audit for each individual dependency
-    for (const dep of exhausted) {
-      await logAuditAction({
-        referenceId: dep.reference_id,
-        action: 'CHASE_AUTO_ACTION_REQUIRED',
-        description: `Chase exhausted for ${dep.dependency_type} - automatically sent to action required`,
-        metadata: {
-          dependencyId: dep.id,
-          dependencyType: dep.dependency_type,
-          visible_to_agent: true
-        }
-      })
-    }
-
-    console.log(`Processed ${exhausted.length} exhausted dependencies, updated ${referenceIds.length} references to action_required`)
-    return exhausted.length
-  } catch (error) {
-    console.error('Failed to process exhausted dependencies:', error)
-    return 0
-  }
+  return 0
 }
 
 // --- Helper Functions ---
 
-function calculateNextChaseTime(lastChase: Date, cycle: number): Date | null {
-  // Updated to use time-based exhaustion (MAX_CHASE_DAYS) instead of cycle-based
-  // This function still exists for backward compatibility but cycle check is less relevant
-
+function calculateNextChaseTime(lastChase: Date): Date | null {
   const nextChase = new Date(lastChase)
-
-  // Add 24-hour interval for daily chases
-  nextChase.setHours(nextChase.getHours() + CHASE_RULES.CHASE_INTERVAL_HOURS)
-
-  // Adjust for quiet hours (GMT)
-  const hour = nextChase.getUTCHours()
-  if (hour >= CHASE_RULES.QUIET_HOURS_START || hour < CHASE_RULES.QUIET_HOURS_END) {
-    // Push to 8 AM next day
-    nextChase.setUTCHours(CHASE_RULES.QUIET_HOURS_END, 0, 0, 0)
-    if (hour >= CHASE_RULES.QUIET_HOURS_START) {
-      nextChase.setDate(nextChase.getDate() + 1)
-    }
+  nextChase.setUTCHours(CHASE_RULES.CHASE_HOUR_UTC, 0, 0, 0)
+  if (lastChase >= nextChase) {
+    nextChase.setUTCDate(nextChase.getUTCDate() + 1)
   }
-
   return nextChase
 }
 

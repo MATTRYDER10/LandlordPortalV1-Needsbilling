@@ -3,15 +3,13 @@
  * Automatically sends chase emails/SMS on a schedule
  *
  * Chase Logic:
- * - Initial chase: 8 hours after request sent
- * - Subsequent chases: every 8 hours
- * - Only between 08:00-20:00 GMT (quiet hours)
+ * - Chases run once per day at 12:00 GMT
  * - Each chase sends BOTH email AND SMS together
- * - After 3 cycles: auto push to Action Required
+ * - No auto-escalation to Action Required
  */
 
 import { supabase } from '../config/supabase'
-import { recordChase, processExhaustedDependencies } from './chaseDependencyService'
+import { recordChase } from './chaseDependencyService'
 // import { isWithinCallHours } from './vapiService' // Calls disabled for now
 import { sendEmail } from './emailService'
 import { decrypt } from './encryption'
@@ -31,22 +29,17 @@ interface ChaseDetail {
 
 // Chase timing constants
 const CHASE_RULES = {
-  INITIAL_CHASE_DELAY_HOURS: 24,   // Hours after initial request before first chase (daily)
-  CHASE_INTERVAL_HOURS: 24,        // Hours between chases (daily)
-  MAX_CHASE_DAYS: 7,               // Maximum days to keep chasing before exhaustion
-  QUIET_HOURS_START: 20,           // 8 PM GMT - start of quiet hours
-  QUIET_HOURS_END: 8,              // 8 AM GMT - end of quiet hours
+  CHASE_HOUR_UTC: 12,              // 12:00 GMT
   SMS_DELAY_HOURS: 4               // Hours after email before sending SMS (not used in current logic)
 }
 
-/**
- * Check if current time is within quiet hours (20:00-08:00 GMT)
- */
-function isQuietHours(): boolean {
-  const now = new Date()
-  const gmtHour = now.getUTCHours()
-  // Quiet hours: 20:00-08:00 GMT
-  return gmtHour >= CHASE_RULES.QUIET_HOURS_START || gmtHour < CHASE_RULES.QUIET_HOURS_END
+function getNextDailyChaseTime(base: Date): Date {
+  const next = new Date(base)
+  next.setUTCHours(CHASE_RULES.CHASE_HOUR_UTC, 0, 0, 0)
+  if (base >= next) {
+    next.setUTCDate(next.getUTCDate() + 1)
+  }
+  return next
 }
 
 /**
@@ -55,6 +48,9 @@ function isQuietHours(): boolean {
  */
 async function getDependenciesDueForAutoChase(): Promise<any[]> {
   const now = new Date()
+  if (now.getUTCHours() !== CHASE_RULES.CHASE_HOUR_UTC) {
+    return []
+  }
 
   // Get dependencies that need chasing:
   // - Status is PENDING or CHASING
@@ -90,15 +86,7 @@ async function getDependenciesDueForAutoChase(): Promise<any[]> {
 
     // Must have initial request sent
     if (!dep.initial_request_sent_at) return false
-
-    // Check if past maximum chase days (7 days)
     const initialDate = new Date(dep.initial_request_sent_at)
-    const daysSinceInitial = Math.floor((Date.now() - initialDate.getTime()) / (1000 * 60 * 60 * 24))
-
-    if (daysSinceInitial >= CHASE_RULES.MAX_CHASE_DAYS) {
-      console.log(`[AutoChase] Dependency ${dep.id} past max chase days (${daysSinceInitial} days) - will be marked exhausted`)
-      return false // Will be marked exhausted by processExhaustedDependencies()
-    }
 
     // NEW: Use next_chase_due_at if available (has quiet hours adjustments)
     if (dep.next_chase_due_at) {
@@ -114,21 +102,9 @@ async function getDependenciesDueForAutoChase(): Promise<any[]> {
     }
 
     // FALLBACK: For first chase (no next_chase_due_at yet)
-    // Check if INITIAL_CHASE_DELAY_HOURS have passed since initial request
     const firstChaseDue = new Date(initialDate)
-    firstChaseDue.setHours(firstChaseDue.getHours() + CHASE_RULES.INITIAL_CHASE_DELAY_HOURS)
-
-    // If first chase would fall during quiet hours, adjust to 8 AM
-    const hour = firstChaseDue.getUTCHours()
-    if (hour >= CHASE_RULES.QUIET_HOURS_START || hour < CHASE_RULES.QUIET_HOURS_END) {
-      // Push to 8 AM
-      firstChaseDue.setUTCHours(CHASE_RULES.QUIET_HOURS_END, 0, 0, 0)
-      if (hour >= CHASE_RULES.QUIET_HOURS_START) {
-        firstChaseDue.setDate(firstChaseDue.getDate() + 1)
-      }
-    }
-
-    return firstChaseDue <= now
+    const firstChaseAt = getNextDailyChaseTime(firstChaseDue)
+    return firstChaseAt <= now
   })
 }
 
@@ -136,16 +112,12 @@ async function getDependenciesDueForAutoChase(): Promise<any[]> {
  * Determine if a dependency should be chased
  * Returns true if email+sms should be sent
  *
- * Updated: Time-based (daily) chasing for up to 7 days
+ * Updated: Daily chase at 12:00 GMT
  * The getDependenciesDueForAutoChase() filter already checks timing,
  * so if we get here, we should chase
  */
 function shouldChase(dep: any): boolean {
-  // In time-based model, always chase if item passed the filter
-  // The filter already checks:
-  // - 24-hour intervals via next_chase_due_at
-  // - Not past 7 days max
-  // - Not in terminal state
+  // Always chase if item passed the time window filter
   return true
 }
 
@@ -295,12 +267,6 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
   const chaseDetails: ChaseDetail[] = []
 
   try {
-    // Check quiet hours
-    if (isQuietHours()) {
-      console.log('[AutoChase] Skipping - currently in quiet hours (20:00-08:00 GMT)')
-      return stats
-    }
-
     // Check dev mode
     const isDev = process.env.NODE_ENV === 'development'
     if (isDev) {
@@ -400,16 +366,10 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
       }
     }
 
-    // Process any exhausted dependencies
-    const exhaustedCount = await processExhaustedDependencies()
-    if (exhaustedCount > 0) {
-      console.log(`[AutoChase] Processed ${exhaustedCount} exhausted dependencies -> ACTION_REQUIRED`)
-    }
-
     console.log(`[AutoChase] Complete: processed=${stats.processed}, sent=${stats.sent}, skipped=${stats.skipped}, errors=${stats.errors}`)
 
     // Send summary email (temporary monitoring feature)
-    await sendAutoSummaryEmail(stats, chaseDetails, exhaustedCount)
+    await sendAutoSummaryEmail(stats, chaseDetails, 0)
 
     return stats
   } catch (error) {

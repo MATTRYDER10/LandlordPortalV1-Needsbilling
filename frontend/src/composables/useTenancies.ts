@@ -46,7 +46,7 @@ export interface TenancyPerson {
   email: string
   phone: string
   rentShare: number
-  verificationState: string  // Direct from database verification_state field
+  verificationState: string  // Direct from database verification_state field (or SENT for pending)
   guarantorForTenantId?: string
   sectionStatuses: SectionStatus[]
   actionRequiredTasks: ActionRequiredTask[]
@@ -326,7 +326,11 @@ export function useTenancies() {
     }
   }
 
-  async function uploadDocument(referenceId: string, files: Record<string, File | File[]>): Promise<UploadDocumentResult | null> {
+  async function uploadDocument(
+    referenceId: string,
+    files: Record<string, File | File[]>,
+    fields: Record<string, string> = {}
+  ): Promise<UploadDocumentResult | null> {
     try {
       const formData = new FormData()
 
@@ -336,6 +340,12 @@ export function useTenancies() {
             formData.append(key, file)
           }
         } else {
+          formData.append(key, value)
+        }
+      }
+
+      for (const [key, value] of Object.entries(fields)) {
+        if (value.trim()) {
           formData.append(key, value)
         }
       }

@@ -85,6 +85,217 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+// Get calendar data for move-in dates (this month and next month)
+router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
+  console.log('[Calendar] Endpoint called')
+  try {
+    const userId = req.user?.id
+    console.log('[Calendar] User ID:', userId)
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      console.log('No company found for user')
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyId = companyUsers[0].company_id
+    console.log('[Calendar] Company ID:', companyId)
+
+    // Calculate date range: start of current month to end of next month
+    const now = new Date()
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0) // Last day of next month
+    console.log('Date range:', startOfThisMonth.toISOString().split('T')[0], 'to', endOfNextMonth.toISOString().split('T')[0])
+
+    // Fetch all references with move_in_date in range, grouped by parent_reference_id
+    // We want all references (not guarantors) with their associated tenants
+    const { data: references, error: refError } = await supabase
+      .from('tenant_references')
+      .select(`
+        id,
+        parent_reference_id,
+        move_in_date,
+        property_address_encrypted,
+        property_city_encrypted,
+        property_postcode_encrypted,
+        monthly_rent,
+        status,
+        verification_state,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        is_guarantor,
+        guarantor_for_reference_id
+      `)
+      .eq('company_id', companyId)
+      .gte('move_in_date', startOfThisMonth.toISOString().split('T')[0])
+      .lte('move_in_date', endOfNextMonth.toISOString().split('T')[0])
+      .order('move_in_date', { ascending: true })
+
+    console.log('References found:', references?.length || 0)
+
+    if (refError) {
+      console.error('Calendar query error:', refError)
+      return res.status(500).json({ error: 'Failed to fetch calendar data' })
+    }
+
+    // Group references by parent_reference_id (or by id if standalone)
+    // and decrypt tenant names
+    const tenancyMap = new Map<string, {
+      tenancyId: string
+      leadTenantId: string
+      moveInDate: string
+      propertyAddress: string
+      propertyCity: string
+      propertyPostcode: string
+      rentAmount: number | null
+      tenants: Array<{
+        id: string
+        name: string
+        status: string
+        verificationState: string | null
+        isGuarantor: boolean
+      }>
+    }>()
+
+    for (const ref of references || []) {
+      // Skip guarantors in the main grouping - we'll add them separately
+      if (ref.is_guarantor) continue
+
+      // Group by parent_reference_id if it exists (multi-tenant), otherwise by own id
+      const groupKey = ref.parent_reference_id || ref.id
+
+      // Decrypt tenant name
+      let tenantName = 'Unknown'
+      try {
+        const firstName = ref.tenant_first_name_encrypted ? decrypt(ref.tenant_first_name_encrypted) : ''
+        const lastName = ref.tenant_last_name_encrypted ? decrypt(ref.tenant_last_name_encrypted) : ''
+        tenantName = `${firstName} ${lastName}`.trim() || 'Unknown'
+      } catch (e) {
+        // Decryption failed, use fallback
+      }
+
+      // Get rent amount from monthly_rent field
+      const rentAmount: number | null = ref.monthly_rent || null
+
+      // Decrypt property address fields
+      let propertyAddress = ''
+      let propertyCity = ''
+      let propertyPostcode = ''
+      try {
+        propertyAddress = ref.property_address_encrypted ? (decrypt(ref.property_address_encrypted) || '') : ''
+        propertyCity = ref.property_city_encrypted ? (decrypt(ref.property_city_encrypted) || '') : ''
+        propertyPostcode = ref.property_postcode_encrypted ? (decrypt(ref.property_postcode_encrypted) || '') : ''
+      } catch (e) {
+        // Decryption failed
+      }
+
+      if (!tenancyMap.has(groupKey)) {
+        // Lead tenant is the one without parent_reference_id (or is itself the parent)
+        const isLeadTenant = !ref.parent_reference_id || ref.parent_reference_id === ref.id
+        tenancyMap.set(groupKey, {
+          tenancyId: groupKey,
+          leadTenantId: isLeadTenant ? ref.id : groupKey,
+          moveInDate: ref.move_in_date,
+          propertyAddress,
+          propertyCity,
+          propertyPostcode,
+          rentAmount,
+          tenants: []
+        })
+      }
+
+      const tenancy = tenancyMap.get(groupKey)!
+
+      // Skip if tenant with same name already added (prevent duplicates from data issues)
+      const normalizedName = tenantName.toLowerCase().replace(/\s+/g, ' ').trim()
+      if (!tenancy.tenants.some(t => t.name.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedName)) {
+        tenancy.tenants.push({
+          id: ref.id,
+          name: tenantName,
+          status: ref.status,
+          verificationState: ref.verification_state,
+          isGuarantor: false
+        })
+      }
+
+      // Update rent if this one has it and existing doesn't
+      if (rentAmount && !tenancy.rentAmount) {
+        tenancy.rentAmount = rentAmount
+      }
+    }
+
+    // Add guarantors to their parent tenancies
+    for (const ref of references || []) {
+      if (!ref.is_guarantor || !ref.guarantor_for_reference_id) continue
+
+      // Find the parent reference's tenancy
+      const parentRef = (references || []).find(r => r.id === ref.guarantor_for_reference_id)
+      if (!parentRef) continue
+
+      const groupKey = parentRef.parent_reference_id || parentRef.id
+      const tenancy = tenancyMap.get(groupKey)
+      if (!tenancy) continue
+
+      // Decrypt guarantor name
+      let guarantorName = 'Unknown'
+      try {
+        const firstName = ref.tenant_first_name_encrypted ? decrypt(ref.tenant_first_name_encrypted) : ''
+        const lastName = ref.tenant_last_name_encrypted ? decrypt(ref.tenant_last_name_encrypted) : ''
+        guarantorName = `${firstName} ${lastName}`.trim() || 'Unknown'
+      } catch (e) {
+        // Decryption failed
+      }
+
+      // Skip if guarantor with same name already added (prevent duplicates)
+      const normalizedGuarantorName = guarantorName.toLowerCase().replace(/\s+/g, ' ').trim()
+      if (tenancy.tenants.some(t => t.name.toLowerCase().replace(/\s+/g, ' ').trim() === normalizedGuarantorName)) continue
+
+      tenancy.tenants.push({
+        id: ref.id,
+        name: guarantorName,
+        status: ref.status,
+        verificationState: ref.verification_state,
+        isGuarantor: true
+      })
+    }
+
+    // Convert map to array and format response
+    const calendarData = Array.from(tenancyMap.values()).map(tenancy => ({
+      tenancyId: tenancy.tenancyId,
+      leadTenantId: tenancy.leadTenantId,
+      moveInDate: tenancy.moveInDate,
+      property: {
+        address: tenancy.propertyAddress,
+        city: tenancy.propertyCity,
+        postcode: tenancy.propertyPostcode
+      },
+      rentAmount: tenancy.rentAmount,
+      tenants: tenancy.tenants
+    }))
+
+    console.log('Calendar data entries:', calendarData.length)
+    if (calendarData.length > 0) {
+      console.log('First entry:', JSON.stringify(calendarData[0], null, 2))
+    }
+
+    res.json({
+      startDate: startOfThisMonth.toISOString().split('T')[0],
+      endDate: endOfNextMonth.toISOString().split('T')[0],
+      entries: calendarData
+    })
+  } catch (error: any) {
+    console.error('[Calendar] ERROR:', error.message)
+    console.error('[Calendar] Stack:', error.stack)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Get all references for company
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -6085,7 +6296,7 @@ router.get('/:id/action-required-details', authenticateToken, async (req: AuthRe
 /**
  * POST /:id/upload-document
  * Upload a document for a reference (agent context)
- * Supports: id_document, selfie, payslips, bank_statement, proof_of_address, tax_return
+ * Supports: id_document, selfie, payslips, bank_statement, proof_of_address, tax_return, rtr_alternative_document
  */
 router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
   const uploadMiddleware = upload.fields([
@@ -6096,6 +6307,7 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
     { name: 'proof_of_address', maxCount: 1 },
     { name: 'tax_return', maxCount: 1 },
     { name: 'proof_of_additional_income', maxCount: 1 },
+    { name: 'rtr_alternative_document', maxCount: 1 },
     { name: 'other_proof_of_funds', maxCount: 1 },
     { name: 'tenancy_agreement', maxCount: 1 },
     { name: 'pension_statement', maxCount: 1 },
@@ -6238,6 +6450,33 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
 
       updates.proof_of_additional_income_path = fileName
       uploadedFiles.push('proof_of_additional_income')
+    }
+
+    // Upload RTR alternative document (Right to Rent)
+    if (files.rtr_alternative_document && files.rtr_alternative_document[0]) {
+      const file = files.rtr_alternative_document[0]
+      const fileExt = file.originalname.split('.').pop()
+      const fileName = `${reference.id}/rtr_alternative_document/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('tenant-documents')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload RTR document: ${uploadError.message}`)
+      }
+
+      updates.rtr_alternative_document_path = fileName
+      uploadedFiles.push('rtr_alternative_document')
+    }
+
+    const rtrShareCode = typeof req.body.rtr_share_code === 'string' ? req.body.rtr_share_code.trim() : ''
+    if (rtrShareCode) {
+      updates.rtr_share_code = rtrShareCode
+      uploadedFiles.push('rtr_share_code')
     }
 
     // Upload payslips (append to existing)
