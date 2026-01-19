@@ -36,7 +36,7 @@
           Verify Queue ({{ stats.verify.total }})
         </button>
         <button :class="['tab', { active: activeTab === 'chase' }]" @click="activeTab = 'chase'">
-          Chase Queue ({{ stats.chase.total }})
+          Pending Responses ({{ stats.chase.total }})
         </button>
         <button :class="['tab', { active: activeTab === 'my-tasks' }]" @click="activeTab = 'my-tasks'">
           My Active Tasks ({{ myTasksCount }})
@@ -71,6 +71,7 @@
         :sending-sms="sendingSms"
         @send-chase="sendChase"
         @mark-received="markReceived"
+        @mark-done="markDoneForToday"
         @action-required="escalateToActionRequired"
         @refresh="fetchChaseQueue"
       />
@@ -443,6 +444,30 @@ const escalateToActionRequired = async (dependencyId: string) => {
   } catch (err: any) {
     showToast(err.message, 'error')
     console.error('Error escalating:', err)
+  }
+}
+
+const markDoneForToday = async (sectionId: string, note: string) => {
+  try {
+    const response = await fetch(`${API_URL}/api/chase/${sectionId}/mark-done`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ note })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to mark as done')
+    }
+
+    showToast('Marked done for today', 'success')
+    await fetchChaseQueue()
+  } catch (err: any) {
+    showToast(err.message, 'error')
+    console.error('Error marking as done:', err)
   }
 }
 

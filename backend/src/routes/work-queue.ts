@@ -8,6 +8,7 @@ import { logAuditAction } from '../services/auditService';
 import { isValidEmail } from '../utils/validation';
 import { acquireLock, releaseLock, extendLock, checkLockStatus, getStaffLocks, forceReleaseLock } from '../services/lockService';
 import { transitionState, isInVerifyQueueState, VerificationState } from '../services/verificationStateService';
+import { getChaseQueue } from '../services/chaseDependencyService';
 
 const router = Router();
 
@@ -136,33 +137,9 @@ router.get('/stats', staffAuth, async (req: StaffAuthRequest, res: Response) => 
 
     if (verifyError) throw verifyError;
 
-    // Get CHASE dependencies count (items ready to chase - 8+ hours since initial/last chase)
-    const eightHoursAgo = new Date();
-    eightHoursAgo.setHours(eightHoursAgo.getHours() - 8);
-
-    const { data: chaseDeps, error: chaseError } = await supabaseAdmin
-      .from('chase_dependencies')
-      .select(`
-        id,
-        initial_request_sent_at,
-        last_chase_sent_at,
-        reference:tenant_references!chase_dependencies_reference_id_fkey (status)
-      `)
-      .in('status', ['PENDING', 'CHASING']);
-
-    if (chaseError) throw chaseError;
-
-    // Filter chase dependencies by 8-hour rule and reference status
-    const excludedRefStatuses = ['completed', 'rejected', 'cancelled', 'action_required', 'pending_verification'];
-    const activeChaseCount = (chaseDeps || []).filter((dep: any) => {
-      if (!dep.reference) return false;
-      if (excludedRefStatuses.includes(dep.reference.status)) return false;
-      if (!dep.initial_request_sent_at) return false;
-
-      const relevantTimestamp = dep.last_chase_sent_at || dep.initial_request_sent_at;
-      const timestampDate = new Date(relevantTimestamp);
-      return timestampDate <= eightHoursAgo;
-    }).length;
+    // Get CHASE queue count (now queries verification_sections, same as chase queue endpoint)
+    const chaseQueueItems = await getChaseQueue();
+    const activeChaseCount = chaseQueueItems.length;
 
     // Get email issues count
     const { data: emailIssues, error: emailError } = await supabaseAdmin

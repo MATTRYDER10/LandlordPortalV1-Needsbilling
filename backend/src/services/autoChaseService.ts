@@ -1,10 +1,10 @@
 /**
  * Auto-Chase Service
- * Automatically sends chase emails/SMS on a schedule
+ * Automatically sends chase emails on a schedule
  *
  * Chase Logic:
- * - Chases run once per day at 12:00 GMT
- * - Each chase sends BOTH email AND SMS together
+ * - Chases run once per day at 8:55am UK time (adjusts for GMT/BST)
+ * - Each chase sends EMAIL ONLY (SMS is manual via staff portal)
  * - No auto-escalation to Action Required
  */
 
@@ -19,7 +19,7 @@ const SUMMARY_EMAIL_RECIPIENT = 'craig@propertygoose.co.uk'
 
 interface ChaseDetail {
   dependencyType: string
-  method: string // 'email+sms', 'email', 'sms', etc.
+  method: string // 'email' only now (SMS removed from auto-chase)
   referenceId: string
   contactName: string
   contactEmail: string
@@ -29,26 +29,86 @@ interface ChaseDetail {
 
 // Chase timing constants
 const CHASE_RULES = {
-  CHASE_HOUR_UTC: 12,              // 12:00 GMT
-  SMS_DELAY_HOURS: 4               // Hours after email before sending SMS (not used in current logic)
+  CHASE_HOUR_UK: 8,                // 8:55am UK local time
+  CHASE_MINUTE_UK: 55,             // Run at minute 55
+  SMS_DELAY_HOURS: 4               // Hours after email before sending SMS (not used - SMS is manual only)
 }
 
+/**
+ * Check if current time is within the auto-chase window (8:55am UK time)
+ * Uses UK timezone which automatically handles GMT/BST transitions
+ */
+function isAutoChaseTime(): boolean {
+  const now = new Date()
+
+  // Get current time in UK timezone
+  const ukTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  }).formatToParts(now)
+
+  const ukHour = parseInt(ukTime.find(p => p.type === 'hour')?.value || '0')
+  const ukMinute = parseInt(ukTime.find(p => p.type === 'minute')?.value || '0')
+
+  // Check if it's 8:55am UK time (with 5-minute window for scheduler tolerance)
+  const isCorrectHour = ukHour === CHASE_RULES.CHASE_HOUR_UK
+  const isCorrectMinute = ukMinute >= CHASE_RULES.CHASE_MINUTE_UK && ukMinute < (CHASE_RULES.CHASE_MINUTE_UK + 5)
+
+  return isCorrectHour && isCorrectMinute
+}
+
+/**
+ * Get next daily chase time in UK timezone (8:55am)
+ * Handles GMT/BST transitions automatically
+ */
 function getNextDailyChaseTime(base: Date): Date {
+  // Create a date formatter for UK timezone
+  const ukFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+
+  // Get current UK date/time parts
+  const ukParts = ukFormatter.formatToParts(base)
+  const ukDay = parseInt(ukParts.find(p => p.type === 'day')?.value || '1')
+  const ukMonth = parseInt(ukParts.find(p => p.type === 'month')?.value || '1') - 1
+  const ukYear = parseInt(ukParts.find(p => p.type === 'year')?.value || '2024')
+  const ukHour = parseInt(ukParts.find(p => p.type === 'hour')?.value || '0')
+  const ukMinute = parseInt(ukParts.find(p => p.type === 'minute')?.value || '0')
+
+  // Check if we've already passed 8:55am UK today
+  const isPastChaseTime = ukHour > CHASE_RULES.CHASE_HOUR_UK ||
+    (ukHour === CHASE_RULES.CHASE_HOUR_UK && ukMinute >= CHASE_RULES.CHASE_MINUTE_UK)
+
+  // Create next chase time at 8:55am UK
   const next = new Date(base)
-  next.setUTCHours(CHASE_RULES.CHASE_HOUR_UTC, 0, 0, 0)
-  if (base >= next) {
-    next.setUTCDate(next.getUTCDate() + 1)
+  if (isPastChaseTime) {
+    // Schedule for tomorrow
+    next.setDate(next.getDate() + 1)
   }
+
+  // Set to 8:55am in UK timezone by creating a date string and parsing it
+  // This is a simplified approach - the scheduler will run the job and isAutoChaseTime() will validate
+  next.setHours(8, 55, 0, 0) // Approximate - actual check is done by isAutoChaseTime()
+
   return next
 }
 
 /**
  * Get all chase dependencies that are due for automatic chasing
  * Updated to use next_chase_due_at field and 7-day max chase period
+ * Now runs at 8:55am UK time instead of 12:00 GMT
  */
 async function getDependenciesDueForAutoChase(): Promise<any[]> {
   const now = new Date()
-  if (now.getUTCHours() !== CHASE_RULES.CHASE_HOUR_UTC) {
+  if (!isAutoChaseTime()) {
     return []
   }
 
@@ -291,9 +351,8 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
       const contactEmail = decrypt(dep.contact_email_encrypted) || 'No email'
 
       try {
-        // Send BOTH email and SMS together
+        // Send EMAIL ONLY (SMS is now manual via staff portal to reduce costs)
         let emailSent = false
-        let smsSent = false
         const errors: string[] = []
 
         // Send email
@@ -306,27 +365,12 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
           console.error(`[AutoChase] Error sending email for ${dep.id}:`, emailError.message)
         }
 
-        // Rate limit delay between email and SMS
-        await new Promise(resolve => setTimeout(resolve, 600))
-
-        // Send SMS
-        try {
-          await recordChase(dep.id, 'sms', 'SYSTEM', true)
-          smsSent = true
-          console.log(`[AutoChase] Sent SMS for ${dep.dependency_type} to ${contactName} (ref: ${dep.reference_id})`)
-        } catch (smsError: any) {
-          errors.push(`SMS: ${smsError.message}`)
-          console.error(`[AutoChase] Error sending SMS for ${dep.id}:`, smsError.message)
-        }
-
         // Track results
-        const methodSummary = [emailSent ? 'email' : null, smsSent ? 'sms' : null].filter(Boolean).join('+') || 'none'
-
-        if (emailSent || smsSent) {
+        if (emailSent) {
           stats.sent++
           chaseDetails.push({
             dependencyType: dep.dependency_type,
-            method: methodSummary,
+            method: 'email',
             referenceId: dep.reference_id,
             contactName,
             contactEmail,
@@ -336,10 +380,10 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
 
         if (errors.length > 0) {
           stats.errors++
-          if (!emailSent && !smsSent) {
+          if (!emailSent) {
             chaseDetails.push({
               dependencyType: dep.dependency_type,
-              method: 'email+sms',
+              method: 'email',
               referenceId: dep.reference_id,
               contactName,
               contactEmail,
@@ -355,7 +399,7 @@ export async function processAutoChases(): Promise<{ processed: number; sent: nu
         stats.errors++
         chaseDetails.push({
           dependencyType: dep.dependency_type,
-          method: 'email+sms',
+          method: 'email',
           referenceId: dep.reference_id,
           contactName,
           contactEmail,

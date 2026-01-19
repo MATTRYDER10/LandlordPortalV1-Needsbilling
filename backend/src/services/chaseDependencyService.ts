@@ -65,6 +65,7 @@ export interface ChaseQueueItem extends ChaseDependency {
   companyName: string
   daysSinceRequest: number
   urgency: 'NORMAL' | 'WARNING' | 'URGENT'
+  lastMarkedDoneAt?: string
 }
 
 /**
@@ -204,6 +205,41 @@ export async function createDependenciesForReference(referenceId: string): Promi
 
     if (insertError) throw insertError
 
+    // Also create verification_sections for external reference types
+    // This ensures they show in the Pending Responses queue
+    const externalRefMap: Record<string, { sectionType: string; order: number }> = {
+      'EMPLOYER_REF': { sectionType: 'EMPLOYER_REFERENCE', order: 1 },
+      'RESIDENTIAL_REF': { sectionType: 'LANDLORD_REFERENCE', order: 2 },
+      'ACCOUNTANT_REF': { sectionType: 'ACCOUNTANT_REFERENCE', order: 3 }
+    }
+
+    const sectionsToCreate = dependenciesToCreate
+      .filter(dep => externalRefMap[dep.dependency_type])
+      .map(dep => ({
+        reference_id: dep.reference_id,
+        person_type: 'TENANT',
+        section_type: externalRefMap[dep.dependency_type].sectionType,
+        section_order: externalRefMap[dep.dependency_type].order,
+        decision: 'NOT_REVIEWED',
+        contact_name_encrypted: dep.contact_name_encrypted,
+        contact_email_encrypted: dep.contact_email_encrypted,
+        contact_phone_encrypted: dep.contact_phone_encrypted,
+        initial_request_sent_at: dep.initial_request_sent_at
+      }))
+
+    if (sectionsToCreate.length > 0) {
+      const { error: sectionError } = await supabase
+        .from('verification_sections')
+        .upsert(sectionsToCreate, { onConflict: 'reference_id,section_type' })
+
+      if (sectionError) {
+        console.error('Failed to create verification sections for external refs:', sectionError)
+        // Don't throw - chase_dependencies were created successfully
+      } else {
+        console.log(`[Chase] Created ${sectionsToCreate.length} verification_sections for external references`)
+      }
+    }
+
     return (created || []).map(mapDependencyFromDb)
   } catch (error) {
     console.error('Failed to create dependencies:', error)
@@ -212,17 +248,67 @@ export async function createDependenciesForReference(referenceId: string): Promi
 }
 
 /**
- * Get all active chase items (for chase queue)
+ * Get today's 8:55am UK time threshold
+ * Items marked done before this time should reappear in the queue
+ */
+function getTodayChaseThresholdUK(): Date {
+  const now = new Date()
+
+  // Get today's date in UK timezone
+  const ukDate = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(now)
+
+  const ukDay = parseInt(ukDate.find(p => p.type === 'day')?.value || '1')
+  const ukMonth = parseInt(ukDate.find(p => p.type === 'month')?.value || '1') - 1
+  const ukYear = parseInt(ukDate.find(p => p.type === 'year')?.value || '2024')
+
+  // Create threshold at 8:55am UK time today
+  // We need to convert this to UTC for comparison
+  // Use a workaround: create the date as if it's UTC, then adjust
+  const threshold = new Date(Date.UTC(ukYear, ukMonth, ukDay, 8, 55, 0, 0))
+
+  // Determine if UK is in BST (British Summer Time) - roughly late March to late October
+  // BST is UTC+1, GMT is UTC+0
+  const jan = new Date(ukYear, 0, 1)
+  const jul = new Date(ukYear, 6, 1)
+  const janOffset = jan.getTimezoneOffset()
+  const julOffset = jul.getTimezoneOffset()
+  const isDSTTimezone = Math.max(janOffset, julOffset) !== janOffset
+
+  // Check if current date is in DST
+  const stdOffset = Math.max(janOffset, julOffset)
+  const isDSTNow = now.getTimezoneOffset() < stdOffset
+
+  // Adjust threshold for BST if needed
+  // 8:55am UK during BST is 7:55am UTC
+  // 8:55am UK during GMT is 8:55am UTC
+  if (isDSTTimezone && isDSTNow) {
+    threshold.setUTCHours(7) // BST: UTC+1, so 8:55am UK = 7:55am UTC
+  } else {
+    threshold.setUTCHours(8) // GMT: UTC+0, so 8:55am UK = 8:55am UTC
+  }
+
+  return threshold
+}
+
+/**
+ * Get all active chase items (for chase queue - now called "Pending Responses")
  * NOW QUERIES VERIFICATION_SECTIONS instead of chase_dependencies
  *
- * Chase Queue Timing Logic:
- * - Items appear 8 hours after initial_request_sent_at (when form was first sent)
- * - After a chase is sent, item leaves queue and reappears 8 hours after last_chase_sent_at
+ * Pending Responses Queue Timing Logic:
+ * - Items appear after initial_request_sent_at (when form was first sent)
+ * - After staff clicks "Mark Done for Today", item is hidden until 8:55am UK next day
  * - Items are excluded if reference is completed, rejected, or in verification
+ * - Email/SMS sent does NOT remove item from queue (changed from previous behavior)
  */
 export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
   try {
     // Query verification_sections for external references
+    // Note: last_marked_done_at may not exist if migration hasn't been run yet
     const { data: sections, error } = await supabase
       .from('verification_sections')
       .select(`
@@ -262,18 +348,37 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
 
     if (error) throw error
 
+    // Try to fetch last_marked_done_at separately (may not exist yet)
+    let markedDoneMap = new Map<string, string>()
+    try {
+      const { data: markedDoneData } = await supabase
+        .from('verification_sections')
+        .select('id, last_marked_done_at')
+        .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'ACCOUNTANT_REFERENCE'])
+        .not('last_marked_done_at', 'is', null)
+
+      if (markedDoneData) {
+        markedDoneData.forEach((row: any) => {
+          if (row.last_marked_done_at) {
+            markedDoneMap.set(row.id, row.last_marked_done_at)
+          }
+        })
+      }
+    } catch (markedDoneError) {
+      // Column may not exist yet - ignore and proceed without filtering
+      console.log('[ChaseQueue] last_marked_done_at column may not exist yet, skipping mark-done filtering')
+    }
+
     console.log(`[ChaseQueue] Raw sections count: ${sections?.length || 0}`)
 
-    // Calculate 8-hour threshold
-    const eightHoursAgo = new Date()
-    eightHoursAgo.setHours(eightHoursAgo.getHours() - CHASE_RULES.CHASE_QUEUE_DELAY_HOURS)
-
-    console.log(`[ChaseQueue] 8 hours ago threshold: ${eightHoursAgo.toISOString()}`)
+    // Get today's 8:55am UK threshold for "mark done" filtering
+    const todayChaseThreshold = getTodayChaseThresholdUK()
+    console.log(`[ChaseQueue] Today's 8:55am UK threshold: ${todayChaseThreshold.toISOString()}`)
 
     // Filter sections based on:
     // 1. Reference must exist and not be in terminal/processed state
     // 2. Initial request must have been sent
-    // 3. Must be 8+ hours since initial request OR last chase
+    // 3. Must NOT have been "marked done" today (after today's 8:55am UK threshold)
     const activeSections = (sections || []).filter((section: any) => {
       if (!section.reference) {
         console.log(`[ChaseQueue] Filtered out section ${section.id}: no reference`)
@@ -293,18 +398,20 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
         return false
       }
 
-      // Check 8-hour window:
-      // - If no chase sent yet -> check initial_request_sent_at > 8 hours ago
-      // - If chase was sent -> check last_chase_sent_at > 8 hours ago
-      const relevantTimestamp = section.last_chase_sent_at || section.initial_request_sent_at
-      const timestampDate = new Date(relevantTimestamp)
-
-      // Item should appear in queue only if 8+ hours have passed since relevant timestamp
-      const passesTimeFilter = timestampDate <= eightHoursAgo
-      if (!passesTimeFilter) {
-        console.log(`[ChaseQueue] Filtered out section ${section.id}: timestamp ${timestampDate.toISOString()} is after ${eightHoursAgo.toISOString()}`)
+      // Check "marked done" filter:
+      // - If last_marked_done_at is NULL, item is visible
+      // - If last_marked_done_at is before today's 8:55am UK threshold, item reappears
+      // - If last_marked_done_at is after today's 8:55am UK threshold, item is hidden
+      const lastMarkedDoneAt = markedDoneMap.get(section.id)
+      if (lastMarkedDoneAt) {
+        const markedDoneAt = new Date(lastMarkedDoneAt)
+        if (markedDoneAt >= todayChaseThreshold) {
+          console.log(`[ChaseQueue] Filtered out section ${section.id}: marked done at ${markedDoneAt.toISOString()} (after threshold ${todayChaseThreshold.toISOString()})`)
+          return false
+        }
       }
-      return passesTimeFilter
+
+      return true
     })
 
     console.log(`[ChaseQueue] Active sections after filter: ${activeSections.length}`)
@@ -339,6 +446,7 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
         contactPhone: section.contact_phone_encrypted ? decrypt(section.contact_phone_encrypted) : undefined,
         initialRequestSentAt: section.initial_request_sent_at,
         lastChaseSentAt: section.last_chase_sent_at,
+        lastMarkedDoneAt: markedDoneMap.get(section.id),
         chaseCycle: section.chase_cycle || 0,
         emailAttempts: section.email_attempts || 0,
         smsAttempts: section.sms_attempts || 0,

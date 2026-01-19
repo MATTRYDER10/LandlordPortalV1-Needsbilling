@@ -85,6 +85,10 @@ const formatAction = (action: string) => {
     'SCORE_UPDATED': 'Score Updated',
     'SMS_SENT': 'SMS Sent',
     'SMS_FAILED': 'SMS Failed',
+    'STAFF_NOTE': 'Staff Note',
+    'PENDING_RESPONSE_MARKED_DONE': 'Follow-up Completed',
+    'CHASE_ACTION_REQUIRED': 'Escalated',
+    'REFEREE_CONTACT_UPDATED': 'Contact Updated',
   }
   return actionMap[action] || action
 }
@@ -93,11 +97,14 @@ const getActionClass = (action: string) => {
   // Return CSS class for different action types
   if (action === 'EMAIL_SENT' || action === 'EMAIL_RESENT') return 'action-email'
   if (action === 'EMAIL_FAILED' || action === 'EMAIL_BOUNCED' || action === 'EMAIL_COMPLAINED') return 'action-email-failed'
-  if (action.includes('NOTE')) return 'action-note'
+  if (action.includes('NOTE') || action === 'STAFF_NOTE') return 'action-note'
   if (action.includes('STATUS')) return 'action-status'
   if (action.includes('SCORE')) return 'action-score'
   if (action === 'SMS_SENT') return 'action-sms'
   if (action === 'SMS_FAILED') return 'action-sms-failed'
+  if (action === 'PENDING_RESPONSE_MARKED_DONE') return 'action-followup'
+  if (action === 'CHASE_ACTION_REQUIRED') return 'action-escalation'
+  if (action === 'REFEREE_CONTACT_UPDATED') return 'action-update'
   return 'action-default'
 }
 
@@ -226,6 +233,18 @@ onMounted(() => {
 
 .action-default {
   background-color: #6b7280;
+}
+
+.action-followup {
+  background-color: #6366f1;
+}
+
+.action-escalation {
+  background-color: #dc2626;
+}
+
+.action-update {
+  background-color: #0891b2;
 }
 
 .timeline-content {

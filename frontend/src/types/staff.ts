@@ -145,6 +145,7 @@ export interface ChaseQueueItem extends ChaseDependency {
   companyName: string
   daysSinceRequest: number
   urgency: Urgency
+  lastMarkedDoneAt?: string
 }
 
 // ============================================================================

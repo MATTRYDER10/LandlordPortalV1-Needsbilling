@@ -28,6 +28,19 @@ import { DEFAULT_BRANDING } from '../config/colors'
 
 const router = Router()
 
+// Helper to map section types to referee types
+const mapSectionTypeToRefereeType = (sectionType: string): string | null => {
+  const mapping: Record<string, string> = {
+    'EMPLOYER_REF': 'employer',
+    'EMPLOYER_REFERENCE': 'employer',
+    'RESIDENTIAL_REF': 'landlord',
+    'LANDLORD_REFERENCE': 'landlord',
+    'ACCOUNTANT_REF': 'accountant',
+    'ACCOUNTANT_REFERENCE': 'accountant'
+  }
+  return mapping[sectionType] || null
+}
+
 // Configure multer for file uploads (store in memory)
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -6682,20 +6695,28 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
 
 /**
  * PATCH /:id/referee
- * Update referee email (employer, landlord, or accountant)
+ * Update referee contact details (email and/or phone)
  * Will create new referee reference record if email changed
  */
 router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
     const referenceId = req.params.id
-    const { type, email, name } = req.body
+    const { type, email, name, phone, sectionType } = req.body
 
-    if (!type || !['employer', 'landlord', 'agent', 'accountant'].includes(type)) {
+    // Support both legacy type and new sectionType parameter
+    const refereeType = type || (sectionType ? mapSectionTypeToRefereeType(sectionType) : null)
+
+    if (!refereeType || !['employer', 'landlord', 'agent', 'accountant'].includes(refereeType)) {
       return res.status(400).json({ error: 'Invalid referee type. Must be employer, landlord, agent, or accountant.' })
     }
 
-    if (!email || !isValidEmail(email)) {
+    // At least one of email or phone must be provided
+    if (!email && !phone) {
+      return res.status(400).json({ error: 'At least one of email or phone must be provided' })
+    }
+
+    if (email && !isValidEmail(email)) {
       return res.status(400).json({ error: 'Invalid email address' })
     }
 
@@ -6730,264 +6751,382 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
 
     let result: any = {}
 
-    if (type === 'employer') {
-      // Update employer referee email on tenant_references
+    if (refereeType === 'employer') {
+      // Update employer referee email/phone on tenant_references
       const oldEmail = decrypt(reference.employer_ref_email_encrypted) || ''
+      const oldPhone = decrypt(reference.employer_ref_phone_encrypted) || ''
 
-      await supabase
-        .from('tenant_references')
-        .update({
-          employer_ref_email_encrypted: encrypt(email),
-          employer_name_encrypted: name ? encrypt(name) : reference.employer_name_encrypted
-        })
-        .eq('id', referenceId)
+      const updateFields: any = {}
+      if (email) updateFields.employer_ref_email_encrypted = encrypt(email)
+      if (phone) updateFields.employer_ref_phone_encrypted = encrypt(phone)
+      if (name) updateFields.employer_name_encrypted = encrypt(name)
 
-      // Get or create employer reference record (using ID-based URLs, not tokens)
-      let { data: employerRef } = await supabase
-        .from('employer_references')
-        .select('id')
-        .eq('reference_id', referenceId)
-        .single()
+      if (Object.keys(updateFields).length > 0) {
+        await supabase
+          .from('tenant_references')
+          .update(updateFields)
+          .eq('id', referenceId)
+      }
 
-      if (employerRef) {
-        // Update existing - reset submission status
-        const { error: updateError } = await supabase
+      // Also update verification_sections contact info
+      const sectionUpdateFields: any = {}
+      if (email) sectionUpdateFields.contact_email_encrypted = encrypt(email)
+      if (phone) sectionUpdateFields.contact_phone_encrypted = encrypt(phone)
+      if (name) sectionUpdateFields.contact_name_encrypted = encrypt(name)
+
+      if (Object.keys(sectionUpdateFields).length > 0) {
+        await supabase
+          .from('verification_sections')
+          .update(sectionUpdateFields)
+          .eq('reference_id', referenceId)
+          .eq('section_type', 'EMPLOYER_REFERENCE')
+      }
+
+      // Only send email and update employer_references if email changed
+      let emailSent = false
+      if (email && email !== oldEmail) {
+        // Get or create employer reference record (using ID-based URLs, not tokens)
+        let { data: employerRef } = await supabase
           .from('employer_references')
-          .update({
-            submitted_at: null, // Reset submission
-            employer_email_encrypted: encrypt(email)
-          })
-          .eq('id', employerRef.id)
-
-        if (updateError) {
-          console.error('Failed to update employer reference:', updateError)
-          return res.status(500).json({ error: 'Failed to update employer reference' })
-        }
-      } else {
-        // Create new employer reference
-        const { data: newRef, error: insertError } = await supabase
-          .from('employer_references')
-          .insert({
-            reference_id: referenceId,
-            employer_email_encrypted: encrypt(email)
-          })
           .select('id')
+          .eq('reference_id', referenceId)
           .single()
 
-        if (insertError || !newRef) {
-          console.error('Failed to create employer reference:', insertError)
-          return res.status(500).json({ error: 'Failed to create employer reference' })
+        if (employerRef) {
+          // Update existing - reset submission status
+          const { error: updateError } = await supabase
+            .from('employer_references')
+            .update({
+              submitted_at: null, // Reset submission
+              employer_email_encrypted: encrypt(email)
+            })
+            .eq('id', employerRef.id)
+
+          if (updateError) {
+            console.error('Failed to update employer reference:', updateError)
+            return res.status(500).json({ error: 'Failed to update employer reference' })
+          }
+        } else {
+          // Create new employer reference
+          const { data: newRef, error: insertError } = await supabase
+            .from('employer_references')
+            .insert({
+              reference_id: referenceId,
+              employer_email_encrypted: encrypt(email)
+            })
+            .select('id')
+            .single()
+
+          if (insertError || !newRef) {
+            console.error('Failed to create employer reference:', insertError)
+            return res.status(500).json({ error: 'Failed to create employer reference' })
+          }
+          employerRef = newRef
         }
-        employerRef = newRef
+
+        // Use employer_reference.id in URL - stable and doesn't change between chases
+        const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerRef.id}`
+        await sendEmployerReferenceRequest(
+          email,
+          name || 'Employer',
+          tenantName,
+          formUrl,
+          companyName,
+          propertyAddress
+        )
+        emailSent = true
       }
 
-      // Use employer_reference.id in URL - stable and doesn't change between chases
-      const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerRef.id}`
-      await sendEmployerReferenceRequest(
-        email,
-        name || 'Employer',
-        tenantName,
-        formUrl,
-        companyName,
-        propertyAddress
-      )
+      // Log audit action for contact update
+      await logAuditAction({
+        referenceId,
+        action: 'REFEREE_CONTACT_UPDATED',
+        description: `Employer contact updated${email ? ` (email: ${oldEmail} → ${email})` : ''}${phone ? ` (phone: ${oldPhone} → ${phone})` : ''}`,
+        metadata: { refereeType: 'employer', oldEmail, newEmail: email, oldPhone, newPhone: phone, visible_to_agent: true },
+        userId
+      })
 
-      result = { type: 'employer', oldEmail, newEmail: email, emailSent: true }
-    } else if (type === 'landlord') {
-      // Update landlord email on tenant_references
+      result = { type: 'employer', oldEmail, newEmail: email, oldPhone, newPhone: phone, emailSent }
+    } else if (refereeType === 'landlord') {
+      // Update landlord email/phone on tenant_references
       const oldEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+      const oldPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
 
-      await supabase
-        .from('tenant_references')
-        .update({
-          previous_landlord_email_encrypted: encrypt(email),
-          previous_landlord_name_encrypted: name ? encrypt(name) : reference.previous_landlord_name_encrypted
-        })
-        .eq('id', referenceId)
+      const updateFields: any = {}
+      if (email) updateFields.previous_landlord_email_encrypted = encrypt(email)
+      if (phone) updateFields.previous_landlord_phone_encrypted = encrypt(phone)
+      if (name) updateFields.previous_landlord_name_encrypted = encrypt(name)
 
-      // Generate new token and create/update landlord reference
-      const newToken = generateToken()
-      const newTokenHash = hash(newToken)
-
-      const { data: existingRef } = await supabase
-        .from('landlord_references')
-        .select('id')
-        .eq('reference_id', referenceId)
-        .single()
-
-      if (existingRef) {
+      if (Object.keys(updateFields).length > 0) {
         await supabase
-          .from('landlord_references')
-          .update({
-            reference_token_hash: newTokenHash,
-            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            submitted_at: null
-          })
-          .eq('id', existingRef.id)
-      } else {
-        await supabase
-          .from('landlord_references')
-          .insert({
-            reference_id: referenceId,
-            reference_token_hash: newTokenHash,
-            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-          })
+          .from('tenant_references')
+          .update(updateFields)
+          .eq('id', referenceId)
       }
 
-      // Send email to new landlord
-      const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-landlord-reference/${newToken}`
-      await sendLandlordReferenceRequest(
-        email,
-        name || 'Previous Landlord',
-        tenantName,
-        formUrl,
-        companyName,
-        propertyAddress
-      )
+      // Also update verification_sections contact info
+      const sectionUpdateFields: any = {}
+      if (email) sectionUpdateFields.contact_email_encrypted = encrypt(email)
+      if (phone) sectionUpdateFields.contact_phone_encrypted = encrypt(phone)
+      if (name) sectionUpdateFields.contact_name_encrypted = encrypt(name)
 
-      result = { type: 'landlord', oldEmail, newEmail: email, emailSent: true }
-    } else if (type === 'accountant') {
-      // Update accountant email on tenant_references
+      if (Object.keys(sectionUpdateFields).length > 0) {
+        await supabase
+          .from('verification_sections')
+          .update(sectionUpdateFields)
+          .eq('reference_id', referenceId)
+          .eq('section_type', 'LANDLORD_REFERENCE')
+      }
+
+      // Only send email and update landlord_references if email changed
+      let emailSent = false
+      if (email && email !== oldEmail) {
+        const newToken = generateToken()
+        const newTokenHash = hash(newToken)
+
+        const { data: existingRef } = await supabase
+          .from('landlord_references')
+          .select('id')
+          .eq('reference_id', referenceId)
+          .single()
+
+        if (existingRef) {
+          await supabase
+            .from('landlord_references')
+            .update({
+              reference_token_hash: newTokenHash,
+              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              submitted_at: null
+            })
+            .eq('id', existingRef.id)
+        } else {
+          await supabase
+            .from('landlord_references')
+            .insert({
+              reference_id: referenceId,
+              reference_token_hash: newTokenHash,
+              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            })
+        }
+
+        // Send email to new landlord
+        const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-landlord-reference/${newToken}`
+        await sendLandlordReferenceRequest(
+          email,
+          name || 'Previous Landlord',
+          tenantName,
+          formUrl,
+          companyName,
+          propertyAddress
+        )
+        emailSent = true
+      }
+
+      // Log audit action for contact update
+      await logAuditAction({
+        referenceId,
+        action: 'REFEREE_CONTACT_UPDATED',
+        description: `Landlord contact updated${email ? ` (email: ${oldEmail} → ${email})` : ''}${phone ? ` (phone: ${oldPhone} → ${phone})` : ''}`,
+        metadata: { refereeType: 'landlord', oldEmail, newEmail: email, oldPhone, newPhone: phone, visible_to_agent: true },
+        userId
+      })
+
+      result = { type: 'landlord', oldEmail, newEmail: email, oldPhone, newPhone: phone, emailSent }
+    } else if (refereeType === 'accountant') {
+      // Update accountant email/phone on tenant_references
       const oldEmail = decrypt(reference.accountant_email_encrypted) || ''
+      const oldPhone = decrypt(reference.accountant_phone_encrypted) || ''
 
-      await supabase
-        .from('tenant_references')
-        .update({
-          accountant_email_encrypted: encrypt(email),
-          accountant_name_encrypted: name ? encrypt(name) : reference.accountant_name_encrypted
-        })
-        .eq('id', referenceId)
+      const updateFields: any = {}
+      if (email) updateFields.accountant_email_encrypted = encrypt(email)
+      if (phone) updateFields.accountant_phone_encrypted = encrypt(phone)
+      if (name) updateFields.accountant_name_encrypted = encrypt(name)
 
-      // Generate new token and create/update accountant reference
-      const newToken = generateToken()
-      const newTokenHash = hash(newToken)
-
-      const { data: existingRef } = await supabase
-        .from('accountant_references')
-        .select('id')
-        .eq('tenant_reference_id', referenceId)
-        .single()
-
-      if (existingRef) {
+      if (Object.keys(updateFields).length > 0) {
         await supabase
-          .from('accountant_references')
-          .update({
-            reference_token_hash: newTokenHash,
-            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            submitted_at: null
-          })
-          .eq('id', existingRef.id)
-      } else {
-        await supabase
-          .from('accountant_references')
-          .insert({
-            tenant_reference_id: referenceId,
-            reference_token_hash: newTokenHash,
-            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-          })
+          .from('tenant_references')
+          .update(updateFields)
+          .eq('id', referenceId)
       }
 
-      // Send email to new accountant
-      const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-accountant-reference/${newToken}`
-      await sendAccountantReferenceRequest(
-        email,
-        name || 'Accountant',
-        tenantName,
-        formUrl,
-        companyName,
-        propertyAddress
-      )
+      // Also update verification_sections contact info
+      const sectionUpdateFields: any = {}
+      if (email) sectionUpdateFields.contact_email_encrypted = encrypt(email)
+      if (phone) sectionUpdateFields.contact_phone_encrypted = encrypt(phone)
+      if (name) sectionUpdateFields.contact_name_encrypted = encrypt(name)
 
-      result = { type: 'accountant', oldEmail, newEmail: email, emailSent: true }
-    } else if (type === 'agent') {
-      // Update letting agent email on tenant_references (same field as landlord)
+      if (Object.keys(sectionUpdateFields).length > 0) {
+        await supabase
+          .from('verification_sections')
+          .update(sectionUpdateFields)
+          .eq('reference_id', referenceId)
+          .eq('section_type', 'ACCOUNTANT_REFERENCE')
+      }
+
+      // Only send email and update accountant_references if email changed
+      let emailSent = false
+      if (email && email !== oldEmail) {
+        const newToken = generateToken()
+        const newTokenHash = hash(newToken)
+
+        const { data: existingRef } = await supabase
+          .from('accountant_references')
+          .select('id')
+          .eq('tenant_reference_id', referenceId)
+          .single()
+
+        if (existingRef) {
+          await supabase
+            .from('accountant_references')
+            .update({
+              reference_token_hash: newTokenHash,
+              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              submitted_at: null
+            })
+            .eq('id', existingRef.id)
+        } else {
+          await supabase
+            .from('accountant_references')
+            .insert({
+              tenant_reference_id: referenceId,
+              reference_token_hash: newTokenHash,
+              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            })
+        }
+
+        // Send email to new accountant
+        const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-accountant-reference/${newToken}`
+        await sendAccountantReferenceRequest(
+          email,
+          name || 'Accountant',
+          tenantName,
+          formUrl,
+          companyName,
+          propertyAddress
+        )
+        emailSent = true
+      }
+
+      // Log audit action for contact update
+      await logAuditAction({
+        referenceId,
+        action: 'REFEREE_CONTACT_UPDATED',
+        description: `Accountant contact updated${email ? ` (email: ${oldEmail} → ${email})` : ''}${phone ? ` (phone: ${oldPhone} → ${phone})` : ''}`,
+        metadata: { refereeType: 'accountant', oldEmail, newEmail: email, oldPhone, newPhone: phone, visible_to_agent: true },
+        userId
+      })
+
+      result = { type: 'accountant', oldEmail, newEmail: email, oldPhone, newPhone: phone, emailSent }
+    } else if (refereeType === 'agent') {
+      // Update letting agent email/phone on tenant_references (same field as landlord)
       const oldEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+      const oldPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
+
+      const updateFields: any = { reference_type: 'agent' }
+      if (email) updateFields.previous_landlord_email_encrypted = encrypt(email)
+      if (phone) updateFields.previous_landlord_phone_encrypted = encrypt(phone)
+      if (name) updateFields.previous_landlord_name_encrypted = encrypt(name)
 
       await supabase
         .from('tenant_references')
-        .update({
-          previous_landlord_email_encrypted: encrypt(email),
-          previous_landlord_name_encrypted: name ? encrypt(name) : reference.previous_landlord_name_encrypted,
-          reference_type: 'agent' // Ensure reference_type is set to agent
-        })
+        .update(updateFields)
         .eq('id', referenceId)
 
-      // Generate new token and create/update agent reference
-      const newToken = generateToken()
-      const newTokenHash = hash(newToken)
+      // Also update verification_sections contact info
+      const sectionUpdateFields: any = {}
+      if (email) sectionUpdateFields.contact_email_encrypted = encrypt(email)
+      if (phone) sectionUpdateFields.contact_phone_encrypted = encrypt(phone)
+      if (name) sectionUpdateFields.contact_name_encrypted = encrypt(name)
 
-      const { data: existingRef } = await supabase
-        .from('agent_references')
-        .select('id')
-        .eq('reference_id', referenceId)
-        .single()
-
-      if (existingRef) {
+      if (Object.keys(sectionUpdateFields).length > 0) {
         await supabase
-          .from('agent_references')
-          .update({
-            reference_token_hash: newTokenHash,
-            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            submitted_at: null
-          })
-          .eq('id', existingRef.id)
-      } else {
-        await supabase
-          .from('agent_references')
-          .insert({
-            reference_id: referenceId,
-            reference_token_hash: newTokenHash,
-            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-          })
+          .from('verification_sections')
+          .update(sectionUpdateFields)
+          .eq('reference_id', referenceId)
+          .eq('section_type', 'LANDLORD_REFERENCE')
       }
 
-      // Send email to new letting agent
-      const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`
-      await sendAgentReferenceRequest(
-        email,
-        name || 'Letting Agent',
-        tenantName,
-        formUrl,
-        companyName,
-        propertyAddress
-      )
+      // Only send email and update agent_references if email changed
+      let emailSent = false
+      if (email && email !== oldEmail) {
+        const newToken = generateToken()
+        const newTokenHash = hash(newToken)
 
-      result = { type: 'agent', oldEmail, newEmail: email, emailSent: true }
+        const { data: existingRef } = await supabase
+          .from('agent_references')
+          .select('id')
+          .eq('reference_id', referenceId)
+          .single()
+
+        if (existingRef) {
+          await supabase
+            .from('agent_references')
+            .update({
+              reference_token_hash: newTokenHash,
+              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              submitted_at: null
+            })
+            .eq('id', existingRef.id)
+        } else {
+          await supabase
+            .from('agent_references')
+            .insert({
+              reference_id: referenceId,
+              reference_token_hash: newTokenHash,
+              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            })
+        }
+
+        // Send email to new letting agent
+        const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`
+        await sendAgentReferenceRequest(
+          email,
+          name || 'Letting Agent',
+          tenantName,
+          formUrl,
+          companyName,
+          propertyAddress
+        )
+        emailSent = true
+      }
+
+      // Log audit action for contact update
+      await logAuditAction({
+        referenceId,
+        action: 'REFEREE_CONTACT_UPDATED',
+        description: `Agent contact updated${email ? ` (email: ${oldEmail} → ${email})` : ''}${phone ? ` (phone: ${oldPhone} → ${phone})` : ''}`,
+        metadata: { refereeType: 'agent', oldEmail, newEmail: email, oldPhone, newPhone: phone, visible_to_agent: true },
+        userId
+      })
+
+      result = { type: 'agent', oldEmail, newEmail: email, oldPhone, newPhone: phone, emailSent }
     }
 
-    // Update chase_dependencies with new email so auto-chase uses correct address
+    // Update chase_dependencies with new email/phone so auto-chase uses correct address
     const dependencyTypeMap: Record<string, string> = {
       employer: 'EMPLOYER_REF',
       landlord: 'RESIDENTIAL_REF',
       agent: 'RESIDENTIAL_REF',
       accountant: 'ACCOUNTANT_REF'
     }
-    const dependencyType = dependencyTypeMap[type]
+    const dependencyType = dependencyTypeMap[refereeType]
     if (dependencyType) {
-      const updateData: Record<string, string> = {
-        contact_email_encrypted: encrypt(email)!
+      const updateData: Record<string, string> = {}
+      if (email) updateData.contact_email_encrypted = encrypt(email)!
+      if (phone) updateData.contact_phone_encrypted = encrypt(phone)!
+      if (name) updateData.contact_name_encrypted = encrypt(name)!
+
+      if (Object.keys(updateData).length > 0) {
+        await supabase
+          .from('chase_dependencies')
+          .update(updateData)
+          .eq('reference_id', referenceId)
+          .eq('dependency_type', dependencyType)
       }
-      if (name) {
-        updateData.contact_name_encrypted = encrypt(name)!
-      }
-      await supabase
-        .from('chase_dependencies')
-        .update(updateData)
-        .eq('reference_id', referenceId)
-        .eq('dependency_type', dependencyType)
     }
 
-    // Log to audit trail
-    await logAuditAction({
-      referenceId,
-      action: 'REFEREE_EMAIL_UPDATED',
-      description: `${type} email updated from ${result.oldEmail || 'none'} to ${email}`,
-      metadata: { ...result, updatedBy: 'agent' },
-      userId
-    })
-
     res.json({
-      message: `${type.charAt(0).toUpperCase() + type.slice(1)} email updated and reference request sent`,
+      message: `${refereeType.charAt(0).toUpperCase() + refereeType.slice(1)} contact updated${result.emailSent ? ' and reference request sent' : ''}`,
       ...result
     })
   } catch (error: any) {

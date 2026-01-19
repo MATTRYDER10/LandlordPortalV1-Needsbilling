@@ -2,8 +2,76 @@
   <div class="chase-queue-tab">
     <!-- Help text -->
     <p class="tab-help">
-      Dependencies awaiting responses from landlords, agents, employers, accountants, or guarantors. Use Email/SMS to send reminders with form links.
+      Items awaiting responses from landlords, employers, accountants, or guarantors. Send reminders, then click "Mark Done" with a note when you've contacted them.
     </p>
+
+    <!-- Mark Done Modal -->
+    <Teleport to="body">
+      <div v-if="showMarkDoneModal" class="modal-overlay" @click.self="closeMarkDoneModal">
+        <div class="modal-content">
+          <h3 class="modal-title">Mark Done for Today</h3>
+          <p class="modal-description">
+            Add a note about what you did (e.g., "Left voicemail", "Email sent, waiting for reply", "Spoke to contact, will respond tomorrow").
+          </p>
+          <p class="modal-info">
+            This item will reappear at 8:55am UK tomorrow if still pending. Your note will be visible to agents.
+          </p>
+          <textarea
+            v-model="markDoneNote"
+            class="note-textarea"
+            placeholder="Enter a note (required)..."
+            rows="3"
+          ></textarea>
+          <div class="modal-actions">
+            <button @click="closeMarkDoneModal" class="btn btn-secondary">Cancel</button>
+            <button
+              @click="submitMarkDone"
+              :disabled="!markDoneNote.trim() || markingDone"
+              class="btn btn-primary"
+            >
+              {{ markingDone ? 'Saving...' : 'Mark Done' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Edit Contact Modal -->
+    <Teleport to="body">
+      <div v-if="showEditModal" class="modal-overlay" @click.self="closeEditModal">
+        <div class="modal-content">
+          <h3 class="modal-title">Edit Contact Details</h3>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input
+              v-model="editForm.email"
+              type="email"
+              class="form-input"
+              placeholder="referee@example.com"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input
+              v-model="editForm.phone"
+              type="tel"
+              class="form-input"
+              placeholder="+44..."
+            />
+          </div>
+          <div class="modal-actions">
+            <button @click="closeEditModal" class="btn btn-secondary">Cancel</button>
+            <button
+              @click="submitEditContact"
+              :disabled="saving"
+              class="btn btn-primary"
+            >
+              {{ saving ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Loading State -->
     <div v-if="loading" class="loading">
@@ -87,9 +155,45 @@
             </button>
 
             <button
+              @click="copyFormLink(item)"
+              class="btn btn-sm btn-secondary"
+              title="Copy form link to clipboard"
+            >
+              <Copy class="w-4 h-4 mr-1" />
+              Copy Link
+            </button>
+
+            <button
+              @click="openForm(item)"
+              class="btn btn-sm btn-secondary"
+              title="Open form in new tab (fill over phone)"
+            >
+              <ExternalLink class="w-4 h-4 mr-1" />
+              Open Form
+            </button>
+
+            <button
+              @click="openEditModal(item)"
+              class="btn btn-sm btn-secondary"
+              title="Edit contact details"
+            >
+              <Pencil class="w-4 h-4 mr-1" />
+              Edit
+            </button>
+
+            <button
+              @click="openMarkDoneModal(item)"
+              class="btn btn-sm btn-done"
+              title="Mark done for today (reappears tomorrow)"
+            >
+              <CheckCircle class="w-4 h-4 mr-1" />
+              Mark Done
+            </button>
+
+            <button
               @click="$emit('markReceived', item.id)"
               class="btn btn-sm btn-success"
-              title="Mark as received"
+              title="Response received - removes from queue permanently"
             >
               Received
             </button>
@@ -114,10 +218,17 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { ChaseQueueItem } from '@/types/staff'
 import { getDependencyTypeLabel } from '@/types/staff'
-import { CheckCircle, Mail, MessageSquare } from 'lucide-vue-next'
+import { CheckCircle, Mail, MessageSquare, Copy, ExternalLink, Pencil } from 'lucide-vue-next'
+import { useToast } from 'vue-toastification'
+import { useAuthStore } from '@/stores/auth'
 import UrgencyIndicator from '../shared/UrgencyIndicator.vue'
+
+const toast = useToast()
+const authStore = useAuthStore()
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 defineProps<{
   items: ChaseQueueItem[]
@@ -127,12 +238,140 @@ defineProps<{
   sendingSms: string | null
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'sendChase', dependencyId: string, method: 'email' | 'sms'): void
   (e: 'markReceived', dependencyId: string): void
+  (e: 'markDone', sectionId: string, note: string): void
+  (e: 'editContact', sectionId: string, referenceId: string, sectionType: string, email: string, phone: string): void
   (e: 'actionRequired', dependencyId: string): void
   (e: 'refresh'): void
 }>()
+
+// Mark Done Modal State
+const showMarkDoneModal = ref(false)
+const markDoneNote = ref('')
+const markingDone = ref(false)
+const selectedItemForMarkDone = ref<ChaseQueueItem | null>(null)
+
+// Edit Contact Modal State
+const showEditModal = ref(false)
+const editingItem = ref<ChaseQueueItem | null>(null)
+const editForm = ref({ email: '', phone: '' })
+const saving = ref(false)
+
+const openMarkDoneModal = (item: ChaseQueueItem) => {
+  selectedItemForMarkDone.value = item
+  markDoneNote.value = ''
+  showMarkDoneModal.value = true
+}
+
+const closeMarkDoneModal = () => {
+  showMarkDoneModal.value = false
+  markDoneNote.value = ''
+  selectedItemForMarkDone.value = null
+}
+
+const submitMarkDone = async () => {
+  if (!selectedItemForMarkDone.value || !markDoneNote.value.trim()) return
+
+  markingDone.value = true
+  try {
+    emit('markDone', selectedItemForMarkDone.value.id, markDoneNote.value.trim())
+    closeMarkDoneModal()
+  } finally {
+    markingDone.value = false
+  }
+}
+
+// Edit Contact Modal Methods
+const openEditModal = (item: ChaseQueueItem) => {
+  editingItem.value = item
+  editForm.value = {
+    email: item.contactEmail || '',
+    phone: item.contactPhone || ''
+  }
+  showEditModal.value = true
+}
+
+const closeEditModal = () => {
+  showEditModal.value = false
+  editingItem.value = null
+  editForm.value = { email: '', phone: '' }
+}
+
+const submitEditContact = async () => {
+  if (!editingItem.value) return
+
+  saving.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/${editingItem.value.referenceId}/referee`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sectionType: editingItem.value.dependencyType,
+        email: editForm.value.email,
+        phone: editForm.value.phone
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to update contact')
+    }
+
+    toast.success('Contact updated successfully')
+    closeEditModal()
+    emit('refresh')
+  } catch (err: any) {
+    toast.error(err.message)
+  } finally {
+    saving.value = false
+  }
+}
+
+// Form Link Methods
+const getFormLink = async (item: ChaseQueueItem): Promise<string | null> => {
+  try {
+    const response = await fetch(`${API_URL}/api/chase/${item.id}/form-link`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!response.ok) throw new Error('Failed to get form link')
+    const data = await response.json()
+    return data.formUrl
+  } catch (err) {
+    console.error('Error fetching form link:', err)
+    return null
+  }
+}
+
+const copyFormLink = async (item: ChaseQueueItem) => {
+  const link = await getFormLink(item)
+  if (!link) {
+    toast.error('Could not get form link')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(link)
+    toast.success('Form link copied to clipboard!')
+  } catch {
+    toast.error('Failed to copy link')
+  }
+}
+
+const openForm = async (item: ChaseQueueItem) => {
+  const link = await getFormLink(item)
+  if (!link) {
+    toast.error('Could not get form link')
+    return
+  }
+  window.open(link, '_blank')
+}
 
 const formatStatus = (status: string) => {
   return status.replace('_', ' ')
@@ -424,5 +663,113 @@ const formatStatus = (status: string) => {
 
 .mr-1 {
   margin-right: 0.25rem;
+}
+
+.btn-done {
+  background: #6366f1;
+  color: white;
+}
+
+.btn-done:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.btn-secondary {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #d1d5db;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 0.5rem;
+}
+
+.modal-description {
+  font-size: 0.875rem;
+  color: #4b5563;
+  margin: 0 0 0.5rem;
+}
+
+.modal-info {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.note-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  resize: vertical;
+  margin-bottom: 1rem;
+}
+
+.note-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 </style>

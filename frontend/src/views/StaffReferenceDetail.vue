@@ -97,6 +97,14 @@
         </div>
       </div>
 
+      <!-- Outstanding Items Panel (for external references) -->
+      <div v-if="!reference.is_guarantor" class="mb-6">
+        <OutstandingItemsPanel
+          :reference-id="referenceId"
+          @refresh="fetchReference"
+        />
+      </div>
+
       <div class="space-y-6">
         <!-- Guarantor Badge -->
         <div v-if="reference.is_guarantor" class="bg-purple-50 border border-purple-200 rounded-lg p-4">
@@ -1940,6 +1948,7 @@
 import { ref, computed, onMounted } from 'vue'
 import ReferenceNotes from '../components/ReferenceNotes.vue'
 import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
+import OutstandingItemsPanel from '../components/staff/OutstandingItemsPanel.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
