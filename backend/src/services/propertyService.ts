@@ -265,8 +265,12 @@ class PropertyService {
     const ascending = filters.sortOrder === 'asc'
     query = query.order(sortBy, { ascending })
 
-    // Pagination
-    query = query.range(offset, offset + limit - 1)
+    // For non-postcode search, we need to fetch all properties first then filter by decrypted address
+    // Only apply pagination for non-search or postcode-search queries
+    const needsDecryptedSearch = searchTerm && !isPostcodeLike
+    if (!needsDecryptedSearch) {
+      query = query.range(offset, offset + limit - 1)
+    }
 
     const { data: properties, error, count } = await query
 
@@ -282,7 +286,7 @@ class PropertyService {
 
     // Apply post-fetch filters that require decryption
     // Search in decrypted address fields if search is not postcode-like
-    if (searchTerm && !isPostcodeLike) {
+    if (needsDecryptedSearch) {
       const searchLower = searchTerm.toLowerCase()
       formattedProperties = formattedProperties.filter(p =>
         p.address?.toLowerCase().includes(searchLower) ||
@@ -303,13 +307,19 @@ class PropertyService {
       )
     }
 
+    // Apply pagination after decrypted search filter for address searches
+    let totalCount = needsDecryptedSearch ? formattedProperties.length : (count || 0)
+    if (needsDecryptedSearch) {
+      formattedProperties = formattedProperties.slice(offset, offset + limit)
+    }
+
     return {
       properties: formattedProperties,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
       }
     }
   }
