@@ -3,7 +3,7 @@ import { supabase } from '../config/supabase'
 import { sendEmail, loadEmailTemplate } from './emailService'
 import { pdfGenerationService, AgreementPDFData, SignatureData } from './pdfGenerationService'
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
 const TOKEN_EXPIRY_DAYS = 7
 
 export interface SignatureRecord {
@@ -273,13 +273,27 @@ class SignatureService {
     const agreement = await this.getAgreement(agreementId)
     const propertyAddress = this.formatAddress(agreement.property_address)
 
+    // Fetch company logo for the agreement
+    let companyLogoUrl: string | undefined
+    if (agreement.company_id) {
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('logo_url')
+        .eq('id', agreement.company_id)
+        .single()
+
+      if (companyData) {
+        companyLogoUrl = companyData.logo_url || undefined
+      }
+    }
+
     const emailPromises = signatures.map(async (sig: SignatureRecord) => {
       if (!sig.signer_email) {
         console.warn(`No email for signer ${sig.signer_name}, skipping`)
         return
       }
 
-      await this.sendSigningEmail(sig, propertyAddress)
+      await this.sendSigningEmail(sig, propertyAddress, companyLogoUrl)
     })
 
     await Promise.all(emailPromises)
@@ -288,15 +302,17 @@ class SignatureService {
   /**
    * Send signing request email to a single signer
    */
-  private async sendSigningEmail(signature: SignatureRecord, propertyAddress: string): Promise<void> {
+  private async sendSigningEmail(signature: SignatureRecord, propertyAddress: string, companyLogoUrl?: string): Promise<void> {
     const signingUrl = `${FRONTEND_URL}/sign/${signature.signing_token}`
+    const DEFAULT_LOGO_URL = 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
 
     try {
       const html = loadEmailTemplate('agreement-signing-request', {
         SignerName: signature.signer_name,
         SignerType: this.capitalizeFirst(signature.signer_type),
         PropertyAddress: propertyAddress,
-        SigningUrl: signingUrl
+        SigningUrl: signingUrl,
+        AgentLogoUrl: companyLogoUrl || DEFAULT_LOGO_URL,
       })
 
       await sendEmail({
@@ -343,12 +359,28 @@ class SignatureService {
     const agreement = signature.agreements
     const propertyAddress = this.formatAddress(agreement.property_address)
     const signingUrl = `${FRONTEND_URL}/sign/${signature.signing_token}`
+    const DEFAULT_LOGO_URL = 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+
+    // Fetch company logo for the agreement
+    let companyLogoUrl: string | undefined
+    if (agreement.company_id) {
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('logo_url')
+        .eq('id', agreement.company_id)
+        .single()
+
+      if (companyData) {
+        companyLogoUrl = companyData.logo_url || undefined
+      }
+    }
 
     const html = loadEmailTemplate('agreement-signing-reminder', {
       SignerName: signature.signer_name,
       SignerType: this.capitalizeFirst(signature.signer_type),
       PropertyAddress: propertyAddress,
-      SigningUrl: signingUrl
+      SigningUrl: signingUrl,
+      AgentLogoUrl: companyLogoUrl || DEFAULT_LOGO_URL,
     })
 
     await sendEmail({

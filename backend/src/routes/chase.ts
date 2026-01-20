@@ -3,7 +3,6 @@ import { authenticateStaff as staffAuth, StaffAuthRequest } from '../middleware/
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { supabase } from '../config/supabase';
 import { logAuditAction } from '../services/auditService';
-import { generateToken, hash } from '../services/encryption';
 import {
   getChaseQueue,
   getDependenciesForReference,
@@ -163,7 +162,7 @@ router.get('/:sectionId/form-link', staffAuth, async (req: StaffAuthRequest, res
     // Generate form URL based on section type
     // Note: We always regenerate the URL to ensure it uses the current FRONTEND_URL
     // (cached form_url might have localhost from development)
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk';
     let formUrl: string | null = null;
 
     switch (section.section_type) {
@@ -201,25 +200,15 @@ router.get('/:sectionId/form-link', staffAuth, async (req: StaffAuthRequest, res
         break;
 
       case 'ACCOUNTANT_REFERENCE':
-        // Accountant reference uses accountant_references table with token
+        // Accountant reference uses accountant_references table ID
         const { data: accountantRefRecord } = await supabase
           .from('accountant_references')
-          .select('id, token_hash')
+          .select('id')
           .eq('tenant_reference_id', section.reference_id)
           .single();
 
         if (accountantRefRecord) {
-          // Generate a new token for the link (same as chase system does)
-          const accountantToken = generateToken();
-          const accountantTokenHash = hash(accountantToken);
-
-          // Update the token
-          await supabase
-            .from('accountant_references')
-            .update({ token_hash: accountantTokenHash })
-            .eq('id', accountantRefRecord.id);
-
-          formUrl = `${FRONTEND_URL}/accountant-reference/${accountantToken}`;
+          formUrl = `${FRONTEND_URL}/accountant-reference/${accountantRefRecord.id}`;
         }
         break;
 

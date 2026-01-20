@@ -982,7 +982,7 @@ export async function sendChaseForDependency(
           guarantor_email_encrypted,
           guarantor_phone_encrypted,
           reference_token_hash,
-          company:companies(id, name_encrypted, phone_encrypted, email_encrypted)
+          company:companies(id, name_encrypted, phone_encrypted, email_encrypted, logo_url)
         )
       `)
       .eq('id', dependencyId)
@@ -1039,7 +1039,8 @@ export async function sendChaseForDependency(
     const companyName = reference.company?.name_encrypted ? decrypt(reference.company.name_encrypted) || '' : ''
     const companyPhone = reference.company?.phone_encrypted ? decrypt(reference.company.phone_encrypted) || '' : ''
     const companyEmail = reference.company?.email_encrypted ? decrypt(reference.company.email_encrypted) || '' : ''
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+    const companyLogoUrl = reference.company?.logo_url || null
+    const frontendUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
 
     // For calls, we handle all dependency types the same way (generic reminder)
     if (method === 'call') {
@@ -1081,7 +1082,7 @@ export async function sendChaseForDependency(
           })
           .eq('id', reference.id)
 
-        const tenantUrl = `${frontendUrl}/submit-reference/${newToken}`
+        const tenantUrl = `${frontendUrl}/submit-reference/${reference.id}`
 
         if (method === 'email') {
           await sendTenantReferenceRequest(
@@ -1092,7 +1093,8 @@ export async function sendChaseForDependency(
             propertyAddress,
             companyPhone || undefined,
             companyEmail || undefined,
-            reference.id
+            reference.id,
+            companyLogoUrl
           )
         } else {
           await sendTenantReferenceRequestSMS(
@@ -1150,7 +1152,8 @@ export async function sendChaseForDependency(
             companyName,
             companyPhone,
             companyEmail,
-            reference.id
+            reference.id,
+            companyLogoUrl
           )
         } else {
           await sendEmployerReferenceRequestSMS(
@@ -1201,7 +1204,8 @@ export async function sendChaseForDependency(
               companyName,
               companyPhone,
               companyEmail,
-              reference.id
+              reference.id,
+              companyLogoUrl
             )
           } else {
             await sendLandlordReferenceRequestSMS(
@@ -1231,15 +1235,7 @@ export async function sendChaseForDependency(
         }
 
         // Generate new token
-        const accountantToken = generateToken()
-        const accountantTokenHash = hash(accountantToken)
-
-        await supabase
-          .from('accountant_references')
-          .update({ token_hash: accountantTokenHash })
-          .eq('id', accountantRef.id)
-
-        const accountantUrl = `${frontendUrl}/accountant-reference/${accountantToken}`
+        const accountantUrl = `${frontendUrl}/accountant-reference/${accountantRef.id}`
 
         if (method === 'email') {
           await sendAccountantReferenceRequest(
@@ -1314,7 +1310,9 @@ export async function sendChaseForDependency(
             .eq('id', guarantorId)
         }
 
-        const guarantorUrl = `${frontendUrl}/guarantor-reference/${guarantorToken}`
+        const guarantorUrl = isLegacyGuarantor
+          ? `${frontendUrl}/guarantor-reference/${guarantorToken}`
+          : `${frontendUrl}/guarantor-reference/${guarantorId}`
 
         if (method === 'email') {
           await sendGuarantorReferenceRequest(
@@ -1326,7 +1324,8 @@ export async function sendChaseForDependency(
             companyPhone,
             companyEmail,
             guarantorUrl,
-            guarantorId
+            guarantorId,
+            companyLogoUrl
           )
         } else {
           await sendGuarantorReferenceRequestSMS(
@@ -1361,7 +1360,7 @@ export async function sendChaseForSection(
   method: 'email' | 'sms'
 ): Promise<{ sent: boolean; skipped: boolean; reason?: string }> {
   try {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+    const frontendUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
 
     // Get the verification section with reference data
     const { data: section, error: sectionError } = await supabase
@@ -1385,7 +1384,7 @@ export async function sendChaseForSection(
           accountant_name_encrypted,
           accountant_email_encrypted,
           accountant_phone_encrypted,
-          company:companies(id, name_encrypted, phone_encrypted, email_encrypted)
+          company:companies(id, name_encrypted, phone_encrypted, email_encrypted, logo_url)
         )
       `)
       .eq('id', sectionId)
@@ -1429,6 +1428,7 @@ export async function sendChaseForSection(
     const companyName = reference.company?.name_encrypted ? decrypt(reference.company.name_encrypted) || '' : ''
     const companyPhone = reference.company?.phone_encrypted ? decrypt(reference.company.phone_encrypted) || '' : ''
     const companyEmail = reference.company?.email_encrypted ? decrypt(reference.company.email_encrypted) || '' : ''
+    const companyLogoUrl = reference.company?.logo_url || null
 
     // Send based on section type
     switch (section.section_type) {
@@ -1487,7 +1487,8 @@ export async function sendChaseForSection(
             companyName,
             companyPhone,
             companyEmail,
-            reference.id
+            reference.id,
+            companyLogoUrl
           )
         } else {
           await sendEmployerReferenceRequestSMS(
@@ -1538,7 +1539,8 @@ export async function sendChaseForSection(
               companyName,
               companyPhone,
               companyEmail,
-              reference.id
+              reference.id,
+              companyLogoUrl
             )
           } else {
             await sendLandlordReferenceRequestSMS(
@@ -1568,15 +1570,7 @@ export async function sendChaseForSection(
         }
 
         // Generate new token
-        const accountantToken = generateToken()
-        const accountantTokenHash = hash(accountantToken)
-
-        await supabase
-          .from('accountant_references')
-          .update({ token_hash: accountantTokenHash })
-          .eq('id', accountantRef.id)
-
-        const accountantUrl = `${frontendUrl}/accountant-reference/${accountantToken}`
+        const accountantUrl = `${frontendUrl}/accountant-reference/${accountantRef.id}`
 
         if (method === 'email') {
           await sendAccountantReferenceRequest(
@@ -1717,7 +1711,7 @@ export async function markSectionReceived(sectionId: string, staffId: string): P
     const { data: updated, error: updateError } = await supabase
       .from('verification_sections')
       .update({
-        decision: 'APPROVED', // Mark as approved since response was received
+        decision: 'PASS', // Mark as pass since response was received
         decision_notes: 'Response received - marked via Pending Responses queue'
       })
       .eq('id', sectionId)
@@ -1725,6 +1719,33 @@ export async function markSectionReceived(sectionId: string, staffId: string): P
       .single()
 
     if (updateError) throw updateError
+
+    // Also update the corresponding chase_dependency to RECEIVED
+    // This is needed for the state machine to properly transition to READY_FOR_REVIEW
+    const sectionToDependencyMap: Record<string, DependencyType> = {
+      'EMPLOYER_REFERENCE': 'EMPLOYER_REF',
+      'LANDLORD_REFERENCE': 'RESIDENTIAL_REF',
+      'ACCOUNTANT_REFERENCE': 'ACCOUNTANT_REF'
+    }
+
+    const dependencyType = sectionToDependencyMap[current.section_type]
+    if (dependencyType) {
+      const { error: depUpdateError } = await supabase
+        .from('chase_dependencies')
+        .update({
+          status: 'RECEIVED',
+          received_at: new Date().toISOString()
+        })
+        .eq('reference_id', current.reference.id)
+        .eq('dependency_type', dependencyType)
+        .in('status', ['PENDING', 'CHASING', 'ACTION_REQUIRED'])
+
+      if (depUpdateError) {
+        console.error(`[Chase] Failed to update chase_dependency for ${dependencyType}:`, depUpdateError)
+      } else {
+        console.log(`[Chase] Marked ${dependencyType} chase_dependency as RECEIVED`)
+      }
+    }
 
     // Log audit
     await logAuditAction({

@@ -772,7 +772,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
       .from('tenant_references')
       .select(`
         *,
-        company:companies!inner(id, name_encrypted, phone_encrypted, email_encrypted)
+        company:companies!inner(id, name_encrypted, phone_encrypted, email_encrypted, logo_url)
       `)
       .eq('id', referenceId)
       .single();
@@ -784,6 +784,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
     const companyName = reference.company?.name_encrypted ? decrypt(reference.company.name_encrypted) || '' : '';
     const companyPhone = reference.company?.phone_encrypted ? decrypt(reference.company.phone_encrypted) || '' : '';
     const companyEmail = reference.company?.email_encrypted ? decrypt(reference.company.email_encrypted) || '' : '';
+    const companyLogoUrl = reference.company?.logo_url || null;
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim();
     const propertyAddress = decrypt(reference.property_address_encrypted) || '';
 
@@ -822,7 +823,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           .update({ reference_token_hash: newTokenHash })
           .eq('id', referenceId);
 
-        const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${newToken}`;
+        const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${referenceId}`;
 
         await sendTenantReferenceRequest(
           targetEmail,
@@ -832,7 +833,8 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           propertyAddress,
           companyPhone || undefined,
           companyEmail || undefined,
-          referenceId
+          referenceId,
+          companyLogoUrl
         );
 
         // Send SMS (non-blocking)
@@ -878,7 +880,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           });
         }
 
-        const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${referenceId}`;
+        const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/landlord-reference/${referenceId}`;
 
         await sendLandlordReferenceRequest(
           targetEmail,
@@ -888,7 +890,8 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           companyName,
           companyPhone,
           companyEmail,
-          referenceId
+          referenceId,
+          companyLogoUrl
         );
 
         // Send SMS (non-blocking)
@@ -933,7 +936,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           });
         }
 
-        const agentReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`;
+        const agentReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/agent-reference/${referenceId}`;
 
         await sendAgentReferenceRequest(
           targetEmail,
@@ -943,7 +946,8 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           companyName,
           companyPhone,
           companyEmail,
-          referenceId
+          referenceId,
+          companyLogoUrl
         );
 
         // Send SMS (non-blocking)
@@ -1020,7 +1024,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
         }
 
         // Use employer_reference.id in URL - stable and doesn't change between chases
-        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerRef.id}`;
+        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`;
 
         await sendEmployerReferenceRequest(
           targetEmail,
@@ -1030,7 +1034,8 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           companyName,
           companyPhone,
           companyEmail,
-          referenceId
+          referenceId,
+          companyLogoUrl
         );
 
         // Send SMS (non-blocking)
@@ -1053,10 +1058,10 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
         recipientName = decrypt(reference.accountant_name_encrypted) || '';
         emailSentTo = targetEmail;
 
-        // Get accountant reference for token
+        // Get accountant reference
         const { data: accountantRef } = await supabaseAdmin
           .from('accountant_references')
-          .select('id, token_hash')
+          .select('id')
           .eq('tenant_reference_id', referenceId)
           .single();
 
@@ -1086,16 +1091,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           });
         }
 
-        // Generate new token
-        const accountantToken = generateToken();
-        const accountantTokenHash = hash(accountantToken);
-
-        await supabaseAdmin
-          .from('accountant_references')
-          .update({ token_hash: accountantTokenHash })
-          .eq('id', accountantRef.id);
-
-        const formLink = `${process.env.FRONTEND_URL}/accountant-reference/${accountantToken}`;
+        const formLink = `${process.env.FRONTEND_URL}/accountant-reference/${accountantRef.id}`;
 
         await sendAccountantReferenceRequest(
           targetEmail,
@@ -1201,7 +1197,9 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
             .eq('id', guarantorId);
         }
 
-        const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`;
+        const formLink = isLegacyGuarantor
+          ? `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+          : `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorId}`;
 
         await sendGuarantorReferenceRequest(
           targetEmail,
@@ -1212,7 +1210,8 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           companyPhone,
           companyEmail,
           formLink,
-          guarantorId
+          guarantorId,
+          companyLogoUrl
         );
 
         // Send SMS (non-blocking)

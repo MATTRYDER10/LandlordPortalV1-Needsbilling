@@ -66,7 +66,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         const propertyCityQuery = property_city ? `&property_city=${encodeURIComponent(property_city)}` : ''
         const propertyPostcodeQuery = property_postcode ? `&property_postcode=${encodeURIComponent(property_postcode)}` : ''
         const rentAmountQuery = rent_amount ? `&rent_amount=${encodeURIComponent(rent_amount)}` : ''
-        const offerLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
+        const offerLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
 
         // Send email to tenant with offer form link
         try {
@@ -681,7 +681,7 @@ router.post('/submit', async (req, res) => {
                 <li><strong>Proposed Move-in Date:</strong> ${proposed_move_in_date}</li>
                 <li><strong>Tenancy Length:</strong> ${proposed_tenancy_length_months} months</li>
               </ul>
-              <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/tenant-offers/${offer.id}" style="background-color: ${BRAND_COLORS.primary}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Offer</a></p>
+              <p><a href="${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-offers/${offer.id}" style="background-color: ${BRAND_COLORS.primary}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Offer</a></p>
             </body>
           </html>
         `
@@ -805,7 +805,7 @@ router.post('/confirm-payment', async (req, res) => {
                 const holdingDepositAmount = `£${holdingDeposit.toFixed(2)}`
 
                 // Generate offer link
-                const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+                const frontendBaseUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
                 const offerLink = `${frontendBaseUrl}/tenant-offers/${offer_id}`
 
                 await sendPaymentConfirmedToAgentEmail(
@@ -1344,7 +1344,8 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                     id,
                     name_encrypted,
                     phone_encrypted,
-                    email_encrypted
+                    email_encrypted,
+                    logo_url
                 )
             `)
             .eq('id', id)
@@ -1369,6 +1370,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
         const companyEmail = company?.email_encrypted
             ? (decrypt(company.email_encrypted) || '')
             : ''
+        const companyLogoUrl = company?.logo_url || null
 
         // Verify user has access to this company
         const { data: companyUsers } = await supabase
@@ -1531,7 +1533,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                 createdReferences.push(childReference)
 
                 // Send email to tenant
-                const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
+                const tenantUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${childReference.id}`
                 try {
                     await sendTenantReferenceRequest(
                         tenant.email,
@@ -1540,7 +1542,9 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                         companyName,
                         propertyAddress || undefined,
                         companyPhone || undefined,
-                        companyEmail || undefined
+                        companyEmail || undefined,
+                        childReference.id,
+                        companyLogoUrl
                     )
                 } catch (emailError: any) {
                     console.error('Failed to send email to', tenant.email, emailError)
@@ -1612,7 +1616,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
             createdReferences.push(reference)
 
             // Send email to tenant
-            const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
+            const tenantUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${reference.id}`
             try {
                 await sendTenantReferenceRequest(
                     tenant.email,
@@ -1621,7 +1625,9 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                     companyName,
                     propertyAddress || undefined,
                     companyPhone || undefined,
-                    companyEmail || undefined
+                    companyEmail || undefined,
+                    reference.id,
+                    companyLogoUrl
                 )
             } catch (emailError: any) {
                 console.error('Failed to send email to', tenant.email, emailError)
@@ -1823,4 +1829,3 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
 })
 
 export default router
-

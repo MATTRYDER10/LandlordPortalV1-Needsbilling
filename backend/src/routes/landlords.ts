@@ -988,7 +988,7 @@ router.post('/:id/request-id-verification', authenticateToken, async (req: AuthR
     const landlordName = `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
 
     // Build verification link
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+    const frontendUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
     const verificationLink = `${frontendUrl}/landlord-verification/${landlordId}/${verificationToken}`
 
     // Send verification email

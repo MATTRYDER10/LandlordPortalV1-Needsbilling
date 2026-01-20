@@ -134,6 +134,10 @@ import { CheckCircle2, Loader2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const LEGACY_LINK_MESSAGE = "This link has expired. We've sent a new one."
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const isUuid = (value: string) => UUID_REGEX.test(value)
 
 // State
 const loading = ref(true)
@@ -156,12 +160,35 @@ const formData = ref({
 })
 
 // Load reference details on mount
+const handleLegacyToken = async (token: string) => {
+  if (isUuid(token)) {
+    return false
+  }
+
+  try {
+    await axios.post(`${API_URL}/api/references/legacy-link`, {
+      type: 'tenant-add-guarantor',
+      token
+    })
+  } catch (err) {
+    console.error('Legacy add-guarantor link resend failed:', err)
+  }
+
+  error.value = LEGACY_LINK_MESSAGE
+  loading.value = false
+  return true
+}
+
 onMounted(async () => {
   const token = route.params.token as string
 
   if (!token) {
     error.value = 'Invalid link. Please check your email for the correct link.'
     loading.value = false
+    return
+  }
+
+  if (await handleLegacyToken(token)) {
     return
   }
 
