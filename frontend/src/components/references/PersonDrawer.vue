@@ -152,7 +152,7 @@
                   <div class="flex items-start justify-between">
                     <div>
                       <p class="text-sm font-medium text-gray-900">{{ getSectionLabel(section.sectionType as SectionType) }}</p>
-                      <p class="text-sm font-semibold text-red-700 mt-1">{{ section.reasonLabel || section.reasonCode || 'Action needed' }}</p>
+                      <p class="text-sm font-semibold text-red-700 mt-1">{{ section.reasonLabel || formatReasonCode(section.reasonCode) }}</p>
                       <p v-if="section.agentMessage" class="text-sm text-gray-600 mt-1">{{ section.agentMessage }}</p>
                       <p v-if="section.correctionCycle > 0" class="text-xs text-gray-500 mt-1">Correction cycle: {{ section.correctionCycle }}</p>
                     </div>
@@ -2133,6 +2133,19 @@ function formatSectionType(type: string): string {
     'ACCOUNTANT_REF': 'Accountant Reference'
   }
   return labels[type] || type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+}
+
+// Format reason code for display (handles codes without database labels)
+function formatReasonCode(code: string | null | undefined): string {
+  if (!code) return 'Action needed'
+  const labels: Record<string, string> = {
+    'STAFF_ESCALATION': 'Staff Escalation',
+    'INVALID_EMAIL': 'Invalid Email Address',
+    'NO_RESPONSE': 'No Response',
+    'DOCUMENT_UNCLEAR': 'Document Unclear',
+    'INFORMATION_MISMATCH': 'Information Mismatch'
+  }
+  return labels[code] || code.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function getSectionDecisionLabel(decision: SectionDecision): string {
