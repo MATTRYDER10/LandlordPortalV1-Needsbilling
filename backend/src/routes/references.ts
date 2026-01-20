@@ -7511,17 +7511,59 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
       }
     }
 
-    // Reset ACTION_REQUIRED sections to NOT_REVIEWED
-    if (hasActionRequiredSections) {
+    // Categorize ACTION_REQUIRED sections into external refs vs internal evidence
+    // External refs: Need to chase a third party (employer, landlord, letting agent, accountant, residential)
+    // Internal evidence: Documents uploaded directly by tenant/agent (ID, RTR, income proof)
+    const externalRefSectionTypes = ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'AGENT_REFERENCE', 'ACCOUNTANT_REFERENCE', 'RESIDENTIAL']
+    const internalEvidenceSectionTypes = ['IDENTITY_SELFIE', 'RTR', 'INCOME', 'CREDIT', 'AML']
+
+    const externalRefSections = actionRequiredSections?.filter(s => externalRefSectionTypes.includes(s.section_type)) || []
+    const internalEvidenceSections = actionRequiredSections?.filter(s => internalEvidenceSectionTypes.includes(s.section_type)) || []
+
+    const hasExternalRefSections = externalRefSections.length > 0
+    const hasInternalEvidenceSections = internalEvidenceSections.length > 0
+
+    console.log(`[submit-for-re-referencing] External ref sections: ${externalRefSections.length}, Internal evidence sections: ${internalEvidenceSections.length}`)
+
+    // Reset internal evidence sections (IDENTITY_SELFIE, RTR, INCOME, etc.) to NOT_REVIEWED
+    // These don't need chase tracking reset - evidence is uploaded directly
+    if (hasInternalEvidenceSections) {
       await supabase
         .from('verification_sections')
         .update({
           decision: 'NOT_REVIEWED',
           decision_by: null,
-          decision_at: null
+          decision_at: null,
+          action_reason_code: null,
+          action_agent_note: null
         })
         .eq('reference_id', referenceId)
         .eq('decision', 'ACTION_REQUIRED')
+        .in('section_type', internalEvidenceSectionTypes)
+    }
+
+    // Reset external ref sections (EMPLOYER_REFERENCE, LANDLORD_REFERENCE, ACCOUNTANT_REFERENCE)
+    // These need chase tracking reset so they reappear in Pending Responses queue
+    if (hasExternalRefSections) {
+      await supabase
+        .from('verification_sections')
+        .update({
+          decision: 'NOT_REVIEWED',
+          decision_by: null,
+          decision_at: null,
+          action_reason_code: null,
+          action_agent_note: null,
+          // Reset chase tracking so item reappears in Pending Responses queue
+          chase_cycle: 0,
+          email_attempts: 0,
+          sms_attempts: 0,
+          last_chase_sent_at: null,
+          last_marked_done_at: null,
+          chase_metadata: null
+        })
+        .eq('reference_id', referenceId)
+        .eq('decision', 'ACTION_REQUIRED')
+        .in('section_type', externalRefSectionTypes)
     }
 
     // Reset ACTION_REQUIRED chase dependencies to PENDING (restart chase cycle)
@@ -7547,6 +7589,10 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
         .eq('status', 'ACTION_REQUIRED')
     }
 
+    // Determine if we're waiting on external referees or if evidence is immediately available
+    // External refs need chasing (WAITING_ON_REFERENCES), internal evidence goes straight to verify (READY_FOR_REVIEW)
+    const waitingOnExternalRefs = hasExternalRefSections || hasActionRequiredDependencies
+
     // Update reference status and set urgent_reverify
     await supabase
       .from('tenant_references')
@@ -7556,8 +7602,17 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
       })
       .eq('id', referenceId)
 
-    // If status is pending_verification, create/reactivate work item for VERIFY queue
-    if (newStatus === 'pending_verification') {
+    // Handle verification state based on what type of action was required
+    // - If waiting on external refs (employer/landlord/accountant) → WAITING_ON_REFERENCES
+    // - If only internal evidence was fixed (documents uploaded) → READY_FOR_REVIEW
+    if (waitingOnExternalRefs) {
+      // Agent updated referee email or needs new referee response
+      // Set to WAITING_ON_REFERENCES so item appears in Pending Responses chase queue
+      await transitionState(referenceId, 'WAITING_ON_REFERENCES', 'Re-referencing: waiting for updated referee response')
+      console.log(`[submit-for-re-referencing] Reference ${referenceId} set to WAITING_ON_REFERENCES (external refs needed)`)
+    } else {
+      // Only internal evidence sections were fixed (documents uploaded by agent)
+      // Go straight to READY_FOR_REVIEW since evidence is now available
       const { data: existingWorkItem } = await supabase
         .from('work_items')
         .select('id, status')
@@ -7585,7 +7640,8 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
 
       console.log(`[submit-for-re-referencing] Created/reactivated VERIFY work item for reference ${referenceId}`)
       // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
-      await transitionState(referenceId, 'READY_FOR_REVIEW', 'Re-referencing completed requirements')
+      await transitionState(referenceId, 'READY_FOR_REVIEW', 'Re-referencing: evidence uploaded, ready for verification')
+      console.log(`[submit-for-re-referencing] Reference ${referenceId} set to READY_FOR_REVIEW (internal evidence fixed)`)
     }
 
     // Build metadata for audit log

@@ -9,8 +9,11 @@ import {
   getDependenciesForReference,
   createDependenciesForReference,
   recordChase,
+  recordChaseForSection,
   markReceived,
+  markSectionReceived,
   sendToActionRequired,
+  escalateSectionToActionRequired,
   sendChaseForDependency
 } from '../services/chaseDependencyService';
 
@@ -86,25 +89,26 @@ router.post('/reference/:referenceId/create', staffAuth, async (req: StaffAuthRe
 // ============================================================================
 
 // Record that a chase was sent
-router.post('/:dependencyId/chase', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+router.post('/:sectionId/chase', staffAuth, async (req: StaffAuthRequest, res: Response) => {
   try {
-    const { dependencyId } = req.params;
-    const { method } = req.body; // 'email', 'sms', or 'call'
+    const { sectionId } = req.params;
+    const { method } = req.body; // 'email' or 'sms'
     const staffUser = req.staffUser;
 
     if (!staffUser) {
       return res.status(401).json({ error: 'Staff authentication required' });
     }
 
-    if (!['email', 'sms', 'call'].includes(method)) {
-      return res.status(400).json({ error: 'Method must be "email", "sms", or "call"' });
+    if (!['email', 'sms'].includes(method)) {
+      return res.status(400).json({ error: 'Method must be "email" or "sms"' });
     }
 
-    const dependency = await recordChase(dependencyId, method, staffUser.id);
+    // Use the new function that works with verification_sections IDs
+    const section = await recordChaseForSection(sectionId, method, staffUser.id);
 
     res.json({
       message: `${method.toUpperCase()} chase recorded`,
-      dependency
+      section
     });
   } catch (error: any) {
     console.error('Error recording chase:', error);
@@ -112,21 +116,22 @@ router.post('/:dependencyId/chase', staffAuth, async (req: StaffAuthRequest, res
   }
 });
 
-// Mark dependency as received
-router.post('/:dependencyId/received', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+// Mark section as received (response was submitted)
+router.post('/:sectionId/received', staffAuth, async (req: StaffAuthRequest, res: Response) => {
   try {
-    const { dependencyId } = req.params;
+    const { sectionId } = req.params;
     const staffUser = req.staffUser;
 
     if (!staffUser) {
       return res.status(401).json({ error: 'Staff authentication required' });
     }
 
-    const dependency = await markReceived(dependencyId, staffUser.id);
+    // Use the new function that works with verification_sections IDs
+    const section = await markSectionReceived(sectionId, staffUser.id);
 
     res.json({
-      message: 'Dependency marked as received',
-      dependency
+      message: 'Section marked as received - removed from chase queue',
+      section
     });
   } catch (error: any) {
     console.error('Error marking received:', error);
@@ -155,12 +160,9 @@ router.get('/:sectionId/form-link', staffAuth, async (req: StaffAuthRequest, res
       return res.status(404).json({ error: 'Section not found' });
     }
 
-    // If we already have a stored form_url, return it
-    if (section.form_url) {
-      return res.json({ formUrl: section.form_url, sectionType: section.section_type });
-    }
-
     // Generate form URL based on section type
+    // Note: We always regenerate the URL to ensure it uses the current FRONTEND_URL
+    // (cached form_url might have localhost from development)
     const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
     let formUrl: string | null = null;
 
@@ -346,9 +348,9 @@ router.post('/:sectionId/mark-done', staffAuth, async (req: StaffAuthRequest, re
 });
 
 // Send to action required (manual escalation)
-router.post('/:dependencyId/action-required', staffAuth, async (req: StaffAuthRequest, res: Response) => {
+router.post('/:sectionId/action-required', staffAuth, async (req: StaffAuthRequest, res: Response) => {
   try {
-    const { dependencyId } = req.params;
+    const { sectionId } = req.params;
     const { reason } = req.body;
     const staffUser = req.staffUser;
 
@@ -356,14 +358,15 @@ router.post('/:dependencyId/action-required', staffAuth, async (req: StaffAuthRe
       return res.status(401).json({ error: 'Staff authentication required' });
     }
 
-    const dependency = await sendToActionRequired(dependencyId, staffUser.id, reason);
+    // Use the new function that works with verification_sections IDs
+    const section = await escalateSectionToActionRequired(sectionId, staffUser.id, reason);
 
     res.json({
-      message: 'Dependency sent to action required',
-      dependency
+      message: 'Section escalated to action required',
+      section
     });
   } catch (error: any) {
-    console.error('Error sending to action required:', error);
+    console.error('Error escalating to action required:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -73,6 +73,37 @@
       </div>
     </Teleport>
 
+    <!-- Escalate Modal -->
+    <Teleport to="body">
+      <div v-if="showEscalateModal" class="modal-overlay" @click.self="closeEscalateModal">
+        <div class="modal-content">
+          <h3 class="modal-title">Escalate to Action Required</h3>
+          <p class="modal-description">
+            This will move the reference to the agent's "Action Required" section. Please explain what action is needed (e.g., "Invalid email address - need correct employer contact", "No response after 3 cycles - request alternative referee").
+          </p>
+          <p class="modal-info">
+            The agent will see this note and can then upload documents, update referee details, or resubmit for re-referencing.
+          </p>
+          <textarea
+            v-model="escalateReason"
+            class="note-textarea"
+            placeholder="Explain what action is required (required)..."
+            rows="3"
+          ></textarea>
+          <div class="modal-actions">
+            <button @click="closeEscalateModal" class="btn btn-secondary">Cancel</button>
+            <button
+              @click="submitEscalate"
+              :disabled="!escalateReason.trim() || escalating"
+              class="btn btn-warning"
+            >
+              {{ escalating ? 'Escalating...' : 'Escalate' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- Loading State -->
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
@@ -200,7 +231,7 @@
 
             <button
               v-if="item.status !== 'ACTION_REQUIRED'"
-              @click="$emit('actionRequired', item.id)"
+              @click="openEscalateModal(item)"
               class="btn btn-sm btn-warning"
               title="Escalate to action required"
             >
@@ -243,7 +274,7 @@ const emit = defineEmits<{
   (e: 'markReceived', dependencyId: string): void
   (e: 'markDone', sectionId: string, note: string): void
   (e: 'editContact', sectionId: string, referenceId: string, sectionType: string, email: string, phone: string): void
-  (e: 'actionRequired', dependencyId: string): void
+  (e: 'actionRequired', dependencyId: string, reason: string): void
   (e: 'refresh'): void
 }>()
 
@@ -258,6 +289,12 @@ const showEditModal = ref(false)
 const editingItem = ref<ChaseQueueItem | null>(null)
 const editForm = ref({ email: '', phone: '' })
 const saving = ref(false)
+
+// Escalate Modal State
+const showEscalateModal = ref(false)
+const escalateReason = ref('')
+const escalating = ref(false)
+const selectedItemForEscalate = ref<ChaseQueueItem | null>(null)
 
 const openMarkDoneModal = (item: ChaseQueueItem) => {
   selectedItemForMarkDone.value = item
@@ -280,6 +317,31 @@ const submitMarkDone = async () => {
     closeMarkDoneModal()
   } finally {
     markingDone.value = false
+  }
+}
+
+// Escalate Modal Methods
+const openEscalateModal = (item: ChaseQueueItem) => {
+  selectedItemForEscalate.value = item
+  escalateReason.value = ''
+  showEscalateModal.value = true
+}
+
+const closeEscalateModal = () => {
+  showEscalateModal.value = false
+  escalateReason.value = ''
+  selectedItemForEscalate.value = null
+}
+
+const submitEscalate = async () => {
+  if (!selectedItemForEscalate.value || !escalateReason.value.trim()) return
+
+  escalating.value = true
+  try {
+    emit('actionRequired', selectedItemForEscalate.value.id, escalateReason.value.trim())
+    closeEscalateModal()
+  } finally {
+    escalating.value = false
   }
 }
 

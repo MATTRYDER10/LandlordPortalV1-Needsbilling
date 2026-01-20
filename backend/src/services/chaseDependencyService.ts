@@ -2,7 +2,7 @@ import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from './encryption'
 import { logAuditAction } from './auditService'
 import { isReadyForVerification } from './verificationReadinessService'
-import { evaluateAndTransition } from './verificationStateService'
+import { evaluateAndTransition, transitionState } from './verificationStateService'
 import {
   sendTenantReferenceRequest,
   sendEmployerReferenceRequest,
@@ -1349,5 +1349,483 @@ export async function sendChaseForDependency(
   } catch (error: any) {
     console.error(`[Chase] Failed to send ${method} for dependency ${dependencyId}:`, error)
     return { sent: false, skipped: false, reason: error.message }
+  }
+}
+
+/**
+ * Send a chase email or SMS for a verification section (used by chase queue)
+ * This is the new function that works with verification_sections IDs
+ */
+export async function sendChaseForSection(
+  sectionId: string,
+  method: 'email' | 'sms'
+): Promise<{ sent: boolean; skipped: boolean; reason?: string }> {
+  try {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+
+    // Get the verification section with reference data
+    const { data: section, error: sectionError } = await supabase
+      .from('verification_sections')
+      .select(`
+        *,
+        reference:tenant_references!verification_sections_reference_id_fkey (
+          id,
+          status,
+          tenant_first_name_encrypted,
+          tenant_last_name_encrypted,
+          property_address_encrypted,
+          employer_ref_name_encrypted,
+          employer_ref_email_encrypted,
+          employer_ref_phone_encrypted,
+          employer_company_name_encrypted,
+          previous_landlord_name_encrypted,
+          previous_landlord_email_encrypted,
+          previous_landlord_phone_encrypted,
+          reference_type,
+          accountant_name_encrypted,
+          accountant_email_encrypted,
+          accountant_phone_encrypted,
+          company:companies(id, name_encrypted, phone_encrypted, email_encrypted)
+        )
+      `)
+      .eq('id', sectionId)
+      .single()
+
+    if (sectionError) {
+      console.error('[Chase] Error fetching section:', sectionError)
+      return { sent: false, skipped: false, reason: `Database error: ${sectionError.message}` }
+    }
+
+    if (!section) {
+      return { sent: false, skipped: false, reason: 'Section not found' }
+    }
+
+    const reference = section.reference
+    if (!reference) {
+      return { sent: false, skipped: false, reason: 'Reference not found' }
+    }
+
+    // Skip if reference is in terminal status
+    const terminalStatuses = ['completed', 'rejected', 'cancelled']
+    if (terminalStatuses.includes(reference.status)) {
+      return { sent: false, skipped: true, reason: `Reference status is ${reference.status}` }
+    }
+
+    // Get contact info from section
+    const contactEmail = section.contact_email_encrypted ? decrypt(section.contact_email_encrypted) : null
+    const contactPhone = section.contact_phone_encrypted ? decrypt(section.contact_phone_encrypted) : null
+    const contactName = section.contact_name_encrypted ? decrypt(section.contact_name_encrypted) : null
+
+    if (method === 'email' && !contactEmail) {
+      return { sent: false, skipped: true, reason: 'No email address' }
+    }
+    if (method === 'sms' && !contactPhone) {
+      return { sent: false, skipped: true, reason: 'No phone number' }
+    }
+
+    // Get reference data
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+    const propertyAddress = decrypt(reference.property_address_encrypted) || ''
+    const companyName = reference.company?.name_encrypted ? decrypt(reference.company.name_encrypted) || '' : ''
+    const companyPhone = reference.company?.phone_encrypted ? decrypt(reference.company.phone_encrypted) || '' : ''
+    const companyEmail = reference.company?.email_encrypted ? decrypt(reference.company.email_encrypted) || '' : ''
+
+    // Send based on section type
+    switch (section.section_type) {
+      case 'EMPLOYER_REFERENCE': {
+        const employerName = contactName || decrypt(reference.employer_ref_name_encrypted) || ''
+
+        // Get or create employer reference record
+        let employerRefId = section.linked_record_id
+
+        if (!employerRefId) {
+          // Try to find existing employer_references record
+          const { data: existingRef } = await supabase
+            .from('employer_references')
+            .select('id')
+            .eq('reference_id', reference.id)
+            .maybeSingle()
+
+          if (existingRef) {
+            employerRefId = existingRef.id
+          } else {
+            // Create employer_references record
+            const { data: newEmployerRef, error: insertError } = await supabase
+              .from('employer_references')
+              .insert({
+                reference_id: reference.id,
+                employer_name_encrypted: encrypt(employerName),
+                employer_email_encrypted: section.contact_email_encrypted,
+                employer_phone_encrypted: section.contact_phone_encrypted,
+                employer_company_encrypted: reference.employer_company_name_encrypted,
+              })
+              .select('id')
+              .single()
+
+            if (insertError || !newEmployerRef) {
+              console.error('Failed to create employer reference:', insertError)
+              return { sent: false, skipped: true, reason: 'Failed to create employer reference record' }
+            }
+            employerRefId = newEmployerRef.id
+          }
+
+          // Update section with linked_record_id
+          await supabase
+            .from('verification_sections')
+            .update({ linked_record_id: employerRefId, linked_table: 'employer_references' })
+            .eq('id', sectionId)
+        }
+
+        const employerUrl = `${frontendUrl}/submit-employer-reference/${employerRefId}`
+
+        if (method === 'email') {
+          await sendEmployerReferenceRequest(
+            contactEmail!,
+            employerName,
+            tenantName,
+            employerUrl,
+            companyName,
+            companyPhone,
+            companyEmail,
+            reference.id
+          )
+        } else {
+          await sendEmployerReferenceRequestSMS(
+            contactPhone!,
+            employerName,
+            tenantName,
+            employerUrl,
+            reference.id
+          )
+        }
+        break
+      }
+
+      case 'LANDLORD_REFERENCE': {
+        const landlordName = contactName || decrypt(reference.previous_landlord_name_encrypted) || ''
+        const isAgent = reference.reference_type === 'agent' || section.linked_table === 'agent_references'
+
+        if (isAgent) {
+          const agentUrl = `${frontendUrl}/agent-reference/${reference.id}`
+          if (method === 'email') {
+            await sendAgentReferenceRequest(
+              contactEmail!,
+              landlordName,
+              tenantName,
+              agentUrl,
+              companyName,
+              companyPhone,
+              companyEmail,
+              reference.id
+            )
+          } else {
+            await sendAgentReferenceRequestSMS(
+              contactPhone!,
+              landlordName,
+              tenantName,
+              agentUrl,
+              reference.id
+            )
+          }
+        } else {
+          const landlordUrl = `${frontendUrl}/landlord-reference/${reference.id}`
+          if (method === 'email') {
+            await sendLandlordReferenceRequest(
+              contactEmail!,
+              landlordName,
+              tenantName,
+              landlordUrl,
+              companyName,
+              companyPhone,
+              companyEmail,
+              reference.id
+            )
+          } else {
+            await sendLandlordReferenceRequestSMS(
+              contactPhone!,
+              landlordName,
+              tenantName,
+              landlordUrl,
+              reference.id
+            )
+          }
+        }
+        break
+      }
+
+      case 'ACCOUNTANT_REFERENCE': {
+        const accountantName = contactName || decrypt(reference.accountant_name_encrypted) || ''
+
+        // Get or create accountant reference record
+        const { data: accountantRef } = await supabase
+          .from('accountant_references')
+          .select('id, token_hash')
+          .eq('tenant_reference_id', reference.id)
+          .single()
+
+        if (!accountantRef) {
+          return { sent: false, skipped: true, reason: 'Accountant reference record not found' }
+        }
+
+        // Generate new token
+        const accountantToken = generateToken()
+        const accountantTokenHash = hash(accountantToken)
+
+        await supabase
+          .from('accountant_references')
+          .update({ token_hash: accountantTokenHash })
+          .eq('id', accountantRef.id)
+
+        const accountantUrl = `${frontendUrl}/accountant-reference/${accountantToken}`
+
+        if (method === 'email') {
+          await sendAccountantReferenceRequest(
+            contactEmail!,
+            accountantName,
+            tenantName,
+            accountantUrl,
+            companyName,
+            companyPhone,
+            companyEmail,
+            accountantRef.id
+          )
+        } else {
+          await sendAccountantReferenceRequestSMS(
+            contactPhone!,
+            accountantName,
+            tenantName,
+            accountantUrl,
+            accountantRef.id
+          )
+        }
+        break
+      }
+
+      default:
+        return { sent: false, skipped: true, reason: `Unknown section type: ${section.section_type}` }
+    }
+
+    console.log(`[Chase] ${method.toUpperCase()} sent for section ${sectionId} (${section.section_type})`)
+    return { sent: true, skipped: false }
+  } catch (error: any) {
+    console.error(`[Chase] Failed to send ${method} for section ${sectionId}:`, error)
+    return { sent: false, skipped: false, reason: error.message }
+  }
+}
+
+/**
+ * Record that a chase was sent for a verification section (used by chase queue)
+ * This updates the verification_sections table instead of chase_dependencies
+ */
+export async function recordChaseForSection(
+  sectionId: string,
+  method: 'email' | 'sms',
+  staffId: string,
+  actualSend: boolean = true
+): Promise<any> {
+  try {
+    // Get current section
+    const { data: current, error: getError } = await supabase
+      .from('verification_sections')
+      .select('*, reference:tenant_references!verification_sections_reference_id_fkey(id)')
+      .eq('id', sectionId)
+      .single()
+
+    if (getError || !current) {
+      throw new Error('Section not found')
+    }
+
+    // Actually send the chase if requested
+    if (actualSend) {
+      const sendResult = await sendChaseForSection(sectionId, method)
+      if (!sendResult.sent && !sendResult.skipped) {
+        throw new Error(`Failed to send ${method}: ${sendResult.reason}`)
+      }
+      if (sendResult.skipped) {
+        console.log(`[Chase] Skipped sending ${method} for section ${sectionId}: ${sendResult.reason}`)
+      }
+    }
+
+    // Calculate updated values
+    const now = new Date()
+    const emailAttempts = method === 'email' ? (current.email_attempts || 0) + 1 : (current.email_attempts || 0)
+    const smsAttempts = method === 'sms' ? (current.sms_attempts || 0) + 1 : (current.sms_attempts || 0)
+
+    // Increment cycle if both email AND SMS sent in this cycle
+    let newChaseCycle = current.chase_cycle || 0
+    if (emailAttempts > newChaseCycle && smsAttempts > newChaseCycle) {
+      newChaseCycle++
+    }
+
+    // Update section
+    const { data: updated, error: updateError } = await supabase
+      .from('verification_sections')
+      .update({
+        last_chase_sent_at: now.toISOString(),
+        chase_cycle: newChaseCycle,
+        email_attempts: emailAttempts,
+        sms_attempts: smsAttempts,
+        initial_request_sent_at: current.initial_request_sent_at || now.toISOString()
+      })
+      .eq('id', sectionId)
+      .select()
+      .single()
+
+    if (updateError) throw updateError
+
+    // Log audit
+    await logAuditAction({
+      referenceId: current.reference.id,
+      action: 'CHASE_SENT',
+      description: `${method.toUpperCase()} chase sent for ${current.section_type}`,
+      metadata: {
+        sectionType: current.section_type,
+        method,
+        chaseCycle: newChaseCycle,
+        emailAttempts,
+        smsAttempts,
+        actualSend
+      },
+      userId: staffId
+    })
+
+    return updated
+  } catch (error: any) {
+    console.error(`[Chase] Error recording chase for section ${sectionId}:`, error)
+    throw error
+  }
+}
+
+/**
+ * Mark a verification section as received (response has been submitted)
+ * This removes the item from the chase queue permanently
+ */
+export async function markSectionReceived(sectionId: string, staffId: string): Promise<any> {
+  try {
+    const { data: current, error: getError } = await supabase
+      .from('verification_sections')
+      .select('*, reference:tenant_references!verification_sections_reference_id_fkey(id, status)')
+      .eq('id', sectionId)
+      .single()
+
+    if (getError || !current) {
+      throw new Error('Section not found')
+    }
+
+    // Update the section decision to mark it as received/reviewed
+    // This removes it from the chase queue (which filters by decision = 'NOT_REVIEWED')
+    const { data: updated, error: updateError } = await supabase
+      .from('verification_sections')
+      .update({
+        decision: 'APPROVED', // Mark as approved since response was received
+        decision_notes: 'Response received - marked via Pending Responses queue'
+      })
+      .eq('id', sectionId)
+      .select()
+      .single()
+
+    if (updateError) throw updateError
+
+    // Log audit
+    await logAuditAction({
+      referenceId: current.reference.id,
+      action: 'SECTION_RECEIVED',
+      description: `${current.section_type} response received and approved`,
+      metadata: {
+        sectionId,
+        sectionType: current.section_type,
+        visible_to_agent: true
+      },
+      userId: staffId
+    })
+
+    // Check if reference is ready for verification transition
+    await checkAndTransitionToVerify(current.reference.id)
+
+    return updated
+  } catch (error) {
+    console.error('Failed to mark section received:', error)
+    throw error
+  }
+}
+
+/**
+ * Escalate a verification section to action required
+ * This flags it for agent attention
+ */
+export async function escalateSectionToActionRequired(
+  sectionId: string,
+  staffId: string,
+  reason?: string
+): Promise<any> {
+  try {
+    const { data: current, error: getError } = await supabase
+      .from('verification_sections')
+      .select('*, reference:tenant_references!verification_sections_reference_id_fkey(id, verification_state)')
+      .eq('id', sectionId)
+      .single()
+
+    if (getError || !current) {
+      throw new Error('Section not found')
+    }
+
+    // Update chase_metadata to include action required info
+    const updatedMetadata = {
+      ...(current.chase_metadata || {}),
+      action_required: true,
+      action_required_reason: reason,
+      action_required_at: new Date().toISOString(),
+      action_required_by: staffId
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('verification_sections')
+      .update({
+        chase_metadata: updatedMetadata,
+        decision: 'ACTION_REQUIRED',
+        // Store the reason in action_reason_code for display to agents
+        action_reason_code: 'STAFF_ESCALATION',
+        action_agent_note: reason || 'Escalated by staff - action required'
+      })
+      .eq('id', sectionId)
+      .select()
+      .single()
+
+    if (updateError) throw updateError
+
+    // Transition the reference state to ACTION_REQUIRED so it appears in agent's Action Required tab
+    const referenceId = current.reference.id
+    const currentRefState = current.reference.verification_state
+
+    // Only transition if not already in a terminal state
+    const terminalStates = ['COMPLETED', 'REJECTED', 'CANCELLED']
+    if (!terminalStates.includes(currentRefState)) {
+      await transitionState(
+        referenceId,
+        'ACTION_REQUIRED',
+        `Staff escalated ${current.section_type}: ${reason || 'Action required'}`,
+        staffId
+      )
+      console.log(`[Escalate] Reference ${referenceId} transitioned to ACTION_REQUIRED`)
+    }
+
+    // Log audit with agent visibility
+    await logAuditAction({
+      referenceId,
+      action: 'SECTION_ACTION_REQUIRED',
+      description: `${current.section_type} escalated to action required${reason ? `: ${reason}` : ''}`,
+      metadata: {
+        sectionId,
+        sectionType: current.section_type,
+        reason,
+        visible_to_agent: true
+      },
+      userId: staffId
+    })
+
+    return updated
+  } catch (error) {
+    console.error('Failed to escalate section to action required:', error)
+    throw error
   }
 }

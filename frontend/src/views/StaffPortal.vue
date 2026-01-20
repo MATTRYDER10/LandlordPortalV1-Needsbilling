@@ -423,7 +423,7 @@ const markReceived = async (dependencyId: string) => {
   }
 }
 
-const escalateToActionRequired = async (dependencyId: string) => {
+const escalateToActionRequired = async (dependencyId: string, reason: string) => {
   try {
     const response = await fetch(`${API_URL}/api/chase/${dependencyId}/action-required`, {
       method: 'POST',
@@ -431,7 +431,7 @@ const escalateToActionRequired = async (dependencyId: string) => {
         'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ reason: 'Manual escalation by staff' })
+      body: JSON.stringify({ reason })
     })
 
     if (!response.ok) {

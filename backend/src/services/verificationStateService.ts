@@ -656,14 +656,25 @@ async function autoReceiveExternalDependencies(referenceId: string): Promise<voi
     const hasResidentialRef = !!reference.confirmed_residential_status || hasLandlordRef || hasAgentRef
 
     const depTypes: string[] = []
-    if (hasCompletedEmployerRef) depTypes.push('EMPLOYER_REF')
-    if (hasResidentialRef) depTypes.push('RESIDENTIAL_REF')
-    if (hasCompletedAccountantRef) depTypes.push('ACCOUNTANT_REF')
+    const sectionTypes: string[] = []
+    if (hasCompletedEmployerRef) {
+      depTypes.push('EMPLOYER_REF')
+      sectionTypes.push('EMPLOYER_REFERENCE')
+    }
+    if (hasResidentialRef) {
+      depTypes.push('RESIDENTIAL_REF')
+      sectionTypes.push('LANDLORD_REFERENCE')
+    }
+    if (hasCompletedAccountantRef) {
+      depTypes.push('ACCOUNTANT_REF')
+      sectionTypes.push('ACCOUNTANT_REFERENCE')
+    }
 
     if (depTypes.length === 0) {
       return
     }
 
+    // Update chase_dependencies table (legacy)
     await supabase
       .from('chase_dependencies')
       .update({
@@ -673,6 +684,20 @@ async function autoReceiveExternalDependencies(referenceId: string): Promise<voi
       .eq('reference_id', referenceId)
       .in('dependency_type', depTypes)
       .in('status', ['PENDING', 'CHASING', 'ACTION_REQUIRED', 'EXHAUSTED'])
+
+    // Also update verification_sections table (used by chase queue)
+    // This ensures items are removed from the Pending Responses queue when referee submits
+    await supabase
+      .from('verification_sections')
+      .update({
+        decision: 'APPROVED',
+        decision_notes: 'Auto-approved: referee form submitted'
+      })
+      .eq('reference_id', referenceId)
+      .in('section_type', sectionTypes)
+      .eq('decision', 'NOT_REVIEWED')
+
+    console.log(`[VerificationState] Auto-received external deps for ${referenceId}: ${depTypes.join(', ')}`)
   } catch (error) {
     console.error(`[VerificationState] Failed to auto-receive dependencies for ${referenceId}:`, error)
   }
