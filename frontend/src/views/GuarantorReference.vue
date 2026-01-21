@@ -2729,6 +2729,12 @@ const fetchReferenceByToken = async () => {
       }
     })
 
+    // Handle 410 (expired link) response
+    if (response.status === 410) {
+      await handleLegacyToken(token as string)
+      return
+    }
+
     if (!response.ok) {
       if (response.status === 404) {
         tokenError.value = 'Reference not found. Please check your link or contact your letting agent.'

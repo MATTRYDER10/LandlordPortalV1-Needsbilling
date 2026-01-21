@@ -11,12 +11,25 @@
       <!-- Line 1: Property address and Move-in date -->
       <div class="flex justify-between items-start">
         <div class="flex-1 min-w-0">
-          <h3 class="text-sm font-medium text-gray-900 truncate">
-            {{ tenancy.propertyAddress }}
-          </h3>
-          <p class="text-xs text-gray-500">
-            {{ tenancy.propertyCity }}{{ tenancy.propertyPostcode ? `, ${tenancy.propertyPostcode}` : '' }}
-          </p>
+          <div class="flex items-center gap-3">
+            <div class="flex-1">
+              <h3 class="text-sm font-medium text-gray-900 truncate">
+                {{ tenancy.propertyAddress }}
+              </h3>
+              <p class="text-xs text-gray-500">
+                {{ tenancy.propertyCity }}{{ tenancy.propertyPostcode ? `, ${tenancy.propertyPostcode}` : '' }}
+              </p>
+            </div>
+            <router-link
+              :to="`/agreements/generate?referenceId=${tenancy.id}`"
+              @click.stop
+              class="text-xs font-medium text-primary hover:text-primary/80 whitespace-nowrap flex items-center gap-1"
+              title="Generate agreement from this reference"
+            >
+              <FileText class="w-3.5 h-3.5" />
+              Generate Agreement
+            </router-link>
+          </div>
         </div>
         <div class="ml-4 flex-shrink-0 flex items-center gap-2">
           <span class="text-sm text-gray-500">
@@ -132,7 +145,7 @@ import type { Tenancy, TenancyPerson } from '@/composables/useTenancies'
 import StatusPill from './StatusPill.vue'
 import ProgressChips from './ProgressChips.vue'
 import PersonCard from './PersonCard.vue'
-import { ChevronDown, AlertTriangle, MailWarning, Pencil } from 'lucide-vue-next'
+import { ChevronDown, AlertTriangle, MailWarning, Pencil, FileText } from 'lucide-vue-next'
 
 const props = defineProps<{
   tenancy: Tenancy

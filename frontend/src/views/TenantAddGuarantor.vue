@@ -196,6 +196,12 @@ onMounted(async () => {
     const response = await axios.get(`${API_URL}/api/references/tenant-add-guarantor/${token}`)
     referenceDetails.value = response.data
   } catch (err: any) {
+    // Handle 410 (expired link) response
+    if (err.response?.status === 410) {
+      await handleLegacyToken(token)
+      return
+    }
+
     if (err.response?.status === 404) {
       error.value = 'Invalid link. Please contact your letting agent for a new link.'
     } else if (err.response?.status === 400) {

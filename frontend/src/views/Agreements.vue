@@ -1638,10 +1638,36 @@ onMounted(async () => {
   // Check if we should auto-import a reference from query params
   const referenceId = route.query.referenceId as string
   if (referenceId) {
-    await selectReference(referenceId)
-    // Skip to step 1 (Template selection) after successful import
-    // Note: selectReference() already handles toast notifications
-    currentStep.value = 1
+    console.log('[Agreements] Auto-importing reference:', referenceId)
+    console.log('[Agreements] Auth token exists:', !!authStore.session?.access_token)
+    // Wait a moment to ensure auth store is initialized
+    await new Promise(resolve => setTimeout(resolve, 200))
+
+    try {
+      // First, fetch the list of available references to ensure this one exists
+      await fetchParentReferences()
+
+      // Check if the reference exists in our available list
+      const referenceExists = availableReferences.value.some(ref => ref.id === referenceId)
+
+      if (!referenceExists) {
+        throw new Error('Reference not found in available references')
+      }
+
+      // Now select it
+      await selectReference(referenceId)
+      // Stay on step 0 (Import) to allow landlord import as well
+      // Keep the selector open so user can see what was imported
+      showReferenceSelector.value = true
+      currentStep.value = 0
+    } catch (error) {
+      console.error('Failed to auto-import reference:', error)
+      console.error('Reference ID was:', referenceId)
+      toast.error(`Could not find or import this reference. Please select it manually from the list.`)
+      // Show the reference selector so user can manually select
+      showReferenceSelector.value = true
+      currentStep.value = 0
+    }
   }
 })
 
@@ -2740,8 +2766,12 @@ async function selectReference(referenceId: string) {
       childAgentReferences
     )
 
-    // Auto-collapse the reference selector after selection
-    showReferenceSelector.value = false
+    // Only collapse the reference selector if not auto-imported from query param
+    // (Check if referenceId in route query matches to determine if this was auto-imported)
+    const autoImported = route.query.referenceId === referenceId
+    if (!autoImported) {
+      showReferenceSelector.value = false
+    }
 
     toast.success('Reference data imported successfully!')
   } catch (err) {

@@ -2732,6 +2732,11 @@ const checkExistingGuarantor = async () => {
     const token = route.params.token
     const response = await fetch(`${API_URL}/api/references/check-guarantor/${token}`)
 
+    // Handle 410 (expired link) response - silently skip checking guarantor
+    if (response.status === 410) {
+      return
+    }
+
     if (response.ok) {
       const data = await response.json()
       if (data.hasGuarantor) {
@@ -2754,6 +2759,12 @@ const fetchReferenceByToken = async () => {
         'Content-Type': 'application/json'
       }
     })
+
+    // Handle 410 (expired link) response
+    if (response.status === 410) {
+      await handleLegacyToken(token as string)
+      return
+    }
 
     if (!response.ok) {
       if (response.status === 404) {

@@ -618,6 +618,14 @@ onMounted(async () => {
 
     // Check if reference already submitted
     const checkResponse = await fetch(checkEndpoint)
+
+    // Handle 410 (expired link) response
+    if (checkResponse.status === 410) {
+      const errorData = await checkResponse.json()
+      await handleLegacyLink(paramValue)
+      return
+    }
+
     if (checkResponse.ok) {
       const checkData = await checkResponse.json()
       if (checkData.submitted) {
@@ -631,6 +639,12 @@ onMounted(async () => {
     const brandingEndpoint = `${API_URL}/api/references/employer/branding/${paramValue}`
 
     const response = await fetch(brandingEndpoint)
+
+    // Handle 410 (expired link) response
+    if (response.status === 410) {
+      await handleLegacyLink(paramValue)
+      return
+    }
 
     if (response.ok) {
       const data = await response.json()
