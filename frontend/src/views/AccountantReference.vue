@@ -514,6 +514,13 @@ onMounted(async () => {
   // Check if reference already submitted
   try {
     const checkResponse = await fetch(`${API_URL}/api/references/accountant/${token}/check`)
+
+    // Handle 410 (expired link) response
+    if (checkResponse.status === 410) {
+      await handleLegacyLink(token)
+      return
+    }
+
     if (checkResponse.ok) {
       const checkData = await checkResponse.json()
       if (checkData.submitted) {
@@ -530,6 +537,12 @@ onMounted(async () => {
   // Fetch company branding and tenant info
   try {
     const response = await fetch(`${API_URL}/api/references/accountant/branding/${token}`)
+
+    // Handle 410 (expired link) response
+    if (response.status === 410) {
+      await handleLegacyLink(token)
+      return
+    }
     if (response.ok) {
       const data = await response.json()
       if (data.branding) {
