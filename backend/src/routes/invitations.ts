@@ -138,7 +138,7 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
 
     const { data: { user: inviter } } = await supabase.auth.admin.getUserById(userId!)
 
-    const invitationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invite/${token}`
+    const invitationUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accept-invite/${token}`
 
     // Send invitation email
     try {
@@ -230,7 +230,7 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
       .update({ expires_at: newExpiresAt.toISOString() })
       .eq('id', invitationId)
 
-    const invitationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invite/${invitation.token}`
+    const invitationUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accept-invite/${invitation.token}`
 
     // Resend invitation email
     try {

@@ -66,6 +66,8 @@ const DEFAULT_CONTACT_DETAILS: ContactDetails = {
   email: 'hello@propertygoose.co.uk'
 };
 
+const DEFAULT_LOGO_URL = 'https://app.propertygoose.co.uk/PropertyGooseLogo.png';
+
 function buildContactFooter(details?: ContactDetails): string {
   if (!details) return '';
 
@@ -293,7 +295,8 @@ export async function sendTenantReferenceRequest(
   propertyAddress?: string,
   companyPhone?: string,
   companyEmail?: string | null,
-  referenceId?: string
+  referenceId?: string,
+  agentLogoUrl?: string | null
 ): Promise<void> {
   const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
 
@@ -303,6 +306,7 @@ export async function sendTenantReferenceRequest(
     ReferenceLink: referenceLink,
     PropertyAddress: capitalizeWords(propertyAddress || ''),
     ContactInfo: contactInfo,
+    AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
   });
 
   try {
@@ -341,7 +345,8 @@ export async function sendEmployerReferenceRequest(
   agentCompanyName?: string | null,
   agentPhone?: string | null,
   agentEmail?: string | null,
-  referenceId?: string
+  referenceId?: string,
+  agentLogoUrl?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('employer-reference-request', {
     EmployerName: employerName,
@@ -350,6 +355,7 @@ export async function sendEmployerReferenceRequest(
     AgentCompanyName: agentCompanyName || '',
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmail || '',
+    AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
   });
 
   try {
@@ -388,7 +394,8 @@ export async function sendLandlordReferenceRequest(
   agentCompanyName?: string | null,
   agentPhone?: string | null,
   agentEmail?: string | null,
-  referenceId?: string
+  referenceId?: string,
+  agentLogoUrl?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('landlord-reference-request', {
     LandlordName: landlordName,
@@ -397,6 +404,7 @@ export async function sendLandlordReferenceRequest(
     AgentCompanyName: agentCompanyName || '',
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmail || '',
+    AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
   });
 
   try {
@@ -483,7 +491,8 @@ export async function sendAgentReferenceRequest(
   agentCompanyName?: string | null,
   agentPhone?: string | null,
   agentEmailContact?: string | null,
-  referenceId?: string
+  referenceId?: string,
+  agentLogoUrl?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('agent-reference-request', {
     AgentName: agentName,
@@ -492,6 +501,7 @@ export async function sendAgentReferenceRequest(
     AgentCompanyName: agentCompanyName || '',
     AgentPhone: agentPhone || '',
     AgentEmail: agentEmailContact || '',
+    AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
   });
 
   try {
@@ -591,7 +601,8 @@ export async function sendGuarantorReferenceRequest(
   agentPhone: string,
   agentEmail: string,
   formLink: string,
-  referenceId?: string
+  referenceId?: string,
+  agentLogoUrl?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('guarantor-reference-request', {
     GuarantorName: guarantorName,
@@ -600,7 +611,8 @@ export async function sendGuarantorReferenceRequest(
     AgentName: agentName,
     AgentPhone: agentPhone,
     AgentEmail: agentEmail,
-    FormLink: formLink
+    FormLink: formLink,
+    AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
   });
 
   try {
@@ -841,22 +853,24 @@ export async function sendLandlordVerificationRequest(
   // Get company name for email
   const { supabase } = await import('../config/supabase')
   const { decrypt } = await import('./encryption')
-  
+
   const { data: company } = await supabase
     .from('companies')
-    .select('name_encrypted, phone_encrypted, email_encrypted')
+    .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
     .eq('id', companyId)
     .single()
 
   const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : 'PropertyGoose'
   const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) : ''
   const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : ''
+  const companyLogoUrl = company?.logo_url || null
 
   const html = loadEmailTemplate('landlord-verification-request', {
     LandlordName: landlordName,
     VerificationLink: verificationLink,
     Year: new Date().getFullYear().toString(),
-    CompanyName: companyName || ''
+    CompanyName: companyName || '',
+    AgentLogoUrl: companyLogoUrl || DEFAULT_LOGO_URL,
   })
 
   await sendEmail({
@@ -918,7 +932,7 @@ export async function sendOfferAcceptedEmail(
   companyEmail?: string | null,
   extraDetailsHtml?: string
 ): Promise<void> {
-  const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+  const frontendBaseUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
   const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed?offer_id=${offerId}`
 
   const html = loadEmailTemplate('offer-accepted', {

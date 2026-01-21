@@ -1929,6 +1929,10 @@ import { defaultBranding } from '../config/colors'
 const route = useRoute()
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const LEGACY_LINK_MESSAGE = "This link has expired. We've sent a new one."
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const isUuid = (value: string) => UUID_REGEX.test(value)
 
 // LocalStorage key for this reference
 const getStorageKey = () => `tenant_reference_form_${route.params.token}`
@@ -2680,12 +2684,38 @@ const formData = ref({
   consent_date: ''
 })
 
-onMounted(() => {
+const handleLegacyToken = async (token: string) => {
+  if (isUuid(token)) {
+    return false
+  }
+
+  try {
+    await fetch(`${API_URL}/api/references/legacy-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'guarantor', token })
+    })
+  } catch (error) {
+    console.error('Legacy guarantor link resend failed:', error)
+  }
+
+  tokenError.value = LEGACY_LINK_MESSAGE
+  initialLoading.value = false
+  return true
+}
+
+onMounted(async () => {
   if (typeof window !== 'undefined') {
     deviceLink.value = window.location.href
     const hasAcknowledged = localStorage.getItem(getDeviceGateStorageKey())
     showDeviceGate.value = hasAcknowledged !== 'true'
   }
+
+  const token = route.params.token as string
+  if (token && await handleLegacyToken(token)) {
+    return
+  }
+
   fetchReferenceByToken()
 })
 

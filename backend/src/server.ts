@@ -90,7 +90,7 @@ app.use(helmet({
 
 // CORS Configuration
 const allowedOrigins = [
-  'http://localhost:5173', // Local development
+  'https://app.propertygoose.co.uk', // Local development
   process.env.FRONTEND_URL // Production (Railway)
 ].filter(Boolean) // Remove undefined values
 

@@ -7,7 +7,7 @@ import crypto from 'crypto'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
-import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant, sendGuarantorRequestNotification, sendGuarantorReferenceRequest, sendSanctionsAlert } from '../services/emailService'
+import { sendTenantReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAgentReferenceRequest, sendAccountantReferenceRequest, sendConsentPDFToTenant, sendGuarantorRequestNotification, sendGuarantorReferenceRequest, sendSanctionsAlert, sendTenantAddGuarantorRequest } from '../services/emailService'
 import { sendTenantReferenceRequestSMS, sendGuarantorReferenceRequestSMS, sendLandlordReferenceRequestSMS, sendEmployerReferenceRequestSMS, sendAccountantReferenceRequestSMS, sendAgentReferenceRequestSMS } from '../services/smsService'
 import { auditReferenceAction } from '../services/auditLog'
 import { logAuditAction } from '../services/auditService'
@@ -28,6 +28,11 @@ import { DEFAULT_BRANDING } from '../config/colors'
 
 const router = Router()
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const LEGACY_LINK_MESSAGE = "This link has expired. We've sent a new one."
+
+const isUuid = (value: string): boolean => UUID_REGEX.test(value)
+
 // Helper to map section types to referee types
 const mapSectionTypeToRefereeType = (sectionType: string): string | null => {
   const mapping: Record<string, string> = {
@@ -39,6 +44,370 @@ const mapSectionTypeToRefereeType = (sectionType: string): string | null => {
     'ACCOUNTANT_REFERENCE': 'accountant'
   }
   return mapping[sectionType] || null
+}
+
+const sendLegacyEmployerLink = async (token: string): Promise<boolean> => {
+  const tokenHash = hash(token)
+  const { data: employerRef } = await supabase
+    .from('employer_references')
+    .select('id, reference_id')
+    .eq('reference_token_hash', tokenHash)
+    .single()
+
+  if (!employerRef) return false
+
+  const { data: reference } = await supabase
+    .from('tenant_references')
+    .select(`
+      id,
+      company_id,
+      tenant_first_name_encrypted,
+      tenant_last_name_encrypted,
+      employer_ref_name_encrypted,
+      employer_ref_email_encrypted,
+      employer_ref_phone_encrypted
+    `)
+    .eq('id', employerRef.reference_id)
+    .single()
+
+  if (!reference) return false
+
+  const { data: companyData } = await supabase
+    .from('companies')
+    .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
+    .eq('id', reference.company_id)
+    .single()
+
+  const employerEmail = decrypt(reference.employer_ref_email_encrypted) || ''
+  if (!employerEmail) return false
+
+  const employerName = decrypt(reference.employer_ref_name_encrypted) || 'Employer'
+  const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+  const employerReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`
+
+  await sendEmployerReferenceRequest(
+    employerEmail,
+    employerName,
+    tenantName,
+    employerReferenceUrl,
+    companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+    companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+    companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+    reference.id,
+    companyData?.logo_url
+  )
+
+  const employerPhone = decrypt(reference.employer_ref_phone_encrypted)
+  if (employerPhone) {
+    sendEmployerReferenceRequestSMS(
+      employerPhone,
+      employerName,
+      tenantName,
+      employerReferenceUrl,
+      reference.id
+    ).catch(err => console.error('Failed to send SMS to employer:', err))
+  }
+
+  return true
+}
+
+const sendLegacyLandlordLink = async (token: string): Promise<boolean> => {
+  const tokenHash = hash(token)
+  const { data: landlordRef } = await supabase
+    .from('landlord_references')
+    .select('reference_id')
+    .eq('reference_token_hash', tokenHash)
+    .single()
+
+  if (!landlordRef) return false
+
+  const { data: reference } = await supabase
+    .from('tenant_references')
+    .select(`
+      id,
+      company_id,
+      reference_type,
+      tenant_first_name_encrypted,
+      tenant_last_name_encrypted,
+      previous_landlord_name_encrypted,
+      previous_landlord_email_encrypted,
+      previous_landlord_phone_encrypted
+    `)
+    .eq('id', landlordRef.reference_id)
+    .single()
+
+  if (!reference) return false
+
+  const { data: companyData } = await supabase
+    .from('companies')
+    .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
+    .eq('id', reference.company_id)
+    .single()
+
+  const contactEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
+  if (!contactEmail) return false
+
+  const contactName = decrypt(reference.previous_landlord_name_encrypted) || 'Referee'
+  const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+  const isAgent = reference.reference_type === 'agent'
+  const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/${isAgent ? 'agent-reference' : 'landlord-reference'}/${reference.id}`
+
+  if (isAgent) {
+    await sendAgentReferenceRequest(
+      contactEmail,
+      contactName,
+      tenantName,
+      formUrl,
+      companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+      companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+      reference.id,
+      companyData?.logo_url
+    )
+  } else {
+    await sendLandlordReferenceRequest(
+      contactEmail,
+      contactName,
+      tenantName,
+      formUrl,
+      companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+      companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+      companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+      reference.id,
+      companyData?.logo_url
+    )
+  }
+
+  const contactPhone = decrypt(reference.previous_landlord_phone_encrypted)
+  if (contactPhone) {
+    const smsFn = isAgent ? sendAgentReferenceRequestSMS : sendLandlordReferenceRequestSMS
+    smsFn(
+      contactPhone,
+      contactName,
+      tenantName,
+      formUrl,
+      reference.id
+    ).catch(err => console.error('Failed to send SMS to referee:', err))
+  }
+
+  return true
+}
+
+const sendLegacyAccountantLink = async (token: string): Promise<boolean> => {
+  const tokenHash = hash(token)
+  const { data: accountantRef } = await supabase
+    .from('accountant_references')
+    .select('id, tenant_reference_id, accountant_name_encrypted, accountant_firm_encrypted, accountant_email_encrypted, accountant_phone_encrypted')
+    .eq('token_hash', tokenHash)
+    .single()
+
+  if (!accountantRef) return false
+
+  const { data: reference } = await supabase
+    .from('tenant_references')
+    .select('id, company_id, tenant_first_name_encrypted, tenant_last_name_encrypted')
+    .eq('id', accountantRef.tenant_reference_id)
+    .single()
+
+  if (!reference) return false
+
+  const { data: companyData } = await supabase
+    .from('companies')
+    .select('name_encrypted, phone_encrypted, email_encrypted')
+    .eq('id', reference.company_id)
+    .single()
+
+  const accountantEmail = decrypt(accountantRef.accountant_email_encrypted) || ''
+  if (!accountantEmail) return false
+
+  const accountantName = decrypt(accountantRef.accountant_name_encrypted) ||
+    decrypt(accountantRef.accountant_firm_encrypted) ||
+    'Accountant'
+  const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+  const accountantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accountant-reference/${accountantRef.id}`
+
+  await sendAccountantReferenceRequest(
+    accountantEmail,
+    accountantName,
+    tenantName,
+    accountantReferenceUrl,
+    companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+    companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+    companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+    accountantRef.id
+  )
+
+  const accountantPhone = decrypt(accountantRef.accountant_phone_encrypted)
+  if (accountantPhone) {
+    sendAccountantReferenceRequestSMS(
+      accountantPhone,
+      accountantName,
+      tenantName,
+      accountantReferenceUrl,
+      accountantRef.id
+    ).catch(err => console.error('Failed to send SMS to accountant:', err))
+  }
+
+  return true
+}
+
+const sendLegacyTenantLink = async (token: string): Promise<boolean> => {
+  const tokenHash = hash(token)
+  const { data: reference } = await supabase
+    .from('tenant_references')
+    .select('id, company_id, tenant_first_name_encrypted, tenant_last_name_encrypted, tenant_email_encrypted, tenant_phone_encrypted, property_address_encrypted')
+    .eq('reference_token_hash', tokenHash)
+    .single()
+
+  if (!reference) return false
+
+  const { data: companyData } = await supabase
+    .from('companies')
+    .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
+    .eq('id', reference.company_id)
+    .single()
+
+  const tenantEmail = decrypt(reference.tenant_email_encrypted) || ''
+  if (!tenantEmail) return false
+
+  const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+  const propertyAddress = decrypt(reference.property_address_encrypted) || ''
+  const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${reference.id}`
+
+  await sendTenantReferenceRequest(
+    tenantEmail,
+    tenantName,
+    tenantReferenceUrl,
+    companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+    propertyAddress,
+    companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : undefined,
+    companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : undefined,
+    reference.id,
+    companyData?.logo_url
+  )
+
+  const tenantPhone = decrypt(reference.tenant_phone_encrypted)
+  if (tenantPhone) {
+    sendTenantReferenceRequestSMS(
+      tenantPhone,
+      tenantName,
+      tenantReferenceUrl,
+      companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+      propertyAddress,
+      reference.id
+    ).catch(err => console.error('Failed to send SMS to tenant:', err))
+  }
+
+  return true
+}
+
+const sendLegacyGuarantorLink = async (token: string): Promise<boolean> => {
+  const tokenHash = hash(token)
+  const { data: guarantorRef } = await supabase
+    .from('tenant_references')
+    .select(`
+      id,
+      company_id,
+      guarantor_for_reference_id,
+      tenant_first_name_encrypted,
+      tenant_last_name_encrypted,
+      tenant_email_encrypted,
+      tenant_phone_encrypted
+    `)
+    .eq('reference_token_hash', tokenHash)
+    .eq('is_guarantor', true)
+    .single()
+
+  if (!guarantorRef) return false
+
+  const { data: parentRef } = await supabase
+    .from('tenant_references')
+    .select('tenant_first_name_encrypted, tenant_last_name_encrypted, property_address_encrypted')
+    .eq('id', guarantorRef.guarantor_for_reference_id)
+    .single()
+
+  const { data: companyData } = await supabase
+    .from('companies')
+    .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
+    .eq('id', guarantorRef.company_id)
+    .single()
+
+  const guarantorEmail = decrypt(guarantorRef.tenant_email_encrypted) || ''
+  if (!guarantorEmail) return false
+
+  const guarantorName = `${decrypt(guarantorRef.tenant_first_name_encrypted) || ''} ${decrypt(guarantorRef.tenant_last_name_encrypted) || ''}`.trim()
+  const parentTenantName = parentRef
+    ? `${decrypt(parentRef.tenant_first_name_encrypted) || ''} ${decrypt(parentRef.tenant_last_name_encrypted) || ''}`.trim()
+    : guarantorName
+  const propertyAddress = parentRef?.property_address_encrypted ? decrypt(parentRef.property_address_encrypted) || '' : ''
+  const guarantorReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${guarantorRef.id}`
+
+  await sendGuarantorReferenceRequest(
+    guarantorEmail,
+    guarantorName,
+    parentTenantName,
+    propertyAddress,
+    companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
+    companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
+    companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
+    guarantorReferenceUrl,
+    guarantorRef.id,
+    companyData?.logo_url
+  )
+
+  const guarantorPhone = decrypt(guarantorRef.tenant_phone_encrypted)
+  if (guarantorPhone) {
+    sendGuarantorReferenceRequestSMS(
+      guarantorPhone,
+      guarantorName,
+      parentTenantName,
+      guarantorReferenceUrl,
+      guarantorRef.id
+    ).catch(err => console.error('Failed to send SMS to guarantor:', err))
+  }
+
+  return true
+}
+
+const sendLegacyTenantAddGuarantorLink = async (token: string): Promise<boolean> => {
+  const tokenHash = hash(token)
+  const { data: reference } = await supabase
+    .from('tenant_references')
+    .select(`
+      id,
+      company_id,
+      tenant_first_name_encrypted,
+      tenant_last_name_encrypted,
+      tenant_email_encrypted,
+      property_address_encrypted,
+      companies:company_id (
+        name_encrypted
+      )
+    `)
+    .eq('add_guarantor_token_hash', tokenHash)
+    .single()
+
+  if (!reference) return false
+
+  const tenantEmail = decrypt(reference.tenant_email_encrypted) || ''
+  if (!tenantEmail) return false
+
+  const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+  const propertyAddress = decrypt(reference.property_address_encrypted) || 'the property'
+  const company = Array.isArray(reference.companies) ? reference.companies[0] : reference.companies
+  const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'Your agent' : 'Your agent'
+  const formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-add-guarantor/${reference.id}`
+
+  await sendTenantAddGuarantorRequest(
+    tenantEmail,
+    tenantName,
+    propertyAddress,
+    companyName,
+    formLink,
+    reference.id
+  )
+
+  return true
 }
 
 // Configure multer for file uploads (store in memory)
@@ -94,6 +463,43 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
       pending: pending.count || 0
     })
   } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Legacy link handler (public)
+router.post('/legacy-link', async (req: Request, res) => {
+  try {
+    const { type, token } = req.body || {}
+
+    if (!type || !token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Missing link type or token' })
+    }
+
+    let sent = false
+    if (type === 'employer') {
+      sent = await sendLegacyEmployerLink(token)
+    } else if (type === 'landlord') {
+      sent = await sendLegacyLandlordLink(token)
+    } else if (type === 'accountant') {
+      sent = await sendLegacyAccountantLink(token)
+    } else if (type === 'tenant') {
+      sent = await sendLegacyTenantLink(token)
+    } else if (type === 'guarantor') {
+      sent = await sendLegacyGuarantorLink(token)
+    } else if (type === 'tenant-add-guarantor') {
+      sent = await sendLegacyTenantAddGuarantorLink(token)
+    } else {
+      return res.status(400).json({ error: 'Invalid legacy link type' })
+    }
+
+    if (!sent) {
+      return res.status(404).json({ error: 'Invalid or expired link' })
+    }
+
+    return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+  } catch (error: any) {
+    console.error('Legacy link resend failed:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -1303,7 +1709,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
       // For invited users, try to get the company where they're NOT an owner
       const { data: nonOwnerCompanies } = await supabase
         .from('company_users')
-        .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted)')
+        .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted, logo_url)')
         .eq('user_id', userId)
         .neq('role', 'owner')
         .limit(1)
@@ -1317,7 +1723,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
     if (!companyUser) {
       const { data: companyUsers } = await supabase
         .from('company_users')
-        .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted)')
+        .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted, logo_url)')
         .eq('user_id', userId)
         .limit(1)
 
@@ -1446,7 +1852,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
         childTokens.push(token)
 
         // Send email to each tenant
-        const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
+        const tenantUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${childReference.id}`
         try {
           await sendTenantReferenceRequest(
             tenant.email,
@@ -1456,7 +1862,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
             property_address,
             companyPhone || undefined,
             companyEmail || undefined,
-            childReference.id
+            childReference.id,
+            companyUser.companies?.logo_url
           )
           console.log('Email sent successfully to tenant:', tenant.email)
         } catch (emailError: any) {
@@ -1542,7 +1949,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 .eq('id', childReference.id)
 
               // Send email to guarantor with guarantor-specific form link
-              const guarantorUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
+              const guarantorUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${guarantorRef.id}`
               const tenantFullName = `${tenant.first_name} ${tenant.last_name}`
               await sendGuarantorReferenceRequest(
                 tenant.guarantor.email,
@@ -1553,7 +1960,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 companyPhone,
                 companyEmail,
                 guarantorUrl,
-                childReference.id
+                childReference.id,
+                companyUser.companies?.logo_url
               )
               console.log('✅ Guarantor email sent to:', tenant.guarantor.email)
 
@@ -1697,7 +2105,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
       }
 
       // Send email to tenant with link to submit their information
-      const tenantUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${token}`
+      const tenantUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${reference.id}`
 
       try {
         await sendTenantReferenceRequest(
@@ -1708,7 +2116,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
           property_address,
           companyPhone || undefined,
           companyEmail || undefined,
-          reference.id
+          reference.id,
+          companyUser.companies?.logo_url
         )
         console.log('Email sent successfully to tenant:', tenant_email)
       } catch (emailError: any) {
@@ -1797,7 +2206,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
               .eq('id', reference.id)
 
             // Send email to guarantor with guarantor-specific form link
-            const guarantorUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${guarantorToken}`
+            const guarantorUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${guarantorRef.id}`
             const tenantFullName = `${tenant_first_name} ${tenant_last_name}`
             await sendGuarantorReferenceRequest(
               guarantor_email,
@@ -1808,7 +2217,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
               companyPhone,
               companyEmail,
               guarantorUrl,
-              reference.id
+              reference.id,
+              companyUser.companies?.logo_url
             )
             console.log('✅ Guarantor email sent to:', guarantor_email)
 
@@ -2341,6 +2751,9 @@ router.post('/submit/:token', async (req: Request, res) => {
   try {
 
     const { token } = req.params
+    if (!isUuid(token)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
     const data = req.body
     const clientIpAddress = getClientIpAddress(req)
     const geolocationPayload = normalizeGeolocationPayload(data.geolocation)
@@ -2348,14 +2761,11 @@ router.post('/submit/:token', async (req: Request, res) => {
       delete data.geolocation
     }
 
-    // Hash the token to look up the reference securely
-    const tokenHash = hash(token)
-
-    // Get reference by token hash
+    // Get reference by ID
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('*')
-      .eq('reference_token_hash', tokenHash)
+      .eq('id', token)
       .single()
 
     if (refError || !reference) {
@@ -2574,7 +2984,7 @@ router.post('/submit/:token', async (req: Request, res) => {
         // Get company info for contact details
         const { data: companyData } = await supabase
           .from('companies')
-          .select('name_encrypted, phone_encrypted, email_encrypted')
+          .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
           .eq('id', reference.company_id)
           .single()
 
@@ -2594,7 +3004,7 @@ router.post('/submit/:token', async (req: Request, res) => {
           console.error('Failed to create employer reference:', employerError)
         } else {
           // Use employer_reference.id in URL - stable and doesn't change between chases
-          const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerRef.id}`
+          const employerReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`
 
           await sendEmployerReferenceRequest(
             data.employer_ref_email,
@@ -2604,7 +3014,8 @@ router.post('/submit/:token', async (req: Request, res) => {
             companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
             companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
             companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
-            updatedReference.id
+            updatedReference.id,
+            companyData?.logo_url
           )
           console.log('Employer reference email sent successfully to:', data.employer_ref_email)
 
@@ -2631,14 +3042,14 @@ router.post('/submit/:token', async (req: Request, res) => {
         // Get company info for contact details
         const { data: companyData } = await supabase
           .from('companies')
-          .select('name_encrypted, phone_encrypted, email_encrypted')
+          .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
           .eq('id', reference.company_id)
           .single()
 
         const referenceType = data.reference_type || 'landlord'
 
         if (referenceType === 'agent') {
-          const agentReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${updatedReference.id}`
+          const agentReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/agent-reference/${updatedReference.id}`
 
           await sendAgentReferenceRequest(
             data.previous_landlord_email,
@@ -2663,7 +3074,7 @@ router.post('/submit/:token', async (req: Request, res) => {
             ).catch(err => console.error('Failed to send SMS to agent:', err))
           }
         } else {
-          const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${updatedReference.id}`
+          const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/landlord-reference/${updatedReference.id}`
 
           await sendLandlordReferenceRequest(
             data.previous_landlord_email,
@@ -2673,7 +3084,8 @@ router.post('/submit/:token', async (req: Request, res) => {
             companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
             companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
             companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
-            updatedReference.id
+            updatedReference.id,
+            companyData?.logo_url
           )
           console.log('Landlord reference email sent successfully to:', data.previous_landlord_email)
 
@@ -2700,19 +3112,14 @@ router.post('/submit/:token', async (req: Request, res) => {
         // Get company info for contact details
         const { data: companyData } = await supabase
           .from('companies')
-          .select('name_encrypted, phone_encrypted, email_encrypted')
+          .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
           .eq('id', reference.company_id)
           .single()
-
-        // Create accountant reference record with unique token and hash
-        const accountantToken = generateToken()
-        const accountantTokenHash = hash(accountantToken)
 
         const { data: accountantRef, error: accountantError } = await supabase
           .from('accountant_references')
           .insert({
             tenant_reference_id: updatedReference.id,
-            token_hash: accountantTokenHash,
             accountant_firm_encrypted: encrypt(data.accountant_name || ''),
             accountant_name_encrypted: encrypt(data.accountant_contact_name),
             accountant_email_encrypted: encrypt(data.accountant_email),
@@ -2724,7 +3131,7 @@ router.post('/submit/:token', async (req: Request, res) => {
         if (accountantError) {
           console.error('Failed to create accountant reference:', accountantError)
         } else {
-          const accountantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accountant-reference/${accountantToken}`
+          const accountantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accountant-reference/${accountantRef.id}`
 
           await sendAccountantReferenceRequest(
             data.accountant_email,
@@ -2844,7 +3251,7 @@ router.post('/submit/:token', async (req: Request, res) => {
             // Get company name for email
             const { data: companyData } = await supabase
               .from('companies')
-              .select('name_encrypted, phone_encrypted, email_encrypted')
+              .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
               .eq('id', reference.company_id)
               .single()
 
@@ -2859,7 +3266,7 @@ router.post('/submit/:token', async (req: Request, res) => {
               : ''
 
             // Use guarantor-specific form link
-            const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+            const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorRef.id}`
 
             // Send guarantor reference email
             await sendGuarantorReferenceRequest(
@@ -2871,7 +3278,8 @@ router.post('/submit/:token', async (req: Request, res) => {
               companyPhone,
               companyEmail,
               formLink,
-              guarantorRef.id
+              guarantorRef.id,
+              companyData?.logo_url
             )
 
             console.log('✅ Guarantor reference email sent to:', data.guarantor_email)
@@ -2989,7 +3397,7 @@ router.post('/submit/:token', async (req: Request, res) => {
             if (tenantEmail) {
               const { data: consentCompanyData } = await supabase
                 .from('companies')
-                .select('name_encrypted, phone_encrypted, email_encrypted')
+                .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
                 .eq('id', reference.company_id)
                 .single()
 
@@ -3117,7 +3525,7 @@ router.post('/submit/:token', async (req: Request, res) => {
                 ? 'REJECT TENANT APPLICATION - Tenant appears on UK Sanctions List. This is a legal requirement and tenant must not be accepted.'
                 : 'MANUAL REVIEW REQUIRED - Multiple political donation records found. Review matches and make informed decision.'
 
-              const referenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard/references/${updatedReference.id}`
+              const referenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/dashboard/references/${updatedReference.id}`
 
               await sendSanctionsAlert(
                 companyEmail,
@@ -3215,14 +3623,15 @@ router.get('/check-guarantor/:token', async (req, res) => {
   try {
     const { token } = req.params
 
-    // Hash the token to look up the reference securely
-    const tokenHash = hash(token)
+    if (!isUuid(token)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     // Get reference by token hash
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('id')
-      .eq('reference_token_hash', tokenHash)
+      .eq('id', token)
       .single()
 
     if (refError || !reference) {
@@ -3295,14 +3704,15 @@ router.post('/upload/:token', (req, res, next) => {
     const { token } = req.params
     const files = req.files as { [fieldname: string]: Express.Multer.File[] }
 
-    // Hash the token to look up the reference securely
-    const tokenHash = hash(token)
+    if (!isUuid(token)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     // Get reference by token hash
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('id, company_id, status, payslip_files, bank_statements_paths')
-      .eq('reference_token_hash', tokenHash)
+      .eq('id', token)
       .single()
 
     if (refError || !reference) {
@@ -3718,7 +4128,9 @@ router.post('/upload/:token', (req, res, next) => {
 router.get('/view/:token', async (req, res) => {
   try {
     const { token } = req.params
-    const tokenHash = hash(token)
+    if (!isUuid(token)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     // Get reference by token hash
     const { data: reference, error } = await supabase
@@ -3753,7 +4165,7 @@ router.get('/view/:token', async (req, res) => {
           website_encrypted
         )
       `)
-      .eq('reference_token_hash', tokenHash)
+      .eq('id', token)
       .single()
 
     if (error) {
@@ -3826,6 +4238,9 @@ router.get('/view/:token', async (req, res) => {
 router.get('/branding/:referenceId', async (req, res) => {
   try {
     const { referenceId } = req.params
+    if (!isUuid(referenceId)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     const { data: reference, error } = await supabase
       .from('tenant_references')
@@ -3912,17 +4327,19 @@ router.get('/branding/:referenceId', async (req, res) => {
   }
 })
 
-// Get company branding for accountant reference by token (public route)
+// Get company branding for accountant reference by ID (public route)
 router.get('/accountant/branding/:token', async (req, res) => {
   try {
     const { token } = req.params
-    const tokenHash = hash(token)
+    if (!isUuid(token)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     // Get the tenant_reference_id and accountant info using token hash
     const { data: accountantRef, error: accountantError } = await supabase
       .from('accountant_references')
       .select('tenant_reference_id, accountant_firm_encrypted, accountant_name_encrypted, accountant_email_encrypted, accountant_phone_encrypted')
-      .eq('token_hash', tokenHash)
+      .eq('id', token)
       .single()
 
     if (accountantError || !accountantRef) {
@@ -3978,38 +4395,31 @@ router.get('/employer/branding/:tokenOrRefId', async (req, res) => {
     const { tokenOrRefId } = req.params
     let referenceId: string
 
-    // Check if this looks like a token (longer alphanumeric string) or a UUID
-    const isToken = tokenOrRefId.length > 36 && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tokenOrRefId)
+    if (!isUuid(tokenOrRefId)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
-    if (isToken) {
-      // Token-based lookup
-      const tokenHash = hash(tokenOrRefId)
+    // UUID-based lookup - could be employer_reference.id or tenant_reference.id
+    const { data: employerById } = await supabase
+      .from('employer_references')
+      .select('reference_id')
+      .eq('id', tokenOrRefId)
+      .single()
 
-      // Get the reference_id using token hash
-      const { data: employerRef, error: employerError } = await supabase
-        .from('employer_references')
-        .select('reference_id')
-        .eq('reference_token_hash', tokenHash)
-        .single()
-
-      if (employerError || !employerRef) {
-        return res.status(404).json({ error: 'Employer reference not found' })
-      }
-
-      referenceId = employerRef.reference_id
+    if (employerById) {
+      referenceId = employerById.reference_id
     } else {
-      // ReferenceId-based lookup (UUID) - verify it exists in employer_references
-      const { data: employerRef, error: employerError } = await supabase
+      const { data: employerByRef } = await supabase
         .from('employer_references')
         .select('reference_id')
         .eq('reference_id', tokenOrRefId)
         .single()
 
-      if (employerError || !employerRef) {
+      if (!employerByRef) {
         return res.status(404).json({ error: 'Employer reference not found' })
       }
 
-      referenceId = employerRef.reference_id
+      referenceId = employerByRef.reference_id
     }
 
     // Now fetch the branding and tenant info using the reference_id
@@ -4071,6 +4481,9 @@ router.get('/employer/branding/:tokenOrRefId', async (req, res) => {
 router.get('/landlord/:referenceId/check', async (req, res) => {
   try {
     const { referenceId } = req.params
+    if (!isUuid(referenceId)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     const { data: landlordRef } = await supabase
       .from('landlord_references')
@@ -4088,6 +4501,9 @@ router.get('/landlord/:referenceId/check', async (req, res) => {
 router.get('/agent/:referenceId/check', async (req, res) => {
   try {
     const { referenceId } = req.params
+    if (!isUuid(referenceId)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     const { data: agentRef } = await supabase
       .from('agent_references')
@@ -4106,45 +4522,31 @@ router.get('/employer/:referenceId/check', async (req, res) => {
   try {
     const { referenceId } = req.params
 
-    // Check if this looks like a token (longer alphanumeric string) or a UUID
-    const isToken = referenceId.length > 36 && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referenceId)
-
-    if (isToken) {
-      // Token-based lookup
-      const tokenHash = hash(referenceId)
-      const { data: employerRef } = await supabase
-        .from('employer_references')
-        .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, signature_encrypted')
-        .eq('reference_token_hash', tokenHash)
-        .single()
-
-      // Only consider it submitted if it has submitted_at AND actual form data
-      // NOTE: employer_name_encrypted is pre-populated from tenant form, so don't use it
-      // Use fields that are ONLY set when employer actually submits: company_name, salary, or signature
-      const hasData = employerRef && (
-        employerRef.company_name_encrypted ||
-        employerRef.annual_salary_encrypted ||
-        employerRef.signature_encrypted
-      )
-      return res.json({ submitted: !!(employerRef && employerRef.submitted_at && hasData) })
-    } else {
-      // ReferenceId-based lookup (UUID)
-      const { data: employerRef } = await supabase
-        .from('employer_references')
-        .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, signature_encrypted')
-        .eq('reference_id', referenceId)
-        .single()
-
-      // Only consider it submitted if it has submitted_at AND actual form data
-      // NOTE: employer_name_encrypted is pre-populated from tenant form, so don't use it
-      // Use fields that are ONLY set when employer actually submits: company_name, salary, or signature
-      const hasData = employerRef && (
-        employerRef.company_name_encrypted ||
-        employerRef.annual_salary_encrypted ||
-        employerRef.signature_encrypted
-      )
-      return res.json({ submitted: !!(employerRef && employerRef.submitted_at && hasData) })
+    if (!isUuid(referenceId)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
     }
+
+    const { data: employerById } = await supabase
+      .from('employer_references')
+      .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, signature_encrypted')
+      .eq('id', referenceId)
+      .single()
+
+    const employerRef = employerById || (await supabase
+      .from('employer_references')
+      .select('id, submitted_at, company_name_encrypted, annual_salary_encrypted, signature_encrypted')
+      .eq('reference_id', referenceId)
+      .single()).data
+
+    if (!employerRef) {
+      return res.json({ submitted: false })
+    }
+
+    const hasData = employerRef.company_name_encrypted ||
+      employerRef.annual_salary_encrypted ||
+      employerRef.signature_encrypted
+
+    return res.json({ submitted: !!(employerRef.submitted_at && hasData) })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -4154,13 +4556,15 @@ router.get('/employer/:referenceId/check', async (req, res) => {
 router.get('/accountant/:token/check', async (req, res) => {
   try {
     const { token } = req.params
-    const tokenHash = hash(token)
+    if (!isUuid(token)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     // Check using token hash
     const { data: accountantRef } = await supabase
       .from('accountant_references')
       .select('id, submitted_at, business_name_encrypted, annual_turnover_encrypted, annual_profit_encrypted')
-      .eq('token_hash', tokenHash)
+      .eq('id', token)
       .single()
 
     // Only consider it submitted if it has submitted_at AND actual form data
@@ -4179,6 +4583,9 @@ router.get('/accountant/:token/check', async (req, res) => {
 router.post('/landlord/:referenceId', async (req: Request, res) => {
   try {
     const { referenceId } = req.params
+    if (!isUuid(referenceId)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
     const formData = req.body
     const clientIpAddress = getClientIpAddress(req)
     const geolocationPayload = normalizeGeolocationPayload(formData.geolocation)
@@ -4282,6 +4689,9 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
 router.post('/agent/:referenceId', async (req: Request, res) => {
   try {
     const { referenceId } = req.params
+    if (!isUuid(referenceId)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
     const formData = req.body
     const clientIpAddress = getClientIpAddress(req)
     const geolocationPayload = normalizeGeolocationPayload(formData.geolocation)
@@ -4400,45 +4810,29 @@ router.post('/employer/:tokenOrRefId', async (req: Request, res) => {
       delete formData.geolocation
     }
 
-    // Check if this looks like a token (longer alphanumeric string) or a UUID
-    const isToken = tokenOrRefId.length > 36 && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tokenOrRefId)
+    if (!isUuid(tokenOrRefId)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     let employerRef: { id: string; reference_id: string; submitted_at: string | null } | null = null
 
-    if (isToken) {
-      // Token-based lookup
-      const tokenHash = hash(tokenOrRefId)
-      const { data, error } = await supabase
-        .from('employer_references')
-        .select('id, reference_id, submitted_at')
-        .eq('reference_token_hash', tokenHash)
-        .single()
+    const { data: byId } = await supabase
+      .from('employer_references')
+      .select('id, reference_id, submitted_at')
+      .eq('id', tokenOrRefId)
+      .single()
 
-      if (!error && data) {
-        employerRef = data
-      }
+    if (byId) {
+      employerRef = byId
     } else {
-      // UUID-based lookup - could be employer_reference.id or tenant_reference.id
-      // First try employer_reference.id
-      const { data: byId } = await supabase
+      const { data: byRefId } = await supabase
         .from('employer_references')
         .select('id, reference_id, submitted_at')
-        .eq('id', tokenOrRefId)
+        .eq('reference_id', tokenOrRefId)
         .single()
 
-      if (byId) {
-        employerRef = byId
-      } else {
-        // Try reference_id (tenant_reference.id)
-        const { data: byRefId } = await supabase
-          .from('employer_references')
-          .select('id, reference_id, submitted_at')
-          .eq('reference_id', tokenOrRefId)
-          .single()
-
-        if (byRefId) {
-          employerRef = byRefId
-        }
+      if (byRefId) {
+        employerRef = byRefId
       }
     }
 
@@ -4548,14 +4942,15 @@ router.post('/accountant/:token', async (req: Request, res) => {
       delete formData.geolocation
     }
 
-    // Hash the token to look up securely
-    const tokenHash = hash(token)
+    if (!isUuid(token)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
-    // Verify accountant reference exists using token hash
+    // Verify accountant reference exists using ID
     const { data: accountantRef, error: refError } = await supabase
       .from('accountant_references')
       .select('*, tenant_reference_id')
-      .eq('token_hash', tokenHash)
+      .eq('id', token)
       .single()
 
     if (refError || !accountantRef) {
@@ -4759,14 +5154,14 @@ router.post('/:id/resend-landlord-email', authenticateToken, async (req: AuthReq
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
       .eq('id', reference.company_id)
       .single()
 
     const landlordEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
     const landlordName = decrypt(reference.previous_landlord_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
-    const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/landlord-reference/${reference.id}`
+    const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/landlord-reference/${reference.id}`
 
     await sendLandlordReferenceRequest(
       landlordEmail,
@@ -4776,7 +5171,8 @@ router.post('/:id/resend-landlord-email', authenticateToken, async (req: AuthReq
       companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
-      reference.id
+      reference.id,
+      companyData?.logo_url
     )
 
     // Send SMS to landlord (non-blocking)
@@ -4839,14 +5235,14 @@ router.post('/:id/resend-agent-email', authenticateToken, async (req: AuthReques
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
       .eq('id', reference.company_id)
       .single()
 
     const agentEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
     const agentName = decrypt(reference.previous_landlord_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
-    const agentReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${reference.id}`
+    const agentReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/agent-reference/${reference.id}`
 
     await sendAgentReferenceRequest(
       agentEmail,
@@ -4920,7 +5316,7 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
       .eq('id', reference.company_id)
       .single()
 
@@ -4969,7 +5365,7 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
       .update({ reference_token_hash: newTokenHash })
       .eq('id', referenceId)
 
-    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${newToken}`
+    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${referenceId}`
 
     const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : ''
     const companyPhone = companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : ''
@@ -4983,7 +5379,8 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
       propertyAddress,
       companyPhone || undefined,
       companyEmail || undefined,
-      referenceId
+      referenceId,
+      companyData?.logo_url
     )
 
     // Send SMS to tenant (non-blocking)
@@ -5145,14 +5542,14 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
       .eq('id', reference.company_id)
       .single()
 
     const employerName = decrypt(reference.employer_ref_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     // Use employer_reference.id in URL - stable and doesn't change between chases
-    const employerReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerRef.id}`
+    const employerReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`
 
     await sendEmployerReferenceRequest(
       employerEmail,
@@ -5162,7 +5559,8 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
       companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : '',
       companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : '',
       companyData?.email_encrypted ? decrypt(companyData.email_encrypted ?? '') ?? '' : '',
-      referenceId
+      referenceId,
+      companyData?.logo_url
     )
 
     // Send SMS to employer (non-blocking)
@@ -5222,10 +5620,10 @@ router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthR
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Get accountant reference to get the token
+    // Get accountant reference
     const { data: accountantRef } = await supabase
       .from('accountant_references')
-      .select('id, token_hash')
+      .select('id')
       .eq('tenant_reference_id', referenceId)
       .single()
 
@@ -5233,27 +5631,17 @@ router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthR
       return res.status(404).json({ error: 'Accountant reference not found' })
     }
 
-    // Generate new token for the form link
-    const accountantToken = generateToken()
-    const accountantTokenHash = hash(accountantToken)
-
-    // Update the token hash
-    await supabase
-      .from('accountant_references')
-      .update({ token_hash: accountantTokenHash })
-      .eq('id', accountantRef.id)
-
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
       .eq('id', reference.company_id)
       .single()
 
     const accountantEmail = decrypt(reference.accountant_email_encrypted) || ''
     const accountantName = decrypt(reference.accountant_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
-    const formLink = `${process.env.FRONTEND_URL}/accountant-reference/${accountantToken}`
+    const formLink = `${process.env.FRONTEND_URL}/accountant-reference/${accountantRef.id}`
 
     await sendAccountantReferenceRequest(
       accountantEmail,
@@ -5319,7 +5707,7 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     // Get the parent reference (filtered by company)
     const { data: parentReference, error: refError } = await supabase
       .from('tenant_references')
-      .select('*, companies!inner(id, name_encrypted, phone_encrypted, email_encrypted)')
+      .select('*, companies!inner(id, name_encrypted, phone_encrypted, email_encrypted, logo_url)')
       .eq('id', referenceId)
       .eq('company_id', companyId)
       .single()
@@ -5417,7 +5805,7 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     const companyEmail = parentReference.companies?.email_encrypted
       ? (decrypt(parentReference.companies.email_encrypted) || '')
       : ''
-    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorReference.id}`
 
     await sendGuarantorReferenceRequest(
       guarantor_email,
@@ -5428,7 +5816,8 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
       companyPhone,
       companyEmail,
       formLink,
-      guarantorReference.id
+      guarantorReference.id,
+      parentReference.companies?.logo_url
     )
 
     console.log('Guarantor reference email sent to:', guarantor_email)
@@ -5645,7 +6034,7 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
       .eq('id', reference.company_id)
       .single()
 
@@ -5656,8 +6045,9 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     const companyPhone = companyData?.phone_encrypted ? (decrypt(companyData.phone_encrypted) || '') : ''
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
 
-    // Use guarantor-reference form link for both legacy and new method
-    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+    const formLink = isLegacyGuarantor
+      ? `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+      : `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorId}`
 
     await sendGuarantorReferenceRequest(
       guarantorEmail,
@@ -5668,7 +6058,8 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
       companyPhone,
       companyEmail,
       formLink,
-      guarantorId
+      guarantorId,
+      companyData?.logo_url
     )
 
     // Send SMS to guarantor (non-blocking)
@@ -5814,7 +6205,7 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
       .eq('id', guarantorRef.company_id)
       .single()
 
@@ -5832,7 +6223,7 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
 
     // Use guarantor-reference form link
-    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorReferenceId}`
 
     await sendGuarantorReferenceRequest(
       guarantorEmail,
@@ -5843,7 +6234,8 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
       companyPhone,
       companyEmail,
       formLink,
-      guarantorRef.id
+      guarantorRef.id,
+      companyData?.logo_url
     )
 
     // Send SMS to guarantor (non-blocking)
@@ -5969,7 +6361,9 @@ router.get('/:id/report', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/tenant-add-guarantor/:token', async (req, res) => {
   try {
     const { token } = req.params
-    const tokenHash = hash(token)
+    if (!isUuid(token)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     // Find reference by add_guarantor_token_hash
     const { data: reference, error } = await supabase
@@ -5985,7 +6379,7 @@ router.get('/tenant-add-guarantor/:token', async (req, res) => {
           name_encrypted
         )
       `)
-      .eq('add_guarantor_token_hash', tokenHash)
+      .eq('id', token)
       .single()
 
     if (error || !reference) {
@@ -6024,7 +6418,9 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
   try {
     const { token } = req.params
     const { guarantor_first_name, guarantor_last_name, guarantor_email, guarantor_phone } = req.body
-    const tokenHash = hash(token)
+    if (!isUuid(token)) {
+      return res.status(410).json({ error: LEGACY_LINK_MESSAGE })
+    }
 
     // Validate required fields
     if (!guarantor_first_name || !guarantor_last_name || !guarantor_email) {
@@ -6040,10 +6436,11 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
           id,
           name_encrypted,
           phone_encrypted,
-          email_encrypted
+          email_encrypted,
+          logo_url
         )
       `)
-      .eq('add_guarantor_token_hash', tokenHash)
+      .eq('id', token)
       .single()
 
     if (error || !parentReference) {
@@ -6138,7 +6535,7 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
     const companyEmail = parentReference.companies?.email_encrypted
       ? (decrypt(parentReference.companies.email_encrypted) || '')
       : ''
-    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
+    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorReference.id}`
 
     await sendGuarantorReferenceRequest(
       guarantor_email,
@@ -6149,7 +6546,8 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
       companyPhone,
       companyEmail,
       formLink,
-      guarantorReference.id
+      guarantorReference.id,
+      parentReference.companies?.logo_url
     )
 
     console.log('Guarantor reference email sent to:', guarantor_email)
@@ -6206,7 +6604,7 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
       await supabase
         .from('tenant_references')
         .update({
-          add_guarantor_token_hash: tokenHash,
+          add_guarantor_token_hash: parentReference.add_guarantor_token_hash,
           add_guarantor_token_expires_at: parentReference.add_guarantor_token_expires_at
         })
         .eq('id', parentReference.id)
@@ -6741,7 +7139,7 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
     // Get company info for email sending
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted')
+      .select('name_encrypted, logo_url')
       .eq('id', companyId)
       .single()
 
@@ -6825,14 +7223,17 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
         }
 
         // Use employer_reference.id in URL - stable and doesn't change between chases
-        const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-employer-reference/${employerRef.id}`
+        const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`
         await sendEmployerReferenceRequest(
           email,
           name || 'Employer',
           tenantName,
           formUrl,
           companyName,
-          propertyAddress
+          propertyAddress,
+          undefined,
+          undefined,
+          companyData?.logo_url
         )
         emailSent = true
       }
@@ -6881,9 +7282,6 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
       // Only send email and update landlord_references if email changed
       let emailSent = false
       if (email && email !== oldEmail) {
-        const newToken = generateToken()
-        const newTokenHash = hash(newToken)
-
         const { data: existingRef } = await supabase
           .from('landlord_references')
           .select('id')
@@ -6894,30 +7292,23 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
           await supabase
             .from('landlord_references')
             .update({
-              reference_token_hash: newTokenHash,
-              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
               submitted_at: null
             })
             .eq('id', existingRef.id)
-        } else {
-          await supabase
-            .from('landlord_references')
-            .insert({
-              reference_id: referenceId,
-              reference_token_hash: newTokenHash,
-              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-            })
         }
 
         // Send email to new landlord
-        const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-landlord-reference/${newToken}`
+        const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/landlord-reference/${referenceId}`
         await sendLandlordReferenceRequest(
           email,
           name || 'Previous Landlord',
           tenantName,
           formUrl,
           companyName,
-          propertyAddress
+          propertyAddress,
+          undefined,
+          undefined,
+          companyData?.logo_url
         )
         emailSent = true
       }
@@ -6966,36 +7357,36 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
       // Only send email and update accountant_references if email changed
       let emailSent = false
       if (email && email !== oldEmail) {
-        const newToken = generateToken()
-        const newTokenHash = hash(newToken)
-
         const { data: existingRef } = await supabase
           .from('accountant_references')
           .select('id')
           .eq('tenant_reference_id', referenceId)
           .single()
+        let accountantRefId = existingRef?.id
 
         if (existingRef) {
           await supabase
             .from('accountant_references')
             .update({
-              reference_token_hash: newTokenHash,
-              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
               submitted_at: null
             })
             .eq('id', existingRef.id)
         } else {
-          await supabase
+          const { data: newRef } = await supabase
             .from('accountant_references')
             .insert({
-              tenant_reference_id: referenceId,
-              reference_token_hash: newTokenHash,
-              token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+              tenant_reference_id: referenceId
             })
+            .select('id')
+            .single()
+          accountantRefId = newRef?.id
         }
 
         // Send email to new accountant
-        const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-accountant-reference/${newToken}`
+        if (!accountantRefId) {
+          return res.status(500).json({ error: 'Failed to create accountant reference record' })
+        }
+        const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accountant-reference/${accountantRefId}`
         await sendAccountantReferenceRequest(
           email,
           name || 'Accountant',
@@ -7078,7 +7469,7 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
         }
 
         // Send email to new letting agent
-        const formUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agent-reference/${referenceId}`
+        const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/agent-reference/${referenceId}`
         await sendAgentReferenceRequest(
           email,
           name || 'Letting Agent',
@@ -7166,7 +7557,7 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
     // Get company info
     const { data: companyData } = await supabase
       .from('companies')
-      .select('name_encrypted, phone_encrypted, email_encrypted')
+      .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
       .eq('id', companyId)
       .single()
 
@@ -7202,7 +7593,7 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
     // Check if this is a guarantor reference
     if (reference.is_guarantor) {
       // This is a GUARANTOR reference - send guarantor form
-      const guarantorReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/guarantor-reference/${newToken}`
+    const guarantorReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${referenceId}`
 
       // Get parent tenant name
       let parentTenantName = recipientName
@@ -7229,7 +7620,8 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
         companyPhone || '',
         companyEmail || '',
         guarantorReferenceUrl,
-        referenceId
+        referenceId,
+        companyData?.logo_url
       )
 
       // Send SMS to guarantor (non-blocking)
@@ -7279,7 +7671,7 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
       })
     } else {
       // This is a TENANT reference - send tenant form
-      const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/submit-reference/${newToken}`
+      const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${referenceId}`
 
       await sendTenantReferenceRequest(
         recipientEmail,
@@ -7289,7 +7681,8 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
         propertyAddress,
         companyPhone || undefined,
         companyEmail || undefined,
-        referenceId
+        referenceId,
+        companyData?.logo_url
       )
 
       // Send SMS to tenant (non-blocking)

@@ -443,6 +443,26 @@ const primaryColor = ref(defaultBranding.primaryColor)
 const buttonColor = ref(defaultBranding.buttonColor)
 const brandingLoaded = ref(false)
 
+const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+
+const handleLegacyLink = async (legacyToken: string) => {
+  loading.value = false
+  try {
+    const response = await fetch(`${API_URL}/api/references/legacy-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'accountant', token: legacyToken })
+    })
+    const data = await response.json()
+    error.value = data.error || "This link has expired. We've sent a new one."
+  } catch (err) {
+    console.error('Failed to resend legacy accountant link:', err)
+    error.value = "This link has expired. We've sent a new one."
+  } finally {
+    brandingLoaded.value = true
+  }
+}
+
 // Get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
   const today = new Date()
@@ -484,6 +504,10 @@ onMounted(async () => {
     error.value = 'Invalid reference link'
     loading.value = false
     brandingLoaded.value = true
+    return
+  }
+  if (!isUuid(token)) {
+    await handleLegacyLink(token)
     return
   }
 

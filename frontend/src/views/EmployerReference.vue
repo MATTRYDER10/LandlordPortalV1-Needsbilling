@@ -27,6 +27,13 @@
         <p class="mt-2 text-gray-600">Your employer reference has been submitted successfully.</p>
       </div>
 
+      <!-- Expired Link State -->
+      <div v-else-if="linkExpired" class="bg-white rounded-lg shadow p-8 text-center">
+        <AlertTriangle class="mx-auto h-12 w-12 text-red-500" />
+        <h3 class="mt-4 text-lg font-semibold text-gray-900">{{ expiredMessage }}</h3>
+        <p class="mt-2 text-gray-600">Please check your email for a fresh link.</p>
+      </div>
+
       <!-- Form -->
       <form v-else @submit.prevent="handleSubmit" class="space-y-6">
         <!-- Instruction Banner -->
@@ -423,12 +430,12 @@ import DatePicker from '../components/DatePicker.vue'
 import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
-import { CheckCircle2 } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-// Support both token-based (/submit-employer-reference/:token) and referenceId-based (/employer-reference/:referenceId) routes
+// Support legacy token-based and new UUID-based routes
 const token = route.params.token as string | undefined
 const referenceId = route.params.referenceId as string | undefined
 
@@ -436,6 +443,8 @@ const loading = ref(false)
 const submitted = ref(false)
 const submitting = ref(false)
 const error = ref('')
+const linkExpired = ref(false)
+const expiredMessage = ref('')
 
 // Company branding
 const companyLogo = ref('')
@@ -446,6 +455,26 @@ const brandingLoaded = ref(false)
 // Employee information
 const employeeName = ref('')
 const { geolocation: userGeolocation } = useGeolocationCapture()
+
+const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+
+const handleLegacyLink = async (legacyToken: string) => {
+  linkExpired.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/legacy-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'employer', token: legacyToken })
+    })
+    const data = await response.json()
+    expiredMessage.value = data.error || "This link has expired. We've sent a new one."
+  } catch (err) {
+    console.error('Failed to resend legacy employer link:', err)
+    expiredMessage.value = "This link has expired. We've sent a new one."
+  } finally {
+    brandingLoaded.value = true
+  }
+}
 
 const formData = ref({
   companyName: '',
@@ -476,6 +505,7 @@ const formData = ref({
 const fieldErrors = ref<Record<string, string>>({})
 
 const handleSubmit = async () => {
+  if (linkExpired.value) return
   submitting.value = true
   error.value = ''
   fieldErrors.value = {}
@@ -570,6 +600,11 @@ const handleSubmit = async () => {
 // Fetch company branding on mount
 onMounted(async () => {
   try {
+    if (token && !isUuid(token)) {
+      await handleLegacyLink(token)
+      return
+    }
+
     // Determine which parameter to use (token or referenceId)
     const paramValue = token || referenceId
 
@@ -626,7 +661,9 @@ onMounted(async () => {
     // Silently fail - just use defaults
     console.error('Failed to load branding:', err)
   } finally {
-    brandingLoaded.value = true
+    if (!linkExpired.value) {
+      brandingLoaded.value = true
+    }
   }
 })
 </script>

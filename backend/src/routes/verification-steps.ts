@@ -860,7 +860,7 @@ router.post(
             const companyName = companyData?.name_encrypted
               ? decrypt(companyData.name_encrypted) || 'Your agent'
               : 'Your agent';
-            const formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-add-guarantor/${addGuarantorToken}`;
+            const formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-add-guarantor/${referenceId}`;
 
             if (tenantEmail) {
               await sendTenantAddGuarantorRequest(

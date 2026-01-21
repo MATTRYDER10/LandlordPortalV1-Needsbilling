@@ -690,7 +690,7 @@ async function autoReceiveExternalDependencies(referenceId: string): Promise<voi
     await supabase
       .from('verification_sections')
       .update({
-        decision: 'APPROVED',
+        decision: 'PASS',
         decision_notes: 'Auto-approved: referee form submitted'
       })
       .eq('reference_id', referenceId)

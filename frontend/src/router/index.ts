@@ -139,6 +139,11 @@ const router = createRouter({
       component: LandlordReference
     },
     {
+      path: '/submit-landlord-reference/:token',
+      name: 'SubmitLandlordReferenceLegacy',
+      component: LandlordReference
+    },
+    {
       path: '/agent-reference/:referenceId',
       name: 'AgentReference',
       component: AgentReference
@@ -156,6 +161,11 @@ const router = createRouter({
     {
       path: '/accountant-reference/:token',
       name: 'AccountantReference',
+      component: AccountantReference
+    },
+    {
+      path: '/submit-accountant-reference/:token',
+      name: 'SubmitAccountantReferenceLegacy',
       component: AccountantReference
     },
     {
