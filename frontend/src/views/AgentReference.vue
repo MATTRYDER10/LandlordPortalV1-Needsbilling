@@ -27,6 +27,13 @@
         <p class="mt-2 text-gray-600">Your agent reference has been submitted successfully.</p>
       </div>
 
+      <!-- Expired Link State -->
+      <div v-else-if="linkExpired" class="bg-white rounded-lg shadow p-8 text-center">
+        <AlertTriangle class="mx-auto h-12 w-12 text-red-500" />
+        <h3 class="mt-4 text-lg font-semibold text-gray-900">{{ expiredMessage }}</h3>
+        <p class="mt-2 text-gray-600">Please check your email for a fresh link.</p>
+      </div>
+
       <!-- Form -->
       <form v-else @submit.prevent="handleSubmit" class="space-y-6">
         <!-- Instruction Banner -->
@@ -443,7 +450,7 @@ import DatePicker from '../components/DatePicker.vue'
 import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
-import { CheckCircle2 } from 'lucide-vue-next'
+import { CheckCircle2, AlertTriangle } from 'lucide-vue-next'
 
 const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -452,6 +459,8 @@ const loading = ref(false)
 const submitted = ref(false)
 const submitting = ref(false)
 const error = ref('')
+const linkExpired = ref(false)
+const expiredMessage = ref('')
 
 // Company branding
 const companyLogo = ref('')
@@ -460,6 +469,26 @@ const buttonColor = ref(defaultBranding.buttonColor)
 const brandingLoaded = ref(false)
 
 const { geolocation: userGeolocation } = useGeolocationCapture()
+
+const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+
+const handleLegacyLink = async (referenceId: string) => {
+  linkExpired.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/references/legacy-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'landlord', token: referenceId })
+    })
+    const data = await response.json()
+    expiredMessage.value = data.error || "This link has expired. We've sent a new one."
+  } catch (err) {
+    console.error('Failed to resend legacy agent link:', err)
+    expiredMessage.value = "This link has expired. We've sent a new one."
+  } finally {
+    brandingLoaded.value = true
+  }
+}
 
 const formData = ref({
   agentName: '',
@@ -547,10 +576,22 @@ const handleSubmit = async () => {
 // Fetch company branding on mount
 onMounted(async () => {
   try {
-    const referenceId = route.params.referenceId
+    const referenceId = route.params.referenceId as string
+
+    if (!isUuid(referenceId)) {
+      await handleLegacyLink(referenceId)
+      return
+    }
 
     // Check if reference already submitted
     const checkResponse = await fetch(`${API_URL}/api/references/agent/${referenceId}/check`)
+
+    // Handle 410 (expired link) response
+    if (checkResponse.status === 410) {
+      await handleLegacyLink(referenceId)
+      return
+    }
+
     if (checkResponse.ok) {
       const checkData = await checkResponse.json()
       if (checkData.submitted) {
@@ -562,6 +603,12 @@ onMounted(async () => {
 
     // Load branding and tenant info
     const response = await fetch(`${API_URL}/api/references/branding/${referenceId}`)
+
+    // Handle 410 (expired link) response
+    if (response.status === 410) {
+      await handleLegacyLink(referenceId)
+      return
+    }
 
     if (response.ok) {
       const data = await response.json()

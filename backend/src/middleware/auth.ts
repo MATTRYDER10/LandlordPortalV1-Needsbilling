@@ -256,3 +256,74 @@ export const requireMember = async (
     return res.status(500).json({ error: 'Server error' })
   }
 }
+
+/**
+ * Middleware that accepts both agent (regular user) and staff authentication
+ * Used for endpoints that staff need to access but also agents can use
+ */
+export interface DualAuthRequest extends AuthRequest {
+  staffUser?: {
+    id: string
+    full_name: string
+  }
+  isStaff?: boolean
+}
+
+export const authenticateTokenOrStaff = async (
+  req: DualAuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers['authorization']
+  const token = authHeader && authHeader.split(' ')[1]
+
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' })
+  }
+
+  try {
+    // Verify token with Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+
+    if (error || !user) {
+      return res.status(403).json({ error: 'Invalid token' })
+    }
+
+    req.user = user
+
+    // Check if user is staff
+    const { data: staffUser } = await supabase
+      .from('staff_users')
+      .select('id, full_name, is_active')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single()
+
+    if (staffUser) {
+      // Staff authentication
+      req.isStaff = true
+      req.staffUser = {
+        id: staffUser.id,
+        full_name: staffUser.full_name
+      }
+      return next()
+    }
+
+    // Not staff, must be a regular user (agent)
+    // Check if they belong to a company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', user.id)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(403).json({ error: 'Access denied. User must be staff or belong to a company.' })
+    }
+
+    req.isStaff = false
+    next()
+  } catch (error) {
+    return res.status(500).json({ error: 'Server error' })
+  }
+}

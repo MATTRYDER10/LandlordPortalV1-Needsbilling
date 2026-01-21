@@ -1,5 +1,6 @@
 import { Router, Request } from 'express'
-import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
+import { authenticateToken, AuthRequest, getCompanyIdForRequest, authenticateTokenOrStaff, DualAuthRequest } from '../middleware/auth'
+import { authenticateStaff as staffAuth, StaffAuthRequest } from '../middleware/staffAuth'
 import { checkCredits } from '../middleware/checkCredits'
 import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
 import { supabase } from '../config/supabase'
@@ -7095,8 +7096,9 @@ router.post('/:id/upload-document', authenticateToken, (req, res, next) => {
  * PATCH /:id/referee
  * Update referee contact details (email and/or phone)
  * Will create new referee reference record if email changed
+ * Supports both agent and staff authentication
  */
-router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) => {
+router.patch('/:id/referee', authenticateTokenOrStaff, async (req: DualAuthRequest, res) => {
   try {
     const userId = req.user?.id
     const referenceId = req.params.id
@@ -7118,29 +7120,28 @@ router.patch('/:id/referee', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(400).json({ error: 'Invalid email address' })
     }
 
-    // Get company ID (supports admin override)
-    const companyId = await getCompanyIdForRequest(req)
-    if (!companyId) {
-      return res.status(404).json({ error: 'Company not found' })
-    }
-
-    // Verify reference belongs to company and get current details
+    // Get reference first to determine company
     const { data: reference, error: refError } = await supabase
       .from('tenant_references')
       .select('*')
       .eq('id', referenceId)
-      .eq('company_id', companyId)
       .single()
 
     if (refError || !reference) {
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    // Get company info for email sending
+    // For agent auth, verify they have access to this reference's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (companyId && reference.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get company info for email sending (use reference's company_id)
     const { data: companyData } = await supabase
       .from('companies')
       .select('name_encrypted, logo_url')
-      .eq('id', companyId)
+      .eq('id', reference.company_id)
       .single()
 
     const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted) : ''
