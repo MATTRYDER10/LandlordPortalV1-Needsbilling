@@ -621,7 +621,6 @@ onMounted(async () => {
 
     // Handle 410 (expired link) response
     if (checkResponse.status === 410) {
-      const errorData = await checkResponse.json()
       await handleLegacyLink(paramValue)
       return
     }
