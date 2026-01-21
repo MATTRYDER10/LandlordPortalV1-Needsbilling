@@ -1127,8 +1127,7 @@ export async function sendChaseForDependency(
               reference_id: reference.id,
               employer_name_encrypted: reference.employer_ref_name_encrypted,
               employer_email_encrypted: reference.employer_ref_email_encrypted,
-              employer_phone_encrypted: reference.employer_ref_phone_encrypted,
-              employer_company_encrypted: reference.employer_company_name_encrypted,
+              employer_phone_encrypted: reference.employer_ref_phone_encrypted
             })
             .select('id')
             .single()
@@ -1376,7 +1375,6 @@ export async function sendChaseForSection(
           employer_ref_name_encrypted,
           employer_ref_email_encrypted,
           employer_ref_phone_encrypted,
-          employer_company_name_encrypted,
           previous_landlord_name_encrypted,
           previous_landlord_email_encrypted,
           previous_landlord_phone_encrypted,
@@ -1456,8 +1454,7 @@ export async function sendChaseForSection(
                 reference_id: reference.id,
                 employer_name_encrypted: encrypt(employerName),
                 employer_email_encrypted: section.contact_email_encrypted,
-                employer_phone_encrypted: section.contact_phone_encrypted,
-                employer_company_encrypted: reference.employer_company_name_encrypted,
+                employer_phone_encrypted: section.contact_phone_encrypted
               })
               .select('id')
               .single()
