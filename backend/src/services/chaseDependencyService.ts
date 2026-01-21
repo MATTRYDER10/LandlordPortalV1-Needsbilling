@@ -163,33 +163,20 @@ export async function createDependenciesForReference(referenceId: string): Promi
     }
 
     // Check guarantor (if required)
-    // EXCEPTION: Students with guarantor contact details bypass guarantor form requirement
-    // They can proceed to verification without waiting for the guarantor form
+    // Create GUARANTOR_FORM dependency if guarantor is required
     if (reference.requires_guarantor) {
-      const isStudentOnly = reference.income_student &&
-                            !reference.income_regular_employment &&
-                            !reference.income_self_employed &&
-                            !reference.income_benefits
-      const hasGuarantorContactDetails = !!(reference.guarantor_email_encrypted || reference.guarantor_first_name_encrypted)
-
-      // Skip creating GUARANTOR_FORM dependency for student-only tenants with guarantor details
-      if (isStudentOnly && hasGuarantorContactDetails) {
-        // Student with guarantor - no need to chase guarantor form
-        console.log(`[Chase] Skipping GUARANTOR_FORM dependency for student with guarantor: ${referenceId}`)
-      } else {
-        const hasGuarantorRef = reference.guarantor_references?.some((gr: any) => gr.submitted_at)
-        if (!hasGuarantorRef && reference.guarantor_email_encrypted) {
-          const guarantorName = `${decrypt(reference.guarantor_first_name_encrypted) || ''} ${decrypt(reference.guarantor_last_name_encrypted) || ''}`.trim()
-          dependenciesToCreate.push({
-            reference_id: referenceId,
-            dependency_type: 'GUARANTOR_FORM',
-            contact_name_encrypted: encrypt(guarantorName) ?? undefined,
-            contact_email_encrypted: reference.guarantor_email_encrypted,
-            contact_phone_encrypted: reference.guarantor_phone_encrypted,
-            linked_table: 'guarantor_references',
-            initial_request_sent_at: now
-          })
-        }
+      const hasGuarantorRef = reference.guarantor_references?.some((gr: any) => gr.submitted_at)
+      if (!hasGuarantorRef && reference.guarantor_email_encrypted) {
+        const guarantorName = `${decrypt(reference.guarantor_first_name_encrypted) || ''} ${decrypt(reference.guarantor_last_name_encrypted) || ''}`.trim()
+        dependenciesToCreate.push({
+          reference_id: referenceId,
+          dependency_type: 'GUARANTOR_FORM',
+          contact_name_encrypted: encrypt(guarantorName) ?? undefined,
+          contact_email_encrypted: reference.guarantor_email_encrypted,
+          contact_phone_encrypted: reference.guarantor_phone_encrypted,
+          linked_table: 'guarantor_references',
+          initial_request_sent_at: now
+        })
       }
     }
 
@@ -735,19 +722,8 @@ export async function cleanupStaleDependencies(referenceId: string): Promise<voi
         depsToReceive.push(dep.id)
       }
 
-      // Check GUARANTOR_FORM - not needed for student-only with guarantor details
-      if (dep.dependency_type === 'GUARANTOR_FORM') {
-        const isStudentOnly = reference.income_student &&
-                              !reference.income_regular_employment &&
-                              !reference.income_self_employed &&
-                              !reference.income_benefits
-        const hasGuarantorContactDetails = !!(reference.guarantor_email_encrypted || reference.guarantor_first_name_encrypted)
-
-        if (isStudentOnly && hasGuarantorContactDetails) {
-          console.log(`[Chase] Cleanup: GUARANTOR_FORM not needed - student with guarantor details`)
-          depsToReceive.push(dep.id)
-        }
-      }
+      // GUARANTOR_FORM is always required if requires_guarantor is set
+      // No exceptions for students - they still need guarantor to submit form
     }
 
     // Mark identified dependencies as RECEIVED

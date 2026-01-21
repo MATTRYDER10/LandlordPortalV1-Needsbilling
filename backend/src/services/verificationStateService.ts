@@ -539,23 +539,21 @@ export async function evaluateAndTransition(
     const hasPendingExternalRefs = (pendingExternalDeps || []).length > 0
 
     // Determine target state
-    let targetState: VerificationState
-
-    if (hasPendingExternalRefs) {
-      // Evidence complete but waiting on external refs
-      targetState = 'WAITING_ON_REFERENCES'
-    } else {
-      // Everything complete - ready for staff review
-      targetState = 'READY_FOR_REVIEW'
-    }
+    // If evidence is complete (uploaded), go to READY_FOR_REVIEW even if external refs pending
+    // Staff can verify uploaded evidence while waiting for external refs
+    // Only stay in WAITING_ON_REFERENCES if NO evidence has been uploaded yet
+    const targetState: VerificationState = 'READY_FOR_REVIEW'
 
     // Perform transition if state changed
     if (currentState !== targetState) {
-      const transitionReason = reason || (
-        targetState === 'WAITING_ON_REFERENCES'
-          ? `Evidence complete, waiting on: ${pendingExternalDeps!.map(d => d.dependency_type).join(', ')}`
-          : 'All evidence and external references received'
-      )
+      let transitionReason = reason
+      if (!transitionReason) {
+        if (hasPendingExternalRefs) {
+          transitionReason = `Evidence complete, ready for review. Pending external refs: ${pendingExternalDeps!.map(d => d.dependency_type).join(', ')}`
+        } else {
+          transitionReason = 'All evidence and external references received'
+        }
+      }
 
       await transitionState(referenceId, targetState, transitionReason, staffUserId)
 
@@ -590,6 +588,7 @@ export async function reconcileVerificationStates(): Promise<{ processed: number
         .from('tenant_references')
         .select('id, status, verification_state')
         .in('status', ['pending', 'in_progress', 'pending_verification'])
+        .in('verification_state', ['COLLECTING_EVIDENCE', 'WAITING_ON_REFERENCES', 'READY_FOR_REVIEW'])
         .range(from, from + size - 1)
 
       if (error) {

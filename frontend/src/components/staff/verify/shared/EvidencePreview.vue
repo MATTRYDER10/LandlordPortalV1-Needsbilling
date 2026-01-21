@@ -9,6 +9,16 @@
         </svg>
       </div>
 
+      <!-- Error State -->
+      <div v-else-if="imageError" class="preview-error">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span class="error-text">Failed to load</span>
+      </div>
+
       <!-- PDF Preview -->
       <div v-else-if="isPdf" class="preview-pdf">
         <FileText class="pdf-icon" />
@@ -63,12 +73,29 @@
           </div>
         </div>
         <div class="full-view-content">
+          <div v-if="imageError" class="full-view-error">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <p class="error-title">Failed to load document</p>
+            <p class="error-subtitle">The file could not be loaded. It may have been deleted or you may not have permission to view it.</p>
+            <a :href="previewUrl" target="_blank" class="download-link">Try downloading instead</a>
+          </div>
           <iframe
-            v-if="isPdf"
-            :src="previewUrl"
+            v-else-if="isPdf && blobUrl"
+            :src="blobUrl"
             class="full-view-pdf"
             frameborder="0"
           />
+          <div v-else-if="isPdf && !blobUrl && !imageError" class="full-view-loading">
+            <svg class="animate-spin" width="48" height="48" viewBox="0 0 24 24" fill="none">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="white" stroke-width="4"></circle>
+              <path class="opacity-75" fill="white" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="loading-text">Loading PDF...</p>
+          </div>
           <img
             v-else-if="isImage"
             :src="previewUrl"
@@ -107,7 +134,7 @@ const imageError = ref(false)
 const blobUrl = ref<string | null>(null)
 const loading = ref(false)
 
-// Load image as blob through backend proxy
+// Load file as blob through backend proxy (works for both images and PDFs)
 async function loadImageAsBlob() {
   if (!token.value || !props.url) {
     return
@@ -138,14 +165,16 @@ async function loadImageAsBlob() {
     })
 
     if (!response.ok) {
-      console.error('Failed to load evidence image:', response.status)
+      console.error('Failed to load evidence file:', response.status, response.statusText)
+      imageError.value = true
       return
     }
 
     const blob = await response.blob()
     blobUrl.value = URL.createObjectURL(blob)
   } catch (err) {
-    console.error('Failed to load evidence image:', err)
+    console.error('Failed to load evidence file:', err)
+    imageError.value = true
   } finally {
     loading.value = false
   }
@@ -255,6 +284,24 @@ const closeFullView = () => {
   to {
     transform: rotate(360deg);
   }
+}
+
+.preview-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ef4444;
+}
+
+.preview-error svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.error-text {
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .preview-pdf,
@@ -446,6 +493,50 @@ const closeFullView = () => {
   max-height: 80vh;
   display: block;
   margin: 0 auto;
+}
+
+.full-view-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 2rem;
+  color: white;
+}
+
+.full-view-error svg {
+  color: #ef4444;
+  margin-bottom: 1.5rem;
+}
+
+.error-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.error-subtitle {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  max-width: 400px;
+  text-align: center;
+  margin: 0 0 1.5rem;
+}
+
+.full-view-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: white;
+}
+
+.loading-text {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
 }
 
 .full-view-unsupported {
