@@ -202,17 +202,26 @@ export async function createDependenciesForReference(referenceId: string): Promi
 
     const sectionsToCreate = dependenciesToCreate
       .filter(dep => externalRefMap[dep.dependency_type])
-      .map(dep => ({
-        reference_id: dep.reference_id,
-        person_type: 'TENANT',
-        section_type: externalRefMap[dep.dependency_type].sectionType,
-        section_order: externalRefMap[dep.dependency_type].order,
-        decision: 'NOT_REVIEWED',
-        contact_name_encrypted: dep.contact_name_encrypted,
-        contact_email_encrypted: dep.contact_email_encrypted,
-        contact_phone_encrypted: dep.contact_phone_encrypted,
-        initial_request_sent_at: dep.initial_request_sent_at
-      }))
+      .map(dep => {
+        // For RESIDENTIAL_REF, determine section_type based on linked_table
+        // (agent_references → AGENT_REFERENCE, landlord_references → LANDLORD_REFERENCE)
+        let sectionType = externalRefMap[dep.dependency_type].sectionType
+        if (dep.dependency_type === 'RESIDENTIAL_REF' && dep.linked_table === 'agent_references') {
+          sectionType = 'AGENT_REFERENCE'
+        }
+
+        return {
+          reference_id: dep.reference_id,
+          person_type: 'TENANT',
+          section_type: sectionType,
+          section_order: externalRefMap[dep.dependency_type].order,
+          decision: 'NOT_REVIEWED',
+          contact_name_encrypted: dep.contact_name_encrypted,
+          contact_email_encrypted: dep.contact_email_encrypted,
+          contact_phone_encrypted: dep.contact_phone_encrypted,
+          initial_request_sent_at: dep.initial_request_sent_at
+        }
+      })
 
     if (sectionsToCreate.length > 0) {
       const { error: sectionError } = await supabase
@@ -235,7 +244,7 @@ export async function createDependenciesForReference(referenceId: string): Promi
 }
 
 /**
- * Get today's 8:55am UK time threshold
+ * Get today's 12pm UK time threshold
  * Items marked done before this time should reappear in the queue
  */
 function getTodayChaseThresholdUK(): Date {
@@ -253,10 +262,10 @@ function getTodayChaseThresholdUK(): Date {
   const ukMonth = parseInt(ukDate.find(p => p.type === 'month')?.value || '1') - 1
   const ukYear = parseInt(ukDate.find(p => p.type === 'year')?.value || '2024')
 
-  // Create threshold at 8:55am UK time today
+  // Create threshold at 12:00pm (midday) UK time today
   // We need to convert this to UTC for comparison
   // Use a workaround: create the date as if it's UTC, then adjust
-  const threshold = new Date(Date.UTC(ukYear, ukMonth, ukDay, 8, 55, 0, 0))
+  const threshold = new Date(Date.UTC(ukYear, ukMonth, ukDay, 12, 0, 0, 0))
 
   // Determine if UK is in BST (British Summer Time) - roughly late March to late October
   // BST is UTC+1, GMT is UTC+0
@@ -271,12 +280,12 @@ function getTodayChaseThresholdUK(): Date {
   const isDSTNow = now.getTimezoneOffset() < stdOffset
 
   // Adjust threshold for BST if needed
-  // 8:55am UK during BST is 7:55am UTC
-  // 8:55am UK during GMT is 8:55am UTC
+  // 12:00pm UK during BST is 11:00am UTC
+  // 12:00pm UK during GMT is 12:00pm UTC
   if (isDSTTimezone && isDSTNow) {
-    threshold.setUTCHours(7) // BST: UTC+1, so 8:55am UK = 7:55am UTC
+    threshold.setUTCHours(11) // BST: UTC+1, so 12pm UK = 11am UTC
   } else {
-    threshold.setUTCHours(8) // GMT: UTC+0, so 8:55am UK = 8:55am UTC
+    threshold.setUTCHours(12) // GMT: UTC+0, so 12pm UK = 12pm UTC
   }
 
   return threshold
@@ -328,7 +337,7 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
           company:companies!inner(name_encrypted)
         )
       `)
-      .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'ACCOUNTANT_REFERENCE'])
+      .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'AGENT_REFERENCE', 'ACCOUNTANT_REFERENCE'])
       .eq('decision', 'NOT_REVIEWED')
       .order('initial_request_sent_at', { ascending: true })
       .order('created_at', { ascending: true })
@@ -341,7 +350,7 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
       const { data: markedDoneData } = await supabase
         .from('verification_sections')
         .select('id, last_marked_done_at')
-        .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'ACCOUNTANT_REFERENCE'])
+        .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'AGENT_REFERENCE', 'ACCOUNTANT_REFERENCE'])
         .not('last_marked_done_at', 'is', null)
 
       if (markedDoneData) {
@@ -358,14 +367,14 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
 
     console.log(`[ChaseQueue] Raw sections count: ${sections?.length || 0}`)
 
-    // Get today's 8:55am UK threshold for "mark done" filtering
+    // Get today's 12pm UK threshold for "mark done" filtering
     const todayChaseThreshold = getTodayChaseThresholdUK()
-    console.log(`[ChaseQueue] Today's 8:55am UK threshold: ${todayChaseThreshold.toISOString()}`)
+    console.log(`[ChaseQueue] Today's 12pm UK threshold: ${todayChaseThreshold.toISOString()}`)
 
     // Filter sections based on:
     // 1. Reference must exist and not be in terminal/processed state
     // 2. Initial request must have been sent
-    // 3. Must NOT have been "marked done" today (after today's 8:55am UK threshold)
+    // 3. Must NOT have been "marked done" today (after today's 12pm UK threshold)
     const activeSections = (sections || []).filter((section: any) => {
       if (!section.reference) {
         console.log(`[ChaseQueue] Filtered out section ${section.id}: no reference`)
