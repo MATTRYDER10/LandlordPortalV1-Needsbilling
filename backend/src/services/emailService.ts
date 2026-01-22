@@ -1013,3 +1013,469 @@ export async function sendPaymentConfirmedToAgentEmail(
     html
   })
 }
+
+/**
+ * Status label and color mapping for verification states
+ */
+const VERIFICATION_STATE_LABELS: Record<string, { label: string; color: string }> = {
+  SENT: { label: 'Sent', color: '#6b7280' },
+  COLLECTING_EVIDENCE: { label: 'In Progress', color: '#3b82f6' },
+  WAITING_ON_REFERENCES: { label: 'Awaiting References', color: '#eab308' },
+  READY_FOR_REVIEW: { label: 'Ready for Review', color: '#8b5cf6' },
+  IN_VERIFICATION: { label: 'Being Verified', color: '#8b5cf6' },
+  ACTION_REQUIRED: { label: 'Action Required', color: '#f97316' },
+  COMPLETED: { label: 'Verified', color: '#22c55e' },
+  REJECTED: { label: 'Failed', color: '#ef4444' },
+  CANCELLED: { label: 'Cancelled', color: '#6b7280' }
+}
+
+/**
+ * Decision display mapping for verification decisions
+ */
+const DECISION_DISPLAY: Record<string, { display: string; bgColor: string; borderColor: string; textColor: string }> = {
+  PASS: { display: 'Verified', bgColor: '#dcfce7', borderColor: '#22c55e', textColor: '#166534' },
+  PASS_WITH_CONDITION: { display: 'Verified with Conditions', bgColor: '#fef9c3', borderColor: '#eab308', textColor: '#854d0e' },
+  PASS_WITH_GUARANTOR: { display: 'Accepted - Guarantor Required', bgColor: '#ffedd5', borderColor: '#f97316', textColor: '#9a3412' },
+  REFER: { display: 'Referred to Agent', bgColor: '#dbeafe', borderColor: '#3b82f6', textColor: '#1e40af' },
+  FAIL: { display: 'Failed Verification', bgColor: '#fee2e2', borderColor: '#ef4444', textColor: '#991b1b' }
+}
+
+/**
+ * Section type display labels
+ */
+const SECTION_TYPE_LABELS: Record<string, string> = {
+  IDENTITY_SELFIE: 'Identity Verification',
+  RTR: 'Right to Rent',
+  INCOME: 'Income Verification',
+  RESIDENTIAL: 'Residency History',
+  CREDIT: 'Credit Check',
+  AML: 'AML Screening',
+  EMPLOYER_REFERENCE: 'Employer Reference',
+  LANDLORD_REFERENCE: 'Landlord Reference',
+  ACCOUNTANT_REFERENCE: 'Accountant Reference'
+}
+
+interface GroupMember {
+  name: string
+  role: 'TENANT' | 'GUARANTOR'
+  guarantorFor?: string
+  status: string
+  statusColor: string
+}
+
+interface GroupStatusResult {
+  members: GroupMember[]
+  propertyAddress: string
+  agentEmail: string
+  agentName: string
+  companyId: string
+}
+
+/**
+ * Get all references in a tenancy group with their statuses for email notifications
+ */
+async function getGroupStatusForEmail(referenceId: string): Promise<GroupStatusResult | null> {
+  try {
+    const { decrypt } = await import('./encryption')
+
+    // First get the reference to determine its group
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select(`
+        id,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        property_address_encrypted,
+        verification_state,
+        company_id,
+        parent_reference_id,
+        is_group_parent,
+        is_guarantor,
+        guarantor_for_reference_id
+      `)
+      .eq('id', referenceId)
+      .single()
+
+    if (refError || !reference) {
+      console.error('[getGroupStatusForEmail] Reference not found:', refError)
+      return null
+    }
+
+    // Determine the group parent ID
+    let groupParentId: string | null = null
+    if (reference.is_group_parent) {
+      groupParentId = reference.id
+    } else if (reference.parent_reference_id) {
+      groupParentId = reference.parent_reference_id
+    }
+
+    // Get all references in the group (siblings + guarantors)
+    const members: GroupMember[] = []
+
+    if (groupParentId) {
+      // Fetch all children of this parent
+      const { data: siblings } = await supabase
+        .from('tenant_references')
+        .select(`
+          id,
+          tenant_first_name_encrypted,
+          tenant_last_name_encrypted,
+          verification_state,
+          is_guarantor,
+          guarantor_for_reference_id
+        `)
+        .eq('parent_reference_id', groupParentId)
+        .order('tenant_position', { ascending: true })
+
+      if (siblings) {
+        for (const sibling of siblings) {
+          if (!sibling.is_guarantor) {
+            const firstName = decrypt(sibling.tenant_first_name_encrypted) || ''
+            const lastName = decrypt(sibling.tenant_last_name_encrypted) || ''
+            const stateInfo = VERIFICATION_STATE_LABELS[sibling.verification_state] || { label: sibling.verification_state, color: '#6b7280' }
+
+            members.push({
+              name: `${firstName} ${lastName}`.trim(),
+              role: 'TENANT',
+              status: stateInfo.label,
+              statusColor: stateInfo.color
+            })
+
+            // Check for guarantors for this tenant
+            const { data: guarantors } = await supabase
+              .from('tenant_references')
+              .select(`
+                id,
+                tenant_first_name_encrypted,
+                tenant_last_name_encrypted,
+                verification_state
+              `)
+              .eq('guarantor_for_reference_id', sibling.id)
+              .eq('is_guarantor', true)
+
+            if (guarantors) {
+              for (const guarantor of guarantors) {
+                const gFirstName = decrypt(guarantor.tenant_first_name_encrypted) || ''
+                const gLastName = decrypt(guarantor.tenant_last_name_encrypted) || ''
+                const gStateInfo = VERIFICATION_STATE_LABELS[guarantor.verification_state] || { label: guarantor.verification_state, color: '#6b7280' }
+
+                members.push({
+                  name: `${gFirstName} ${gLastName}`.trim(),
+                  role: 'GUARANTOR',
+                  guarantorFor: `${firstName} ${lastName}`.trim(),
+                  status: gStateInfo.label,
+                  statusColor: gStateInfo.color
+                })
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // Standalone reference - just add this reference
+      const firstName = decrypt(reference.tenant_first_name_encrypted) || ''
+      const lastName = decrypt(reference.tenant_last_name_encrypted) || ''
+      const stateInfo = VERIFICATION_STATE_LABELS[reference.verification_state] || { label: reference.verification_state, color: '#6b7280' }
+
+      members.push({
+        name: `${firstName} ${lastName}`.trim(),
+        role: reference.is_guarantor ? 'GUARANTOR' : 'TENANT',
+        status: stateInfo.label,
+        statusColor: stateInfo.color
+      })
+
+      // Check for guarantors for this standalone reference
+      const { data: guarantors } = await supabase
+        .from('tenant_references')
+        .select(`
+          id,
+          tenant_first_name_encrypted,
+          tenant_last_name_encrypted,
+          verification_state
+        `)
+        .eq('guarantor_for_reference_id', reference.id)
+        .eq('is_guarantor', true)
+
+      if (guarantors) {
+        for (const guarantor of guarantors) {
+          const gFirstName = decrypt(guarantor.tenant_first_name_encrypted) || ''
+          const gLastName = decrypt(guarantor.tenant_last_name_encrypted) || ''
+          const gStateInfo = VERIFICATION_STATE_LABELS[guarantor.verification_state] || { label: guarantor.verification_state, color: '#6b7280' }
+
+          members.push({
+            name: `${gFirstName} ${gLastName}`.trim(),
+            role: 'GUARANTOR',
+            guarantorFor: `${firstName} ${lastName}`.trim(),
+            status: gStateInfo.label,
+            statusColor: gStateInfo.color
+          })
+        }
+      }
+    }
+
+    // Get company details for agent email
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted, email_encrypted, reference_notification_email_encrypted')
+      .eq('id', reference.company_id)
+      .single()
+
+    // Prefer reference_notification_email, fallback to company email
+    let agentEmail = ''
+    if (company?.reference_notification_email_encrypted) {
+      agentEmail = decrypt(company.reference_notification_email_encrypted) || ''
+    }
+    if (!agentEmail && company?.email_encrypted) {
+      agentEmail = decrypt(company.email_encrypted) || ''
+    }
+
+    const agentName = company?.name_encrypted ? decrypt(company.name_encrypted) || '' : ''
+    const propertyAddress = decrypt(reference.property_address_encrypted) || ''
+
+    return {
+      members,
+      propertyAddress,
+      agentEmail,
+      agentName,
+      companyId: reference.company_id
+    }
+  } catch (error) {
+    console.error('[getGroupStatusForEmail] Error:', error)
+    return null
+  }
+}
+
+/**
+ * Build HTML for the group status table in emails
+ */
+function buildGroupStatusHtml(members: GroupMember[]): string {
+  if (members.length <= 1) {
+    return '' // No table needed for single applicant
+  }
+
+  let rows = ''
+  for (const member of members) {
+    const roleDisplay = member.role === 'GUARANTOR'
+      ? `Guarantor${member.guarantorFor ? ` (for ${member.guarantorFor})` : ''}`
+      : 'Tenant'
+
+    rows += `
+      <tr>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; color: #111827;">
+          ${member.name}
+        </td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">
+          ${roleDisplay}
+        </td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb;">
+          <span style="display: inline-block; padding: 2px 8px; background-color: ${member.statusColor}20; color: ${member.statusColor}; border-radius: 4px; font-size: 12px; font-weight: 500;">
+            ${member.status}
+          </span>
+        </td>
+      </tr>
+    `
+  }
+
+  return `
+    <h2 style="margin: 24px 0 16px; font-size: 18px; font-weight: 600; color: #111827;">Property Group Status:</h2>
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 24px; border: 1px solid #e5e7eb; border-radius: 6px;">
+      <tr style="background-color: #f9fafb;">
+        <th style="padding: 10px 12px; text-align: left; font-size: 13px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Name</th>
+        <th style="padding: 10px 12px; text-align: left; font-size: 13px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Role</th>
+        <th style="padding: 10px 12px; text-align: left; font-size: 13px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Status</th>
+      </tr>
+      ${rows}
+    </table>
+  `
+}
+
+/**
+ * Send verification complete notification to agent
+ * Includes optional PDF attachment for pass decisions
+ */
+export async function sendVerificationCompleteNotification(
+  referenceId: string,
+  decision: string,
+  pdfUrl?: string | null
+): Promise<void> {
+  try {
+    const { decrypt } = await import('./encryption')
+
+    // Get group status information
+    const groupStatus = await getGroupStatusForEmail(referenceId)
+    if (!groupStatus || !groupStatus.agentEmail) {
+      console.error('[sendVerificationCompleteNotification] Could not get group status or agent email')
+      return
+    }
+
+    // Get the reference for tenant name
+    const { data: reference } = await supabase
+      .from('tenant_references')
+      .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
+      .eq('id', referenceId)
+      .single()
+
+    if (!reference) {
+      console.error('[sendVerificationCompleteNotification] Reference not found')
+      return
+    }
+
+    const tenantFirstName = decrypt(reference.tenant_first_name_encrypted) || ''
+    const tenantLastName = decrypt(reference.tenant_last_name_encrypted) || ''
+    const tenantName = `${tenantFirstName} ${tenantLastName}`.trim()
+
+    // Get decision display info
+    const decisionInfo = DECISION_DISPLAY[decision] || DECISION_DISPLAY.PASS
+
+    // Build group status HTML
+    const groupStatusHtml = buildGroupStatusHtml(groupStatus.members)
+
+    // Build PDF attachment notice HTML
+    const pdfNoticeHtml = pdfUrl ? `
+      <div style="margin: 24px 0; padding: 16px; background-color: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px;">
+        <p style="margin: 0 0 8px; font-size: 14px; line-height: 20px; color: #1e40af;">
+          <strong>Verification Report Attached</strong>
+        </p>
+        <p style="margin: 0; font-size: 14px; line-height: 20px; color: #1e40af;">
+          The full verification report PDF is attached to this email for your records.
+        </p>
+      </div>
+    ` : ''
+
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+    const dashboardLink = `${frontendBaseUrl}/references/${referenceId}`
+
+    const html = loadEmailTemplate('verification-complete-notification', {
+      AgentName: groupStatus.agentName || 'there',
+      TenantName: capitalizeWords(tenantName),
+      PropertyAddress: capitalizeWords(groupStatus.propertyAddress),
+      DecisionDisplay: decisionInfo.display,
+      DecisionBgColor: decisionInfo.bgColor,
+      DecisionBorderColor: decisionInfo.borderColor,
+      DecisionTextColor: decisionInfo.textColor,
+      CompletedDate: new Date().toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      DashboardLink: dashboardLink,
+      GroupStatusSection: groupStatusHtml,
+      PdfAttachmentNotice: pdfNoticeHtml
+    })
+
+    // Prepare attachments if PDF URL is provided
+    let attachments: { filename: string; content: Buffer }[] | undefined
+
+    if (pdfUrl && ['PASS', 'PASS_WITH_CONDITION', 'PASS_WITH_GUARANTOR'].includes(decision)) {
+      try {
+        // Fetch PDF from storage
+        const response = await fetch(pdfUrl)
+        if (response.ok) {
+          const pdfBuffer = Buffer.from(await response.arrayBuffer())
+          const sanitizedName = tenantName.replace(/[^a-zA-Z0-9]/g, '_')
+          attachments = [{
+            filename: `Verification_Report_${sanitizedName}.pdf`,
+            content: pdfBuffer
+          }]
+        } else {
+          console.error('[sendVerificationCompleteNotification] Failed to fetch PDF:', response.status)
+        }
+      } catch (pdfError) {
+        console.error('[sendVerificationCompleteNotification] Error fetching PDF:', pdfError)
+      }
+    }
+
+    await sendEmail({
+      to: groupStatus.agentEmail,
+      subject: `Verification Complete - ${tenantName} - PropertyGoose`,
+      html,
+      attachments,
+      referenceId,
+      referenceType: 'agent'
+    })
+
+    // Log to audit
+    await logEmailToAuditLog(referenceId, 'verification_complete', 'sent')
+    console.log(`[sendVerificationCompleteNotification] Email sent to ${groupStatus.agentEmail} for reference ${referenceId}`)
+  } catch (error: any) {
+    console.error('[sendVerificationCompleteNotification] Error:', error)
+    await logEmailToAuditLog(referenceId, 'verification_complete', 'failed', error.message)
+  }
+}
+
+/**
+ * Send action required notification to agent
+ */
+export async function sendActionRequiredNotification(
+  referenceId: string,
+  sectionType: string,
+  reasonCode: string,
+  agentNote: string
+): Promise<void> {
+  try {
+    const { decrypt } = await import('./encryption')
+
+    // Get group status information
+    const groupStatus = await getGroupStatusForEmail(referenceId)
+    if (!groupStatus || !groupStatus.agentEmail) {
+      console.error('[sendActionRequiredNotification] Could not get group status or agent email')
+      return
+    }
+
+    // Get the reference for tenant name
+    const { data: reference } = await supabase
+      .from('tenant_references')
+      .select('tenant_first_name_encrypted, tenant_last_name_encrypted')
+      .eq('id', referenceId)
+      .single()
+
+    if (!reference) {
+      console.error('[sendActionRequiredNotification] Reference not found')
+      return
+    }
+
+    const tenantFirstName = decrypt(reference.tenant_first_name_encrypted) || ''
+    const tenantLastName = decrypt(reference.tenant_last_name_encrypted) || ''
+    const tenantName = `${tenantFirstName} ${tenantLastName}`.trim()
+
+    // Get section type display label
+    const sectionLabel = SECTION_TYPE_LABELS[sectionType] || sectionType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+    // Format reason code as readable label
+    const reasonLabel = reasonCode.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+    // Build group status HTML
+    const groupStatusHtml = buildGroupStatusHtml(groupStatus.members)
+
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+    const dashboardLink = `${frontendBaseUrl}/references/${referenceId}`
+
+    const html = loadEmailTemplate('action-required-notification', {
+      AgentName: groupStatus.agentName || 'there',
+      TenantName: capitalizeWords(tenantName),
+      PropertyAddress: capitalizeWords(groupStatus.propertyAddress),
+      SectionType: sectionLabel,
+      ReasonLabel: reasonLabel,
+      AgentNote: agentNote,
+      DashboardLink: dashboardLink,
+      GroupStatusSection: groupStatusHtml
+    })
+
+    await sendEmail({
+      to: groupStatus.agentEmail,
+      subject: `Action Required - ${tenantName} - PropertyGoose`,
+      html,
+      referenceId,
+      referenceType: 'agent'
+    })
+
+    // Log to audit
+    await logEmailToAuditLog(referenceId, 'action_required', 'sent')
+    console.log(`[sendActionRequiredNotification] Email sent to ${groupStatus.agentEmail} for reference ${referenceId}`)
+  } catch (error: any) {
+    console.error('[sendActionRequiredNotification] Error:', error)
+    await logEmailToAuditLog(referenceId, 'action_required', 'failed', error.message)
+  }
+}

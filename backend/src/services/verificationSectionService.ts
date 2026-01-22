@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase'
 import { logAuditAction } from './auditService'
 import { transitionState } from './verificationStateService'
+import { sendActionRequiredNotification } from './emailService'
 
 // Section types
 export type SectionDecision = 'NOT_REVIEWED' | 'PASS' | 'PASS_WITH_CONDITION' | 'ACTION_REQUIRED' | 'FAIL'
@@ -259,6 +260,17 @@ export async function setActionRequired(
       visible_to_agent: true
     },
     userId: staffId
+  })
+
+  // Send action required notification to agent
+  // Don't await - let it run in background to not delay response
+  sendActionRequiredNotification(
+    section.referenceId,
+    section.sectionType,
+    params.reasonCode,
+    params.agentNote
+  ).catch(err => {
+    console.error('[setActionRequired] Failed to send action required notification:', err)
   })
 
   return section

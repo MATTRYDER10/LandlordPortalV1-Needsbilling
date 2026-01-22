@@ -21,6 +21,7 @@ import { isReadyForVerification } from '../services/verificationReadinessService
 import { isInVerifyQueueState, VerificationState, transitionState } from '../services/verificationStateService';
 import { cleanupStaleDependencies } from '../services/chaseDependencyService';
 import { generatePassedPdfService } from '../services/generatePassedPdfService';
+import { sendVerificationCompleteNotification } from '../services/emailService';
 
 const router = Router();
 
@@ -2300,6 +2301,12 @@ router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, r
         // Don't fail the finalization if PDF generation fails
       }
     }
+
+    // Send verification complete notification to agent
+    // Don't await - let it run in background to not delay response
+    sendVerificationCompleteNotification(referenceId, finalDecision, pdfUrl).catch(err => {
+      console.error('[Finalize] Failed to send verification complete notification:', err);
+    });
 
     res.json({
       message: 'Verification finalized successfully',
