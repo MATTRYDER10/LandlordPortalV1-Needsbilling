@@ -2079,6 +2079,7 @@ router.post('/person/:referenceId/finalize', staffAuth, async (req: StaffAuthReq
     const updateData: Record<string, any> = {
       status: newStatus,
       verification_state: newVerificationState,
+      verification_decision: finalDecision,
       updated_at: new Date().toISOString()
     };
 
@@ -2096,6 +2097,17 @@ router.post('/person/:referenceId/finalize', staffAuth, async (req: StaffAuthReq
     if (updateError) {
       console.error(`[Finalize] Failed to update reference status:`, updateError);
       return res.status(500).json({ error: 'Failed to update reference status' });
+    }
+
+    // Update reference_scores.decision to match the staff's final decision
+    const { error: scoreUpdateError } = await supabaseAdmin
+      .from('reference_scores')
+      .update({ decision: finalDecision })
+      .eq('reference_id', referenceId);
+
+    if (scoreUpdateError) {
+      console.error(`[Finalize] Failed to update reference_scores decision:`, scoreUpdateError);
+      // Don't fail - the verification_decision is already saved
     }
 
     // Complete any open work items for this reference
@@ -2226,6 +2238,7 @@ router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, r
     const updateData: Record<string, any> = {
       status: newStatus,
       verification_state: newVerificationState,
+      verification_decision: finalDecision,
       updated_at: new Date().toISOString()
     };
 
@@ -2243,6 +2256,17 @@ router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, r
     if (updateError) {
       console.error(`[Finalize] Failed to update reference status:`, updateError);
       return res.status(500).json({ error: 'Failed to update reference status' });
+    }
+
+    // Update reference_scores.decision to match the staff's final decision
+    const { error: scoreUpdateError } = await supabaseAdmin
+      .from('reference_scores')
+      .update({ decision: finalDecision })
+      .eq('reference_id', referenceId);
+
+    if (scoreUpdateError) {
+      console.error(`[Finalize] Failed to update reference_scores decision:`, scoreUpdateError);
+      // Don't fail - the verification_decision is already saved
     }
 
     // Complete any open work items for this reference

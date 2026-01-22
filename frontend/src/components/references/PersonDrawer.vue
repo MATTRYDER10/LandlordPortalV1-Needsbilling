@@ -234,24 +234,24 @@
             </div>
 
             <!-- Assessment Result Section (for completed/rejected references) -->
-            <div v-if="isVerified && (score?.decision || score?.final_remarks)" class="p-6 border-b border-gray-200">
+            <div v-if="isVerified && (finalDecision || score?.final_remarks)" class="p-6 border-b border-gray-200">
               <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <FileText class="w-5 h-5" />
                 Assessment Result
               </h3>
               <div class="space-y-3">
-                <div v-if="score?.decision" class="flex items-center gap-2">
+                <div v-if="finalDecision" class="flex items-center gap-2">
                   <span class="text-sm font-medium text-gray-600">Final Decision:</span>
                   <span
                     class="px-2.5 py-0.5 text-xs font-medium rounded-full"
                     :class="{
-                      'bg-green-100 text-green-800': score.decision === 'PASS' || score.decision === 'VERIFIED_PASS',
-                      'bg-amber-100 text-amber-800': score.decision === 'PASS_WITH_CONDITION' || score.decision === 'VERIFIED_CONDITIONAL',
-                      'bg-red-100 text-red-800': score.decision === 'FAIL' || score.decision === 'VERIFIED_FAIL',
-                      'bg-gray-100 text-gray-800': !['PASS', 'VERIFIED_PASS', 'PASS_WITH_CONDITION', 'VERIFIED_CONDITIONAL', 'FAIL', 'VERIFIED_FAIL'].includes(score.decision)
+                      'bg-green-100 text-green-800': finalDecision === 'PASS' || finalDecision === 'VERIFIED_PASS',
+                      'bg-amber-100 text-amber-800': finalDecision === 'PASS_WITH_CONDITION' || finalDecision === 'VERIFIED_CONDITIONAL',
+                      'bg-red-100 text-red-800': finalDecision === 'FAIL' || finalDecision === 'VERIFIED_FAIL',
+                      'bg-gray-100 text-gray-800': !['PASS', 'VERIFIED_PASS', 'PASS_WITH_CONDITION', 'VERIFIED_CONDITIONAL', 'FAIL', 'VERIFIED_FAIL'].includes(finalDecision)
                     }"
                   >
-                    {{ score.decision.replace(/_/g, ' ') }}
+                    {{ finalDecision.replace(/_/g, ' ') }}
                   </span>
                 </div>
                 <div v-if="score?.final_remarks" class="p-3 bg-gray-50 rounded-lg">
@@ -1705,6 +1705,11 @@ const hasCertificate = computed(() => {
 const isVerified = computed(() => {
   return props.person?.verificationState === 'COMPLETED' ||
          props.person?.verificationState === 'REJECTED'
+})
+
+// Final decision: use staff's verification_decision (from reference) with fallback to auto-computed score.decision
+const finalDecision = computed(() => {
+  return fullDetails.value?.verification_decision || score.value?.decision
 })
 
 const canSubmitForReReferencing = computed(() => {

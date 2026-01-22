@@ -697,7 +697,9 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             doc.text(checksText, margin, yPos, { align: 'center', width: pageWidth - (2 * margin) })
 
             // Disclaimer for Pass with Guarantor (only show for tenants, not guarantors)
-            if (score?.decision === 'PASS_WITH_GUARANTOR' && !isGuarantor) {
+            // Use verification_decision (staff's final decision) with fallback to score.decision (auto-computed)
+            const finalDecision = reference.verification_decision || score?.decision
+            if (finalDecision === 'PASS_WITH_GUARANTOR' && !isGuarantor) {
                 yPos += 35
                 const disclaimerBoxWidth = pageWidth - (2 * margin) - 40
                 const disclaimerBoxX = margin + 20
