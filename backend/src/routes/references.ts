@@ -7132,9 +7132,13 @@ router.patch('/:id/referee', authenticateTokenOrStaff, async (req: DualAuthReque
     }
 
     // For agent auth, verify they have access to this reference's company
-    const companyId = await getCompanyIdForRequest(req)
-    if (companyId && reference.company_id !== companyId) {
-      return res.status(403).json({ error: 'Access denied' })
+    // Staff users have access to all references
+    const isStaff = req.staffUser !== undefined
+    if (!isStaff) {
+      const companyId = await getCompanyIdForRequest(req)
+      if (companyId && reference.company_id !== companyId) {
+        return res.status(403).json({ error: 'Access denied' })
+      }
     }
 
     // Get company info for email sending (use reference's company_id)

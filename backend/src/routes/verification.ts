@@ -142,6 +142,24 @@ router.post('/:referenceId/complete', authenticateStaff, async (req: StaffAuthRe
       return res.status(400).json({ error: refError.message })
     }
 
+    // Mark any remaining chase dependencies as RECEIVED (reference is now complete)
+    if (passed) {
+      const { error: chaseError } = await supabase
+        .from('chase_dependencies')
+        .update({
+          status: 'RECEIVED',
+          updated_at: new Date().toISOString()
+        })
+        .eq('reference_id', referenceId)
+        .in('status', ['PENDING', 'CHASING'])
+
+      if (chaseError) {
+        console.error(`[Verification] Failed to mark chase dependencies as received for ${referenceId}:`, chaseError)
+      } else {
+        console.log(`[Verification] Marked remaining chase dependencies as received for ${referenceId}`)
+      }
+    }
+
     // Automatically score the reference if verification passed
     let scoreResult = null
     if (passed) {

@@ -785,6 +785,23 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
       return res.status(404).json({ error: 'Reference not found or already verified' })
     }
 
+    // Mark any remaining chase dependencies as RECEIVED (reference is now complete)
+    const { error: chaseError } = await supabase
+      .from('chase_dependencies')
+      .update({
+        status: 'RECEIVED',
+        updated_at: new Date().toISOString()
+      })
+      .eq('reference_id', id)
+      .in('status', ['PENDING', 'CHASING'])
+
+    if (chaseError) {
+      console.error(`[Verification] Failed to mark chase dependencies as received for ${id}:`, chaseError)
+      // Don't fail the request - this is cleanup only
+    } else {
+      console.log(`[Verification] Marked remaining chase dependencies as received for ${id}`)
+    }
+
     // Send email notification to the configured reference notification email
     try {
       const notificationEmail = reference.companies?.reference_notification_email
