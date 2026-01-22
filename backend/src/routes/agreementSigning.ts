@@ -6,6 +6,30 @@ import { supabase } from '../config/supabase'
 
 const router = Router()
 
+// In-memory deduplication for email sends (prevents double-click duplicate sends)
+const recentEmailSends = new Map<string, number>()
+const EMAIL_SEND_COOLDOWN_MS = 5000 // 5 seconds
+
+function isDuplicateEmailSend(key: string): boolean {
+  const now = Date.now()
+  const lastSend = recentEmailSends.get(key)
+
+  if (lastSend && now - lastSend < EMAIL_SEND_COOLDOWN_MS) {
+    return true // Duplicate within cooldown period
+  }
+
+  recentEmailSends.set(key, now)
+
+  // Cleanup old entries (older than cooldown period)
+  for (const [k, timestamp] of recentEmailSends.entries()) {
+    if (now - timestamp > EMAIL_SEND_COOLDOWN_MS) {
+      recentEmailSends.delete(k)
+    }
+  }
+
+  return false
+}
+
 /**
  * Helper to extract client info from request
  */
@@ -271,6 +295,14 @@ router.post('/agreements/:id/initiate-signing', authenticateToken, async (req: A
       })
     }
 
+    // Check for duplicate send (prevents race condition if called twice simultaneously)
+    const dedupeKey = `initiate-${id}-${userId}`
+    if (isDuplicateEmailSend(dedupeKey)) {
+      return res.status(429).json({
+        error: 'Signing is already being initiated, please wait'
+      })
+    }
+
     // Initiate signing workflow
     await signatureService.initiateSigning(id)
 
@@ -369,6 +401,14 @@ router.post('/agreements/:id/send-reminder/:signatureId', authenticateToken, asy
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    // Check for duplicate send (prevents double-click duplicate emails)
+    const dedupeKey = `reminder-${signatureId}-${userId}`
+    if (isDuplicateEmailSend(dedupeKey)) {
+      return res.status(429).json({
+        error: 'Please wait a few seconds before sending another reminder'
+      })
+    }
+
     // If email provided, update the signature record first
     if (email) {
       await supabase
@@ -461,6 +501,14 @@ router.post('/agreements/:id/resend-all', authenticateToken, async (req: AuthReq
 
     if (!agreement || agreement.company_id !== companyUser.company_id) {
       return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Check for duplicate send (prevents double-click duplicate emails)
+    const dedupeKey = `resend-all-${id}-${userId}`
+    if (isDuplicateEmailSend(dedupeKey)) {
+      return res.status(429).json({
+        error: 'Please wait a few seconds before resending emails'
+      })
     }
 
     await signatureService.sendAllSigningEmails(id)

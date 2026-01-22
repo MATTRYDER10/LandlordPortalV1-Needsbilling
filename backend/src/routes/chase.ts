@@ -327,7 +327,7 @@ router.post('/:sectionId/mark-done', staffAuth, async (req: StaffAuthRequest, re
     });
 
     res.json({
-      message: 'Marked as done for today. Will reappear at 8:55am UK tomorrow if still pending.',
+      message: 'Marked as done for today. Will reappear at 12pm UK tomorrow if still pending.',
       markedDoneAt: now.toISOString()
     });
   } catch (error: any) {
