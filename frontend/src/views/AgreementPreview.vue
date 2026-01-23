@@ -211,15 +211,13 @@ const buildRecipients = () => {
   const recipientsList: Recipient[] = []
 
   const getPrimaryLandlordEmail = (landlord: any, index: number) => {
-    if (index !== 0) {
-      return landlord.email || ''
-    }
-
-    if (agreement.value.management_type === 'managed' && agreement.value.agent_signs_on_behalf) {
+    // For managed properties, ALL landlords use agent email
+    if (agreement.value.management_type === 'managed') {
       return agreement.value.agent_email || authStore.user?.email || ''
     }
 
-    return landlord.email || agreement.value.landlord_email || ''
+    // For non-managed properties, use individual landlord emails
+    return landlord.email || (index === 0 ? agreement.value.landlord_email || '' : '')
   }
 
   // Add landlords

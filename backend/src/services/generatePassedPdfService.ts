@@ -656,8 +656,9 @@ export async function generatePassedPdfService(referenceId: string): Promise<str
             doc.text(passText, centerX - passTextWidth / 2, yPos)
             yPos += 25
             const addressText = `For the address: ${propertyAddress}${propertyCity ? ', ' + propertyCity : ''}${propertyPostcode ? ' ' + propertyPostcode : ''}`
-            const addressTextWidth = doc.widthOfString(addressText)
-            doc.text(addressText, centerX - addressTextWidth / 2, yPos)
+            const addressTextWidth = pageWidth - (2 * margin)
+            doc.text(addressText, margin, yPos, { width: addressTextWidth, align: 'center' })
+            yPos += doc.heightOfString(addressText, { width: addressTextWidth, align: 'center' }) - 14
 
             // PropertyGoose Referencing Signature
             yPos += 80

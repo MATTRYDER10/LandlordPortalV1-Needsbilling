@@ -784,16 +784,46 @@ router.put('/:id/recipients', authenticateToken, async (req: AuthRequest, res) =
       updated_at: new Date().toISOString()
     }
 
+    // Track array updates
+    let landlordsUpdated = false
+    let tenantsUpdated = false
+    const landlords = [...(agreement.landlords || [])]
+    const tenants = [...(agreement.tenants || [])]
+
     // Update email fields based on recipient type and index
     for (const recipient of recipients) {
-      if (recipient.type === 'landlord' && recipient.index === 0) {
-        if (agreement.management_type === 'managed' && agreement.agent_signs_on_behalf) {
-          updateData.agent_email = recipient.email
-        } else {
-          updateData.landlord_email = recipient.email
+      if (recipient.type === 'landlord') {
+        // Update landlord in array
+        if (landlords[recipient.index]) {
+          landlords[recipient.index] = {
+            ...landlords[recipient.index],
+            email: recipient.email
+          }
+          landlordsUpdated = true
         }
-      } else if (recipient.type === 'tenant' && recipient.index === 0) {
-        updateData.tenant_email = recipient.email
+
+        // Also update primary landlord_email/agent_email for backwards compatibility
+        if (recipient.index === 0) {
+          if (agreement.management_type === 'managed') {
+            updateData.agent_email = recipient.email
+          } else {
+            updateData.landlord_email = recipient.email
+          }
+        }
+      } else if (recipient.type === 'tenant') {
+        // Update tenant in array
+        if (tenants[recipient.index]) {
+          tenants[recipient.index] = {
+            ...tenants[recipient.index],
+            email: recipient.email
+          }
+          tenantsUpdated = true
+        }
+
+        // Also update primary tenant_email for backwards compatibility
+        if (recipient.index === 0) {
+          updateData.tenant_email = recipient.email
+        }
       } else if (recipient.type === 'guarantor') {
         // For guarantors, we need to update the guarantors array
         const guarantors = [...(agreement.guarantors || [])]
@@ -805,6 +835,14 @@ router.put('/:id/recipients', authenticateToken, async (req: AuthRequest, res) =
           updateData.guarantors = guarantors
         }
       }
+    }
+
+    // Apply array updates if any were made
+    if (landlordsUpdated) {
+      updateData.landlords = landlords
+    }
+    if (tenantsUpdated) {
+      updateData.tenants = tenants
     }
 
     // Update the agreement

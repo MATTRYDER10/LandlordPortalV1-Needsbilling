@@ -321,7 +321,16 @@
           </div>
         </div>
 
-        <div class="flex justify-end">
+        <div class="flex justify-between items-center">
+          <button
+            v-if="selectedAgreement.pdf_url || selectedAgreement.signed_pdf_url"
+            @click="viewAgreementPdf(selectedAgreement)"
+            class="flex items-center gap-2 px-4 py-2 text-primary font-medium border border-primary rounded-md hover:bg-primary hover:text-white transition-colors"
+          >
+            <Eye class="w-4 h-4" />
+            View Agreement PDF
+          </button>
+          <div v-else></div>
           <button
             @click="showStatusModal = false"
             class="px-4 py-2 text-gray-700 font-medium border border-gray-300 rounded-md hover:bg-gray-50"
@@ -589,6 +598,17 @@ const downloadAgreement = async (agreement: any) => {
     console.error('Error downloading agreement:', err)
     toast.error('Failed to download agreement')
   }
+}
+
+const viewAgreementPdf = (agreement: any) => {
+  const pdfUrl = agreement.signed_pdf_url || agreement.pdf_url
+  if (!pdfUrl) {
+    toast.error('PDF not available')
+    return
+  }
+
+  // Open PDF in new window
+  window.open(pdfUrl, '_blank')
 }
 
 const generatePdf = async (agreement: any) => {

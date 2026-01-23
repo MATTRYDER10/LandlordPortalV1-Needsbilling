@@ -108,10 +108,11 @@ class SignatureService {
       const agreement = await this.getAgreement(agreementId)
       if (signerType === 'tenant' && signerIndex === 0) {
         signerEmail = agreement.tenant_email || ''
-      } else if (signerType === 'landlord' && signerIndex === 0) {
-        if (agreement.management_type === 'managed' && agreement.agent_signs_on_behalf) {
+      } else if (signerType === 'landlord') {
+        // For managed properties, ALL landlords use agent email
+        if (agreement.management_type === 'managed') {
           signerEmail = agreement.agent_email || ''
-        } else {
+        } else if (signerIndex === 0) {
           signerEmail = agreement.landlord_email || ''
         }
       }
@@ -179,40 +180,40 @@ class SignatureService {
     const signaturePromises: Promise<SignatureRecord>[] = []
 
     // Create records for landlords
-    // If managed property with agent signing on behalf, create one agent signature instead
-    if (agreement.management_type === 'managed' && agreement.agent_signs_on_behalf) {
-      // Get the user who created the agreement (agent)
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
-        agreement.created_by_user_id
-      )
+    // For managed properties, ALL landlords get signature records but use agent email
+    // For non-managed properties, each landlord uses their own email
+    const isManagedProperty = agreement.management_type === 'managed'
+    let agentEmail = ''
 
-      if (userError || !userData?.user || !userData.user.email) {
-        throw new Error('Failed to retrieve agent user details for signing')
+    if (isManagedProperty) {
+      // Get agent email for managed properties
+      if (agreement.agent_email) {
+        agentEmail = agreement.agent_email
+      } else {
+        // Fallback: get from user who created agreement
+        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
+          agreement.created_by_user_id
+        )
+        if (!userError && userData?.user?.email) {
+          agentEmail = userData.user.email
+        }
       }
+    }
 
-      const agentEmail = agreement.agent_email || userData.user.email
-      const agentName = userData.user.user_metadata?.full_name || userData.user.email
-
-      // Create single signature record for agent signing as landlord
+    // Create signature records for ALL landlords
+    for (let i = 0; i < agreement.landlords.length; i++) {
+      const landlord = agreement.landlords[i]
       signaturePromises.push(
-        this.createSignatureRecord(agreementId, 'landlord', 0, {
-          name: `${agentName} (Agent on behalf of Landlord)`,
-          email: agentEmail
+        this.createSignatureRecord(agreementId, 'landlord', i, {
+          name: landlord.name,
+          // For managed properties, use agent email for ALL landlords
+          // For non-managed, use landlord's individual email
+          email: isManagedProperty
+            ? agentEmail
+            : (landlord.email || (i === 0 ? agreement.landlord_email : undefined)),
+          address: landlord.address
         })
       )
-    } else {
-      // Standard flow: create signature records for all landlords
-      for (let i = 0; i < agreement.landlords.length; i++) {
-        const landlord = agreement.landlords[i]
-        signaturePromises.push(
-          this.createSignatureRecord(agreementId, 'landlord', i, {
-            name: landlord.name,
-            // Use landlord's individual email, fallback to agreement.landlord_email for first landlord
-            email: landlord.email || (i === 0 ? agreement.landlord_email : undefined),
-            address: landlord.address
-          })
-        )
-      }
     }
 
     // Create records for tenants
