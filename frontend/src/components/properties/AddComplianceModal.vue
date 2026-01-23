@@ -255,7 +255,12 @@ const isValid = computed(() => {
 const autoExpiryDate = computed(() => {
   if (!form.value.issue_date || !form.value.compliance_type) return null
 
-  const issueDate = new Date(form.value.issue_date)
+  // Parse the YYYY-MM-DD string directly to avoid timezone issues
+  const parts = form.value.issue_date.split('-')
+  if (parts.length !== 3) return null
+  const year = parts[0]!
+  const month = parts[1]!
+  const day = parts[2]!
   let yearsToAdd = 0
 
   switch (form.value.compliance_type) {
@@ -273,9 +278,8 @@ const autoExpiryDate = computed(() => {
       return null
   }
 
-  const expiryDate = new Date(issueDate)
-  expiryDate.setFullYear(expiryDate.getFullYear() + yearsToAdd)
-  return expiryDate.toISOString().split('T')[0]
+  const expiryYear = parseInt(year, 10) + yearsToAdd
+  return `${expiryYear}-${month}-${day}`
 })
 
 const resetForm = () => {
