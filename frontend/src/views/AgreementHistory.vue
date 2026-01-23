@@ -815,7 +815,7 @@ const canEdit = (agreement: any): boolean => {
   return !agreement.signing_status || editableStatuses.includes(agreement.signing_status)
 }
 
-const canDelete = (agreement: any): boolean => {
+const canDelete = (_agreement: any): boolean => {
   // Allow delete for all agreements
   return true
 }
