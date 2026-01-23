@@ -337,11 +337,16 @@
       <div class="relative bg-white rounded-lg shadow-xl max-w-md mx-4 p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Agreement</h3>
 
-        <!-- Warning banner for pending agreements -->
-        <div v-if="selectedAgreement.signing_status === 'pending_signatures'" class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
+        <!-- Warning banner for pending or signed agreements -->
+        <div v-if="selectedAgreement.signing_status === 'pending_signatures' || selectedAgreement.signing_status === 'fully_signed'" class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
           <AlertTriangle class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
           <p class="text-sm text-yellow-800">
-            This will cancel all pending signature requests and invalidate signing links.
+            <template v-if="selectedAgreement.signing_status === 'fully_signed'">
+              This agreement has been fully signed and is a legal record.
+            </template>
+            <template v-else>
+              This will cancel all pending signature requests and invalidate signing links.
+            </template>
           </p>
         </div>
 
@@ -811,8 +816,8 @@ const canEdit = (agreement: any): boolean => {
 }
 
 const canDelete = (agreement: any): boolean => {
-  // Allow delete for all statuses except fully_signed (completed)
-  return agreement.signing_status !== 'fully_signed'
+  // Allow delete for all agreements
+  return true
 }
 
 const canGeneratePdf = (agreement: any): boolean => {
@@ -822,6 +827,9 @@ const canGeneratePdf = (agreement: any): boolean => {
 
 // Get appropriate delete confirmation message
 const getDeleteConfirmationMessage = (agreement: any): string => {
+  if (agreement.signing_status === 'fully_signed') {
+    return 'This agreement has been fully signed and executed. Are you sure you want to permanently delete it? This action cannot be undone.'
+  }
   if (agreement.signing_status === 'pending_signatures') {
     return 'This agreement has been sent for signing. Deleting it will cancel all pending signatures and invalidate signing links. Are you sure you want to continue?'
   }
