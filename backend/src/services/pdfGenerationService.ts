@@ -246,13 +246,16 @@ class PDFGenerationService {
     result = result.replace(landlordTablePattern, landlordBoxes)
 
     // Fallback: Also handle plain placeholder if table pattern not found
-    const landlordNamesAndAddresses = data.landlords.map(l => {
+    const landlordNamesAndAddresses = data.landlords.map((l, index) => {
       // For managed properties, show landlord C/O agency address
       if (data.managementType === 'managed' && data.companyName && data.companyAddress) {
-        return `${l.name} C/O ${data.companyName}, ${this.formatAddress(data.companyAddress)}`
+        // Add number prefix for multiple landlords
+        const prefix = data.landlords.length > 1 ? `(${index + 1}) ` : ''
+        return `${prefix}${l.name} C/O ${data.companyName}, ${this.formatAddress(data.companyAddress)}`
       }
-      return this.formatPartyWithAddress(l)
-    }).join('<br><br>')
+      const prefix = data.landlords.length > 1 ? `(${index + 1}) ` : ''
+      return `${prefix}${this.formatPartyWithAddress(l)}`
+    }).join('<br>')
     result = result.replace(/\[ALL_LANDLORD_NAMES_AND_ADDRESSES\]/gi, landlordNamesAndAddresses)
 
     // Tenant names (handle both space and underscore variants)
@@ -269,7 +272,11 @@ class PDFGenerationService {
     result = result.replace(tenantTablePattern, tenantBoxes)
 
     // Fallback: Also handle plain placeholder if table pattern not found
-    const tenantNamesAndAddresses = data.tenants.map(t => this.formatPartyWithAddress(t)).join('<br><br>')
+    const tenantNamesAndAddresses = data.tenants.map((t, index) => {
+      // Add number prefix for multiple tenants
+      const prefix = data.tenants.length > 1 ? `(${index + 1}) ` : ''
+      return `${prefix}${this.formatPartyWithAddress(t)}`
+    }).join('<br>')
     result = result.replace(/\[ALL_TENANT_NAMES_AND_ADDRESSES\]/gi, tenantNamesAndAddresses)
 
     // Lead tenant address (for Welsh contracts)
