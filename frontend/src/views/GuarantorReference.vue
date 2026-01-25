@@ -385,6 +385,7 @@
                 :required="true"
                 placeholder="Start typing address..."
                 @addressSelected="handleCurrentAddressSelected"
+                :allowManualEntry="true"
               />
             </div>
 
@@ -511,6 +512,7 @@
                       :required="true"
                       placeholder="Start typing address..."
                       @addressSelected="(data) => handlePreviousAddressSelected(index, data)"
+                      :allowManualEntry="true"
                     />
                   </div>
 
@@ -1098,6 +1100,7 @@
                     :required="formData.income_regular_employment"
                     placeholder="Start typing address..."
                     @addressSelected="handleCompanyAddressSelected"
+                    :allowManualEntry="true"
                   />
                 </div>
 
@@ -3599,7 +3602,8 @@ const handleFinalSubmit = async () => {
       payslip_files: formData.value.payslip_paths,
       // Include previous addresses for 3-year history
     previous_addresses: previousAddresses.value,
-    geolocation: userGeolocation.value
+    geolocation: userGeolocation.value,
+    final_submit: true
     }
 
     // If driving licence is selected, completely exclude proof_of_address_path from payload

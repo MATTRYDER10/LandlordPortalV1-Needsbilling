@@ -7,6 +7,7 @@ import {
 } from './notificationService'
 import { sendEmail, loadEmailTemplate } from './emailService'
 import { decrypt } from './encryption'
+import { getFrontendUrl } from '../utils/frontendUrl'
 
 // Check intervals
 const COMPLIANCE_CHECK_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
@@ -15,6 +16,7 @@ const NOTIFICATION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000 // 24 hours
 // Thresholds
 const EXPIRING_SOON_DAYS = 30
 const EXPIRING_URGENT_DAYS = 14
+const frontendUrl = getFrontendUrl()
 
 interface ComplianceRecord {
   id: string
@@ -277,7 +279,7 @@ async function sendComplianceEmail(
       DaysRemaining: Math.abs(daysRemaining).toString(),
       DaysText: isExpired ? 'days ago' : 'days',
       CertificateNumber: record.certificate_number || 'N/A',
-      PropertyLink: `${process.env.FRONTEND_URL}/properties/${property.id}`,
+      PropertyLink: `${frontendUrl}/properties/${property.id}`,
       CurrentYear: new Date().getFullYear().toString()
     }
 

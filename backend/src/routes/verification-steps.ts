@@ -6,9 +6,11 @@ import { validateSubmitAssessmentBody } from '../utils/verification-validation';
 import { assessApplicationScore } from '../services/application-assesment/assessApplication';
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption';
 import { sendTenantAddGuarantorRequest, sendVerificationReportToAgent } from '../services/emailService';
+import { getFrontendUrl } from '../utils/frontendUrl';
 import axios from 'axios';
 
 const router = Router();
+const frontendUrl = getFrontendUrl();
 
 // Get evidence source options
 router.get('/evidence-sources', staffAuth, async (req: StaffAuthRequest, res: Response) => {
@@ -458,7 +460,7 @@ router.post('/reference/:referenceId/finalize', staffAuth, async (req: StaffAuth
                   : 'Property';
 
                 // Build dashboard link
-                const frontendUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk';
+                const frontendUrl = getFrontendUrl();
                 const dashboardLink = `${frontendUrl}/references/${referenceId}`;
 
                 // Build filename
@@ -860,7 +862,7 @@ router.post(
             const companyName = companyData?.name_encrypted
               ? decrypt(companyData.name_encrypted) || 'Your agent'
               : 'Your agent';
-            const formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-add-guarantor/${referenceId}`;
+            const formLink = `${frontendUrl}/tenant-add-guarantor/${referenceId}`;
 
             if (tenantEmail) {
               await sendTenantAddGuarantorRequest(

@@ -46,6 +46,7 @@ interface Props {
   required?: boolean
   placeholder?: string
   id?: string
+  allowManualEntry?: boolean
 }
 
 interface Emits {
@@ -69,7 +70,8 @@ const props = withDefaults(defineProps<Props>(), {
   label: '',
   required: false,
   placeholder: 'Start typing address...',
-  id: 'address-autocomplete'
+  id: 'address-autocomplete',
+  allowManualEntry: true
 })
 
 const emit = defineEmits<Emits>()
@@ -147,12 +149,34 @@ const fetchSuggestions = async (input: string) => {
     //   await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(request)
     const response = await axios.get(`${API_URL}/api/google-places/autocomplete?input=${input}`)
     const fetchedSuggestions = response.data as Predictions[]
-    suggestions.value = fetchedSuggestions;
+    const manualSuggestion = {
+      description: `✏️ Manually enter: "${input}"`,
+      place_id: 'manual-entry',
+      reference: 'manual'
+    }
+
+    // Add manual entry option if enabled (always available)
+    suggestions.value = props.allowManualEntry
+      ? [...fetchedSuggestions, manualSuggestion]
+      : fetchedSuggestions;
     showDropdown.value = suggestions.value.length > 0
   } catch (error) {
     console.error('Failed to fetch suggestions:', error)
-    suggestions.value = []
-    apiError.value = 'Failed to fetch suggestions'
+    const manualSuggestion = {
+      description: `✏️ Manually enter: "${input}"`,
+      place_id: 'manual-entry',
+      reference: 'manual'
+    }
+
+    suggestions.value = props.allowManualEntry ? [manualSuggestion] : []
+
+    // If manual entry is allowed and API fails, still allow the user to proceed
+    if (props.allowManualEntry) {
+      apiError.value = 'Address lookup unavailable'
+    } else {
+      apiError.value = 'Failed to fetch suggestions'
+    }
+    showDropdown.value = suggestions.value.length > 0
   }
 }
 
@@ -221,6 +245,24 @@ const selectHighlighted = () => {
 const selectSuggestion = async (suggestion: Predictions) => {
   justSelected.value = true
   showDropdown.value = false
+
+  // Handle manual entry selection
+  if (suggestion.place_id === 'manual-entry') {
+    // Keep the current query value (the manually typed address)
+    emit('update:modelValue', query.value)
+
+    // Emit addressSelected with minimal data (just what was typed)
+    emit('addressSelected', {
+      addressLine1: query.value,
+      city: '',
+      postcode: '',
+      country: {
+        code: 'GB',
+        name: 'United Kingdom'
+      }
+    })
+    return
+  }
 
   try {
     // Convert to Place and fetch details

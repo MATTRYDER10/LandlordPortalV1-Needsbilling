@@ -2,8 +2,9 @@ import crypto from 'crypto'
 import { supabase } from '../config/supabase'
 import { sendEmail, loadEmailTemplate } from './emailService'
 import { pdfGenerationService, AgreementPDFData, SignatureData } from './pdfGenerationService'
+import { getFrontendUrl } from '../utils/frontendUrl'
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+const FRONTEND_URL = getFrontendUrl()
 const TOKEN_EXPIRY_DAYS = 7
 
 export interface SignatureRecord {

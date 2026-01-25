@@ -8,8 +8,10 @@ import multer from 'multer'
 import { sendLandlordVerificationRequest } from '../services/emailService'
 import { sanctionsService } from '../services/sanctionsService'
 import { DEFAULT_BRANDING } from '../config/colors'
+import { getFrontendUrl } from '../utils/frontendUrl'
 
 const router = Router()
+const frontendUrl = getFrontendUrl()
 
 // Configure multer for file uploads (store in memory)
 const upload = multer({
@@ -988,7 +990,7 @@ router.post('/:id/request-id-verification', authenticateToken, async (req: AuthR
     const landlordName = `${decrypt(landlord.first_name_encrypted) || ''} ${decrypt(landlord.last_name_encrypted) || ''}`.trim()
 
     // Build verification link
-    const frontendUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+    const frontendUrl = getFrontendUrl()
     const verificationLink = `${frontendUrl}/landlord-verification/${landlordId}/${verificationToken}`
 
     // Send verification email

@@ -15,8 +15,10 @@ import {
   escalateSectionToActionRequired,
   sendChaseForDependency
 } from '../services/chaseDependencyService';
+import { getFrontendUrl } from '../utils/frontendUrl';
 
 const router = Router();
+const frontendUrl = getFrontendUrl();
 
 // ============================================================================
 // CHASE QUEUE ENDPOINTS
@@ -162,7 +164,7 @@ router.get('/:sectionId/form-link', staffAuth, async (req: StaffAuthRequest, res
     // Generate form URL based on section type
     // Note: We always regenerate the URL to ensure it uses the current FRONTEND_URL
     // (cached form_url might have localhost from development)
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk';
+    const FRONTEND_URL = frontendUrl;
     let formUrl: string | null = null;
 
     switch (section.section_type) {

@@ -23,16 +23,21 @@ import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/reques
 import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
 import { isReadyForVerification } from '../services/verificationReadinessService'
-import { evaluateAndTransition, handleEvidenceUpload, transitionState } from '../services/verificationStateService'
-import { markDependencyReceivedByType, createDependenciesForReference } from '../services/chaseDependencyService'
+import { ensureVerifyWorkItem, evaluateAndTransition, handleEvidenceUpload, transitionState } from '../services/verificationStateService'
+import { markDependencyReceivedByType, createDependenciesForReference, ensureExternalVerificationSections } from '../services/chaseDependencyService'
 import { DEFAULT_BRANDING } from '../config/colors'
+import { getFrontendUrl } from '../utils/frontendUrl'
 
 const router = Router()
+const frontendUrl = getFrontendUrl()
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const LEGACY_LINK_MESSAGE = "This link has expired. We've sent a new one."
 
 const isUuid = (value: string): boolean => UUID_REGEX.test(value)
+
+const shouldKeepCompletedAfterExternalSubmission = (reference: { verification_decision?: string | null; verification_state?: string | null; status?: string | null }) =>
+  reference.verification_decision === 'PASS' && (reference.verification_state === 'COMPLETED' || reference.status === 'completed')
 
 // Helper to map section types to referee types
 const mapSectionTypeToRefereeType = (sectionType: string): string | null => {
@@ -84,7 +89,7 @@ const sendLegacyEmployerLink = async (token: string): Promise<boolean> => {
 
   const employerName = decrypt(reference.employer_ref_name_encrypted) || 'Employer'
   const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
-  const employerReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`
+  const employerReferenceUrl = `${frontendUrl}/submit-employer-reference/${employerRef.id}`
 
   await sendEmployerReferenceRequest(
     employerEmail,
@@ -151,7 +156,7 @@ const sendLegacyLandlordLink = async (token: string): Promise<boolean> => {
   const contactName = decrypt(reference.previous_landlord_name_encrypted) || 'Referee'
   const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
   const isAgent = reference.reference_type === 'agent'
-  const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/${isAgent ? 'agent-reference' : 'landlord-reference'}/${reference.id}`
+  const formUrl = `${frontendUrl}/${isAgent ? 'agent-reference' : 'landlord-reference'}/${reference.id}`
 
   if (isAgent) {
     await sendAgentReferenceRequest(
@@ -225,7 +230,7 @@ const sendLegacyAccountantLink = async (token: string): Promise<boolean> => {
     decrypt(accountantRef.accountant_firm_encrypted) ||
     'Accountant'
   const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
-  const accountantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accountant-reference/${accountantRef.id}`
+  const accountantReferenceUrl = `${frontendUrl}/accountant-reference/${accountantRef.id}`
 
   await sendAccountantReferenceRequest(
     accountantEmail,
@@ -273,7 +278,7 @@ const sendLegacyTenantLink = async (token: string): Promise<boolean> => {
 
   const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
   const propertyAddress = decrypt(reference.property_address_encrypted) || ''
-  const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${reference.id}`
+  const tenantReferenceUrl = `${frontendUrl}/submit-reference/${reference.id}`
 
   await sendTenantReferenceRequest(
     tenantEmail,
@@ -341,7 +346,7 @@ const sendLegacyGuarantorLink = async (token: string): Promise<boolean> => {
     ? `${decrypt(parentRef.tenant_first_name_encrypted) || ''} ${decrypt(parentRef.tenant_last_name_encrypted) || ''}`.trim()
     : guarantorName
   const propertyAddress = parentRef?.property_address_encrypted ? decrypt(parentRef.property_address_encrypted) || '' : ''
-  const guarantorReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${guarantorRef.id}`
+  const guarantorReferenceUrl = `${frontendUrl}/guarantor-reference/${guarantorRef.id}`
 
   await sendGuarantorReferenceRequest(
     guarantorEmail,
@@ -397,7 +402,7 @@ const sendLegacyTenantAddGuarantorLink = async (token: string): Promise<boolean>
   const propertyAddress = decrypt(reference.property_address_encrypted) || 'the property'
   const company = Array.isArray(reference.companies) ? reference.companies[0] : reference.companies
   const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'Your agent' : 'Your agent'
-  const formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-add-guarantor/${reference.id}`
+  const formLink = `${frontendUrl}/tenant-add-guarantor/${reference.id}`
 
   await sendTenantAddGuarantorRequest(
     tenantEmail,
@@ -1853,7 +1858,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
         childTokens.push(token)
 
         // Send email to each tenant
-        const tenantUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${childReference.id}`
+        const tenantUrl = `${frontendUrl}/submit-reference/${childReference.id}`
         try {
           await sendTenantReferenceRequest(
             tenant.email,
@@ -1950,7 +1955,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 .eq('id', childReference.id)
 
               // Send email to guarantor with guarantor-specific form link
-              const guarantorUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${guarantorRef.id}`
+              const guarantorUrl = `${frontendUrl}/guarantor-reference/${guarantorRef.id}`
               const tenantFullName = `${tenant.first_name} ${tenant.last_name}`
               await sendGuarantorReferenceRequest(
                 tenant.guarantor.email,
@@ -2106,7 +2111,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
       }
 
       // Send email to tenant with link to submit their information
-      const tenantUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${reference.id}`
+      const tenantUrl = `${frontendUrl}/submit-reference/${reference.id}`
 
       try {
         await sendTenantReferenceRequest(
@@ -2207,7 +2212,7 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
               .eq('id', reference.id)
 
             // Send email to guarantor with guarantor-specific form link
-            const guarantorUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${guarantorRef.id}`
+            const guarantorUrl = `${frontendUrl}/guarantor-reference/${guarantorRef.id}`
             const tenantFullName = `${tenant_first_name} ${tenant_last_name}`
             await sendGuarantorReferenceRequest(
               guarantor_email,
@@ -2761,6 +2766,8 @@ router.post('/submit/:token', async (req: Request, res) => {
     if ('geolocation' in data) {
       delete data.geolocation
     }
+    const isFinalSubmit = data.final_submit === true ||
+      (!!data.consent_signature && !!data.consent_printed_name && !!data.consent_agreed_date)
 
     // Get reference by ID
     const { data: reference, error: refError } = await supabase
@@ -2935,8 +2942,11 @@ router.post('/submit/:token', async (req: Request, res) => {
       // Submission tracking
       submitted_ip_encrypted: clientIpAddress ? encrypt(clientIpAddress) : reference.submitted_ip_encrypted || null,
       submitted_geolocation_encrypted: geolocationPayload ? encrypt(JSON.stringify(geolocationPayload)) : reference.submitted_geolocation_encrypted || null,
-      submitted_at: new Date().toISOString(),
       status: 'in_progress'
+    }
+
+    if (isFinalSubmit) {
+      updateData.submitted_at = new Date().toISOString()
     }
 
     // Update reference with tenant's information
@@ -3005,7 +3015,7 @@ router.post('/submit/:token', async (req: Request, res) => {
           console.error('Failed to create employer reference:', employerError)
         } else {
           // Use employer_reference.id in URL - stable and doesn't change between chases
-          const employerReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`
+          const employerReferenceUrl = `${frontendUrl}/submit-employer-reference/${employerRef.id}`
 
           await sendEmployerReferenceRequest(
             data.employer_ref_email,
@@ -3050,7 +3060,7 @@ router.post('/submit/:token', async (req: Request, res) => {
         const referenceType = data.reference_type || 'landlord'
 
         if (referenceType === 'agent') {
-          const agentReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/agent-reference/${updatedReference.id}`
+          const agentReferenceUrl = `${frontendUrl}/agent-reference/${updatedReference.id}`
 
           await sendAgentReferenceRequest(
             data.previous_landlord_email,
@@ -3075,7 +3085,7 @@ router.post('/submit/:token', async (req: Request, res) => {
             ).catch(err => console.error('Failed to send SMS to agent:', err))
           }
         } else {
-          const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/landlord-reference/${updatedReference.id}`
+          const landlordReferenceUrl = `${frontendUrl}/landlord-reference/${updatedReference.id}`
 
           await sendLandlordReferenceRequest(
             data.previous_landlord_email,
@@ -3132,7 +3142,7 @@ router.post('/submit/:token', async (req: Request, res) => {
         if (accountantError) {
           console.error('Failed to create accountant reference:', accountantError)
         } else {
-          const accountantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accountant-reference/${accountantRef.id}`
+          const accountantReferenceUrl = `${frontendUrl}/accountant-reference/${accountantRef.id}`
 
           await sendAccountantReferenceRequest(
             data.accountant_email,
@@ -3267,7 +3277,7 @@ router.post('/submit/:token', async (req: Request, res) => {
               : ''
 
             // Use guarantor-specific form link
-            const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorRef.id}`
+            const formLink = `${frontendUrl}/guarantor-reference/${guarantorRef.id}`
 
             // Send guarantor reference email
             await sendGuarantorReferenceRequest(
@@ -3526,7 +3536,7 @@ router.post('/submit/:token', async (req: Request, res) => {
                 ? 'REJECT TENANT APPLICATION - Tenant appears on UK Sanctions List. This is a legal requirement and tenant must not be accepted.'
                 : 'MANUAL REVIEW REQUIRED - Multiple political donation records found. Review matches and make informed decision.'
 
-              const referenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/dashboard/references/${updatedReference.id}`
+              const referenceUrl = `${frontendUrl}/dashboard/references/${updatedReference.id}`
 
               await sendSanctionsAlert(
                 companyEmail,
@@ -3600,6 +3610,7 @@ router.post('/submit/:token', async (req: Request, res) => {
     try {
       await createDependenciesForReference(updatedReference.id)
       console.log('Chase dependencies created for referee forms:', updatedReference.id)
+      await ensureExternalVerificationSections(updatedReference.id)
     } catch (depError) {
       console.error('Failed to create referee chase dependencies:', depError)
       // Non-blocking - don't fail the submission
@@ -4662,7 +4673,7 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('employer_ref_email, income_self_employed, is_guarantor')
+      .select('employer_ref_email, income_self_employed, is_guarantor, status, verification_state, verification_decision')
       .eq('id', referenceId)
       .single()
 
@@ -4672,12 +4683,17 @@ router.post('/landlord/:referenceId', async (req: Request, res) => {
     // Check if reference is ready for verification (handles both tenants and guarantors)
     const readiness = await isReadyForVerification(referenceId)
     if (readiness.isReady) {
-      await supabase
-        .from('tenant_references')
-        .update({ status: 'pending_verification' })
-        .eq('id', referenceId)
-      // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
-      await transitionState(referenceId, 'READY_FOR_REVIEW', 'Landlord reference completed requirements')
+      if (tenantRef && shouldKeepCompletedAfterExternalSubmission(tenantRef)) {
+        console.log(`[VerificationState] Reference ${referenceId} already PASS-completed; skipping READY_FOR_REVIEW transition`)
+      } else {
+        await supabase
+          .from('tenant_references')
+          .update({ status: 'pending_verification' })
+          .eq('id', referenceId)
+        // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+        await transitionState(referenceId, 'READY_FOR_REVIEW', 'Landlord reference completed requirements')
+        await ensureVerifyWorkItem(referenceId)
+      }
     }
 
     res.json({ message: 'Landlord reference submitted successfully' })
@@ -4772,19 +4788,24 @@ router.post('/agent/:referenceId', async (req: Request, res) => {
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('employer_ref_email, income_self_employed, is_guarantor')
+      .select('employer_ref_email, income_self_employed, is_guarantor, status, verification_state, verification_decision')
       .eq('id', referenceId)
       .single()
 
     // Check if reference is ready for verification (handles both tenants and guarantors)
     const readiness = await isReadyForVerification(referenceId)
     if (readiness.isReady) {
-      await supabase
-        .from('tenant_references')
-        .update({ status: 'pending_verification' })
-        .eq('id', referenceId)
-      // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
-      await transitionState(referenceId, 'READY_FOR_REVIEW', 'Agent reference completed requirements')
+      if (tenantRef && shouldKeepCompletedAfterExternalSubmission(tenantRef)) {
+        console.log(`[VerificationState] Reference ${referenceId} already PASS-completed; skipping READY_FOR_REVIEW transition`)
+      } else {
+        await supabase
+          .from('tenant_references')
+          .update({ status: 'pending_verification' })
+          .eq('id', referenceId)
+        // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
+        await transitionState(referenceId, 'READY_FOR_REVIEW', 'Agent reference completed requirements')
+        await ensureVerifyWorkItem(referenceId)
+      }
     }
 
     res.json({ message: 'Agent reference submitted successfully' })
@@ -4899,19 +4920,25 @@ router.post('/employer/:tokenOrRefId', async (req: Request, res) => {
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('previous_landlord_email, reference_type, income_self_employed, is_guarantor')
+      .select('previous_landlord_email, reference_type, income_self_employed, is_guarantor, status, verification_state, verification_decision')
       .eq('id', referenceId)
       .single()
 
     // Check if reference is ready for verification (handles both tenants and guarantors)
     const readiness = await isReadyForVerification(referenceId)
     if (readiness.isReady) {
+      if (tenantRef && shouldKeepCompletedAfterExternalSubmission(tenantRef)) {
+        console.log(`[VerificationState] Reference ${referenceId} already PASS-completed; skipping READY_FOR_REVIEW transition`)
+        return res.json({ message: 'Employer reference submitted successfully' })
+      }
+
       await supabase
         .from('tenant_references')
         .update({ status: 'pending_verification' })
         .eq('id', referenceId)
       // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
       await transitionState(referenceId, 'READY_FOR_REVIEW', 'Employer reference completed requirements')
+      await ensureVerifyWorkItem(referenceId)
 
       // Explicitly update work item to AVAILABLE if it was RETURNED (waiting for this employer ref)
       await supabase
@@ -5004,19 +5031,25 @@ router.post('/accountant/:token', async (req: Request, res) => {
     // Update reference status based on required references
     const { data: tenantRef } = await supabase
       .from('tenant_references')
-      .select('employer_ref_email, previous_landlord_email, reference_type, is_guarantor')
+      .select('employer_ref_email, previous_landlord_email, reference_type, is_guarantor, status, verification_state, verification_decision')
       .eq('id', accountantRef.tenant_reference_id)
       .single()
 
     // Check if reference is ready for verification (handles both tenants and guarantors)
     const readiness = await isReadyForVerification(accountantRef.tenant_reference_id)
     if (readiness.isReady) {
+      if (tenantRef && shouldKeepCompletedAfterExternalSubmission(tenantRef)) {
+        console.log(`[VerificationState] Reference ${accountantRef.tenant_reference_id} already PASS-completed; skipping READY_FOR_REVIEW transition`)
+        return res.json({ message: 'Accountant reference submitted successfully' })
+      }
+
       await supabase
         .from('tenant_references')
         .update({ status: 'pending_verification' })
         .eq('id', accountantRef.tenant_reference_id)
       // Set verification_state to READY_FOR_REVIEW so it appears in verify queue
       await transitionState(accountantRef.tenant_reference_id, 'READY_FOR_REVIEW', 'Accountant reference completed requirements')
+      await ensureVerifyWorkItem(accountantRef.tenant_reference_id)
     }
 
     res.json({ message: 'Accountant reference submitted successfully' })
@@ -5162,7 +5195,7 @@ router.post('/:id/resend-landlord-email', authenticateToken, async (req: AuthReq
     const landlordEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
     const landlordName = decrypt(reference.previous_landlord_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
-    const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/landlord-reference/${reference.id}`
+    const landlordReferenceUrl = `${frontendUrl}/landlord-reference/${reference.id}`
 
     await sendLandlordReferenceRequest(
       landlordEmail,
@@ -5243,7 +5276,7 @@ router.post('/:id/resend-agent-email', authenticateToken, async (req: AuthReques
     const agentEmail = decrypt(reference.previous_landlord_email_encrypted) || ''
     const agentName = decrypt(reference.previous_landlord_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
-    const agentReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/agent-reference/${reference.id}`
+    const agentReferenceUrl = `${frontendUrl}/agent-reference/${reference.id}`
 
     await sendAgentReferenceRequest(
       agentEmail,
@@ -5366,7 +5399,7 @@ router.post('/:id/resend-tenant-email', authenticateToken, async (req: AuthReque
       .update({ reference_token_hash: newTokenHash })
       .eq('id', referenceId)
 
-    const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${referenceId}`
+    const tenantReferenceUrl = `${frontendUrl}/submit-reference/${referenceId}`
 
     const companyName = companyData?.name_encrypted ? decrypt(companyData.name_encrypted ?? '') ?? '' : ''
     const companyPhone = companyData?.phone_encrypted ? decrypt(companyData.phone_encrypted ?? '') ?? '' : ''
@@ -5550,7 +5583,7 @@ router.post('/:id/resend-employer-email', authenticateToken, async (req: AuthReq
     const employerName = decrypt(reference.employer_ref_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
     // Use employer_reference.id in URL - stable and doesn't change between chases
-    const employerReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`
+    const employerReferenceUrl = `${frontendUrl}/submit-employer-reference/${employerRef.id}`
 
     await sendEmployerReferenceRequest(
       employerEmail,
@@ -5642,7 +5675,7 @@ router.post('/:id/resend-accountant-email', authenticateToken, async (req: AuthR
     const accountantEmail = decrypt(reference.accountant_email_encrypted) || ''
     const accountantName = decrypt(reference.accountant_name_encrypted) || ''
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`
-    const formLink = `${process.env.FRONTEND_URL}/accountant-reference/${accountantRef.id}`
+    const formLink = `${frontendUrl}/accountant-reference/${accountantRef.id}`
 
     await sendAccountantReferenceRequest(
       accountantEmail,
@@ -5806,7 +5839,7 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     const companyEmail = parentReference.companies?.email_encrypted
       ? (decrypt(parentReference.companies.email_encrypted) || '')
       : ''
-    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorReference.id}`
+    const formLink = `${frontendUrl}/guarantor-reference/${guarantorReference.id}`
 
     await sendGuarantorReferenceRequest(
       guarantor_email,
@@ -6047,8 +6080,8 @@ router.post('/:id/resend-guarantor-email', authenticateToken, async (req: AuthRe
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
 
     const formLink = isLegacyGuarantor
-      ? `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
-      : `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorId}`
+      ? `${frontendUrl}/guarantor-reference/${guarantorToken}`
+      : `${frontendUrl}/guarantor-reference/${guarantorId}`
 
     await sendGuarantorReferenceRequest(
       guarantorEmail,
@@ -6224,7 +6257,7 @@ router.post('/:id/resend-guarantor-self-email', authenticateToken, async (req: A
     const companyEmail = companyData?.email_encrypted ? (decrypt(companyData.email_encrypted) || '') : ''
 
     // Use guarantor-reference form link
-    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorReferenceId}`
+    const formLink = `${frontendUrl}/guarantor-reference/${guarantorReferenceId}`
 
     await sendGuarantorReferenceRequest(
       guarantorEmail,
@@ -6536,7 +6569,7 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
     const companyEmail = parentReference.companies?.email_encrypted
       ? (decrypt(parentReference.companies.email_encrypted) || '')
       : ''
-    const formLink = `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorReference.id}`
+    const formLink = `${frontendUrl}/guarantor-reference/${guarantorReference.id}`
 
     await sendGuarantorReferenceRequest(
       guarantor_email,
@@ -7228,7 +7261,7 @@ router.patch('/:id/referee', authenticateTokenOrStaff, async (req: DualAuthReque
         }
 
         // Use employer_reference.id in URL - stable and doesn't change between chases
-        const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`
+        const formUrl = `${frontendUrl}/submit-employer-reference/${employerRef.id}`
         await sendEmployerReferenceRequest(
           email,
           name || 'Employer',
@@ -7303,7 +7336,7 @@ router.patch('/:id/referee', authenticateTokenOrStaff, async (req: DualAuthReque
         }
 
         // Send email to new landlord
-        const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/landlord-reference/${referenceId}`
+        const formUrl = `${frontendUrl}/landlord-reference/${referenceId}`
         await sendLandlordReferenceRequest(
           email,
           name || 'Previous Landlord',
@@ -7391,7 +7424,7 @@ router.patch('/:id/referee', authenticateTokenOrStaff, async (req: DualAuthReque
         if (!accountantRefId) {
           return res.status(500).json({ error: 'Failed to create accountant reference record' })
         }
-        const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accountant-reference/${accountantRefId}`
+        const formUrl = `${frontendUrl}/accountant-reference/${accountantRefId}`
         await sendAccountantReferenceRequest(
           email,
           name || 'Accountant',
@@ -7474,7 +7507,7 @@ router.patch('/:id/referee', authenticateTokenOrStaff, async (req: DualAuthReque
         }
 
         // Send email to new letting agent
-        const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/agent-reference/${referenceId}`
+        const formUrl = `${frontendUrl}/agent-reference/${referenceId}`
         await sendAgentReferenceRequest(
           email,
           name || 'Letting Agent',
@@ -7598,7 +7631,7 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
     // Check if this is a guarantor reference
     if (reference.is_guarantor) {
       // This is a GUARANTOR reference - send guarantor form
-    const guarantorReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${referenceId}`
+    const guarantorReferenceUrl = `${frontendUrl}/guarantor-reference/${referenceId}`
 
       // Get parent tenant name
       let parentTenantName = recipientName
@@ -7676,7 +7709,7 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
       })
     } else {
       // This is a TENANT reference - send tenant form
-      const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${referenceId}`
+      const tenantReferenceUrl = `${frontendUrl}/submit-reference/${referenceId}`
 
       await sendTenantReferenceRequest(
         recipientEmail,

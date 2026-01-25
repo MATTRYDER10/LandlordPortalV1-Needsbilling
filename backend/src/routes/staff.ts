@@ -27,8 +27,10 @@ import { logAuditAction } from '../services/auditService'
 import {  reAssessApplicationScore, ReAssessmentPayload } from '../services/application-assesment/assessApplication'
 import { isReadyForVerification } from '../services/verificationReadinessService'
 import { transitionState } from '../services/verificationStateService'
+import { getFrontendUrl } from '../utils/frontendUrl'
 
 const router = Router()
+const frontendUrl = getFrontendUrl()
 
 // Configure multer for staff file uploads (store in memory)
 const upload = multer({
@@ -816,7 +818,7 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
           ? decrypt(reference.companies.name_encrypted) || 'Agent'
           : 'Agent'
 
-        const dashboardLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/dashboard/references/${reference.id}`
+        const dashboardLink = `${frontendUrl}/dashboard/references/${reference.id}`
 
         await sendReferenceCompletedNotification(
           notificationEmail,
@@ -881,7 +883,7 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
           const companyName = reference.companies?.name_encrypted
             ? decrypt(reference.companies.name_encrypted) || 'Your agent'
             : 'Your agent'
-          const formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-add-guarantor/${id}`
+          const formLink = `${frontendUrl}/tenant-add-guarantor/${id}`
 
           if (tenantEmail) {
             await sendTenantAddGuarantorRequest(
@@ -1467,7 +1469,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
             .update({ reference_token_hash: guarantorTokenHash })
             .eq('id', guarantorRefLegacy.id)
 
-          formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${guarantorId}`
+          formLink = `${frontendUrl}/guarantor-reference/${guarantorId}`
 
           if (method === 'email') {
             await sendGuarantorReferenceRequest(
@@ -1529,7 +1531,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
             })
             .eq('id', guarantorRefNew.id)
 
-          formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference/${guarantorToken}`
+          formLink = `${frontendUrl}/guarantor-reference/${guarantorToken}`
 
           if (method === 'email') {
             await sendGuarantorReferenceRequest(
@@ -1567,7 +1569,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         contactEmail = newEmail || currentLandlordEmail
         contactPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
         contactName = decrypt(reference.previous_landlord_name_encrypted) || ''
-        formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/landlord-reference/${referenceId}`
+        formLink = `${frontendUrl}/landlord-reference/${referenceId}`
 
         // Update email if changed - update both tenant_references AND landlord_references
         if (newEmail && newEmail !== currentLandlordEmail) {
@@ -1615,7 +1617,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         contactEmail = newEmail || currentAgentEmail
         contactPhone = decrypt(reference.previous_landlord_phone_encrypted) || ''
         contactName = reference.previous_agency_name || ''
-        formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/agent-reference/${referenceId}`
+        formLink = `${frontendUrl}/agent-reference/${referenceId}`
 
         // Update email if changed - update both tenant_references AND agent_references
         if (newEmail && newEmail !== currentAgentEmail) {
@@ -1710,7 +1712,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
         }
 
         // Use employer_reference.id in URL - stable and doesn't change between chases
-        formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`
+        formLink = `${frontendUrl}/submit-employer-reference/${employerRef.id}`
 
         if (method === 'email') {
           await sendEmployerReferenceRequest(
@@ -1793,7 +1795,7 @@ router.post('/chase/:referenceId/send-reminder', authenticateStaff, async (req: 
 
           accountantRef = newAccountantRef
         }
-        formLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accountant-reference/${accountantRef.id}`
+        formLink = `${frontendUrl}/accountant-reference/${accountantRef.id}`
 
         if (method === 'email') {
           await sendAccountantReferenceRequest(
@@ -2100,7 +2102,7 @@ router.post('/references/:id/request-document', authenticateStaff, async (req: S
       .eq('status', 'IN_PROGRESS')
 
     // Send email to tenant requesting the document
-    const formUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${id}`
+    const formUrl = `${frontendUrl}/submit-reference/${id}`
 
     const emailHtml = await loadEmailTemplate('document-request', {
       TenantFirstName: tenantFirstName,

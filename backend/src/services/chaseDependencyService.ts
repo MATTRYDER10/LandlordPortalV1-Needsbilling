@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from './encryption'
+import { getFrontendUrl } from '../utils/frontendUrl'
 import { logAuditAction } from './auditService'
 import { isReadyForVerification } from './verificationReadinessService'
 import { evaluateAndTransition, transitionState } from './verificationStateService'
@@ -203,8 +204,6 @@ export async function createDependenciesForReference(referenceId: string): Promi
     const sectionsToCreate = dependenciesToCreate
       .filter(dep => externalRefMap[dep.dependency_type])
       .map(dep => {
-        // For RESIDENTIAL_REF, determine section_type based on linked_table
-        // (agent_references → AGENT_REFERENCE, landlord_references → LANDLORD_REFERENCE)
         let sectionType = externalRefMap[dep.dependency_type].sectionType
         if (dep.dependency_type === 'RESIDENTIAL_REF' && dep.linked_table === 'agent_references') {
           sectionType = 'AGENT_REFERENCE'
@@ -240,6 +239,61 @@ export async function createDependenciesForReference(referenceId: string): Promi
   } catch (error) {
     console.error('Failed to create dependencies:', error)
     throw error
+  }
+}
+
+export async function ensureExternalVerificationSections(referenceId: string): Promise<void> {
+  try {
+    const { data: deps, error } = await supabase
+      .from('chase_dependencies')
+      .select('dependency_type, contact_name_encrypted, contact_email_encrypted, contact_phone_encrypted, linked_table, initial_request_sent_at')
+      .eq('reference_id', referenceId)
+      .in('dependency_type', ['EMPLOYER_REF', 'RESIDENTIAL_REF', 'ACCOUNTANT_REF'])
+
+    if (error || !deps || deps.length === 0) {
+      return
+    }
+
+    const externalRefMap: Record<string, { sectionType: string; order: number }> = {
+      'EMPLOYER_REF': { sectionType: 'EMPLOYER_REFERENCE', order: 1 },
+      'RESIDENTIAL_REF': { sectionType: 'LANDLORD_REFERENCE', order: 2 },
+      'ACCOUNTANT_REF': { sectionType: 'ACCOUNTANT_REFERENCE', order: 3 }
+    }
+
+    const sectionsToCreate = deps
+      .filter(dep => externalRefMap[dep.dependency_type])
+      .map(dep => {
+        let sectionType = externalRefMap[dep.dependency_type].sectionType
+        if (dep.dependency_type === 'RESIDENTIAL_REF' && dep.linked_table === 'agent_references') {
+          sectionType = 'AGENT_REFERENCE'
+        }
+
+        return {
+          reference_id: referenceId,
+          person_type: 'TENANT',
+          section_type: sectionType,
+          section_order: externalRefMap[dep.dependency_type].order,
+          decision: 'NOT_REVIEWED',
+          contact_name_encrypted: dep.contact_name_encrypted,
+          contact_email_encrypted: dep.contact_email_encrypted,
+          contact_phone_encrypted: dep.contact_phone_encrypted,
+          initial_request_sent_at: dep.initial_request_sent_at
+        }
+      })
+
+    if (sectionsToCreate.length === 0) {
+      return
+    }
+
+    const { error: sectionError } = await supabase
+      .from('verification_sections')
+      .upsert(sectionsToCreate, { onConflict: 'reference_id,section_type' })
+
+    if (sectionError) {
+      console.error('Failed to ensure verification sections for external refs:', sectionError)
+    }
+  } catch (error) {
+    console.error('Failed to ensure external verification sections:', error)
   }
 }
 
@@ -1025,7 +1079,7 @@ export async function sendChaseForDependency(
     const companyPhone = reference.company?.phone_encrypted ? decrypt(reference.company.phone_encrypted) || '' : ''
     const companyEmail = reference.company?.email_encrypted ? decrypt(reference.company.email_encrypted) || '' : ''
     const companyLogoUrl = reference.company?.logo_url || null
-    const frontendUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+    const frontendUrl = getFrontendUrl()
 
     // For calls, we handle all dependency types the same way (generic reminder)
     if (method === 'call') {
@@ -1344,7 +1398,7 @@ export async function sendChaseForSection(
   method: 'email' | 'sms'
 ): Promise<{ sent: boolean; skipped: boolean; reason?: string }> {
   try {
-    const frontendUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+        const frontendUrl = getFrontendUrl()
 
     // Get the verification section with reference data
     const { data: section, error: sectionError } = await supabase

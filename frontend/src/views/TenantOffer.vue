@@ -44,7 +44,8 @@
                         <div class="md:col-span-2 relative overflow-visible">
                             <AddressAutocomplete v-model="formData.property_address" label="Property Address"
                                 :required="true" id="property-address" placeholder="Start typing address..."
-                                @addressSelected="handlePropertyAddressSelected" />
+                                @addressSelected="handlePropertyAddressSelected" :allowManualEntry="true" />
+                            <p class="mt-1 text-xs text-gray-500">Select from dropdown or choose "Manually enter" to type your own address</p>
                         </div>
                         <div>
                             <label for="property-city" class="block text-sm font-medium text-gray-700 mb-2">
@@ -155,7 +156,9 @@
                                 <AddressAutocomplete v-model="tenant.address" :label="`Current Address`"
                                     :required="true" :id="`tenant-${index}-address`"
                                     placeholder="Start typing address..."
-                                    @addressSelected="(address) => handleTenantAddressSelected(index, address)" />
+                                    @addressSelected="(address) => handleTenantAddressSelected(index, address)"
+                                    :allowManualEntry="true" />
+                                <p class="mt-1 text-xs text-gray-500">Select from dropdown or choose "Manually enter" to type your own address</p>
                             </div>
                             <div>
                                 <PhoneInput v-model="tenant.phone" :label="`Phone Number`" :id="`tenant-${index}-phone`"

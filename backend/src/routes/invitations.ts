@@ -4,8 +4,10 @@ import { supabase } from '../config/supabase'
 import { sendUserInvitation } from '../services/emailService'
 import { createAuditLog, formatUserName } from '../services/auditLog'
 import { generateToken, hash, encrypt, decrypt } from '../services/encryption'
+import { getFrontendUrl } from '../utils/frontendUrl'
 
 const router = Router()
+const frontendUrl = getFrontendUrl()
 
 // Get invitations for company (admin only)
 router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
@@ -138,7 +140,7 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
 
     const { data: { user: inviter } } = await supabase.auth.admin.getUserById(userId!)
 
-    const invitationUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accept-invite/${token}`
+    const invitationUrl = `${frontendUrl}/accept-invite/${token}`
 
     // Send invitation email
     try {
@@ -230,7 +232,7 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
       .update({ expires_at: newExpiresAt.toISOString() })
       .eq('id', invitationId)
 
-    const invitationUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/accept-invite/${invitation.token}`
+    const invitationUrl = `${frontendUrl}/accept-invite/${invitation.token}`
 
     // Resend invitation email
     try {

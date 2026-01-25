@@ -9,8 +9,10 @@ import { isValidEmail } from '../utils/validation';
 import { acquireLock, releaseLock, extendLock, checkLockStatus, getStaffLocks, forceReleaseLock } from '../services/lockService';
 import { transitionState, isInVerifyQueueState, VerificationState } from '../services/verificationStateService';
 import { getChaseQueue } from '../services/chaseDependencyService';
+import { getFrontendUrl } from '../utils/frontendUrl';
 
 const router = Router();
+const frontendUrl = getFrontendUrl();
 
 // Get work queue items (filterable by type, status)
 router.get('/', staffAuth, async (req: StaffAuthRequest, res: Response) => {
@@ -823,7 +825,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           .update({ reference_token_hash: newTokenHash })
           .eq('id', referenceId);
 
-        const tenantReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${referenceId}`;
+        const tenantReferenceUrl = `${frontendUrl}/submit-reference/${referenceId}`;
 
         await sendTenantReferenceRequest(
           targetEmail,
@@ -880,7 +882,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           });
         }
 
-        const landlordReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/landlord-reference/${referenceId}`;
+        const landlordReferenceUrl = `${frontendUrl}/landlord-reference/${referenceId}`;
 
         await sendLandlordReferenceRequest(
           targetEmail,
@@ -936,7 +938,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           });
         }
 
-        const agentReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/agent-reference/${referenceId}`;
+        const agentReferenceUrl = `${frontendUrl}/agent-reference/${referenceId}`;
 
         await sendAgentReferenceRequest(
           targetEmail,
@@ -1024,7 +1026,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
         }
 
         // Use employer_reference.id in URL - stable and doesn't change between chases
-        const employerReferenceUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-employer-reference/${employerRef.id}`;
+        const employerReferenceUrl = `${frontendUrl}/submit-employer-reference/${employerRef.id}`;
 
         await sendEmployerReferenceRequest(
           targetEmail,
@@ -1091,7 +1093,7 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
           });
         }
 
-        const formLink = `${process.env.FRONTEND_URL}/accountant-reference/${accountantRef.id}`;
+        const formLink = `${frontendUrl}/accountant-reference/${accountantRef.id}`;
 
         await sendAccountantReferenceRequest(
           targetEmail,
@@ -1198,8 +1200,8 @@ router.post('/:id/resend-email', staffAuth, async (req: StaffAuthRequest, res: R
         }
 
         const formLink = isLegacyGuarantor
-          ? `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorToken}`
-          : `${process.env.FRONTEND_URL}/guarantor-reference/${guarantorId}`;
+          ? `${frontendUrl}/guarantor-reference/${guarantorToken}`
+          : `${frontendUrl}/guarantor-reference/${guarantorId}`;
 
         await sendGuarantorReferenceRequest(
           targetEmail,

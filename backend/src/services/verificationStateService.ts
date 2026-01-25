@@ -94,6 +94,8 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
       tenancy_agreement_path,
       confirmed_residential_status,
       reference_type,
+      employer_ref_email_encrypted,
+      accountant_email_encrypted,
       employer_references (id, submitted_at, signature_encrypted, annual_salary_encrypted),
       landlord_references (id, submitted_at),
       agent_references (id, submitted_at),
@@ -201,7 +203,15 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
     const hasLandlordRentalProof = !!(reference.income_landlord_rental && (reference.landlord_rental_bank_statement_path || landlordRentalAmount > 0))
     const hasPensionProof = !!(reference.income_pension && (reference.pension_statement_path || pensionAmount > 0))
 
-    hasIncome = hasCompletedEmployerRef || hasPayslips || hasBankStatements || hasCompletedAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof
+    const hasIncomeEvidence = hasPayslips || hasBankStatements || hasCompletedEmployerRef || hasCompletedAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof
+    const hasIncomeRefContact = !!(reference.employer_ref_email_encrypted || reference.accountant_email_encrypted)
+
+    if (!isGuarantor && isStudent && isLivingWithFamily && !hasGuarantor && !hasIncomeEvidence && !hasIncomeRefContact) {
+      // Student living with family, no income evidence or referee: still allow verify so agent can add guarantor.
+      hasIncome = true
+    } else {
+      hasIncome = hasIncomeEvidence
+    }
   }
 
   if (!hasIncome) {

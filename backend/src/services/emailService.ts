@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { supabase } from '../config/supabase';
 import { encrypt } from './encryption';
+import { getFrontendUrl } from '../utils/frontendUrl';
 
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY || '');
@@ -67,6 +68,80 @@ const DEFAULT_CONTACT_DETAILS: ContactDetails = {
 };
 
 const DEFAULT_LOGO_URL = 'https://app.propertygoose.co.uk/PropertyGooseLogo.png';
+const PROD_FRONTEND_URL = 'https://app.propertygoose.co.uk';
+const LOCALHOST_PATTERN = /(localhost|127\.0\.0\.1)/i;
+
+type ReferenceType = 'tenant' | 'guarantor' | 'landlord' | 'employer' | 'accountant' | 'agent';
+
+function containsLocalhost(input?: string): boolean {
+  return !!input && LOCALHOST_PATTERN.test(input);
+}
+
+function sanitizeLocalhostUrls(input: string): string {
+  return input.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/gi, PROD_FRONTEND_URL);
+}
+
+function buildReferenceLink(referenceId: string, referenceType?: ReferenceType | null): string {
+  switch (referenceType) {
+    case 'guarantor':
+      return `${PROD_FRONTEND_URL}/guarantor-reference/${referenceId}`;
+    case 'landlord':
+      return `${PROD_FRONTEND_URL}/landlord-reference/${referenceId}`;
+    case 'agent':
+      return `${PROD_FRONTEND_URL}/agent-reference/${referenceId}`;
+    case 'employer':
+      return `${PROD_FRONTEND_URL}/submit-employer-reference/${referenceId}`;
+    case 'accountant':
+      return `${PROD_FRONTEND_URL}/accountant-reference/${referenceId}`;
+    case 'tenant':
+    default:
+      return `${PROD_FRONTEND_URL}/submit-reference/${referenceId}`;
+  }
+}
+
+async function resolveReferenceInfo(options: EmailOptions): Promise<{ referenceId: string; referenceType?: ReferenceType | null } | null> {
+  if (options.referenceId) {
+    if (options.referenceType) {
+      return { referenceId: options.referenceId, referenceType: options.referenceType };
+    }
+
+    const { data, error } = await supabase
+      .from('email_delivery_logs')
+      .select('reference_id, reference_type')
+      .eq('reference_id', options.referenceId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data?.reference_id) {
+      return { referenceId: data.reference_id, referenceType: data.reference_type as ReferenceType | null };
+    }
+
+    return { referenceId: options.referenceId, referenceType: null };
+  }
+
+  return null;
+}
+
+async function buildLocalhostFallback(options: EmailOptions): Promise<{ subject: string; html: string } | null> {
+  const referenceInfo = await resolveReferenceInfo(options);
+  if (!referenceInfo) {
+    return null;
+  }
+
+  const link = buildReferenceLink(referenceInfo.referenceId, referenceInfo.referenceType);
+  const subject = containsLocalhost(options.subject) ? 'PropertyGoose reference link' : options.subject;
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;color:#111827;">
+      <p>Your secure reference link is ready:</p>
+      <p><a href="${link}" style="color:#2563eb;">${link}</a></p>
+      <p style="font-size:13px;color:#6b7280;">Reference: ${referenceInfo.referenceId}</p>
+    </div>
+  `;
+
+  return { subject, html };
+}
 
 function buildContactFooter(details?: ContactDetails): string {
   if (!details) return '';
@@ -218,12 +293,26 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
 
   try {
     const footer = buildContactFooter(options.contactDetails);
-    const html = footer ? `${options.html}${footer}` : options.html;
+    let html = footer ? `${options.html}${footer}` : options.html;
+    let subject = options.subject;
+
+    if (containsLocalhost(subject) || containsLocalhost(html)) {
+      const fallback = await buildLocalhostFallback(options);
+      if (fallback) {
+        console.warn(`[EmailGuard] Localhost detected, sending fallback link for ${options.to}.`);
+        html = fallback.html;
+        subject = fallback.subject;
+      } else {
+        console.warn(`[EmailGuard] Localhost detected, sanitizing content for ${options.to}.`);
+        html = sanitizeLocalhostUrls(html);
+        subject = containsLocalhost(subject) ? sanitizeLocalhostUrls(subject) : subject;
+      }
+    }
 
     const { data, error } = await resend.emails.send({
       from: options.from || 'PropertyGoose <hello@notifications.propertygoose.co.uk>',
       to: options.to,
-      subject: options.subject,
+      subject,
       html,
       attachments: options.attachments,
     });
@@ -244,7 +333,7 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
           referenceId: options.referenceId,
           referenceType: options.referenceType,
           toEmailEncrypted: encryptedEmail,
-          subject: options.subject,
+          subject,
           status: 'sent',
         });
       }
@@ -932,7 +1021,7 @@ export async function sendOfferAcceptedEmail(
   companyEmail?: string | null,
   extraDetailsHtml?: string
 ): Promise<void> {
-  const frontendBaseUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+  const frontendBaseUrl = getFrontendUrl()
   const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed?offer_id=${offerId}`
 
   const html = loadEmailTemplate('offer-accepted', {
@@ -1342,7 +1431,7 @@ export async function sendVerificationCompleteNotification(
       </div>
     ` : ''
 
-    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+    const frontendBaseUrl = getFrontendUrl()
     const dashboardLink = `${frontendBaseUrl}/references/${referenceId}`
 
     const html = loadEmailTemplate('verification-complete-notification', {
@@ -1449,7 +1538,7 @@ export async function sendActionRequiredNotification(
     // Build group status HTML
     const groupStatusHtml = buildGroupStatusHtml(groupStatus.members)
 
-    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+    const frontendBaseUrl = getFrontendUrl()
     const dashboardLink = `${frontendBaseUrl}/references/${referenceId}`
 
     const html = loadEmailTemplate('action-required-notification', {

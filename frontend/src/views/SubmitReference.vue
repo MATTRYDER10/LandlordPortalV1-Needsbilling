@@ -511,7 +511,8 @@
             <div class="space-y-4">
               <div>
                 <AddressAutocomplete v-model="formData.current_address_line1" label="Address Line 1" :required="true"
-                  placeholder="Start typing address..." @addressSelected="handleCurrentAddressSelected" />
+                  placeholder="Start typing address..." @addressSelected="handleCurrentAddressSelected"
+                  :allowManualEntry="true" />
               </div>
 
               <div>
@@ -596,7 +597,8 @@
                     <div>
                       <AddressAutocomplete v-model="address.address_line1" label="Address Line 1" :required="true"
                         placeholder="Start typing address..."
-                        @addressSelected="(data) => handlePreviousAddressSelected(index, data)" />
+                        @addressSelected="(data) => handlePreviousAddressSelected(index, data)"
+                        :allowManualEntry="true" />
                     </div>
 
                     <div>
@@ -1025,7 +1027,8 @@
                   <div>
                     <AddressAutocomplete v-model="formData.employment_company_address_line1"
                       label="Company Address Line 1" :required="formData.income_regular_employment"
-                      placeholder="Start typing address..." @addressSelected="handleCompanyAddressSelected" />
+                      placeholder="Start typing address..." @addressSelected="handleCompanyAddressSelected"
+                      :allowManualEntry="true" />
                   </div>
 
                   <div>
@@ -1672,7 +1675,8 @@
                 <div>
                   <AddressAutocomplete v-model="formData.previous_rental_address_line1" label="Address Line 1"
                     :required="formData.reference_type !== 'living_with_family'" placeholder="Start typing address..."
-                    @addressSelected="handlePreviousRentalAddressSelected" />
+                    @addressSelected="handlePreviousRentalAddressSelected"
+                    :allowManualEntry="true" />
                 </div>
 
                 <div>
@@ -3682,7 +3686,8 @@ const handleFinalSubmit = async () => {
       rtr_british_no_passport: formData.value.rtr_british_no_passport || false,
       rtr_british_alt_doc_type: formData.value.rtr_british_alt_doc_type || null,
       rtr_british_alt_doc_path: formData.value.rtr_british_alt_doc_path || null,
-      geolocation: userGeolocation.value
+      geolocation: userGeolocation.value,
+      final_submit: true
     }
 
     const response = await fetch(`${API_URL}/api/references/submit/${token}`, {

@@ -10,8 +10,10 @@ import { auditReferenceAction } from '../services/auditLog'
 import { logOfferAuditAction } from '../services/offerAuditService'
 import { auditOfferSent, auditOfferCompleted } from '../services/propertyAuditService'
 import { BRAND_COLORS } from '../config/colors'
+import { getFrontendUrl } from '../utils/frontendUrl'
 
 const router = Router()
+const frontendUrl = getFrontendUrl()
 
 // Send offer form link via email
 router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
@@ -66,7 +68,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         const propertyCityQuery = property_city ? `&property_city=${encodeURIComponent(property_city)}` : ''
         const propertyPostcodeQuery = property_postcode ? `&property_postcode=${encodeURIComponent(property_postcode)}` : ''
         const rentAmountQuery = rent_amount ? `&rent_amount=${encodeURIComponent(rent_amount)}` : ''
-        const offerLink = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
+        const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
 
         // Send email to tenant with offer form link
         try {
@@ -681,7 +683,7 @@ router.post('/submit', async (req, res) => {
                 <li><strong>Proposed Move-in Date:</strong> ${proposed_move_in_date}</li>
                 <li><strong>Tenancy Length:</strong> ${proposed_tenancy_length_months} months</li>
               </ul>
-              <p><a href="${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/tenant-offers/${offer.id}" style="background-color: ${BRAND_COLORS.primary}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Offer</a></p>
+              <p><a href="${frontendUrl}/tenant-offers/${offer.id}" style="background-color: ${BRAND_COLORS.primary}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Offer</a></p>
             </body>
           </html>
         `
@@ -805,7 +807,7 @@ router.post('/confirm-payment', async (req, res) => {
                 const holdingDepositAmount = `£${holdingDeposit.toFixed(2)}`
 
                 // Generate offer link
-                const frontendBaseUrl = process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'
+                const frontendBaseUrl = frontendUrl
                 const offerLink = `${frontendBaseUrl}/tenant-offers/${offer_id}`
 
                 await sendPaymentConfirmedToAgentEmail(
@@ -1533,7 +1535,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                 createdReferences.push(childReference)
 
                 // Send email to tenant
-                const tenantUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${childReference.id}`
+                const tenantUrl = `${frontendUrl}/submit-reference/${childReference.id}`
                 try {
                     await sendTenantReferenceRequest(
                         tenant.email,
@@ -1616,7 +1618,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
             createdReferences.push(reference)
 
             // Send email to tenant
-            const tenantUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference/${reference.id}`
+            const tenantUrl = `${frontendUrl}/submit-reference/${reference.id}`
             try {
                 await sendTenantReferenceRequest(
                     tenant.email,
