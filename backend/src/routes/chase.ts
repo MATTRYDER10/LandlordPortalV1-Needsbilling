@@ -283,13 +283,14 @@ router.post('/:sectionId/mark-done', staffAuth, async (req: StaffAuthRequest, re
     // Create a note on the reference (visible to agents)
     // Try with source field first, fall back to without if column doesn't exist
     let noteCreated = false;
+    const createdBy = req.user?.id || staffUser.id
     try {
       const { error: noteError } = await supabase
         .from('reference_notes')
         .insert({
           reference_id: section.reference_id,
           note: note.trim(),
-          created_by: staffUser.id,
+          created_by: createdBy,
           source: 'PENDING_RESPONSE_QUEUE' // Tag to identify notes from mark-done action
         });
 
@@ -300,7 +301,7 @@ router.post('/:sectionId/mark-done', staffAuth, async (req: StaffAuthRequest, re
           .insert({
             reference_id: section.reference_id,
             note: note.trim(),
-            created_by: staffUser.id
+            created_by: createdBy
           });
 
         if (noteErrorRetry) {

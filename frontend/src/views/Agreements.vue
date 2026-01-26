@@ -1550,6 +1550,10 @@ interface Party {
   email?: string
   aml_status?: string | null
   address: Address
+  rentShare?: number
+  guarantorForTenantId?: string
+  guarantorForTenantName?: string
+  guarantorRentShare?: number
 }
 
 const formData = ref<{
@@ -2887,20 +2891,29 @@ function mapReferenceToForm(
   }
 
   // Build tenants array
+  const tenantById = new Map<string, any>()
   if (reference.is_group_parent && childReferences && childReferences.length > 0) {
     // Multi-tenant scenario
     formData.value.tenants = childReferences.map((child: any) => ({
+      id: child.id,
       name: `${child.tenant_first_name} ${child.tenant_last_name}`,
       email: child.tenant_email || '',
-      address: getTenantAddress(child, true, child.id)
+      address: getTenantAddress(child, true, child.id),
+      rentShare: child.rent_share ? Number(child.rent_share) : undefined
     }))
+    childReferences.forEach((child: any) => {
+      if (child?.id) tenantById.set(child.id, child)
+    })
   } else {
     // Single tenant
     formData.value.tenants = [{
+      id: reference.id,
       name: `${reference.tenant_first_name} ${reference.tenant_last_name}`,
       email: reference.tenant_email || '',
-      address: getTenantAddress(reference, true)
+      address: getTenantAddress(reference, true),
+      rentShare: reference.rent_share ? Number(reference.rent_share) : undefined
     }]
+    if (reference?.id) tenantById.set(reference.id, reference)
   }
 
   // Build guarantors array - collect from both childReferences (for group parents) and top-level guarantorReferences
@@ -2911,7 +2924,17 @@ function mapReferenceToForm(
     childReferences.forEach((child: any) => {
       if (child.guarantors && child.guarantors.length > 0) {
         child.guarantors.forEach((g: any) => {
+          const guarantorForId = g.guarantor_for_reference_id
+          const guarantorForTenant = guarantorForId ? tenantById.get(guarantorForId) : undefined
+          const guarantorForTenantName = guarantorForTenant
+            ? `${guarantorForTenant.tenant_first_name} ${guarantorForTenant.tenant_last_name}`
+            : ''
+          const guarantorRentShare = guarantorForTenant?.rent_share
+            ? Number(guarantorForTenant.rent_share)
+            : undefined
+
           allGuarantors.push({
+            id: g.id,
             name: `${g.tenant_first_name} ${g.tenant_last_name}`,
             email: g.tenant_email || '',
             address: {
@@ -2920,7 +2943,10 @@ function mapReferenceToForm(
               city: g.current_city || '',
               county: '',
               postcode: g.current_postcode || ''
-            }
+            },
+            guarantorForTenantId: guarantorForId || undefined,
+            guarantorForTenantName: guarantorForTenantName || undefined,
+            guarantorRentShare
           })
         })
       }
@@ -2930,7 +2956,17 @@ function mapReferenceToForm(
   // Also include top-level guarantorReferences (for single tenant references)
   if (guarantorReferences && guarantorReferences.length > 0) {
     guarantorReferences.forEach((g: any) => {
+      const guarantorForId = g.guarantor_for_reference_id
+      const guarantorForTenant = guarantorForId ? tenantById.get(guarantorForId) : undefined
+      const guarantorForTenantName = guarantorForTenant
+        ? `${guarantorForTenant.tenant_first_name} ${guarantorForTenant.tenant_last_name}`
+        : ''
+      const guarantorRentShare = guarantorForTenant?.rent_share
+        ? Number(guarantorForTenant.rent_share)
+        : undefined
+
       allGuarantors.push({
+        id: g.id,
         name: `${g.tenant_first_name} ${g.tenant_last_name}`,
         email: g.tenant_email || '',
         address: {
@@ -2939,7 +2975,10 @@ function mapReferenceToForm(
           city: g.current_city || '',
           county: '',
           postcode: g.current_postcode || ''
-        }
+        },
+        guarantorForTenantId: guarantorForId || undefined,
+        guarantorForTenantName: guarantorForTenantName || undefined,
+        guarantorRentShare
       })
     })
   }

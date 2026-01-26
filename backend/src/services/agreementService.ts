@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase'
 export type TemplateType = 'dps' | 'mydeposits' | 'tds' | 'no_deposit' | 'reposit'
 
 export interface Party {
+  id?: string
   name: string
   email?: string
   address: {
@@ -12,6 +13,10 @@ export interface Party {
     county?: string
     postcode: string
   }
+  rentShare?: number
+  guarantorForTenantId?: string
+  guarantorForTenantName?: string
+  guarantorRentShare?: number
 }
 
 export interface PropertyAddress {

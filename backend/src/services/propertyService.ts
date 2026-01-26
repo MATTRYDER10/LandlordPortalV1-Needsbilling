@@ -32,6 +32,7 @@ export interface PropertyData {
   property_type?: string
   number_of_bedrooms?: number
   number_of_bathrooms?: number
+  council_tax_band?: string
   furnishing_status?: string
   management_type?: 'managed' | 'let_only'
   bills_included?: boolean
@@ -91,6 +92,7 @@ export interface PropertyDetail {
   property_type: string | null
   number_of_bedrooms: number | null
   number_of_bathrooms: number | null
+  council_tax_band: string | null
   furnishing_status: string | null
   management_type: 'managed' | 'let_only' | null
   bills_included: boolean
@@ -185,6 +187,7 @@ class PropertyService {
       property_type: data.property_type || null,
       number_of_bedrooms: data.number_of_bedrooms || null,
       number_of_bathrooms: data.number_of_bathrooms || null,
+      council_tax_band: data.council_tax_band || null,
       furnishing_status: data.furnishing_status || null,
       management_type: data.management_type || null,
       bills_included: data.bills_included || false,
@@ -416,6 +419,7 @@ class PropertyService {
     if (data.property_type !== undefined) updateData.property_type = data.property_type
     if (data.number_of_bedrooms !== undefined) updateData.number_of_bedrooms = data.number_of_bedrooms
     if (data.number_of_bathrooms !== undefined) updateData.number_of_bathrooms = data.number_of_bathrooms
+    if (data.council_tax_band !== undefined) updateData.council_tax_band = data.council_tax_band
     if (data.furnishing_status !== undefined) updateData.furnishing_status = data.furnishing_status
     if (data.management_type !== undefined) updateData.management_type = data.management_type
     if (data.bills_included !== undefined) updateData.bills_included = data.bills_included
@@ -952,6 +956,7 @@ class PropertyService {
       property_type: property.property_type,
       number_of_bedrooms: property.number_of_bedrooms,
       number_of_bathrooms: property.number_of_bathrooms,
+      council_tax_band: property.council_tax_band,
       furnishing_status: property.furnishing_status,
       management_type: property.management_type,
       bills_included: property.bills_included || false,

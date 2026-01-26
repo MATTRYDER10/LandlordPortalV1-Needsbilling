@@ -186,6 +186,18 @@
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Council Tax Band</label>
+                  <select
+                    v-model="form.council_tax_band"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  >
+                    <option value="">Select...</option>
+                    <option v-for="band in ['A','B','C','D','E','F','G','H']" :key="band" :value="band">
+                      {{ band }}
+                    </option>
+                  </select>
+                </div>
                 <div class="col-span-2 mt-2">
                   <label class="flex items-center">
                     <input
@@ -425,6 +437,7 @@ interface PropertyForm {
   property_type: string
   number_of_bedrooms: number | null
   number_of_bathrooms: number | null
+  council_tax_band: string
   furnishing_status: string
   management_type: string
   bills_included: boolean
@@ -468,6 +481,7 @@ const form = ref<PropertyForm>({
   property_type: '',
   number_of_bedrooms: null,
   number_of_bathrooms: null,
+  council_tax_band: '',
   furnishing_status: '',
   management_type: '',
   bills_included: false,
@@ -596,6 +610,7 @@ const fetchProperty = async () => {
     form.value.property_type = property.property_type || ''
     form.value.number_of_bedrooms = property.number_of_bedrooms
     form.value.number_of_bathrooms = property.number_of_bathrooms
+    form.value.council_tax_band = property.council_tax_band || ''
     form.value.furnishing_status = property.furnishing_status || ''
     form.value.management_type = property.management_type || ''
     form.value.bills_included = property.bills_included || false
@@ -647,6 +662,7 @@ const handleSubmit = async () => {
       property_type: form.value.property_type || undefined,
       number_of_bedrooms: form.value.number_of_bedrooms || undefined,
       number_of_bathrooms: form.value.number_of_bathrooms || undefined,
+      council_tax_band: form.value.council_tax_band || undefined,
       furnishing_status: form.value.furnishing_status || undefined,
       management_type: form.value.management_type || undefined,
       bills_included: form.value.bills_included,
@@ -696,6 +712,7 @@ const resetForm = () => {
     property_type: '',
     number_of_bedrooms: null,
     number_of_bathrooms: null,
+    council_tax_band: '',
     furnishing_status: '',
     management_type: '',
     bills_included: false,

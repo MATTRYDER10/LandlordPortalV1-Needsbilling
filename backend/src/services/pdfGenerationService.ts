@@ -8,6 +8,7 @@ export type TemplateType = 'dps' | 'mydeposits' | 'tds' | 'no_deposit' | 'reposi
 export type Language = 'english' | 'welsh'
 
 export interface Party {
+  id?: string
   name: string
   email?: string
   address: {
@@ -17,6 +18,10 @@ export interface Party {
     county?: string
     postcode: string
   }
+  rentShare?: number
+  guarantorForTenantId?: string
+  guarantorForTenantName?: string
+  guarantorRentShare?: number
 }
 
 export interface PropertyAddress {
@@ -177,6 +182,43 @@ class PDFGenerationService {
   private formatCurrency(amount?: number): string {
     if (!amount) return '0.00'
     return amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
+  private buildGuarantorLiabilityClause(data: AgreementPDFData): string {
+    const guarantors = data.guarantors || []
+    if (guarantors.length === 0) return 'N/A'
+
+    const tenants = data.tenants || []
+    const defaultRentShare = data.rentAmount && tenants.length > 0
+      ? data.rentAmount / tenants.length
+      : undefined
+
+    const tenantById = new Map<string, Party>()
+    const tenantByName = new Map<string, Party>()
+    tenants.forEach((tenant) => {
+      if (tenant.id) tenantById.set(tenant.id, tenant)
+      const normalizedName = tenant.name.trim().toLowerCase()
+      if (normalizedName) tenantByName.set(normalizedName, tenant)
+    })
+
+    return guarantors.map((guarantor, index) => {
+      let matchedTenant: Party | undefined
+      if (guarantor.guarantorForTenantId && tenantById.has(guarantor.guarantorForTenantId)) {
+        matchedTenant = tenantById.get(guarantor.guarantorForTenantId)
+      } else if (guarantor.guarantorForTenantName) {
+        matchedTenant = tenantByName.get(guarantor.guarantorForTenantName.trim().toLowerCase())
+      } else if (tenants[index]) {
+        matchedTenant = tenants[index]
+      }
+
+      const tenantName = matchedTenant?.name || guarantor.guarantorForTenantName || 'the Tenant'
+      const tenantRentShare = matchedTenant?.rentShare ?? guarantor.guarantorRentShare ?? defaultRentShare
+      const guarantorRentShare = guarantor.guarantorRentShare ?? tenantRentShare ?? defaultRentShare
+      const tenantShareText = tenantRentShare ? `£${this.formatCurrency(tenantRentShare)}` : '________'
+      const guarantorShareText = guarantorRentShare ? `£${this.formatCurrency(guarantorRentShare)}` : '________'
+
+      return `${index + 1}. Guarantor ${index + 1} (${guarantor.name}) is liable for ${tenantName} to the value of their share of rent ${guarantorShareText} (Tenant liability: ${tenantShareText}; Guarantor liability: ${guarantorShareText}).`
+    }).join('\n')
   }
 
   /**
@@ -389,6 +431,9 @@ class PDFGenerationService {
 
     // Welsh contracts - Contract Holders block
     result = this.processContractHoldersBlock(result, data)
+
+    // Guarantor liability clause
+    result = result.replace(/\[GUARANTOR_LIABILITY_CLAUSE\]/gi, this.buildGuarantorLiabilityClause(data))
 
     // Handle logo: use company logo if available, otherwise PropertyGoose default
     const defaultLogoUrl = 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'

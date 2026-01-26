@@ -224,13 +224,11 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
   // -------------------------------------------------------------------------
   let hasResidential = true
   if (!isGuarantor) {
-    const hasConfirmedStatus = !!reference.confirmed_residential_status
-    const isLivingWithFamily = reference.reference_type === 'living_with_family'
+    const isLivingWithFamily = reference.confirmed_residential_status === 'Living with Family'
     const hasLandlordRef = (reference.landlord_references || []).some((lr: any) => lr.submitted_at)
     const hasAgentRef = (reference.agent_references || []).some((ar: any) => ar.submitted_at)
-    const hasTenancyAgreement = !!reference.tenancy_agreement_path
 
-    hasResidential = hasConfirmedStatus || isLivingWithFamily || hasLandlordRef || hasAgentRef || hasTenancyAgreement
+    hasResidential = isLivingWithFamily || hasLandlordRef || hasAgentRef
     if (!hasResidential) {
       missingCategories.push('Residential')
     }
@@ -640,6 +638,10 @@ async function autoReceiveExternalDependencies(referenceId: string): Promise<voi
       .from('tenant_references')
       .select(`
         confirmed_residential_status,
+        payslip_files,
+        bank_statements_paths,
+        proof_of_additional_income_path,
+        pension_statement_path,
         employer_references (id, submitted_at, signature_encrypted, annual_salary_encrypted),
         landlord_references (id, submitted_at),
         agent_references (id, submitted_at),
@@ -662,11 +664,21 @@ async function autoReceiveExternalDependencies(referenceId: string): Promise<voi
     const hasCompletedAccountantRef = (reference.accountant_references || []).some((ar: any) =>
       ar.submitted_at && ar.signature_encrypted
     )
-    const hasResidentialRef = !!reference.confirmed_residential_status || hasLandlordRef || hasAgentRef
+    const isLivingWithFamily = reference.confirmed_residential_status === 'Living with Family'
+    const hasResidentialRef = isLivingWithFamily || hasLandlordRef || hasAgentRef
+    const hasPayslips = Array.isArray(reference.payslip_files) && reference.payslip_files.length > 0
+    const hasBankStatements = Array.isArray(reference.bank_statements_paths) && reference.bank_statements_paths.length > 0
+    const hasAdditionalIncomeProof = !!reference.proof_of_additional_income_path
+    const hasPensionProof = !!reference.pension_statement_path
+    const hasIncomeEvidence = hasPayslips || hasBankStatements || hasAdditionalIncomeProof || hasPensionProof
 
     const depTypes: string[] = []
     const sectionTypes: string[] = []
     if (hasCompletedEmployerRef) {
+      depTypes.push('EMPLOYER_REF')
+      sectionTypes.push('EMPLOYER_REFERENCE')
+    }
+    if (!hasCompletedEmployerRef && hasIncomeEvidence) {
       depTypes.push('EMPLOYER_REF')
       sectionTypes.push('EMPLOYER_REFERENCE')
     }
@@ -675,6 +687,10 @@ async function autoReceiveExternalDependencies(referenceId: string): Promise<voi
       sectionTypes.push('LANDLORD_REFERENCE')
     }
     if (hasCompletedAccountantRef) {
+      depTypes.push('ACCOUNTANT_REF')
+      sectionTypes.push('ACCOUNTANT_REFERENCE')
+    }
+    if (!hasCompletedAccountantRef && hasIncomeEvidence) {
       depTypes.push('ACCOUNTANT_REF')
       sectionTypes.push('ACCOUNTANT_REFERENCE')
     }

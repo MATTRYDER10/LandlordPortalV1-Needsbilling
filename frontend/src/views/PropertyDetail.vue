@@ -125,6 +125,10 @@
                   <p class="mt-1 text-sm text-gray-900">{{ property.number_of_bathrooms || 'Not specified' }}</p>
                 </div>
                 <div>
+                  <label class="block text-sm font-medium text-gray-500">Council Tax Band</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ property.council_tax_band || 'Not specified' }}</p>
+                </div>
+                <div>
                   <label class="block text-sm font-medium text-gray-500">Furnishing</label>
                   <p class="mt-1 text-sm text-gray-900">{{ formatFurnishing(property.furnishing_status) || 'Not specified' }}</p>
                 </div>
@@ -540,6 +544,7 @@ interface Property {
   property_type: string | null
   number_of_bedrooms: number | null
   number_of_bathrooms: number | null
+  council_tax_band: string | null
   furnishing_status: string | null
   management_type: 'managed' | 'let_only' | null
   bills_included?: boolean

@@ -1855,6 +1855,10 @@ This Deed shall be governed by and construed in accordance with the laws of Engl
 
 This document is executed as a deed and is delivered on the date at the beginning of this Deed.
 
+**Guarantor Liability**
+
+[GUARANTOR_LIABILITY_CLAUSE]
+
 **SIGNED AS A DEED by the GUARANTOR(S):**
 
 {{\#guarantors}}

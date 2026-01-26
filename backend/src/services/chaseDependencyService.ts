@@ -1747,7 +1747,7 @@ export async function markSectionReceived(sectionId: string, staffId: string): P
     const { data: updated, error: updateError } = await supabase
       .from('verification_sections')
       .update({
-        decision: 'PASS', // Mark as pass since response was received
+        decision: 'PASS', // Required to remove from Pending Responses queue
         decision_notes: 'Response received - marked via Pending Responses queue'
       })
       .eq('id', sectionId)
@@ -1787,7 +1787,7 @@ export async function markSectionReceived(sectionId: string, staffId: string): P
     await logAuditAction({
       referenceId: current.reference.id,
       action: 'SECTION_RECEIVED',
-      description: `${current.section_type} response received and approved`,
+      description: `${current.section_type} response received`,
       metadata: {
         sectionId,
         sectionType: current.section_type,

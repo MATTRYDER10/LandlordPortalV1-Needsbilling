@@ -402,16 +402,15 @@ function checkIncomeSection(reference: any, hasGuarantorReference: boolean): Sec
  * Check residential section - simplified "one item" rule
  *
  * Rules:
- * - ONE of: confirmed residential status, landlord reference, agent reference, tenancy agreement
+ * - ONE of: living with family, landlord reference, agent reference
  */
 function checkResidentialSection(reference: any): SectionStatus {
-  // Confirmed status (living with family, owner occupier, etc.)
-  if (reference.confirmed_residential_status) {
-    return { complete: true, reason: `Residential status: ${reference.confirmed_residential_status}` }
-  }
+  const isLivingWithFamily =
+    reference.confirmed_residential_status === 'Living with Family' ||
+    reference.reference_type === 'living_with_family'
 
-  // Tenant selected "living with family" - no landlord reference required
-  if (reference.reference_type === 'living_with_family') {
+  // Living with family - no landlord reference required
+  if (isLivingWithFamily) {
     return { complete: true, reason: 'Living with family - no landlord reference required' }
   }
 
@@ -427,12 +426,7 @@ function checkResidentialSection(reference: any): SectionStatus {
     return { complete: true, reason: 'Agent reference received' }
   }
 
-  // Tenancy agreement (new evidence type)
-  if (reference.tenancy_agreement_path) {
-    return { complete: true, reason: 'Tenancy agreement uploaded' }
-  }
-
-  return { complete: false, reason: 'Residential evidence required (landlord ref, tenancy agreement, or confirm status)' }
+  return { complete: false, reason: 'Residential evidence required (landlord or agent reference)' }
 }
 
 /**
@@ -594,22 +588,20 @@ function checkIncomeSectionSync(reference: any, hasGuarantorReference: boolean):
  * Sync version of residential check - simplified "one item" rule
  */
 function checkResidentialSectionSync(reference: any): SectionStatus {
-  if (reference.confirmed_residential_status) {
-    return { complete: true, reason: `Residential status: ${reference.confirmed_residential_status}` }
-  }
+  const isLivingWithFamily =
+    reference.confirmed_residential_status === 'Living with Family' ||
+    reference.reference_type === 'living_with_family'
 
-  // Tenant selected "living with family" - no landlord reference required
-  if (reference.reference_type === 'living_with_family') {
+  if (isLivingWithFamily) {
     return { complete: true, reason: 'Living with family' }
   }
 
   const hasLandlordRef = (reference.landlord_references || []).some((lr: any) => lr.submitted_at)
   const hasAgentRef = (reference.agent_references || []).some((ar: any) => ar.submitted_at)
-  const hasTenancyAgreement = !!reference.tenancy_agreement_path
 
-  if (hasLandlordRef || hasAgentRef || hasTenancyAgreement) {
+  if (hasLandlordRef || hasAgentRef) {
     return { complete: true }
   }
 
-  return { complete: false, reason: 'Residential evidence required' }
+  return { complete: false, reason: 'Residential evidence required (landlord or agent reference)' }
 }
