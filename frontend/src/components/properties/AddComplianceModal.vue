@@ -144,7 +144,7 @@
                         @change="handleFileSelect"
                       />
                     </label>
-                    <p class="text-xs text-gray-500 mt-2">PDF, JPG, PNG up to 10MB</p>
+                    <p class="text-xs text-gray-500 mt-2">PDF, JPG, PNG up to 25MB</p>
                   </div>
                   <div v-else class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -189,6 +189,9 @@
               </button>
             </div>
           </div>
+          <div v-if="errorMessage" class="px-6 pb-4 text-xs text-red-600">
+            {{ errorMessage }}
+          </div>
         </form>
       </div>
     </div>
@@ -232,6 +235,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const saving = ref(false)
 const isDragging = ref(false)
 const selectedFile = ref<File | null>(null)
+const errorMessage = ref('')
 
 const form = ref({
   compliance_type: '',
@@ -339,6 +343,7 @@ const handleSubmit = async () => {
   if (!props.propertyId || !isValid.value) return
 
   saving.value = true
+  errorMessage.value = ''
 
   try {
     const formData = new FormData()
@@ -371,7 +376,8 @@ const handleSubmit = async () => {
     toast.success(isEditing.value ? 'Compliance record updated' : 'Compliance record added')
     emit('saved')
   } catch (err: any) {
-    toast.error(err.message || 'Failed to save compliance record')
+    errorMessage.value = err.message || 'Failed to save compliance record'
+    toast.error(errorMessage.value)
   } finally {
     saving.value = false
   }
@@ -410,6 +416,7 @@ const handleDelete = async () => {
 
 const handleClose = () => {
   resetForm()
+  errorMessage.value = ''
   emit('close')
 }
 

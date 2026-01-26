@@ -18,7 +18,7 @@ const router = Router()
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
   fileFilter: (req, file, cb) => {
     const allowedMimes = [
       'application/pdf',
@@ -35,6 +35,29 @@ const upload = multer({
     }
   }
 })
+
+const PROPERTY_DOCS_BUCKET = 'property-documents'
+
+const ensurePropertyDocumentsBucket = async (): Promise<void> => {
+  const { data, error } = await supabase.storage.getBucket(PROPERTY_DOCS_BUCKET)
+  if (data && !error) return
+
+  const createResult = await supabase.storage.createBucket(PROPERTY_DOCS_BUCKET, {
+    public: false,
+    fileSizeLimit: 50 * 1024 * 1024,
+    allowedMimeTypes: [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ]
+  })
+
+  if (createResult.error) {
+    throw new Error(`Failed to create ${PROPERTY_DOCS_BUCKET} bucket: ${createResult.error.message}`)
+  }
+}
 
 // ============================================================================
 // PROPERTY STATS
@@ -341,19 +364,20 @@ router.post('/:id/compliance', authenticateToken, requireMember, upload.single('
 
     // Handle document upload if provided
     if (req.file) {
+      await ensurePropertyDocumentsBucket()
       const fileName = `${Date.now()}_${req.file.originalname}`
       const filePath = `${companyId}/${propertyId}/compliance/${result.id}/${fileName}`
 
       // Upload to Supabase storage
       const { error: uploadError } = await supabase.storage
-        .from('property-documents')
+        .from(PROPERTY_DOCS_BUCKET)
         .upload(filePath, req.file.buffer, {
           contentType: req.file.mimetype
         })
 
       if (uploadError) {
         console.error('[Properties] Error uploading compliance document:', uploadError)
-        // Continue without document - compliance record is already created
+        return res.status(500).json({ error: `Failed to upload compliance document: ${uploadError.message}` })
       } else {
         // Link document to compliance record
         await supabase
@@ -399,6 +423,7 @@ router.put('/:id/compliance/:complianceId', authenticateToken, requireMember, up
 
     // Handle new document upload if provided
     if (req.file) {
+      await ensurePropertyDocumentsBucket()
       // Mark existing documents as not current
       await supabase
         .from('compliance_documents')
@@ -410,12 +435,15 @@ router.put('/:id/compliance/:complianceId', authenticateToken, requireMember, up
       const filePath = `${companyId}/${propertyId}/compliance/${complianceId}/${fileName}`
 
       const { error: uploadError } = await supabase.storage
-        .from('property-documents')
+        .from(PROPERTY_DOCS_BUCKET)
         .upload(filePath, req.file.buffer, {
           contentType: req.file.mimetype
         })
 
-      if (!uploadError) {
+      if (uploadError) {
+        console.error('[Properties] Error uploading compliance document:', uploadError)
+        return res.status(500).json({ error: `Failed to upload compliance document: ${uploadError.message}` })
+      } else {
         // Get current version
         const { data: existingDocs } = await supabase
           .from('compliance_documents')
@@ -499,7 +527,7 @@ router.get('/:id/compliance/:complianceId/document/:documentId', authenticateTok
 
     // Download from Supabase storage
     const { data: fileData, error: downloadError } = await supabase.storage
-      .from('property-documents')
+      .from(PROPERTY_DOCS_BUCKET)
       .download(document.file_path)
 
     if (downloadError || !fileData) {
@@ -561,19 +589,20 @@ router.post('/:id/documents', authenticateToken, requireMember, upload.single('d
       return res.status(400).json({ error: 'Tag is required' })
     }
 
+    await ensurePropertyDocumentsBucket()
     // Upload to Supabase storage
     const fileName = `${Date.now()}_${req.file.originalname}`
     const filePath = `${companyId}/${propertyId}/documents/${fileName}`
 
     const { error: uploadError } = await supabase.storage
-      .from('property-documents')
+      .from(PROPERTY_DOCS_BUCKET)
       .upload(filePath, req.file.buffer, {
         contentType: req.file.mimetype
       })
 
     if (uploadError) {
       console.error('[Properties] Error uploading document:', uploadError)
-      return res.status(500).json({ error: 'Failed to upload document' })
+      return res.status(500).json({ error: `Failed to upload document: ${uploadError.message}` })
     }
 
     // Create document record - use custom file name if provided, otherwise use original

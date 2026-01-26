@@ -68,7 +68,7 @@
                         @change="handleFileSelect"
                       />
                     </label>
-                    <p class="text-xs text-gray-500 mt-3">PDF, JPG, PNG, DOC up to 10MB</p>
+                    <p class="text-xs text-gray-500 mt-3">PDF, JPG, PNG, DOC up to 25MB</p>
                   </div>
                   <div v-else class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                     <div class="flex items-center gap-3">
@@ -117,6 +117,9 @@
               {{ uploading ? 'Uploading...' : 'Upload' }}
             </button>
           </div>
+          <div v-if="errorMessage" class="px-6 pb-4 text-xs text-red-600">
+            {{ errorMessage }}
+          </div>
         </form>
       </div>
     </div>
@@ -146,6 +149,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const uploading = ref(false)
 const isDragging = ref(false)
 const selectedFile = ref<File | null>(null)
+const errorMessage = ref('')
 
 const form = ref({
   tag: '',
@@ -160,8 +164,8 @@ const handleFileSelect = (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (file) {
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB')
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('File size must be less than 25MB')
       return
     }
     selectedFile.value = file
@@ -172,8 +176,8 @@ const handleFileDrop = (event: DragEvent) => {
   isDragging.value = false
   const file = event.dataTransfer?.files?.[0]
   if (file) {
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB')
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('File size must be less than 25MB')
       return
     }
     selectedFile.value = file
@@ -184,6 +188,7 @@ const handleSubmit = async () => {
   if (!props.propertyId || !isValid.value || !selectedFile.value) return
 
   uploading.value = true
+  errorMessage.value = ''
 
   try {
     const formData = new FormData()
@@ -209,7 +214,8 @@ const handleSubmit = async () => {
     toast.success('Document uploaded successfully')
     emit('uploaded')
   } catch (err: any) {
-    toast.error(err.message || 'Failed to upload document')
+    errorMessage.value = err.message || 'Failed to upload document'
+    toast.error(errorMessage.value)
   } finally {
     uploading.value = false
   }
@@ -218,6 +224,7 @@ const handleSubmit = async () => {
 const handleClose = () => {
   form.value = { tag: '', customName: '' }
   selectedFile.value = null
+  errorMessage.value = ''
   emit('close')
 }
 
