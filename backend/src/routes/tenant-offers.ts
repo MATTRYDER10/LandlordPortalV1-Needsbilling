@@ -15,6 +15,50 @@ import { getFrontendUrl } from '../utils/frontendUrl'
 const router = Router()
 const frontendUrl = getFrontendUrl()
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+const sendTenantReferenceWithRetry = async (params: {
+    tenantEmail: string
+    tenantName: string
+    tenantUrl: string
+    companyName: string
+    propertyAddress?: string
+    companyPhone?: string
+    companyEmail?: string
+    referenceId?: string
+    companyLogoUrl?: string | null
+}): Promise<void> => {
+    const email = params.tenantEmail.trim()
+    if (!email) {
+        throw new Error('Missing tenant email')
+    }
+
+    const attempts = 3
+    let lastError: any
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+            await sendTenantReferenceRequest(
+                email,
+                params.tenantName,
+                params.tenantUrl,
+                params.companyName,
+                params.propertyAddress,
+                params.companyPhone,
+                params.companyEmail,
+                params.referenceId,
+                params.companyLogoUrl
+            )
+            return
+        } catch (error) {
+            lastError = error
+            if (attempt < attempts) {
+                await delay(500 * attempt)
+            }
+        }
+    }
+    throw lastError
+}
+
 // Send offer form link via email
 router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
     try {
@@ -1454,6 +1498,8 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
 
         let createdReferences: any[] = []
         let referenceId: string | null = null
+        const emailFailures: { email: string; reason: string }[] = []
+        let emailsSent = 0
 
         if (tenants.length > 1) {
             // Multi-tenant flow
@@ -1536,20 +1582,27 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
 
                 // Send email to tenant
                 const tenantUrl = `${frontendUrl}/submit-reference/${childReference.id}`
-                try {
-                    await sendTenantReferenceRequest(
-                        tenant.email,
-                        `${tenant.first_name} ${tenant.last_name}`,
-                        tenantUrl,
-                        companyName,
-                        propertyAddress || undefined,
-                        companyPhone || undefined,
-                        companyEmail || undefined,
-                        childReference.id,
-                        companyLogoUrl
-                    )
-                } catch (emailError: any) {
-                    console.error('Failed to send email to', tenant.email, emailError)
+                const tenantEmail = tenant.email?.trim()
+                if (!tenantEmail) {
+                    emailFailures.push({ email: '', reason: 'Missing tenant email' })
+                } else {
+                    try {
+                        await sendTenantReferenceWithRetry({
+                            tenantEmail,
+                            tenantName: `${tenant.first_name} ${tenant.last_name}`.trim(),
+                            tenantUrl,
+                            companyName,
+                            propertyAddress: propertyAddress || undefined,
+                            companyPhone: companyPhone || undefined,
+                            companyEmail: companyEmail || undefined,
+                            referenceId: childReference.id,
+                            companyLogoUrl
+                        })
+                        emailsSent += 1
+                    } catch (emailError: any) {
+                        console.error('Failed to send email to', tenantEmail, emailError)
+                        emailFailures.push({ email: tenantEmail, reason: emailError?.message || 'Send failed' })
+                    }
                 }
             }
 
@@ -1619,20 +1672,27 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
 
             // Send email to tenant
             const tenantUrl = `${frontendUrl}/submit-reference/${reference.id}`
-            try {
-                await sendTenantReferenceRequest(
-                    tenant.email,
-                    `${tenant.first_name} ${tenant.last_name}`,
-                    tenantUrl,
-                    companyName,
-                    propertyAddress || undefined,
-                    companyPhone || undefined,
-                    companyEmail || undefined,
-                    reference.id,
-                    companyLogoUrl
-                )
-            } catch (emailError: any) {
-                console.error('Failed to send email to', tenant.email, emailError)
+            const tenantEmail = tenant.email?.trim()
+            if (!tenantEmail) {
+                emailFailures.push({ email: '', reason: 'Missing tenant email' })
+            } else {
+                try {
+                    await sendTenantReferenceWithRetry({
+                        tenantEmail,
+                        tenantName: `${tenant.first_name} ${tenant.last_name}`.trim(),
+                        tenantUrl,
+                        companyName,
+                        propertyAddress: propertyAddress || undefined,
+                        companyPhone: companyPhone || undefined,
+                        companyEmail: companyEmail || undefined,
+                        referenceId: reference.id,
+                        companyLogoUrl
+                    })
+                    emailsSent += 1
+                } catch (emailError: any) {
+                    console.error('Failed to send email to', tenantEmail, emailError)
+                    emailFailures.push({ email: tenantEmail, reason: emailError?.message || 'Send failed' })
+                }
             }
 
             // Audit log
@@ -1675,7 +1735,9 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
             message: 'Holding deposit marked as received and references created',
             reference_id: referenceId,
             references_created: createdReferences.length,
-            holding_deposit_amount_paid: parsedAmount
+            holding_deposit_amount_paid: parsedAmount,
+            emails_sent: emailsSent,
+            email_failures: emailFailures
         })
     } catch (error: any) {
         console.error('Error marking holding deposit received:', error)
