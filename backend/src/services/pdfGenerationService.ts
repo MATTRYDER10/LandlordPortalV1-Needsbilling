@@ -415,16 +415,23 @@ class PDFGenerationService {
     result = result.replace(/\[DEPOSIT_PAYER_NAME_AND_ADDRESS\]/gi, depositPayer)
 
     // Build special terms clauses with dynamic numbering (removes empty clause numbers)
+    // Welsh contracts use "Additional Term X" format, English uses "11.X" format
     const specialTermsClauses: string[] = []
-    let clauseNumber = 2 // Start at 11.2
+    let clauseNumber = 1
 
     if (data.breakClause?.trim()) {
-      specialTermsClauses.push(`**11.${clauseNumber}** ${data.breakClause}`)
+      const prefix = data.language === 'welsh'
+        ? `**Additional Term ${clauseNumber}:**`
+        : `**11.${clauseNumber + 1}**`
+      specialTermsClauses.push(`${prefix} ${data.breakClause}`)
       clauseNumber++
     }
 
     if (data.specialClauses?.trim()) {
-      specialTermsClauses.push(`**11.${clauseNumber}** ${data.specialClauses}`)
+      const prefix = data.language === 'welsh'
+        ? `**Additional Term ${clauseNumber}:**`
+        : `**11.${clauseNumber + 1}**`
+      specialTermsClauses.push(`${prefix} ${data.specialClauses}`)
     }
 
     result = result.replace(/\[special_terms_numbered_clauses\]/gi, specialTermsClauses.join('\n\n'))

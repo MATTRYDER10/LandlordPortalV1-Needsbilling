@@ -1355,6 +1355,12 @@ Please identify the clause number of the Fundamental or Supplemental term that h
 
 **Section 92:** 38\. Repair – 38.11
 
+# Additional Terms
+
+Additional Terms are negotiated individually between the Landlord and the Contract-Holder. Any clause below shall supplement the standard terms of this Contract and must not conflict with any Key Matter, Fundamental Term, or Supplementary Term.
+
+[special_terms_numbered_clauses]
+
 **SIGNED by the Landlord**
 
 {{\#landlords}}
