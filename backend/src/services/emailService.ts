@@ -9,6 +9,38 @@ import { getFrontendUrl } from '../utils/frontendUrl';
 const resend = new Resend(process.env.RESEND_API_KEY || '');
 
 /**
+ * Email Rate Limiter
+ * Ensures we stay under Resend's 2 requests/second limit by enforcing
+ * a minimum interval between emails (~1.5 emails/second with headroom)
+ *
+ * Uses slot reservation to prevent race conditions when multiple emails
+ * are queued simultaneously.
+ */
+class EmailRateLimiter {
+  private nextAllowedAt: number = 0;
+  private readonly minInterval: number = 667; // ms between emails (~1.5/sec)
+
+  async throttle<T>(fn: () => Promise<T>): Promise<T> {
+    const now = Date.now();
+
+    if (now < this.nextAllowedAt) {
+      // Need to wait - reserve the NEXT slot before waiting
+      const waitTime = this.nextAllowedAt - now;
+      this.nextAllowedAt = this.nextAllowedAt + this.minInterval;
+      console.log(`[Email] Rate limiting: waiting ${waitTime}ms before sending`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    } else {
+      // No wait needed - reserve the next slot
+      this.nextAllowedAt = now + this.minInterval;
+    }
+
+    return fn();
+  }
+}
+
+const emailRateLimiter = new EmailRateLimiter();
+
+/**
  * Log email event to reference_audit_log for Activity Log UI
  */
 async function logEmailToAuditLog(
@@ -282,7 +314,39 @@ export async function logEmailDeliveryToAuditLog(
 }
 
 /**
- * Send an email using Resend
+ * Internal function to send email via Resend (without rate limiting)
+ */
+async function sendEmailInternal(options: EmailOptions, html: string, subject: string): Promise<{ id: string } | null> {
+  const { data, error } = await resend.emails.send({
+    from: options.from || 'PropertyGoose <hello@notifications.propertygoose.co.uk>',
+    to: options.to,
+    subject,
+    html,
+    attachments: options.attachments,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Check if an error is a rate limit error from Resend
+ */
+function isRateLimitError(error: any): boolean {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() || '';
+  const name = error.name?.toLowerCase() || '';
+  return message.includes('too many requests') ||
+    message.includes('rate limit') ||
+    name.includes('rate_limit') ||
+    error.statusCode === 429;
+}
+
+/**
+ * Send an email using Resend with rate limiting and retry logic
  */
 export async function sendEmail(options: EmailOptions): Promise<void> {
   // Dev mode check - skip actual sending in development unless explicitly enabled
@@ -291,56 +355,63 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
     return;
   }
 
-  try {
-    const footer = buildContactFooter(options.contactDetails);
-    let html = footer ? `${options.html}${footer}` : options.html;
-    let subject = options.subject;
+  const footer = buildContactFooter(options.contactDetails);
+  let html = footer ? `${options.html}${footer}` : options.html;
+  let subject = options.subject;
 
-    if (containsLocalhost(subject) || containsLocalhost(html)) {
-      const fallback = await buildLocalhostFallback(options);
-      if (fallback) {
-        console.warn(`[EmailGuard] Localhost detected, sending fallback link for ${options.to}.`);
-        html = fallback.html;
-        subject = fallback.subject;
-      } else {
-        console.warn(`[EmailGuard] Localhost detected, sanitizing content for ${options.to}.`);
-        html = sanitizeLocalhostUrls(html);
-        subject = containsLocalhost(subject) ? sanitizeLocalhostUrls(subject) : subject;
-      }
+  if (containsLocalhost(subject) || containsLocalhost(html)) {
+    const fallback = await buildLocalhostFallback(options);
+    if (fallback) {
+      console.warn(`[EmailGuard] Localhost detected, sending fallback link for ${options.to}.`);
+      html = fallback.html;
+      subject = fallback.subject;
+    } else {
+      console.warn(`[EmailGuard] Localhost detected, sanitizing content for ${options.to}.`);
+      html = sanitizeLocalhostUrls(html);
+      subject = containsLocalhost(subject) ? sanitizeLocalhostUrls(subject) : subject;
     }
+  }
 
-    const { data, error } = await resend.emails.send({
-      from: options.from || 'PropertyGoose <hello@notifications.propertygoose.co.uk>',
-      to: options.to,
-      subject,
-      html,
-      attachments: options.attachments,
-    });
+  const maxRetries = 3;
 
-    if (error) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Use rate limiter to ensure we don't exceed Resend's rate limit
+      const data = await emailRateLimiter.throttle(() =>
+        sendEmailInternal(options, html, subject)
+      );
+
+      console.log(`Email sent successfully to ${options.to}`);
+
+      // Log to email delivery tracking table
+      if (data?.id) {
+        const encryptedEmail = encrypt(options.to);
+        if (encryptedEmail) {
+          await logEmailDelivery({
+            resendEmailId: data.id,
+            referenceId: options.referenceId,
+            referenceType: options.referenceType,
+            toEmailEncrypted: encryptedEmail,
+            subject,
+            status: 'sent',
+          });
+        }
+      }
+
+      return; // Success - exit the retry loop
+    } catch (error: any) {
+      // If rate limited and we have retries left, wait with exponential backoff
+      if (isRateLimitError(error) && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+        console.log(`[Email] Rate limited, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      // Log and rethrow for non-rate-limit errors or if retries exhausted
       console.error('Error sending email:', error);
       throw error;
     }
-
-    console.log(`Email sent successfully to ${options.to}`);
-
-    // Log to email delivery tracking table
-    if (data?.id) {
-      const encryptedEmail = encrypt(options.to);
-      if (encryptedEmail) {
-        await logEmailDelivery({
-          resendEmailId: data.id,
-          referenceId: options.referenceId,
-          referenceType: options.referenceType,
-          toEmailEncrypted: encryptedEmail,
-          subject,
-          status: 'sent',
-        });
-      }
-    }
-  } catch (error) {
-    console.error('Error sending email:', error);
-    throw error;
   }
 }
 
