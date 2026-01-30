@@ -2446,7 +2446,16 @@ async function fetchLandlordsForImport() {
 
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/landlords`, {
+    // Build query params - pass search to backend for server-side filtering
+    const params = new URLSearchParams()
+    if (landlordImportSearchQuery.value) {
+      params.set('search', landlordImportSearchQuery.value)
+    } else {
+      // When no search, fetch a reasonable limit for the selector
+      params.set('limit', '200')
+    }
+
+    const response = await fetch(`${API_URL}/api/landlords?${params}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
