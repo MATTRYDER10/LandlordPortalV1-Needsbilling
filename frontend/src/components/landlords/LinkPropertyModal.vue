@@ -93,7 +93,7 @@
 
                 <!-- No Results Message -->
                 <div
-                  v-else-if="searchQuery && searchResults.length === 0 && !searching && !selectedProperty"
+                  v-else-if="searchQuery && searchResults.length === 0 && !searching && selectedProperties.size === 0"
                   class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-4"
                 >
                   <p class="text-sm text-gray-500 text-center mb-3">
@@ -232,7 +232,7 @@
 import { ref, computed, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../../stores/auth'
-import { X, Search, Plus, AlertTriangle, CheckCircle } from 'lucide-vue-next'
+import { X, Search, Plus, AlertTriangle } from 'lucide-vue-next'
 
 interface PropertyLandlord {
   landlord_id: string
@@ -404,10 +404,6 @@ const handleMouseLeaveDropdown = () => {
   showDropdown.value = false
 }
 
-const closeDropdown = () => {
-  showDropdown.value = false
-}
-
 const togglePropertySelection = (property: PropertySearchResult) => {
   if (selectedProperties.value.has(property.id)) {
     // Deselect
@@ -436,7 +432,7 @@ const clearAllSelections = () => {
   selectedProperties.value.clear()
 }
 
-const handlePrimaryContactChange = (propertyId: string) => {
+const handlePrimaryContactChange = (_propertyId: string) => {
   // Only one property can be primary contact per landlord
   // So we don't need to enforce anything here - they can mark multiple as primary
   // The backend will handle it per-property
