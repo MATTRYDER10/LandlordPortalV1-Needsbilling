@@ -504,6 +504,14 @@ export async function evaluateAndTransition(
       return { success: true, transitioned: false }
     }
 
+    // Don't auto-transition from ACTION_REQUIRED (agent must explicitly re-submit)
+    // When staff marks sections as ACTION_REQUIRED, the agent must upload corrected evidence
+    // AND explicitly click "Submit for Re-referencing" before returning to READY_FOR_REVIEW
+    if (currentState === 'ACTION_REQUIRED') {
+      console.log(`[VerificationState] Reference ${referenceId} in ACTION_REQUIRED, skipping evaluation - agent must explicitly re-submit`)
+      return { success: true, transitioned: false }
+    }
+
     // Pending references are just sent; don't advance to COLLECTING_EVIDENCE until submitted
     if (reference.status === 'pending' && !reference.submitted_at) {
       console.log(`[VerificationState] Reference ${referenceId} pending and not submitted, skipping evaluation`)

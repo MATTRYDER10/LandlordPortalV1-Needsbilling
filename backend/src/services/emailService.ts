@@ -19,22 +19,35 @@ const resend = new Resend(process.env.RESEND_API_KEY || '');
 class EmailRateLimiter {
   private nextAllowedAt: number = 0;
   private readonly minInterval: number = 667; // ms between emails (~1.5/sec)
+  private emailCount: number = 0;
 
   async throttle<T>(fn: () => Promise<T>): Promise<T> {
     const now = Date.now();
+    const emailNum = ++this.emailCount;
+
+    console.log(`[EmailRateLimiter] Email #${emailNum}: now=${now}, nextAllowedAt=${this.nextAllowedAt}`);
 
     if (now < this.nextAllowedAt) {
       // Need to wait - reserve the NEXT slot before waiting
       const waitTime = this.nextAllowedAt - now;
       this.nextAllowedAt = this.nextAllowedAt + this.minInterval;
-      console.log(`[Email] Rate limiting: waiting ${waitTime}ms before sending`);
+      console.log(`[EmailRateLimiter] Email #${emailNum}: Rate limiting - waiting ${waitTime}ms, next slot reserved at ${this.nextAllowedAt}`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
+      console.log(`[EmailRateLimiter] Email #${emailNum}: Wait complete, proceeding to send`);
     } else {
       // No wait needed - reserve the next slot
       this.nextAllowedAt = now + this.minInterval;
+      console.log(`[EmailRateLimiter] Email #${emailNum}: No wait needed, next slot reserved at ${this.nextAllowedAt}`);
     }
 
-    return fn();
+    try {
+      const result = await fn();
+      console.log(`[EmailRateLimiter] Email #${emailNum}: ✓ Send completed successfully`);
+      return result;
+    } catch (error: any) {
+      console.error(`[EmailRateLimiter] Email #${emailNum}: ✗ Send failed: ${error.message}`);
+      throw error;
+    }
   }
 }
 
@@ -317,6 +330,8 @@ export async function logEmailDeliveryToAuditLog(
  * Internal function to send email via Resend (without rate limiting)
  */
 async function sendEmailInternal(options: EmailOptions, html: string, subject: string): Promise<{ id: string } | null> {
+  console.log(`[Resend] Calling Resend API for: ${options.to}`);
+
   const { data, error } = await resend.emails.send({
     from: options.from || 'PropertyGoose <hello@notifications.propertygoose.co.uk>',
     to: options.to,
@@ -326,9 +341,11 @@ async function sendEmailInternal(options: EmailOptions, html: string, subject: s
   });
 
   if (error) {
+    console.error(`[Resend] API error for ${options.to}:`, error);
     throw error;
   }
 
+  console.log(`[Resend] ✓ API success for ${options.to}, email ID: ${data?.id}`);
   return data;
 }
 

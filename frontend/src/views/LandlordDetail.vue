@@ -90,10 +90,12 @@
           <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-lg font-semibold text-gray-900">Linked Properties</h3>
-              <router-link to="/properties?add=true"
-                class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80">
+              <button
+                @click="showLinkPropertyModal = true"
+                class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80"
+              >
                 + Link Property
-              </router-link>
+              </button>
             </div>
             <div v-if="landlord.linked_properties && landlord.linked_properties.length > 0" class="space-y-3">
               <router-link
@@ -426,6 +428,16 @@
     <!-- Edit Modal -->
     <AddEditLandlordModal v-if="showEditModal" :show="showEditModal" :landlord-id="landlord?.id"
       @close="showEditModal = false" @saved="handleLandlordSaved" />
+
+    <!-- Link Property Modal -->
+    <LinkPropertyModal
+      v-if="landlord"
+      :show="showLinkPropertyModal"
+      :landlord-id="landlord.id"
+      :landlord-name="`${landlord.first_name} ${landlord.last_name}`"
+      @close="showLinkPropertyModal = false"
+      @saved="handlePropertyLinked"
+    />
   </Sidebar>
 </template>
 
@@ -436,6 +448,7 @@ import { useToast } from 'vue-toastification'
 import { ArrowLeft, Pencil, CheckCircle, Check, X, Minus, FileText, User, ExternalLink } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import AddEditLandlordModal from '../components/AddEditLandlordModal.vue'
+import LinkPropertyModal from '../components/landlords/LinkPropertyModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
 
@@ -451,6 +464,7 @@ const landlord = ref<any>(null)
 const activeTab = ref('overview')
 const showEditModal = ref(false)
 const showAddPropertyModal = ref(false)
+const showLinkPropertyModal = ref(false)
 const initiatingAML = ref(false)
 
 // Document blob URLs for displaying images
@@ -594,6 +608,11 @@ const requestIdVerification = async () => {
 const handleLandlordSaved = () => {
   showEditModal.value = false
   fetchLandlord()
+}
+
+const handlePropertyLinked = async () => {
+  showLinkPropertyModal.value = false
+  await fetchLandlord()
 }
 
 const formatAMLStatus = (status: string) => {

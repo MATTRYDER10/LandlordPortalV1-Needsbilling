@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import multer from 'multer'
 import { hash, encrypt } from '../services/encryption'
 import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/requestMetadata'
+import { transitionState, ensureVerifyWorkItem, evaluateAndTransition } from '../services/verificationStateService'
 
 const router = Router()
 
@@ -389,20 +390,15 @@ router.post('/submit/:token', async (req: Request, res) => {
 
     console.log('Guarantor reference submitted successfully:', guarantorReference.id)
 
-    // Determine if guarantor should go to pending_verification immediately
-    // This happens when: retired + owns home outright (no employer/landlord refs needed)
-    const isRetired = data.employment_status === 'retired'
-    const ownsHomeOutright = data.home_ownership_status === 'owner'
+    // Evaluate the guarantor's tenant_references entry to determine if ready for verification
+    // The state machine will check if all evidence is complete and transition accordingly
+    const tenantRefId = guarantorRef.reference_id
+    console.log('Evaluating guarantor verification state for tenant reference:', tenantRefId)
 
-    if (isRetired && ownsHomeOutright) {
-      console.log('Guarantor is retired and owns home outright - moving to pending_verification')
-      await supabase
-        .from('guarantor_references')
-        .update({ status: 'pending_verification' })
-        .eq('id', guarantorRef.id)
-    } else {
-      console.log('Guarantor requires additional references - staying in default status')
-    }
+    await evaluateAndTransition(
+      tenantRefId,
+      'Guarantor form submitted'
+    )
 
     res.json({
       message: 'Guarantor reference submitted successfully',

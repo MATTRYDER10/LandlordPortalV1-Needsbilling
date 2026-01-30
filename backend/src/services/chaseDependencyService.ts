@@ -317,8 +317,8 @@ function getTodayChaseThresholdUK(): Date {
   const ukYear = parseInt(ukDate.find(p => p.type === 'year')?.value || '2024')
 
   // Create threshold at 12:00pm (midday) UK time today
-  // We need to convert this to UTC for comparison
-  // Use a workaround: create the date as if it's UTC, then adjust
+  // This is when offshore staff start work and the queue repopulates with all pending items
+  // Auto-chase emails go out at 8:55am, then at 12pm the queue refreshes with items still not received
   const threshold = new Date(Date.UTC(ukYear, ukMonth, ukDay, 12, 0, 0, 0))
 
   // Determine if UK is in BST (British Summer Time) - roughly late March to late October
@@ -350,10 +350,14 @@ function getTodayChaseThresholdUK(): Date {
  * NOW QUERIES VERIFICATION_SECTIONS instead of chase_dependencies
  *
  * Pending Responses Queue Timing Logic:
- * - Items appear after initial_request_sent_at (when form was first sent)
- * - After staff clicks "Mark Done for Today", item is hidden until 8:55am UK next day
- * - Items are excluded if reference is completed, rejected, or in verification
- * - Email/SMS sent does NOT remove item from queue (changed from previous behavior)
+ * - Initial form requests are sent automatically when tenant submits reference
+ * - Items appear in queue after initial_request_sent_at is set
+ * - Auto-chase emails sent daily at 8:55am UK to all unreceived dependencies
+ * - At 12pm UK (when offshore staff start), queue repopulates with all items not yet received
+ * - After staff clicks "Mark Done for Today", item is hidden until 12pm next day
+ * - Items only excluded if reference is in terminal state (COMPLETED, REJECTED, CANCELLED)
+ * - Email/SMS sent does NOT remove item from queue
+ * - Items auto-removed when referee submits form (decision changes from NOT_REVIEWED)
  */
 export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
   try {
@@ -422,21 +426,24 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
     console.log(`[ChaseQueue] Raw sections count: ${sections?.length || 0}`)
 
     // Get today's 12pm UK threshold for "mark done" filtering
+    // At 12pm UK when offshore staff start, queue repopulates with all pending items
     const todayChaseThreshold = getTodayChaseThresholdUK()
     console.log(`[ChaseQueue] Today's 12pm UK threshold: ${todayChaseThreshold.toISOString()}`)
 
     // Filter sections based on:
-    // 1. Reference must exist and not be in terminal/processed state
-    // 2. Initial request must have been sent
-    // 3. Must NOT have been "marked done" today (after today's 12pm UK threshold)
+    // 1. Reference must exist and not be in terminal state (COMPLETED, REJECTED, CANCELLED)
+    // 2. Initial request must have been sent (initial_request_sent_at is set)
+    // 3. Must NOT have been "marked done" after today's 12pm UK threshold
     const activeSections = (sections || []).filter((section: any) => {
       if (!section.reference) {
         console.log(`[ChaseQueue] Filtered out section ${section.id}: no reference`)
         return false
       }
 
-      // Exclude references in terminal or verification states
-      const excludedVerificationStates = ['COMPLETED', 'REJECTED', 'CANCELLED', 'IN_VERIFICATION', 'READY_FOR_REVIEW']
+      // Only exclude references in terminal states
+      // References in COLLECTING_EVIDENCE, WAITING_ON_REFERENCES, READY_FOR_REVIEW, or IN_VERIFICATION
+      // can all have pending external dependencies that need chasing
+      const excludedVerificationStates = ['COMPLETED', 'REJECTED', 'CANCELLED']
       if (excludedVerificationStates.includes(section.reference.verification_state)) {
         console.log(`[ChaseQueue] Filtered out section ${section.id}: reference verification_state is ${section.reference.verification_state}`)
         return false
@@ -450,8 +457,8 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
 
       // Check "marked done" filter:
       // - If last_marked_done_at is NULL, item is visible
-      // - If last_marked_done_at is before today's 8:55am UK threshold, item reappears
-      // - If last_marked_done_at is after today's 8:55am UK threshold, item is hidden
+      // - If last_marked_done_at is before today's 12pm UK threshold, item reappears
+      // - If last_marked_done_at is after today's 12pm UK threshold, item is hidden
       const lastMarkedDoneAt = markedDoneMap.get(section.id)
       if (lastMarkedDoneAt) {
         const markedDoneAt = new Date(lastMarkedDoneAt)
@@ -1599,7 +1606,7 @@ export async function sendChaseForSection(
           .from('accountant_references')
           .select('id, token_hash')
           .eq('tenant_reference_id', reference.id)
-          .single()
+          .maybeSingle()
 
         if (!accountantRef) {
           return { sent: false, skipped: true, reason: 'Accountant reference record not found' }

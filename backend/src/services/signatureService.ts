@@ -264,13 +264,23 @@ class SignatureService {
    * Send signing request emails to all pending signers
    */
   async sendAllSigningEmails(agreementId: string): Promise<void> {
+    console.log(`[AgreementSigning] Starting email send for agreement ${agreementId}`)
+
     const { data: signatures } = await supabase
       .from('agreement_signatures')
       .select('*')
       .eq('agreement_id', agreementId)
       .in('status', ['pending', 'sent'])
 
-    if (!signatures) return
+    if (!signatures) {
+      console.log(`[AgreementSigning] No signatures found for agreement ${agreementId}`)
+      return
+    }
+
+    console.log(`[AgreementSigning] Found ${signatures.length} signatures to email:`)
+    signatures.forEach((sig, i) => {
+      console.log(`  ${i + 1}. ${sig.signer_name} (${sig.signer_type}) - ${sig.signer_email}`)
+    })
 
     const agreement = await this.getAgreement(agreementId)
     const propertyAddress = this.formatAddress(agreement.property_address)
@@ -289,16 +299,76 @@ class SignatureService {
       }
     }
 
-    const emailPromises = signatures.map(async (sig: SignatureRecord) => {
-      if (!sig.signer_email) {
-        console.warn(`No email for signer ${sig.signer_name}, skipping`)
-        return
-      }
+    console.log(`[AgreementSigning] Starting Promise.allSettled for ${signatures.length} emails...`)
+    const startTime = Date.now()
 
-      await this.sendSigningEmail(sig, propertyAddress, companyLogoUrl)
+    // Track successes and failures
+    const results = await Promise.allSettled(
+      signatures.map(async (sig: SignatureRecord, index: number) => {
+        const signerLabel = `${sig.signer_name} (${index + 1}/${signatures.length})`
+
+        if (!sig.signer_email) {
+          console.warn(`[AgreementSigning] ${signerLabel}: No email address, skipping`)
+          return { success: true, signer: sig.signer_name, reason: 'skipped - no email' }
+        }
+
+        try {
+          console.log(`[AgreementSigning] ${signerLabel}: Attempting to send email to ${sig.signer_email}`)
+          await this.sendSigningEmail(sig, propertyAddress, companyLogoUrl)
+          console.log(`[AgreementSigning] ${signerLabel}: ✓ Email sent successfully`)
+          return { success: true, signer: sig.signer_name }
+        } catch (error: any) {
+          console.error(`[AgreementSigning] ${signerLabel}: ✗ Failed to send email: ${error.message}`)
+          return {
+            success: false,
+            signer: sig.signer_name,
+            email: sig.signer_email,
+            error: error.message || 'Unknown error'
+          }
+        }
+      })
+    )
+
+    const elapsed = Date.now() - startTime
+    console.log(`[AgreementSigning] Promise.allSettled completed in ${elapsed}ms`)
+
+    // Collect failures
+    const failures: any[] = []
+    const successes: any[] = []
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        if (!result.value.success) {
+          failures.push(result.value)
+        } else {
+          successes.push(result.value)
+        }
+      } else if (result.status === 'rejected') {
+        failures.push({
+          success: false,
+          signer: signatures[index]?.signer_name || 'Unknown',
+          email: signatures[index]?.signer_email || 'Unknown',
+          error: result.reason?.message || 'Unknown error'
+        })
+      }
     })
 
-    await Promise.all(emailPromises)
+    console.log(`[AgreementSigning] Results: ${successes.length} succeeded, ${failures.length} failed`)
+
+    // If any emails failed, throw an error with details
+    if (failures.length > 0) {
+      const failureDetails = failures
+        .map(f => `${f.signer} (${f.email}): ${f.error}`)
+        .join('\n  - ')
+
+      console.error(`[AgreementSigning] Failed to send ${failures.length}/${signatures.length} signing emails:\n  - ${failureDetails}`)
+
+      throw new Error(
+        `Failed to send emails to ${failures.length} signer(s): ${failures.map(f => f.signer).join(', ')}`
+      )
+    }
+
+    console.log(`[AgreementSigning] ✓ Successfully sent signing emails to all ${signatures.length} signers`)
   }
 
   /**
@@ -323,7 +393,7 @@ class SignatureService {
         html
       })
 
-      // Update signature record
+      // Update signature record only after successful email send
       await supabase
         .from('agreement_signatures')
         .update({
@@ -335,8 +405,12 @@ class SignatureService {
 
       // Log event
       await this.logEvent(signature.id, signature.agreement_id, 'email_sent', {})
-    } catch (error) {
+
+      console.log(`Successfully sent signing email to ${signature.signer_name} (${signature.signer_email})`)
+    } catch (error: any) {
       console.error(`Failed to send signing email to ${signature.signer_email}:`, error)
+      // Re-throw the error so it can be caught by the caller
+      throw new Error(`Failed to send email to ${signature.signer_name}: ${error.message || 'Unknown error'}`)
     }
   }
 
@@ -377,31 +451,38 @@ class SignatureService {
       }
     }
 
-    const html = loadEmailTemplate('agreement-signing-reminder', {
-      SignerName: signature.signer_name,
-      SignerType: this.capitalizeFirst(signature.signer_type),
-      PropertyAddress: propertyAddress,
-      SigningUrl: signingUrl,
-      AgentLogoUrl: companyLogoUrl || DEFAULT_LOGO_URL,
-    })
-
-    await sendEmail({
-      to: signature.signer_email,
-      subject: `Reminder: Your Tenancy Agreement Awaits Signature - ${propertyAddress}`,
-      html
-    })
-
-    // Update signature record
-    await supabase
-      .from('agreement_signatures')
-      .update({
-        last_email_sent_at: new Date().toISOString(),
-        email_send_count: signature.email_send_count + 1
+    try {
+      const html = loadEmailTemplate('agreement-signing-reminder', {
+        SignerName: signature.signer_name,
+        SignerType: this.capitalizeFirst(signature.signer_type),
+        PropertyAddress: propertyAddress,
+        SigningUrl: signingUrl,
+        AgentLogoUrl: companyLogoUrl || DEFAULT_LOGO_URL,
       })
-      .eq('id', signatureId)
 
-    // Log event
-    await this.logEvent(signatureId, signature.agreement_id, 'reminder_sent', {})
+      await sendEmail({
+        to: signature.signer_email,
+        subject: `Reminder: Your Tenancy Agreement Awaits Signature - ${propertyAddress}`,
+        html
+      })
+
+      // Update signature record only after successful email send
+      await supabase
+        .from('agreement_signatures')
+        .update({
+          last_email_sent_at: new Date().toISOString(),
+          email_send_count: signature.email_send_count + 1
+        })
+        .eq('id', signatureId)
+
+      // Log event
+      await this.logEvent(signatureId, signature.agreement_id, 'reminder_sent', {})
+
+      console.log(`Successfully sent reminder email to ${signature.signer_name} (${signature.signer_email})`)
+    } catch (error: any) {
+      console.error(`Failed to send reminder email to ${signature.signer_email}:`, error)
+      throw new Error(`Failed to send reminder email to ${signature.signer_name}: ${error.message || 'Unknown error'}`)
+    }
   }
 
   /**

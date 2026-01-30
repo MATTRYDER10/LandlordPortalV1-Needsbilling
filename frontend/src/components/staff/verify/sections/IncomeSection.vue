@@ -912,11 +912,25 @@ const confirmedPension = ref(0)
 const confirmedLandlordRental = ref(0)
 const confirmedTotal = ref(0)
 
+// Calculate total from confirmed individual amounts
+const calculatedTotal = computed(() => {
+  return confirmedSalary.value + confirmedBenefits.value + confirmedSelfEmployed.value + confirmedOther.value + confirmedPension.value + confirmedLandlordRental.value
+})
+
 // Use verified income if available, otherwise use claimed as default
+// Priority: calculatedTotal (actively being entered) > verifiedIncome (saved) > totalIncome/claimedIncome
 const displayIncome = computed(() => {
+  // If staff is actively entering confirmed amounts, use the calculated total
+  if (calculatedTotal.value > 0) {
+    return calculatedTotal.value
+  }
+
+  // Otherwise, use saved verified income if available
   if (props.verifiedIncome?.total !== null && props.verifiedIncome?.total !== undefined) {
     return props.verifiedIncome.total
   }
+
+  // Fall back to claimed income
   return props.totalIncome || props.claimedIncome?.total || 0
 })
 
@@ -941,10 +955,6 @@ const affordabilityLabel = computed(() => {
     unknown: 'Pending'
   }
   return labels[affordabilityStatus.value]
-})
-
-const calculatedTotal = computed(() => {
-  return confirmedSalary.value + confirmedBenefits.value + confirmedSelfEmployed.value + confirmedOther.value + confirmedPension.value + confirmedLandlordRental.value
 })
 
 // Initialize form with existing values
