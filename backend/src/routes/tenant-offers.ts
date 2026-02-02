@@ -86,7 +86,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         // Get user's company
         const { data: companyUsers } = await supabase
             .from('company_users')
-            .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted)')
+            .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted, logo_url)')
             .eq('user_id', userId)
             .limit(1)
 
@@ -104,6 +104,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         const companyEmail = (companyUser as any).companies?.email_encrypted
             ? (decrypt((companyUser as any).companies.email_encrypted) || '')
             : ''
+        const companyLogoUrl = (companyUser as any).companies?.logo_url || null
 
         // Generate offer form link with company ID and pre-filled data
         const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
@@ -122,7 +123,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
                 companyName,
                 property_address,
                 companyPhone || undefined,
-                companyEmail || undefined
+                companyEmail || undefined,
+                companyLogoUrl
             )
             console.log('Offer form email sent successfully to:', tenant_email)
         } catch (emailError: any) {
@@ -919,7 +921,8 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
           email_encrypted,
           bank_account_name,
           bank_account_number,
-          bank_sort_code
+          bank_sort_code,
+          logo_url
         )
       `)
             .eq('id', id)
@@ -955,6 +958,7 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
         const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
         const companyPhone = company?.phone_encrypted ? (decrypt(company.phone_encrypted) || '') : ''
         const companyEmail = company?.email_encrypted ? (decrypt(company.email_encrypted) || '') : ''
+        const companyLogoUrl = company?.logo_url || null
         const bankAccountName = company?.bank_account_name || ''
         const bankAccountNumber = company?.bank_account_number || ''
         const bankSortCode = company?.bank_sort_code || ''
@@ -1025,7 +1029,8 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
                     id,
                     companyPhone || undefined,
                     companyEmail || undefined,
-                    extraDetailsHtml
+                    extraDetailsHtml,
+                    companyLogoUrl
                 )
             } catch (emailError) {
                 console.error(`Failed to send approval email to ${email}:`, emailError)
@@ -1094,7 +1099,7 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
             .select(`
         *,
         tenant_offer_tenants (*),
-        companies:company_id (name_encrypted, phone_encrypted, email_encrypted)
+        companies:company_id (name_encrypted, phone_encrypted, email_encrypted, logo_url)
       `)
             .eq('id', id)
             .eq('company_id', companyId)
@@ -1128,6 +1133,7 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
     const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
     const companyPhone = company?.phone_encrypted ? (decrypt(company.phone_encrypted) || '') : ''
     const companyEmail = company?.email_encrypted ? (decrypt(company.email_encrypted) || '') : ''
+    const companyLogoUrl = company?.logo_url || null
 
         // Get tenant emails
         const tenantEmails = (offer.tenant_offer_tenants || []).map((tenant: any) =>
@@ -1142,7 +1148,8 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
                     companyName,
             reason,
             companyPhone || undefined,
-            companyEmail || undefined
+            companyEmail || undefined,
+            companyLogoUrl
                 )
             } catch (emailError) {
                 console.error(`Failed to send decline email to ${email}:`, emailError)
@@ -1785,7 +1792,8 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
                     email_encrypted,
                     bank_account_name,
                     bank_account_number,
-                    bank_sort_code
+                    bank_sort_code,
+                    logo_url
                 )
             `)
             .eq('id', id)
@@ -1810,6 +1818,7 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
         const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
         const companyPhone = company?.phone_encrypted ? (decrypt(company.phone_encrypted) || '') : ''
         const companyEmail = company?.email_encrypted ? (decrypt(company.email_encrypted) || '') : ''
+        const companyLogoUrl = company?.logo_url || null
 
         // Get tenant emails
         const tenantEmails = (offer.tenant_offer_tenants || []).map((tenant: any) =>
@@ -1838,7 +1847,9 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
                         holdingDeposit,
                         id,
                         companyPhone || undefined,
-                        companyEmail || undefined
+                        companyEmail || undefined,
+                        undefined,
+                        companyLogoUrl
                     )
                 } catch (emailError) {
                     console.error(`Failed to resend approval email to ${email}:`, emailError)
@@ -1865,7 +1876,8 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
                         companyName,
                         declineReason,
                         companyPhone || undefined,
-                        companyEmail || undefined
+                        companyEmail || undefined,
+                        companyLogoUrl
                     )
                 } catch (emailError) {
                     console.error(`Failed to resend decline email to ${email}:`, emailError)

@@ -861,6 +861,17 @@ class SignatureService {
       }
 
       try {
+        // Get company logo URL for email branding
+        let companyLogoUrl: string | null = null
+        if (agreement.company_id) {
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('logo_url')
+            .eq('id', agreement.company_id)
+            .single()
+          companyLogoUrl = companyData?.logo_url || null
+        }
+
         const html = loadEmailTemplate('agreement-fully-signed', {
           SignerName: recipientName,
           PropertyAddress: propertyAddress,
@@ -869,7 +880,8 @@ class SignatureService {
             day: 'numeric',
             month: 'long',
             year: 'numeric'
-          })
+          }),
+          AgentLogoUrl: companyLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
         })
 
         await sendEmail({

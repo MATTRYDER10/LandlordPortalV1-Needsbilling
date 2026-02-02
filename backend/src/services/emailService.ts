@@ -1071,7 +1071,8 @@ export async function sendTenantOfferRequest(
   companyName: string,
   propertyAddress?: string,
   companyPhone?: string,
-  companyEmail?: string | null
+  companyEmail?: string | null,
+  agentLogoUrl?: string | null
 ): Promise<void> {
   const contactInfo = companyPhone ? `${companyName} on ${companyPhone}` : companyName
 
@@ -1080,6 +1081,7 @@ export async function sendTenantOfferRequest(
     OfferLink: offerLink,
     PropertyAddress: capitalizeWords(propertyAddress || ''),
     ContactInfo: contactInfo,
+    AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL
   })
 
   await sendEmail({
@@ -1107,7 +1109,8 @@ export async function sendOfferAcceptedEmail(
   offerId: string,
   companyPhone?: string | null,
   companyEmail?: string | null,
-  extraDetailsHtml?: string
+  extraDetailsHtml?: string,
+  agentLogoUrl?: string | null
 ): Promise<void> {
   const frontendBaseUrl = getFrontendUrl()
   const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed?offer_id=${offerId}`
@@ -1119,7 +1122,8 @@ export async function sendOfferAcceptedEmail(
     BankSortCode: bankSortCode,
     HoldingDepositAmount: holdingDepositAmount.toFixed(2),
     ExtraDetailsHtml: extraDetailsHtml || '',
-    PaymentConfirmedUrl: paymentConfirmedUrl
+    PaymentConfirmedUrl: paymentConfirmedUrl,
+    AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL
   })
 
   await sendEmail({
@@ -1142,11 +1146,13 @@ export async function sendOfferDeclinedEmail(
   companyName: string,
   declineReason: string,
   companyPhone?: string | null,
-  companyEmail?: string | null
+  companyEmail?: string | null,
+  agentLogoUrl?: string | null
 ): Promise<void> {
   const html = loadEmailTemplate('offer-declined', {
     CompanyName: companyName,
     DeclineReason: declineReason,
+    AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
   })
 
   await sendEmail({

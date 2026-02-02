@@ -2075,7 +2075,14 @@ const canProceed = computed(() => {
       )
     case 6: // Guarantors (optional, so always can proceed)
       if (formData.value.guarantors.length === 0) return true
-      return formData.value.guarantors.every(
+      // Filter out completely empty guarantors (no name and no address data)
+      const nonEmptyGuarantors = formData.value.guarantors.filter(
+        (g) => g.name !== '' || g.address.line1 !== '' || g.address.city !== '' || g.address.postcode !== ''
+      )
+      // If all guarantors are empty, can proceed
+      if (nonEmptyGuarantors.length === 0) return true
+      // Otherwise, all non-empty guarantors must have complete data
+      return nonEmptyGuarantors.every(
         (g) => g.name !== '' && g.address.line1 !== '' && g.address.city !== '' && g.address.postcode !== ''
       )
     default:
@@ -3054,7 +3061,11 @@ async function generateAgreement() {
     const agreementData: Record<string, any> = {
       ...formData.value,
       tenancyEndDate: formData.value.tenancyEndDate || calculatedEndDate.value || null,
-      breakClause: formData.value.breakClauseEnabled ? generatedBreakClause.value : ''
+      breakClause: formData.value.breakClauseEnabled ? generatedBreakClause.value : '',
+      // Filter out empty guarantors before submitting
+      guarantors: formData.value.guarantors.filter(
+        (g) => g.name !== '' || g.address.line1 !== '' || g.address.city !== '' || g.address.postcode !== ''
+      )
     }
 
     // Add property integration if a property was selected

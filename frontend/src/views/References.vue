@@ -849,6 +849,11 @@ const filteredTenancies = computed(() => {
       filtered = filtered.filter(t =>
         t.tenancyStatus === 'COMPLETED' && (!t.moveInDate || t.moveInDate >= today)
       )
+    } else if (activeTab.value === 'IN_PROGRESS') {
+      // Include IN_PROGRESS, COLLECTING_EVIDENCE, and SENT statuses
+      filtered = filtered.filter(t =>
+        ['IN_PROGRESS', 'COLLECTING_EVIDENCE', 'SENT'].includes(t.tenancyStatus)
+      )
     } else {
       filtered = filtered.filter(t => t.tenancyStatus === activeTab.value)
     }
