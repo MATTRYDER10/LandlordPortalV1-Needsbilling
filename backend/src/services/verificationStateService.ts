@@ -224,7 +224,10 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
   // -------------------------------------------------------------------------
   let hasResidential = true
   if (!isGuarantor) {
-    const isLivingWithFamily = reference.confirmed_residential_status === 'Living with Family'
+    // Check both confirmed_residential_status (new field) and reference_type (legacy field)
+    const isLivingWithFamily =
+      reference.confirmed_residential_status === 'Living with Family' ||
+      reference.reference_type === 'living_with_family'
     const hasLandlordRef = (reference.landlord_references || []).some((lr: any) => lr.submitted_at)
     const hasAgentRef = (reference.agent_references || []).some((ar: any) => ar.submitted_at)
 

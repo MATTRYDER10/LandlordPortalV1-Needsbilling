@@ -205,9 +205,11 @@ export async function createDependenciesForReference(referenceId: string): Promi
       .filter(dep => externalRefMap[dep.dependency_type])
       .map(dep => {
         let sectionType = externalRefMap[dep.dependency_type].sectionType
-        if (dep.dependency_type === 'RESIDENTIAL_REF' && dep.linked_table === 'agent_references') {
-          sectionType = 'AGENT_REFERENCE'
-        }
+        // NOTE: AGENT_REFERENCE is not in database constraint for section_type
+        // Use LANDLORD_REFERENCE for all residential refs including agent references
+        // if (dep.dependency_type === 'RESIDENTIAL_REF' && dep.linked_table === 'agent_references') {
+        //   sectionType = 'AGENT_REFERENCE'
+        // }
 
         return {
           reference_id: dep.reference_id,
@@ -264,9 +266,11 @@ export async function ensureExternalVerificationSections(referenceId: string): P
       .filter(dep => externalRefMap[dep.dependency_type])
       .map(dep => {
         let sectionType = externalRefMap[dep.dependency_type].sectionType
-        if (dep.dependency_type === 'RESIDENTIAL_REF' && dep.linked_table === 'agent_references') {
-          sectionType = 'AGENT_REFERENCE'
-        }
+        // NOTE: AGENT_REFERENCE is not in database constraint for section_type
+        // Use LANDLORD_REFERENCE for all residential refs including agent references
+        // if (dep.dependency_type === 'RESIDENTIAL_REF' && dep.linked_table === 'agent_references') {
+        //   sectionType = 'AGENT_REFERENCE'
+        // }
 
         return {
           reference_id: referenceId,
@@ -395,6 +399,8 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
           company:companies!inner(name_encrypted)
         )
       `)
+      // NOTE: AGENT_REFERENCE included for backwards compatibility but DB constraint prevents creation
+      // Agent references now use LANDLORD_REFERENCE section_type
       .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'AGENT_REFERENCE', 'ACCOUNTANT_REFERENCE'])
       .eq('decision', 'NOT_REVIEWED')
       .order('initial_request_sent_at', { ascending: true })
@@ -408,6 +414,7 @@ export async function getChaseQueue(): Promise<ChaseQueueItem[]> {
       const { data: markedDoneData } = await supabase
         .from('verification_sections')
         .select('id, last_marked_done_at')
+        // NOTE: AGENT_REFERENCE included for backwards compatibility but DB constraint prevents creation
         .in('section_type', ['EMPLOYER_REFERENCE', 'LANDLORD_REFERENCE', 'AGENT_REFERENCE', 'ACCOUNTANT_REFERENCE'])
         .not('last_marked_done_at', 'is', null)
 
