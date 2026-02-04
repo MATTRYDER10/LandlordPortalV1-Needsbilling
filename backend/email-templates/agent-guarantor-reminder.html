@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Action Required: Add Guarantor - PropertyGoose</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 20px 0;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); padding: 30px; text-align: center;">
+                            <img src="{{ AgentLogoUrl }}" alt="{{ CompanyName }}" style="max-height: 60px; max-width: 200px; height: auto;">
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h1 style="margin: 0 0 20px 0; color: #111827; font-size: 24px; font-weight: 600;">
+                                Action Required: Add Guarantor
+                            </h1>
+
+                            <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 16px; margin-bottom: 24px; border-radius: 4px;">
+                                <p style="margin: 0; color: #9a3412; font-weight: 500;">
+                                    ⚠️ Guarantor Required
+                                </p>
+                            </div>
+
+                            <p style="margin: 0 0 16px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                                Hello,
+                            </p>
+
+                            <p style="margin: 0 0 16px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                                The tenant reference for <strong>{{ TenantName }}</strong> at <strong>{{ PropertyAddress }}</strong> has been completed with a decision of <strong>"Accept with Guarantor"</strong>.
+                            </p>
+
+                            <p style="margin: 0 0 24px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                                <strong>However, no guarantor has been added yet.</strong> To complete the referencing process, please add a guarantor for this tenant.
+                            </p>
+
+                            <!-- Reference Details Box -->
+                            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 20px; margin-bottom: 24px;">
+                                <h2 style="margin: 0 0 12px 0; color: #111827; font-size: 16px; font-weight: 600;">
+                                    Reference Details
+                                </h2>
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Tenant:</td>
+                                        <td style="padding: 6px 0; color: #111827; font-size: 14px; font-weight: 500; text-align: right;">{{ TenantName }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Property:</td>
+                                        <td style="padding: 6px 0; color: #111827; font-size: 14px; font-weight: 500; text-align: right;">{{ PropertyAddress }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Decision:</td>
+                                        <td style="padding: 6px 0; color: #f97316; font-size: 14px; font-weight: 600; text-align: right;">Accept with Guarantor</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- Action Required -->
+                            <div style="background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 16px; margin-bottom: 24px;">
+                                <p style="margin: 0; color: #78350f; font-size: 14px; line-height: 1.5;">
+                                    <strong>Next Steps:</strong><br>
+                                    1. Log in to your PropertyGoose dashboard<br>
+                                    2. Navigate to the References tab<br>
+                                    3. Find this tenant in the Completed section<br>
+                                    4. Click the "Add Guarantor" button<br>
+                                    5. Enter the guarantor's details to start their referencing
+                                </p>
+                            </div>
+
+                            <!-- CTA Button -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="{{ DashboardUrl }}" style="display: inline-block; padding: 14px 32px; background-color: #f97316; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                                            Go to Dashboard
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                                The tenant has been assessed and meets the criteria with the addition of a guarantor. Once you add the guarantor, they will receive an email to complete their reference, and the overall reference status will move to "In Progress" until the guarantor's reference is completed.
+                            </p>
+
+                            <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                                If you have any questions, please contact PropertyGoose support.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f9fafb; padding: 20px 30px; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; text-align: center;">
+                                &copy; 2026 PropertyGoose. All rights reserved.
+                            </p>
+                            <p style="margin: 0; color: #9ca3af; font-size: 11px; text-align: center;">
+                                This is an automated message. Please do not reply to this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -14,7 +14,8 @@ import {
   sendAgentReferenceRequest,
   sendEmployerReferenceRequest,
   sendAccountantReferenceRequest,
-  sendTenantAddGuarantorRequest
+  sendTenantAddGuarantorRequest,
+  sendAgentGuarantorReminder
 } from '../services/emailService'
 import {
   sendGuarantorReferenceRequestSMS,
@@ -774,7 +775,8 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
         companies:company_id (
           id,
           name_encrypted,
-          reference_notification_email
+          reference_notification_email,
+          logo_url
         )
       `)
       .single()
@@ -834,16 +836,16 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
       // Don't fail the request if email fails
     }
 
-    // Check if PASS_WITH_GUARANTOR and no guarantor assigned - send email to tenant
+    // Check if PASS_WITH_GUARANTOR and no guarantor assigned - send email to agent
     try {
       // Get the score decision
       const { data: score } = await supabase
         .from('reference_scores')
-        .select('decision')
+        .select('decision, guarantor_required')
         .eq('reference_id', id)
         .single()
 
-      if (score?.decision === 'PASS_WITH_GUARANTOR') {
+      if (score?.decision === 'PASS_WITH_GUARANTOR' || score?.guarantor_required === true) {
         // Check if guarantor already exists
         const { data: existingGuarantor } = await supabase
           .from('tenant_references')
@@ -853,23 +855,7 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
           .maybeSingle()
 
         if (!existingGuarantor) {
-          // Generate add-guarantor token
-          const addGuarantorToken = generateToken()
-          const addGuarantorTokenHash = hash(addGuarantorToken)
-          const tokenExpiresAt = new Date()
-          tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60) // 60-day expiry
-
-          // Save token to reference
-          await supabase
-            .from('tenant_references')
-            .update({
-              add_guarantor_token_hash: addGuarantorTokenHash,
-              add_guarantor_token_expires_at: tokenExpiresAt.toISOString()
-            })
-            .eq('id', id)
-
-          // Send email to tenant
-          const tenantEmail = decrypt(reference.tenant_email_encrypted)
+          // Send email to agent (not tenant) to add guarantor through UI
           const tenantFirstName = reference.tenant_first_name_encrypted
             ? decrypt(reference.tenant_first_name_encrypted) || ''
             : ''
@@ -883,18 +869,23 @@ router.put('/references/:id/verify', authenticateStaff, async (req: StaffAuthReq
           const companyName = reference.companies?.name_encrypted
             ? decrypt(reference.companies.name_encrypted) || 'Your agent'
             : 'Your agent'
-          const formLink = `${frontendUrl}/tenant-add-guarantor/${id}`
+          const agentEmail = reference.companies?.reference_notification_email
+          const agentLogoUrl = reference.companies?.logo_url || null
+          const dashboardUrl = `${frontendUrl}/references`
 
-          if (tenantEmail) {
-            await sendTenantAddGuarantorRequest(
-              tenantEmail,
+          if (agentEmail) {
+            await sendAgentGuarantorReminder(
+              agentEmail,
               tenantName,
               propertyAddress,
               companyName,
-              formLink,
+              dashboardUrl,
+              agentLogoUrl,
               id
             )
-            console.log('Sent tenant add guarantor email to:', tenantEmail)
+            console.log('Sent agent guarantor reminder email to:', agentEmail)
+          } else {
+            console.warn('No agent email found, cannot send guarantor reminder')
           }
         }
       }

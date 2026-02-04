@@ -5,7 +5,7 @@ import { generatePassedPdfService } from '../services/generatePassedPdfService';
 import { validateSubmitAssessmentBody } from '../utils/verification-validation';
 import { assessApplicationScore } from '../services/application-assesment/assessApplication';
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption';
-import { sendTenantAddGuarantorRequest, sendVerificationReportToAgent } from '../services/emailService';
+import { sendTenantAddGuarantorRequest, sendVerificationReportToAgent, sendAgentGuarantorReminder } from '../services/emailService';
 import { getFrontendUrl } from '../utils/frontendUrl';
 import axios from 'axios';
 
@@ -608,7 +608,9 @@ router.post(
           property_address_encrypted,
           company_id,
           companies:company_id (
-            name_encrypted
+            name_encrypted,
+            reference_notification_email,
+            logo_url
           )
         `)
         .eq('id', referenceId)
@@ -817,8 +819,17 @@ router.post(
         // Don't fail the entire request if PDF generation fails
       }
 
-      // If PASS_WITH_GUARANTOR and no guarantor exists, send email to tenant to add one
-      if (tas_category === 'PASS_WITH_GUARANTOR' && !isGuarantor) {
+      // If PASS_WITH_GUARANTOR and no guarantor exists, send email to agent to add one through UI
+      // Also check guarantor_required flag in case tas_category wasn't set properly
+      const { data: scoreData } = await supabaseAdmin
+        .from('reference_scores')
+        .select('guarantor_required')
+        .eq('reference_id', referenceId)
+        .maybeSingle();
+
+      const requiresGuarantor = tas_category === 'PASS_WITH_GUARANTOR' || scoreData?.guarantor_required === true;
+
+      if (requiresGuarantor && !isGuarantor) {
         try {
           // Check if guarantor already exists
           const { data: existingGuarantor } = await supabaseAdmin
@@ -829,25 +840,7 @@ router.post(
             .maybeSingle();
 
           if (!existingGuarantor) {
-            // Generate add-guarantor token
-            const addGuarantorToken = generateToken();
-            const addGuarantorTokenHash = hash(addGuarantorToken);
-            const tokenExpiresAt = new Date();
-            tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60); // 60-day expiry
-
-            // Save token to reference
-            await supabaseAdmin
-              .from('tenant_references')
-              .update({
-                add_guarantor_token_hash: addGuarantorTokenHash,
-                add_guarantor_token_expires_at: tokenExpiresAt.toISOString()
-              })
-              .eq('id', referenceId);
-
-            // Prepare email data
-            const tenantEmail = reference.tenant_email_encrypted
-              ? decrypt(reference.tenant_email_encrypted)
-              : null;
+            // Send email to agent (not tenant) to add guarantor through UI
             const tenantFirstName = reference.tenant_first_name_encrypted
               ? decrypt(reference.tenant_first_name_encrypted) || ''
               : '';
@@ -858,22 +851,27 @@ router.post(
             const propertyAddress = reference.property_address_encrypted
               ? decrypt(reference.property_address_encrypted) || 'the property'
               : 'the property';
-            const companyData = reference.companies as { name_encrypted?: string } | null;
+            const companyData = reference.companies as { name_encrypted?: string; reference_notification_email?: string; logo_url?: string } | null;
             const companyName = companyData?.name_encrypted
               ? decrypt(companyData.name_encrypted) || 'Your agent'
               : 'Your agent';
-            const formLink = `${frontendUrl}/tenant-add-guarantor/${referenceId}`;
+            const agentEmail = companyData?.reference_notification_email;
+            const agentLogoUrl = companyData?.logo_url || null;
+            const dashboardUrl = `${frontendUrl}/references`;
 
-            if (tenantEmail) {
-              await sendTenantAddGuarantorRequest(
-                tenantEmail,
+            if (agentEmail) {
+              await sendAgentGuarantorReminder(
+                agentEmail,
                 tenantName,
                 propertyAddress,
                 companyName,
-                formLink,
+                dashboardUrl,
+                agentLogoUrl,
                 referenceId
               );
-              console.log('[Assessment] Sent add guarantor email to:', tenantEmail);
+              console.log('[Assessment] Sent agent guarantor reminder email to:', agentEmail);
+            } else {
+              console.warn('[Assessment] No agent email found, cannot send guarantor reminder');
             }
           } else {
             console.log('[Assessment] Guarantor already exists, skipping email');

@@ -860,6 +860,50 @@ export async function sendTenantAddGuarantorRequest(
 }
 
 /**
+ * Send email to agent when reference completes with guarantor required but no guarantor added
+ * Agent needs to manually add guarantor through the UI
+ */
+export async function sendAgentGuarantorReminder(
+  agentEmail: string,
+  tenantName: string,
+  propertyAddress: string,
+  companyName: string,
+  dashboardUrl: string,
+  agentLogoUrl: string | null,
+  referenceId?: string
+): Promise<void> {
+  const html = loadEmailTemplate('agent-guarantor-reminder', {
+    TenantName: tenantName,
+    PropertyAddress: propertyAddress,
+    CompanyName: companyName,
+    DashboardUrl: dashboardUrl,
+    AgentLogoUrl: agentLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+  });
+
+  try {
+    await sendEmail({
+      to: agentEmail,
+      subject: `Action Required: Add Guarantor for ${tenantName} - PropertyGoose`,
+      html,
+      contactDetails: {
+        companyName: companyName
+      },
+      referenceId,
+      referenceType: 'tenant'
+    });
+
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'agent_guarantor_reminder', 'sent');
+    }
+  } catch (error: any) {
+    if (referenceId) {
+      await logEmailToAuditLog(referenceId, 'agent_guarantor_reminder', 'failed', error.message);
+    }
+    throw error;
+  }
+}
+
+/**
  * Send consent PDF to tenant
  */
 export async function sendConsentPDFToTenant(

@@ -1745,22 +1745,31 @@ const hasGuarantorCondition = computed(() => {
   return incomeSection?.decision === 'PASS_WITH_CONDITION'
 })
 
+// Check if reference requires guarantor from score data
+const requiresGuarantorFromScore = computed(() => {
+  return score.value?.guarantor_required === true
+})
+
 // Show Add Guarantor button:
 // - Person is a tenant (not a guarantor)
 // - Doesn't already have a guarantor
-// - Either not verified yet, OR verified with "Pass with Guarantor" status
+// - Either not verified yet, OR verified with "Pass with Guarantor" status OR score indicates guarantor required
 const canAddGuarantor = computed(() => {
   if (!props.person) return false
   if (props.person.role !== 'TENANT') return false
   if (hasGuarantor.value) return false
 
-  // If verified, show button when:
-  // - Status is COMPLETED with income section PASS_WITH_CONDITION (conditional on guarantor)
-  if (isVerified.value) {
-    return props.person.verificationState === 'COMPLETED' && hasGuarantorCondition.value
+  // Always show for in-progress references
+  if (!isVerified.value) return true
+
+  // If verified (COMPLETED), show button when:
+  // - Income section has PASS_WITH_CONDITION, OR
+  // - Score data has guarantor_required flag set to true
+  if (props.person.verificationState === 'COMPLETED') {
+    return hasGuarantorCondition.value || requiresGuarantorFromScore.value
   }
 
-  return true
+  return false
 })
 
 // Show Delete Reference button for all statuses except completed and rejected

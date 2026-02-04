@@ -5822,9 +5822,20 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
     console.log('Created guarantor reference:', guarantorReference.id)
 
     // Update parent reference to mark it requires guarantor
+    // If parent is COMPLETED, move it to IN_PROGRESS (waiting for guarantor to complete)
+    const parentUpdate: Record<string, any> = {
+      requires_guarantor: true
+    }
+
+    if (parentReference.verification_state === 'COMPLETED') {
+      parentUpdate.status = 'in_progress'
+      parentUpdate.verification_state = 'WAITING_ON_REFERENCES'
+      console.log('Moving parent reference from COMPLETED to IN_PROGRESS (waiting for guarantor)')
+    }
+
     await supabase
       .from('tenant_references')
-      .update({ requires_guarantor: true })
+      .update(parentUpdate)
       .eq('id', referenceId)
 
     // Send email to guarantor with guarantor-specific form link
