@@ -1739,17 +1739,6 @@ const hasGuarantor = computed(() => {
   )
 })
 
-// Check if income section has PASS_WITH_CONDITION (indicates guarantor required)
-const hasGuarantorCondition = computed(() => {
-  const incomeSection = props.person?.sectionStatuses?.find(s => s.type === 'INCOME')
-  return incomeSection?.decision === 'PASS_WITH_CONDITION'
-})
-
-// Check if reference requires guarantor from score data
-const requiresGuarantorFromScore = computed(() => {
-  return score.value?.guarantor_required === true
-})
-
 // Show Add Guarantor button:
 // - Person is a tenant (not a guarantor)
 // - Doesn't already have a guarantor
