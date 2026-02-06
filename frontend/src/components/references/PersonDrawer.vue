@@ -764,7 +764,9 @@
                   </div>
                   <!-- Response details when received -->
                   <div v-if="employerRef?.submitted_at" class="mt-3 pt-3 border-t border-blue-200 text-xs text-gray-600 space-y-1">
-                    <p v-if="employerRef.annual_salary">Confirmed Salary: {{ formatCurrency(Number(employerRef.annual_salary)) }}</p>
+                    <p v-if="employerRef.annual_salary || (employerRef.is_hourly && employerRef.hourly_rate && employerRef.hours_per_week)">
+                      Annual Income: {{ formatEmployerIncome(employerRef) }}
+                    </p>
                     <p v-if="employerRef.employee_position">Confirmed Title: {{ employerRef.employee_position }}</p>
                     <p v-if="employerRef.start_date">Employment Start: {{ formatDate(employerRef.start_date) }}</p>
                     <p v-if="employerRef.performance_satisfactory !== undefined">Performance Satisfactory: {{ employerRef.performance_satisfactory ? 'Yes' : 'No' }}</p>
@@ -823,7 +825,9 @@
                   <p v-if="accountantRef.accountant_email" class="text-xs text-gray-500">{{ accountantRef.accountant_email }}</p>
                   <p v-if="accountantRef.accountant_phone" class="text-xs text-gray-500">{{ accountantRef.accountant_phone }}</p>
                   <div v-if="accountantRef.submitted_at" class="mt-2 text-xs text-gray-600">
-                    <p v-if="accountantRef.annual_income">Confirmed Annual Income: {{ formatCurrency(Number(accountantRef.annual_income)) }}</p>
+                    <p v-if="accountantRef.annual_profit || accountantRef.annual_turnover || accountantRef.estimated_monthly_income">
+                      Annual Income: {{ formatAccountantIncome(accountantRef) }}
+                    </p>
                     <p v-if="accountantRef.years_trading">Years Trading: {{ accountantRef.years_trading }}</p>
                   </div>
                 </div>
@@ -1887,6 +1891,42 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(amount)
+}
+
+function formatEmployerIncome(employerRef: any): string {
+  // If hourly employment, calculate annual income
+  if (employerRef.is_hourly && employerRef.hourly_rate && employerRef.hours_per_week) {
+    const weeklyIncome = Number(employerRef.hourly_rate) * Number(employerRef.hours_per_week)
+    const annualIncome = weeklyIncome * 52
+    return `${formatCurrency(annualIncome)}/year (£${employerRef.hourly_rate}/hr × ${employerRef.hours_per_week} hrs/wk)`
+  }
+
+  // If annual salary provided
+  if (employerRef.annual_salary && Number(employerRef.annual_salary) > 0) {
+    return `${formatCurrency(Number(employerRef.annual_salary))}/year`
+  }
+
+  return 'Not specified'
+}
+
+function formatAccountantIncome(accountantRef: any): string {
+  // Check for annual profit (most accurate for businesses)
+  if (accountantRef.annual_profit && Number(accountantRef.annual_profit) > 0) {
+    return `${formatCurrency(Number(accountantRef.annual_profit))}/year`
+  }
+
+  // Fallback to annual turnover
+  if (accountantRef.annual_turnover && Number(accountantRef.annual_turnover) > 0) {
+    return `${formatCurrency(Number(accountantRef.annual_turnover))}/year`
+  }
+
+  // Calculate from estimated monthly income
+  if (accountantRef.estimated_monthly_income && Number(accountantRef.estimated_monthly_income) > 0) {
+    const annual = Number(accountantRef.estimated_monthly_income) * 12
+    return `${formatCurrency(annual)}/year`
+  }
+
+  return '£0/year'
 }
 
 function parseCurrencyValue(value: unknown): number | null {
