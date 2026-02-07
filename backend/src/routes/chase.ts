@@ -317,6 +317,7 @@ router.post('/:sectionId/mark-done', staffAuth, async (req: StaffAuthRequest, re
     }
 
     // Log audit action
+    console.log('[MarkDone] Logging audit action for section:', sectionId);
     await logAuditAction({
       referenceId: section.reference_id,
       action: 'PENDING_RESPONSE_MARKED_DONE',
@@ -328,10 +329,12 @@ router.post('/:sectionId/mark-done', staffAuth, async (req: StaffAuthRequest, re
       },
       userId: staffUser.id
     });
+    console.log('[MarkDone] Audit action logged successfully');
 
     res.json({
       message: 'Marked as done for today. Will reappear at 12pm UK tomorrow if still pending.',
-      markedDoneAt: now.toISOString()
+      markedDoneAt: now.toISOString(),
+      noteCreated
     });
   } catch (error: any) {
     console.error('Error marking as done:', error);

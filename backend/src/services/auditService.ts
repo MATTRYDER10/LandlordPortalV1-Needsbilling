@@ -30,10 +30,21 @@ export async function logAuditAction({
       })
 
     if (error) {
-      console.error('Failed to log audit action:', error.message)
+      console.error('[AuditLog] Failed to log audit action:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        action,
+        referenceId
+      })
     }
-  } catch (error) {
-    console.error('Failed to log audit action:', error)
+  } catch (error: any) {
+    console.error('[AuditLog] Failed to log audit action (exception):', {
+      error: error.message,
+      action,
+      referenceId
+    })
     // Don't throw - audit logging shouldn't break the main flow
   }
 }
