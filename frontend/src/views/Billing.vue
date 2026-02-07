@@ -1,25 +1,20 @@
 <template>
-  <div class="billing-dashboard">
-    <div class="dashboard-header">
-      <h1>Billing & Credits</h1>
-      <p class="subtitle">Manage your credits, subscriptions, and payment methods</p>
-    </div>
-
+  <div class="space-y-6">
     <!-- Credit Balance Card -->
-    <div class="credit-balance-card" :class="{ 'low-credits': billingStore.isLowCredits }">
-      <div class="balance-content">
-        <div class="balance-info">
-          <span class="label">Available Credits</span>
-          <span class="credits-count">{{ billingStore.creditsCount }}</span>
-          <span v-if="billingStore.isLowCredits" class="low-credits-warning">
-            ⚠️ Low credits - Consider topping up
-          </span>
+    <div class="bg-white rounded-lg shadow p-6" :class="{ 'border-l-4 border-amber-500': billingStore.isLowCredits }">
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-sm text-gray-500">Available Credits</p>
+          <p class="text-4xl font-bold text-gray-900">{{ billingStore.creditsCount }}</p>
+          <p v-if="billingStore.isLowCredits" class="mt-1 text-sm text-amber-600">
+            Low credits -- consider topping up
+          </p>
         </div>
-        <div class="balance-actions">
-          <button @click="showPurchaseModal = true" class="btn-primary">
+        <div class="flex gap-3">
+          <button @click="showPurchaseModal = true" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
             Buy Credits
           </button>
-          <button v-if="!billingStore.hasActiveSubscription" @click="showSubscriptionModal = true" class="btn-secondary">
+          <button v-if="!billingStore.hasActiveSubscription" @click="showSubscriptionModal = true" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md">
             Subscribe & Save
           </button>
         </div>
@@ -27,109 +22,116 @@
     </div>
 
     <!-- Active Subscription -->
-    <div v-if="billingStore.activeSubscription" class="subscription-card">
-      <h2>Active Subscription</h2>
-      <div class="subscription-details">
-        <div class="detail-row">
-          <span class="label">Plan:</span>
-          <span class="value">{{ formatTierName(billingStore.activeSubscription.tier) }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="label">Credits per month:</span>
-          <span class="value">{{ billingStore.activeSubscription.credits_per_month }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="label">Monthly cost:</span>
-          <span class="value">£{{ billingStore.activeSubscription.monthly_total.toFixed(2) }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="label">Price per credit:</span>
-          <span class="value">£{{ billingStore.activeSubscription.price_per_credit.toFixed(2) }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="label">Next billing date:</span>
-          <span class="value">{{ formatDate(billingStore.activeSubscription.current_period_end) }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="label">Status:</span>
-          <span class="value" :class="`status-${billingStore.activeSubscription.status}`">
-            {{ billingStore.activeSubscription.status }}
-          </span>
-        </div>
+    <div v-if="billingStore.activeSubscription" class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900">Active Subscription</h3>
       </div>
-      <div class="subscription-actions">
-        <button v-if="!billingStore.activeSubscription.cancel_at_period_end"
-                @click="handleCancelSubscription"
-                class="btn-danger">
+      <dl class="divide-y divide-gray-200">
+        <div class="px-6 py-3 flex justify-between">
+          <dt class="text-sm text-gray-500">Plan</dt>
+          <dd class="text-sm font-semibold text-gray-900">{{ formatTierName(billingStore.activeSubscription.tier) }}</dd>
+        </div>
+        <div class="px-6 py-3 flex justify-between">
+          <dt class="text-sm text-gray-500">Credits per month</dt>
+          <dd class="text-sm font-semibold text-gray-900">{{ billingStore.activeSubscription.credits_per_month }}</dd>
+        </div>
+        <div class="px-6 py-3 flex justify-between">
+          <dt class="text-sm text-gray-500">Monthly cost</dt>
+          <dd class="text-sm font-semibold text-gray-900">&pound;{{ billingStore.activeSubscription.monthly_total.toFixed(2) }}</dd>
+        </div>
+        <div class="px-6 py-3 flex justify-between">
+          <dt class="text-sm text-gray-500">Price per credit</dt>
+          <dd class="text-sm font-semibold text-gray-900">&pound;{{ billingStore.activeSubscription.price_per_credit.toFixed(2) }}</dd>
+        </div>
+        <div class="px-6 py-3 flex justify-between">
+          <dt class="text-sm text-gray-500">Next billing date</dt>
+          <dd class="text-sm font-semibold text-gray-900">{{ formatDate(billingStore.activeSubscription.current_period_end) }}</dd>
+        </div>
+        <div class="px-6 py-3 flex justify-between">
+          <dt class="text-sm text-gray-500">Status</dt>
+          <dd>
+            <span
+              class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+              :class="billingStore.activeSubscription.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+            >
+              {{ billingStore.activeSubscription.status }}
+            </span>
+          </dd>
+        </div>
+      </dl>
+      <div class="px-6 py-4 border-t border-gray-200">
+        <button
+          v-if="!billingStore.activeSubscription.cancel_at_period_end"
+          @click="handleCancelSubscription"
+          class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md"
+        >
           Cancel Subscription
         </button>
-        <span v-else class="cancel-notice">
+        <p v-else class="text-sm text-gray-500 italic">
           Subscription will cancel on {{ formatDate(billingStore.activeSubscription.current_period_end) }}
-        </span>
+        </p>
       </div>
     </div>
 
     <!-- Payment Methods -->
-    <div class="subscription-card">
-      <h2>Payment Methods</h2>
-      <p class="subtitle" style="margin-top: 0.5rem; color: #6b7280; font-size: 0.875rem;">
-        Manage your saved payment methods for subscriptions and auto-recharge
-      </p>
-
-      <div v-if="loadingPaymentMethods" class="loading-state" style="padding: 2rem; text-align: center;">
-        <div class="spinner" style="border: 3px solid #f3f4f6; border-top: 3px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900">Payment Methods</h3>
+        <p class="mt-1 text-sm text-gray-500">Manage your saved payment methods for subscriptions and auto-recharge</p>
       </div>
 
-      <div v-else-if="paymentMethods.length === 0" class="no-payment-methods" style="margin-top: 1.5rem; padding: 2rem; background: #f9fafb; border: 2px dashed #e5e7eb; border-radius: 8px; text-align: center;">
-        <CreditCard style="width: 48px; height: 48px; margin: 0 auto 1rem; color: #9ca3af;" />
-        <p style="color: #6b7280; margin-bottom: 1rem;">No payment methods saved</p>
-        <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">Add a payment method to enable auto-recharge</p>
-        <button @click="showAddPaymentMethod = true" class="btn-primary">
-          Add Payment Method
-        </button>
+      <div v-if="loadingPaymentMethods" class="p-8 text-center">
+        <div class="inline-block h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-primary"></div>
       </div>
 
-      <div v-else class="payment-methods-list" style="margin-top: 1.5rem;">
+      <div v-else-if="paymentMethods.length === 0" class="p-8">
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+          <CreditCard class="mx-auto h-12 w-12 text-gray-400" />
+          <p class="mt-2 text-sm text-gray-500">No payment methods saved</p>
+          <p class="mt-1 text-xs text-gray-400">Add a payment method to enable auto-recharge</p>
+          <button @click="showAddPaymentMethod = true" class="mt-4 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
+            Add Payment Method
+          </button>
+        </div>
+      </div>
+
+      <div v-else class="p-6 space-y-3">
         <div
           v-for="method in paymentMethods"
           :key="method.id"
-          class="payment-method-item"
-          style="padding: 1rem 1.25rem; background: white; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;"
-          :style="method.id === defaultPaymentMethodId ? 'border-color: #667eea; background: #f5f7ff;' : ''"
+          class="flex items-center justify-between p-4 border-2 rounded-lg"
+          :class="method.id === defaultPaymentMethodId ? 'border-primary bg-primary/5' : 'border-gray-200'"
         >
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-              <CreditCard style="width: 24px; height: 24px; color: #6b7280;" />
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <CreditCard class="w-6 h-6 text-gray-500" />
             </div>
             <div>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <span style="font-weight: 600; color: #111827;">
-                  {{ method.card.brand.toUpperCase() }} •••• {{ method.card.last4 }}
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-gray-900">
+                  {{ method.card.brand.toUpperCase() }} &bull;&bull;&bull;&bull; {{ method.card.last4 }}
                 </span>
                 <span
                   v-if="method.id === defaultPaymentMethodId"
-                  style="padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;"
+                  class="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary"
                 >
                   Default
                 </span>
               </div>
-              <div style="font-size: 0.875rem; color: #6b7280;">
-                Expires {{ method.card.exp_month }}/{{ method.card.exp_year }}
-              </div>
+              <p class="text-sm text-gray-500">Expires {{ method.card.exp_month }}/{{ method.card.exp_year }}</p>
             </div>
           </div>
-          <div style="display: flex; gap: 0.5rem;">
+          <div class="flex gap-2">
             <button
               v-if="!method.is_default"
               @click="setDefaultPaymentMethod(method.id)"
-              class="btn-set-default"
+              class="px-3 py-1.5 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/5"
             >
               Set as Default
             </button>
             <button
               @click="confirmDeletePaymentMethod(method.id)"
-              class="btn-danger"
-              style="padding: 0.5rem 1rem; font-size: 0.875rem;"
+              class="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="method.is_default && paymentMethods.length > 1"
               :title="method.is_default && paymentMethods.length > 1 ? 'Set another card as default before deleting' : 'Delete payment method'"
             >
@@ -138,89 +140,84 @@
           </div>
         </div>
 
-        <button @click="showAddPaymentMethod = true" class="btn-secondary" style="margin-top: 1rem;">
+        <button @click="showAddPaymentMethod = true" class="mt-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md">
           + Add New Payment Method
         </button>
       </div>
     </div>
 
     <!-- Auto-Recharge Settings -->
-    <div class="subscription-card">
-      <h2>Auto-Recharge Settings</h2>
-      <p class="subtitle" style="margin-top: 0.5rem; color: #6b7280; font-size: 0.875rem;">Automatically purchase credits when your balance runs low</p>
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900">Auto-Recharge Settings</h3>
+        <p class="mt-1 text-sm text-gray-500">Automatically purchase credits when your balance runs low</p>
+      </div>
 
-      <div class="auto-recharge-content" style="margin-top: 1.5rem;">
-        <div class="toggle-row" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f9fafb; border-radius: 8px;">
-          <div class="toggle-info">
-            <label for="auto-recharge-toggle" class="toggle-label" style="font-weight: 600; color: #111827; display: block; margin-bottom: 0.25rem;">
-              Enable Auto-Recharge
-            </label>
-            <p class="toggle-description" style="margin: 0; font-size: 0.875rem; color: #6b7280;">
-              Automatically purchase a credit pack when your balance falls below the threshold
-            </p>
+      <div class="p-6 space-y-6">
+        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+          <div>
+            <p class="font-semibold text-gray-900">Enable Auto-Recharge</p>
+            <p class="text-sm text-gray-500">Automatically purchase a credit pack when your balance falls below the threshold</p>
           </div>
-          <label class="toggle-switch" style="position: relative; display: inline-block; width: 60px; height: 34px; margin-left: 1rem;">
-            <input
-              id="auto-recharge-toggle"
-              type="checkbox"
-              v-model="autoRechargeEnabled"
-              @change="handleAutoRechargeToggle"
-              style="opacity: 0; width: 0; height: 0;"
+          <button
+            role="switch"
+            :aria-checked="autoRechargeEnabled"
+            @click="autoRechargeEnabled = !autoRechargeEnabled; handleAutoRechargeToggle()"
+            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            :class="autoRechargeEnabled ? 'bg-primary' : 'bg-gray-200'"
+          >
+            <span
+              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+              :class="autoRechargeEnabled ? 'translate-x-5' : 'translate-x-0'"
             />
-            <span class="toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px;"></span>
-          </label>
+          </button>
         </div>
 
-        <div v-if="autoRechargeEnabled" class="auto-recharge-settings" style="margin-top: 1.5rem; padding: 1.5rem; background: #f9fafb; border-radius: 8px;">
-          <div class="setting-row" style="margin-bottom: 1.5rem;">
-            <label for="threshold" class="setting-label" style="display: block; font-weight: 600; color: #111827; margin-bottom: 0.5rem;">
+        <div v-if="autoRechargeEnabled" class="space-y-4 p-4 bg-gray-50 rounded-lg">
+          <div>
+            <label for="threshold" class="block text-sm font-medium text-gray-700">
               Threshold (credits)
-              <span class="setting-help" style="display: block; font-size: 0.875rem; font-weight: 400; color: #6b7280; margin-top: 0.25rem;">Purchase credits when balance reaches this number</span>
             </label>
+            <p class="text-xs text-gray-500 mb-1">Purchase credits when balance reaches this number</p>
             <input
               id="threshold"
               type="number"
               v-model.number="autoRechargeThreshold"
               min="1"
               max="50"
-              class="setting-input"
-              style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem;"
+              class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
             />
           </div>
 
-          <div class="setting-row" style="margin-bottom: 1.5rem;">
-            <label for="pack-size" class="setting-label" style="display: block; font-weight: 600; color: #111827; margin-bottom: 0.5rem;">
+          <div>
+            <label for="pack-size" class="block text-sm font-medium text-gray-700">
               Pack Size (credits)
-              <span class="setting-help" style="display: block; font-size: 0.875rem; font-weight: 400; color: #6b7280; margin-top: 0.25rem;">Number of credits to purchase each time</span>
             </label>
+            <p class="text-xs text-gray-500 mb-1">Number of credits to purchase each time</p>
             <select
               id="pack-size"
               v-model.number="autoRechargePackSize"
-              class="setting-select"
-              style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; background: white;"
+              class="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:ring-primary focus:border-primary"
             >
-              <option :value="10">10 credits (£210)</option>
-              <option :value="25">25 credits (£525)</option>
-              <option :value="50">50 credits (£1,050)</option>
-              <option :value="100">100 credits (£2,100)</option>
+              <option :value="10">10 credits (&pound;210)</option>
+              <option :value="25">25 credits (&pound;525)</option>
+              <option :value="50">50 credits (&pound;1,050)</option>
+              <option :value="100">100 credits (&pound;2,100)</option>
             </select>
           </div>
 
-          <div class="setting-actions">
-            <button
-              @click="saveAutoRechargeSettings"
-              :disabled="savingAutoRecharge"
-              class="btn-primary"
-              style="padding: 0.75rem 1.5rem; background: var(--color-primary); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;"
-            >
-              {{ savingAutoRecharge ? 'Saving...' : 'Save Settings' }}
-            </button>
-          </div>
+          <button
+            @click="saveAutoRechargeSettings"
+            :disabled="savingAutoRecharge"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+          >
+            {{ savingAutoRecharge ? 'Saving...' : 'Save Settings' }}
+          </button>
 
-          <div v-if="autoRechargeSaved" class="success-message" style="margin-top: 1rem; padding: 0.75rem; background: #dcfce7; color: #166534; border-radius: 6px; font-size: 0.875rem;">
-            ✓ Auto-recharge settings saved successfully
+          <div v-if="autoRechargeSaved" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded text-sm">
+            Auto-recharge settings saved successfully
           </div>
-          <div v-if="autoRechargeError" class="error-message" style="margin-top: 1rem; padding: 0.75rem; background: #fee2e2; color: #991b1b; border-radius: 6px; font-size: 0.875rem;">
+          <div v-if="autoRechargeError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm">
             {{ autoRechargeError }}
           </div>
         </div>
@@ -228,42 +225,51 @@
     </div>
 
     <!-- Transaction History -->
-    <div class="transactions-card">
-      <h2>Transaction History</h2>
-      <div v-if="billingStore.transactions.length === 0" class="empty-state">
-        <p>No transactions yet</p>
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900">Transaction History</h3>
       </div>
-      <table v-else class="transactions-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Type</th>
-            <th>Credits</th>
-            <th>Amount</th>
-            <th>Balance</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="transaction in billingStore.transactions" :key="transaction.id">
-            <td>{{ formatDate(transaction.created_at) }}</td>
-            <td>{{ transaction.description }}</td>
-            <td>
-              <span class="transaction-type" :class="`type-${transaction.type}`">
-                {{ formatTransactionType(transaction.type) }}
-              </span>
-            </td>
-            <td :class="transaction.credits_change > 0 ? 'positive' : 'negative'">
-              {{ transaction.credits_change > 0 ? '+' : '' }}{{ transaction.credits_change }}
-            </td>
-            <td>
-              <span v-if="transaction.amount_gbp">£{{ transaction.amount_gbp.toFixed(2) }}</span>
-              <span v-else>-</span>
-            </td>
-            <td>{{ transaction.credits_balance_after }}</td>
-          </tr>
-        </tbody>
-      </table>
+
+      <div v-if="billingStore.transactions.length === 0" class="px-6 py-12 text-center text-gray-500">
+        No transactions yet
+      </div>
+
+      <div v-else class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr v-for="transaction in billingStore.transactions" :key="transaction.id">
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(transaction.created_at) }}</td>
+              <td class="px-6 py-4 text-sm text-gray-900">{{ transaction.description }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span
+                  class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                  :class="transactionTypeBadgeClass(transaction.type)"
+                >
+                  {{ formatTransactionType(transaction.type) }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold" :class="transaction.credits_change > 0 ? 'text-green-600' : 'text-red-600'">
+                {{ transaction.credits_change > 0 ? '+' : '' }}{{ transaction.credits_change }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span v-if="transaction.amount_gbp">&pound;{{ transaction.amount_gbp.toFixed(2) }}</span>
+                <span v-else>-</span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ transaction.credits_balance_after }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Purchase Credits Modal -->
@@ -378,6 +384,18 @@ function formatTransactionType(type: string): string {
     signup_bonus: 'Signup Bonus'
   }
   return types[type] || type
+}
+
+function transactionTypeBadgeClass(type: string): string {
+  const classes: Record<string, string> = {
+    subscription_credit: 'bg-green-100 text-green-800',
+    pack_purchase: 'bg-green-100 text-green-800',
+    signup_bonus: 'bg-green-100 text-green-800',
+    auto_recharge: 'bg-blue-100 text-blue-800',
+    credit_used: 'bg-red-100 text-red-800',
+    refund: 'bg-amber-100 text-amber-800'
+  }
+  return classes[type] || 'bg-gray-100 text-gray-800'
 }
 
 function handleCancelSubscription() {
@@ -502,13 +520,10 @@ async function loadPaymentMethods() {
   try {
     loadingPaymentMethods.value = true
     const token = authStore.session?.access_token
-    console.log('Loading payment methods with token:', !!token)
 
     const response = await axios.get(`${API_URL}/api/billing/payment-methods`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-
-    console.log('Payment methods response:', response.data)
 
     // Backend returns payment methods array directly (not wrapped in an object)
     if (Array.isArray(response.data)) {
@@ -521,11 +536,8 @@ async function loadPaymentMethods() {
       paymentMethods.value = response.data.payment_methods || []
       defaultPaymentMethodId.value = response.data.default_payment_method || null
     }
-
-    console.log('Payment methods loaded:', paymentMethods.value.length)
   } catch (err: any) {
-    console.error('Failed to load payment methods:', err)
-    console.error('Error details:', err.response?.data)
+    // Silently fail - payment methods are optional
   } finally {
     loadingPaymentMethods.value = false
   }
@@ -588,280 +600,3 @@ async function deletePaymentMethod(paymentMethodId: string) {
   }
 }
 </script>
-
-<style scoped>
-.billing-dashboard {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.dashboard-header {
-  margin-bottom: 2rem;
-}
-
-.dashboard-header h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 0.5rem;
-}
-
-.subtitle {
-  color: #6b7280;
-  font-size: 1rem;
-}
-
-.credit-balance-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  color: white;
-}
-
-.credit-balance-card.low-credits {
-  background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
-}
-
-.balance-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.balance-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.balance-info .label {
-  font-size: 0.875rem;
-  opacity: 0.9;
-}
-
-.credits-count {
-  font-size: 3rem;
-  font-weight: 700;
-}
-
-.low-credits-warning {
-  font-size: 0.875rem;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  width: fit-content;
-}
-
-.balance-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.subscription-card,
-.transactions-card {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.subscription-card h2,
-.transactions-card h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 1.5rem;
-}
-
-.subscription-details {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.detail-row .label {
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.detail-row .value {
-  color: #111827;
-  font-weight: 600;
-}
-
-.status-active {
-  color: #10b981;
-}
-
-.status-past_due {
-  color: #ef4444;
-}
-
-.transactions-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.transactions-table th {
-  text-align: left;
-  padding: 0.75rem;
-  border-bottom: 2px solid #e5e7eb;
-  color: #6b7280;
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.transactions-table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.transaction-type {
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.type-subscription_credit,
-.type-pack_purchase,
-.type-signup_bonus {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.type-credit_used {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.positive {
-  color: #10b981;
-  font-weight: 600;
-}
-
-.negative {
-  color: #ef4444;
-  font-weight: 600;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: #9ca3af;
-}
-
-.btn-primary,
-.btn-secondary,
-.btn-danger {
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: white;
-  color: #667eea;
-}
-
-.btn-primary:hover {
-  background: #f3f4f6;
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid white;
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.btn-danger {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.btn-danger:hover {
-  background: #fecaca;
-}
-
-.cancel-notice {
-  color: #6b7280;
-  font-style: italic;
-}
-
-/* Toggle Switch */
-.toggle-switch input:checked + .toggle-slider {
-  background-color: var(--color-primary);
-}
-
-.toggle-slider:before {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-.toggle-switch input:checked + .toggle-slider:before {
-  transform: translateX(26px);
-}
-
-.btn-danger {
-  background: #dc2626;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9375rem;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
-}
-
-.btn-danger:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-set-default {
-  background: white;
-  color: #667eea;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  border: 2px solid #667eea;
-  transition: all 0.2s;
-}
-
-.btn-set-default:hover {
-  background: #667eea;
-  color: white;
-}
-</style>

@@ -1,64 +1,77 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
-      <div class="modal-header">
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click.self="$emit('close')">
+    <div class="bg-white rounded-2xl max-w-[1100px] w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+      <!-- Header -->
+      <div class="flex justify-between items-start px-8 py-6 border-b border-gray-100">
         <div>
-          <h2>Purchase Credits</h2>
-          <p class="header-subtitle">Choose a pack that fits your needs. Credits never expire.</p>
+          <h2 class="text-2xl font-bold text-gray-900">Purchase Credits</h2>
+          <p class="mt-1 text-sm text-gray-500">Choose a pack that fits your needs. Credits never expire.</p>
         </div>
-        <button @click="$emit('close')" class="close-button">&times;</button>
+        <button @click="$emit('close')" class="w-10 h-10 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors flex items-center justify-center text-2xl leading-none">&times;</button>
       </div>
 
-      <div class="modal-body">
+      <div class="p-8">
         <!-- Step 1: Choose Credit Pack -->
         <div v-if="!showPaymentForm">
-          <div v-if="billingStore.loading" class="loading-state">
-            <div class="spinner"></div>
-            <p>Loading credit packs...</p>
+          <div v-if="billingStore.loading" class="py-16 text-center">
+            <div class="inline-block h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-primary"></div>
+            <p class="mt-3 text-sm text-gray-500">Loading credit packs...</p>
           </div>
 
-          <div v-else class="credit-packs-grid">
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div
               v-for="pack in billingStore.creditPacks"
               :key="pack.id"
-              class="credit-pack-card"
-              :class="{ recommended: pack.is_recommended, selected: selectedPack?.id === pack.id }"
+              class="relative border-2 rounded-xl cursor-pointer transition-all duration-200 flex flex-col hover:-translate-y-1 hover:shadow-lg"
+              :class="[
+                selectedPack?.id === pack.id
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : pack.is_recommended
+                    ? 'border-primary/40 hover:border-primary'
+                    : 'border-gray-200 hover:border-primary'
+              ]"
               @click="selectPack(pack)"
             >
-              <div v-if="pack.is_recommended" class="recommended-badge">
+              <div v-if="pack.is_recommended" class="absolute top-0 right-0 bg-primary text-white px-3 py-1 rounded-bl-lg text-[10px] font-bold uppercase tracking-wide z-10">
                 Recommended
               </div>
 
-              <div class="pack-content">
-                <div class="pack-credits">
-                  <div class="credits-number">{{ pack.credits_quantity }}</div>
-                  <div class="credits-label">Reference Credits</div>
+              <div class="p-5 flex-1" :class="{ 'pt-8': pack.is_recommended }">
+                <!-- Credits -->
+                <div class="text-center mb-4 pb-4 border-b border-gray-100">
+                  <div class="text-4xl font-extrabold text-gray-900">{{ pack.credits_quantity }}</div>
+                  <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">Reference Credits</div>
                 </div>
 
-                <div class="pack-price">
-                  <span class="currency">£</span>
-                  <span class="amount">{{ pack.price_gbp.toFixed(2) }}</span>
+                <!-- Price -->
+                <div class="text-center mb-4">
+                  <span class="text-3xl font-extrabold text-gray-900">&pound;{{ pack.price_gbp.toFixed(2) }}</span>
                 </div>
 
-                <div class="pack-details">
-                  <div class="detail-row">
-                    <span class="detail-label">Per credit</span>
-                    <span class="detail-value">£{{ pack.price_per_credit.toFixed(2) }}</span>
+                <!-- Details -->
+                <div class="bg-gray-50 rounded-lg p-3 mb-3">
+                  <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-500">Per credit</span>
+                    <span class="font-bold text-gray-900">&pound;{{ pack.price_per_credit.toFixed(2) }}</span>
                   </div>
-                  <div v-if="calculateSavings(pack) > 0" class="savings">
-                    Save £{{ calculateSavings(pack).toFixed(2) }}
+                  <div v-if="calculateSavings(pack) > 0" class="mt-2 text-center bg-green-100 text-green-700 rounded px-2 py-1 text-xs font-bold">
+                    Save &pound;{{ calculateSavings(pack).toFixed(2) }}
                   </div>
                 </div>
 
-                <div class="pack-description">
-                  {{ pack.description }}
-                </div>
+                <!-- Description -->
+                <p class="text-xs text-gray-500 text-center leading-relaxed min-h-[2.5em]">{{ pack.description }}</p>
               </div>
 
-              <div class="pack-footer">
-                <button class="select-button">
-                  <span v-if="selectedPack?.id === pack.id">✓ Selected</span>
-                  <span v-else>Select Pack</span>
+              <!-- Select Button -->
+              <div class="px-5 pb-5">
+                <button
+                  class="w-full py-2.5 rounded-lg font-semibold text-sm transition-colors"
+                  :class="selectedPack?.id === pack.id
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'bg-primary text-white hover:bg-primary/90'"
+                >
+                  {{ selectedPack?.id === pack.id ? 'Selected' : 'Select Pack' }}
                 </button>
               </div>
             </div>
@@ -66,46 +79,44 @@
         </div>
 
         <!-- Step 2: Payment Form -->
-        <div v-else-if="showPaymentForm && selectedPack" class="payment-section">
+        <div v-else-if="showPaymentForm && selectedPack" class="max-w-xl mx-auto">
           <!-- Order Summary -->
-          <div class="order-summary">
-            <h3>Order Summary</h3>
-            <div class="summary-content">
-              <div class="summary-item">
-                <div class="summary-label">
-                  <div class="summary-pack-name">{{ selectedPack.product_name }}</div>
-                  <div class="summary-pack-detail">{{ selectedPack.credits_quantity }} credits</div>
-                </div>
-                <div class="summary-price">£{{ selectedPack.price_gbp.toFixed(2) }}</div>
+          <div class="border-2 border-gray-200 rounded-xl p-6 mb-6">
+            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Order Summary</h3>
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <p class="font-semibold text-gray-900">{{ selectedPack.product_name }}</p>
+                <p class="text-sm text-gray-500">{{ selectedPack.credits_quantity }} credits</p>
               </div>
-              <div class="summary-total">
-                <span class="total-label">Total</span>
-                <span class="total-amount">£{{ selectedPack.price_gbp.toFixed(2) }}</span>
-              </div>
+              <p class="text-lg font-bold text-gray-900">&pound;{{ selectedPack.price_gbp.toFixed(2) }}</p>
+            </div>
+            <div class="flex justify-between items-center pt-4 border-t-2 border-gray-200">
+              <span class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total</span>
+              <span class="text-2xl font-extrabold text-gray-900">&pound;{{ selectedPack.price_gbp.toFixed(2) }}</span>
             </div>
           </div>
 
           <!-- Payment Form -->
-          <div class="payment-form-section">
-            <h3>Payment Details</h3>
-            <div id="payment-element"></div>
+          <div class="mb-6">
+            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Payment Details</h3>
+            <div id="payment-element" class="mb-4"></div>
 
-            <div v-if="paymentError" class="error-message">
+            <div v-if="paymentError" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {{ paymentError }}
             </div>
           </div>
 
-          <div class="payment-actions">
-            <button @click="cancelPayment" class="btn-secondary">
-              ← Back
+          <div class="flex justify-between gap-3">
+            <button @click="cancelPayment" class="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              Back
             </button>
             <button
               @click="handlePayment"
               :disabled="processing"
-              class="btn-primary btn-large"
+              class="px-6 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <span v-if="processing">Processing...</span>
-              <span v-else>Pay £{{ selectedPack.price_gbp.toFixed(2) }}</span>
+              <span v-else>Pay &pound;{{ selectedPack.price_gbp.toFixed(2) }}</span>
             </button>
           </div>
         </div>
@@ -168,7 +179,6 @@ async function proceedToPayment() {
 
     // If payment was auto-charged with saved payment method, skip payment form
     if (result.charged === true) {
-      console.log('Payment auto-charged successfully')
       emit('purchased')
       return
     }
@@ -186,7 +196,7 @@ async function proceedToPayment() {
     const appearance = {
       theme: 'stripe' as const,
       variables: {
-        colorPrimary: '#667eea',
+        colorPrimary: '#fe7a0f',
       },
     }
 
@@ -210,7 +220,6 @@ async function proceedToPayment() {
     paymentElement.mount('#payment-element')
   } catch (error: any) {
     paymentError.value = error.message || 'Failed to initialize payment'
-    console.error('Payment initialization error:', error)
   } finally {
     processing.value = false
   }
@@ -250,491 +259,8 @@ async function handlePayment() {
     }
   } catch (error: any) {
     paymentError.value = error.message || 'Payment processing failed'
-    console.error('Payment error:', error)
   } finally {
     processing.value = false
   }
 }
 </script>
-
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  max-width: 1400px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 2rem 2.5rem;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.modal-header h2 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #111827;
-  margin: 0 0 0.5rem 0;
-}
-
-.header-subtitle {
-  font-size: 0.9375rem;
-  color: #6b7280;
-  margin: 0;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  color: #9ca3af;
-  cursor: pointer;
-  line-height: 1;
-  padding: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.close-button:hover {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.modal-body {
-  padding: 2.5rem;
-}
-
-.loading-state {
-  text-align: center;
-  padding: 4rem 2rem;
-}
-
-.spinner {
-  border: 3px solid #f3f4f6;
-  border-top: 3px solid #667eea;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.credit-packs-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.25rem;
-  margin-bottom: 2rem;
-}
-
-.credit-pack-card {
-  position: relative;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: white;
-  display: flex;
-  flex-direction: column;
-}
-
-.credit-pack-card:hover {
-  border-color: #667eea;
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px -10px rgba(102, 126, 234, 0.3);
-}
-
-.credit-pack-card.selected {
-  border-color: #667eea;
-  background: linear-gradient(135deg, #f5f7ff 0%, #ffffff 100%);
-  box-shadow: 0 8px 16px -6px rgba(102, 126, 234, 0.2);
-}
-
-.credit-pack-card.recommended {
-  border-color: var(--color-primary);
-}
-
-.credit-pack-card.recommended.selected {
-  border-color: var(--color-primary);
-  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
-}
-
-.recommended-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background: linear-gradient(135deg, var(--color-primary) 0%, #ea580c 100%);
-  color: white;
-  padding: 0.4rem 0.875rem;
-  border-bottom-left-radius: 8px;
-  font-size: 0.625rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
-  z-index: 10;
-}
-
-.pack-content {
-  padding: 1.5rem 1.25rem 1.25rem;
-  flex: 1;
-}
-
-.credit-pack-card.recommended .pack-content {
-  padding-top: 2.25rem;
-}
-
-.pack-credits {
-  text-align: center;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.credits-number {
-  font-size: 2.5rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  line-height: 1;
-  margin-bottom: 0.4rem;
-}
-
-.credits-label {
-  font-size: 0.75rem;
-  color: #6b7280;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.pack-price {
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.currency {
-  font-size: 2rem;
-  font-weight: 800;
-  color: #111827;
-  letter-spacing: -0.02em;
-}
-
-.amount {
-  font-size: 2rem;
-  font-weight: 800;
-  color: #111827;
-  letter-spacing: -0.02em;
-}
-
-.pack-details {
-  background: #f9fafb;
-  border-radius: 6px;
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.4rem;
-}
-
-.detail-label {
-  font-size: 0.75rem;
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.detail-value {
-  font-size: 0.875rem;
-  color: #111827;
-  font-weight: 700;
-}
-
-.savings {
-  text-align: center;
-  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-  color: #166534;
-  padding: 0.4rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  margin-top: 0.4rem;
-}
-
-.pack-description {
-  font-size: 0.75rem;
-  color: #6b7280;
-  text-align: center;
-  line-height: 1.4;
-  min-height: 2.8em;
-}
-
-.pack-footer {
-  padding: 0 1.25rem 1.25rem;
-}
-
-.select-button {
-  width: 100%;
-  padding: 0.75rem;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.select-button:hover {
-  background: #5568d3;
-  transform: scale(1.02);
-}
-
-.credit-pack-card.selected .select-button {
-  background: #10b981;
-}
-
-.credit-pack-card.selected .select-button:hover {
-  background: #059669;
-}
-
-/* Payment Section */
-.payment-section {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.order-summary {
-  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-}
-
-.order-summary h3 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: #6b7280;
-  margin: 0 0 1.25rem 0;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.summary-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.summary-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.summary-pack-name {
-  font-weight: 600;
-  color: #111827;
-  font-size: 1rem;
-  margin-bottom: 0.25rem;
-}
-
-.summary-pack-detail {
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.summary-price {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.summary-total {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 1.25rem;
-  border-top: 2px solid #e5e7eb;
-}
-
-.total-label {
-  font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.875rem;
-}
-
-.total-amount {
-  font-size: 2rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.payment-form-section {
-  margin-bottom: 2rem;
-}
-
-.payment-form-section h3 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: #6b7280;
-  margin-bottom: 1.25rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-#payment-element {
-  margin-bottom: 1.5rem;
-}
-
-.error-message {
-  background: #fee2e2;
-  border-left: 4px solid #dc2626;
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-  color: #991b1b;
-  margin-bottom: 1.5rem;
-  font-size: 0.9375rem;
-}
-
-.payment-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: space-between;
-}
-
-.btn-primary,
-.btn-secondary {
-  padding: 0.875rem 1.75rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9375rem;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s;
-}
-
-.btn-large {
-  padding: 1rem 2rem;
-  font-size: 1rem;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-secondary {
-  background: white;
-  color: #374151;
-  border: 2px solid #e5e7eb;
-}
-
-.btn-secondary:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-}
-
-@media (max-width: 1024px) {
-  .credit-packs-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .credit-packs-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.875rem;
-  }
-
-  .modal-header {
-    padding: 1.5rem;
-  }
-
-  .modal-header h2 {
-    font-size: 1.5rem;
-  }
-
-  .modal-body {
-    padding: 1.5rem;
-  }
-
-  .pack-content {
-    padding: 1rem;
-  }
-
-  .credits-number {
-    font-size: 2rem;
-  }
-
-  .amount {
-    font-size: 1.75rem;
-  }
-
-  .payment-actions {
-    flex-direction: column-reverse;
-  }
-
-  .btn-primary,
-  .btn-secondary {
-    width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .credit-packs-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

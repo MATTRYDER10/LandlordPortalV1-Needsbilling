@@ -1,35 +1,38 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
-      <div class="modal-header">
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click.self="$emit('close')">
+    <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+      <!-- Header -->
+      <div class="flex justify-between items-start px-8 py-6 border-b border-gray-100">
         <div>
-          <h2>Add Payment Method</h2>
-          <p class="subtitle">This will be used for auto-recharge and subscriptions</p>
+          <h2 class="text-2xl font-bold text-gray-900">Add Payment Method</h2>
+          <p class="mt-1 text-sm text-gray-500">This will be used for auto-recharge and subscriptions</p>
         </div>
-        <button @click="$emit('close')" class="close-button">&times;</button>
+        <button @click="$emit('close')" class="w-10 h-10 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors flex items-center justify-center text-2xl leading-none">&times;</button>
       </div>
 
-      <div class="modal-body">
-        <div id="payment-element"></div>
+      <!-- Body -->
+      <div class="p-8 overflow-y-auto flex-1">
+        <div id="payment-element" class="mb-4"></div>
 
-        <div v-if="error" class="error-message">
+        <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
           {{ error }}
         </div>
 
-        <div class="info-box">
-          <AlertCircle class="info-icon" />
+        <div class="flex gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+          <AlertCircle class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
           <p>Your payment method will be securely stored by Stripe and used only when you make a purchase or enable auto-recharge.</p>
         </div>
       </div>
 
-      <div class="modal-actions">
-        <button @click="$emit('close')" class="btn-secondary">
+      <!-- Footer -->
+      <div class="flex gap-3 px-8 py-5 border-t border-gray-100">
+        <button @click="$emit('close')" class="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
           Cancel
         </button>
         <button
           @click="handleSubmit"
           :disabled="processing"
-          class="btn-primary"
+          class="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {{ processing ? 'Adding...' : 'Add Payment Method' }}
         </button>
@@ -57,12 +60,8 @@ let elements: any = null
 
 onMounted(async () => {
   try {
-    console.log('Initializing payment form...')
-
     // Get SetupIntent client secret from backend
     const token = authStore.session?.access_token
-    console.log('Token exists:', !!token)
-    console.log('API URL:', API_URL)
 
     const response = await axios.post(
       `${API_URL}/api/billing/setup-intent`,
@@ -70,7 +69,6 @@ onMounted(async () => {
       { headers: { Authorization: `Bearer ${token}` } }
     )
 
-    console.log('SetupIntent response:', response.data)
     const { clientSecret } = response.data
 
     // Initialize Stripe
@@ -90,7 +88,7 @@ onMounted(async () => {
       appearance: {
         theme: 'stripe',
         variables: {
-          colorPrimary: '#667eea',
+          colorPrimary: '#fe7a0f',
         },
       },
     })
@@ -101,10 +99,8 @@ onMounted(async () => {
     // Wait for DOM
     await new Promise(resolve => setTimeout(resolve, 100))
     paymentElement.mount('#payment-element')
-    console.log('Payment element mounted successfully')
   } catch (err: any) {
     error.value = err.response?.data?.error || err.message || 'Failed to initialize payment form'
-    console.error('Payment element initialization error:', err)
   }
 })
 
@@ -118,8 +114,6 @@ async function handleSubmit() {
     processing.value = true
     error.value = null
 
-    console.log('Submitting payment method...')
-
     // Confirm the SetupIntent
     const { setupIntent, error: confirmError } = await stripe.confirmSetup({
       elements,
@@ -131,19 +125,14 @@ async function handleSubmit() {
 
     if (confirmError) {
       error.value = confirmError.message || 'Failed to save payment method'
-      console.error('Confirm error:', confirmError)
       return
     }
-
-    console.log('SetupIntent confirmed:', setupIntent)
 
     // SetupIntent confirmed - payment method is now attached to the Stripe customer
     // Now save it to our database and set as default
     const paymentMethodId = typeof setupIntent.payment_method === 'string'
       ? setupIntent.payment_method
       : setupIntent.payment_method.id
-
-    console.log('Saving payment method to database:', paymentMethodId)
 
     const token = authStore.session?.access_token
     await axios.put(
@@ -152,183 +141,12 @@ async function handleSubmit() {
       { headers: { Authorization: `Bearer ${token}` } }
     )
 
-    console.log('Payment method saved and set as default')
-
     // Emit the payment method ID
     emit('added', paymentMethodId)
   } catch (err: any) {
     error.value = err.message || 'An error occurred'
-    console.error('Payment method add error:', err)
   } finally {
     processing.value = false
   }
 }
 </script>
-
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  max-width: 600px;
-  width: 100%;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 2rem 2.5rem;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.modal-header h2 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #111827;
-  margin: 0 0 0.5rem 0;
-}
-
-.subtitle {
-  font-size: 0.9375rem;
-  color: #6b7280;
-  margin: 0;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  color: #9ca3af;
-  cursor: pointer;
-  line-height: 1;
-  padding: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.close-button:hover {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.modal-body {
-  padding: 2.5rem;
-  overflow-y: auto;
-  flex: 1;
-}
-
-#payment-element {
-  margin-bottom: 1.5rem;
-}
-
-.error-message {
-  background: #fee2e2;
-  border-left: 4px solid #dc2626;
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-  color: #991b1b;
-  margin-bottom: 1.5rem;
-  font-size: 0.9375rem;
-}
-
-.info-box {
-  display: flex;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  color: #075985;
-  line-height: 1.5;
-}
-
-.info-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: #0284c7;
-  flex-shrink: 0;
-  margin-top: 0.125rem;
-}
-
-.info-box p {
-  margin: 0;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  padding: 1.5rem 2.5rem;
-  background: white;
-  border-top: 1px solid #f3f4f6;
-  border-radius: 0 0 16px 16px;
-  flex-shrink: 0;
-}
-
-.btn-primary,
-.btn-secondary {
-  flex: 1;
-  padding: 0.875rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9375rem;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-secondary {
-  background: white;
-  color: #374151;
-  border: 2px solid #e5e7eb;
-}
-
-.btn-secondary:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-}
-
-@media (max-width: 768px) {
-  .modal-actions {
-    flex-direction: column-reverse;
-  }
-}
-</style>
