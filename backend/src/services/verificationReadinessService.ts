@@ -321,6 +321,7 @@ function checkRightToRentSection(reference: any): SectionStatus {
  * - ONE of: employer reference (completed), payslip, bank statement, accountant reference (completed), tax return, other proof of funds
  * - SPECIAL CASES:
  *   - Student + guarantor = auto-pass (no income evidence required)
+ *   - Unemployed + guarantor = auto-pass (guarantor backs tenant financially)
  *   - Unemployed + Living with Family = auto-pass (no income evidence required)
  *
  * NOTE: Employer/accountant references must be ACTUALLY COMPLETED by the referee (have signature/salary data),
@@ -341,6 +342,11 @@ function checkIncomeSection(reference: any, hasGuarantorReference: boolean): Sec
   // Student with guarantor auto-passes - no income evidence required
   if (!isGuarantor && isStudent && hasGuarantorReference) {
     return { complete: true, reason: 'Student with guarantor - no income verification required' }
+  }
+
+  // Unemployed with guarantor auto-passes - guarantor backs tenant financially
+  if (!isGuarantor && isUnemployed && hasGuarantorReference) {
+    return { complete: true, reason: 'Unemployed with guarantor - no income verification required' }
   }
 
   if (isUnemployed && isLivingWithFamily) {
@@ -535,6 +541,7 @@ function checkRightToRentSectionSync(reference: any): SectionStatus {
 /**
  * Sync version of income check - simplified "one item" rule
  * - SPECIAL CASE: Student + guarantor = auto-pass (no income evidence required)
+ * - SPECIAL CASE: Unemployed + guarantor = auto-pass (guarantor backs tenant financially)
  * - SPECIAL CASE: Unemployed + Living with Family = auto-pass (no income evidence required)
  *
  * NOTE: Employer/accountant references must be ACTUALLY COMPLETED by the referee (have signature/salary data),
@@ -553,6 +560,11 @@ function checkIncomeSectionSync(reference: any, hasGuarantorReference: boolean):
   // Student with guarantor auto-passes - no income evidence required
   if (!isGuarantor && isStudent && hasGuarantorReference) {
     return { complete: true, reason: 'Student with guarantor' }
+  }
+
+  // Unemployed with guarantor auto-passes - guarantor backs tenant financially
+  if (!isGuarantor && isUnemployed && hasGuarantorReference) {
+    return { complete: true, reason: 'Unemployed with guarantor' }
   }
 
   if (isUnemployed && isLivingWithFamily) {
