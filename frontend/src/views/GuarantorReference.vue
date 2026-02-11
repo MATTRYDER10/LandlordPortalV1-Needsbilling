@@ -1733,7 +1733,7 @@
                 class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
               />
               <span class="ml-3 text-sm">
-                <strong class="text-gray-900">I confirm</strong> that I am willing and financially able to pay the full monthly rent if {{ reference.tenant_first_name || 'the tenant' }} {{ reference.tenant_last_name || '' }} is unable to do so. *
+                <strong class="text-gray-900">I confirm</strong> that I am willing and financially able to pay the full monthly rent if {{ reference.parent_tenant_first_name || 'the tenant' }} {{ reference.parent_tenant_last_name || '' }} is unable to do so. *
               </span>
             </label>
 
