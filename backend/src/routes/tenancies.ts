@@ -2453,17 +2453,64 @@ router.get('/records/:id/initial-monies-preview', authenticateToken, async (req:
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
     const dueDate = startDate && startDate < sevenDaysFromNow ? startDate : sevenDaysFromNow
 
+    // Calculate term months from start/end dates
+    let termMonths = 12
+    if (tenancy.start_date && tenancy.end_date) {
+      const start = new Date(tenancy.start_date)
+      const end = new Date(tenancy.end_date)
+      const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+      termMonths = months > 0 ? months : 12
+    }
+
+    // Calculate pro-rata rent if move-in day differs from rent due day
+    const monthlyRent = tenancy.monthly_rent || 0
+    const moveInDate = tenancy.start_date || ''
+    const rentDueDay = tenancy.rent_due_day || 1
+    let proRataAmount = 0
+    let hasProRata = false
+
+    if (moveInDate && monthlyRent > 0 && rentDueDay) {
+      const moveInDateObj = new Date(moveInDate)
+      const moveInDay = moveInDateObj.getDate()
+
+      if (moveInDay !== rentDueDay) {
+        const daysInMonth = new Date(moveInDateObj.getFullYear(), moveInDateObj.getMonth() + 1, 0).getDate()
+        const dailyRate = monthlyRent / daysInMonth
+
+        let proRataDays: number
+        if (moveInDay < rentDueDay) {
+          // Move-in before due day in same month
+          proRataDays = rentDueDay - moveInDay
+        } else {
+          // Move-in after due day, pro-rata to next month's due day
+          proRataDays = (daysInMonth - moveInDay) + rentDueDay
+        }
+
+        proRataAmount = Math.round(dailyRate * proRataDays * 100) / 100
+        hasProRata = true
+      }
+    }
+
+    // First month rent includes pro-rata if applicable
+    const firstMonthRent = monthlyRent + proRataAmount
+
     res.json({
       propertyAddress,
       recipientName: targetTenant ? `${targetTenant.first_name} ${targetTenant.last_name}`.trim() : '',
       recipientEmail: targetTenant?.email || '',
-      firstMonthRent: tenancy.monthly_rent || 0,
+      monthlyRent,
+      firstMonthRent,
       depositAmount: tenancy.deposit_amount || 0,
       holdingDepositPaid,
       additionalCharges: (tenancy.additional_charges || [])
         .filter(c => c.frequency === 'one_time')
         .map(c => ({ name: c.name, amount: c.amount })),
-      dueDate: dueDate.toISOString().split('T')[0]
+      dueDate: dueDate.toISOString().split('T')[0],
+      termMonths,
+      moveInDate,
+      rentDueDay,
+      proRataAmount,
+      hasProRata
     })
   } catch (error: any) {
     console.error('Error in GET /api/tenancies/records/:id/initial-monies-preview:', error)
@@ -2489,7 +2536,12 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       depositAmount: editedDeposit,
       holdingDepositPaid: editedHoldingDeposit,
       additionalCharges: editedAdditionalCharges,
-      dueDate: editedDueDate
+      dueDate: editedDueDate,
+      // For payment_requests table
+      rentUpFront,
+      termMonths,
+      monthlyRent: editedMonthlyRent,
+      proRataAmount
     } = req.body
 
     // Get full tenancy with property and tenants
@@ -2601,6 +2653,31 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
 
     const totalDue = firstMonthRent + depositAmount + additionalCharges.reduce((sum: number, c: { name: string; amount: number }) => sum + c.amount, 0) - holdingDepositPaid
 
+    // Save to payment_requests table for future rentgoose implementation
+    const { error: paymentRequestError } = await supabase
+      .from('payment_requests')
+      .insert({
+        tenancy_id: req.params.id,
+        company_id: companyId,
+        type: 'initial_monies',
+        rent_amount: rentUpFront ? (editedMonthlyRent || tenancy.monthly_rent || 0) * (termMonths || 12) : (editedMonthlyRent || tenancy.monthly_rent || 0),
+        deposit_amount: depositAmount,
+        holding_deposit_deducted: holdingDepositPaid,
+        pro_rata_amount: proRataAmount || 0,
+        additional_charges: additionalCharges.length > 0 ? additionalCharges : null,
+        total_amount: totalDue,
+        is_rent_up_front: rentUpFront || false,
+        term_months: termMonths || null,
+        due_date: editedDueDate || null,
+        status: 'pending',
+        requested_by: userId
+      })
+
+    if (paymentRequestError) {
+      console.error('Error saving payment request:', paymentRequestError)
+      // Don't fail the whole request, just log the error
+    }
+
     // Log activity
     await tenancyService.logTenancyActivity(req.params.id, {
       action: 'INITIAL_MONIES_REQUESTED',
@@ -2683,6 +2760,18 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
       console.error('Error updating tenancy:', updateError)
       return res.status(500).json({ error: 'Failed to confirm payment' })
     }
+
+    // Update payment_requests status to paid
+    await supabase
+      .from('payment_requests')
+      .update({
+        status: 'paid',
+        paid_at: new Date().toISOString(),
+        confirmed_by: userId
+      })
+      .eq('tenancy_id', req.params.id)
+      .eq('type', 'initial_monies')
+      .eq('status', 'tenant_confirmed')
 
     // Get updated tenancy
     const tenancy = await tenancyService.getTenancy(req.params.id, companyId)
@@ -2786,6 +2875,17 @@ router.post('/public/:id/tenant-paid', async (req, res) => {
       return res.status(500).json({ error: 'Failed to confirm payment' })
     }
 
+    // Update payment_requests status to tenant_confirmed
+    await supabase
+      .from('payment_requests')
+      .update({
+        status: 'tenant_confirmed',
+        tenant_confirmed_at: new Date().toISOString()
+      })
+      .eq('tenancy_id', tenancyId)
+      .eq('type', 'initial_monies')
+      .eq('status', 'pending')
+
     // Get company notification email
     const { data: company } = await supabase
       .from('companies')
@@ -2824,7 +2924,7 @@ router.post('/public/:id/tenant-paid', async (req, res) => {
       .reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
     const amountDue = rent + deposit + chargesTotal
 
-    // Send notification to agent
+    // Send email notification to agent
     if (agentEmail) {
       const frontendUrl = getFrontendUrl()
       const tenancyLink = `${frontendUrl}/tenancies?selected=${tenancyId}`
@@ -2838,6 +2938,14 @@ router.post('/public/:id/tenant-paid', async (req, res) => {
         tenancyLink,
         companyName
       )
+    }
+
+    // Create in-app notification
+    try {
+      const { notifyInitialMoniesTenantConfirmed } = await import('../services/notificationService')
+      await notifyInitialMoniesTenantConfirmed(tenancy.company_id, tenancyId, propertyAddress, tenantName)
+    } catch (notifError) {
+      console.error('Failed to create tenant payment notification:', notifError)
     }
 
     res.json({ success: true })
@@ -3434,6 +3542,21 @@ router.post('/public/:id/submit-move-in-time', async (req, res) => {
       console.log('[submit-move-in-time] WARNING: No agent email found, skipping notification')
     }
 
+    // Create in-app notification
+    try {
+      const { notifyMoveInTimeSubmitted } = await import('../services/notificationService')
+      await notifyMoveInTimeSubmitted(
+        tenancy.company_id,
+        tenancyId,
+        propertyAddress,
+        tenantName,
+        formattedMoveInDate,
+        `${timeSlot1} or ${timeSlot2}`
+      )
+    } catch (notifError) {
+      console.error('Failed to create move-in time submitted notification:', notifError)
+    }
+
     res.json({
       success: true,
       message: 'Your move-in time preferences have been submitted'
@@ -3727,6 +3850,20 @@ router.post('/public/:id/confirm-move-in-time', async (req, res) => {
       console.log('[public/confirm-move-in-time] Agent confirmation sent successfully')
     } else {
       console.log('[public/confirm-move-in-time] WARNING: No agent email found, skipping notification')
+    }
+
+    // Create in-app notification
+    try {
+      const { notifyMoveInTimeConfirmed } = await import('../services/notificationService')
+      await notifyMoveInTimeConfirmed(
+        tenancy.company_id,
+        tenancyId,
+        propertyAddress,
+        tenantName,
+        `${formattedDate} at ${confirmedTime}`
+      )
+    } catch (notifError) {
+      console.error('Failed to create move-in time confirmed notification:', notifError)
     }
 
     res.json({

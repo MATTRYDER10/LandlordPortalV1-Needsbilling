@@ -11,6 +11,9 @@ export type NotificationType =
   | 'TENANT_OFFER'
   | 'PAYMENT_CONFIRMED'
   | 'INITIAL_MONIES_PAID'
+  | 'INITIAL_MONIES_TENANT_CONFIRMED'
+  | 'MOVE_IN_TIME_SUBMITTED'
+  | 'MOVE_IN_TIME_CONFIRMED'
   | 'TENANCY_STARTED'
   | 'AGREEMENT_SIGNED'
   | 'ACTION_REQUIRED'
@@ -486,5 +489,71 @@ export async function notifyActionRequired(
     message,
     severity: 'WARNING',
     metadata
+  })
+}
+
+/**
+ * Create notification when tenant confirms they've paid initial monies
+ */
+export async function notifyInitialMoniesTenantConfirmed(
+  companyId: string,
+  tenancyId: string,
+  propertyAddress: string,
+  tenantName: string
+): Promise<void> {
+  await createNotification({
+    companyId,
+    notificationType: 'INITIAL_MONIES_TENANT_CONFIRMED',
+    resourceType: 'tenancy',
+    resourceId: tenancyId,
+    title: 'Tenant Confirmed Payment',
+    message: `${tenantName} has confirmed payment of initial monies for ${propertyAddress}`,
+    severity: 'INFO',
+    metadata: { propertyAddress, tenantName }
+  })
+}
+
+/**
+ * Create notification when tenant submits their move-in time preferences
+ */
+export async function notifyMoveInTimeSubmitted(
+  companyId: string,
+  tenancyId: string,
+  propertyAddress: string,
+  tenantName: string,
+  moveInDate: string,
+  preferredTimes: string
+): Promise<void> {
+  await createNotification({
+    companyId,
+    notificationType: 'MOVE_IN_TIME_SUBMITTED',
+    resourceType: 'tenancy',
+    resourceId: tenancyId,
+    title: 'Move-in Time Submitted',
+    message: `${tenantName} has submitted move-in time preferences for ${propertyAddress} on ${moveInDate}`,
+    severity: 'INFO',
+    metadata: { propertyAddress, tenantName, moveInDate, preferredTimes }
+  })
+}
+
+/**
+ * Create notification when tenant confirms their move-in time
+ */
+export async function notifyMoveInTimeConfirmed(
+  companyId: string,
+  tenancyId: string,
+  propertyAddress: string,
+  tenantName: string,
+  confirmedTime: string
+): Promise<void> {
+  await createNotification({
+    companyId,
+    notificationType: 'MOVE_IN_TIME_CONFIRMED',
+    resourceType: 'tenancy',
+    resourceId: tenancyId,
+    title: 'Move-in Time Confirmed',
+    message: `${tenantName} has confirmed move-in at ${confirmedTime} for ${propertyAddress}`,
+    severity: 'INFO',
+    metadata: { propertyAddress, tenantName, confirmedTime }
   })
 }

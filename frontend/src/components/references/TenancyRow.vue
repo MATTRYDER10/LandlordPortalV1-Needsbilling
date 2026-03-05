@@ -119,22 +119,13 @@
 
         <!-- Action Buttons -->
         <div class="flex-shrink-0 flex items-center gap-2">
-          <router-link
-            :to="`/agreements/generate?referenceId=${tenancy.id}`"
-            @click.stop
-            class="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md flex items-center gap-1.5 transition-colors"
-            title="Generate standalone agreement from this reference"
-          >
-            <FileText class="w-3.5 h-3.5" />
-            <span class="hidden xl:inline">Generate Agreement</span>
-          </router-link>
           <button
             @click.stop="$emit('convertToTenancy', tenancy)"
-            class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md flex items-center gap-1.5 transition-colors"
+            class="px-4 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
             title="Convert to active tenancy"
           >
-            <ArrowRightCircle class="w-3.5 h-3.5" />
-            <span class="hidden xl:inline">Convert</span>
+            <ArrowRightCircle class="w-4 h-4" />
+            Convert to Tenancy
           </button>
         </div>
 
@@ -229,7 +220,7 @@ import { computed, ref } from 'vue'
 import type { Tenancy, TenancyPerson } from '@/composables/useTenancies'
 import PersonCard from './PersonCard.vue'
 import ReferenceProgressIndicator from './ReferenceProgressIndicator.vue'
-import { ChevronDown, AlertTriangle, MailWarning, Pencil, FileText, ArrowRightCircle, UserPlus } from 'lucide-vue-next'
+import { ChevronDown, AlertTriangle, MailWarning, Pencil, ArrowRightCircle, UserPlus } from 'lucide-vue-next'
 
 const props = defineProps<{
   tenancy: Tenancy

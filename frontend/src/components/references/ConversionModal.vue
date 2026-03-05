@@ -471,18 +471,71 @@ const defaultRentDueDay = computed(() => {
   return Math.min(day, 28)
 })
 
-// Filtered properties based on search - no limit, show all matching
+// Extract postcode from a string (UK format)
+const extractPostcode = (str: string): string => {
+  const match = str.match(/([A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2})/i)
+  return match ? match[1].toUpperCase().replace(/\s/g, '') : ''
+}
+
+// Extract house number from address
+const extractHouseNumber = (str: string): string => {
+  const match = str.match(/^(\d+[A-Za-z]?)\s/)
+  return match ? match[1].toLowerCase() : ''
+}
+
+// Filtered properties based on search - prioritize postcode matches
 const filteredProperties = computed(() => {
   if (!propertySearch.value.trim()) {
     return properties.value
   }
+
   const search = propertySearch.value.toLowerCase().trim()
-  return properties.value.filter(prop => {
+  const searchPostcode = extractPostcode(propertySearch.value)
+  const searchHouseNumber = extractHouseNumber(propertySearch.value)
+
+  // Score each property for relevance
+  const scored = properties.value.map(prop => {
     const address = (prop.address_line1 || '').toLowerCase()
     const city = (prop.city || '').toLowerCase()
-    const postcode = (prop.postcode || '').toLowerCase()
-    return address.includes(search) || city.includes(search) || postcode.includes(search)
+    const postcode = (prop.postcode || '').toUpperCase().replace(/\s/g, '')
+    const propHouseNumber = extractHouseNumber(prop.address_line1 || '')
+
+    let score = 0
+
+    // Postcode match is highest priority
+    if (searchPostcode && postcode === searchPostcode) {
+      score += 100
+    } else if (searchPostcode && postcode.startsWith(searchPostcode.slice(0, -3))) {
+      // Partial postcode match (same area)
+      score += 50
+    }
+
+    // House number match
+    if (searchHouseNumber && propHouseNumber === searchHouseNumber) {
+      score += 30
+    }
+
+    // General text matching
+    if (address.includes(search) || city.includes(search) || postcode.toLowerCase().includes(search)) {
+      score += 10
+    }
+
+    // Any word match
+    const searchWords = search.split(/[\s,]+/).filter(w => w.length > 2)
+    for (const word of searchWords) {
+      if (address.includes(word) || city.includes(word)) {
+        score += 5
+      }
+    }
+
+    return { prop, score }
   })
+
+  // Filter to those with any match and sort by score
+  return scored
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(s => s.prop)
 })
 
 // Check if conversion is ready (has property and valid rent shares)
@@ -568,24 +621,49 @@ const loadProperties = async () => {
 const fuzzyMatchProperty = (referenceAddress: string): any | null => {
   if (!referenceAddress || properties.value.length === 0) return null
 
+  const refPostcode = extractPostcode(referenceAddress)
+  const refHouseNumber = extractHouseNumber(referenceAddress)
+
+  // Priority 1: Match by postcode + house number (most reliable)
+  if (refPostcode && refHouseNumber) {
+    for (const prop of properties.value) {
+      const propPostcode = (prop.postcode || '').toUpperCase().replace(/\s/g, '')
+      const propHouseNumber = extractHouseNumber(prop.address_line1 || '')
+      if (propPostcode === refPostcode && propHouseNumber === refHouseNumber) {
+        return prop
+      }
+    }
+  }
+
+  // Priority 2: Match by postcode only (if unique match)
+  if (refPostcode) {
+    const postcodeMatches = properties.value.filter(prop => {
+      const propPostcode = (prop.postcode || '').toUpperCase().replace(/\s/g, '')
+      return propPostcode === refPostcode
+    })
+    if (postcodeMatches.length === 1) {
+      return postcodeMatches[0]
+    }
+    // If multiple matches and we have house number, try to find best match
+    if (postcodeMatches.length > 1 && refHouseNumber) {
+      const houseMatch = postcodeMatches.find(prop => {
+        const propHouseNumber = extractHouseNumber(prop.address_line1 || '')
+        return propHouseNumber === refHouseNumber
+      })
+      if (houseMatch) return houseMatch
+    }
+  }
+
+  // Priority 3: Normalized address matching (fallback)
   const normalizeAddress = (addr: string) =>
     addr.toLowerCase().replace(/[^a-z0-9]/g, '')
 
   const refNormalized = normalizeAddress(referenceAddress)
 
-  // Try exact-ish match first
   for (const prop of properties.value) {
     const propAddr = `${prop.address_line1} ${prop.city} ${prop.postcode}`
     const propNormalized = normalizeAddress(propAddr)
     if (propNormalized === refNormalized || propNormalized.includes(refNormalized) || refNormalized.includes(propNormalized)) {
-      return prop
-    }
-  }
-
-  // Try matching postcode
-  for (const prop of properties.value) {
-    const propPostcode = (prop.postcode || '').toLowerCase().trim()
-    if (propPostcode && referenceAddress.toLowerCase().includes(propPostcode)) {
       return prop
     }
   }

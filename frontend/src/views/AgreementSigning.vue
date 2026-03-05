@@ -239,6 +239,8 @@ import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import { AlertTriangle, CheckCircle, XCircle, Download, Check, Loader2 } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const route = useRoute()
 const token = route.params.token as string
 

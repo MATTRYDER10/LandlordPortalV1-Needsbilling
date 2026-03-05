@@ -331,7 +331,7 @@ router.get('/details/:token', async (req, res) => {
     // Get invitation by token hash
     const { data: invitation, error: inviteError } = await supabase
       .from('invitations')
-      .select('email_encrypted, role, expires_at')
+      .select('email_encrypted, role, expires_at, company_id')
       .eq('token_hash', tokenHash)
       .eq('status', 'pending')
       .gte('expires_at', new Date().toISOString())
@@ -341,10 +341,28 @@ router.get('/details/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invalid or expired invitation' })
     }
 
+    const invitationEmail = decrypt(invitation.email_encrypted) || ''
+
+    // Check if user already exists
+    const { data: userData } = await supabase.auth.admin.listUsers()
+    const existingUser = userData.users.find(u => u.email?.toLowerCase() === invitationEmail.toLowerCase())
+
+    // Get company name for display
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted')
+      .eq('id', invitation.company_id)
+      .single()
+
+    const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : 'the team'
+
     res.json({
-      email: decrypt(invitation.email_encrypted),
+      email: invitationEmail,
       role: invitation.role,
-      expiresAt: invitation.expires_at
+      expiresAt: invitation.expires_at,
+      companyName,
+      userExists: !!existingUser,
+      existingUserName: existingUser?.user_metadata?.full_name || null
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -356,10 +374,6 @@ router.post('/accept/:token', async (req, res) => {
   try {
     const { token } = req.params
     const { fullName, password } = req.body
-
-    if (!fullName || !password) {
-      return res.status(400).json({ error: 'Full name and password are required' })
-    }
 
     // Hash the token to look up the invitation securely
     const tokenHash = hash(token)
@@ -379,26 +393,47 @@ router.post('/accept/:token', async (req, res) => {
 
     const invitationEmail: string = decrypt(invitation.email_encrypted) || ''
 
-    // Create user account (with metadata flag to prevent company creation in trigger)
-    const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
-      email: invitationEmail,
-      password: password,
-      email_confirm: true,
-      user_metadata: {
-        is_invited: true,
-        full_name: fullName
-      }
-    })
+    // Check if user already exists in auth.users
+    const { data: userData } = await supabase.auth.admin.listUsers()
+    const existingUser = userData.users.find(u => u.email?.toLowerCase() === invitationEmail.toLowerCase())
 
-    if (signUpError) {
-      return res.status(400).json({ error: signUpError.message })
+    let userId: string
+    let userFullName: string
+
+    if (existingUser) {
+      // User already exists - just link them to the new branch
+      userId = existingUser.id
+      userFullName = existingUser.user_metadata?.full_name || existingUser.email?.split('@')[0] || 'User'
+    } else {
+      // New user - need fullName and password to create account
+      if (!fullName || !password) {
+        return res.status(400).json({ error: 'Full name and password are required for new accounts' })
+      }
+
+      // Create user account (with metadata flag to prevent company creation in trigger)
+      const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
+        email: invitationEmail,
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          is_invited: true,
+          full_name: fullName
+        }
+      })
+
+      if (signUpError) {
+        return res.status(400).json({ error: signUpError.message })
+      }
+
+      userId = authData.user.id
+      userFullName = fullName
     }
 
     // Check if user is already in company (prevent duplicates)
     const { data: existingMembership } = await supabase
       .from('company_users')
       .select('id')
-      .eq('user_id', authData.user.id)
+      .eq('user_id', userId)
       .eq('company_id', invitation.company_id)
       .limit(1)
 
@@ -408,7 +443,7 @@ router.post('/accept/:token', async (req, res) => {
         .from('company_users')
         .insert({
           company_id: invitation.company_id,
-          user_id: authData.user.id,
+          user_id: userId,
           role: invitation.role
         })
 
@@ -430,19 +465,19 @@ router.post('/accept/:token', async (req, res) => {
     await createAuditLog(
       {
         companyId: invitation.company_id,
-        userId: authData.user.id,
+        userId: userId,
         actionType: 'user.joined',
         resourceType: 'user',
-        resourceId: authData.user.id,
-        description: `${fullName} (${invitationEmail}) joined as ${invitation.role}`,
-        metadata: { email: invitationEmail, role: invitation.role, fullName }
+        resourceId: userId,
+        description: `${userFullName} (${invitationEmail}) joined as ${invitation.role}`,
+        metadata: { email: invitationEmail, role: invitation.role, fullName: userFullName }
       },
       req
     )
 
     res.json({
-      message: 'Invitation accepted successfully',
-      user: authData.user
+      message: existingUser ? 'You now have access to this branch' : 'Invitation accepted successfully',
+      isExistingUser: !!existingUser
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })

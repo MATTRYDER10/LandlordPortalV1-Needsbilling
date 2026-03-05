@@ -422,6 +422,8 @@ import { useRouter } from 'vue-router'
 import AgreementEditModal from '../components/AgreementEditModal.vue'
 import RecallConfirmationModal from '../components/RecallConfirmationModal.vue'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const authStore = useAuthStore()
 const toast = useToast()
 const router = useRouter()

@@ -233,6 +233,7 @@ export async function createTenancy(
   }
 
   // Add optional fields only if they have values (using actual column names)
+  if (primaryReferenceId) insertData.primary_reference_id = primaryReferenceId
   if (agreementId) insertData.agreement_id = agreementId
   if (endDate) insertData.tenancy_end_date = endDate
   if (fixedTermEndDate) insertData.fixed_term_end_date = fixedTermEndDate

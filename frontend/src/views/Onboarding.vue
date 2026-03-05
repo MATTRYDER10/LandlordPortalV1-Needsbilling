@@ -84,6 +84,8 @@ import BankDetailsStep from '../components/onboarding/BankDetailsStep.vue'
 import BrandingStep from '../components/onboarding/BrandingStep.vue'
 import PaymentSetupStep from '../components/onboarding/PaymentSetupStep.vue'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const router = useRouter()
 const authStore = useAuthStore()
 

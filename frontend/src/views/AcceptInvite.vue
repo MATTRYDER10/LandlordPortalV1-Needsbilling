@@ -5,9 +5,14 @@
         <div class="flex items-center justify-center mb-4">
           <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-10" />
         </div>
-        <h2 class="mt-6 text-3xl font-bold text-gray-900">Accept Your Invitation</h2>
+        <h2 class="mt-6 text-3xl font-bold text-gray-900">
+          {{ userExists ? 'Join New Branch' : 'Accept Your Invitation' }}
+        </h2>
         <p class="mt-2 text-sm text-gray-600">
-          Create your account to join the team
+          {{ userExists
+            ? `You've been invited to join ${companyName}`
+            : 'Create your account to join the team'
+          }}
         </p>
       </div>
 
@@ -20,6 +25,68 @@
         {{ invitationError }}
       </div>
 
+      <!-- Existing User Flow - Simple confirmation -->
+      <div v-else-if="userExists" class="mt-8 space-y-6">
+        <div v-if="errorMessage" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+          {{ errorMessage }}
+        </div>
+
+        <div v-if="successMessage" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+          {{ successMessage }}
+        </div>
+
+        <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded">
+          <p class="font-medium">You already have a PropertyGoose account</p>
+          <p class="text-sm mt-1">
+            Click below to add <strong>{{ companyName }}</strong> to your account.
+            You'll be able to switch between branches after logging in.
+          </p>
+        </div>
+
+        <div class="rounded-md shadow-sm space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Email address</label>
+            <input
+              v-model="invitationEmail"
+              type="email"
+              disabled
+              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 rounded-md cursor-not-allowed sm:text-sm"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Branch</label>
+            <input
+              v-model="companyName"
+              type="text"
+              disabled
+              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 rounded-md cursor-not-allowed sm:text-sm"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Role</label>
+            <input
+              v-model="invitationRole"
+              type="text"
+              disabled
+              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 rounded-md cursor-not-allowed sm:text-sm capitalize"
+            />
+          </div>
+        </div>
+
+        <div>
+          <button
+            @click="handleExistingUserAccept"
+            :disabled="submitting"
+            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ submitting ? 'Joining Branch...' : 'Join Branch' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- New User Flow - Create account form -->
       <form v-else @submit.prevent="handleSubmit" class="mt-8 space-y-6">
         <div v-if="errorMessage" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
           {{ errorMessage }}
@@ -122,6 +189,8 @@ const successMessage = ref('')
 const submitting = ref(false)
 const invitationEmail = ref('')
 const invitationRole = ref('')
+const companyName = ref('')
+const userExists = ref(false)
 
 const formData = ref({
   fullName: '',
@@ -141,6 +210,8 @@ const fetchInvitationDetails = async () => {
     const data = await response.json()
     invitationEmail.value = data.email
     invitationRole.value = data.role
+    companyName.value = data.companyName || 'the team'
+    userExists.value = data.userExists || false
   } catch (error: any) {
     invitationError.value = error.message || 'Failed to load invitation'
   } finally {
@@ -158,6 +229,40 @@ onMounted(async () => {
   }
 })
 
+// Handle existing user accepting invitation (just links branch)
+const handleExistingUserAccept = async () => {
+  errorMessage.value = ''
+  successMessage.value = ''
+  submitting.value = true
+
+  try {
+    const response = await fetch(`${API_URL}/api/invitations/accept/${token.value}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})  // No password needed for existing users
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to join branch')
+    }
+
+    successMessage.value = 'Branch added successfully! Please log in to access it.'
+
+    setTimeout(() => {
+      router.push('/login')
+    }, 2000)
+  } catch (error: any) {
+    errorMessage.value = error.message || 'Failed to join branch'
+  } finally {
+    submitting.value = false
+  }
+}
+
+// Handle new user creating account
 const handleSubmit = async () => {
   errorMessage.value = ''
   successMessage.value = ''

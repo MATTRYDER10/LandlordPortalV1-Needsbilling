@@ -136,6 +136,8 @@ import { Download, FileText, AlertTriangle, Send, Pencil, ArrowLeft } from 'luci
 import RecipientCard from '../components/RecipientCard.vue'
 import AgreementEditModal from '../components/AgreementEditModal.vue'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 interface Recipient {
   type: 'landlord' | 'tenant' | 'guarantor'
   index: number

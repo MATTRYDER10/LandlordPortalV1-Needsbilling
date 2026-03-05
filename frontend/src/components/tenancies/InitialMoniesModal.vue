@@ -45,9 +45,43 @@
               <div class="space-y-3">
                 <h4 class="text-sm font-semibold text-gray-700 dark:text-slate-300 uppercase">Payment Breakdown</h4>
 
-                <!-- First Month's Rent -->
+                <!-- Rent Up Front Toggle -->
+                <div class="flex items-center justify-between gap-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div>
+                    <label class="text-sm font-medium text-gray-700 dark:text-slate-300">Rent Up Front</label>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">Charge full {{ termMonths }} months rent</p>
+                  </div>
+                  <button
+                    type="button"
+                    @click="rentUpFront = !rentUpFront"
+                    :class="[
+                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                      rentUpFront ? 'bg-primary' : 'bg-gray-300 dark:bg-slate-600'
+                    ]"
+                  >
+                    <span
+                      :class="[
+                        'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                        rentUpFront ? 'translate-x-6' : 'translate-x-1'
+                      ]"
+                    />
+                  </button>
+                </div>
+
+                <!-- Pro-rata info if applicable -->
+                <div v-if="hasProRata && proRataAmount > 0 && !rentUpFront" class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                  <p class="text-xs text-amber-800 dark:text-amber-200">
+                    <strong>Pro-rata included:</strong> Move-in on {{ formatDate(moveInDate) }}, rent due {{ rentDueDay }}{{ getDaySuffix(rentDueDay) }} of each month.
+                    Pro-rata amount: £{{ proRataAmount.toFixed(2) }}
+                  </p>
+                </div>
+
+                <!-- Rent Amount -->
                 <div class="flex items-center justify-between gap-4">
-                  <label class="text-sm text-gray-700 dark:text-slate-300">First Month's Rent</label>
+                  <div>
+                    <label class="text-sm text-gray-700 dark:text-slate-300">{{ rentLabel }}</label>
+                    <p v-if="!rentUpFront" class="text-xs text-gray-500 dark:text-slate-400">Monthly: £{{ monthlyRent.toLocaleString() }}</p>
+                  </div>
                   <div class="relative">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400">&pound;</span>
                     <input
@@ -219,9 +253,40 @@ const editableAmounts = ref({
   additionalCharges: [] as { name: string; amount: number }[]
 })
 
+// Rent up front option
+const rentUpFront = ref(false)
+const monthlyRent = ref(0)
+const termMonths = ref(12)
+const proRataAmount = ref(0)
+const hasProRata = ref(false)
+const moveInDate = ref('')
+const rentDueDay = ref(1)
+
+// Watch for rent up front toggle
+watch(rentUpFront, (upFront) => {
+  if (upFront) {
+    // Calculate full term rent
+    editableAmounts.value.firstMonthRent = monthlyRent.value * termMonths.value
+  } else {
+    // Reset to monthly rent (plus pro-rata if applicable)
+    editableAmounts.value.firstMonthRent = monthlyRent.value + proRataAmount.value
+  }
+})
+
 // Computed
 const additionalChargesTotal = computed(() => {
   return editableAmounts.value.additionalCharges.reduce((sum, c) => sum + (c.amount || 0), 0)
+})
+
+// Label for rent field
+const rentLabel = computed(() => {
+  if (rentUpFront.value) {
+    return `Full Term Rent (${termMonths.value} months)`
+  }
+  if (hasProRata.value && proRataAmount.value > 0) {
+    return "First Month's Rent (inc. pro-rata)"
+  }
+  return "First Month's Rent"
 })
 
 const totalDue = computed(() => {
@@ -262,8 +327,19 @@ const loadInitialData = async () => {
       recipientEmail.value = data.recipientEmail || ''
       dueDate.value = data.dueDate || getDefaultDueDate()
 
+      // Store base values for calculations
+      monthlyRent.value = data.monthlyRent || data.firstMonthRent || props.tenancy.monthly_rent || props.tenancy.rent_amount || 0
+      termMonths.value = data.termMonths || 12
+      moveInDate.value = data.moveInDate || props.tenancy.start_date || ''
+      rentDueDay.value = data.rentDueDay || props.tenancy.rent_due_day || 1
+      proRataAmount.value = data.proRataAmount || 0
+      hasProRata.value = data.hasProRata || false
+
+      // First month rent includes pro-rata if applicable
+      const firstMonthWithProRata = monthlyRent.value + (proRataAmount.value || 0)
+
       editableAmounts.value = {
-        firstMonthRent: data.firstMonthRent || props.tenancy.monthly_rent || props.tenancy.rent_amount || 0,
+        firstMonthRent: data.firstMonthRent || firstMonthWithProRata,
         deposit: data.depositAmount || props.tenancy.deposit_amount || 0,
         holdingDeposit: data.holdingDepositPaid || 0,
         additionalCharges: (data.additionalCharges || []).map((c: any) => ({
@@ -286,8 +362,29 @@ const loadInitialData = async () => {
       recipientEmail.value = leadTenant?.email || ''
       dueDate.value = getDefaultDueDate()
 
+      // Calculate term months from dates
+      const rent = props.tenancy.monthly_rent || props.tenancy.rent_amount || 0
+      monthlyRent.value = rent
+      moveInDate.value = props.tenancy.start_date || ''
+      rentDueDay.value = props.tenancy.rent_due_day || 1
+
+      // Calculate term from start/end dates
+      if (props.tenancy.start_date && props.tenancy.end_date) {
+        const start = new Date(props.tenancy.start_date)
+        const end = new Date(props.tenancy.end_date)
+        const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+        termMonths.value = months > 0 ? months : 12
+      } else {
+        termMonths.value = 12
+      }
+
+      // Calculate pro-rata if rent due day differs from move-in day
+      const calculatedProRata = calculateProRata(rent, moveInDate.value, rentDueDay.value)
+      proRataAmount.value = calculatedProRata.amount
+      hasProRata.value = calculatedProRata.hasProRata
+
       editableAmounts.value = {
-        firstMonthRent: props.tenancy.monthly_rent || props.tenancy.rent_amount || 0,
+        firstMonthRent: rent + proRataAmount.value,
         deposit: props.tenancy.deposit_amount || 0,
         holdingDeposit: 0,
         additionalCharges: (props.tenancy.additional_charges || [])
@@ -311,8 +408,29 @@ const loadInitialData = async () => {
     recipientEmail.value = leadTenant?.email || ''
     dueDate.value = getDefaultDueDate()
 
+    // Calculate term months from dates
+    const rent = props.tenancy?.monthly_rent || props.tenancy?.rent_amount || 0
+    monthlyRent.value = rent
+    moveInDate.value = props.tenancy?.start_date || ''
+    rentDueDay.value = props.tenancy?.rent_due_day || 1
+
+    // Calculate term from start/end dates
+    if (props.tenancy?.start_date && props.tenancy?.end_date) {
+      const start = new Date(props.tenancy.start_date)
+      const end = new Date(props.tenancy.end_date)
+      const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+      termMonths.value = months > 0 ? months : 12
+    } else {
+      termMonths.value = 12
+    }
+
+    // Calculate pro-rata if rent due day differs from move-in day
+    const calculatedProRata = calculateProRata(rent, moveInDate.value, rentDueDay.value)
+    proRataAmount.value = calculatedProRata.amount
+    hasProRata.value = calculatedProRata.hasProRata
+
     editableAmounts.value = {
-      firstMonthRent: props.tenancy?.monthly_rent || props.tenancy?.rent_amount || 0,
+      firstMonthRent: rent + proRataAmount.value,
       deposit: props.tenancy?.deposit_amount || 0,
       holdingDeposit: 0,
       additionalCharges: []
@@ -326,6 +444,49 @@ const getDefaultDueDate = (): string => {
   const date = new Date()
   date.setDate(date.getDate() + 7)
   return date.toISOString().split('T')[0] ?? ''
+}
+
+const formatDate = (dateStr: string): string => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+const getDaySuffix = (day: number): string => {
+  if (day >= 11 && day <= 13) return 'th'
+  switch (day % 10) {
+    case 1: return 'st'
+    case 2: return 'nd'
+    case 3: return 'rd'
+    default: return 'th'
+  }
+}
+
+// Calculate pro-rata rent when move-in day differs from rent due day
+const calculateProRata = (rent: number, moveIn: string, dueDay: number): { amount: number; hasProRata: boolean } => {
+  if (!moveIn || !rent || !dueDay) return { amount: 0, hasProRata: false }
+
+  const moveInDate = new Date(moveIn)
+  const moveInDay = moveInDate.getDate()
+
+  // If move-in is on rent due day, no pro-rata needed
+  if (moveInDay === dueDay) return { amount: 0, hasProRata: false }
+
+  // Calculate days from move-in to next rent due date
+  const daysInMonth = new Date(moveInDate.getFullYear(), moveInDate.getMonth() + 1, 0).getDate()
+  const dailyRate = rent / daysInMonth
+
+  let proRataDays: number
+  if (moveInDay < dueDay) {
+    // Move-in before due day in same month
+    proRataDays = dueDay - moveInDay
+  } else {
+    // Move-in after due day, pro-rata to next month's due day
+    proRataDays = (daysInMonth - moveInDay) + dueDay
+  }
+
+  const proRataAmount = Math.round(dailyRate * proRataDays * 100) / 100
+  return { amount: proRataAmount, hasProRata: true }
 }
 
 const addCharge = () => {
@@ -357,7 +518,12 @@ const sendRequest = async () => {
           depositAmount: editableAmounts.value.deposit,
           holdingDepositPaid: editableAmounts.value.holdingDeposit,
           additionalCharges: editableAmounts.value.additionalCharges.filter(c => c.name && c.amount > 0),
-          dueDate: dueDate.value
+          dueDate: dueDate.value,
+          // For payment_requests table
+          rentUpFront: rentUpFront.value,
+          termMonths: termMonths.value,
+          monthlyRent: monthlyRent.value,
+          proRataAmount: proRataAmount.value
         })
       }
     )
