@@ -741,8 +741,8 @@ const autoReturnStaleItems = async () => {
     const now = Date.now()
     for (const item of workItems.value) {
       if (
-        !isMyItem(item)
-        !item.claimed_at
+        !isMyItem(item) &&
+        !item.claimed_at &&
         !['ASSIGNED', 'IN_PROGRESS'].includes(item.status)
       ) {
         continue

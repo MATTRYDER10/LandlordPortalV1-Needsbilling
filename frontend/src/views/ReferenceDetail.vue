@@ -437,7 +437,7 @@
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Middle Name</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.middle_name
-                          'Notprovided' }}</p>
+                          || 'Not provided' }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Last Name</label>
@@ -461,7 +461,7 @@
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Nationality</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.nationality
-                          'Notprovided' }}</p>
+                          || 'Not provided' }}</p>
                       </div>
                     </div>
                   </div>
@@ -601,12 +601,12 @@
                       <div>
                         <label class="block text-sm font-medium text-gray-500">City</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_city
-                          'Notprovided yet' }}</p>
+                          || 'Not provided yet' }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Postcode</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.current_postcode
-                          'Not provided yet' }}</p>
+                          || 'Not provided yet' }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Country</label>
@@ -686,7 +686,7 @@
                           <label class="block text-sm font-medium text-gray-500">Employment Type</label>
                           <p class="mt-1 text-gray-900 capitalize">{{
                             childReferenceDetails[child.id].reference.employment_contract_type?.replace(/-/g, ' ')
-                            'Not provided' }}</p>
+                            || 'Not provided' }}</p>
                         </div>
                         <div>
                           <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
@@ -831,11 +831,11 @@
                                 <div><span class="text-green-700 font-medium">Contract Type:</span> <span
                                     class="text-green-900 capitalize">{{
                                       childReferenceDetails[child.id].employerReference.contract_type_confirmation
-                                      'Notprovided' }}</span></div>
+                                      || 'Not provided' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Income Expectation:</span> <span
                                     class="text-green-900 capitalize">{{
                                       childReferenceDetails[child.id].employerReference.income_expectation
-                                      'Notprovided' }}</span></div>
+                                      || 'Not provided' }}</span></div>
                                 <div><span class="text-green-700 font-medium">Position Security:</span> <span
                                     class="text-green-900 capitalize">{{
                                       childReferenceDetails[child.id].employerReference.employment_stable || 'Notprovided'
@@ -1149,7 +1149,7 @@
                       <div v-if="childReferenceDetails[child.id].reference.has_pets" class="col-span-2">
                         <label class="block text-sm font-medium text-gray-500">Pet Details</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.pet_details
-                          'Notprovided' }}</p>
+                          || 'Not provided' }}</p>
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-500">Marital Status</label>
@@ -1165,7 +1165,7 @@
                       <div v-if="childReferenceDetails[child.id].reference.number_of_dependants > 0" class="col-span-2">
                         <label class="block text-sm font-medium text-gray-500">Dependants Details</label>
                         <p class="mt-1 text-gray-900">{{ childReferenceDetails[child.id].reference.dependants_details
-                          'Not provided' }}</p>
+                          || 'Not provided' }}</p>
                       </div>
                     </div>
                   </div>
@@ -1936,7 +1936,7 @@
               <div>
                 <label class="block text-sm font-medium text-gray-500">Employment Type</label>
                 <p class="mt-1 text-gray-900 capitalize">{{ reference.employment_contract_type?.replace(/-/g, ' ')
-                  'Not provided' }}</p>
+                  || 'Not provided' }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-500">Employment Start Date</label>
@@ -2121,7 +2121,7 @@
                             class="text-green-900">{{ employerReference.employment_status }}</span></div>
                         <div><span class="text-green-700 font-medium">Contract Type:</span> <span
                             class="text-green-900 capitalize">{{ employerReference.contract_type_confirmation
-                              'Notprovided' }}</span></div>
+                              || 'Not provided' }}</span></div>
                         <div><span class="text-green-700 font-medium">Income Expectation:</span> <span
                             class="text-green-900 capitalize">{{ employerReference.income_expectation || 'Not provided'
                             }}</span></div>
