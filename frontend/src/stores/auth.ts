@@ -46,7 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
 
         // If user has only one branch and no active branch set, auto-select it
         if (branches.value.length === 1 && !activeBranchId.value) {
-          setActiveBranch(branches.value[0].id)
+          setActiveBranch(branches.value[0]!.id)
         }
 
         // If activeBranchId doesn't match any branch, clear it

@@ -725,8 +725,6 @@ import EvidencePreview from '../shared/EvidencePreview.vue'
 import AffordabilityCalculator from '../shared/AffordabilityCalculator.vue'
 import { useAuthStore } from '@/stores/auth'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const authStore = useAuthStore()
 const authToken = computed(() => authStore.session?.access_token || '')
 

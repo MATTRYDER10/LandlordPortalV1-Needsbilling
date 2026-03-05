@@ -7,6 +7,7 @@ import { useApi } from '@/composables/useApi'
 export type TenancyStatus =
   | 'SENT'
   | 'IN_PROGRESS'
+  | 'COLLECTING_EVIDENCE'
   | 'AWAITING_VERIFICATION'
   | 'ACTION_REQUIRED'
   | 'COMPLETED'
@@ -14,7 +15,7 @@ export type TenancyStatus =
 
 export type TabKey = TenancyStatus | 'ALL' | 'MOVED_IN'
 
-export type SectionType = 'IDENTITY_SELFIE' | 'RTR' | 'INCOME' | 'RESIDENTIAL' | 'CREDIT' | 'AML'
+export type SectionType = 'IDENTITY_SELFIE' | 'RTR' | 'INCOME' | 'RESIDENTIAL' | 'CREDIT' | 'AML' | 'EMPLOYER_REFERENCE' | 'LANDLORD_REFERENCE'
 export type SectionDecision = 'NOT_REVIEWED' | 'PASS' | 'PASS_WITH_CONDITION' | 'ACTION_REQUIRED' | 'FAIL'
 
 export interface SectionStatus {

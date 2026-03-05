@@ -571,7 +571,7 @@ const calculatedMinDate = computed(() => {
     }
   }
 
-  return effectiveDate.toISOString().split('T')[0]
+  return effectiveDate.toISOString().split('T')[0]!
 })
 
 const dateWarning = computed(() => {
@@ -619,7 +619,7 @@ const hasDrawnSignature = ref(false)
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd']
   const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
+  return n + (s[(v - 20) % 10] || s[v] || s[0]!)
 }
 
 const formatDate = (dateStr: string) => {
@@ -712,12 +712,12 @@ const stopDrawing = () => {
 }
 
 const startDrawingTouch = (e: TouchEvent) => {
-  const touch = e.touches[0]
+  const touch = e.touches[0]!
   startDrawing({ clientX: touch.clientX, clientY: touch.clientY } as MouseEvent)
 }
 
 const drawTouch = (e: TouchEvent) => {
-  const touch = e.touches[0]
+  const touch = e.touches[0]!
   draw({ clientX: touch.clientX, clientY: touch.clientY } as MouseEvent)
 }
 

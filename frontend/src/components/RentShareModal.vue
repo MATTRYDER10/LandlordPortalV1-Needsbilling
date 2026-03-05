@@ -9,7 +9,7 @@
 
       <!-- Tenants List -->
       <div class="space-y-4 mb-6">
-        <div v-for="(tenant, index) in localTenants" :key="tenant.id"
+        <div v-for="tenant in localTenants" :key="tenant.id"
           class="p-4 border border-gray-200 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-700/50">
           <div class="flex justify-between items-center mb-2">
             <span class="font-medium text-gray-900 dark:text-white">{{ tenant.name }}</span>

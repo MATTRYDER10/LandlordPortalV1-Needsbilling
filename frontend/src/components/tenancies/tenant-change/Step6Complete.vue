@@ -42,10 +42,6 @@ const outgoingTenantNames = computed(() => {
   })
 })
 
-const incomingTenantNames = computed(() => {
-  return props.tenantChange.incoming_tenants.map(t => `${t.firstName} ${t.lastName}`)
-})
-
 // Move to Step 7 (checklist) - actual completion happens there
 function proceedToChecklist() {
   emit('complete')

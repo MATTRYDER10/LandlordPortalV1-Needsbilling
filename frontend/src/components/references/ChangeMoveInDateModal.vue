@@ -50,8 +50,6 @@ import type { Tenancy } from '@/composables/useTenancies'
 import DatePicker from '@/components/DatePicker.vue'
 import { useAuthStore } from '@/stores/auth'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const API_BASE = import.meta.env.VITE_API_URL
 const props = defineProps<{
   show: boolean

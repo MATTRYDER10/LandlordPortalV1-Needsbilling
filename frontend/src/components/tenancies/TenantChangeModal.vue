@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { X, Users, CheckCircle, FileText, Send, Calendar, ClipboardCheck, AlertTriangle, ChevronRight } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import Step1IncomingDetails from './tenant-change/Step1IncomingDetails.vue'
@@ -60,9 +60,12 @@ interface TenantChange {
   expected_move_in_date: string | null
   referencing_skipped: boolean
   referencing_overridden: boolean
+  referencing_override_reason: string | null
   changeover_date: string | null
   fee_amount: number
   fee_waived: boolean
+  fee_waived_reason: string | null
+  fee_above_50_justification: string | null
   fee_payable_by: 'outgoing' | 'incoming' | 'split'
   payment_reference: string | null
   bank_name: string | null
@@ -77,8 +80,11 @@ interface TenantChange {
   addendum_fully_signed_at: string | null
   completed_at: string | null
   checklist_deposit_updated: boolean
+  checklist_deposit_updated_at: string | null
   checklist_prescribed_info_sent: boolean
+  checklist_prescribed_info_sent_at: string | null
   checklist_deposit_share_confirmed: boolean
+  checklist_deposit_share_confirmed_at: string | null
 }
 
 const props = defineProps<{
@@ -145,18 +151,6 @@ const effectiveTenants = computed<Tenant[]>(() => {
 
 const effectiveRentDueDay = computed(() => {
   return props.tenancy?.rent_due_day || 1
-})
-
-const currentStepTitle = computed(() => {
-  return steps.find(s => s.number === currentStep.value)?.title || ''
-})
-
-const canGoBack = computed(() => {
-  return currentStep.value > 1 && tenantChange.value?.status === 'in_progress'
-})
-
-const canGoForward = computed(() => {
-  return currentStep.value < 7 && tenantChange.value?.status === 'in_progress'
 })
 
 // Methods
@@ -271,42 +265,6 @@ async function updateTenantChange(updates: Partial<TenantChange>) {
     tenantChange.value = result.tenantChange
   } catch (err: any) {
     console.error('[TenantChangeModal] Update error:', err)
-    error.value = err.message
-  } finally {
-    loading.value = false
-  }
-}
-
-async function advanceStage() {
-  if (!tenantChange.value) return
-
-  loading.value = true
-  error.value = ''
-
-  try {
-    const token = authStore.session?.access_token
-    if (!token) throw new Error('Not authenticated')
-
-    const response = await fetch(
-      `${API_URL}/api/tenant-change/${tenantChange.value.id}/advance`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    )
-
-    if (!response.ok) {
-      const result = await response.json()
-      throw new Error(result.error || 'Failed to advance stage')
-    }
-
-    const result = await response.json()
-    tenantChange.value = result.tenantChange
-    currentStep.value = result.tenantChange.stage
-  } catch (err: any) {
-    console.error('[TenantChangeModal] Advance error:', err)
     error.value = err.message
   } finally {
     loading.value = false

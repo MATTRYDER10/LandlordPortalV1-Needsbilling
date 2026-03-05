@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { Calendar, DollarSign, Send, AlertTriangle, ChevronRight, Info, CheckCircle } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 

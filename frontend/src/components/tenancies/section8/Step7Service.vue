@@ -321,7 +321,7 @@ function stopDrawing() {
 function handleTouchStart(e: TouchEvent) {
   if (!ctx.value || e.touches.length === 0) return
   isDrawing.value = true
-  const touch = e.touches[0]
+  const touch = e.touches[0]!
   const { x, y } = getCanvasCoordinates(touch)
   ctx.value.beginPath()
   ctx.value.moveTo(x, y)
@@ -329,7 +329,7 @@ function handleTouchStart(e: TouchEvent) {
 
 function handleTouchMove(e: TouchEvent) {
   if (!isDrawing.value || !ctx.value || e.touches.length === 0) return
-  const touch = e.touches[0]
+  const touch = e.touches[0]!
   const { x, y } = getCanvasCoordinates(touch)
   ctx.value.lineTo(x, y)
   ctx.value.stroke()

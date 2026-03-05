@@ -229,7 +229,7 @@
                 </div>
                 <div>
                   <span class="text-gray-500 dark:text-slate-400">Received:</span>
-                  <span class="ml-1 text-gray-900 dark:text-white">{{ formatDisplayDate(formData.deposit.receivedDate) }}</span>
+                  <span class="ml-1 text-gray-900 dark:text-white">{{ formatDisplayDate(formData.deposit.receivedDate!) }}</span>
                 </div>
                 <div>
                   <span class="text-gray-500 dark:text-slate-400">Furnished:</span>
@@ -519,9 +519,9 @@ const isFormValid = computed(() => {
     formData.value.landlord.lastName &&
     formData.value.landlord.email &&
     formData.value.tenants.length > 0 &&
-    formData.value.tenants[0].firstName &&
-    formData.value.tenants[0].lastName &&
-    (formData.value.tenants[0].email || formData.value.tenants[0].phone)
+    formData.value.tenants[0]!.firstName &&
+    formData.value.tenants[0]!.lastName &&
+    (formData.value.tenants[0]!.email || formData.value.tenants[0]!.phone)
   )
 })
 

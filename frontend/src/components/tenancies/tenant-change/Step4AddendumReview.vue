@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { FileText, Send, AlertTriangle, ChevronRight, Eye } from 'lucide-vue-next'
+import { FileText, Send, AlertTriangle, ChevronRight } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')

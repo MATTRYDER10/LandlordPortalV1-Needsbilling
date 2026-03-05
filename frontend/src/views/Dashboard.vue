@@ -318,7 +318,7 @@
                           <div
                             class="w-full h-full rounded-md flex flex-col items-center justify-center text-[10px] transition-all"
                             :class="getDayClasses(day, monthData)"
-                            @click="day.entries.length > 0 ? navigateToReference(day.entries[0].leadTenantId) : null"
+                            @click="day.entries.length > 0 ? navigateToReference(day.entries[0]!.leadTenantId) : null"
                           >
                             <span>{{ day.date }}</span>
                           </div>
@@ -610,7 +610,7 @@ const monthColors = [
   { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400' }         // Dec
 ]
 
-const getMonthColorClasses = (month: number) => monthColors[month] || monthColors[0]
+const getMonthColorClasses = (month: number) => monthColors[month]! || monthColors[0]!
 
 const getShortMonth = (dateStr: string): string => {
   return new Date(dateStr).toLocaleDateString('en-GB', { month: 'short' }).toUpperCase().slice(0, 3)
@@ -728,20 +728,9 @@ const navigateToReference = (personId: string) => {
   router.push(`/references?person=${personId}`)
 }
 
-const navigateToTenancy = (address: string) => {
-  router.push(`/tenancies?search=${encodeURIComponent(address)}`)
-}
-
 const navigateToDeposits = () => {
   // Navigate to tenancies filtered for unprotected deposits
   router.push({ path: '/tenancies', query: { filter: 'unprotected_deposits' } })
-}
-
-const showAllEntriesForMonth = (monthData: MonthData) => {
-  // Navigate to tenancies filtered by this month
-  const startOfMonth = new Date(monthData.year, monthData.month, 1)
-  const formattedMonth = startOfMonth.toISOString().slice(0, 7) // YYYY-MM format
-  router.push(`/tenancies?month=${formattedMonth}`)
 }
 
 onMounted(() => {

@@ -301,7 +301,7 @@
               </div>
 
               <div v-else class="space-y-2">
-                <div v-for="(name, i) in formState.landlordNames" :key="i" class="flex items-center gap-2">
+                <div v-for="(_name, i) in formState.landlordNames" :key="i" class="flex items-center gap-2">
                   <input
                     v-model="formState.landlordNames[i]"
                     type="text"
@@ -466,7 +466,7 @@
               </div>
 
               <div v-else class="space-y-2">
-                <div v-for="(name, i) in formState.tenantNames" :key="i" class="flex items-center gap-2">
+                <div v-for="(_name, i) in formState.tenantNames" :key="i" class="flex items-center gap-2">
                   <input
                     v-model="formState.tenantNames[i]"
                     type="text"
@@ -803,12 +803,10 @@ import {
 import type {
   Section48FormState,
   Address,
-  AddressForServiceType,
-  ReasonForServing
+  AddressForServiceType
 } from '@/types/section48'
 import {
   INITIAL_FORM_STATE,
-  REASON_LABELS,
   formatAddress,
   isValidEnglandWalesPostcode,
   isPOBox
@@ -1099,7 +1097,7 @@ function populateFromTenancy() {
 
   // Tenancy dates
   formState.tenancyStartDate = t.tenancy_start_date || t.start_date || ''
-  formState.dateOfNotice = new Date().toISOString().split('T')[0]
+  formState.dateOfNotice = new Date().toISOString().split('T')[0]!
 
   // Landlord details from props.landlords
   if (props.landlords && props.landlords.length > 0) {

@@ -40,7 +40,7 @@ onMounted(async () => {
     const response = await api.get(`/api/tenancies/rent-due-date-change/${token.value}`)
     change.value = response
 
-    if (response.alreadyConfirmed) {
+    if ((response as any).alreadyConfirmed) {
       confirmed.value = true
     }
   } catch (err: any) {

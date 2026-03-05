@@ -124,7 +124,7 @@ const handleSubmit = async () => {
         errorMessage.value = 'Access denied. Please use the appropriate login portal.'
       } else if (authStore.branches.length === 1) {
         // Single branch - auto-select and go to dashboard
-        authStore.setActiveBranch(authStore.branches[0].id)
+        authStore.setActiveBranch(authStore.branches[0]!.id)
         router.push('/dashboard')
       } else {
         // Multiple branches - go to branch selector

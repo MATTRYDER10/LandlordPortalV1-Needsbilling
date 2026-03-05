@@ -112,7 +112,7 @@ export function createEmptyAddress(): Address {
 }
 
 export function createInitialFormState(): S8FormState {
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toISOString().split('T')[0]!
 
   return {
     // Step 1

@@ -994,7 +994,7 @@ const handleTenancyAction = (action: string, tenancy: any) => {
 }
 
 // Handle change rent due date success
-const handleChangeRentDueDateSuccess = (change: any) => {
+const handleChangeRentDueDateSuccess = (_change: any) => {
   showChangeRentDueDateModal.value = false
   actionTenancy.value = null
   toast.success('Rent due date change request sent')

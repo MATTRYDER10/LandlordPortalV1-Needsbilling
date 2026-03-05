@@ -59,7 +59,7 @@
       >
         <option
           v-for="opt in options"
-          :key="opt.value"
+          :key="String(opt.value)"
           :value="opt.value"
         >
           {{ opt.label }}
@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import { Pencil, Check, X } from 'lucide-vue-next'
 
 interface Option {

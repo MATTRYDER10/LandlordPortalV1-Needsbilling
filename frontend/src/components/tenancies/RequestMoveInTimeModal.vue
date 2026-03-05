@@ -101,7 +101,7 @@ watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
     mode.value = 'tenant_chooses'
     // Default to move-in date
-    suggestedDate.value = props.moveInDate ? props.moveInDate.split('T')[0] : ''
+    suggestedDate.value = props.moveInDate ? props.moveInDate.split('T')[0]! : ''
     suggestedTime1.value = ''
     suggestedTime2.value = ''
     error.value = ''

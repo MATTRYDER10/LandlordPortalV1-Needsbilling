@@ -174,12 +174,12 @@ async function finalizeChange() {
 
 // Watch for changes to keep checklistItems in sync
 watch(() => props.tenantChange, (tc) => {
-  checklistItems.value[0].completed = tc.checklist_deposit_updated
-  checklistItems.value[0].completedAt = tc.checklist_deposit_updated_at
-  checklistItems.value[1].completed = tc.checklist_prescribed_info_sent
-  checklistItems.value[1].completedAt = tc.checklist_prescribed_info_sent_at
-  checklistItems.value[2].completed = tc.checklist_deposit_share_confirmed
-  checklistItems.value[2].completedAt = tc.checklist_deposit_share_confirmed_at
+  checklistItems.value[0]!.completed = tc.checklist_deposit_updated
+  checklistItems.value[0]!.completedAt = tc.checklist_deposit_updated_at
+  checklistItems.value[1]!.completed = tc.checklist_prescribed_info_sent
+  checklistItems.value[1]!.completedAt = tc.checklist_prescribed_info_sent_at
+  checklistItems.value[2]!.completed = tc.checklist_deposit_share_confirmed
+  checklistItems.value[2]!.completedAt = tc.checklist_deposit_share_confirmed_at
 }, { deep: true })
 </script>
 

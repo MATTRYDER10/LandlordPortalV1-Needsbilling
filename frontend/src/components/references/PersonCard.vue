@@ -200,21 +200,6 @@ function getSectionClass(decision: SectionDecision): string {
   }
 }
 
-function getSectionIcon(decision: SectionDecision): string {
-  switch (decision) {
-    case 'PASS':
-    case 'PASS_WITH_CONDITION':
-      return '✓'
-    case 'ACTION_REQUIRED':
-      return '!'
-    case 'FAIL':
-      return '✗'
-    case 'NOT_REVIEWED':
-    default:
-      return '—'
-  }
-}
-
 const sectionLabels: Record<string, string> = {
   'IDENTITY_SELFIE': 'ID/Selfie',
   'RTR': 'Right to Rent',

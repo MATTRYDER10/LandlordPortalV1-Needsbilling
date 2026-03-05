@@ -234,7 +234,7 @@ export const INITIAL_FORM_STATE: Section48FormState = {
     postcode: ''
   },
   tenancyStartDate: '',
-  dateOfNotice: new Date().toISOString().split('T')[0],
+  dateOfNotice: new Date().toISOString().split('T')[0]!,
 
   signatoryName: '',
   signatoryCapacity: 'agent_for_landlord',

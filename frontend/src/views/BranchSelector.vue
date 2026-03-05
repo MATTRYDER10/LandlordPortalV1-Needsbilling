@@ -128,7 +128,7 @@ onMounted(async () => {
 
     // If only one branch, auto-select and redirect
     if (branches.value.length === 1) {
-      await selectBranch(branches.value[0])
+      await selectBranch(branches.value[0]!)
     }
 
     // If no branches, show message

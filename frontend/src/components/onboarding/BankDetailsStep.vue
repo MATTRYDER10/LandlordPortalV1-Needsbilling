@@ -127,8 +127,6 @@ import { useAuthStore } from '../../stores/auth'
 import axios from 'axios'
 import { Info } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const authStore = useAuthStore()
 
 const emit = defineEmits<{

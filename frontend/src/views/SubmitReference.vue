@@ -2483,7 +2483,7 @@ const totalAddressHistoryMonths = computed(() => {
 
 const needsMoreAddressHistory = computed(() => {
   // Check if we have at least some time at current address
-  const hasCurrentAddress = (formData.value.time_at_address_years !== null && formData.value.time_at_address_years !== undefined)
+  const hasCurrentAddress = (formData.value.time_at_address_years !== null && formData.value.time_at_address_years !== undefined) ||
                            (formData.value.time_at_address_months !== null && formData.value.time_at_address_months !== undefined)
 
   if (!hasCurrentAddress) return false

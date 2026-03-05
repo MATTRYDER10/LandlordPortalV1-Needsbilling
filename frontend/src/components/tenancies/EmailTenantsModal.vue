@@ -119,7 +119,7 @@
                   @change="handleFileSelect"
                 />
                 <button
-                  @click="$refs.fileInputRef?.click()"
+                  @click="($refs.fileInputRef as HTMLInputElement)?.click()"
                   class="text-sm text-primary hover:text-primary/80 font-medium"
                 >
                   Click to upload or drag and drop

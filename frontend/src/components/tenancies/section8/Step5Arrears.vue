@@ -370,7 +370,7 @@ function autoPopulateRows() {
     rows.push({
       id: crypto.randomUUID(),
       period: periodName,
-      dueDate: dueDate,
+      dueDate: dueDate!,
       amountDue: rentAmount,
       amountPaid: 0,
       paidDate: '',
@@ -392,7 +392,7 @@ function addRow() {
   const newRow: ArrearsRow = {
     id: crypto.randomUUID(),
     period: '',
-    dueDate: dueDate.toISOString().split('T')[0],
+    dueDate: dueDate.toISOString().split('T')[0]!,
     amountDue: props.formState.rentAmount || 0,
     amountPaid: 0,
     paidDate: '',
@@ -412,7 +412,7 @@ function clearAll() {
 
 function updateRow(index: number, field: keyof ArrearsRow, value: string) {
   const rows = [...props.formState.arrearsRows]
-  rows[index] = { ...rows[index], [field]: value }
+  rows[index] = { ...rows[index]!, [field]: value } as ArrearsRow
   emit('update', { arrearsRows: rows })
 }
 
@@ -420,11 +420,11 @@ function updateRowNumber(index: number, field: 'amountDue' | 'amountPaid', value
   const rows = [...props.formState.arrearsRows]
   const numValue = parseFloat(value) || 0
   rows[index] = {
-    ...rows[index],
+    ...rows[index]!,
     [field]: numValue,
     balance: field === 'amountDue'
-      ? numValue - rows[index].amountPaid
-      : rows[index].amountDue - numValue,
+      ? numValue - rows[index]!.amountPaid
+      : rows[index]!.amountDue - numValue,
   }
   emit('update', { arrearsRows: rows })
 }

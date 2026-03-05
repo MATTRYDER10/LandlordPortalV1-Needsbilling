@@ -2181,7 +2181,7 @@ import { ref, computed, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import {
-  X, FileText, Banknote, Users, Mail, Phone, Building,
+  X, FileText, Users, Mail, Phone, Building,
   UserCircle, MapPin, AlertCircle, Shield, ShieldCheck, Wallet,
   FileSignature, Send, Loader2, Plus, Search, ExternalLink, Upload, Trash2, Clock,
   ClipboardCheck, CheckCircle, Download, RotateCcw, Calendar,
@@ -2324,7 +2324,6 @@ const deletingDocumentId = ref<string | null>(null)
 // Pre-tenancy action loading states
 const confirmingMonies = ref(false)
 const generatingAgreement = ref(false)
-const requestingMoveInTime = ref(false)
 const confirmingMoveInTime = ref<string | null>(null)
 
 // Agreement status state
@@ -2900,14 +2899,14 @@ const downloadTDSDPC = async () => {
 }
 
 // Handle TDS registration completed
-const handleTDSRegistered = async (dan: string) => {
+const handleTDSRegistered = async (_dan: string) => {
   showRegisterWithTDSModal.value = false
   await loadTDSRegistration()
   await loadFullTenancyData()
   emit('updated')
 }
 
-const handleTDSPending = async (batchId: string) => {
+const handleTDSPending = async (_batchId: string) => {
   showRegisterWithTDSModal.value = false
   // Reload to show pending status
   await loadTDSRegistration()
@@ -2915,7 +2914,7 @@ const handleTDSPending = async (batchId: string) => {
 }
 
 // Handle Section 48 notice generated
-const handleSection48Generated = async (noticeId: string) => {
+const handleSection48Generated = async (_noticeId: string) => {
   showSection48Modal.value = false
   // Reload activity log to show the new entry
   await loadTenancyActivity()
@@ -4214,42 +4213,6 @@ const handleMoveInPackSent = async () => {
   // Refresh tenancy data to update compliance_pack_sent_at
   await loadFullTenancyData()
   emit('updated')
-}
-
-const requestMoveInTime = async () => {
-  if (!tenancy.value?.id) return
-
-  requestingMoveInTime.value = true
-  try {
-    const token = authStore.session?.access_token
-    if (!token) throw new Error('Not authenticated')
-
-    const response = await fetch(
-      `${API_URL}/api/tenancies/records/${tenancy.value.id}/request-move-in-time`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    )
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to send move-in time request')
-    }
-
-    const result = await response.json()
-    toast.success(`Move-in time request sent to ${result.emailSentTo}`)
-    // Reload tenancy data to show updated state
-    await loadFullTenancyData()
-    emit('updated')
-  } catch (error: any) {
-    console.error('Error requesting move-in time:', error)
-    toast.error(error.message || 'Failed to send move-in time request')
-  } finally {
-    requestingMoveInTime.value = false
-  }
 }
 
 const confirmMoveInTime = async (timeSlot: string) => {

@@ -171,7 +171,7 @@ function populateArrearsExplanation(groundId: string) {
   // Find the earliest arrears date
   const rowsWithDates = arrearsRows.filter(r => r.dueDate)
   const earliestArrearsDate = rowsWithDates.length > 0
-    ? rowsWithDates.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0].dueDate
+    ? rowsWithDates.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0]!.dueDate
     : null
   const formattedEarliestDate = earliestArrearsDate ? formatDateUK(earliestArrearsDate) : 'the start of the tenancy'
 

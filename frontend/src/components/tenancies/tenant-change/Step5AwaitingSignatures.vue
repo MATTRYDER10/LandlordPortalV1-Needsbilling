@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { CheckCircle, Clock, XCircle, Send, RefreshCw, AlertTriangle, ChevronRight, Mail, Link, Check } from 'lucide-vue-next'
+import { CheckCircle, Clock, XCircle, RefreshCw, AlertTriangle, ChevronRight, Mail, Link, Check } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')

@@ -78,7 +78,7 @@ function getNextRentDueDate(dueDay: number): string {
   const actualDay = Math.min(dueDay, daysInMonth)
 
   const date = new Date(targetYear, targetMonth, actualDay)
-  return date.toISOString().split('T')[0]
+  return date.toISOString().split('T')[0]!
 }
 
 // Default date based on rent due day

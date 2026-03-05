@@ -57,7 +57,7 @@
                     <span class="text-gray-600">Pro-rata Amount ({{ change?.pro_rata_days }} days):</span>
                     <span class="font-medium text-gray-900">&pound;{{ formatAmount(change?.pro_rata_amount) }}</span>
                   </div>
-                  <div v-if="change?.admin_fee > 0" class="flex justify-between">
+                  <div v-if="(change?.admin_fee ?? 0) > 0" class="flex justify-between">
                     <span class="text-gray-600">Administration Fee:</span>
                     <span class="font-medium text-gray-900">&pound;{{ formatAmount(change?.admin_fee) }}</span>
                   </div>

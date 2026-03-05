@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Users, Clock, CheckCircle, AlertCircle, ChevronRight } from 'lucide-vue-next'
+import { Users, Clock, CheckCircle, ChevronRight } from 'lucide-vue-next'
 
 interface TenantChange {
   id: string

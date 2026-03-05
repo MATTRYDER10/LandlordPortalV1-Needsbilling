@@ -181,9 +181,11 @@ import Step5Arrears from './section8/Step5Arrears.vue'
 import Step6Explanations from './section8/Step6Explanations.vue'
 import Step7Service from './section8/Step7Service.vue'
 import Step8Review from './section8/Step8Review.vue'
-import {
+import type {
   S8FormState,
   S8Ground,
+} from '@/types/section8'
+import {
   createInitialFormState,
   STEP_TITLES,
   ARREARS_GROUNDS,

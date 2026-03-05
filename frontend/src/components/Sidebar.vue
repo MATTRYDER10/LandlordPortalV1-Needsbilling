@@ -439,11 +439,6 @@ const isActive = (path: string) => {
   return route.path === path || route.path.startsWith(path + '/')
 }
 
-const handleSignOut = async () => {
-  await authStore.signOut()
-  router.push('/login')
-}
-
 const handleBack = async () => {
   if (authStore.hasMultipleBranches) {
     // Multi-branch user: clear active branch and go to selector

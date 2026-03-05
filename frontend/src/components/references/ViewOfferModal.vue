@@ -120,8 +120,6 @@ import { ref, watch } from 'vue'
 import { FileText, X, AlertCircle, MapPin, Calendar, Wallet, Users } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 interface Tenant {
   id: string
   tenant_order: number
