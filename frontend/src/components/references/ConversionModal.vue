@@ -474,13 +474,13 @@ const defaultRentDueDay = computed(() => {
 // Extract postcode from a string (UK format)
 const extractPostcode = (str: string): string => {
   const match = str.match(/([A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2})/i)
-  return match ? match[1].toUpperCase().replace(/\s/g, '') : ''
+  return match ? match[1]!.toUpperCase().replace(/\s/g, '') : ''
 }
 
 // Extract house number from address
 const extractHouseNumber = (str: string): string => {
   const match = str.match(/^(\d+[A-Za-z]?)\s/)
-  return match ? match[1].toLowerCase() : ''
+  return match ? match[1]!.toLowerCase() : ''
 }
 
 // Filtered properties based on search - prioritize postcode matches

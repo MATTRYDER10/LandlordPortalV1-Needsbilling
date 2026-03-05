@@ -1,8 +1,6 @@
 import { ref, computed, onUnmounted } from 'vue'
 import type { LockStatus } from '@/types/staff'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const HEARTBEAT_INTERVAL = 5 * 60 * 1000 // 5 minutes
 
