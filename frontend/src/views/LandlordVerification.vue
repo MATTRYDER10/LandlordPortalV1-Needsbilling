@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-gray-50 dark:bg-slate-800 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl mx-auto">
       <!-- Header -->
       <div v-if="!loading" class="text-center mb-8">
@@ -8,28 +8,29 @@
             <img :src="companyLogo" alt="Company Logo" class="h-14 object-contain" />
           </template>
           <template v-else>
-            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12" />
+            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12 dark:hidden" />
+            <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-12 hidden dark:block" />
           </template>
         </div>
-        <h1 class="text-3xl font-bold text-gray-900">Landlord Verification</h1>
-        <p class="mt-2 text-gray-600">Please complete your identity verification</p>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Landlord Verification</h1>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Please complete your identity verification</p>
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="bg-white rounded-lg shadow p-8 text-center">
-        <div class="text-gray-600">Loading verification details...</div>
+      <div v-if="loading" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
+        <div class="text-gray-600 dark:text-slate-400">Loading verification details...</div>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-lg">
+      <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-6 py-4 rounded-lg">
         {{ error }}
       </div>
 
       <!-- Success/Already Submitted -->
-      <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
+      <div v-else-if="submitted" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
         <CheckCircle2 class="mx-auto h-12 w-12 text-green-500" />
-        <h3 class="mt-4 text-lg font-semibold text-gray-900">Thank You!</h3>
-        <p class="mt-2 text-gray-600">Your verification has been submitted successfully. Your documents are being
+        <h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Thank You!</h3>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Your verification has been submitted successfully. Your documents are being
           reviewed.</p>
       </div>
 
@@ -54,40 +55,40 @@
         />
         <form v-else @submit.prevent="handleSubmit" class="space-y-6">
         <!-- Personal Details Section -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Personal Details</h2>
-          <p class="text-sm text-gray-600 mb-6">Please confirm your personal details for identity verification.</p>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Personal Details</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please confirm your personal details for identity verification.</p>
 
           <div class="space-y-4">
             <!-- Name Row -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">First Name *</label>
                 <input v-model="formData.first_name" type="text" required
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
                   placeholder="Enter your first name" />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Last Name *</label>
                 <input v-model="formData.last_name" type="text" required
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
                   placeholder="Enter your last name" />
               </div>
             </div>
 
             <!-- Date of Birth -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Date of Birth *</label>
               <input v-model="formData.date_of_birth" type="date" required
-                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
             </div>
           </div>
         </div>
 
         <!-- Address Section -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Address</h2>
-          <p class="text-sm text-gray-600 mb-6">Please provide your current residential address.</p>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Address</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please provide your current residential address.</p>
 
           <div class="space-y-4">
             <div>
@@ -100,22 +101,22 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">Address Line 2</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address Line 2</label>
               <input v-model="formData.address_line2" type="text"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
                 placeholder="Apartment, suite, etc. (optional)" />
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700">City *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">City *</label>
                 <input v-model="formData.city" type="text" required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
                   placeholder="City" />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Postcode *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Postcode *</label>
                 <input v-model="formData.postcode" type="text" required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
                   placeholder="Postcode" />
               </div>
             </div>
@@ -123,17 +124,17 @@
         </div>
 
         <!-- Identity Verification Section -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Identity Verification</h2>
-          <p class="text-sm text-gray-600 mb-6">Please upload a clear photo of your ID document and take a selfie for
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Identity Verification</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please upload a clear photo of your ID document and take a selfie for
             verification.</p>
 
           <div class="space-y-6">
             <!-- ID Document Type -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Document Type *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Document Type *</label>
               <select v-model="formData.id_document_type" required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:text-white">
                 <option value="">Select document type</option>
                 <option value="driving_licence">Driving Licence</option>
                 <option value="passport">Passport</option>
@@ -142,21 +143,21 @@
 
             <!-- ID Document Upload -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Upload ID Document *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Upload ID Document *</label>
               <input ref="idDocumentInput" type="file" @change="handleIdDocumentUpload" accept=".pdf,.jpg,.jpeg,.png"
                 class="hidden" required />
               <button type="button" @click="($refs.idDocumentInput as any).click()"
-                class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                 :style="{ color: buttonColor }">
                 {{ idDocument ? 'Change File' : 'Choose File' }}
               </button>
-              <p v-if="idDocument" class="mt-2 text-sm text-gray-600">{{ idDocument.name }}</p>
-              <p class="mt-1 text-xs text-gray-500">Upload PDF or image (max 10MB)</p>
+              <p v-if="idDocument" class="mt-2 text-sm text-gray-600 dark:text-slate-400">{{ idDocument.name }}</p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload PDF or image (max 10MB)</p>
             </div>
 
             <!-- Selfie Capture -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Take Selfie *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Take Selfie *</label>
 
               <!-- Camera stream view -->
               <div v-if="showCameraStream" class="space-y-4">
@@ -167,12 +168,12 @@
                 </div>
                 <div class="flex gap-2">
                   <button type="button" @click="capturePhoto"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                     :style="{ color: buttonColor }">
                     Capture Photo
                   </button>
                   <button type="button" @click="stopCamera"
-                    class="px-4 py-2 text-sm font-semibold bg-gray-100 rounded-md hover:bg-gray-200 text-gray-700">
+                    class="px-4 py-2 text-sm font-semibold bg-gray-100 dark:bg-slate-700 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-300">
                     Cancel
                   </button>
                 </div>
@@ -182,10 +183,10 @@
               <div v-else>
                 <div v-if="selfie && selfiePreview" class="space-y-4">
                   <img :src="selfiePreview" alt="Selfie preview"
-                    class="w-48 h-48 object-cover rounded-lg border-2 border-gray-300" />
+                    class="w-48 h-48 object-cover rounded-lg border-2 border-gray-300 dark:border-slate-600" />
                   <div class="flex items-center gap-2">
-                    <span class="text-sm text-gray-700">Photo captured ({{ formatFileSize(selfie.size) }})</span>
-                    <button type="button" @click="removeSelfie" class="text-red-600 hover:text-red-800 text-sm">
+                    <span class="text-sm text-gray-700 dark:text-slate-300">Photo captured ({{ formatFileSize(selfie.size) }})</span>
+                    <button type="button" @click="removeSelfie" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm">
                       Remove
                     </button>
                   </div>
@@ -193,15 +194,15 @@
 
                 <div v-else>
                   <button type="button" @click="startCamera"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                     :style="{ color: buttonColor }">
                     Take Photo
                   </button>
                 </div>
               </div>
 
-              <p v-if="cameraError" class="mt-2 text-sm text-red-600">{{ cameraError }}</p>
-              <p v-else class="mt-1 text-xs text-gray-500">Please open this on your mobile phone. A photo
+              <p v-if="cameraError" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ cameraError }}</p>
+              <p v-else class="mt-1 text-xs text-gray-500 dark:text-slate-400">Please open this on your mobile phone. A photo
                 must be taken using your device's camera for AML compliance.</p>
             </div>
           </div>
@@ -229,10 +230,10 @@ import AddressAutocomplete from '../components/AddressAutocomplete.vue'
 import { defaultBranding } from '../config/colors'
 import { CheckCircle2 } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const route = useRoute()
 const toast = useToast()
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const getDeviceGateStorageKey = () => `landlord_verification_gate_${route.params.id}_${route.params.token}`
 
 const loading = ref(true)

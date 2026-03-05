@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt } from './encryption'
+import { logPropertyAuditAction } from './propertyAuditService'
 
 // ============================================================================
 // INTERFACES
@@ -102,11 +103,16 @@ export interface PropertyDetail {
   license_number: string | null
   license_expiry_date: string | null
   notes: string | null
+  special_clauses: string[]
   landlords: Array<{
     id: string
     landlord_id: string
     name: string
     email: string | null
+    phone: string | null
+    address_line1: string | null
+    city: string | null
+    postcode: string | null
     ownership_percentage: number
     is_primary_contact: boolean
   }>
@@ -338,7 +344,10 @@ class PropertyService {
         *,
         property_landlords (
           id, ownership_percentage, is_primary_contact, landlord_id,
-          landlords (id, first_name_encrypted, last_name_encrypted, email_encrypted)
+          landlords (id, first_name_encrypted, last_name_encrypted, email_encrypted, phone_encrypted,
+            residential_address_line1_encrypted, residential_city_encrypted, residential_postcode_encrypted,
+            bank_account_name_encrypted, bank_account_number_encrypted, bank_sort_code_encrypted,
+            aml_status, aml_completed_at)
         ),
         compliance_records (
           id, compliance_type, custom_type_name, issue_date, expiry_date, status,
@@ -439,6 +448,19 @@ class PropertyService {
       console.error('Failed to update property:', error)
       throw new Error(`Failed to update property: ${error.message}`)
     }
+
+    // Log the update to property audit log
+    const updatedFields = Object.keys(updateData).filter(k => k !== 'updated_at')
+    if (updatedFields.length > 0) {
+      await logPropertyAuditAction({
+        propertyId,
+        companyId,
+        action: 'UPDATED',
+        description: `Property details updated`,
+        metadata: { updated_fields: updatedFields },
+        userId
+      })
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -491,6 +513,18 @@ class PropertyService {
     if (landlords.length > 0) {
       await this.processLandlordAssignments(propertyId, landlords, companyId, userId)
     }
+
+    // Log landlord ownership update
+    await logPropertyAuditAction({
+      propertyId,
+      companyId,
+      action: 'OWNERSHIP_UPDATED',
+      description: landlords.length > 0
+        ? `Landlord ownership updated (${landlords.length} landlord(s))`
+        : 'All landlords removed from property',
+      metadata: { landlord_count: landlords.length },
+      userId
+    })
   }
 
   // --------------------------------------------------------------------------
@@ -966,6 +1000,7 @@ class PropertyService {
       license_number: property.license_number,
       license_expiry_date: property.license_expiry_date,
       notes: decrypt(property.notes_encrypted),
+      special_clauses: property.special_clauses || [],
       landlords: (property.property_landlords || []).map((pl: any) => ({
         id: pl.id,
         landlord_id: pl.landlord_id,
@@ -974,8 +1009,17 @@ class PropertyService {
           decrypt(pl.landlords?.last_name_encrypted)
         ].filter(Boolean).join(' '),
         email: decrypt(pl.landlords?.email_encrypted),
+        phone: decrypt(pl.landlords?.phone_encrypted),
+        address_line1: decrypt(pl.landlords?.residential_address_line1_encrypted),
+        city: decrypt(pl.landlords?.residential_city_encrypted),
+        postcode: decrypt(pl.landlords?.residential_postcode_encrypted),
         ownership_percentage: pl.ownership_percentage,
-        is_primary_contact: pl.is_primary_contact
+        is_primary_contact: pl.is_primary_contact,
+        bank_account_name: decrypt(pl.landlords?.bank_account_name_encrypted),
+        bank_account_number: decrypt(pl.landlords?.bank_account_number_encrypted),
+        bank_sort_code: decrypt(pl.landlords?.bank_sort_code_encrypted),
+        aml_status: pl.landlords?.aml_status || 'not_requested',
+        aml_completed_at: pl.landlords?.aml_completed_at
       })),
       compliance: (property.compliance_records || []).map((c: any) => ({
         id: c.id,

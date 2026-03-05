@@ -1,26 +1,27 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 dark:bg-slate-900">
     <!-- Sticky Header -->
-    <div class="sticky top-0 z-50 bg-white shadow-md">
+    <div class="sticky top-0 z-50 bg-white dark:bg-slate-800 shadow-md">
       <!-- Top Bar with Logo and Navigation -->
-      <div class="border-b">
+      <div class="border-b border-gray-200 dark:border-slate-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex justify-between items-center py-4">
             <div class="flex items-center">
-              <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-9 mr-3" />
+              <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-9 mr-3 dark:hidden" />
+              <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-9 mr-3 hidden dark:block" />
               <span class="text-sm font-semibold px-3 py-1 bg-primary/10 text-primary rounded-full">Verify Case</span>
             </div>
             <div class="flex items-center gap-4">
               <router-link
                 to="/staff/work-queue"
-                class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md"
               >
                 <ArrowLeft class="w-5 h-5 mr-2" />
                 Back to Portal
               </router-link>
               <button
                 @click="handleSignOut"
-                class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md"
               >
                 <LogOut class="w-5 h-5 mr-2" />
                 Sign Out
@@ -31,7 +32,7 @@
       </div>
 
       <!-- Person Context Bar -->
-      <div class="bg-gray-50 border-b">
+      <div class="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div class="flex flex-wrap items-center justify-between gap-4">
             <!-- Person Info -->
@@ -44,33 +45,33 @@
                   :alt="personName"
                   class="w-14 h-14 rounded-full object-cover border-2 border-white shadow"
                 />
-                <div v-else class="w-14 h-14 rounded-full bg-gray-200 border-2 border-white shadow flex items-center justify-center">
-                  <User class="w-7 h-7 text-gray-400" />
+                <div v-else class="w-14 h-14 rounded-full bg-gray-200 dark:bg-slate-700 border-2 border-white dark:border-slate-600 shadow flex items-center justify-center">
+                  <User class="w-7 h-7 text-gray-400 dark:text-slate-500" />
                 </div>
                 <!-- Role Badge -->
                 <span :class="[
                   'absolute -bottom-1 -right-1 px-2 py-0.5 text-xs font-semibold rounded-full',
-                  isGuarantor ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                  isGuarantor ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300'
                 ]">
                   {{ isGuarantor ? 'G' : 'T' }}
                 </span>
               </div>
               <!-- Name and Details -->
               <div>
-                <h2 class="text-lg font-semibold text-gray-900">{{ personName }}</h2>
-                <p class="text-sm text-gray-600">{{ propertyAddress }}</p>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ personName }}</h2>
+                <p class="text-sm text-gray-600 dark:text-slate-400">{{ propertyAddress }}</p>
               </div>
             </div>
 
             <!-- TAS Score -->
             <div v-if="tasScore !== undefined" class="flex items-center gap-2">
-              <span class="text-sm text-gray-600">TAS Score:</span>
+              <span class="text-sm text-gray-600 dark:text-slate-400">TAS Score:</span>
               <span :class="[
                 'px-3 py-1 text-lg font-bold rounded-lg',
-                tasScore >= 70 ? 'bg-green-100 text-green-800' :
-                tasScore >= 50 ? 'bg-yellow-100 text-yellow-800' :
-                tasScore >= 30 ? 'bg-orange-100 text-orange-800' :
-                'bg-red-100 text-red-800'
+                tasScore >= 70 ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' :
+                tasScore >= 50 ? 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300' :
+                tasScore >= 30 ? 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300' :
+                'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300'
               ]">
                 {{ tasScore }}
               </span>
@@ -78,7 +79,7 @@
 
             <!-- Section Progress -->
             <div class="flex items-center gap-3">
-              <span class="text-sm text-gray-600">Progress:</span>
+              <span class="text-sm text-gray-600 dark:text-slate-400">Progress:</span>
               <div class="flex items-center gap-1">
                 <span
                   v-for="section in sections"
@@ -89,23 +90,23 @@
                     section.decision === 'PASS_WITH_CONDITION' ? 'bg-amber-500' :
                     section.decision === 'ACTION_REQUIRED' ? 'bg-orange-500' :
                     section.decision === 'FAIL' ? 'bg-red-500' :
-                    'bg-gray-300'
+                    'bg-gray-300 dark:bg-slate-600'
                   ]"
                   :title="`${getSectionLabel(section.sectionType)}: ${section.decision}`"
                 ></span>
               </div>
-              <span class="text-sm font-medium text-gray-700">
+              <span class="text-sm font-medium text-gray-700 dark:text-slate-300">
                 {{ completedSections }}/{{ totalSections }}
               </span>
             </div>
 
             <!-- Lock Status -->
             <div class="flex items-center gap-2">
-              <div v-if="lock.isLockedByMe" class="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-800 rounded-lg">
+              <div v-if="lock.isLockedByMe" class="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 rounded-lg">
                 <Lock class="w-4 h-4" />
                 <span class="text-sm font-medium">Locked by you</span>
               </div>
-              <div v-else-if="lock.isLocked" class="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-800 rounded-lg">
+              <div v-else-if="lock.isLocked" class="flex items-center gap-2 px-3 py-1.5 bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300 rounded-lg">
                 <Lock class="w-4 h-4" />
                 <span class="text-sm font-medium">Locked by {{ lock.lockedByName }}</span>
               </div>
@@ -123,7 +124,7 @@
                 v-if="lock.isLockedByMe"
                 @click="releaseLock"
                 :disabled="lock.loading"
-                class="flex items-center gap-2 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                class="flex items-center gap-2 px-3 py-1.5 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 disabled:opacity-50"
               >
                 <span class="text-sm font-medium">Release</span>
               </button>
@@ -133,13 +134,62 @@
       </div>
 
       <!-- Read-Only Banner -->
-      <div v-if="isReadOnly" class="bg-amber-50 border-b border-amber-200">
+      <div v-if="isReadOnly" class="bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div class="flex items-center gap-2 text-amber-800">
+          <div class="flex items-center gap-2 text-amber-800 dark:text-amber-300">
             <AlertTriangle class="w-5 h-5" />
             <span class="text-sm font-medium">
               Read-only mode: {{ lock.lockedByName || 'Another user' }} is currently working on this case
             </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Bar with View Tenant Data button -->
+      <div class="bg-gray-100 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div class="flex items-center gap-3">
+            <button
+              @click="showTenantDataModal = true"
+              class="flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+            >
+              <FileText class="w-4 h-4 mr-2" />
+              View Tenant Submitted Data
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Outstanding Referees Panel -->
+      <div v-if="outstandingReferees.length > 0" class="bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div class="flex items-start gap-3">
+            <Clock class="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <div class="flex-1">
+              <h3 class="text-sm font-semibold text-amber-900 dark:text-amber-200">Outstanding External References</h3>
+              <p class="text-xs text-amber-700 dark:text-amber-400 mb-2">
+                These referees have been requested but haven't submitted yet. You can return the case to "Collecting Evidence" to wait for them.
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <div
+                  v-for="referee in outstandingReferees"
+                  :key="referee.recordId"
+                  class="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-md px-3 py-1.5 border border-amber-200 dark:border-amber-800"
+                >
+                  <span class="text-sm text-gray-900 dark:text-white">
+                    {{ referee.type === 'EMPLOYER_REF' ? 'Employer' : referee.type === 'LANDLORD_REF' ? 'Landlord' : referee.type === 'ACCOUNTANT_REF' ? 'Accountant' : referee.type === 'GUARANTOR_FORM' ? 'Guarantor' : referee.type }}
+                    <span v-if="referee.contactName" class="text-gray-500 dark:text-slate-400">({{ referee.contactName }})</span>
+                  </span>
+                  <button
+                    @click="returnToCollecting(referee.type)"
+                    :disabled="returningToCollecting"
+                    class="px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 rounded hover:bg-amber-200 dark:hover:bg-amber-800/50 disabled:opacity-50"
+                  >
+                    {{ returningToCollecting ? 'Processing...' : 'Wait' }}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -150,14 +200,14 @@
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p class="mt-2 text-gray-600">Loading verification data...</p>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Loading verification data...</p>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-6">
+      <div v-else-if="error" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-6">
         <div class="flex items-center gap-3">
-          <AlertCircle class="w-6 h-6 text-red-600" />
-          <p class="text-red-800">{{ error }}</p>
+          <AlertCircle class="w-6 h-6 text-red-600 dark:text-red-400" />
+          <p class="text-red-800 dark:text-red-300">{{ error }}</p>
         </div>
         <button
           @click="loadData"
@@ -206,6 +256,13 @@
         </div>
       </div>
     </div>
+
+    <!-- Tenant Submitted Data Modal -->
+    <TenantSubmittedDataModal
+      v-if="showTenantDataModal"
+      :reference-id="referenceId"
+      @close="showTenantDataModal = false"
+    />
   </div>
 </template>
 
@@ -213,7 +270,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ArrowLeft, LogOut, User, Lock, LockOpen, Loader2, AlertTriangle, AlertCircle } from 'lucide-vue-next'
+import { ArrowLeft, LogOut, User, Lock, LockOpen, Loader2, AlertTriangle, AlertCircle, FileText, Clock } from 'lucide-vue-next'
 import type {
   VerificationSection,
   ActionReasonCode,
@@ -222,6 +279,7 @@ import type {
 import { getSectionLabel } from '@/types/staff'
 import VerifySectionStack from './VerifySectionStack.vue'
 import FinalPreviewPanel from './FinalPreviewPanel.vue'
+import TenantSubmittedDataModal from '../TenantSubmittedDataModal.vue'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -253,6 +311,16 @@ const sanctionsScreening = ref<any>(null)
 const referenceScore = ref<any>(null)
 const evidenceData = ref<any>(null)
 const savingNameCorrection = ref(false)
+
+// Tenant data modal and outstanding referees
+const showTenantDataModal = ref(false)
+const outstandingReferees = ref<Array<{
+  type: string
+  recordId: string
+  contactName: string | null
+  contactEmail: string | null
+}>>([])
+const returningToCollecting = ref(false)
 
 // Computed
 const isGuarantor = computed(() => reference.value?.person_type === 'GUARANTOR')
@@ -630,6 +698,9 @@ async function loadData() {
       await checkLockStatus()
     }
 
+    // Fetch outstanding referees for "Wait for Reference" feature
+    await fetchOutstandingReferees()
+
     // Load evidence data for Income and Residential sections
     try {
       const evidenceResponse = await fetch(`${API_BASE}/api/verify/evidence/${referenceId.value}`, {
@@ -672,6 +743,61 @@ async function loadData() {
     error.value = err.message
   } finally {
     loading.value = false
+  }
+}
+
+// Fetch outstanding referees (for "Wait for Reference" feature)
+async function fetchOutstandingReferees() {
+  try {
+    const response = await fetch(`${API_BASE}/api/references/${referenceId.value}/outstanding-referees`, {
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      outstandingReferees.value = data.outstandingReferees || []
+    }
+  } catch (err) {
+    console.error('Failed to fetch outstanding referees:', err)
+  }
+}
+
+// Return to collecting evidence (wait for a specific reference)
+async function returnToCollecting(waitingFor: string) {
+  if (!workItemId.value) {
+    alert('No work item found for this reference')
+    return
+  }
+
+  returningToCollecting.value = true
+  try {
+    const response = await fetch(`${API_BASE}/api/references/${referenceId.value}/return-to-collecting`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        workItemId: workItemId.value,
+        waitingFor
+      })
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to return to collecting evidence')
+    }
+
+    // Release lock and navigate back
+    await releaseLock()
+    router.push('/staff/work-queue')
+  } catch (err: any) {
+    console.error('Failed to return to collecting:', err)
+    alert(err.message || 'Failed to return to collecting evidence')
+  } finally {
+    returningToCollecting.value = false
   }
 }
 
@@ -915,6 +1041,8 @@ onMounted(() => {
 
 // Cleanup on unmount
 import { onUnmounted } from 'vue'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 onUnmounted(() => {
   stopHeartbeat()
   if (selfieBlobUrl.value) {

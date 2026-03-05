@@ -4,7 +4,6 @@ import { sendEmail, loadEmailTemplate } from './emailService'
 import { pdfGenerationService, AgreementPDFData, SignatureData } from './pdfGenerationService'
 import { getFrontendUrl } from '../utils/frontendUrl'
 
-const FRONTEND_URL = getFrontendUrl()
 const TOKEN_EXPIRY_DAYS = 7
 
 export interface SignatureRecord {
@@ -375,7 +374,7 @@ class SignatureService {
    * Send signing request email to a single signer
    */
   private async sendSigningEmail(signature: SignatureRecord, propertyAddress: string, companyLogoUrl?: string): Promise<void> {
-    const signingUrl = `${FRONTEND_URL}/sign/${signature.signing_token}`
+    const signingUrl = `${getFrontendUrl()}/sign/${signature.signing_token}`
     const DEFAULT_LOGO_URL = 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
 
     try {
@@ -434,7 +433,7 @@ class SignatureService {
 
     const agreement = signature.agreements
     const propertyAddress = this.formatAddress(agreement.property_address)
-    const signingUrl = `${FRONTEND_URL}/sign/${signature.signing_token}`
+    const signingUrl = `${getFrontendUrl()}/sign/${signature.signing_token}`
     const DEFAULT_LOGO_URL = 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
 
     // Fetch company logo for the agreement
@@ -792,8 +791,10 @@ class SignatureService {
       .from('documents')
       .getPublicUrl(filePath)
 
+    console.log(`[SignatureService] Generated signed PDF URL for agreement ${agreementId}:`, urlData.publicUrl)
+
     // Update agreement record
-    await supabase
+    const { error: updateError } = await supabase
       .from('agreements')
       .update({
         signing_status: 'fully_signed',
@@ -803,8 +804,27 @@ class SignatureService {
       })
       .eq('id', agreementId)
 
+    if (updateError) {
+      console.error(`[SignatureService] Failed to update agreement with signed PDF URL:`, updateError)
+      throw new Error(`Failed to update agreement: ${updateError.message}`)
+    }
+
+    console.log(`[SignatureService] Agreement ${agreementId} updated with signed_pdf_url`)
+
     // Send completion emails to all parties
     await this.sendCompletionEmails(agreementId, signedPdf)
+
+    // Create in-app notification
+    try {
+      const { notifyAgreementSigned } = await import('./notificationService')
+      const propertyAddress = this.formatAddress(agreement.property_address)
+      const agreementType = agreement.template_type === 'welsh_occupation_contract'
+        ? 'Occupation Contract'
+        : 'Tenancy Agreement'
+      await notifyAgreementSigned(agreement.company_id, agreementId, propertyAddress, agreementType)
+    } catch (notifError) {
+      console.error('[SignatureService] Failed to create agreement signed notification:', notifError)
+    }
   }
 
   /**

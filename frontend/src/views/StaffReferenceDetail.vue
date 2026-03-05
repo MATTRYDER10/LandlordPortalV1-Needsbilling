@@ -63,6 +63,49 @@
         </div>
       </div>
 
+      <!-- Action Buttons Row -->
+      <div class="mb-6 flex flex-wrap gap-3">
+        <!-- View Tenant Submitted Data Button -->
+        <button
+          @click="showTenantDataModal = true"
+          class="flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+        >
+          <FileText class="w-4 h-4 mr-2" />
+          View Tenant Submitted Data
+        </button>
+      </div>
+
+      <!-- Outstanding Referees - Wait for Reference Section -->
+      <div v-if="outstandingReferees.length > 0" class="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <h3 class="text-sm font-semibold text-amber-900 mb-2">Outstanding External References</h3>
+        <p class="text-xs text-amber-700 mb-3">
+          These referees have been requested but haven't submitted yet. You can return the reference to "Collecting Evidence" to wait for them.
+        </p>
+        <div class="space-y-2">
+          <div
+            v-for="referee in outstandingReferees"
+            :key="referee.recordId"
+            class="flex items-center justify-between bg-white rounded-md px-3 py-2 border border-amber-100"
+          >
+            <div>
+              <span class="text-sm font-medium text-gray-900">
+                {{ referee.type === 'EMPLOYER_REF' ? 'Employer Reference' : referee.type === 'LANDLORD_REF' ? 'Landlord Reference' : referee.type === 'ACCOUNTANT_REF' ? 'Accountant Reference' : referee.type === 'GUARANTOR_FORM' ? 'Guarantor Form' : referee.type }}
+              </span>
+              <span v-if="referee.contactName || referee.contactEmail" class="text-xs text-gray-500 ml-2">
+                ({{ referee.contactName || referee.contactEmail }})
+              </span>
+            </div>
+            <button
+              @click="returnToCollecting(referee.type)"
+              :disabled="returningToCollecting"
+              class="px-3 py-1 text-xs font-medium text-amber-700 bg-amber-100 rounded hover:bg-amber-200 disabled:opacity-50"
+            >
+              {{ returningToCollecting ? 'Processing...' : 'Wait for this reference' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Reference Score -->
       <div class="mb-6 space-y-4">
         <div class="flex justify-between items-center">
@@ -440,7 +483,7 @@
               </div>
             </div>
             <div class="pt-4 border-t border-gray-300">
-              <p class="text-sm font-medium text-gray-700">
+              <p class="text-sm font-medium text-gray-700 dark:text-slate-200">
                 Total Address History:
                 <span class="text-lg font-semibold text-gray-900 ml-2">
                   {{ calculateTotalAddressHistory() }}
@@ -1876,7 +1919,7 @@
 
         <form @submit.prevent="addGuarantor" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">First Name *</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">First Name *</label>
             <input
               v-model="guarantorForm.first_name"
               type="text"
@@ -1886,7 +1929,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Last Name *</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">Last Name *</label>
             <input
               v-model="guarantorForm.last_name"
               type="text"
@@ -1896,7 +1939,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Email *</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">Email *</label>
             <input
               v-model="guarantorForm.email"
               type="email"
@@ -1906,7 +1949,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Phone</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">Phone</label>
             <input
               v-model="guarantorForm.phone"
               type="tel"
@@ -1942,6 +1985,13 @@
       </div>
     </div>
   </div>
+
+  <!-- Tenant Submitted Data Modal -->
+  <TenantSubmittedDataModal
+    v-if="showTenantDataModal"
+    :reference-id="referenceId"
+    @close="showTenantDataModal = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -1949,6 +1999,7 @@ import { ref, computed, onMounted } from 'vue'
 import ReferenceNotes from '../components/ReferenceNotes.vue'
 import ReferenceAuditLog from '../components/ReferenceAuditLog.vue'
 import OutstandingItemsPanel from '../components/staff/OutstandingItemsPanel.vue'
+import TenantSubmittedDataModal from '../components/staff/TenantSubmittedDataModal.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
@@ -1960,14 +2011,13 @@ import SanctionsScreeningCard from '../components/SanctionsScreeningCard.vue'
 import ScoreCard from '../components/ScoreCard.vue'
 import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { downloadFile: safariDownload, openInNewTab, fetchAsBlob } = useDownload()
 const toast = useToast()
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 // Get reference ID from route params
 const referenceId = computed(() => route.params.id as string)
 
@@ -2022,6 +2072,18 @@ const canAddGuarantor = computed(() => {
 const viewingDocument = ref(false)
 const viewingDocumentUrl = ref('')
 const viewingDocumentName = ref('')
+
+// Tenant Submitted Data modal state
+const showTenantDataModal = ref(false)
+
+// Outstanding referees state (for "Wait for Reference" functionality)
+const outstandingReferees = ref<Array<{
+  type: string
+  recordId: string
+  contactName: string | null
+  contactEmail: string | null
+}>>([])
+const returningToCollecting = ref(false)
 const viewingDocumentPath = ref('')
 const viewingDocumentType = ref('') // 'image' or 'pdf'
 
@@ -2059,6 +2121,8 @@ onMounted(async () => {
   if (reference.value?.status === 'completed') {
     await fetchScore()
   }
+  // Fetch outstanding referees for "Wait for Reference" functionality
+  fetchOutstandingReferees()
 })
 
 const fetchReference = async () => {
@@ -2099,6 +2163,61 @@ const fetchReference = async () => {
     toast.error(error.message || 'Failed to load reference')
   } finally {
     loading.value = false
+  }
+}
+
+// Fetch outstanding referees (requested but not yet submitted)
+const fetchOutstandingReferees = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/outstanding-referees`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      outstandingReferees.value = data.outstandingReferees || []
+    }
+  } catch (err) {
+    console.error('Error fetching outstanding referees:', err)
+  }
+}
+
+// Return reference to Collecting Evidence (wait for external reference)
+const returnToCollecting = async (waitingFor: string) => {
+  if (!confirm(`Return this reference to Collecting Evidence?\n\nIt will automatically return to the review queue when the ${waitingFor.replace('_', ' ').toLowerCase()} is submitted.`)) {
+    return
+  }
+
+  returningToCollecting.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await fetch(`${API_URL}/api/references/${route.params.id}/return-to-collecting`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ waitingFor })
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to return to collecting')
+    }
+
+    toast.success('Reference returned to Collecting Evidence')
+    router.push('/staff/dashboard')
+  } catch (err: any) {
+    toast.error(err.message)
+  } finally {
+    returningToCollecting.value = false
   }
 }
 

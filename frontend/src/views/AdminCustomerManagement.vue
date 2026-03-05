@@ -360,9 +360,9 @@ import AdminHeader from '../components/AdminHeader.vue'
 import DeleteConfirmModal from '../components/DeleteConfirmModal.vue'
 import { Search, CircleDollarSign, FileText, Wallet, Users } from 'lucide-vue-next'
 
-const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const authStore = useAuthStore()
 const searchQuery = ref('')
 const searchResults = ref<any[]>([])
 const searching = ref(false)

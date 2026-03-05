@@ -56,6 +56,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const route = useRoute()
 
 const loading = ref(false)

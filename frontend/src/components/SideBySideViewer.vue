@@ -167,7 +167,6 @@ const checkIfPdf = async (url: string): Promise<boolean> => {
   }
 }
 
-
 onMounted(async () => {
   if (props.leftImageUrl) {
     leftIsPdf.value = await checkIfPdf(props.leftImageUrl)

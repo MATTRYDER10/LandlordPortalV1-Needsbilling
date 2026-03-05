@@ -125,7 +125,7 @@
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Invite Team Member</h3>
         <form @submit.prevent="handleInvite" class="space-y-4">
           <div>
-            <label for="invite-email" class="block text-sm font-medium text-gray-700">Email</label>
+            <label for="invite-email" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Email</label>
             <input
               id="invite-email"
               v-model="inviteData.email"
@@ -137,7 +137,7 @@
           </div>
 
           <div>
-            <label for="invite-role" class="block text-sm font-medium text-gray-700">Role</label>
+            <label for="invite-role" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Role</label>
             <select
               id="invite-role"
               v-model="inviteData.role"

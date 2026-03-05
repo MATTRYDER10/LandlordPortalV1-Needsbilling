@@ -1,23 +1,23 @@
 <template>
   <div class="relative">
-    <label v-if="label" :for="id" class="block text-sm font-medium text-gray-700">
+    <label v-if="label" :for="id" class="block text-sm font-medium text-gray-700 dark:text-slate-200">
       {{ label }} {{ required ? '*' : '' }}
     </label>
     <input :id="id" ref="inputRef" v-model="query" type="text" :required="required"
       :placeholder="apiError ? 'Address lookup unavailable - please type manually' : placeholder" autocomplete="off"
       :class="[
-        'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
-        apiError ? 'border-red-300' : 'border-gray-300'
+        'mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border rounded-md focus:ring-primary focus:border-primary',
+        apiError ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-slate-600'
       ]" @input="handleInput" @focus="showDropdown = true" @blur="handleBlur" @keydown.down.prevent="navigateDown"
       @keydown.up.prevent="navigateUp" @keydown.enter.prevent="selectHighlighted" @keydown.escape="hideDropdown" />
     <p v-if="apiError" class="mt-1 text-xs text-red-600">
       {{ apiError }}. Please type the address manually.
     </p>
     <div v-if="showDropdown && suggestions.length > 0"
-      class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+      class="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-60 overflow-auto">
       <div v-for="(suggestion, index) in suggestions" :key="index" :class="[
-        'px-3 py-2 cursor-pointer text-sm',
-        highlightedIndex === index ? 'bg-primary/10' : 'hover:bg-gray-100'
+        'px-3 py-2 cursor-pointer text-sm text-gray-900 dark:text-white',
+        highlightedIndex === index ? 'bg-primary/10 dark:bg-primary/20' : 'hover:bg-gray-100 dark:hover:bg-slate-700'
       ]" @mousedown.prevent="selectSuggestion(suggestion)" @mouseenter="highlightedIndex = index">
         {{ suggestion.description }}
       </div>
@@ -28,6 +28,8 @@
 <script setup lang="ts">
 import axios, { type AxiosResponse } from 'axios'
 import { ref, watch } from 'vue'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 interface AddressComponents {
   addressLine1: string
@@ -85,9 +87,6 @@ const justSelected = ref(false)
 const apiError = ref('')
 const suggestions = ref<any[]>([])
 let fetchTimeout: number | null = null
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
-
 // Initialize Google Maps API
 //const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 
@@ -272,11 +271,9 @@ const selectSuggestion = async (suggestion: Predictions) => {
     //   fields: ['displayName', 'formattedAddress', 'addressComponents']
     // })
 
-
     const response = await axios.get(`${API_URL}/api/google-places/details?place_id=${suggestion.place_id}`) as AxiosResponse<DetailsResult>;
     const place = response.data as DetailsResult;
     const addressComponents = parseAddressComponents(place.address_components, place.formatted_address, suggestion.description)
-
 
     // Update the input field with just the street address
     query.value = addressComponents.addressLine1

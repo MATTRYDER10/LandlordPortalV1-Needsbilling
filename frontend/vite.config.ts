@@ -11,6 +11,7 @@ export default defineConfig({
     }
   },
   server: {
+    host: true, // Listen on all network interfaces (0.0.0.0)
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
@@ -19,9 +20,13 @@ export default defineConfig({
     },
     allowedHosts: [
       'localhost',
+      '192.168.1.81',
       '.up.railway.app',
       '.railway.app',
-      'app.propertygoose.co.uk'
+      'app.propertygoose.co.uk',
+      '.ngrok-free.app',
+      '.ngrok-free.dev',
+      '.ngrok.io'
     ]
   },
   preview: {

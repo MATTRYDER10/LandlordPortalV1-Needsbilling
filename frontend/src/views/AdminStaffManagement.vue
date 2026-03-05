@@ -196,9 +196,9 @@ import { useAuthStore } from '../stores/auth'
 import AdminHeader from '../components/AdminHeader.vue'
 import DeleteConfirmModal from '../components/DeleteConfirmModal.vue'
 
-const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const authStore = useAuthStore()
 interface StaffUser {
   id: string
   email: string

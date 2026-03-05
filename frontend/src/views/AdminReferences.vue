@@ -313,9 +313,9 @@ import AdminHeader from '../components/AdminHeader.vue'
 import { useAuthStore } from '../stores/auth'
 import { Search, ChevronRight, Eye, Trash2, FileText, AlertTriangle, Loader2 } from 'lucide-vue-next'
 
-const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const authStore = useAuthStore()
 // State
 const references = ref<any[]>([])
 const loading = ref(false)

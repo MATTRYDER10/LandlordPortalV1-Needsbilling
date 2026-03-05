@@ -1,5 +1,5 @@
 <template>
-    <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="min-h-screen bg-gray-50 dark:bg-slate-800 py-12 px-4 sm:px-6 lg:px-8">
         <div class="max-w-4xl mx-auto">
             <!-- Header with Branding -->
             <div v-if="brandingLoaded" class="text-center mb-8">
@@ -8,90 +8,91 @@
                         <img :src="companyLogo" alt="Company Logo" class="h-20 object-contain" />
                     </template>
                     <template v-else>
-                        <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12" />
+                        <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12 dark:hidden" />
+                        <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-12 hidden dark:block" />
                     </template>
                 </div>
                 <h1 class="text-3xl font-bold" :style="{ color: primaryColor }">Tenant Offer Form</h1>
-                <p class="mt-2 text-gray-600">Please complete all sections to submit your offer</p>
+                <p class="mt-2 text-gray-600 dark:text-slate-400">Please complete all sections to submit your offer</p>
             </div>
 
             <!-- Loading State -->
-            <div v-if="loading" class="bg-white rounded-lg shadow p-8 text-center">
-                <div class="text-gray-600">Loading...</div>
+            <div v-if="loading" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
+                <div class="text-gray-600 dark:text-slate-400">Loading...</div>
             </div>
 
             <!-- Already Submitted State -->
-            <div v-else-if="alreadySubmitted" class="bg-white rounded-lg shadow p-8 text-center">
+            <div v-else-if="alreadySubmitted" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
                 <CheckCircle2 class="mx-auto h-12 w-12 text-blue-500" />
-                <h3 class="mt-4 text-lg font-semibold text-gray-900">Application Already Submitted</h3>
-                <p class="mt-2 text-gray-600">You have already filled the form. We will mail you once the agent approves
+                <h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Application Already Submitted</h3>
+                <p class="mt-2 text-gray-600 dark:text-slate-400">You have already filled the form. We will mail you once the agent approves
                     or disapproves your application.</p>
             </div>
 
             <!-- Success State -->
-            <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
+            <div v-else-if="submitted" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
                 <CheckCircle2 class="mx-auto h-12 w-12 text-green-500" />
-                <h3 class="mt-4 text-lg font-semibold text-gray-900">Offer Submitted Successfully!</h3>
-                <p class="mt-2 text-gray-600">Your offer has been submitted and will be reviewed by the agent.</p>
+                <h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Offer Submitted Successfully!</h3>
+                <p class="mt-2 text-gray-600 dark:text-slate-400">Your offer has been submitted and will be reviewed by the agent.</p>
             </div>
 
             <!-- Form -->
             <form v-else @submit.prevent="handleSubmit" class="space-y-6">
                 <!-- Property Information -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Property Information</h2>
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Property Information</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="md:col-span-2 relative overflow-visible">
                             <AddressAutocomplete v-model="formData.property_address" label="Property Address"
                                 :required="true" id="property-address" placeholder="Start typing address..."
                                 @addressSelected="handlePropertyAddressSelected" :allowManualEntry="true" />
-                            <p class="mt-1 text-xs text-gray-500">Select from dropdown or choose "Manually enter" to type your own address</p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Select from dropdown or choose "Manually enter" to type your own address</p>
                         </div>
                         <div>
-                            <label for="property-city" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="property-city" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                 City
                             </label>
                             <input id="property-city" v-model="formData.property_city" type="text" placeholder="City"
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                         </div>
                         <div>
-                            <label for="property-postcode" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="property-postcode" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                 Postcode
                             </label>
                             <input id="property-postcode" v-model="formData.property_postcode" type="text"
                                 placeholder="Postcode"
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                         </div>
                     </div>
                 </div>
 
                 <!-- Offer Details -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Offer Details</h2>
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Offer Details</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="offered-rent" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="offered-rent" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                 Offered Rent Amount (£ per month) *
                             </label>
                             <input id="offered-rent" v-model.number="formData.offered_rent_amount" type="number"
                                 step="0.01" required min="0"
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                         </div>
                         <div>
-                            <label for="move-in-date" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="move-in-date" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                 Proposed Move-in Date *
                             </label>
                             <input id="move-in-date" v-model="formData.proposed_move_in_date" type="date" required
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                         </div>
                         <div>
-                            <label for="tenancy-length" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="tenancy-length" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                 Proposed Tenancy Length (months) *
                             </label>
                             <input id="tenancy-length" v-model.number="formData.proposed_tenancy_length_months"
                                 type="number" required min="1" max="12"
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
-                            <p class="mt-1 text-xs text-gray-500">Must be between 1 and 12 months</p>
+                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Must be between 1 and 12 months</p>
                         </div>
                         <!-- <div>
                             <label for="deposit-amount" class="block text-sm font-medium text-gray-700 mb-2">
@@ -102,20 +103,20 @@
                                 class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                         </div> -->
                         <div class="md:col-span-2">
-                            <label for="special-conditions" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="special-conditions" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                 Special Conditions for Landlord to Consider
                             </label>
                             <textarea id="special-conditions" v-model="formData.special_conditions" rows="4"
                                 placeholder="Any special conditions or requests..."
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"></textarea>
+                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"></textarea>
                         </div>
                     </div>
                 </div>
 
                 <!-- Tenants -->
-                <div class="bg-white rounded-lg shadow p-6">
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-semibold text-gray-900">Tenants</h2>
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Tenants</h2>
                         <button type="button" @click="addTenant"
                             class="px-4 py-2 text-sm font-medium text-white rounded-md hover:opacity-90"
                             :style="{ backgroundColor: buttonColor }">
@@ -124,9 +125,9 @@
                     </div>
 
                     <div v-for="(tenant, index) in formData.tenants" :key="index"
-                        class="mb-6 p-4 border border-gray-200 rounded-lg overflow-visible">
+                        class="mb-6 p-4 border border-gray-200 dark:border-slate-700 rounded-lg overflow-visible">
                         <div class="flex justify-between items-center mb-3">
-                            <h3 class="text-lg font-medium text-gray-900">Tenant {{ index + 1 }}</h3>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Tenant {{ index + 1 }}</h3>
                             <button v-if="formData.tenants.length > 1" type="button" @click="removeTenant(index)"
                                 class="text-sm text-red-600 hover:text-red-700">
                                 Remove
@@ -136,11 +137,11 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label :for="`tenant-${index}-name`"
-                                    class="block text-sm font-medium text-gray-700 mb-2">
+                                    class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                     Full Name *
                                 </label>
                                 <input :id="`tenant-${index}-name`" v-model="tenant.name" type="text" required
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
                             <div class="relative overflow-visible">
                                 <AddressAutocomplete v-model="tenant.address" :label="`Current Address`"
@@ -148,7 +149,7 @@
                                     placeholder="Start typing address..."
                                     @addressSelected="(address) => handleTenantAddressSelected(index, address)"
                                     :allowManualEntry="true" />
-                                <p class="mt-1 text-xs text-gray-500">Select from dropdown or choose "Manually enter" to type your own address</p>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Select from dropdown or choose "Manually enter" to type your own address</p>
                             </div>
                             <div>
                                 <PhoneInput v-model="tenant.phone" :label="`Phone Number`" :id="`tenant-${index}-phone`"
@@ -156,36 +157,36 @@
                             </div>
                             <div>
                                 <label :for="`tenant-${index}-email`"
-                                    class="block text-sm font-medium text-gray-700 mb-2">
+                                    class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                     Email Address *
                                 </label>
                                 <input :id="`tenant-${index}-email`" v-model="tenant.email" type="email" required
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
                             <div>
                                 <label :for="`tenant-${index}-income`"
-                                    class="block text-sm font-medium text-gray-700 mb-2">
+                                    class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                     Annual Income (£) *
                                 </label>
                                 <input :id="`tenant-${index}-income`" v-model="tenant.annual_income" type="text"
                                     required placeholder="e.g., 30000"
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
                             <div>
                                 <label :for="`tenant-${index}-job-title`"
-                                    class="block text-sm font-medium text-gray-700 mb-2">
+                                    class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                     Job Title / Income Source
                                 </label>
                                 <input :id="`tenant-${index}-job-title`" v-model="tenant.job_title" type="text"
                                     placeholder="e.g., Software Engineer, Self-Employed, etc."
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
                             <div class="md:col-span-2">
                                 <div class="flex items-start">
                                     <input :id="`tenant-${index}-no-ccj`" v-model="tenant.no_ccj_bankruptcy_iva"
                                         type="checkbox" required
-                                        class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
-                                    <label :for="`tenant-${index}-no-ccj`" class="ml-2 block text-sm text-gray-700">
+                                        class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900" />
+                                    <label :for="`tenant-${index}-no-ccj`" class="ml-2 block text-sm text-gray-700 dark:text-slate-300">
                                         I confirm that I do not have any CCJs, Bankruptcies or IVAs *
                                     </label>
                                 </div>
@@ -195,28 +196,28 @@
                 </div>
 
             <!-- Deposit Replacement Service -->
-            <div v-if="depositReplacementOffered" class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold text-gray-900 mb-4">Deposit Replacement Service</h2>
-                <p class="text-sm text-gray-600">
+            <div v-if="depositReplacementOffered" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Deposit Replacement Service</h2>
+                <p class="text-sm text-gray-600 dark:text-slate-400">
                     We offer a deposit replacement service that can reduce upfront costs while providing landlords with
                     protection comparable to a traditional deposit.
                 </p>
                 <div class="mt-4 flex items-start gap-3">
                     <input id="deposit-replacement-opt-in" v-model="formData.deposit_replacement_requested" type="checkbox"
-                        class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
-                    <label for="deposit-replacement-opt-in" class="text-sm text-gray-700">
+                        class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900" />
+                    <label for="deposit-replacement-opt-in" class="text-sm text-gray-700 dark:text-slate-300">
                         I would like to apply for the deposit replacement service.
                     </label>
                 </div>
-                <p class="mt-2 text-xs text-gray-500">
+                <p class="mt-2 text-xs text-gray-500 dark:text-slate-400">
                     We will review your request and confirm eligibility with you after receiving your offer.
                 </p>
             </div>
 
                 <!-- Terms and Conditions -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Holding Deposit Agreement</h2>
-                    <div class="space-y-4 text-sm text-gray-700 mb-4">
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Holding Deposit Agreement</h2>
+                    <div class="space-y-4 text-sm text-gray-700 dark:text-slate-300 mb-4">
                         <div>
                             <p class="font-semibold mb-2">Deposit Amount:</p>
                             <p>A holding deposit equivalent to <strong>one week's rent</strong> is payable upon
@@ -250,18 +251,18 @@
                     </div>
                     <div class="flex items-start">
                         <input id="terms-agreement" v-model="formData.terms_agreed" type="checkbox" required
-                            class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
-                        <label for="terms-agreement" class="ml-2 block text-sm text-gray-700">
+                            class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900" />
+                        <label for="terms-agreement" class="ml-2 block text-sm text-gray-700 dark:text-slate-300">
                             I agree to the terms and conditions *
                         </label>
                     </div>
                 </div>
 
                 <!-- Declaration and Signature -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Declaration</h2>
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                        <p class="text-sm text-gray-700">
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Declaration</h2>
+                    <div class="bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 rounded-lg p-4 mb-4">
+                        <p class="text-sm text-gray-700 dark:text-slate-300">
                             I agree that Propertygoose Ltd will use the information I provide on this application form
                             and any
                             information acquired from relevant sources to process my application for tenancy/to become a
@@ -278,11 +279,11 @@
 
                     <div class="space-y-4">
                         <div>
-                            <label for="signature-name" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="signature-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                 Full Name (as signature) *
                             </label>
                             <input id="signature-name" v-model="formData.signature_name" type="text" required
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                         </div>
 
                         <SignaturePad v-model="formData.signature" label="Signature" />
@@ -290,12 +291,12 @@
                 </div>
 
                 <!-- Error Message -->
-                <div v-if="submitError" class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-lg">
+                <div v-if="submitError" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-6 py-4 rounded-lg">
                     {{ submitError }}
                 </div>
 
                 <!-- Submit Button -->
-                <div class="bg-white rounded-lg shadow p-6">
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
                     <button type="submit" :disabled="submitting"
                         class="w-full px-6 py-3 text-base font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
                         :style="{ backgroundColor: buttonColor }">
@@ -317,9 +318,9 @@ import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
 import { CheckCircle2 } from 'lucide-vue-next'
 
-const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const route = useRoute()
 const loading = ref(false)
 const submitted = ref(false)
 const alreadySubmitted = ref(false)

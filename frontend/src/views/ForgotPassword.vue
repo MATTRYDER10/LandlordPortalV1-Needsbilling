@@ -3,10 +3,11 @@
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
         <div class="flex items-center justify-center mb-4">
-          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-10" />
+          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-10 dark:hidden" />
+          <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-10 hidden dark:block" />
         </div>
-        <h2 class="mt-6 text-3xl font-bold text-gray-900">Reset your password</h2>
-        <p class="mt-2 text-sm text-gray-600">
+        <h2 class="mt-6 text-3xl font-bold text-gray-900 dark:text-white">Reset your password</h2>
+        <p class="mt-2 text-sm text-gray-600 dark:text-slate-400">
           Remember your password?
           <router-link to="/login" class="font-medium text-primary hover:text-primary/80">
             Sign in
@@ -15,24 +16,24 @@
       </div>
 
       <form @submit.prevent="handleSubmit" class="mt-8 space-y-6">
-        <div v-if="errorMessage" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+        <div v-if="errorMessage" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
           {{ errorMessage }}
         </div>
 
-        <div v-if="successMessage" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+        <div v-if="successMessage" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded">
           {{ successMessage }}
         </div>
 
         <div class="rounded-md shadow-sm">
           <div>
-            <label for="email-address" class="block text-sm font-medium text-gray-700">Email address</label>
+            <label for="email-address" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email address</label>
             <input
               id="email-address"
               v-model="email"
               type="email"
               autocomplete="email"
               required
-              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 placeholder-gray-500 dark:placeholder-slate-400 text-gray-900 dark:text-white dark:bg-slate-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
               placeholder="you@example.com"
             />
           </div>

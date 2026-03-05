@@ -422,19 +422,20 @@ router.post('/reference/:referenceId/finalize', staffAuth, async (req: StaffAuth
               tenant_last_name_encrypted,
               property_address_encrypted,
               is_guarantor,
-              company:companies!inner(id, name_encrypted, email_encrypted)
+              company:companies!inner(id, name_encrypted, email_encrypted, reference_notification_email)
             `)
             .eq('id', referenceId)
             .single();
 
           if (refData) {
             // Type assertion for Supabase join result (comes as object due to !inner and .single())
-            const company = refData.company as unknown as { id: string; name_encrypted: string | null; email_encrypted: string | null } | null;
+            const company = refData.company as unknown as { id: string; name_encrypted: string | null; email_encrypted: string | null; reference_notification_email: string | null } | null;
 
             if (company) {
-              const agentEmail = company.email_encrypted
+              // Prefer reference_notification_email, fallback to email_encrypted
+              const agentEmail = company.reference_notification_email || (company.email_encrypted
                 ? decrypt(company.email_encrypted)
-                : null;
+                : null);
               const agentName = company.name_encrypted
                 ? (decrypt(company.name_encrypted) || 'Agent')
                 : 'Agent';

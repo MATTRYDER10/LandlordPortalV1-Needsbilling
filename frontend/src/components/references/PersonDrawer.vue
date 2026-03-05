@@ -24,23 +24,23 @@
     >
       <div
         v-if="open && person"
-        class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-xl z-50 flex flex-col"
+        class="fixed inset-y-0 right-0 w-full max-w-xl bg-white dark:bg-slate-900 shadow-xl z-50 flex flex-col transition-colors duration-300"
         @click.stop
       >
         <!-- Header -->
-        <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 transition-colors duration-300">
           <div class="flex items-start justify-between">
             <div>
               <div class="flex items-center gap-3">
                 <span
                   class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium"
-                  :class="person.role === 'GUARANTOR' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'"
+                  :class="person.role === 'GUARANTOR' ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'"
                 >
                   {{ person.role === 'GUARANTOR' ? 'G' : 'T' }}
                 </span>
                 <div>
-                  <h2 class="text-lg font-semibold text-gray-900">{{ person.name }}</h2>
-                  <p class="text-sm text-gray-500">
+                  <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ person.name }}</h2>
+                  <p class="text-sm text-gray-500 dark:text-slate-400">
                     {{ person.role === 'GUARANTOR' ? 'Guarantor' : 'Tenant' }}
                     <span v-if="person.rentShare"> · {{ formatCurrency(person.rentShare) }}/mo</span>
                   </p>
@@ -52,7 +52,7 @@
             </div>
             <button
               @click="$emit('update:open', false)"
-              class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              class="p-2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700"
             >
               <X class="w-5 h-5" />
             </button>
@@ -63,7 +63,7 @@
             <button
               @click="handleResend"
               :disabled="resendingForm"
-              class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span v-if="resendingForm" class="flex items-center gap-1">
                 <Loader2 class="animate-spin h-4 w-4" />
@@ -75,7 +75,7 @@
               @click="handleViewCertificate"
               v-if="hasCertificate"
               :disabled="loadingCertificate"
-              class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50"
             >
               <span v-if="loadingCertificate" class="flex items-center gap-1">
                 <Loader2 class="animate-spin h-4 w-4" />
@@ -86,7 +86,7 @@
             <button
               v-if="hasLinkedOffer"
               @click="showOfferModal = true"
-              class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1"
+              class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-600 flex items-center gap-1"
             >
               <Eye class="w-4 h-4" />
               See Offer
@@ -101,7 +101,7 @@
             <button
               v-if="canDelete"
               @click="handleDelete"
-              class="px-3 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50 flex items-center gap-1"
+              class="px-3 py-1.5 text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-slate-700 border border-red-300 dark:border-red-700 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center gap-1"
             >
               <Trash2 class="w-4 h-4" />
               Delete
@@ -136,8 +136,8 @@
 
           <template v-else>
             <!-- Action Required Banner - Always show when status is ACTION_REQUIRED -->
-            <div v-if="person.verificationState === 'ACTION_REQUIRED'" class="p-6 bg-red-50 border-b border-red-200">
-              <h3 class="text-sm font-semibold text-red-900 mb-3 flex items-center gap-2">
+            <div v-if="person.verificationState === 'ACTION_REQUIRED'" class="p-6 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
+              <h3 class="text-sm font-semibold text-red-900 dark:text-red-300 mb-3 flex items-center gap-2">
                 <AlertTriangle class="w-5 h-5" />
                 Action Required
               </h3>
@@ -147,19 +147,19 @@
                 <div
                   v-for="section in actionRequiredDetails.sections"
                   :key="section.sectionType"
-                  class="p-3 bg-white rounded-lg border border-red-200"
+                  class="p-3 bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-800"
                 >
                   <div class="flex items-start justify-between">
                     <div>
-                      <p class="text-sm font-medium text-gray-900">{{ getSectionLabel(section.sectionType as SectionType) }}</p>
-                      <p class="text-sm font-semibold text-red-700 mt-1">{{ section.reasonLabel || formatReasonCode(section.reasonCode) }}</p>
-                      <p v-if="section.agentMessage" class="text-sm text-gray-600 mt-1">{{ section.agentMessage }}</p>
-                      <p v-if="section.correctionCycle > 0" class="text-xs text-gray-500 mt-1">Correction cycle: {{ section.correctionCycle }}</p>
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ getSectionLabel(section.sectionType as SectionType) }}</p>
+                      <p class="text-sm font-semibold text-red-700 dark:text-red-400 mt-1">{{ section.reasonLabel || formatReasonCode(section.reasonCode) }}</p>
+                      <p v-if="section.agentMessage" class="text-sm text-gray-600 dark:text-slate-400 mt-1">{{ section.agentMessage }}</p>
+                      <p v-if="section.correctionCycle > 0" class="text-xs text-gray-500 dark:text-slate-500 mt-1">Correction cycle: {{ section.correctionCycle }}</p>
                     </div>
                   </div>
                 </div>
                 <!-- Helpful guidance message -->
-                <p class="text-sm text-gray-600 mt-2">
+                <p class="text-sm text-gray-600 dark:text-slate-400 mt-2">
                   Please verify the contact details are correct and update if needed, or provide alternative referee details.
                 </p>
               </div>
@@ -169,26 +169,26 @@
                 <div
                   v-for="task in person.actionRequiredTasks"
                   :key="task.sectionType"
-                  class="p-3 bg-white rounded-lg border border-red-200"
+                  class="p-3 bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-800"
                 >
                   <div class="flex items-start gap-3">
                     <div>
-                      <p class="text-sm font-medium text-gray-900">{{ formatSectionType(task.sectionType) }}</p>
-                      <p class="text-sm font-semibold text-red-700 mt-1">{{ task.reasonLabel || 'Action needed' }}</p>
-                      <p v-if="task.staffNote" class="text-sm text-gray-600 mt-1">{{ task.staffNote }}</p>
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ formatSectionType(task.sectionType) }}</p>
+                      <p class="text-sm font-semibold text-red-700 dark:text-red-400 mt-1">{{ task.reasonLabel || 'Action needed' }}</p>
+                      <p v-if="task.staffNote" class="text-sm text-gray-600 dark:text-slate-400 mt-1">{{ task.staffNote }}</p>
                     </div>
                   </div>
                 </div>
                 <!-- Helpful guidance message -->
-                <p class="text-sm text-gray-600 mt-2">
+                <p class="text-sm text-gray-600 dark:text-slate-400 mt-2">
                   Please verify the contact details are correct and update if needed, or provide alternative referee details.
                 </p>
               </div>
 
               <!-- Generic message when no specific reason is available -->
-              <div v-else class="p-3 bg-white rounded-lg border border-red-200">
-                <p class="text-sm text-gray-700">This reference requires action. Please review the documents and information below, then either:</p>
-                <ul class="mt-2 text-sm text-gray-600 list-disc list-inside space-y-1">
+              <div v-else class="p-3 bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-800">
+                <p class="text-sm text-gray-700 dark:text-slate-300">This reference requires action. Please review the documents and information below, then either:</p>
+                <ul class="mt-2 text-sm text-gray-600 dark:text-slate-400 list-disc list-inside space-y-1">
                   <li>Upload new/updated documents</li>
                   <li>Update referee contact details</li>
                   <li>Or click "Resend Form" to have the tenant update their submission</li>
@@ -198,26 +198,26 @@
             </div>
 
             <!-- Edit Actions Section - Shows for all non-finalized references -->
-            <div v-if="canEdit" class="p-4 bg-blue-50 border-b border-blue-200">
-              <p class="text-xs font-medium text-blue-800 uppercase mb-3">Agent Actions</p>
+            <div v-if="canEdit" class="p-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
+              <p class="text-xs font-medium text-blue-800 dark:text-blue-300 uppercase mb-3">Agent Actions</p>
               <div class="flex flex-wrap gap-2">
                 <button
                   @click="showUploadModal = true"
-                  class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-1"
+                  class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 rounded-md flex items-center gap-1"
                 >
                   <Upload class="w-4 h-4" />
                   Upload Documents
                 </button>
                 <button
                   @click="showRefereeModal = true"
-                  class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 hover:bg-blue-50 rounded-md flex items-center gap-1"
+                  class="px-3 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-700 border border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-600 rounded-md flex items-center gap-1"
                 >
                   <Mail class="w-4 h-4" />
                   Update Referee Email
                 </button>
                 <button
                   @click="openEditNameModal"
-                  class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 hover:bg-blue-50 rounded-md flex items-center gap-1"
+                  class="px-3 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-700 border border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-600 rounded-md flex items-center gap-1"
                 >
                   <Pencil class="w-4 h-4" />
                   Edit Name
@@ -225,7 +225,7 @@
                 <button
                   @click="refreshReferenceStatus"
                   :disabled="refreshingStatus"
-                  class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                  class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 rounded-md flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <RefreshCw class="w-4 h-4" />
                   {{ refreshingStatus ? 'Refreshing...' : 'Refresh Status' }}
@@ -234,35 +234,35 @@
             </div>
 
             <!-- Assessment Result Section (for completed/rejected references) -->
-            <div v-if="isVerified && (finalDecision || score?.final_remarks)" class="p-6 border-b border-gray-200">
-              <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <div v-if="isVerified && (finalDecision || score?.final_remarks)" class="p-6 border-b border-gray-200 dark:border-slate-700">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                 <FileText class="w-5 h-5" />
                 Assessment Result
               </h3>
               <div class="space-y-3">
                 <div v-if="finalDecision" class="flex items-center gap-2">
-                  <span class="text-sm font-medium text-gray-600">Final Decision:</span>
+                  <span class="text-sm font-medium text-gray-600 dark:text-slate-400">Final Decision:</span>
                   <span
                     class="px-2.5 py-0.5 text-xs font-medium rounded-full"
                     :class="{
-                      'bg-green-100 text-green-800': finalDecision === 'PASS' || finalDecision === 'VERIFIED_PASS',
-                      'bg-amber-100 text-amber-800': finalDecision === 'PASS_WITH_CONDITION' || finalDecision === 'VERIFIED_CONDITIONAL',
-                      'bg-red-100 text-red-800': finalDecision === 'FAIL' || finalDecision === 'VERIFIED_FAIL',
-                      'bg-gray-100 text-gray-800': !['PASS', 'VERIFIED_PASS', 'PASS_WITH_CONDITION', 'VERIFIED_CONDITIONAL', 'FAIL', 'VERIFIED_FAIL'].includes(finalDecision)
+                      'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100': finalDecision === 'PASS' || finalDecision === 'VERIFIED_PASS',
+                      'bg-amber-100 dark:bg-amber-800 text-amber-800 dark:text-amber-100': finalDecision === 'PASS_WITH_CONDITION' || finalDecision === 'VERIFIED_CONDITIONAL',
+                      'bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-100': finalDecision === 'FAIL' || finalDecision === 'VERIFIED_FAIL',
+                      'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200': !['PASS', 'VERIFIED_PASS', 'PASS_WITH_CONDITION', 'VERIFIED_CONDITIONAL', 'FAIL', 'VERIFIED_FAIL'].includes(finalDecision)
                     }"
                   >
                     {{ finalDecision.replace(/_/g, ' ') }}
                   </span>
                 </div>
-                <div v-if="score?.final_remarks" class="p-3 bg-gray-50 rounded-lg">
-                  <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ score.final_remarks }}</p>
+                <div v-if="score?.final_remarks" class="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                  <p class="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{{ score.final_remarks }}</p>
                 </div>
               </div>
             </div>
 
             <!-- Section Status Overview -->
-            <div class="p-6 border-b border-gray-200">
-              <h3 class="text-sm font-semibold text-gray-900 mb-3">Verification Sections</h3>
+            <div class="p-6 border-b border-gray-200 dark:border-slate-700">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Verification Sections</h3>
               <div v-if="person.sectionStatuses && person.sectionStatuses.length > 0" class="grid grid-cols-2 gap-2">
                 <div
                   v-for="section in person.sectionStatuses"
@@ -271,7 +271,7 @@
                   :class="getSectionBorderClass(section.decision)"
                 >
                   <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-900">{{ getSectionLabel(section.type) }}</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">{{ getSectionLabel(section.type) }}</span>
                     <span
                       class="px-2 py-0.5 text-xs font-medium rounded"
                       :class="getSectionBadgeClass(section.decision)"
@@ -283,14 +283,14 @@
               </div>
               <!-- Show verified status for legacy verifications that don't have section data -->
               <div v-else-if="isVerified" class="text-center py-4">
-                <div class="inline-flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg">
-                  <CheckCircle class="w-5 h-5 text-green-600" />
-                  <span class="text-sm font-medium text-green-800">Verification Complete</span>
+                <div class="inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                  <CheckCircle class="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <span class="text-sm font-medium text-green-800 dark:text-green-300">Verification Complete</span>
                 </div>
-                <p class="text-xs text-gray-500 mt-2">Verified before section-based tracking was implemented</p>
+                <p class="text-xs text-gray-500 dark:text-slate-400 mt-2">Verified before section-based tracking was implemented</p>
               </div>
               <div v-else class="text-center py-4">
-                <p class="text-sm text-gray-500">Not yet reviewed by verification team</p>
+                <p class="text-sm text-gray-500 dark:text-slate-400">Not yet reviewed by verification team</p>
               </div>
             </div>
 
@@ -298,24 +298,24 @@
             <CollapsibleSection title="Personal Details" :defaultOpen="true">
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Full Name</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ getFullName() }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Full Name</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ getFullName() }}</p>
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Date of Birth</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails?.date_of_birth ? formatDate(fullDetails.date_of_birth) : 'Not provided' }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Date of Birth</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails?.date_of_birth ? formatDate(fullDetails.date_of_birth) : 'Not provided' }}</p>
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Email</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails?.tenant_email || person.email }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Email</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails?.tenant_email || person.email }}</p>
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Phone</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails?.tenant_phone || fullDetails?.contact_number || person.phone || 'Not provided' }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Phone</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails?.tenant_phone || fullDetails?.contact_number || person.phone || 'Not provided' }}</p>
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Nationality</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails?.nationality || 'Not provided' }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Nationality</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails?.nationality || 'Not provided' }}</p>
                 </div>
               </div>
             </CollapsibleSection>
@@ -324,28 +324,28 @@
             <CollapsibleSection title="Property Information" v-if="fullDetails?.property_address">
               <div class="space-y-3">
                 <div>
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Property Address</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.property_address }}</p>
-                  <p v-if="fullDetails.property_city || fullDetails.property_postcode" class="text-sm text-gray-900">
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Property Address</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.property_address }}</p>
+                  <p v-if="fullDetails.property_city || fullDetails.property_postcode" class="text-sm text-gray-900 dark:text-white">
                     {{ fullDetails.property_city }}<span v-if="fullDetails.property_city && fullDetails.property_postcode">, </span>{{ fullDetails.property_postcode }}
                   </p>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                   <div v-if="fullDetails.monthly_rent">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Monthly Rent</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.monthly_rent)) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Monthly Rent</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.monthly_rent)) }}</p>
                   </div>
                   <div v-if="fullDetails.move_in_date">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Move-in Date</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.move_in_date) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Move-in Date</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(fullDetails.move_in_date) }}</p>
                   </div>
                   <div v-if="fullDetails.holding_deposit_amount">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Holding Deposit</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.holding_deposit_amount)) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Holding Deposit</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.holding_deposit_amount)) }}</p>
                   </div>
                   <div v-if="fullDetails.term_months || fullDetails.term_years">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Tenancy Term</label>
-                    <p class="mt-1 text-sm text-gray-900">
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Tenancy Term</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">
                       <span v-if="fullDetails.term_years">{{ fullDetails.term_years }} year<span v-if="fullDetails.term_years > 1">s</span></span>
                       <span v-if="fullDetails.term_years && fullDetails.term_months"> </span>
                       <span v-if="fullDetails.term_months">{{ fullDetails.term_months }} month<span v-if="fullDetails.term_months > 1">s</span></span>
@@ -359,7 +359,7 @@
             <CollapsibleSection v-if="person.role === 'TENANT' && hasAboutTenantData" title="About the Tenant">
               <div class="grid grid-cols-2 gap-4">
                 <div v-if="fullDetails?.is_smoker !== null && fullDetails?.is_smoker !== undefined">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Smoker</label>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Smoker</label>
                   <p class="mt-1">
                     <span :class="fullDetails.is_smoker ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                       {{ fullDetails.is_smoker ? 'Yes' : 'No' }}
@@ -367,28 +367,28 @@
                   </p>
                 </div>
                 <div v-if="fullDetails?.has_pets !== null && fullDetails?.has_pets !== undefined">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Has Pets</label>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Has Pets</label>
                   <p class="mt-1">
-                    <span :class="fullDetails.has_pets ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    <span :class="fullDetails.has_pets ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                       {{ fullDetails.has_pets ? 'Yes' : 'No' }}
                     </span>
                   </p>
                 </div>
                 <div v-if="fullDetails?.pet_details" class="col-span-2">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Pet Details</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.pet_details }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Pet Details</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.pet_details }}</p>
                 </div>
                 <div v-if="fullDetails?.marital_status">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Marital Status</label>
-                  <p class="mt-1 text-sm text-gray-900 capitalize">{{ fullDetails.marital_status.replace(/_/g, ' ') }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Marital Status</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white capitalize">{{ fullDetails.marital_status.replace(/_/g, ' ') }}</p>
                 </div>
                 <div v-if="fullDetails?.num_dependants !== null && fullDetails?.num_dependants !== undefined">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Dependants</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.num_dependants }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Dependants</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.num_dependants }}</p>
                 </div>
                 <div v-if="fullDetails?.dependants_details" class="col-span-2">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Dependants Details</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.dependants_details }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Dependants Details</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.dependants_details }}</p>
                 </div>
               </div>
             </CollapsibleSection>
@@ -397,12 +397,12 @@
             <CollapsibleSection v-if="fullDetails?.consent_agreed_at" title="Consent Declaration">
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Agreed On</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ formatDateTime(fullDetails.consent_agreed_at) }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Agreed On</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDateTime(fullDetails.consent_agreed_at) }}</p>
                 </div>
                 <div v-if="fullDetails?.consent_printed_name">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Signed Name</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ fullDetails.consent_printed_name }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Signed Name</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.consent_printed_name }}</p>
                 </div>
               </div>
               <div v-if="fullDetails?.consent_pdf_path" class="mt-3">
@@ -419,19 +419,19 @@
             <!-- Current Address -->
             <CollapsibleSection title="Current Address" v-if="fullDetails?.current_address_line1">
               <div class="space-y-1">
-                <p class="text-sm text-gray-900">{{ fullDetails.current_address_line1 }}</p>
-                <p v-if="fullDetails.current_address_line2" class="text-sm text-gray-900">{{ fullDetails.current_address_line2 }}</p>
-                <p class="text-sm text-gray-900">{{ fullDetails.current_city }}, {{ fullDetails.current_postcode }}</p>
-                <p v-if="fullDetails.current_country" class="text-sm text-gray-500">{{ fullDetails.current_country }}</p>
+                <p class="text-sm text-gray-900 dark:text-white">{{ fullDetails.current_address_line1 }}</p>
+                <p v-if="fullDetails.current_address_line2" class="text-sm text-gray-900 dark:text-white">{{ fullDetails.current_address_line2 }}</p>
+                <p class="text-sm text-gray-900 dark:text-white">{{ fullDetails.current_city }}, {{ fullDetails.current_postcode }}</p>
+                <p v-if="fullDetails.current_country" class="text-sm text-gray-500 dark:text-slate-400">{{ fullDetails.current_country }}</p>
               </div>
               <div class="mt-3 grid grid-cols-2 gap-4">
                 <div v-if="fullDetails.current_address_moved_in">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Moved In</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.current_address_moved_in) }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Moved In</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(fullDetails.current_address_moved_in) }}</p>
                 </div>
                 <div v-if="fullDetails.time_at_address_years !== null || fullDetails.time_at_address_months !== null">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Time at Address</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ formatTimeAtAddress(fullDetails.time_at_address_years, fullDetails.time_at_address_months) }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Time at Address</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatTimeAtAddress(fullDetails.time_at_address_years, fullDetails.time_at_address_months) }}</p>
                 </div>
               </div>
             </CollapsibleSection>
@@ -446,14 +446,14 @@
                 <div
                   v-for="(addr, index) in fullDetails.previousAddresses"
                   :key="index"
-                  class="p-3 bg-gray-50 rounded-lg border-l-2 border-gray-300"
+                  class="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg border-l-2 border-gray-300"
                 >
                   <div class="flex items-start justify-between">
                     <div class="space-y-1">
-                      <p class="text-sm font-medium text-gray-900">{{ addr.line1 }}</p>
-                      <p v-if="addr.line2" class="text-sm text-gray-700">{{ addr.line2 }}</p>
-                      <p class="text-sm text-gray-700">{{ addr.city }}, {{ addr.postcode }}</p>
-                      <p v-if="addr.country" class="text-xs text-gray-500">{{ addr.country }}</p>
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ addr.line1 }}</p>
+                      <p v-if="addr.line2" class="text-sm text-gray-700 dark:text-slate-300">{{ addr.line2 }}</p>
+                      <p class="text-sm text-gray-700 dark:text-slate-300">{{ addr.city }}, {{ addr.postcode }}</p>
+                      <p v-if="addr.country" class="text-xs text-gray-500 dark:text-slate-400">{{ addr.country }}</p>
                     </div>
                     <span class="text-xs text-gray-500 font-medium">#{{ index + 1 }}</span>
                   </div>
@@ -472,7 +472,7 @@
             >
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-xs font-medium text-gray-500 uppercase">British Citizen</label>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">British Citizen</label>
                   <p class="mt-1">
                     <span v-if="fullDetails?.is_british_citizen === true" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       Yes
@@ -480,11 +480,11 @@
                     <span v-else-if="fullDetails?.is_british_citizen === false" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       No - RTR Check Required
                     </span>
-                    <span v-else class="text-sm text-gray-500">Not provided</span>
+                    <span v-else class="text-sm text-gray-500 dark:text-slate-400">Not provided</span>
                   </p>
                 </div>
                 <div v-if="fullDetails?.is_british_citizen === false">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">RTR Verified</label>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">RTR Verified</label>
                   <p class="mt-1">
                     <span v-if="fullDetails?.rtr_verified" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       ✓ Verified
@@ -497,23 +497,23 @@
               </div>
 
               <!-- RTR Verification Details -->
-              <div v-if="fullDetails?.rtr_verified && fullDetails?.rtr_verification_data" class="mt-4 pt-4 border-t border-gray-200">
+              <div v-if="fullDetails?.rtr_verified && fullDetails?.rtr_verification_data" class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Share Code</label>
-                    <p class="mt-1 text-sm text-gray-900 font-mono">{{ fullDetails.rtr_share_code || 'N/A' }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Share Code</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white font-mono">{{ fullDetails.rtr_share_code || 'N/A' }}</p>
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Verification Date</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.rtr_verification_date ? formatDate(fullDetails.rtr_verification_date) : 'N/A' }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Verification Date</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.rtr_verification_date ? formatDate(fullDetails.rtr_verification_date) : 'N/A' }}</p>
                   </div>
                   <div v-if="fullDetails.rtr_verification_data?.immigrationStatus" class="col-span-2">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Immigration Status</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.rtr_verification_data.immigrationStatus }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Immigration Status</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.rtr_verification_data.immigrationStatus }}</p>
                   </div>
                   <div v-if="fullDetails.rtr_verification_data?.expiryDate">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Expiry Date</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.rtr_verification_data.expiryDate }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Expiry Date</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(fullDetails.rtr_verification_data.expiryDate) }}</p>
                   </div>
                 </div>
               </div>
@@ -526,26 +526,26 @@
             >
               <div v-if="hasEmploymentData" class="space-y-4">
                 <!-- Income Sources Badges -->
-                <div class="flex flex-wrap gap-2 pb-3 border-b border-gray-200">
-                  <span v-if="fullDetails?.employment_status === 'employed' || fullDetails?.employment_status === 'contractor'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <div class="flex flex-wrap gap-2 pb-3 border-b border-gray-200 dark:border-slate-700">
+                  <span v-if="fullDetails?.employment_status === 'employed' || fullDetails?.employment_status === 'contractor'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200">
                     Employed
                   </span>
-                  <span v-if="fullDetails?.employment_status === 'self_employed' || fullDetails?.employment_status === 'director'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  <span v-if="fullDetails?.employment_status === 'self_employed' || fullDetails?.employment_status === 'director'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200">
                     Self-Employed
                   </span>
-                  <span v-if="fullDetails?.income_landlord_rental" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                  <span v-if="fullDetails?.income_landlord_rental" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">
                     Landlord Income
                   </span>
-                  <span v-if="fullDetails?.income_pension" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  <span v-if="fullDetails?.income_pension" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200">
                     Pension
                   </span>
-                  <span v-if="fullDetails?.employment_status === 'unemployed'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  <span v-if="fullDetails?.employment_status === 'unemployed'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200">
                     Unemployed
                   </span>
-                  <span v-if="fullDetails?.employment_status === 'student'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <span v-if="fullDetails?.employment_status === 'student'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
                     Student
                   </span>
-                  <span v-if="fullDetails?.employment_status === 'retired'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  <span v-if="fullDetails?.employment_status === 'retired'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200">
                     Retired
                   </span>
                   <span v-if="fullDetails?.savings_amount" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800">
@@ -561,67 +561,67 @@
 
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Employment Status</label>
-                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ formatEmploymentStatus(fullDetails?.employment_status) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Employment Status</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white capitalize">{{ formatEmploymentStatus(fullDetails?.employment_status) }}</p>
                   </div>
                   <div v-if="fullDetails?.employment_company_name">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Company</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.employment_company_name }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Company</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.employment_company_name }}</p>
                   </div>
                   <div v-if="fullDetails?.employment_job_title">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Job Title</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.employment_job_title }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Job Title</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.employment_job_title }}</p>
                   </div>
                   <div v-if="fullDetails?.employment_salary_amount">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Annual Salary</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.employment_salary_amount)) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Annual Salary</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.employment_salary_amount)) }}</p>
                   </div>
                   <div v-if="fullDetails?.employment_start_date">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Start Date</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.employment_start_date) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Start Date</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(fullDetails.employment_start_date) }}</p>
                   </div>
                   <div v-if="fullDetails?.employment_end_date">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">End Date</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.employment_end_date) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">End Date</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(fullDetails.employment_end_date) }}</p>
                   </div>
                   <div v-if="fullDetails?.employment_type">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Employment Type</label>
-                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ fullDetails.employment_type.replace(/_/g, ' ') }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Employment Type</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white capitalize">{{ fullDetails.employment_type.replace(/_/g, ' ') }}</p>
                   </div>
                   <div v-if="fullDetails?.employment_contract_type">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Contract Type</label>
-                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ formatContractType(fullDetails.employment_contract_type) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Contract Type</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white capitalize">{{ formatContractType(fullDetails.employment_contract_type) }}</p>
                   </div>
                   <div v-if="fullDetails?.employment_salary_frequency">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Pay Frequency</label>
-                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ formatPayFrequency(fullDetails.employment_salary_frequency) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Pay Frequency</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white capitalize">{{ formatPayFrequency(fullDetails.employment_salary_frequency) }}</p>
                   </div>
                   <div v-if="fullDetails?.compensation_type">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Pay Type</label>
-                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ fullDetails.compensation_type }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Pay Type</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white capitalize">{{ fullDetails.compensation_type }}</p>
                   </div>
                   <div v-if="fullDetails?.hourly_rate">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Hourly Rate</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.hourly_rate)) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Hourly Rate</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.hourly_rate)) }}</p>
                   </div>
                   <div v-if="fullDetails?.hours_per_month">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Hours/Month</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.hours_per_month }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Hours/Month</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.hours_per_month }}</p>
                   </div>
                 </div>
 
                 <!-- Landlord/Rental Income -->
-                <div v-if="fullDetails?.income_landlord_rental" class="pt-3 border-t border-gray-200">
+                <div v-if="fullDetails?.income_landlord_rental" class="pt-3 border-t border-gray-200 dark:border-slate-700">
                   <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Landlord Rental Income</label>
                   <div class="grid grid-cols-2 gap-4">
                     <div>
-                      <label class="block text-xs font-medium text-gray-400">Monthly Amount</label>
-                      <p class="mt-1 text-sm text-gray-900">
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Monthly Amount</label>
+                      <p class="mt-1 text-sm text-gray-900 dark:text-white">
                         {{ landlordRentalMonthlyAmount !== null ? formatCurrency(landlordRentalMonthlyAmount) : 'Not provided' }}
                       </p>
                     </div>
                     <div v-if="fullDetails.landlord_rental_bank_statement_path">
-                      <label class="block text-xs font-medium text-gray-400">Bank Statement</label>
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Bank Statement</label>
                       <button
                         type="button"
                         class="mt-1 text-sm text-primary hover:text-primary/80"
@@ -634,21 +634,21 @@
                 </div>
 
                 <!-- Pension Income -->
-                <div v-if="fullDetails?.income_pension" class="pt-3 border-t border-gray-200">
+                <div v-if="fullDetails?.income_pension" class="pt-3 border-t border-gray-200 dark:border-slate-700">
                   <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Pension Income</label>
                   <div class="grid grid-cols-2 gap-4">
                     <div>
-                      <label class="block text-xs font-medium text-gray-400">Monthly Amount</label>
-                      <p class="mt-1 text-sm text-gray-900">
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Monthly Amount</label>
+                      <p class="mt-1 text-sm text-gray-900 dark:text-white">
                         {{ pensionMonthlyAmount !== null ? formatCurrency(pensionMonthlyAmount) : 'Not provided' }}
                       </p>
                     </div>
                     <div v-if="fullDetails.pension_provider">
-                      <label class="block text-xs font-medium text-gray-400">Provider</label>
-                      <p class="mt-1 text-sm text-gray-900">{{ fullDetails.pension_provider }}</p>
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Provider</label>
+                      <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.pension_provider }}</p>
                     </div>
                     <div v-if="fullDetails.pension_statement_path">
-                      <label class="block text-xs font-medium text-gray-400">Pension Statement</label>
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Pension Statement</label>
                       <button
                         type="button"
                         class="mt-1 text-sm text-primary hover:text-primary/80"
@@ -661,79 +661,79 @@
                 </div>
 
                 <!-- Company Address -->
-                <div v-if="fullDetails?.company_address_line_1" class="pt-3 border-t border-gray-200">
-                  <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Company Address</label>
-                  <div class="text-sm text-gray-900 space-y-0.5">
+                <div v-if="fullDetails?.company_address_line_1" class="pt-3 border-t border-gray-200 dark:border-slate-700 dark:border-slate-700">
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase mb-1">Company Address</label>
+                  <div class="text-sm text-gray-900 dark:text-white space-y-0.5">
                     <p>{{ fullDetails.company_address_line_1 }}</p>
                     <p v-if="fullDetails.company_address_line_2">{{ fullDetails.company_address_line_2 }}</p>
                     <p v-if="fullDetails.company_city || fullDetails.company_postcode">
                       {{ fullDetails.company_city }}<span v-if="fullDetails.company_city && fullDetails.company_postcode">, </span>{{ fullDetails.company_postcode }}
                     </p>
-                    <p v-if="fullDetails.company_country" class="text-gray-500">{{ fullDetails.company_country }}</p>
+                    <p v-if="fullDetails.company_country" class="text-gray-500 dark:text-slate-400">{{ fullDetails.company_country }}</p>
                   </div>
                 </div>
 
                 <!-- Self-Employment Details -->
-                <div v-if="fullDetails?.employment_status === 'self_employed' || fullDetails?.employment_status === 'director'" class="grid grid-cols-2 gap-4 pt-3 border-t border-gray-200">
+                <div v-if="fullDetails?.employment_status === 'self_employed' || fullDetails?.employment_status === 'director'" class="grid grid-cols-2 gap-4 pt-3 border-t border-gray-200 dark:border-slate-700 dark:border-slate-700">
                   <div v-if="fullDetails.self_employed_business_name">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Business Name</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.self_employed_business_name }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Business Name</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.self_employed_business_name }}</p>
                   </div>
                   <div v-if="fullDetails.self_employed_annual_income">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Annual Income</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.self_employed_annual_income)) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Annual Income</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.self_employed_annual_income)) }}</p>
                   </div>
                   <div v-if="fullDetails.self_employed_nature_of_business">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Nature of Business</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.self_employed_nature_of_business }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Nature of Business</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.self_employed_nature_of_business }}</p>
                   </div>
                   <div v-if="fullDetails.self_employed_start_date">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Started Self-Employment</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatDate(fullDetails.self_employed_start_date) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Started Self-Employment</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(fullDetails.self_employed_start_date) }}</p>
                   </div>
                 </div>
 
                 <!-- Savings -->
-                <div v-if="fullDetails?.savings_amount" class="pt-3 border-t border-gray-200">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Savings</label>
-                  <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.savings_amount)) }}</p>
+                <div v-if="fullDetails?.savings_amount" class="pt-3 border-t border-gray-200 dark:border-slate-700">
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Savings</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.savings_amount)) }}</p>
                 </div>
 
                 <!-- Benefits -->
-                <div v-if="fullDetails?.receives_benefits || fullDetails?.benefits_monthly_amount || fullDetails?.benefits_annual_amount" class="pt-3 border-t border-gray-200">
+                <div v-if="fullDetails?.receives_benefits || fullDetails?.benefits_monthly_amount || fullDetails?.benefits_annual_amount" class="pt-3 border-t border-gray-200 dark:border-slate-700">
                   <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Benefits</label>
                   <div class="grid grid-cols-2 gap-4">
                     <div v-if="fullDetails?.benefits_monthly_amount">
-                      <label class="block text-xs font-medium text-gray-400">Monthly Amount</label>
-                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.benefits_monthly_amount)) }}</p>
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Monthly Amount</label>
+                      <p class="text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.benefits_monthly_amount)) }}</p>
                     </div>
                     <div v-if="fullDetails?.benefits_annual_amount">
-                      <label class="block text-xs font-medium text-gray-400">Annual Amount</label>
-                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.benefits_annual_amount)) }}</p>
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Annual Amount</label>
+                      <p class="text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.benefits_annual_amount)) }}</p>
                     </div>
                   </div>
                 </div>
 
                 <!-- Additional Income -->
-                <div v-if="fullDetails?.additional_income_source" class="pt-3 border-t border-gray-200 grid grid-cols-2 gap-4">
+                <div v-if="fullDetails?.additional_income_source" class="pt-3 border-t border-gray-200 dark:border-slate-700 grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Additional Income Source</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ fullDetails.additional_income_source }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Additional Income Source</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ fullDetails.additional_income_source }}</p>
                   </div>
                   <div v-if="fullDetails?.additional_income_amount">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Additional Income Amount</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.additional_income_amount)) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Additional Income Amount</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.additional_income_amount)) }}</p>
                   </div>
                   <div v-if="fullDetails?.additional_income_frequency">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Frequency</label>
-                    <p class="mt-1 text-sm text-gray-900 capitalize">{{ formatPayFrequency(fullDetails.additional_income_frequency) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Frequency</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white capitalize">{{ formatPayFrequency(fullDetails.additional_income_frequency) }}</p>
                   </div>
                 </div>
 
                 <!-- Employer Reference Request (what tenant provided) -->
-                <div v-if="fullDetails?.employer_ref_email" class="mt-4 p-3 bg-blue-50 rounded-lg">
+                <div v-if="fullDetails?.employer_ref_email" class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
                   <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-medium text-blue-700 uppercase">Employer Reference Request Sent To</p>
+                    <p class="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase">Employer Reference Request Sent To</p>
                     <div class="flex items-center gap-2">
                       <button
                         v-if="!employerRef?.submitted_at"
@@ -745,25 +745,25 @@
                       </button>
                       <span
                         v-if="!employerRef?.submitted_at"
-                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200"
                       >
                         Awaiting Response
                       </span>
                       <span
                         v-else
-                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200"
                       >
                         Received
                       </span>
                     </div>
                   </div>
-                  <div class="text-sm text-gray-700 space-y-1">
+                  <div class="text-sm text-gray-700 dark:text-slate-300 space-y-1">
                     <p v-if="fullDetails.employer_ref_name">{{ fullDetails.employer_ref_name }}</p>
-                    <p class="text-xs text-gray-500">{{ fullDetails.employer_ref_email }}</p>
-                    <p v-if="fullDetails.employer_ref_phone" class="text-xs text-gray-500">{{ fullDetails.employer_ref_phone }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.employer_ref_email }}</p>
+                    <p v-if="fullDetails.employer_ref_phone" class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.employer_ref_phone }}</p>
                   </div>
                   <!-- Response details when received -->
-                  <div v-if="employerRef?.submitted_at" class="mt-3 pt-3 border-t border-blue-200 text-xs text-gray-600 space-y-1">
+                  <div v-if="employerRef?.submitted_at" class="mt-3 pt-3 border-t border-blue-200 text-xs text-gray-600 dark:text-slate-400 space-y-1">
                     <p v-if="employerRef.annual_salary || (employerRef.is_hourly && employerRef.hourly_rate && employerRef.hours_per_week)">
                       Annual Income: {{ formatEmployerIncome(employerRef) }}
                     </p>
@@ -775,9 +775,9 @@
                 </div>
 
                 <!-- Accountant Reference Request (what tenant provided) -->
-                <div v-if="fullDetails?.accountant_email" class="mt-4 p-3 bg-blue-50 rounded-lg">
+                <div v-if="fullDetails?.accountant_email" class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
                   <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-medium text-blue-700 uppercase">Accountant Reference Request Sent To</p>
+                    <p class="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase">Accountant Reference Request Sent To</p>
                     <div class="flex items-center gap-2">
                       <button
                         v-if="!accountantRef?.submitted_at"
@@ -789,42 +789,42 @@
                       </button>
                       <span
                         v-if="!accountantRef?.submitted_at"
-                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200"
                       >
                         Awaiting Response
                       </span>
                       <span
                         v-else
-                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200"
                       >
                         Received
                       </span>
                     </div>
                   </div>
-                  <div class="text-sm text-gray-700 space-y-1">
+                  <div class="text-sm text-gray-700 dark:text-slate-300 space-y-1">
                     <p v-if="fullDetails.accountant_name">{{ fullDetails.accountant_name }}</p>
-                    <p v-if="fullDetails.accountant_contact_name" class="text-xs text-gray-600">Contact: {{ fullDetails.accountant_contact_name }}</p>
-                    <p class="text-xs text-gray-500">{{ fullDetails.accountant_email }}</p>
-                    <p v-if="fullDetails.accountant_phone" class="text-xs text-gray-500">{{ fullDetails.accountant_phone }}</p>
+                    <p v-if="fullDetails.accountant_contact_name" class="text-xs text-gray-600 dark:text-slate-400">Contact: {{ fullDetails.accountant_contact_name }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.accountant_email }}</p>
+                    <p v-if="fullDetails.accountant_phone" class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.accountant_phone }}</p>
                   </div>
                 </div>
 
                 <!-- Accountant Reference Response -->
-                <div v-if="accountantRef" class="mt-4 p-3 bg-gray-50 rounded-lg">
+                <div v-if="accountantRef" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">Accountant Reference Response</span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-slate-200">Accountant Reference Response</span>
                     <span
                       class="px-2 py-0.5 text-xs font-medium rounded-full"
-                      :class="accountantRef.submitted_at ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                      :class="accountantRef.submitted_at ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200'"
                     >
                       {{ accountantRef.submitted_at ? 'Received' : 'Pending' }}
                     </span>
                   </div>
-                  <p v-if="accountantRef.firm_name" class="text-sm text-gray-700 mt-1">{{ accountantRef.firm_name }}</p>
-                  <p v-if="accountantRef.accountant_name" class="text-xs text-gray-600">Contact: {{ accountantRef.accountant_name }}</p>
-                  <p v-if="accountantRef.accountant_email" class="text-xs text-gray-500">{{ accountantRef.accountant_email }}</p>
-                  <p v-if="accountantRef.accountant_phone" class="text-xs text-gray-500">{{ accountantRef.accountant_phone }}</p>
-                  <div v-if="accountantRef.submitted_at" class="mt-2 text-xs text-gray-600">
+                  <p v-if="accountantRef.firm_name" class="text-sm text-gray-700 dark:text-slate-300 mt-1">{{ accountantRef.firm_name }}</p>
+                  <p v-if="accountantRef.accountant_name" class="text-xs text-gray-600 dark:text-slate-400">Contact: {{ accountantRef.accountant_name }}</p>
+                  <p v-if="accountantRef.accountant_email" class="text-xs text-gray-500 dark:text-slate-400">{{ accountantRef.accountant_email }}</p>
+                  <p v-if="accountantRef.accountant_phone" class="text-xs text-gray-500 dark:text-slate-400">{{ accountantRef.accountant_phone }}</p>
+                  <div v-if="accountantRef.submitted_at" class="mt-2 text-xs text-gray-600 dark:text-slate-400">
                     <p v-if="accountantRef.annual_profit || accountantRef.annual_turnover || accountantRef.estimated_monthly_income">
                       Annual Income: {{ formatAccountantIncome(accountantRef) }}
                     </p>
@@ -832,7 +832,7 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="text-sm text-gray-500">Employment details not yet provided</p>
+              <p v-else class="text-sm text-gray-500 dark:text-slate-400">Employment details not yet provided</p>
             </CollapsibleSection>
 
             <!-- Residential History (Tenants only) -->
@@ -843,23 +843,23 @@
             >
               <div v-if="hasResidentialData" class="space-y-4">
                 <!-- Verified Residential Status (if confirmed by staff) -->
-                <div v-if="fullDetails?.confirmed_residential_status" class="p-3 bg-green-50 rounded-lg border border-green-200">
+                <div v-if="fullDetails?.confirmed_residential_status" class="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg border border-green-200 dark:border-green-700">
                   <div class="flex items-center gap-2">
-                    <CheckCircle class="w-5 h-5 text-green-600" />
-                    <span class="text-sm font-medium text-green-800">Verified: {{ formatResidentialStatus(fullDetails.confirmed_residential_status) }}</span>
+                    <CheckCircle class="w-5 h-5 text-green-600 dark:text-green-400" />
+                    <span class="text-sm font-medium text-green-800 dark:text-green-200">Verified: {{ formatResidentialStatus(fullDetails.confirmed_residential_status) }}</span>
                   </div>
                 </div>
 
                 <!-- Living with Family (no landlord reference required) -->
-                <div v-if="fullDetails?.reference_type === 'living_with_family'" class="p-3 bg-blue-50 rounded-lg">
-                  <p class="text-xs font-medium text-blue-700 uppercase mb-2">Residential Situation</p>
-                  <p class="text-sm text-gray-700">Living with family (no previous landlord)</p>
+                <div v-if="fullDetails?.reference_type === 'living_with_family'" class="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                  <p class="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase mb-2">Residential Situation</p>
+                  <p class="text-sm text-gray-700 dark:text-slate-300">Living with family (no previous landlord)</p>
                 </div>
 
                 <!-- Previous Rental Details (what tenant provided) -->
-                <div v-else-if="fullDetails?.previous_rental_address_line1 || fullDetails?.previous_landlord_name || fullDetails?.previous_landlord_email" class="p-3 bg-blue-50 rounded-lg">
-                  <p class="text-xs font-medium text-blue-700 uppercase mb-2">Previous Rental (Tenant Provided)</p>
-                  <div class="text-sm text-gray-700 space-y-1">
+                <div v-else-if="fullDetails?.previous_rental_address_line1 || fullDetails?.previous_landlord_name || fullDetails?.previous_landlord_email" class="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                  <p class="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase mb-2">Previous Rental (Tenant Provided)</p>
+                  <div class="text-sm text-gray-700 dark:text-slate-300 space-y-1">
                     <p v-if="fullDetails.previous_rental_address_line1">
                       {{ fullDetails.previous_rental_address_line1 }}
                       <span v-if="fullDetails.previous_rental_address_line2">, {{ fullDetails.previous_rental_address_line2 }}</span>
@@ -867,11 +867,11 @@
                     <p v-if="fullDetails.previous_rental_city || fullDetails.previous_rental_postcode">
                       {{ fullDetails.previous_rental_city }}<span v-if="fullDetails.previous_rental_city && fullDetails.previous_rental_postcode">, </span>{{ fullDetails.previous_rental_postcode }}
                     </p>
-                    <p v-if="fullDetails.previous_monthly_rent" class="text-xs text-gray-500">Rent: {{ formatCurrency(Number(fullDetails.previous_monthly_rent)) }}/mo</p>
+                    <p v-if="fullDetails.previous_monthly_rent" class="text-xs text-gray-500 dark:text-slate-400">Rent: {{ formatCurrency(Number(fullDetails.previous_monthly_rent)) }}/mo</p>
                   </div>
-                  <div v-if="fullDetails.previous_landlord_name || fullDetails.previous_landlord_email" class="mt-2 pt-2 border-t border-blue-200">
+                  <div v-if="fullDetails.previous_landlord_name || fullDetails.previous_landlord_email" class="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
                     <div class="flex items-center justify-between mb-1">
-                      <p class="text-xs font-medium text-blue-700 uppercase">Reference Request Sent To</p>
+                      <p class="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase">Reference Request Sent To</p>
                       <div class="flex items-center gap-2">
                         <button
                           v-if="!landlordRef?.submitted_at && !agentRef?.submitted_at"
@@ -883,49 +883,49 @@
                         </button>
                         <span
                           v-if="!landlordRef?.submitted_at && !agentRef?.submitted_at"
-                          class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
+                          class="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200"
                         >
                           Awaiting Response
                         </span>
                         <span
                           v-else
-                          class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"
+                          class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200"
                         >
                           Received
                         </span>
                       </div>
                     </div>
-                    <p v-if="fullDetails.previous_landlord_name" class="text-sm text-gray-700">{{ fullDetails.previous_landlord_name }}</p>
-                    <p v-if="fullDetails.previous_landlord_email" class="text-xs text-gray-500">{{ fullDetails.previous_landlord_email }}</p>
-                    <p v-if="fullDetails.previous_landlord_phone" class="text-xs text-gray-500">{{ fullDetails.previous_landlord_phone }}</p>
-                    <p v-if="fullDetails.previous_agency_name" class="text-xs text-gray-500">Agency: {{ fullDetails.previous_agency_name }}</p>
+                    <p v-if="fullDetails.previous_landlord_name" class="text-sm text-gray-700 dark:text-slate-300">{{ fullDetails.previous_landlord_name }}</p>
+                    <p v-if="fullDetails.previous_landlord_email" class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.previous_landlord_email }}</p>
+                    <p v-if="fullDetails.previous_landlord_phone" class="text-xs text-gray-500 dark:text-slate-400">{{ fullDetails.previous_landlord_phone }}</p>
+                    <p v-if="fullDetails.previous_agency_name" class="text-xs text-gray-500 dark:text-slate-400">Agency: {{ fullDetails.previous_agency_name }}</p>
                   </div>
                 </div>
 
                 <!-- Reference Type indicator if not living_with_family but no address -->
-                <div v-else-if="fullDetails?.reference_type && fullDetails.reference_type !== 'living_with_family'" class="p-3 bg-blue-50 rounded-lg">
-                  <p class="text-xs font-medium text-blue-700 uppercase mb-2">Reference Type</p>
-                  <p class="text-sm text-gray-700">{{ fullDetails.reference_type === 'agent' ? 'Letting Agent Reference' : 'Landlord Reference' }}</p>
+                <div v-else-if="fullDetails?.reference_type && fullDetails.reference_type !== 'living_with_family'" class="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                  <p class="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase mb-2">Reference Type</p>
+                  <p class="text-sm text-gray-700 dark:text-slate-300">{{ fullDetails.reference_type === 'agent' ? 'Letting Agent Reference' : 'Landlord Reference' }}</p>
                 </div>
 
                 <!-- Landlord Reference Response - only show if confirmed (received and filled) -->
-                <div v-if="landlordRef && landlordRef.confirmed_at" class="p-3 bg-gray-50 rounded-lg">
+                <div v-if="landlordRef && landlordRef.confirmed_at" class="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-gray-700">Landlord Reference Response</span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-slate-200">Landlord Reference Response</span>
                     <span
                       class="px-2 py-0.5 text-xs font-medium rounded-full"
-                      :class="landlordRef.confirmed_at ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                      :class="landlordRef.confirmed_at ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200'"
                     >
                       {{ landlordRef.confirmed_at ? 'Received' : 'Pending' }}
                     </span>
                   </div>
-                  <div class="text-sm text-gray-600 space-y-1">
+                  <div class="text-sm text-gray-600 dark:text-slate-400 space-y-1">
                     <p v-if="landlordRef.landlord_name">{{ landlordRef.landlord_name }}</p>
-                    <p class="text-xs text-gray-500">{{ landlordRef.landlord_email }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ landlordRef.landlord_email }}</p>
                     <p v-if="landlordRef.property_address">{{ landlordRef.property_address }}<span v-if="landlordRef.property_city">, {{ landlordRef.property_city }}</span><span v-if="landlordRef.property_postcode"> {{ landlordRef.property_postcode }}</span></p>
                     <p v-if="landlordRef.monthly_rent" class="text-xs">Rent: {{ formatCurrency(Number(landlordRef.monthly_rent)) }}/mo</p>
                   </div>
-                  <div v-if="landlordRef.confirmed_at" class="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-600">
+                  <div v-if="landlordRef.confirmed_at" class="mt-2 pt-2 border-t border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-slate-400">
                     <p v-if="landlordRef.tenancy_start_date">Tenancy Start: {{ formatDate(landlordRef.tenancy_start_date) }}</p>
                     <p v-if="landlordRef.tenancy_end_date">Tenancy End: {{ formatDate(landlordRef.tenancy_end_date) }}</p>
                     <p v-if="landlordRef.rent_paid_on_time !== undefined">Rent Paid On Time: {{ landlordRef.rent_paid_on_time ? 'Yes' : 'No' }}</p>
@@ -936,24 +936,24 @@
                 </div>
 
                 <!-- Agent Reference Response - only show if confirmed (received and filled) -->
-                <div v-if="agentRef && agentRef.confirmed_at" class="p-3 bg-gray-50 rounded-lg">
+                <div v-if="agentRef && agentRef.confirmed_at" class="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-gray-700">Agent Reference Response</span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-slate-200">Agent Reference Response</span>
                     <span
                       class="px-2 py-0.5 text-xs font-medium rounded-full"
-                      :class="agentRef.confirmed_at ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                      :class="agentRef.confirmed_at ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200'"
                     >
                       {{ agentRef.confirmed_at ? 'Received' : 'Pending' }}
                     </span>
                   </div>
-                  <div class="text-sm text-gray-600 space-y-1">
+                  <div class="text-sm text-gray-600 dark:text-slate-400 space-y-1">
                     <p v-if="agentRef.agent_name">{{ agentRef.agent_name }}</p>
                     <p v-if="agentRef.agency_name" class="text-xs">{{ agentRef.agency_name }}</p>
-                    <p class="text-xs text-gray-500">{{ agentRef.agent_email }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ agentRef.agent_email }}</p>
                     <p v-if="agentRef.property_address">{{ agentRef.property_address }}<span v-if="agentRef.property_city">, {{ agentRef.property_city }}</span><span v-if="agentRef.property_postcode"> {{ agentRef.property_postcode }}</span></p>
                     <p v-if="agentRef.monthly_rent" class="text-xs">Rent: {{ formatCurrency(Number(agentRef.monthly_rent)) }}/mo</p>
                   </div>
-                  <div v-if="agentRef.confirmed_at" class="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-600">
+                  <div v-if="agentRef.confirmed_at" class="mt-2 pt-2 border-t border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-slate-400">
                     <p v-if="agentRef.tenancy_start_date">Tenancy Start: {{ formatDate(agentRef.tenancy_start_date) }}</p>
                     <p v-if="agentRef.tenancy_end_date">Tenancy End: {{ formatDate(agentRef.tenancy_end_date) }}</p>
                     <p v-if="agentRef.rent_paid_on_time !== undefined">Rent Paid On Time: {{ agentRef.rent_paid_on_time ? 'Yes' : 'No' }}</p>
@@ -963,7 +963,7 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="text-sm text-gray-500">Residential references not yet provided</p>
+              <p v-else class="text-sm text-gray-500 dark:text-slate-400">Residential references not yet provided</p>
             </CollapsibleSection>
 
             <!-- Adverse Credit Disclosure -->
@@ -998,51 +998,51 @@
                 <!-- Home Ownership -->
                 <div class="grid grid-cols-2 gap-4">
                   <div v-if="fullDetails?.guarantorData?.home_ownership_status">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Home Ownership</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatHomeOwnership(fullDetails.guarantorData.home_ownership_status) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Home Ownership</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatHomeOwnership(fullDetails.guarantorData.home_ownership_status) }}</p>
                   </div>
                   <div v-if="fullDetails?.guarantorData?.property_value">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Property Value</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.property_value)) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Property Value</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.guarantorData.property_value)) }}</p>
                   </div>
                   <div v-if="fullDetails?.guarantorData?.monthly_mortgage_rent">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Monthly Mortgage/Rent</label>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.monthly_mortgage_rent)) }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Monthly Mortgage/Rent</label>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.guarantorData.monthly_mortgage_rent)) }}</p>
                   </div>
                 </div>
 
                 <!-- Pension & Income -->
-                <div v-if="fullDetails?.guarantorData?.pension_amount" class="pt-3 border-t border-gray-200">
+                <div v-if="fullDetails?.guarantorData?.pension_amount" class="pt-3 border-t border-gray-200 dark:border-slate-700">
                   <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Pension Income</label>
                   <div class="grid grid-cols-2 gap-4">
                     <div>
-                      <label class="block text-xs font-medium text-gray-400">Amount</label>
-                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.pension_amount)) }}</p>
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Amount</label>
+                      <p class="text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.guarantorData.pension_amount)) }}</p>
                     </div>
                     <div v-if="fullDetails?.guarantorData?.pension_frequency">
-                      <label class="block text-xs font-medium text-gray-400">Frequency</label>
-                      <p class="text-sm text-gray-900 capitalize">{{ fullDetails.guarantorData.pension_frequency }}</p>
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Frequency</label>
+                      <p class="text-sm text-gray-900 dark:text-white capitalize">{{ fullDetails.guarantorData.pension_frequency }}</p>
                     </div>
                   </div>
                 </div>
 
                 <!-- Monthly Commitments -->
-                <div v-if="fullDetails?.guarantorData?.other_monthly_commitments || fullDetails?.guarantorData?.total_monthly_expenditure" class="pt-3 border-t border-gray-200">
+                <div v-if="fullDetails?.guarantorData?.other_monthly_commitments || fullDetails?.guarantorData?.total_monthly_expenditure" class="pt-3 border-t border-gray-200 dark:border-slate-700">
                   <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Monthly Expenditure</label>
                   <div class="grid grid-cols-2 gap-4">
                     <div v-if="fullDetails?.guarantorData?.other_monthly_commitments">
-                      <label class="block text-xs font-medium text-gray-400">Other Commitments</label>
-                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.other_monthly_commitments)) }}</p>
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Other Commitments</label>
+                      <p class="text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.guarantorData.other_monthly_commitments)) }}</p>
                     </div>
                     <div v-if="fullDetails?.guarantorData?.total_monthly_expenditure">
-                      <label class="block text-xs font-medium text-gray-400">Total Expenditure</label>
-                      <p class="text-sm text-gray-900">{{ formatCurrency(Number(fullDetails.guarantorData.total_monthly_expenditure)) }}</p>
+                      <label class="block text-xs font-medium text-gray-400 dark:text-slate-500">Total Expenditure</label>
+                      <p class="text-sm text-gray-900 dark:text-white">{{ formatCurrency(Number(fullDetails.guarantorData.total_monthly_expenditure)) }}</p>
                     </div>
                   </div>
                 </div>
 
                 <!-- Guarantor Obligations -->
-                <div class="pt-3 border-t border-gray-200">
+                <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
                   <label class="block text-xs font-medium text-gray-500 uppercase mb-2">Guarantor Obligations</label>
                   <div class="flex flex-wrap gap-2">
                     <span
@@ -1076,7 +1076,7 @@
                 </div>
 
                 <!-- Guarantor Adverse Credit -->
-                <div v-if="fullDetails?.guarantorData?.adverse_credit" class="pt-3 border-t border-gray-200">
+                <div v-if="fullDetails?.guarantorData?.adverse_credit" class="pt-3 border-t border-gray-200 dark:border-slate-700">
                   <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <div class="flex items-start gap-2">
                       <AlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -1096,12 +1096,12 @@
                 <div
                   v-for="doc in referenceDocuments"
                   :key="doc.type"
-                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg"
                 >
                   <div class="flex items-center gap-3">
                     <File class="w-5 h-5 text-gray-400" />
                     <div>
-                      <p class="text-sm font-medium text-gray-900">{{ doc.label }}</p>
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ doc.label }}</p>
                       <span
                         class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
                         :class="doc.path ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'"
@@ -1121,7 +1121,7 @@
               </div>
 
               <!-- Additional Uploaded Documents (from reference_documents table) -->
-              <div v-if="fullDetails?.documents?.length > 0" class="mt-4 pt-4 border-t border-gray-200">
+              <div v-if="fullDetails?.documents?.length > 0" class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
                 <p class="text-xs font-medium text-gray-500 uppercase mb-2">Additional Evidence</p>
                 <div class="space-y-2">
                   <div
@@ -1132,7 +1132,7 @@
                     <div class="flex items-center gap-3">
                       <File class="w-5 h-5 text-blue-400" />
                       <div>
-                        <p class="text-sm font-medium text-gray-900">{{ doc.file_name }}</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ doc.file_name }}</p>
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                           Uploaded {{ formatDateTime(doc.created_at) }}
                         </span>
@@ -1162,9 +1162,9 @@
             >
               <div v-if="creditsafeVerification || sanctionsScreening || score" class="space-y-4">
                 <!-- Credit Check -->
-                <div v-if="creditsafeVerification" class="p-3 bg-gray-50 rounded-lg">
+                <div v-if="creditsafeVerification" class="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-gray-700">Credit Check</span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-slate-200">Credit Check</span>
                     <span
                       class="px-2 py-0.5 text-xs font-medium rounded-full"
                       :class="getCreditCheckBadgeClass(creditsafeVerification.verification_status)"
@@ -1172,7 +1172,7 @@
                       {{ formatCreditCheckStatus(creditsafeVerification.verification_status) }}
                     </span>
                   </div>
-                  <div v-if="creditsafeVerification.verifyMatch" class="text-xs text-gray-600 space-y-1">
+                  <div v-if="creditsafeVerification.verifyMatch" class="text-xs text-gray-600 dark:text-slate-400 space-y-1">
                     <p v-if="creditsafeVerification.verifyMatch.name">Name Match: {{ creditsafeVerification.verifyMatch.name }}</p>
                     <p v-if="creditsafeVerification.verifyMatch.address">Address Match: {{ creditsafeVerification.verifyMatch.address }}</p>
                     <p v-if="creditsafeVerification.verifyMatch.dob">DOB Match: {{ creditsafeVerification.verifyMatch.dob }}</p>
@@ -1182,11 +1182,11 @@
                 <!-- TAS Score from score table -->
                 <div v-if="score" class="grid grid-cols-2 gap-4">
                   <div v-if="score.tas_score">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">TAS Score</label>
-                    <p class="mt-1 text-lg font-semibold text-gray-900">{{ score.tas_score }}</p>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">TAS Score</label>
+                    <p class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ score.tas_score }}</p>
                   </div>
                   <div v-if="score.decision">
-                    <label class="block text-xs font-medium text-gray-500 uppercase">Decision</label>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Decision</label>
                     <p class="mt-1">
                     <span
                       class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -1199,9 +1199,9 @@
                 </div>
 
                 <!-- Sanctions/AML Check -->
-                <div v-if="sanctionsScreening" class="p-3 bg-gray-50 rounded-lg">
+                <div v-if="sanctionsScreening" class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-gray-700">Sanctions / AML Check</span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-slate-200">Sanctions / AML Check</span>
                     <span
                       class="px-2 py-0.5 text-xs font-medium rounded-full"
                       :class="getSanctionsBadgeClass(sanctionsScreening.risk_level)"
@@ -1209,28 +1209,28 @@
                       {{ formatSanctionsStatus(sanctionsScreening.risk_level) }}
                     </span>
                   </div>
-                  <div v-if="sanctionsScreening.screened_at" class="text-xs text-gray-500">
+                  <div v-if="sanctionsScreening.screened_at" class="text-xs text-gray-500 dark:text-slate-400">
                     Screened: {{ formatDate(sanctionsScreening.screened_at) }}
                   </div>
                 </div>
               </div>
-              <p v-else class="text-sm text-gray-500">Credit and AML checks not yet completed</p>
+              <p v-else class="text-sm text-gray-500 dark:text-slate-400">Credit and AML checks not yet completed</p>
             </CollapsibleSection>
 
             <!-- Notes -->
             <CollapsibleSection v-if="fullDetails?.notes || fullDetails?.internal_notes || fullDetails?.verification_notes" title="Notes" :defaultOpen="false">
               <div class="space-y-4">
                 <div v-if="fullDetails?.notes">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Reference Notes</label>
-                  <p class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ fullDetails.notes }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Reference Notes</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{{ fullDetails.notes }}</p>
                 </div>
                 <div v-if="fullDetails?.internal_notes">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Internal Notes</label>
-                  <p class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ fullDetails.internal_notes }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Internal Notes</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{{ fullDetails.internal_notes }}</p>
                 </div>
                 <div v-if="fullDetails?.verification_notes">
-                  <label class="block text-xs font-medium text-gray-500 uppercase">Verification Notes</label>
-                  <p class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ fullDetails.verification_notes }}</p>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Verification Notes</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{{ fullDetails.verification_notes }}</p>
                 </div>
               </div>
             </CollapsibleSection>
@@ -1241,57 +1241,57 @@
                 <div v-if="fullDetails?.created_at" class="flex items-center gap-3">
                   <div class="flex-shrink-0 w-2 h-2 rounded-full bg-gray-400"></div>
                   <div class="flex-1">
-                    <p class="text-sm text-gray-900">Reference Created</p>
-                    <p class="text-xs text-gray-500">{{ formatDateTime(fullDetails.created_at) }}</p>
+                    <p class="text-sm text-gray-900 dark:text-white">Reference Created</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatDateTime(fullDetails.created_at) }}</p>
                   </div>
                 </div>
                 <div v-if="fullDetails?.submitted_at" class="flex items-center gap-3">
                   <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
                   <div class="flex-1">
-                    <p class="text-sm text-gray-900">Form Submitted by {{ person.role === 'TENANT' ? 'Tenant' : 'Guarantor' }}</p>
-                    <p class="text-xs text-gray-500">{{ formatDateTime(fullDetails.submitted_at) }}</p>
+                    <p class="text-sm text-gray-900 dark:text-white">Form Submitted by {{ person.role === 'TENANT' ? 'Tenant' : 'Guarantor' }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatDateTime(fullDetails.submitted_at) }}</p>
                   </div>
                 </div>
                 <div v-if="employerRef?.submitted_at" class="flex items-center gap-3">
                   <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
                   <div class="flex-1">
-                    <p class="text-sm text-gray-900">Employer Reference Submitted</p>
-                    <p class="text-xs text-gray-500">{{ formatDateTime(employerRef.submitted_at) }}</p>
+                    <p class="text-sm text-gray-900 dark:text-white">Employer Reference Submitted</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatDateTime(employerRef.submitted_at) }}</p>
                   </div>
                 </div>
                 <div v-if="landlordRef?.submitted_at" class="flex items-center gap-3">
                   <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
                   <div class="flex-1">
-                    <p class="text-sm text-gray-900">Landlord Reference Submitted</p>
-                    <p class="text-xs text-gray-500">{{ formatDateTime(landlordRef.submitted_at) }}</p>
+                    <p class="text-sm text-gray-900 dark:text-white">Landlord Reference Submitted</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatDateTime(landlordRef.submitted_at) }}</p>
                   </div>
                 </div>
                 <div v-if="agentRef?.submitted_at" class="flex items-center gap-3">
                   <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
                   <div class="flex-1">
-                    <p class="text-sm text-gray-900">Agent Reference Submitted</p>
-                    <p class="text-xs text-gray-500">{{ formatDateTime(agentRef.submitted_at) }}</p>
+                    <p class="text-sm text-gray-900 dark:text-white">Agent Reference Submitted</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatDateTime(agentRef.submitted_at) }}</p>
                   </div>
                 </div>
                 <div v-if="accountantRef?.submitted_at" class="flex items-center gap-3">
                   <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></div>
                   <div class="flex-1">
-                    <p class="text-sm text-gray-900">Accountant Reference Submitted</p>
-                    <p class="text-xs text-gray-500">{{ formatDateTime(accountantRef.submitted_at) }}</p>
+                    <p class="text-sm text-gray-900 dark:text-white">Accountant Reference Submitted</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatDateTime(accountantRef.submitted_at) }}</p>
                   </div>
                 </div>
                 <div v-if="fullDetails?.verified_at" class="flex items-center gap-3">
                   <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-500"></div>
                   <div class="flex-1">
-                    <p class="text-sm text-gray-900">Verification Completed</p>
-                    <p class="text-xs text-gray-500">{{ formatDateTime(fullDetails.verified_at) }}</p>
+                    <p class="text-sm text-gray-900 dark:text-white">Verification Completed</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatDateTime(fullDetails.verified_at) }}</p>
                   </div>
                 </div>
                 <div v-if="fullDetails?.rejected_at" class="flex items-center gap-3">
                   <div class="flex-shrink-0 w-2 h-2 rounded-full bg-red-500"></div>
                   <div class="flex-1">
-                    <p class="text-sm text-gray-900">Reference Rejected</p>
-                    <p class="text-xs text-gray-500">{{ formatDateTime(fullDetails.rejected_at) }}</p>
+                    <p class="text-sm text-gray-900 dark:text-white">Reference Rejected</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatDateTime(fullDetails.rejected_at) }}</p>
                   </div>
                 </div>
               </div>
@@ -1305,11 +1305,11 @@
         </div>
 
         <!-- Footer Actions -->
-        <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
           <div class="flex items-center justify-between">
             <button
               @click="$emit('update:open', false)"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-600"
             >
               Close
             </button>
@@ -1341,15 +1341,15 @@
     >
       <div v-if="showUploadModal" class="fixed inset-0 z-[60] flex items-center justify-center" @click="showUploadModal = false">
         <div class="absolute inset-0 bg-black/50"></div>
-        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto" @click.stop>
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">Upload Documents</h3>
-            <p class="text-sm text-gray-500 mt-1">Upload new or replacement documents for this reference</p>
+        <div class="relative bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto border border-gray-200 dark:border-slate-700" @click.stop>
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Upload Documents</h3>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Upload new or replacement documents for this reference</p>
           </div>
           <div class="p-6 space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
-              <select v-model="uploadDocType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Document Type</label>
+              <select v-model="uploadDocType" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                 <option value="">Select document type...</option>
                 <option value="id_document">ID Document</option>
                 <option value="selfie">Selfie</option>
@@ -1363,41 +1363,41 @@
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Select File(s)</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Select File(s)</label>
               <input
                 type="file"
                 ref="fileInput"
                 :multiple="uploadDocType === 'payslips'"
                 @change="handleFileSelect"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 accept=".pdf,.jpg,.jpeg,.png"
               />
-              <p class="text-xs text-gray-500 mt-1">Accepted: PDF, JPG, PNG{{ uploadDocType === 'payslips' ? ' (multiple files allowed)' : '' }}</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Accepted: PDF, JPG, PNG{{ uploadDocType === 'payslips' ? ' (multiple files allowed)' : '' }}</p>
             </div>
             <div v-if="uploadDocType === 'rtr_alternative_document'">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Right to Rent Share Code (optional)</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Right to Rent Share Code (optional)</label>
               <input
                 v-model="rtrShareCode"
                 type="text"
                 placeholder="e.g. ABCD-1234-5678"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
-              <p class="text-xs text-gray-500 mt-1">Provide a share code or upload a document. Either one is enough.</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Provide a share code or upload a document. Either one is enough.</p>
             </div>
-            <div v-if="selectedFiles.length > 0" class="bg-gray-50 rounded-md p-3">
-              <p class="text-sm font-medium text-gray-700 mb-2">Selected files:</p>
-              <ul class="text-sm text-gray-600 space-y-1">
+            <div v-if="selectedFiles.length > 0" class="bg-gray-50 dark:bg-slate-800 rounded-md p-3">
+              <p class="text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">Selected files:</p>
+              <ul class="text-sm text-gray-600 dark:text-slate-400 space-y-1">
                 <li v-for="(file, index) in selectedFiles" :key="index" class="flex items-center gap-2">
-                  <File class="w-4 h-4 text-gray-400" />
+                  <File class="w-4 h-4 text-gray-400 dark:text-slate-500" />
                   {{ file.name }}
                 </li>
               </ul>
             </div>
           </div>
-          <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+          <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 dark:border-slate-700 flex justify-end gap-3">
             <button
               @click="showUploadModal = false"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -1425,15 +1425,15 @@
     >
       <div v-if="showRefereeModal" class="fixed inset-0 z-[60] flex items-center justify-center" @click="showRefereeModal = false">
         <div class="absolute inset-0 bg-black/50"></div>
-        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4" @click.stop>
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">Update Referee Email</h3>
-            <p class="text-sm text-gray-500 mt-1">Change the email for a referee and send a new reference request</p>
+        <div class="relative bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-md w-full mx-4 border border-gray-200 dark:border-slate-700" @click.stop>
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Update Referee Email</h3>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Change the email for a referee and send a new reference request</p>
           </div>
           <div class="p-6 space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Referee Type</label>
-              <select v-model="refereeType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Referee Type</label>
+              <select v-model="refereeType" class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                 <option value="">Select referee type...</option>
                 <option value="employer">Employer</option>
                 <option value="landlord">Landlord</option>
@@ -1442,33 +1442,33 @@
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">New Email Address</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">New Email Address</label>
               <input
                 v-model="newRefereeEmail"
                 type="email"
                 placeholder="new.referee@example.com"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Referee Name (optional)</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Referee Name (optional)</label>
               <input
                 v-model="newRefereeName"
                 type="text"
                 placeholder="John Smith"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
-            <div class="bg-amber-50 border border-amber-200 rounded-md p-3">
-              <p class="text-sm text-amber-800">
+            <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-md p-3">
+              <p class="text-sm text-amber-800 dark:text-amber-200">
                 <strong>Note:</strong> This will send a new reference request email to the updated address.
               </p>
             </div>
           </div>
-          <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+          <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 dark:border-slate-700 flex justify-end gap-3">
             <button
               @click="showRefereeModal = false"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -1496,40 +1496,40 @@
     >
       <div v-if="showEditNameModal" class="fixed inset-0 z-[60] flex items-center justify-center" @click="showEditNameModal = false">
         <div class="absolute inset-0 bg-black/50"></div>
-        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4" @click.stop>
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">Edit Tenant Name</h3>
-            <p class="text-sm text-gray-500 mt-1">Update the tenant's name for this reference</p>
+        <div class="relative bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-md w-full mx-4 border border-gray-200 dark:border-slate-700" @click.stop>
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Edit Tenant Name</h3>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Update the tenant's name for this reference</p>
           </div>
           <div class="p-6 space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">First Name</label>
               <input
                 v-model="editFirstName"
                 type="text"
                 placeholder="First name"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Last Name</label>
               <input
                 v-model="editLastName"
                 type="text"
                 placeholder="Last name"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
-            <div class="bg-amber-50 border border-amber-200 rounded-md p-3">
-              <p class="text-sm text-amber-800">
+            <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-md p-3">
+              <p class="text-sm text-amber-800 dark:text-amber-200">
                 <strong>Note:</strong> This will update the name on guarantor forms and future emails. Already-sent emails will retain the old name.
               </p>
             </div>
           </div>
-          <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+          <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 dark:border-slate-700 flex justify-end gap-3">
             <button
               @click="showEditNameModal = false"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -1567,9 +1567,9 @@ import CollapsibleSection from './CollapsibleSection.vue'
 import ViewOfferModal from './ViewOfferModal.vue'
 import { X, AlertTriangle, Upload, Mail, Pencil, Loader2, CheckCircle, FileText, File, Trash2, Eye, RefreshCw } from 'lucide-vue-next'
 
-const API_BASE = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
-  ? 'http://localhost:3001'
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 // Use tenancies composable for API actions
 const { getActionRequiredDetails, uploadDocument, updateRefereeEmail, resendForm, submitForReReferencing, loadTenancies } = useTenancies()
@@ -1707,7 +1707,7 @@ const hasCertificate = computed(() => {
 
 // Check if person is verified (has completed verification)
 const isVerified = computed(() => {
-  return props.person?.verificationState === 'COMPLETED' ||
+  return props.person?.verificationState === 'COMPLETED'
          props.person?.verificationState === 'REJECTED'
 })
 
@@ -1989,14 +1989,14 @@ const hasResidentialData = computed(() => {
 // Check if we have guarantor financial data
 const hasGuarantorFinancialData = computed(() => {
   if (!fullDetails.value?.guarantorData) return false
-  return fullDetails.value.guarantorData.home_ownership_status ||
-         fullDetails.value.guarantorData.property_value ||
-         fullDetails.value.guarantorData.monthly_mortgage_rent ||
-         fullDetails.value.guarantorData.pension_amount ||
-         fullDetails.value.guarantorData.other_monthly_commitments ||
-         fullDetails.value.guarantorData.total_monthly_expenditure ||
-         fullDetails.value.guarantorData.understands_obligations !== undefined ||
-         fullDetails.value.guarantorData.willing_to_pay_rent !== undefined ||
+  return fullDetails.value.guarantorData.home_ownership_status
+         fullDetails.value.guarantorData.property_value
+         fullDetails.value.guarantorData.monthly_mortgage_rent
+         fullDetails.value.guarantorData.pension_amount
+         fullDetails.value.guarantorData.other_monthly_commitments
+         fullDetails.value.guarantorData.total_monthly_expenditure
+         fullDetails.value.guarantorData.understands_obligations !== undefined
+         fullDetails.value.guarantorData.willing_to_pay_rent !== undefined
          fullDetails.value.guarantorData.willing_to_pay_damages !== undefined
 })
 
@@ -2197,13 +2197,13 @@ function getSectionBorderClass(decision: SectionDecision): string {
   switch (decision) {
     case 'PASS':
     case 'PASS_WITH_CONDITION':
-      return 'border-green-200 bg-green-50'
+      return 'border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/30'
     case 'ACTION_REQUIRED':
-      return 'border-red-200 bg-red-50'
+      return 'border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/30'
     case 'FAIL':
-      return 'border-red-300 bg-red-100'
+      return 'border-red-300 dark:border-red-600 bg-red-100 dark:bg-red-900/40'
     default:
-      return 'border-gray-200 bg-gray-50'
+      return 'border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-800'
   }
 }
 
@@ -2211,13 +2211,13 @@ function getSectionBadgeClass(decision: SectionDecision): string {
   switch (decision) {
     case 'PASS':
     case 'PASS_WITH_CONDITION':
-      return 'bg-green-100 text-green-800'
+      return 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100'
     case 'ACTION_REQUIRED':
-      return 'bg-red-100 text-red-800'
+      return 'bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-100'
     case 'FAIL':
-      return 'bg-red-200 text-red-900'
+      return 'bg-red-200 dark:bg-red-700 text-red-900 dark:text-red-100'
     default:
-      return 'bg-gray-100 text-gray-600'
+      return 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300'
   }
 }
 

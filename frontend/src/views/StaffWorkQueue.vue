@@ -345,11 +345,10 @@ import { useAuthStore } from '../stores/auth'
 import { Check, X, CheckCircle, Mail, MessageSquare, Phone, Loader2 } from 'lucide-vue-next'
 import StaffHeader from '../components/StaffHeader.vue'
 
-const router = useRouter()
-const authStore = useAuthStore()
-
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const router = useRouter()
+const authStore = useAuthStore()
 // State
 const MAX_ACTIVE_ITEMS = 10
 const AUTO_RETURN_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours
@@ -733,7 +732,6 @@ const ageLabel = (hours: number) => {
   return `${days}d ago`
 }
 
-
 // Auto-refresh every 30 seconds
 const autoReturnInProgress = ref(false)
 const autoReturnStaleItems = async () => {
@@ -743,8 +741,8 @@ const autoReturnStaleItems = async () => {
     const now = Date.now()
     for (const item of workItems.value) {
       if (
-        !isMyItem(item) ||
-        !item.claimed_at ||
+        !isMyItem(item)
+        !item.claimed_at
         !['ASSIGNED', 'IN_PROGRESS'].includes(item.status)
       ) {
         continue

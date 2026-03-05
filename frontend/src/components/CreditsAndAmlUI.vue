@@ -209,13 +209,11 @@
     </div>
 </template>
 
-
 <script setup lang="ts">
 import { computed } from 'vue'
 import { AlertTriangle, HelpCircle, Check, XCircle } from 'lucide-vue-next'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info'
-
 
 interface VerificationFlags {
     ccjMatch: boolean;

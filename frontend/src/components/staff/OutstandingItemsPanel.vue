@@ -171,6 +171,8 @@ import { useAuthStore } from '@/stores/auth'
 import { CheckCircle, Mail, MessageSquare, Copy, ExternalLink, Pencil, AlertTriangle } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const props = defineProps<{
   referenceId: string
 }>()
@@ -181,8 +183,6 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 interface OutstandingItem {
   id: string
   sectionType: string

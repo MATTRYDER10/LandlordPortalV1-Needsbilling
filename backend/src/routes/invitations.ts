@@ -12,16 +12,10 @@ const frontendUrl = getFrontendUrl()
 // Get invitations for company (admin only)
 router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id
+    // Use companyId from middleware (respects X-Branch-Id header)
+    const companyId = req.companyId
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    if (!companyUser) {
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
@@ -29,7 +23,7 @@ router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) =
     const { data: invitations, error } = await supabase
       .from('invitations')
       .select('*')
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .eq('status', 'pending')
       .gte('expires_at', new Date().toISOString())
 
@@ -59,20 +53,11 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
       return res.status(400).json({ error: 'Email and role are required' })
     }
 
-    // Get user's company and role
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id, role')
-      .eq('user_id', userId)
-      .single()
+    // Use companyId from middleware (respects X-Branch-Id header)
+    const companyId = req.companyId
 
-    if (!companyUser) {
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
-    }
-
-    // Check if user is owner or admin
-    if (companyUser.role !== 'owner' && companyUser.role !== 'admin') {
-      return res.status(403).json({ error: 'Insufficient permissions' })
     }
 
     // Check if user with this email already exists in the company
@@ -84,7 +69,7 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
         .from('company_users')
         .select('id')
         .eq('user_id', existingUser.id)
-        .eq('company_id', companyUser.company_id)
+        .eq('company_id', companyId)
         .single()
 
       if (existingMember) {
@@ -97,7 +82,7 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
       .from('invitations')
       .select('id')
       .eq('email', email)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .eq('status', 'pending')
       .gte('expires_at', new Date().toISOString())
       .single()
@@ -117,7 +102,7 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
     const { data: invitation, error } = await supabase
       .from('invitations')
       .insert({
-        company_id: companyUser.company_id,
+        company_id: companyId,
         email_encrypted: encrypt(email),
         role,
         token_hash: tokenHash,
@@ -135,7 +120,7 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
     const { data: company } = await supabase
       .from('companies')
       .select('name_encrypted')
-      .eq('id', companyUser.company_id)
+      .eq('id', companyId)
       .single()
 
     const { data: { user: inviter } } = await supabase.auth.admin.getUserById(userId!)
@@ -169,7 +154,7 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
     // Audit log
     await createAuditLog(
       {
-        companyId: companyUser.company_id,
+        companyId: companyId,
         userId: userId!,
         actionType: 'user.invited',
         resourceType: 'invitation',
@@ -195,20 +180,11 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
     const userId = req.user?.id
     const invitationId = req.params.invitationId
 
-    // Get user's company and role
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id, role')
-      .eq('user_id', userId)
-      .single()
+    // Use companyId from middleware (respects X-Branch-Id header)
+    const companyId = req.companyId
 
-    if (!companyUser) {
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
-    }
-
-    // Check if user is owner or admin
-    if (companyUser.role !== 'owner' && companyUser.role !== 'admin') {
-      return res.status(403).json({ error: 'Insufficient permissions' })
     }
 
     // Get invitation
@@ -216,7 +192,7 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
       .from('invitations')
       .select('*')
       .eq('id', invitationId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     if (error || !invitation) {
@@ -240,7 +216,7 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
       const { data: company } = await supabase
         .from('companies')
         .select('name_encrypted')
-        .eq('id', companyUser.company_id)
+        .eq('id', companyId)
         .single()
 
       const { data: { user: inviter } } = await supabase.auth.admin.getUserById(userId!)
@@ -272,7 +248,7 @@ router.post('/:invitationId/resend', authenticateToken, requireAdmin, async (req
     const invitationEmail = decrypt(invitation.email_encrypted) as string
     await createAuditLog(
       {
-        companyId: companyUser.company_id,
+        companyId: companyId,
         userId: userId!,
         actionType: 'user.invitation_resent',
         resourceType: 'invitation',
@@ -297,20 +273,11 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
     const userId = req.user?.id
     const invitationId = req.params.invitationId
 
-    // Get user's company and role
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id, role')
-      .eq('user_id', userId)
-      .single()
+    // Use companyId from middleware (respects X-Branch-Id header)
+    const companyId = req.companyId
 
-    if (!companyUser) {
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
-    }
-
-    // Check if user is owner or admin
-    if (companyUser.role !== 'owner' && companyUser.role !== 'admin') {
-      return res.status(403).json({ error: 'Insufficient permissions' })
     }
 
     // Get invitation details before deletion for audit log
@@ -318,7 +285,7 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
       .from('invitations')
       .select('email_encrypted, role')
       .eq('id', invitationId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     // Delete invitation
@@ -326,7 +293,7 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
       .from('invitations')
       .delete()
       .eq('id', invitationId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
 
     if (error) {
       return res.status(400).json({ error: error.message })
@@ -337,7 +304,7 @@ router.delete('/:invitationId', authenticateToken, requireAdmin, async (req: Aut
       const invitationEmail = decrypt(invitation.email_encrypted) as string
       await createAuditLog(
         {
-          companyId: companyUser.company_id,
+          companyId: companyId,
           userId: userId!,
           actionType: 'user.invitation_revoked',
           resourceType: 'invitation',

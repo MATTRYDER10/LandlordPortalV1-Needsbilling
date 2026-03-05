@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { useAuthStore } from './auth'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const SESSION_STORAGE_KEY = 'adminCompanyOverride'
 
 export interface Company {
@@ -82,7 +84,7 @@ export const useAdminCompanyStore = defineStore('adminCompany', () => {
       const token = authStore.session?.access_token
       if (!token) return
 
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      
       const params = new URLSearchParams()
       if (search) params.set('search', search)
       params.set('limit', '50')

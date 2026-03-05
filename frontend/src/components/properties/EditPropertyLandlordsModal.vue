@@ -100,7 +100,7 @@
                 :class="totalOwnership === 100 ? 'bg-green-50' : 'bg-amber-50'"
               >
                 <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-gray-700">Total Ownership</span>
+                  <span class="text-sm font-medium text-gray-700 dark:text-slate-200">Total Ownership</span>
                   <div class="flex items-center gap-2">
                     <span
                       :class="totalOwnership === 100 ? 'text-green-600' : 'text-amber-600'"
@@ -251,6 +251,8 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../../stores/auth'
 import { X, Trash2, CheckCircle, AlertTriangle, UserPlus, Plus, Search } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 interface LandlordAssignment {
   landlord_id?: string
   create_new?: boolean
@@ -291,8 +293,6 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const saving = ref(false)
 const form = ref<{ landlords: LandlordAssignment[] }>({ landlords: [] })
 const showLandlordSearch = ref(false)
@@ -345,16 +345,32 @@ const initializeForm = () => {
 
 const fetchExistingLandlords = async () => {
   try {
-    const response = await fetch(`${API_URL}/api/landlords?limit=100`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
+    // Fetch all landlords by paginating through all pages
+    let allLandlords: ExistingLandlord[] = []
+    let page = 1
+    const limit = 100
+    let hasMore = true
+
+    while (hasMore) {
+      const response = await fetch(`${API_URL}/api/landlords?limit=${limit}&page=${page}`, {
+        headers: {
+          'Authorization': `Bearer ${authStore.session?.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const landlords = data.landlords || []
+        allLandlords = [...allLandlords, ...landlords]
+        // Check if there are more pages
+        hasMore = landlords.length === limit
+        page++
+      } else {
+        hasMore = false
       }
-    })
-    if (response.ok) {
-      const data = await response.json()
-      existingLandlords.value = data.landlords || []
     }
+
+    existingLandlords.value = allLandlords
   } catch (err) {
     console.error('Failed to fetch landlords:', err)
   }
@@ -370,13 +386,13 @@ const searchLandlords = () => {
     .filter(l => l.landlord_id)
     .map(l => l.landlord_id)
 
+  // No limit on search results - show all matching
   landlordSearchResults.value = existingLandlords.value
     .filter(l => !assignedIds.includes(l.id))
     .filter(l =>
       `${l.first_name} ${l.last_name}`.toLowerCase().includes(query) ||
       l.email.toLowerCase().includes(query)
     )
-    .slice(0, 10)
 }
 
 const addExistingLandlord = (landlord: ExistingLandlord) => {

@@ -1,8 +1,8 @@
 <template>
-  <div class="p-8">
+  <div class="min-h-screen bg-slate-50 dark:bg-slate-950 p-8 transition-colors duration-300">
     <div class="mb-8">
-      <h2 class="text-3xl font-bold text-gray-900">Generate AST Agreement</h2>
-      <p class="mt-2 text-gray-600">Create an Assured Shorthold Tenancy Agreement</p>
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Generate AST Agreement</h2>
+      <p class="mt-2 text-gray-600 dark:text-slate-400">Create an Assured Shorthold Tenancy Agreement</p>
     </div>
 
       <!-- Progress Steps -->
@@ -18,45 +18,45 @@
                       ? 'bg-green-500 text-white'
                       : currentStep === index
                       ? 'bg-primary text-white'
-                      : 'bg-gray-200 text-gray-600'
+                      : 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-400'
                   "
                 >
                   <Check v-if="currentStep > index" class="w-6 h-6" />
                   <span v-else>{{ index + 1 }}</span>
                 </div>
-                <span class="text-xs mt-2 text-center font-medium" :class="currentStep === index ? 'text-primary' : 'text-gray-600'">{{ step }}</span>
+                <span class="text-xs mt-2 text-center font-medium" :class="currentStep === index ? 'text-primary' : 'text-gray-600 dark:text-slate-400'">{{ step }}</span>
               </div>
-              <div v-if="index < steps.length - 1" class="flex-1 h-0.5 mx-4" :class="currentStep > index ? 'bg-green-500' : 'bg-gray-200'"></div>
+              <div v-if="index < steps.length - 1" class="flex-1 h-0.5 mx-4" :class="currentStep > index ? 'bg-green-500' : 'bg-gray-200 dark:bg-slate-700'"></div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Imported From Reference Banner -->
-      <div v-if="importedFromReference && selectedReferenceId" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+      <div v-if="importedFromReference && selectedReferenceId" class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-center justify-between">
         <div class="flex items-center">
-          <FileText class="w-5 h-5 text-blue-600 mr-2" />
-          <span class="text-sm font-medium text-blue-900">Imported from Reference #{{ selectedReferenceId }}</span>
+          <FileText class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
+          <span class="text-sm font-medium text-blue-900 dark:text-blue-200">Imported from Reference #{{ selectedReferenceId }}</span>
         </div>
         <button
           @click="clearImport"
           type="button"
-          class="text-sm text-blue-700 hover:text-blue-900 font-medium"
+          class="text-sm text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-medium"
         >
           Clear Import
         </button>
       </div>
 
       <!-- Imported From Landlord Banner -->
-      <div v-if="importedFromLandlord && selectedLandlordIds.length > 0" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+      <div v-if="importedFromLandlord && selectedLandlordIds.length > 0" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex items-center justify-between">
         <div class="flex items-center">
-          <Users class="w-5 h-5 text-green-600 mr-2" />
-          <span class="text-sm font-medium text-green-900">Imported landlord details and bank information</span>
+          <Users class="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
+          <span class="text-sm font-medium text-green-900 dark:text-green-200">Imported landlord details and bank information</span>
         </div>
         <button
           @click="clearLandlordImport"
           type="button"
-          class="text-sm text-green-700 hover:text-green-900 font-medium"
+          class="text-sm text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-medium"
         >
           Clear Import
         </button>
@@ -1512,22 +1512,22 @@ const templateOptions = [
   {
     value: 'dps',
     label: 'DPS (Deposit Protection Service)',
-    description: 'For tenancies using the Deposit Protection Service (Custodial or Insured)'
+    description: 'For tenancies using the Deposit Protection Service'
   },
   {
     value: 'mydeposits',
-    label: 'Mydeposits',
-    description: 'For tenancies using the Mydeposits scheme (Custodial or Insured)'
+    label: 'MyDeposits',
+    description: 'For tenancies using the MyDeposits scheme'
   },
   {
     value: 'tds',
     label: 'TDS (Tenancy Deposit Scheme)',
-    description: 'For tenancies using the Tenancy Deposit Scheme operated by The Dispute Service Ltd'
+    description: 'For tenancies using the Tenancy Deposit Scheme'
   },
   {
     value: 'reposit',
     label: 'Reposit',
-    description: 'For tenancies using the Reposit deposit alternative scheme'
+    description: 'Deposit-free alternative - tenant pays a small fee instead of deposit'
   },
   {
     value: 'no_deposit',
@@ -1586,6 +1586,7 @@ const formData = ref<{
   landlords: Party[]
   tenants: Party[]
   guarantors: Party[]
+  tenancyId?: string
 }>({
   language: 'english',
   templateType: '',
@@ -1632,12 +1633,83 @@ const formData = ref<{
       address: { line1: '', line2: '', city: '', county: '', postcode: '' }
     }
   ],
-  guarantors: []
+  guarantors: [],
+  tenancyId: undefined
 })
 
 // Fetch company settings on mount
 onMounted(async () => {
   fetchCompanySettings()
+
+  // Check if we should pre-fill from a tenancy
+  const tenancyId = route.query.tenancyId as string
+  if (tenancyId) {
+    console.log('[Agreements] Pre-filling from tenancy:', tenancyId)
+    // Wait a moment to ensure auth store is initialized
+    await new Promise(resolve => setTimeout(resolve, 200))
+
+    try {
+      // Fetch tenancy data
+      const token = authStore.session?.access_token
+      if (!token) throw new Error('Not authenticated')
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/tenancies/records/${tenancyId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const tenancyData = data.tenancy
+
+        // Pre-fill form data from tenancy
+        if (tenancyData.property) {
+          formData.value.propertyAddress = {
+            line1: tenancyData.property.address_line1 || '',
+            line2: '',
+            city: tenancyData.property.city || '',
+            county: '',
+            postcode: tenancyData.property.postcode || ''
+          }
+        }
+
+        if (tenancyData.monthly_rent) formData.value.rentAmount = tenancyData.monthly_rent
+        if (tenancyData.deposit_amount) formData.value.depositAmount = tenancyData.deposit_amount
+        if (tenancyData.deposit_scheme) formData.value.depositSchemeType = tenancyData.deposit_scheme
+        if (tenancyData.start_date) formData.value.tenancyStartDate = tenancyData.start_date
+        if (tenancyData.end_date) {
+          formData.value.tenancyEndDate = tenancyData.end_date
+          endDateManuallyEdited.value = true  // Mark as manually set
+        }
+        if (tenancyData.rent_due_day) {
+          const day = tenancyData.rent_due_day
+          const suffix = getOrdinalSuffix(day)
+          formData.value.rentDueDay = `${day}${suffix}`
+        }
+        if (tenancyData.bills_included) formData.value.billsIncluded = tenancyData.bills_included
+
+        // Pre-fill tenants
+        if (tenancyData.tenants && tenancyData.tenants.length > 0) {
+          formData.value.tenants = tenancyData.tenants.map((t: any) => ({
+            name: `${t.first_name || ''} ${t.last_name || ''}`.trim(),
+            email: t.email || '',
+            address: { line1: '', line2: '', city: '', county: '', postcode: '' }
+          }))
+        }
+
+        // Store tenancy ID for linking after agreement creation
+        formData.value.tenancyId = tenancyId
+
+        // Skip to step 1 (landlord selection) since we have basic data
+        currentStep.value = 1
+        toast.success('Pre-filled from tenancy data')
+      }
+    } catch (error) {
+      console.error('Failed to pre-fill from tenancy:', error)
+      toast.error('Could not load tenancy data. Please fill in manually.')
+    }
+    return  // Don't process reference import if tenancy import was attempted
+  }
 
   // Check if we should auto-import a reference from query params
   const referenceId = route.query.referenceId as string
@@ -1915,7 +1987,7 @@ watch(() => currentStep.value, async (step) => {
 async function fetchLandlords() {
   loadingLandlords.value = true
   try {
-    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -1943,7 +2015,7 @@ async function fetchLandlords() {
 
 // Select landlord and add to form
 async function selectLandlord(landlord: any) {
-  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const token = authStore.session?.access_token
   let fullLandlord = landlord
 
@@ -1970,8 +2042,8 @@ async function selectLandlord(landlord: any) {
     (l: any) => l.name === `${fullLandlord.first_name} ${fullLandlord.last_name}`
   )
 
-  const landlordName = fullLandlord.company_name ||
-    fullLandlord.full_name_displayed_on_contracts ||
+  const landlordName = fullLandlord.company_name
+    fullLandlord.full_name_displayed_on_contracts
     `${fullLandlord.first_name} ${fullLandlord.last_name}`.trim()
   const landlordData = {
     id: fullLandlord.id,
@@ -2153,7 +2225,7 @@ function splitLandlordName(fullName: string): { firstName: string; lastName: str
 }
 
 async function findLandlordByEmail(email: string) {
-  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const token = authStore.session?.access_token
 
   if (!token) return null
@@ -2175,7 +2247,7 @@ async function findLandlordByEmail(email: string) {
 }
 
 async function ensureLandlordRecords(): Promise<boolean> {
-  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const token = authStore.session?.access_token
 
   if (!token) return false
@@ -2234,7 +2306,7 @@ async function ensureLandlordRecords(): Promise<boolean> {
 }
 
 async function refreshLandlordAmlStatuses() {
-  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const token = authStore.session?.access_token
 
   if (!token) return
@@ -2282,7 +2354,7 @@ async function logAmlBypassActivity(landlords: Party[]) {
     return
   }
 
-  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const token = authStore.session?.access_token
 
   if (!token) return
@@ -2396,7 +2468,7 @@ function handleGuarantorAddressSelected(index: number, addr: any) {
 async function fetchParentReferences() {
   loadingReferences.value = true
   try {
-    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -2448,7 +2520,7 @@ function closeAllImportSelectors() {
 async function fetchLandlordsForImport() {
   loadingLandlordsImport.value = true
   try {
-    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -2493,7 +2565,7 @@ function toggleLandlordImportSelection(landlord: any) {
 }
 
 async function fetchLandlordDetails(landlord: any) {
-  const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const token = authStore.session?.access_token
 
   if (!token) return landlord
@@ -2555,8 +2627,8 @@ async function importSelectedLandlords() {
 
   for (const landlord of selectedLandlords) {
     const fullLandlord = await fetchLandlordDetails(landlord)
-    const landlordName = fullLandlord.company_name ||
-      fullLandlord.full_name_displayed_on_contracts ||
+    const landlordName = fullLandlord.company_name
+      fullLandlord.full_name_displayed_on_contracts
       `${fullLandlord.first_name} ${fullLandlord.last_name}`.trim()
     const addressSource = fullLandlord.residential_address || fullLandlord.section48_address || {}
     const landlordData = {
@@ -2607,7 +2679,7 @@ function clearLandlordImport() {
 async function fetchProperties() {
   loadingProperties.value = true
   try {
-    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -2661,7 +2733,7 @@ async function selectProperty(property: any) {
 
   // Check compliance status
   try {
-    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     const response = await fetch(`${API_URL}/api/properties/${property.id}/compliance`, {
@@ -2744,7 +2816,7 @@ function getOrdinalSuffixForDay(day: number): string {
 // Select a reference and load its full data
 async function selectReference(referenceId: string) {
   try {
-    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -3020,7 +3092,7 @@ function clearImport() {
 // Fetch company settings for managed properties
 async function fetchCompanySettings() {
   try {
-    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     const response = await fetch(`${API_URL}/api/company/settings`, {
@@ -3050,7 +3122,7 @@ async function generateAgreement() {
   success.value = ''
 
   try {
-    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     if (!token) {
@@ -3077,6 +3149,11 @@ async function generateAgreement() {
           reason: complianceOverrideReason.value
         }
       }
+    }
+
+    // Link to tenancy if pre-filled from tenancy drawer
+    if (formData.value.tenancyId) {
+      agreementData.tenancyId = formData.value.tenancyId
     }
 
     const createResponse = await fetch(`${API_URL}/api/agreements`, {
@@ -3157,7 +3234,7 @@ async function handleAgreementPaid() {
   if (!pendingAgreementId.value) return
 
   try {
-    const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     toast.info('Payment successful! Generating your agreement...')

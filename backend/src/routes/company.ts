@@ -9,6 +9,135 @@ import { DEFAULT_BRANDING } from '../config/colors'
 
 const router = Router()
 
+// Get all branches (companies) for the authenticated user
+router.get('/branches', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+
+    // Get all companies user belongs to
+    const { data: companyUsers, error: companyUserError } = await supabase
+      .from('company_users')
+      .select('company_id, role, companies(id, name_encrypted, logo_url)')
+      .eq('user_id', userId)
+
+    if (companyUserError) {
+      return res.status(400).json({ error: companyUserError.message })
+    }
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.json({ branches: [] })
+    }
+
+    const branches = companyUsers.map(cu => ({
+      id: cu.company_id,
+      name: decrypt((cu.companies as any).name_encrypted),
+      role: cu.role,
+      logoUrl: (cu.companies as any).logo_url
+    }))
+
+    res.json({ branches })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Add existing user to this branch by email (admin only)
+router.post('/add-branch-user', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const branchId = req.headers['x-branch-id'] as string | undefined
+    const { email, role = 'member' } = req.body
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' })
+    }
+
+    // Build query - filter by branch ID if provided
+    let query = supabase
+      .from('company_users')
+      .select('company_id, role')
+      .eq('user_id', userId)
+
+    if (branchId) {
+      query = query.eq('company_id', branchId)
+    }
+
+    const { data: currentUserCompanies } = await query.limit(1)
+
+    if (!currentUserCompanies || currentUserCompanies.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const currentUserCompany = currentUserCompanies[0]
+
+    // Check if user is owner or admin
+    if (currentUserCompany.role !== 'owner' && currentUserCompany.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' })
+    }
+
+    // Find user by email in auth.users
+    const { data: userData } = await supabase.auth.admin.listUsers()
+    const targetUser = userData.users.find(u => u.email?.toLowerCase() === email.toLowerCase())
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found. They must register first.' })
+    }
+
+    // Check if user already belongs to this company
+    const { data: existingMembership } = await supabase
+      .from('company_users')
+      .select('id')
+      .eq('user_id', targetUser.id)
+      .eq('company_id', currentUserCompany.company_id)
+      .limit(1)
+
+    if (existingMembership && existingMembership.length > 0) {
+      return res.status(400).json({ error: 'User is already a member of this branch' })
+    }
+
+    // Add them to company_users for this branch
+    const { error: insertError } = await supabase.from('company_users').insert({
+      user_id: targetUser.id,
+      company_id: currentUserCompany.company_id,
+      role: role
+    })
+
+    if (insertError) {
+      return res.status(400).json({ error: insertError.message })
+    }
+
+    // Get company name for audit log
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted')
+      .eq('id', currentUserCompany.company_id)
+      .single()
+
+    const companyName = company ? decrypt(company.name_encrypted) : 'Unknown'
+
+    // Audit log
+    await createAuditLog(
+      {
+        companyId: currentUserCompany.company_id,
+        userId: userId!,
+        actionType: 'user.added_to_branch',
+        resourceType: 'user',
+        resourceId: targetUser.id,
+        description: `Added ${email} to branch ${companyName}`,
+        metadata: {
+          targetUserEmail: email,
+          role: role
+        }
+      },
+      req
+    )
+
+    res.json({ success: true, message: `${email} has been added to this branch` })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Get company branding (public route for forms)
 router.get('/branding/:companyId', async (req, res) => {
   try {
@@ -56,13 +185,19 @@ const upload = multer({
 router.get('/settings', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
+    const branchId = req.headers['x-branch-id'] as string | undefined
 
-    // Get company via company_users table
-    const { data: companyUsers, error: companyUserError } = await supabase
+    // Build query - filter by branch ID if provided
+    let query = supabase
       .from('company_users')
       .select('company_id, role, companies(*)')
       .eq('user_id', userId)
-      .limit(1)
+
+    if (branchId) {
+      query = query.eq('company_id', branchId)
+    }
+
+    const { data: companyUsers, error: companyUserError } = await query.limit(1)
 
     if (companyUserError || !companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -88,7 +223,8 @@ router.get('/settings', authenticateToken, async (req: AuthRequest, res) => {
       reference_notification_email: companyData.reference_notification_email || null,
       logo_url: companyData.logo_url,
       primary_color: companyData.primary_color,
-      button_color: companyData.button_color
+      button_color: companyData.button_color,
+      management_info: companyData.management_info || null
     }
 
     res.json({ company })
@@ -101,13 +237,19 @@ router.get('/settings', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
+    const branchId = req.headers['x-branch-id'] as string | undefined
 
-    // Get company via company_users table (use limit(1) to handle duplicates)
-    const { data: companyUsers, error: companyUserError } = await supabase
+    // Build query - filter by branch ID if provided
+    let query = supabase
       .from('company_users')
       .select('company_id, role, companies(*)')
       .eq('user_id', userId)
-      .limit(1)
+
+    if (branchId) {
+      query = query.eq('company_id', branchId)
+    }
+
+    const { data: companyUsers, error: companyUserError } = await query.limit(1)
 
     if (companyUserError || !companyUsers || companyUsers.length === 0) {
       console.error('Company lookup error for user', userId, ':', companyUserError)
@@ -186,18 +328,24 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 router.post('/logo', authenticateToken, upload.single('logo'), async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
+    const branchId = req.headers['x-branch-id'] as string | undefined
     const file = req.file
 
     if (!file) {
       return res.status(400).json({ error: 'No file provided' })
     }
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
+    // Build query - filter by branch ID if provided
+    let query = supabase
       .from('company_users')
       .select('company_id, role')
       .eq('user_id', userId)
-      .limit(1)
+
+    if (branchId) {
+      query = query.eq('company_id', branchId)
+    }
+
+    const { data: companyUsers } = await query.limit(1)
 
     if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -255,17 +403,23 @@ router.post('/logo', authenticateToken, upload.single('logo'), async (req: AuthR
 router.put('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
-    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code, offer_notification_email, reference_notification_email } = req.body
+    const branchId = req.headers['x-branch-id'] as string | undefined
+    const { name, address, city, postcode, phone, email, website, logo_url, primary_color, button_color, bank_account_name, bank_account_number, bank_sort_code, offer_notification_email, reference_notification_email, management_info } = req.body
 
     // Debug logging
     console.log('Company update request body:', { name, address, city, postcode, phone, email, website, bank_account_name, bank_account_number, bank_sort_code })
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
+    // Build query - filter by branch ID if provided
+    let query = supabase
       .from('company_users')
       .select('company_id, role')
       .eq('user_id', userId)
-      .limit(1)
+
+    if (branchId) {
+      query = query.eq('company_id', branchId)
+    }
+
+    const { data: companyUsers } = await query.limit(1)
 
     if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -306,6 +460,7 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
     if (bank_account_name !== undefined) updateData.bank_account_name = bank_account_name || null
     if (bank_account_number !== undefined) updateData.bank_account_number = bank_account_number || null
     if (bank_sort_code !== undefined) updateData.bank_sort_code = bank_sort_code || null
+    if (management_info !== undefined) updateData.management_info = management_info || null
 
     console.log('Updating company with fields:', Object.keys(updateData))
 
@@ -378,13 +533,19 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/members', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
+    const branchId = req.headers['x-branch-id'] as string | undefined
 
-    // Get user's company (use limit(1) to handle duplicates)
-    const { data: companyUsers } = await supabase
+    // Build query - filter by branch ID if provided
+    let query = supabase
       .from('company_users')
       .select('company_id')
       .eq('user_id', userId)
-      .limit(1)
+
+    if (branchId) {
+      query = query.eq('company_id', branchId)
+    }
+
+    const { data: companyUsers } = await query.limit(1)
 
     if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -439,13 +600,19 @@ router.delete('/members/:userId', authenticateToken, async (req: AuthRequest, re
   try {
     const currentUserId = req.user?.id
     const targetUserId = req.params.userId
+    const branchId = req.headers['x-branch-id'] as string | undefined
 
-    // Get current user's company and role (use limit(1) to handle duplicates)
-    const { data: currentUserCompanies } = await supabase
+    // Build query - filter by branch ID if provided
+    let query = supabase
       .from('company_users')
       .select('company_id, role')
       .eq('user_id', currentUserId)
-      .limit(1)
+
+    if (branchId) {
+      query = query.eq('company_id', branchId)
+    }
+
+    const { data: currentUserCompanies } = await query.limit(1)
 
     if (!currentUserCompanies || currentUserCompanies.length === 0) {
       return res.status(404).json({ error: 'Company not found' })

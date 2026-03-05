@@ -75,6 +75,9 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
       income_student,
       income_pension,
       income_landlord_rental,
+      income_savings_pension_investments,
+      savings_amount_encrypted,
+      proof_of_funds_path,
       id_document_path,
       selfie_path,
       rtr_share_code,
@@ -202,8 +205,11 @@ export async function evaluateMinimumEvidence(referenceId: string): Promise<Evid
     const pensionAmount = parseFloat(decrypt(reference.pension_monthly_amount_encrypted) || '0')
     const hasLandlordRentalProof = !!(reference.income_landlord_rental && (reference.landlord_rental_bank_statement_path || landlordRentalAmount > 0))
     const hasPensionProof = !!(reference.income_pension && (reference.pension_statement_path || pensionAmount > 0))
+    // Check for savings/investments proof (proof_of_funds_path is the upload field for savings)
+    const savingsAmount = parseFloat(decrypt(reference.savings_amount_encrypted) || '0')
+    const hasSavingsProof = !!(reference.income_savings_pension_investments && (reference.proof_of_funds_path || savingsAmount > 0))
 
-    const hasIncomeEvidence = hasPayslips || hasBankStatements || hasCompletedEmployerRef || hasCompletedAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof
+    const hasIncomeEvidence = hasPayslips || hasBankStatements || hasCompletedEmployerRef || hasCompletedAccountantRef || hasTaxReturn || hasOtherProofOfFunds || hasAdditionalIncomeProof || hasLandlordRentalProof || hasPensionProof || hasSavingsProof
     const hasIncomeRefContact = !!(reference.employer_ref_email_encrypted || reference.accountant_email_encrypted)
 
     if (!isGuarantor && isStudent && isLivingWithFamily && !hasGuarantor && !hasIncomeEvidence && !hasIncomeRefContact) {
@@ -376,8 +382,8 @@ export async function ensureVerifyWorkItem(referenceId: string): Promise<{ succe
       return { success: true, workItemId: created?.id }
     }
 
-    // Reactivate if completed
-    if (existing.status === 'COMPLETED') {
+    // Reactivate if completed or returned (waiting for external reference)
+    if (existing.status === 'COMPLETED' || existing.status === 'RETURNED') {
       const { error: updateError } = await supabase
         .from('work_items')
         .update({
@@ -394,7 +400,7 @@ export async function ensureVerifyWorkItem(referenceId: string): Promise<{ succe
         return { success: false }
       }
 
-      console.log(`[VerificationState] Reactivated VERIFY work item for ${referenceId}`)
+      console.log(`[VerificationState] Reactivated VERIFY work item for ${referenceId} (was ${existing.status})`)
     }
 
     return { success: true, workItemId: existing.id }
@@ -513,6 +519,118 @@ export async function evaluateAndTransition(
     if (currentState === 'ACTION_REQUIRED') {
       console.log(`[VerificationState] Reference ${referenceId} in ACTION_REQUIRED, skipping evaluation - agent must explicitly re-submit`)
       return { success: true, transitioned: false }
+    }
+
+    // Check if reference is in "waiting" state (staff returned to collecting for external reference)
+    // Don't auto-transition until the external reference we're waiting for is submitted
+    if (currentState === 'COLLECTING_EVIDENCE') {
+      const { data: workItem } = await supabase
+        .from('work_items')
+        .select('status, metadata')
+        .eq('reference_id', referenceId)
+        .eq('work_type', 'VERIFY')
+        .eq('status', 'RETURNED')
+        .single()
+
+      if (workItem?.metadata?.waitingFor) {
+        // Reference is waiting for external reference - check if what we're waiting for has arrived
+        const waitingForTypes = (workItem.metadata.waitingFor as string).split(', ')
+        const returnedAt = workItem.metadata.returnedAt ? new Date(workItem.metadata.returnedAt) : null
+
+        // Check if any of the external refs we're waiting for have been submitted AFTER returnedAt
+        let externalRefReceived = false
+
+        for (const refType of waitingForTypes) {
+          if (refType === 'EMPLOYER_REF') {
+            const { data: employerRef } = await supabase
+              .from('employer_references')
+              .select('submitted_at')
+              .eq('reference_id', referenceId)
+              .not('submitted_at', 'is', null)
+              .single()
+
+            if (employerRef?.submitted_at && returnedAt && new Date(employerRef.submitted_at) > returnedAt) {
+              externalRefReceived = true
+              break
+            }
+          } else if (refType === 'LANDLORD_REF' || refType === 'RESIDENTIAL_REF') {
+            const { data: landlordRef } = await supabase
+              .from('landlord_references')
+              .select('submitted_at')
+              .eq('reference_id', referenceId)
+              .not('submitted_at', 'is', null)
+              .single()
+
+            if (landlordRef?.submitted_at && returnedAt && new Date(landlordRef.submitted_at) > returnedAt) {
+              externalRefReceived = true
+              break
+            }
+          } else if (refType === 'AGENT_REF') {
+            const { data: agentRef } = await supabase
+              .from('agent_references')
+              .select('submitted_at')
+              .eq('reference_id', referenceId)
+              .not('submitted_at', 'is', null)
+              .single()
+
+            if (agentRef?.submitted_at && returnedAt && new Date(agentRef.submitted_at) > returnedAt) {
+              externalRefReceived = true
+              break
+            }
+          } else if (refType === 'ACCOUNTANT_REF') {
+            const { data: accountantRef } = await supabase
+              .from('accountant_references')
+              .select('submitted_at')
+              .eq('reference_id', referenceId)
+              .not('submitted_at', 'is', null)
+              .single()
+
+            if (accountantRef?.submitted_at && returnedAt && new Date(accountantRef.submitted_at) > returnedAt) {
+              externalRefReceived = true
+              break
+            }
+          }
+        }
+
+        // Also check if new evidence was uploaded after returnedAt (tenant or agent uploaded new docs)
+        if (!externalRefReceived && returnedAt) {
+          const { data: recentUpload } = await supabase
+            .from('reference_audit_log')
+            .select('created_at')
+            .eq('reference_id', referenceId)
+            .in('action', ['EVIDENCE_UPLOADED', 'DOCUMENT_UPLOADED', 'FILE_UPLOADED', 'DOCUMENTS_UPLOADED_BY_AGENT', 'DOCUMENT_UPLOADED_BY_STAFF'])
+            .gt('created_at', returnedAt.toISOString())
+            .limit(1)
+            .single()
+
+          if (recentUpload) {
+            externalRefReceived = true
+            console.log(`[VerificationState] Reference ${referenceId}: New evidence uploaded since wait, allowing transition`)
+          }
+        }
+
+        if (!externalRefReceived) {
+          console.log(`[VerificationState] Reference ${referenceId} is waiting for external ref (${workItem.metadata.waitingFor}), skipping evaluation`)
+          return { success: true, transitioned: false }
+        }
+
+        // External ref received - clear the RETURNED work item status to allow progression
+        console.log(`[VerificationState] Reference ${referenceId}: External ref received, clearing wait status`)
+        await supabase
+          .from('work_items')
+          .update({
+            status: 'AVAILABLE',
+            metadata: {
+              ...workItem.metadata,
+              waitCleared: true,
+              waitClearedAt: new Date().toISOString(),
+              waitClearedReason: 'External reference received'
+            }
+          })
+          .eq('reference_id', referenceId)
+          .eq('work_type', 'VERIFY')
+          .eq('status', 'RETURNED')
+      }
     }
 
     // Pending references are just sent; don't advance to COLLECTING_EVIDENCE until submitted

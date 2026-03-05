@@ -187,18 +187,40 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(401).json({ error: 'Unauthorized' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
+        // Check for X-Branch-Id header first (multi-branch support)
+        const branchId = req.headers['x-branch-id'] as string | undefined
+        let companyId: string | null = null
 
-        if (!companyUsers || companyUsers.length === 0) {
-            return res.status(404).json({ error: 'Company not found' })
+        if (branchId) {
+            // Verify user belongs to this branch
+            const { data: branchMembership } = await supabase
+                .from('company_users')
+                .select('company_id')
+                .eq('user_id', userId)
+                .eq('company_id', branchId)
+                .limit(1)
+
+            if (branchMembership && branchMembership.length > 0) {
+                companyId = branchMembership[0].company_id
+            }
         }
 
-        const companyId = companyUsers[0].company_id
+        // Fallback: Get user's first company
+        if (!companyId) {
+            const { data: companyUsers } = await supabase
+                .from('company_users')
+                .select('company_id')
+                .eq('user_id', userId)
+                .limit(1)
+
+            if (companyUsers && companyUsers.length > 0) {
+                companyId = companyUsers[0].company_id
+            }
+        }
+
+        if (!companyId) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
 
         // Get all offers for the company with tenants
         const { data: offers, error } = await supabase
@@ -216,7 +238,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
           no_ccj_bankruptcy_iva,
           signature_encrypted,
           signature_name_encrypted,
-          signed_at
+          signed_at,
+          rent_share,
+          rent_share_percentage
         )
       `)
             .eq('company_id', companyId)
@@ -240,7 +264,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
                 no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
                 signature: tenant.signature_encrypted ? decrypt(tenant.signature_encrypted) : '',
                 signature_name: tenant.signature_name_encrypted ? decrypt(tenant.signature_name_encrypted) : '',
-                signed_at: tenant.signed_at
+                signed_at: tenant.signed_at,
+                rent_share: tenant.rent_share,
+                rent_share_percentage: tenant.rent_share_percentage
             }))
 
             return {
@@ -355,7 +381,9 @@ router.get('/by-reference/:referenceId', authenticateToken, async (req: AuthRequ
                     no_ccj_bankruptcy_iva,
                     signature_encrypted,
                     signature_name_encrypted,
-                    signed_at
+                    signed_at,
+                    rent_share,
+                    rent_share_percentage
                 )
             `)
             .eq('reference_id', referenceId)
@@ -379,7 +407,9 @@ router.get('/by-reference/:referenceId', authenticateToken, async (req: AuthRequ
             no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
             signature: tenant.signature_encrypted ? decrypt(tenant.signature_encrypted) : '',
             signature_name: tenant.signature_name_encrypted ? decrypt(tenant.signature_name_encrypted) : '',
-            signed_at: tenant.signed_at
+            signed_at: tenant.signed_at,
+            rent_share: tenant.rent_share,
+            rent_share_percentage: tenant.rent_share_percentage
         }))
 
         const decrypted = {
@@ -439,7 +469,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
           no_ccj_bankruptcy_iva,
           signature_encrypted,
           signature_name_encrypted,
-          signed_at
+          signed_at,
+          rent_share,
+          rent_share_percentage
         )
       `)
             .eq('id', id)
@@ -463,7 +495,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
             no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
             signature: tenant.signature_encrypted ? decrypt(tenant.signature_encrypted) : '',
             signature_name: tenant.signature_name_encrypted ? decrypt(tenant.signature_name_encrypted) : '',
-            signed_at: tenant.signed_at
+            signed_at: tenant.signed_at,
+            rent_share: tenant.rent_share,
+            rent_share_percentage: tenant.rent_share_percentage
         }))
 
         const decrypted = {
@@ -634,6 +668,11 @@ router.post('/submit', async (req, res) => {
         const depositReplacementOffered = normalizeBoolean(deposit_replacement_offered) || depositReplacementOfferedFromQuery
         const depositReplacementRequested = depositReplacementOffered && normalizeBoolean(deposit_replacement_requested)
 
+        // Calculate deposit amount: £0 if deposit replacement requested, otherwise 5 weeks rent
+        const rentAmount = parseFloat(offered_rent_amount)
+        const calculatedDeposit = Math.floor((rentAmount * 12 / 52) * 5)
+        const finalDepositAmount = depositReplacementRequested ? 0 : (deposit_amount ? parseFloat(deposit_amount) : calculatedDeposit)
+
         // Create offer
         const { data: offer, error: offerError } = await supabase
             .from('tenant_offers')
@@ -645,7 +684,7 @@ router.post('/submit', async (req, res) => {
                 offered_rent_amount: parseFloat(offered_rent_amount),
                 proposed_move_in_date,
                 proposed_tenancy_length_months: parseInt(proposed_tenancy_length_months),
-                deposit_amount: deposit_amount ? parseFloat(deposit_amount) : null,
+                deposit_amount: finalDepositAmount,
                 special_conditions_encrypted: special_conditions ? encrypt(special_conditions) : null,
                 bills_included: bills_included === true,
                 status: 'pending',
@@ -743,6 +782,15 @@ router.post('/submit', async (req, res) => {
                 console.error('Failed to send offer notification email:', emailError)
                 // Don't fail the request if email fails
             }
+        }
+
+        // Create in-app notification
+        try {
+            const { notifyTenantOffer } = await import('../services/notificationService')
+            const tenantNames = tenants.map((t: any) => t.name).join(', ')
+            await notifyTenantOffer(companyId, offer.id, property_address, tenantNames)
+        } catch (notifError) {
+            console.error('Failed to create offer notification:', notifError)
         }
 
         // Log property audit if property is linked
@@ -1376,6 +1424,96 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }
 })
 
+// Set rent shares for tenants
+router.post('/:id/set-rent-shares', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?.id
+        const { id } = req.params
+        const { tenantShares } = req.body // [{ tenantId, rentShare }]
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        if (!tenantShares || !Array.isArray(tenantShares) || tenantShares.length === 0) {
+            return res.status(400).json({ error: 'Tenant shares are required' })
+        }
+
+        // Get user's company
+        const { data: companyUsers } = await supabase
+            .from('company_users')
+            .select('company_id')
+            .eq('user_id', userId)
+            .limit(1)
+
+        if (!companyUsers || companyUsers.length === 0) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        const companyId = companyUsers[0].company_id
+
+        // Get offer to verify ownership and get rent amount
+        const { data: offer, error: offerError } = await supabase
+            .from('tenant_offers')
+            .select('id, offered_rent_amount, company_id')
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .single()
+
+        if (offerError || !offer) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Validate sum of rent shares equals offered_rent_amount
+        const totalShares = tenantShares.reduce((sum: number, ts: any) => sum + (parseFloat(ts.rentShare) || 0), 0)
+        const tolerance = 0.01 // Allow small rounding differences
+        if (Math.abs(totalShares - offer.offered_rent_amount) > tolerance) {
+            return res.status(400).json({
+                error: `Total rent shares (£${totalShares.toFixed(2)}) must equal the offered rent amount (£${offer.offered_rent_amount.toFixed(2)})`
+            })
+        }
+
+        // Update each tenant's rent share
+        for (const ts of tenantShares) {
+            const rentShare = parseFloat(ts.rentShare) || 0
+            const rentSharePercentage = offer.offered_rent_amount > 0
+                ? (rentShare / offer.offered_rent_amount) * 100
+                : 0
+
+            const { error: updateError } = await supabase
+                .from('tenant_offer_tenants')
+                .update({
+                    rent_share: rentShare,
+                    rent_share_percentage: rentSharePercentage
+                })
+                .eq('id', ts.tenantId)
+                .eq('tenant_offer_id', id)
+
+            if (updateError) {
+                console.error('Error updating tenant rent share:', updateError)
+                return res.status(400).json({ error: `Failed to update rent share for tenant ${ts.tenantId}` })
+            }
+        }
+
+        // Log audit action
+        await logOfferAuditAction({
+            offerId: id,
+            action: 'RENT_SHARES_SET',
+            description: `Rent shares set for ${tenantShares.length} tenant(s)`,
+            metadata: { tenantShares },
+            userId
+        })
+
+        res.json({
+            success: true,
+            message: 'Rent shares updated successfully'
+        })
+    } catch (error: any) {
+        console.error('Error setting rent shares:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Mark holding deposit received and create reference
 router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, checkPaymentMethod, async (req: AuthRequest, res) => {
     try {
@@ -1475,9 +1613,14 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
         const offer = offerData
 
         // Get tenants from offer
+        // Calculate default rent share (equal split) for fallback
+        const defaultRentShare = offer.offered_rent_amount / (offer.tenant_offer_tenants?.length || 1)
+
         const tenants = (offer.tenant_offer_tenants || []).map((tenant: any) => {
             const decryptedName = tenant.name_encrypted ? decrypt(tenant.name_encrypted) : ''
             const nameParts = decryptedName ? decryptedName.split(' ') : ['']
+            // Use stored rent_share if available, otherwise fall back to equal split
+            const rentShare = tenant.rent_share != null ? parseFloat(tenant.rent_share) : defaultRentShare
             return {
                 first_name: nameParts[0] || '',
                 last_name: nameParts.slice(1).join(' ') || '',
@@ -1486,7 +1629,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                 address: tenant.address_encrypted ? decrypt(tenant.address_encrypted) : '',
                 annual_income: tenant.annual_income_encrypted ? decrypt(tenant.annual_income_encrypted) : '',
                 job_title: tenant.job_title_encrypted ? decrypt(tenant.job_title_encrypted) : '',
-                rent_share: (offer.offered_rent_amount / (offer.tenant_offer_tenants?.length || 1)).toFixed(2)
+                rent_share: rentShare.toFixed(2)
             }
         })
 
@@ -1535,7 +1678,8 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                     reference_token_hash: parentTokenHash,
                     token_expires_at: expiresAt.toISOString(),
                     status: 'pending',
-                    is_group_parent: true
+                    is_group_parent: true,
+                    linked_property_id: offer.linked_property_id || null
                 })
                 .select()
                 .single()
@@ -1575,7 +1719,8 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                         bills_included: offer.bills_included || false,
                         reference_token_hash: tokenHash,
                         token_expires_at: expiresAt.toISOString(),
-                        status: 'pending'
+                        status: 'pending',
+                        linked_property_id: offer.linked_property_id || null
                     })
                     .select()
                     .single()
@@ -1665,7 +1810,8 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                     bills_included: offer.bills_included || false,
                     reference_token_hash: tokenHash,
                     token_expires_at: expiresAt.toISOString(),
-                    status: 'pending'
+                    status: 'pending',
+                    linked_property_id: offer.linked_property_id || null
                 })
                 .select()
                 .single()

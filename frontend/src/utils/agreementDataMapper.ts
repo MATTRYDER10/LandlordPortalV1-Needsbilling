@@ -15,6 +15,10 @@ export interface Party {
   name: string
   email?: string
   address: Address
+  bankAccountName?: string
+  bankAccountNumber?: string
+  bankSortCode?: string
+  rentShare?: number
 }
 
 export interface AgreementFormData {
@@ -216,12 +220,44 @@ export function agreementToFormData(agreement: DatabaseAgreement): AgreementForm
 }
 
 /**
+ * Extract base template type from deposit scheme type
+ * Handles both combined values (tds_custodial, dps_insured) and simple values (tds, dps)
+ */
+function extractTemplateType(depositSchemeType: string): string {
+  if (!depositSchemeType) return 'dps'
+
+  const lower = depositSchemeType.toLowerCase()
+
+  // Handle combined values like 'tds_custodial', 'dps_insured'
+  if (lower.startsWith('tds')) return 'tds'
+  if (lower.startsWith('dps')) return 'dps'
+  if (lower.startsWith('mydeposits')) return 'mydeposits'
+  if (lower === 'reposit') return 'reposit'
+  if (lower === 'no_deposit') return 'no_deposit'
+
+  // If it's already a valid simple value, return as-is
+  const validTypes = ['dps', 'mydeposits', 'tds', 'reposit', 'no_deposit']
+  if (validTypes.includes(lower)) return lower
+
+  // Default fallback
+  return 'dps'
+}
+
+/**
  * Convert form data to API request format
+ * Note: The backend expects `templateType` to be the deposit scheme (dps, mydeposits, etc.)
+ * The agreement type (ast, company_let, lodger) is sent as `agreementType`
  */
 export function formDataToAgreementRequest(formData: AgreementFormData): Record<string, any> {
+  // Extract base template type from potentially combined depositSchemeType
+  const templateType = extractTemplateType(formData.depositSchemeType)
+
   return {
     language: formData.language,
-    templateType: formData.templateType,
+    // Backend expects templateType to be the base deposit scheme (dps, tds, mydeposits, etc.)
+    templateType: templateType,
+    // Send agreement type separately
+    agreementType: formData.templateType,
     propertyAddress: formData.propertyAddress,
     landlords: formData.landlords,
     tenants: formData.tenants,
@@ -231,6 +267,7 @@ export function formDataToAgreementRequest(formData: AgreementFormData): Record<
     tenancyStartDate: formData.tenancyStartDate,
     tenancyEndDate: formData.tenancyEndDate,
     rentDueDay: formData.rentDueDay,
+    // Keep the full depositSchemeType for PDF generation to determine Custodial/Insured
     depositSchemeType: formData.depositSchemeType,
     permittedOccupiers: formData.permittedOccupiers,
     managementType: formData.managementType,

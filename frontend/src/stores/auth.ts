@@ -1,26 +1,39 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { supabase } from '../lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+export interface Branch {
+  id: string
+  name: string
+  role: string
+  logoUrl?: string
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const session = ref<Session | null>(null)
-  const company = ref<{ name: string, role: string } | null>(null)
+  const company = ref<{ name: string, role: string, logoUrl?: string } | null>(null)
   const onboardingCompleted = ref<boolean>(true) // Default to true to avoid flashing
   const isAdmin = ref<boolean>(false) // Admin staff privileges
   const isStaff = ref<boolean>(false) // Staff portal access
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // Fetch company data and onboarding status
-  const fetchCompany = async () => {
+  // Multi-branch support
+  const branches = ref<Branch[]>([])
+  const activeBranchId = ref<string | null>(localStorage.getItem('activeBranchId'))
+  const hasMultipleBranches = computed(() => branches.value.length > 1)
+
+  // Fetch all branches for the user
+  const fetchBranches = async () => {
     try {
       const token = session.value?.access_token
       if (!token) return
 
-      const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
-      const response = await fetch(`${API_URL}/api/company`, {
+      const response = await fetch(`${API_URL}/api/company/branches`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -29,8 +42,69 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (response.ok) {
         const data = await response.json()
+        branches.value = data.branches || []
+
+        // If user has only one branch and no active branch set, auto-select it
+        if (branches.value.length === 1 && !activeBranchId.value) {
+          setActiveBranch(branches.value[0].id)
+        }
+
+        // If activeBranchId doesn't match any branch, clear it
+        if (activeBranchId.value && !branches.value.find(b => b.id === activeBranchId.value)) {
+          clearActiveBranch()
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch branches:', err)
+    }
+  }
+
+  // Set the active branch
+  const setActiveBranch = (branchId: string) => {
+    activeBranchId.value = branchId
+    localStorage.setItem('activeBranchId', branchId)
+
+    // Update the company ref with the active branch details
+    const branch = branches.value.find(b => b.id === branchId)
+    if (branch) {
+      company.value = {
+        name: branch.name,
+        role: branch.role,
+        logoUrl: branch.logoUrl
+      }
+    }
+  }
+
+  // Clear the active branch (for switching)
+  const clearActiveBranch = () => {
+    activeBranchId.value = null
+    localStorage.removeItem('activeBranchId')
+  }
+
+  // Fetch company data and onboarding status
+  const fetchCompany = async () => {
+    try {
+      const token = session.value?.access_token
+      if (!token) return
+
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+
+      // Include active branch ID if set
+      if (activeBranchId.value) {
+        headers['X-Branch-Id'] = activeBranchId.value
+      }
+
+      const response = await fetch(`${API_URL}/api/company`, {
+        headers
+      })
+
+      if (response.ok) {
+        const data = await response.json()
         if (data.company && data.role) {
-          company.value = { name: data.company.name, role: data.role }
+          company.value = { name: data.company.name, role: data.role, logoUrl: data.company.logo_url || undefined }
         }
       } else if (response.status === 403) {
         // Check if token is invalid (not just permission denied)
@@ -62,7 +136,7 @@ export const useAuthStore = defineStore('auth', () => {
       const token = session.value?.access_token
       if (!token) return
 
-      const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+      
       const response = await fetch(`${API_URL}/api/onboarding/status`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -92,18 +166,20 @@ export const useAuthStore = defineStore('auth', () => {
         return
       }
 
-      const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
-      // Try to access admin dashboard endpoint - if successful, user is an admin
-      const response = await fetch(`${API_URL}/api/admin/staff?limit=1`, {
+      
+      const response = await fetch(`${API_URL}/api/profile/check-admin`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
 
-      // If the request succeeds (status 200), user is an admin
-      // If it fails with 403, user is not an admin
-      isAdmin.value = response.ok
+      if (response.ok) {
+        const data = await response.json()
+        isAdmin.value = data.isAdmin === true
+      } else {
+        isAdmin.value = false
+      }
     } catch (err) {
       console.error('Failed to fetch admin status:', err)
       isAdmin.value = false
@@ -119,18 +195,20 @@ export const useAuthStore = defineStore('auth', () => {
         return
       }
 
-      const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
-      // Try to access staff endpoint - if successful, user is staff
-      const response = await fetch(`${API_URL}/api/staff/stats`, {
+      
+      const response = await fetch(`${API_URL}/api/profile/check-staff`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
 
-      // If the request succeeds (status 200), user is staff
-      // If it fails with 403, user is not staff
-      isStaff.value = response.ok
+      if (response.ok) {
+        const data = await response.json()
+        isStaff.value = data.isStaff === true
+      } else {
+        isStaff.value = false
+      }
     } catch (err) {
       console.error('Failed to fetch staff status:', err)
       isStaff.value = false
@@ -159,6 +237,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       // Fetch company data, onboarding status, staff status, and admin status if user is logged in
       if (currentSession?.user) {
+        await fetchBranches()
         await fetchCompany()
         await fetchOnboardingStatus()
         await fetchStaffStatus()
@@ -176,6 +255,7 @@ export const useAuthStore = defineStore('auth', () => {
 
         // Fetch company data, onboarding status, staff status, and admin status when user signs in
         if (newSession?.user) {
+          await fetchBranches()
           await fetchCompany()
           await fetchOnboardingStatus()
           await fetchStaffStatus()
@@ -189,6 +269,8 @@ export const useAuthStore = defineStore('auth', () => {
           onboardingCompleted.value = true
           isStaff.value = false
           isAdmin.value = false
+          branches.value = []
+          activeBranchId.value = null
         }
       })
     } catch (err: any) {
@@ -269,6 +351,9 @@ export const useAuthStore = defineStore('auth', () => {
       isStaff.value = false
       isAdmin.value = false
       loading.value = false
+      branches.value = []
+      activeBranchId.value = null
+      localStorage.removeItem('activeBranchId')
       // Clear admin company override from sessionStorage
       sessionStorage.removeItem('adminCompanyOverride')
     }
@@ -323,6 +408,14 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     loading,
     error,
+    // Multi-branch
+    branches,
+    activeBranchId,
+    hasMultipleBranches,
+    fetchBranches,
+    setActiveBranch,
+    clearActiveBranch,
+    // Auth
     initialize,
     signUp,
     signIn,

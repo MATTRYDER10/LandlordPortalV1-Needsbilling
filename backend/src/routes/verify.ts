@@ -1234,6 +1234,7 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
         benefits_annual_amount_encrypted,
         self_employed_annual_income_encrypted,
         additional_income_amount_encrypted,
+        savings_amount_encrypted,
         guarantor_for_reference_id,
         verified_salary_amount_encrypted,
         verified_benefits_amount_encrypted,
@@ -1527,13 +1528,17 @@ router.get('/evidence/:referenceId', staffAuth, async (req: StaffAuthRequest, re
       ? parseFloat(decrypt(reference.landlord_rental_monthly_amount_encrypted) || '0') : 0;
     const landlordRentalAnnualAmount = landlordRentalMonthlyAmount * 12;
 
-    const claimedTotal = salaryAmount + additionalIncomeAmount + selfEmployedIncome + benefitsIncome + pensionAnnualAmount + landlordRentalAnnualAmount;
+    // Savings/investments income (stored as total amount, not annual)
+    const savingsAmount = reference.savings_amount_encrypted
+      ? parseFloat(decrypt(reference.savings_amount_encrypted) || '0') : 0;
+
+    const claimedTotal = salaryAmount + additionalIncomeAmount + selfEmployedIncome + benefitsIncome + pensionAnnualAmount + landlordRentalAnnualAmount + savingsAmount;
 
     const claimedIncome = {
       salary: salaryAmount,
       benefits: benefitsIncome,
       selfEmployed: selfEmployedIncome,
-      savings: 0,
+      savings: savingsAmount,
       additional: additionalIncomeAmount,
       pension: pensionAnnualAmount,
       pensionMonthly: pensionMonthlyAmount,
@@ -2073,6 +2078,11 @@ router.post('/person/:referenceId/finalize', staffAuth, async (req: StaffAuthReq
     if (finalDecision === 'FAIL') {
       newStatus = 'rejected';
       newVerificationState = 'REJECTED';
+    } else if (finalDecision === 'REFER' && progress.hasActionRequired) {
+      // REFER with ACTION_REQUIRED sections should keep state as ACTION_REQUIRED
+      // so it appears in the agent's Action Required tab
+      newStatus = 'in_progress';
+      newVerificationState = 'ACTION_REQUIRED';
     }
 
     // Build update object
@@ -2232,6 +2242,11 @@ router.post('/finalize/:referenceId', staffAuth, async (req: StaffAuthRequest, r
     if (finalDecision === 'FAIL') {
       newStatus = 'rejected';
       newVerificationState = 'REJECTED';
+    } else if (finalDecision === 'REFER' && progress.hasActionRequired) {
+      // REFER with ACTION_REQUIRED sections should keep state as ACTION_REQUIRED
+      // so it appears in the agent's Action Required tab
+      newStatus = 'in_progress';
+      newVerificationState = 'ACTION_REQUIRED';
     }
 
     // Build update object

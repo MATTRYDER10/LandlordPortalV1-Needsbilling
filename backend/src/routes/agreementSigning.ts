@@ -6,6 +6,40 @@ import { supabase } from '../config/supabase'
 
 const router = Router()
 
+/**
+ * Helper to get user's company ID with multi-branch support
+ * Checks X-Branch-Id header first, then falls back to first company
+ */
+async function getUserCompanyId(req: AuthRequest): Promise<string | null> {
+  const userId = req.user?.id
+  if (!userId) return null
+
+  const branchId = req.headers['x-branch-id'] as string | undefined
+
+  if (branchId) {
+    // Verify user belongs to this branch
+    const { data: branchMembership } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', branchId)
+      .limit(1)
+
+    if (branchMembership && branchMembership.length > 0) {
+      return branchMembership[0].company_id
+    }
+  }
+
+  // Fallback: Get user's first company (don't use .single() for multi-branch users)
+  const { data: companyUsers } = await supabase
+    .from('company_users')
+    .select('company_id')
+    .eq('user_id', userId)
+    .limit(1)
+
+  return companyUsers && companyUsers.length > 0 ? companyUsers[0].company_id : null
+}
+
 // In-memory deduplication for email sends (prevents double-click duplicate sends)
 const recentEmailSends = new Map<string, number>()
 const EMAIL_SEND_COOLDOWN_MS = 5000 // 5 seconds
@@ -254,22 +288,18 @@ router.post('/:token/decline', async (req: Request, res: Response) => {
 // ==========================================
 
 /**
- * POST /api/agreements/:id/initiate-signing
- * Start the signing workflow
+ * Handler for initiating the signing workflow
+ * Used by both /send-for-signing and /initiate-signing endpoints
  */
-router.post('/agreements/:id/initiate-signing', authenticateToken, async (req: AuthRequest, res: Response) => {
+const initiateSigningHandler = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
-    if (!companyUser?.company_id) {
+    if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
@@ -284,7 +314,7 @@ router.post('/agreements/:id/initiate-signing', authenticateToken, async (req: A
       return res.status(404).json({ error: 'Agreement not found' })
     }
 
-    if (agreement.company_id !== companyUser.company_id) {
+    if (agreement.company_id !== companyId) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
@@ -314,7 +344,15 @@ router.post('/agreements/:id/initiate-signing', authenticateToken, async (req: A
     console.error('Error initiating signing:', error)
     res.status(500).json({ error: error.message || 'Failed to initiate signing' })
   }
-})
+}
+
+/**
+ * POST /api/agreements/:id/send-for-signing
+ * POST /api/agreements/:id/initiate-signing
+ * Start the signing workflow (both endpoints do the same thing)
+ */
+router.post('/agreements/:id/send-for-signing', authenticateToken, initiateSigningHandler)
+router.post('/agreements/:id/initiate-signing', authenticateToken, initiateSigningHandler)
 
 /**
  * GET /api/agreements/:id/signing-status
@@ -323,16 +361,11 @@ router.post('/agreements/:id/initiate-signing', authenticateToken, async (req: A
 router.get('/agreements/:id/signing-status', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
-    const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
-    if (!companyUser?.company_id) {
+    if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
@@ -347,7 +380,7 @@ router.get('/agreements/:id/signing-status', authenticateToken, async (req: Auth
       return res.status(404).json({ error: 'Agreement not found' })
     }
 
-    if (agreement.company_id !== companyUser.company_id) {
+    if (agreement.company_id !== companyId) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
@@ -379,14 +412,10 @@ router.post('/agreements/:id/send-reminder/:signatureId', authenticateToken, asy
     const { email } = req.body
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
-    if (!companyUser?.company_id) {
+    if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
@@ -397,7 +426,7 @@ router.post('/agreements/:id/send-reminder/:signatureId', authenticateToken, asy
       .eq('id', id)
       .single()
 
-    if (!agreement || agreement.company_id !== companyUser.company_id) {
+    if (!agreement || agreement.company_id !== companyId) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
@@ -432,20 +461,17 @@ router.post('/agreements/:id/send-reminder/:signatureId', authenticateToken, asy
 /**
  * POST /api/agreements/:id/cancel-signing
  * Cancel signing and expire all tokens
+ * Query param: ?revertToDraft=true to reset status to draft instead of cancelled
  */
 router.post('/agreements/:id/cancel-signing', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
-    const userId = req.user?.id
+    const revertToDraft = req.query.revertToDraft === 'true' || req.body.revertToDraft === true
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
-    if (!companyUser?.company_id) {
+    if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
@@ -456,15 +482,40 @@ router.post('/agreements/:id/cancel-signing', authenticateToken, async (req: Aut
       .eq('id', id)
       .single()
 
-    if (!agreement || agreement.company_id !== companyUser.company_id) {
+    if (!agreement || agreement.company_id !== companyId) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    await signatureService.cancelSigning(id)
+    // Expire all signing tokens
+    await supabase
+      .from('agreement_signatures')
+      .update({
+        token_expires_at: new Date().toISOString()
+      })
+      .eq('agreement_id', id)
+      .neq('status', 'signed')
+
+    // Delete signature records so they can be recreated on next send
+    await supabase
+      .from('agreement_signatures')
+      .delete()
+      .eq('agreement_id', id)
+
+    // Set status to draft or cancelled
+    const newStatus = revertToDraft ? 'draft' : 'cancelled'
+    await supabase
+      .from('agreements')
+      .update({
+        signing_status: newStatus,
+        signing_initiated_at: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
 
     res.json({
       success: true,
-      message: 'Signing has been cancelled'
+      message: revertToDraft ? 'Agreement recalled to draft' : 'Signing has been cancelled',
+      newStatus
     })
   } catch (error: any) {
     console.error('Error cancelling signing:', error)
@@ -481,14 +532,10 @@ router.post('/agreements/:id/resend-all', authenticateToken, async (req: AuthReq
     const { id } = req.params
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
-    if (!companyUser?.company_id) {
+    if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
@@ -499,7 +546,7 @@ router.post('/agreements/:id/resend-all', authenticateToken, async (req: AuthReq
       .eq('id', id)
       .single()
 
-    if (!agreement || agreement.company_id !== companyUser.company_id) {
+    if (!agreement || agreement.company_id !== companyId) {
       return res.status(403).json({ error: 'Access denied' })
     }
 

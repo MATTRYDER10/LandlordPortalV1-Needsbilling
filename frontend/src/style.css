@@ -15,6 +15,52 @@ body {
   font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* Tenancies Page Animations */
+@keyframes tenancy-row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tenancy-row {
+  animation: tenancy-row-enter 0.35s ease-out;
+  animation-fill-mode: both;
+}
+
+.tenancy-row:nth-child(1) { animation-delay: 0ms; }
+.tenancy-row:nth-child(2) { animation-delay: 40ms; }
+.tenancy-row:nth-child(3) { animation-delay: 80ms; }
+.tenancy-row:nth-child(4) { animation-delay: 120ms; }
+.tenancy-row:nth-child(5) { animation-delay: 160ms; }
+.tenancy-row:nth-child(6) { animation-delay: 200ms; }
+.tenancy-row:nth-child(7) { animation-delay: 240ms; }
+.tenancy-row:nth-child(8) { animation-delay: 280ms; }
+.tenancy-row:nth-child(9) { animation-delay: 320ms; }
+.tenancy-row:nth-child(10) { animation-delay: 360ms; }
+
+/* Smooth scrollbar */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
 /* Toast Customization */
 .Vue-Toastification__toast--success {
   background-color: var(--color-primary) !important;

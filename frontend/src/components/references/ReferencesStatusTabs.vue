@@ -1,5 +1,5 @@
 <template>
-  <div class="border-b border-gray-200 bg-white sticky top-0 z-10">
+  <div class="border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 sticky top-0 z-10 transition-colors duration-300">
     <nav class="-mb-px flex space-x-8 px-6" aria-label="Tabs">
       <button
         v-for="tab in tabs"
@@ -9,7 +9,7 @@
         :class="[
           modelValue === tab.key
             ? 'border-primary text-primary'
-            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-600'
         ]"
       >
         {{ tab.label }}
@@ -19,7 +19,7 @@
           :class="[
             modelValue === tab.key
               ? 'bg-primary/10 text-primary'
-              : 'bg-gray-100 text-gray-600'
+              : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300'
           ]"
         >
           {{ tab.count }}
@@ -43,11 +43,11 @@ defineEmits<{
 }>()
 
 const tabs = computed(() => [
-  { key: 'ALL', label: 'All', count: props.counts.all },
   { key: 'IN_PROGRESS', label: 'In Progress', count: props.counts.inProgress },
   { key: 'ACTION_REQUIRED', label: 'Action Required', count: props.counts.actionRequired },
   { key: 'COMPLETED', label: 'Completed', count: props.counts.completed },
   { key: 'MOVED_IN', label: 'Moved In', count: props.counts.movedIn },
-  { key: 'REJECTED', label: 'Rejected', count: props.counts.rejected }
+  { key: 'REJECTED', label: 'Rejected', count: props.counts.rejected },
+  { key: 'ALL', label: 'All', count: props.counts.all }
 ])
 </script>

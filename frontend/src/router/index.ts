@@ -19,6 +19,7 @@ import Agreements from '../views/Agreements.vue'
 import AgreementsLayout from '../views/AgreementsLayout.vue'
 import AgreementHistory from '../views/AgreementHistory.vue'
 import Onboarding from '../views/Onboarding.vue'
+import BranchSelector from '../views/BranchSelector.vue'
 import StaffLogin from '../views/StaffLogin.vue'
 import StaffReferenceDetail from '../views/StaffReferenceDetail.vue'
 import StaffVerification from '../views/StaffVerification.vue'
@@ -36,11 +37,17 @@ import TenantOffer from '../views/TenantOffer.vue'
 import TenantOffers from '../views/TenantOffers.vue'
 import TenantOfferDetail from '../views/TenantOfferDetail.vue'
 import TenantOfferPaymentConfirmed from '../views/TenantOfferPaymentConfirmed.vue'
+import TenancyPaymentConfirmed from '../views/TenancyPaymentConfirmed.vue'
+import ConfirmRentDueDateChange from '../views/ConfirmRentDueDateChange.vue'
+import ConfirmTenantChangeFee from '../views/ConfirmTenantChangeFee.vue'
+import SelectMoveInTime from '../views/public/SelectMoveInTime.vue'
+import ConfirmMoveInTime from '../views/public/ConfirmMoveInTime.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
 import AdminStaffManagement from '../views/AdminStaffManagement.vue'
 import AdminCustomerManagement from '../views/AdminCustomerManagement.vue'
 import AdminReports from '../views/AdminReports.vue'
 import AgreementSigning from '../views/AgreementSigning.vue'
+import TenantChangeAddendumSigning from '../views/TenantChangeAddendumSigning.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -85,6 +92,12 @@ const router = createRouter({
       meta: { requiresAuth: true, skipOnboardingCheck: true }
     },
     {
+      path: '/select-branch',
+      name: 'BranchSelector',
+      component: BranchSelector,
+      meta: { requiresAuth: true, skipOnboardingCheck: true }
+    },
+    {
       path: '/dashboard',
       name: 'Dashboard',
       component: Dashboard,
@@ -94,6 +107,12 @@ const router = createRouter({
       path: '/references',
       name: 'References',
       component: References,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/tenancies',
+      name: 'Tenancies',
+      component: () => import('../views/Tenancies.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -110,6 +129,31 @@ const router = createRouter({
       path: '/tenant-offer/payment-confirmed',
       name: 'TenantOfferPaymentConfirmed',
       component: TenantOfferPaymentConfirmed
+    },
+    {
+      path: '/tenancy/payment-confirmed/:id',
+      name: 'TenancyPaymentConfirmed',
+      component: TenancyPaymentConfirmed
+    },
+    {
+      path: '/tenancy/select-move-in-time/:id',
+      name: 'SelectMoveInTime',
+      component: SelectMoveInTime
+    },
+    {
+      path: '/tenancy/confirm-move-in-time/:id',
+      name: 'ConfirmMoveInTime',
+      component: ConfirmMoveInTime
+    },
+    {
+      path: '/confirm-rent-change/:token',
+      name: 'ConfirmRentDueDateChange',
+      component: ConfirmRentDueDateChange
+    },
+    {
+      path: '/confirm-payment/:token',
+      name: 'ConfirmTenantChangeFee',
+      component: ConfirmTenantChangeFee
     },
     {
       path: '/tenant-offers',
@@ -172,6 +216,12 @@ const router = createRouter({
       path: '/sign/:token',
       name: 'AgreementSigning',
       component: AgreementSigning,
+      meta: { public: true }
+    },
+    {
+      path: '/sign-tenant-change/:token',
+      name: 'TenantChangeAddendumSigning',
+      component: TenantChangeAddendumSigning,
       meta: { public: true }
     },
     {
@@ -267,6 +317,12 @@ const router = createRouter({
         {
           path: 'team',
           name: 'SettingsTeam',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'integrations',
+          name: 'SettingsIntegrations',
           component: Settings,
           meta: { requiresAuth: true }
         },
@@ -428,16 +484,20 @@ router.beforeEach(async (to, _from, next) => {
   ]
   const isPublicPath = publicPaths.some(path => to.path.startsWith(path))
   const isStaffPath = to.path.startsWith('/staff')
-  const isReferenceSubmission = to.path.startsWith('/submit-reference') ||
-                                 to.path.startsWith('/tenant-offer') ||
-                                 to.path.startsWith('/guarantor-reference') ||
-                                 to.path.startsWith('/tenant-add-guarantor') ||
-                                 to.path.startsWith('/landlord-reference') ||
-                                 to.path.startsWith('/agent-reference') ||
-                                 to.path.startsWith('/employer-reference') ||
-                                 to.path.startsWith('/submit-employer-reference') ||
-                                 to.path.startsWith('/accountant-reference') ||
+  const isReferenceSubmission = to.path.startsWith('/submit-reference')
+                                 to.path.startsWith('/tenant-offer')
+                                 to.path.startsWith('/guarantor-reference')
+                                 to.path.startsWith('/tenant-add-guarantor')
+                                 to.path.startsWith('/landlord-reference')
+                                 to.path.startsWith('/agent-reference')
+                                 to.path.startsWith('/employer-reference')
+                                 to.path.startsWith('/submit-employer-reference')
+                                 to.path.startsWith('/accountant-reference')
                                  to.path.startsWith('/sign/')
+                                 to.path.startsWith('/sign-tenant-change/')
+                                 to.path.startsWith('/tenancy/')
+                                 to.path.startsWith('/confirm-rent-change/')
+                                 to.path.startsWith('/confirm-payment/')
   const skipOnboardingCheck = to.meta.skipOnboardingCheck === true
 
   if (
@@ -469,12 +529,24 @@ router.beforeEach(async (to, _from, next) => {
 
   // Agent portal access check - staff members cannot access agent routes
   // Exception: Staff admins CAN access agent routes (for viewing company accounts)
-  const agentPaths = ['/dashboard', '/references', '/agreements', '/landlords', '/properties', '/tenant-offers', '/settings', '/onboarding']
+  const agentPaths = ['/dashboard', '/references', '/tenancies', '/agreements', '/landlords', '/properties', '/tenant-offers', '/settings', '/onboarding']
   const isAgentPath = agentPaths.some(path => to.path.startsWith(path))
   if (isAgentPath && authStore.isStaff && isAuthenticated && !authStore.isAdmin) {
     // Staff member (non-admin) trying to access agent portal - redirect to staff work queue
     next('/staff/work-queue')
     return
+  }
+
+  // Multi-branch check: If user has multiple branches but none selected, redirect to selector
+  // Skip this check for the branch selector page itself and non-agent paths
+  const isBranchSelector = to.path === '/select-branch'
+  if (isAgentPath && isAuthenticated && !authStore.isStaff && !isBranchSelector) {
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    // If branches are loaded and user has multiple but no active one
+    if (authStore.hasMultipleBranches && !activeBranchId) {
+      next('/select-branch')
+      return
+    }
   }
 
   next()

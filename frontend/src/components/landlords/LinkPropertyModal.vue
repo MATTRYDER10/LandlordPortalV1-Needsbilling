@@ -234,6 +234,8 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../../stores/auth'
 import { X, Search, Plus, AlertTriangle } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 interface PropertyLandlord {
   landlord_id: string
   name: string
@@ -268,8 +270,6 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const saving = ref(false)
 const searching = ref(false)
 const searchQuery = ref('')
@@ -367,23 +367,41 @@ const handleSearch = async () => {
   searching.value = true
 
   try {
-    const response = await fetch(
-      `${API_URL}/api/properties?search=${encodeURIComponent(searchQuery.value)}&limit=50`,
-      {
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`
-        }
-      }
-    )
+    // Fetch ALL matching properties by paginating through all pages
+    let allProperties: any[] = []
+    let page = 1
+    const limit = 100
+    let hasMore = true
 
-    if (!response.ok) {
-      throw new Error('Failed to search properties')
+    while (hasMore) {
+      const response = await fetch(
+        `${API_URL}/api/properties?search=${encodeURIComponent(searchQuery.value)}&page=${page}&limit=${limit}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${authStore.session?.access_token}`
+          }
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to search properties')
+      }
+
+      const data = await response.json()
+      const pageProperties = data.properties || []
+      allProperties = [...allProperties, ...pageProperties]
+
+      // Check if there are more pages
+      const pagination = data.pagination
+      if (pagination && pagination.page < pagination.totalPages) {
+        page++
+      } else {
+        hasMore = false
+      }
     }
 
-    const data = await response.json()
-
     // Filter out properties that already have this landlord linked
-    searchResults.value = (data.properties || []).filter((p: PropertySearchResult) =>
+    searchResults.value = allProperties.filter((p: PropertySearchResult) =>
       !p.landlords?.some(l => l.landlord_id === props.landlordId)
     )
 

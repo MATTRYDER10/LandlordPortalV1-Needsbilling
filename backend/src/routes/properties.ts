@@ -10,6 +10,12 @@ import {
   getPropertyAuditLog,
   logPropertyAuditAction
 } from '../services/propertyAuditService'
+import {
+  matchOrCreateProperty,
+  searchProperties,
+  getPropertyForLinking,
+  validatePropertyAccess
+} from '../services/propertyMatchingService'
 import { supabase } from '../config/supabase'
 import multer from 'multer'
 
@@ -296,6 +302,134 @@ router.put('/:id/landlords', authenticateToken, requireMember, async (req: AuthR
 })
 
 // ============================================================================
+// SPECIAL CLAUSES
+// ============================================================================
+
+/**
+ * GET /api/properties/:id/special-clauses
+ * Get special clauses for a property
+ */
+router.get('/:id/special-clauses', authenticateToken, requireMember, async (req: AuthRequest, res) => {
+  try {
+    const companyId = req.companyId!
+    const propertyId = req.params.id
+
+    const { data: property, error } = await supabase
+      .from('properties')
+      .select('special_clauses')
+      .eq('id', propertyId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (error) throw error
+
+    res.json({ clauses: property?.special_clauses || [] })
+  } catch (error: any) {
+    console.error('[Properties] Error getting special clauses:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * PUT /api/properties/:id/special-clauses
+ * Update special clauses for a property
+ */
+router.put('/:id/special-clauses', authenticateToken, requireMember, async (req: AuthRequest, res) => {
+  try {
+    const companyId = req.companyId!
+    const userId = req.user!.id
+    const propertyId = req.params.id
+    const { clauses } = req.body
+
+    if (!Array.isArray(clauses)) {
+      return res.status(400).json({ error: 'Clauses must be an array of strings' })
+    }
+
+    // Validate each clause is a non-empty string
+    const validClauses = clauses.filter((c: any) => typeof c === 'string' && c.trim().length > 0)
+
+    const { error } = await supabase
+      .from('properties')
+      .update({ special_clauses: validClauses })
+      .eq('id', propertyId)
+      .eq('company_id', companyId)
+
+    if (error) throw error
+
+    // Audit log
+    await logPropertyAuditAction({
+      propertyId,
+      companyId,
+      userId,
+      action: 'SPECIAL_CLAUSES_UPDATED',
+      description: `Special clauses updated (${validClauses.length} clause${validClauses.length === 1 ? '' : 's'})`,
+      metadata: { clause_count: validClauses.length }
+    })
+
+    res.json({ message: 'Special clauses updated successfully', clauses: validClauses })
+  } catch (error: any) {
+    console.error('[Properties] Error updating special clauses:', error)
+    res.status(400).json({ error: error.message })
+  }
+})
+
+/**
+ * POST /api/properties/:id/enhance-clause
+ * Use GooseAI (Claude) to enhance a single rough clause into formal UK tenancy agreement language
+ */
+router.post('/:id/enhance-clause', authenticateToken, requireMember, async (req: AuthRequest, res) => {
+  try {
+    const { roughText } = req.body
+
+    if (!roughText?.trim()) {
+      return res.status(400).json({ error: 'Clause text is required' })
+    }
+
+    // Import the service dynamically to avoid loading if not needed
+    const { enhanceClause } = await import('../services/clauseEnhancementService')
+
+    const result = await enhanceClause(roughText)
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error || 'Failed to enhance clause' })
+    }
+
+    res.json({ enhancedText: result.enhancedText })
+  } catch (error: any) {
+    console.error('[Properties] Error enhancing clause:', error)
+    res.status(500).json({ error: error.message || 'Failed to enhance clause' })
+  }
+})
+
+/**
+ * POST /api/properties/:id/enhance-clauses
+ * Use GooseAI (Claude) to enhance multiple clauses at once, keeping them separate
+ */
+router.post('/:id/enhance-clauses', authenticateToken, requireMember, async (req: AuthRequest, res) => {
+  try {
+    const { clauses } = req.body
+
+    if (!Array.isArray(clauses) || clauses.length === 0) {
+      return res.status(400).json({ error: 'Clauses array is required' })
+    }
+
+    // Import the service dynamically to avoid loading if not needed
+    const { enhanceClauses } = await import('../services/clauseEnhancementService')
+
+    const result = await enhanceClauses(clauses)
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error || 'Failed to enhance clauses' })
+    }
+
+    res.json({ enhancedClauses: result.enhancedClauses })
+  } catch (error: any) {
+    console.error('[Properties] Error enhancing clauses:', error)
+    res.status(500).json({ error: error.message || 'Failed to enhance clauses' })
+  }
+})
+
+// ============================================================================
 // COMPLIANCE
 // ============================================================================
 
@@ -468,6 +602,16 @@ router.put('/:id/compliance/:complianceId', authenticateToken, requireMember, up
       }
     }
 
+    // Log the compliance update
+    await logPropertyAuditAction({
+      propertyId,
+      companyId,
+      action: 'COMPLIANCE_UPDATED',
+      description: `Compliance record updated${data.compliance_type ? ` (${data.compliance_type})` : ''}`,
+      metadata: { compliance_id: complianceId },
+      userId
+    })
+
     res.json({ message: 'Compliance record updated successfully' })
   } catch (error: any) {
     console.error('[Properties] Error updating compliance:', error)
@@ -482,9 +626,21 @@ router.put('/:id/compliance/:complianceId', authenticateToken, requireMember, up
 router.delete('/:id/compliance/:complianceId', authenticateToken, requireMember, async (req: AuthRequest, res) => {
   try {
     const companyId = req.companyId!
+    const userId = req.user!.id
+    const propertyId = req.params.id
     const complianceId = req.params.complianceId
 
     await propertyService.deleteComplianceRecord(complianceId, companyId)
+
+    // Log the compliance deletion
+    await logPropertyAuditAction({
+      propertyId,
+      companyId,
+      action: 'COMPLIANCE_DELETED',
+      description: 'Compliance record deleted',
+      metadata: { compliance_id: complianceId },
+      userId
+    })
 
     res.json({ message: 'Compliance record deleted successfully' })
   } catch (error: any) {
@@ -579,7 +735,7 @@ router.post('/:id/documents', authenticateToken, requireMember, upload.single('d
     const companyId = req.companyId!
     const userId = req.user!.id
     const propertyId = req.params.id
-    const { tag, custom_tag_name, description, file_name: customFileName } = req.body
+    const { tag, custom_tag_name, description, file_name: customFileName, source_type, source_id } = req.body
 
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' })
@@ -614,7 +770,9 @@ router.post('/:id/documents', authenticateToken, requireMember, upload.single('d
       file_type: req.file.mimetype,
       tag,
       custom_tag_name,
-      description
+      description,
+      source_type,
+      source_id
     }, userId)
 
     // Audit log
@@ -662,14 +820,57 @@ router.get('/:id/documents/:documentId/download', authenticateToken, requireMemb
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    // Handle both storage paths and signed URLs
+    let filePath = document.file_path
+
+    // If it's a signed URL, extract the path or fetch directly
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      console.log('[Properties] file_path is a URL, attempting direct fetch:', filePath.substring(0, 50) + '...')
+      try {
+        const response = await fetch(filePath)
+        if (response.ok) {
+          const buffer = Buffer.from(await response.arrayBuffer())
+          res.setHeader('Content-Type', document.file_type || 'application/octet-stream')
+          const forceDownload = req.query.download === 'true'
+          res.setHeader('Content-Disposition', `${forceDownload ? 'attachment' : 'inline'}; filename="${document.file_name}"`)
+          res.setHeader('Content-Length', buffer.length)
+          return res.send(buffer)
+        } else {
+          console.error('[Properties] Failed to fetch URL:', response.status)
+          return res.status(500).json({ error: 'Failed to download document - URL expired or invalid' })
+        }
+      } catch (fetchError: any) {
+        console.error('[Properties] Error fetching URL:', fetchError.message)
+        return res.status(500).json({ error: 'Failed to download document' })
+      }
+    }
+
+    // Clean up the file path - remove bucket prefix if present
+    if (filePath.includes('property-documents/')) {
+      filePath = filePath.replace('property-documents/', '')
+    }
+
     // Download from Supabase storage
+    console.log('[Properties] Downloading from storage path:', filePath)
+    console.log('[Properties] Full document record:', JSON.stringify(document, null, 2))
+
     const { data: fileData, error: downloadError } = await supabase.storage
       .from('property-documents')
-      .download(document.file_path)
+      .download(filePath)
 
     if (downloadError || !fileData) {
-      console.error('[Properties] Error downloading property document:', downloadError)
-      return res.status(500).json({ error: 'Failed to download document' })
+      console.error('[Properties] Error downloading property document:', {
+        error: downloadError,
+        message: downloadError?.message,
+        filePath,
+        documentId,
+        propertyId
+      })
+      return res.status(500).json({
+        error: 'Failed to download document',
+        details: downloadError?.message || 'Unknown error',
+        filePath
+      })
     }
 
     // Convert to buffer and send
@@ -1023,6 +1224,120 @@ router.get('/:id/activity', authenticateToken, requireMember, async (req: AuthRe
     })
   } catch (error: any) {
     console.error('Error fetching property activity:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// PROPERTY MATCHING ENDPOINTS
+// ============================================================================
+
+/**
+ * Search properties by address
+ * Used for autocomplete and property selection in forms
+ */
+router.get('/search', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = req.companyId
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID not found' })
+    }
+
+    const { q, limit = '10' } = req.query
+    const searchTerm = typeof q === 'string' ? q : ''
+    const limitNum = Math.min(parseInt(limit as string) || 10, 50)
+
+    if (!searchTerm || searchTerm.length < 2) {
+      return res.json({ properties: [] })
+    }
+
+    const properties = await searchProperties(companyId, searchTerm, limitNum)
+
+    res.json({ properties })
+  } catch (error: any) {
+    console.error('Error searching properties:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Match an address to an existing property or suggest creating one
+ * Returns matched property or suggestions for fuzzy matches
+ */
+router.post('/match', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = req.companyId
+    const userId = req.user?.id
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID not found' })
+    }
+
+    const { address_line1, address_line2, city, county, postcode, auto_create, landlord_id } = req.body
+
+    if (!address_line1 || !postcode) {
+      return res.status(400).json({ error: 'Address line 1 and postcode are required' })
+    }
+
+    const result = await matchOrCreateProperty(companyId, {
+      line1: address_line1,
+      line2: address_line2,
+      city,
+      county,
+      postcode
+    }, {
+      autoCreate: auto_create === true,
+      landlordId: landlord_id,
+      userId
+    })
+
+    res.json(result)
+  } catch (error: any) {
+    console.error('Error matching property:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get property details for linking (used in forms)
+ */
+router.get('/for-linking/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = req.companyId
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID not found' })
+    }
+
+    const { id } = req.params
+
+    const property = await getPropertyForLinking(id, companyId)
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' })
+    }
+
+    res.json({ property })
+  } catch (error: any) {
+    console.error('Error getting property for linking:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Validate property access (check if property exists and belongs to company)
+ */
+router.get('/validate/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = req.companyId
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID not found' })
+    }
+
+    const { id } = req.params
+
+    const hasAccess = await validatePropertyAccess(id, companyId)
+
+    res.json({ valid: hasAccess })
+  } catch (error: any) {
+    console.error('Error validating property:', error)
     res.status(500).json({ error: error.message })
   }
 })

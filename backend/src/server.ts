@@ -28,6 +28,7 @@ import chaseRoutes from './routes/chase'
 import landlordsRoutes from './routes/landlords'
 import { startSchedulers } from './services/workQueueScheduler'
 import { startComplianceScheduler } from './services/propertyComplianceScheduler'
+import { startRentIncreaseScheduler } from './services/rentIncreaseScheduler'
 import tenantOffersRoutes from './routes/tenant-offers'
 import googlePlaces from './routes/google-places'
 import adminRoutes from './routes/admin'
@@ -38,11 +39,15 @@ import vapiRoutes from './routes/vapi'
 import emailIssuesRoutes from './routes/email-issues'
 import propertiesRoutes from './routes/properties'
 import notificationsRoutes from './routes/notifications'
+import legalRoutes from './routes/legal'
+import tdsSettingsRoutes from './routes/tds-settings'
+import tdsRoutes from './routes/tds'
+import tenantChangeRoutes from './routes/tenant-change'
 
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 3001
+const PORT = parseInt(process.env.PORT || '3001', 10)
 
 // Trust proxy when behind a reverse proxy (Railway, Cloudflare, etc.)
 if (process.env.NODE_ENV === 'production') {
@@ -90,7 +95,11 @@ app.use(helmet({
 
 // CORS Configuration
 const allowedOrigins = [
-  'https://app.propertygoose.co.uk', // Local development
+  'http://localhost:5173', // Local development
+  'http://localhost:5174', // Local development (alternate port)
+  'http://192.168.1.81:5173', // Local network access
+  'http://192.168.1.81:5174', // Local network access (alternate port)
+  'https://app.propertygoose.co.uk', // Production
   process.env.FRONTEND_URL // Production (Railway)
 ].filter(Boolean) // Remove undefined values
 
@@ -99,6 +108,11 @@ app.use(cors({
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true)
 
+    // Allow ngrok tunnels for testing
+    if (origin.endsWith('.ngrok-free.dev') || origin.endsWith('.ngrok.io') || origin.endsWith('.loca.lt')) {
+      return callback(null, true)
+    }
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true)
     } else {
@@ -106,7 +120,7 @@ app.use(cors({
     }
   },
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Company-Id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Company-Id', 'X-Branch-Id'],
   exposedHeaders: ['Content-Disposition'] // Allow frontend to read this header
 }))
 
@@ -174,14 +188,21 @@ app.use('/api/tenancies', tenanciesRoutes)
 app.use('/api/email-issues', emailIssuesRoutes)
 app.use('/api/properties', propertiesRoutes)
 app.use('/api/notifications', notificationsRoutes)
+app.use('/api/legal', legalRoutes)
+app.use('/api/settings/tds', tdsSettingsRoutes)
+app.use('/api/tds', tdsRoutes)
+app.use('/api/tenant-change', tenantChangeRoutes)
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+// Start server - listen on all interfaces for local network access
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT} (accessible on local network)`)
 
   // Start background schedulers for work queue management
   startSchedulers()
 
   // Start property compliance scheduler
   startComplianceScheduler()
+
+  // Start rent increase scheduler
+  startRentIncreaseScheduler()
 })

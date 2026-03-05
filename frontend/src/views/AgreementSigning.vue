@@ -1,23 +1,24 @@
 <template>
-  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-gray-50 dark:bg-slate-800 py-8 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto">
       <!-- Header -->
       <div class="text-center mb-8">
         <div class="flex justify-center items-center gap-3 mb-4">
-          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12" />
+          <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12 dark:hidden" />
+          <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-12 hidden dark:block" />
         </div>
-        <h1 class="text-3xl font-bold text-gray-900">Sign Your Tenancy Agreement</h1>
-        <p class="mt-2 text-gray-600">Review and sign your agreement electronically</p>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Sign Your Tenancy Agreement</h1>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Review and sign your agreement electronically</p>
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="bg-white rounded-lg shadow p-8 text-center">
+      <div v-if="loading" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p class="text-gray-600">Loading agreement details...</p>
+        <p class="text-gray-600 dark:text-slate-400">Loading agreement details...</p>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-lg">
+      <div v-else-if="error" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 px-6 py-4 rounded-lg">
         <div class="flex items-center">
           <AlertTriangle class="h-5 w-5 mr-2" />
           {{ error }}
@@ -25,28 +26,28 @@
       </div>
 
       <!-- Already Signed State -->
-      <div v-else-if="signingData?.signature?.status === 'signed'" class="bg-white rounded-lg shadow p-8 text-center">
+      <div v-else-if="signingData?.signature?.status === 'signed'" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
         <CheckCircle class="mx-auto h-16 w-16 text-green-500" />
-        <h3 class="mt-4 text-xl font-semibold text-gray-900">Agreement Already Signed</h3>
-        <p class="mt-2 text-gray-600">You have already signed this agreement on {{ formatDate(signingData.signature.signed_at) }}.</p>
-        <p class="mt-4 text-sm text-gray-500">You will receive an email with the fully executed agreement once all parties have signed.</p>
+        <h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Agreement Already Signed</h3>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">You have already signed this agreement on {{ formatDate(signingData.signature.signed_at) }}.</p>
+        <p class="mt-4 text-sm text-gray-500 dark:text-slate-400">You will receive an email with the fully executed agreement once all parties have signed.</p>
       </div>
 
       <!-- Declined State -->
-      <div v-else-if="signingData?.signature?.status === 'declined'" class="bg-white rounded-lg shadow p-8 text-center">
+      <div v-else-if="signingData?.signature?.status === 'declined'" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
         <XCircle class="mx-auto h-16 w-16 text-red-500" />
-        <h3 class="mt-4 text-xl font-semibold text-gray-900">Signature Declined</h3>
-        <p class="mt-2 text-gray-600">You have declined to sign this agreement.</p>
-        <p class="mt-4 text-sm text-gray-500">If this was a mistake, please contact your letting agent.</p>
+        <h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Signature Declined</h3>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">You have declined to sign this agreement.</p>
+        <p class="mt-4 text-sm text-gray-500 dark:text-slate-400">If this was a mistake, please contact your letting agent.</p>
       </div>
 
       <!-- Success State (just signed) -->
-      <div v-else-if="justSigned" class="bg-white rounded-lg shadow p-8 text-center">
+      <div v-else-if="justSigned" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
         <CheckCircle class="mx-auto h-16 w-16 text-green-500" />
-        <h3 class="mt-4 text-xl font-semibold text-gray-900">Thank You!</h3>
-        <p class="mt-2 text-gray-600">Your signature has been recorded successfully.</p>
-        <div class="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p class="text-sm text-blue-800">
+        <h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Thank You!</h3>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Your signature has been recorded successfully.</p>
+        <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+          <p class="text-sm text-blue-800 dark:text-blue-300">
             <strong>What happens next?</strong><br>
             Once all parties have signed, you will receive an email with the fully executed agreement attached.
           </p>
@@ -54,13 +55,13 @@
 
         <!-- Signing Status -->
         <div v-if="signingStatus" class="mt-6">
-          <h4 class="text-sm font-semibold text-gray-700 mb-3">Signing Progress</h4>
+          <h4 class="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">Signing Progress</h4>
           <div class="space-y-2">
             <div v-for="signer in signingStatus.signers" :key="signer.id"
-                 class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                 class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
               <div class="flex items-center">
-                <span class="text-sm font-medium text-gray-900">{{ signer.signer_name }}</span>
-                <span class="ml-2 text-xs text-gray-500 capitalize">({{ signer.signer_type }})</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ signer.signer_name }}</span>
+                <span class="ml-2 text-xs text-gray-500 dark:text-slate-400 capitalize">({{ signer.signer_type }})</span>
               </div>
               <span :class="getStatusClass(signer.status)" class="text-xs font-medium px-2 py-1 rounded-full">
                 {{ getStatusLabel(signer.status) }}
@@ -73,67 +74,67 @@
       <!-- Main Signing Interface -->
       <div v-else-if="signingData" class="space-y-6">
         <!-- Agreement Info Card -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
           <div class="flex items-start justify-between">
             <div>
-              <h2 class="text-lg font-semibold text-gray-900">{{ getAgreementTitle() }}</h2>
-              <p class="mt-1 text-gray-600">{{ signingData.agreement.property_address }}</p>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ getAgreementTitle() }}</h2>
+              <p class="mt-1 text-gray-600 dark:text-slate-400">{{ signingData.agreement.property_address }}</p>
             </div>
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 capitalize">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300 capitalize">
               {{ signingData.signature.signer_type }}
             </span>
           </div>
 
-          <div class="mt-4 pt-4 border-t border-gray-200">
-            <p class="text-sm text-gray-600">
+          <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+            <p class="text-sm text-gray-600 dark:text-slate-400">
               <strong>You're signing as:</strong> {{ signingData.signature.signer_name }}
             </p>
           </div>
         </div>
 
         <!-- PDF Preview -->
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-          <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 class="text-lg font-medium text-gray-900">Agreement Document</h3>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Agreement Document</h3>
             <button
               @click="downloadPdf"
-              class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600"
             >
               <Download class="w-4 h-4 mr-1.5" />
               Download PDF
             </button>
           </div>
-          <div class="bg-gray-100 p-4">
+          <div class="bg-gray-100 dark:bg-slate-700 p-4">
             <iframe
               v-if="pdfUrl"
               :src="pdfUrl"
-              class="w-full h-[600px] border border-gray-300 rounded bg-white"
+              class="w-full h-[600px] border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800"
             ></iframe>
             <div v-else class="h-[600px] flex items-center justify-center">
               <div class="text-center">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p class="text-sm text-gray-500">Loading document...</p>
+                <p class="text-sm text-gray-500 dark:text-slate-400">Loading document...</p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Signing Status -->
-        <div v-if="signingStatus" class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Signing Progress</h3>
+        <div v-if="signingStatus" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Signing Progress</h3>
           <div class="space-y-3">
             <div v-for="signer in signingStatus.signers" :key="signer.id"
-                 class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                 class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
               <div class="flex items-center">
                 <div :class="[
                   'w-8 h-8 rounded-full flex items-center justify-center mr-3',
-                  signer.status === 'signed' ? 'bg-green-100' : 'bg-gray-200'
+                  signer.status === 'signed' ? 'bg-green-100 dark:bg-green-900/50' : 'bg-gray-200 dark:bg-slate-600'
                 ]">
-                  <Check v-if="signer.status === 'signed'" class="w-4 h-4 text-green-600" />
+                  <Check v-if="signer.status === 'signed'" class="w-4 h-4 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <span class="text-sm font-medium text-gray-900">{{ signer.signer_name }}</span>
-                  <span class="ml-2 text-xs text-gray-500 capitalize">({{ signer.signer_type }})</span>
+                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ signer.signer_name }}</span>
+                  <span class="ml-2 text-xs text-gray-500 dark:text-slate-400 capitalize">({{ signer.signer_type }})</span>
                 </div>
               </div>
               <span :class="getStatusClass(signer.status)" class="text-xs font-medium px-2 py-1 rounded-full">
@@ -144,8 +145,8 @@
         </div>
 
         <!-- Signature Section -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Your Signature</h3>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Your Signature</h3>
 
           <SignaturePad
             v-model="signature"
@@ -159,9 +160,9 @@
               <input
                 type="checkbox"
                 v-model="agreedToTerms"
-                class="mt-1 h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
+                class="mt-1 h-4 w-4 text-primary border-gray-300 dark:border-slate-600 rounded focus:ring-primary dark:bg-slate-900"
               />
-              <span class="ml-3 text-sm text-gray-600">
+              <span class="ml-3 text-sm text-gray-600 dark:text-slate-400">
                 I confirm that I have read and understood the tenancy agreement above. I agree to be bound by its terms and conditions.
                 I understand that this electronic signature is legally binding.
               </span>
@@ -188,7 +189,7 @@
               type="button"
               @click="showDeclineModal = true"
               :disabled="submitting"
-              class="px-6 py-3 text-red-600 font-semibold border border-red-300 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+              class="px-6 py-3 text-red-600 dark:text-red-400 font-semibold border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
             >
               Decline to Sign
             </button>
@@ -197,23 +198,23 @@
       </div>
 
       <!-- Decline Modal -->
-      <div v-if="showDeclineModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-        <div class="relative bg-white rounded-lg shadow-xl max-w-md mx-4 p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Decline to Sign</h3>
-          <p class="text-sm text-gray-600 mb-4">
+      <div v-if="showDeclineModal" class="fixed inset-0 bg-gray-600 dark:bg-slate-900 bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md mx-4 p-6">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Decline to Sign</h3>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
             Are you sure you want to decline to sign this agreement? Please provide a reason below.
           </p>
           <textarea
             v-model="declineReason"
             rows="3"
             placeholder="Please explain why you're declining to sign..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
           ></textarea>
           <div class="mt-6 flex justify-end gap-3">
             <button
               type="button"
               @click="showDeclineModal = false"
-              class="px-4 py-2 text-gray-700 font-medium border border-gray-300 rounded-md hover:bg-gray-50"
+              class="px-4 py-2 text-gray-700 dark:text-slate-300 font-medium border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -238,6 +239,8 @@ import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
 import { AlertTriangle, CheckCircle, XCircle, Download, Check, Loader2 } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const route = useRoute()
 const token = route.params.token as string
 
@@ -261,8 +264,7 @@ const canSign = computed(() => {
 })
 
 // API base URL
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
+const API_BASE = import.meta.env.VITE_API_URL
 // Methods
 const fetchSigningData = async () => {
   try {
@@ -435,16 +437,16 @@ const getAgreementTitle = () => {
 const getStatusClass = (status: string) => {
   switch (status) {
     case 'signed':
-      return 'bg-green-100 text-green-800'
+      return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
     case 'pending':
     case 'sent':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
     case 'viewed':
-      return 'bg-blue-100 text-blue-800'
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
     case 'declined':
-      return 'bg-red-100 text-red-800'
+      return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-slate-300'
   }
 }
 

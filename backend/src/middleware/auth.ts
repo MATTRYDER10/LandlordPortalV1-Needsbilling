@@ -44,6 +44,23 @@ export async function getCompanyIdForRequest(req: AuthRequest): Promise<string |
     }
   }
 
+  // Check for X-Branch-Id header (user selecting which branch to use)
+  const branchId = req.headers['x-branch-id'] as string | undefined
+  if (branchId) {
+    // Verify user belongs to this branch
+    const { data: branchMembership } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', branchId)
+      .limit(1)
+
+    if (branchMembership && branchMembership.length > 0) {
+      return branchId
+    }
+    // If user doesn't belong to this branch, fall through to default
+  }
+
   // Fall back to user's own company
   const { data: companyUsers } = await supabase
     .from('company_users')
@@ -155,24 +172,46 @@ export const requireAdmin = async (
       return res.status(401).json({ error: 'User not authenticated' })
     }
 
-    // Get user's role in their company
-    const { data: companyUser, error } = await supabase
-      .from('company_users')
-      .select('role, company_id')
-      .eq('user_id', userId)
-      .single()
+    // Check for X-Branch-Id header (user selecting which branch to use)
+    const branchId = req.headers['x-branch-id'] as string | undefined
 
-    if (error || !companyUser) {
-      // Check if this is a staff admin trying to view a company
-      const overrideCompanyId = req.headers['x-admin-company-id'] as string | undefined
-      if (overrideCompanyId) {
-        const overrideApplied = await applyAdminCompanyOverride(req)
-        if (overrideApplied) {
-          req.userRole = 'admin' // Give admin role for viewing
-          return next()
-        }
+    let companyUser: { role: string; company_id: string } | null = null
+
+    if (branchId) {
+      // Verify user belongs to this branch
+      const { data: branchMembership, error } = await supabase
+        .from('company_users')
+        .select('role, company_id')
+        .eq('user_id', userId)
+        .eq('company_id', branchId)
+        .single()
+
+      if (!error && branchMembership) {
+        companyUser = branchMembership
       }
-      return res.status(404).json({ error: 'User not associated with any company' })
+    }
+
+    // Fall back to first company if no branch specified or branch not found
+    if (!companyUser) {
+      const { data: companyUsers } = await supabase
+        .from('company_users')
+        .select('role, company_id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (!companyUsers || companyUsers.length === 0) {
+        // Check if this is a staff admin trying to view a company
+        const overrideCompanyId = req.headers['x-admin-company-id'] as string | undefined
+        if (overrideCompanyId) {
+          const overrideApplied = await applyAdminCompanyOverride(req)
+          if (overrideApplied) {
+            req.userRole = 'admin' // Give admin role for viewing
+            return next()
+          }
+        }
+        return res.status(404).json({ error: 'User not associated with any company' })
+      }
+      companyUser = companyUsers[0]
     }
 
     if (companyUser.role !== 'owner' && companyUser.role !== 'admin') {
@@ -221,24 +260,46 @@ export const requireMember = async (
       return res.status(401).json({ error: 'User not authenticated' })
     }
 
-    // Get user's role and company
-    const { data: companyUser, error } = await supabase
-      .from('company_users')
-      .select('role, company_id')
-      .eq('user_id', userId)
-      .single()
+    // Check for X-Branch-Id header (user selecting which branch to use)
+    const branchId = req.headers['x-branch-id'] as string | undefined
 
-    if (error || !companyUser) {
-      // Check if this is a staff admin trying to view a company
-      const overrideCompanyId = req.headers['x-admin-company-id'] as string | undefined
-      if (overrideCompanyId) {
-        const overrideApplied = await applyAdminCompanyOverride(req)
-        if (overrideApplied) {
-          req.userRole = 'admin' // Give admin role for viewing
-          return next()
-        }
+    let companyUser: { role: string; company_id: string } | null = null
+
+    if (branchId) {
+      // Verify user belongs to this branch
+      const { data: branchMembership, error } = await supabase
+        .from('company_users')
+        .select('role, company_id')
+        .eq('user_id', userId)
+        .eq('company_id', branchId)
+        .single()
+
+      if (!error && branchMembership) {
+        companyUser = branchMembership
       }
-      return res.status(404).json({ error: 'User not associated with any company' })
+    }
+
+    // Fall back to first company if no branch specified or branch not found
+    if (!companyUser) {
+      const { data: companyUsers } = await supabase
+        .from('company_users')
+        .select('role, company_id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (!companyUsers || companyUsers.length === 0) {
+        // Check if this is a staff admin trying to view a company
+        const overrideCompanyId = req.headers['x-admin-company-id'] as string | undefined
+        if (overrideCompanyId) {
+          const overrideApplied = await applyAdminCompanyOverride(req)
+          if (overrideApplied) {
+            req.userRole = 'admin' // Give admin role for viewing
+            return next()
+          }
+        }
+        return res.status(404).json({ error: 'User not associated with any company' })
+      }
+      companyUser = companyUsers[0]
     }
 
     // Store role and companyId for use in route handlers

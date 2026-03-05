@@ -1,9 +1,25 @@
 import { useAuthStore } from '@/stores/auth'
 import { useAdminCompanyStore } from '@/stores/adminCompany'
 
-const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
-  ? 'http://localhost:3001'
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+// In dev mode, determine the correct API URL based on the access method
+const getApiUrl = () => {
+  if (!import.meta.env.DEV) {
+    return import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  }
+
+  const hostname = window.location.hostname
+
+  // If accessed via ngrok or other tunnels, use localhost for API
+  // (ngrok only tunnels the frontend, backend is still on localhost)
+  if (hostname.includes('ngrok') || hostname.includes('loca.lt') || hostname.includes('.dev')) {
+    return 'http://localhost:3001'
+  }
+
+  // For local network access (e.g., 192.168.1.81), use the same IP
+  return `http://${hostname}:3001`
+}
+
+const API_URL = getApiUrl()
 
 /**
  * Composable for making API calls with automatic authentication
@@ -34,6 +50,12 @@ export function useApi() {
     // Add admin company override if active
     if (adminCompanyStore.isOverrideActive && adminCompanyStore.selectedCompanyId) {
       headers['X-Admin-Company-Id'] = adminCompanyStore.selectedCompanyId
+    }
+
+    // Add active branch ID for multi-branch support
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId && !headers['X-Admin-Company-Id']) {
+      headers['X-Branch-Id'] = activeBranchId
     }
 
     return headers

@@ -25,19 +25,43 @@ const authMiddleware = async (req: Request, res: Response, next: Function) => {
       return res.status(401).json({ error: 'Invalid token' })
     }
 
-    // Get company ID
-    const { data: companyUser, error: companyError } = await supabaseAdmin
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', user.id)
-      .single()
+    // Check for X-Branch-Id header first (multi-branch support)
+    const branchId = req.headers['x-branch-id'] as string | undefined
+    let companyId: string | null = null
 
-    if (companyError || !companyUser) {
+    if (branchId) {
+      // Verify user belongs to this branch
+      const { data: branchMembership } = await supabaseAdmin
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .eq('company_id', branchId)
+        .limit(1)
+
+      if (branchMembership && branchMembership.length > 0) {
+        companyId = branchMembership[0].company_id
+      }
+    }
+
+    // Fallback: Get user's first company (don't use .single() for multi-branch users)
+    if (!companyId) {
+      const { data: companyUsers } = await supabaseAdmin
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .limit(1)
+
+      if (companyUsers && companyUsers.length > 0) {
+        companyId = companyUsers[0].company_id
+      }
+    }
+
+    if (!companyId) {
       return res.status(403).json({ error: 'User not associated with a company' })
     }
 
     req.user = user
-    req.companyId = companyUser.company_id
+    req.companyId = companyId
     next()
   } catch (err) {
     return res.status(500).json({ error: 'Authentication failed' })

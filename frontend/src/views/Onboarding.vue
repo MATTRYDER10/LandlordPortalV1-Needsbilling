@@ -4,7 +4,7 @@
       <!-- Progress Bar -->
       <div v-if="currentStep > 0" class="mb-8">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-medium text-gray-700">Step {{ currentStep }} of 5</span>
+          <span class="text-sm font-medium text-gray-700 dark:text-slate-200">Step {{ currentStep }} of 5</span>
           <span class="text-sm text-gray-500">{{ progressPercentage }}% complete</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2.5">
@@ -83,6 +83,8 @@ import CompanyInfoStep from '../components/onboarding/CompanyInfoStep.vue'
 import BankDetailsStep from '../components/onboarding/BankDetailsStep.vue'
 import BrandingStep from '../components/onboarding/BrandingStep.vue'
 import PaymentSetupStep from '../components/onboarding/PaymentSetupStep.vue'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const router = useRouter()
 const authStore = useAuthStore()

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Confirmed - {{ CompanyName }}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                            <img src="{{ AgentLogoUrl }}" alt="{{ CompanyName }}" style="height: 48px; width: auto; max-width: 200px;">
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <!-- Success Icon -->
+                            <div style="text-align: center; margin-bottom: 24px;">
+                                <div style="display: inline-block; width: 64px; height: 64px; background-color: #dcfce7; border-radius: 50%; line-height: 64px; text-align: center;">
+                                    <span style="font-size: 32px;">&#10003;</span>
+                                </div>
+                            </div>
+
+                            <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: bold; color: #16a34a; text-align: center;">
+                                Tenant Confirmed Payment
+                            </h1>
+
+                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563; text-align: center;">
+                                A tenant has confirmed they have made the Change of Tenant fee payment.
+                            </p>
+
+                            <!-- Details Box -->
+                            <div style="background-color: #f0fdf4; padding: 24px; border-radius: 8px; margin: 24px 0; border: 1px solid #bbf7d0;">
+                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                    <tr>
+                                        <td style="padding: 8px 0; font-size: 14px; color: #4b5563;">Property:</td>
+                                        <td style="padding: 8px 0; font-size: 14px; color: #111827; font-weight: 600; text-align: right;">{{ PropertyAddress }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0; font-size: 14px; color: #4b5563;">Payment Reference:</td>
+                                        <td style="padding: 8px 0; font-size: 14px; color: #111827; font-weight: 600; text-align: right;">{{ PaymentReference }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0; font-size: 14px; color: #4b5563;">Amount:</td>
+                                        <td style="padding: 8px 0; font-size: 14px; color: #111827; font-weight: 600; text-align: right;">£{{ TotalAmount }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0; font-size: 14px; color: #4b5563;">Confirmed At:</td>
+                                        <td style="padding: 8px 0; font-size: 14px; color: #111827; font-weight: 600; text-align: right;">{{ ConfirmedAt }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- Action Required Notice -->
+                            <div style="background-color: #fef3c7; padding: 16px; border-radius: 8px; margin: 24px 0; border: 1px solid #fcd34d;">
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #92400e;">
+                                    <strong>Action Required:</strong> Please verify the payment has been received in your bank account, then mark it as received in PropertyGoose to proceed with the addendum.
+                                </p>
+                            </div>
+
+                            <p style="margin: 24px 0 0; font-size: 13px; line-height: 18px; color: #6b7280; text-align: center;">
+                                Log in to PropertyGoose to continue the Change of Tenant process.
+                            </p>
+
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px 40px; text-align: center; border-top: 1px solid #e5e7eb; background-color: #f9fafb; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                                This is an automated notification from {{ CompanyName }}.
+                            </p>
+                            <p style="margin: 8px 0 0; font-size: 12px; color: #9ca3af;">
+                                &copy; 2026 {{ CompanyName }}. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

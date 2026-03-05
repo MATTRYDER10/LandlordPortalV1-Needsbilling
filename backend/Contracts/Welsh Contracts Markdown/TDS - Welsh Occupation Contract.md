@@ -213,6 +213,7 @@ Where the Contract-Holder is not an individual, but the tenancy is granted for t
    
 
 3. The Contract-Holder shall pay to the Landlord or the Landlord's Agent by way of rent the amount of £\[rent\_amount\] per month by Bank Standing Order to: Account Number: \[LANDLORD/AGENT\_ACCOUNT\_NUMBER\] Sort Code: \[LANDLORD/AGENT\_SORT\_CODE\] in the name of \[LANDLORD/AGENT\_ACCOUNT\_NAME\] exclusive of Council Tax payable in advance on the \[rent\_due\_date\] day of each month during the Term the first such payment to be made on the signing of this Contract for the period from the occupation date until the next rent payment date. These bank details will not change; the Contract-Holder should contact the Landlord or their Agent if they receive a notification to pay elsewhere.
+
 Payment Reference: \[PAYMENT_REFERENCE\]
 
 4. Where the Contract shall include the Landlord's fixtures and fittings ("the Fixtures and Fittings") in the Dwelling/Property, this includes, amongst other things, all matters specified in the Inventory and Schedule of Condition ("the Check-In Inventory and Schedule of Condition").

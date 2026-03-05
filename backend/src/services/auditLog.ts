@@ -8,6 +8,7 @@ export type AuditAction =
   | 'user.invitation_revoked'
   | 'user.joined'
   | 'user.removed'
+  | 'user.added_to_branch'
   | 'user.role_changed'
   | 'user.profile_updated'
   | 'user.password_changed'

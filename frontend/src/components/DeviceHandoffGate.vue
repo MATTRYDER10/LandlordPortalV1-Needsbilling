@@ -1,13 +1,13 @@
 <template>
-    <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-700 overflow-hidden">
         <div class="px-6 py-6 sm:px-10 sm:py-8 space-y-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div class="flex items-center gap-3">
                     <img v-if="companyLogo" :src="companyLogo" alt="Company Logo"
                         class="h-14 w-14 object-contain rounded" />
                     <div>
-                        <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Secure Request From</p>
-                        <p class="text-xl font-bold text-gray-900">{{ companyName || 'Your letting agent' }}</p>
+                        <p class="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Secure Request From</p>
+                        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ companyName || 'Your letting agent' }}</p>
                     </div>
                 </div>
                 <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
@@ -18,46 +18,46 @@
             </div>
 
             <div class="space-y-2">
-                <h2 class="text-2xl font-bold text-gray-900">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
                     {{ title }}
                 </h2>
-                <p class="text-gray-600">
+                <p class="text-gray-600 dark:text-slate-400">
                     {{ description }}
                 </p>
             </div>
 
             <div class="grid gap-6 md:grid-cols-2">
-                <div class="bg-gray-50 rounded-xl p-5 space-y-4">
+                <div class="bg-gray-50 dark:bg-slate-800 rounded-xl p-5 space-y-4">
                     <div>
-                        <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Request Details</p>
+                        <p class="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Request Details</p>
                         <ul class="mt-3 space-y-3">
                             <li v-for="(item, index) in filteredRequestDetails" :key="index"
                                 class="flex items-start gap-3">
                                 <div class="w-1 h-1 rounded-full mt-2" :style="{ backgroundColor: primaryColor }"></div>
                                 <div>
-                                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">{{ item.label
+                                    <p class="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">{{ item.label
                                         }}</p>
-                                    <p class="text-sm text-gray-900">{{ item.value }}</p>
+                                    <p class="text-sm text-gray-900 dark:text-white">{{ item.value }}</p>
                                 </div>
                             </li>
                         </ul>
                     </div>
 
-                    <div class="border-t border-gray-200 pt-4 space-y-1">
-                        <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Agent Contact</p>
-                        <p class="text-sm text-gray-900">{{ companyName }}</p>
-                        <p v-if="companyContactEmail" class="text-sm text-gray-600">
+                    <div class="border-t border-gray-200 dark:border-slate-700 pt-4 space-y-1">
+                        <p class="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Agent Contact</p>
+                        <p class="text-sm text-gray-900 dark:text-white">{{ companyName }}</p>
+                        <p v-if="companyContactEmail" class="text-sm text-gray-600 dark:text-slate-400">
                             <a class="hover:underline" :href="`mailto:${companyContactEmail}`">{{ companyContactEmail
                                 }}</a>
                         </p>
-                        <p v-if="companyContactPhone" class="text-sm text-gray-600">
+                        <p v-if="companyContactPhone" class="text-sm text-gray-600 dark:text-slate-400">
                             <a class="hover:underline" :href="`tel:${companyContactPhone}`">{{ companyContactPhone
                                 }}</a>
                         </p>
-                        <p v-if="companyContactAddress" class="text-sm text-gray-600">
+                        <p v-if="companyContactAddress" class="text-sm text-gray-600 dark:text-slate-400">
                             {{ companyContactAddress }}
                         </p>
-                        <p v-if="companyWebsite" class="text-sm text-gray-600">
+                        <p v-if="companyWebsite" class="text-sm text-gray-600 dark:text-slate-400">
                             <a class="hover:underline" :href="companyWebsite" target="_blank" rel="noopener noreferrer">
                                 {{ companyWebsite }}
                             </a>
@@ -65,20 +65,20 @@
                     </div>
                 </div>
 
-                <div class="bg-gray-50 rounded-xl p-5 flex flex-col items-center text-center gap-4">
-                    <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Open On Another Device</p>
-                    <div class="bg-white p-4 rounded-2xl shadow-inner">
+                <div class="bg-gray-50 dark:bg-slate-800 rounded-xl p-5 flex flex-col items-center text-center gap-4">
+                    <p class="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Open On Another Device</p>
+                    <div class="bg-white dark:bg-slate-700 p-4 rounded-2xl shadow-inner">
                         <img v-if="qrCodeDataUrl" :src="qrCodeDataUrl" alt="QR Code" class="w-48 h-48 object-contain" />
                         <div v-else class="w-48 h-48 flex items-center justify-center text-gray-400">
                             <QrCode class="w-12 h-12" />
                         </div>
                     </div>
-                    <p class="text-sm text-gray-600">
+                    <p class="text-sm text-gray-600 dark:text-slate-400">
                         Scan this QR code with your phone camera to continue on a mobile device. You'll need to take
                         live photos and upload documents.
                     </p>
                     <button type="button"
-                        class="inline-flex items-center justify-center gap-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-100 transition-colors"
+                        class="inline-flex items-center justify-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                         @click="copyLink">
                         <Copy class="w-4 h-4" />
                         <span>{{ copied ? 'Link copied!' : 'Copy secure link' }}</span>
@@ -86,8 +86,8 @@
                 </div>
             </div>
 
-            <div class="border-t border-gray-200 pt-6">
-                <p class="text-sm text-gray-600 mb-3">
+            <div class="border-t border-gray-200 dark:border-slate-700 pt-6">
+                <p class="text-sm text-gray-600 dark:text-slate-400 mb-3">
                     Prefer to continue here? Make sure you're on a device with a working camera before proceeding.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-3">
@@ -96,8 +96,8 @@
                         :style="{ backgroundColor: buttonColor || primaryColor }" @click="handleProceed">
                         {{ proceedLabel }}
                     </button>
-                    <div class="flex items-center text-sm text-gray-500 gap-2">
-                        <Video class="w-4 h-4 text-gray-400" />
+                    <div class="flex items-center text-sm text-gray-500 dark:text-slate-400 gap-2">
+                        <Video class="w-4 h-4 text-gray-400 dark:text-slate-500" />
                         You can come back to this screen at any time.
                     </div>
                 </div>

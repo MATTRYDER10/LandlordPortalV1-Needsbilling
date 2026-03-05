@@ -1,11 +1,11 @@
 <template>
   <Sidebar>
-    <div class="p-8">
+    <div class="min-h-screen bg-slate-50 dark:bg-slate-950 p-8 transition-colors duration-300">
       <div class="mb-8">
         <div class="flex justify-between items-center mb-4">
           <div>
-            <h2 class="text-3xl font-bold text-gray-900">Tenant Offers</h2>
-            <p class="mt-2 text-gray-600">Manage rental property offers from tenants</p>
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Tenant Offers</h2>
+            <p class="mt-2 text-gray-600 dark:text-slate-400">Manage rental property offers from tenants</p>
           </div>
           <button @click="showSendModal = true"
             class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
@@ -15,71 +15,71 @@
 
         <!-- Stats -->
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-5 mb-6">
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+          <div class="bg-white dark:bg-slate-900 overflow-hidden shadow dark:shadow-slate-900/50 rounded-lg cursor-pointer hover:shadow-md dark:hover:shadow-slate-800/50 transition-shadow"
             @click="statusFilter = ''">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">Total Offers</div>
-                  <div class="mt-1 text-3xl font-semibold text-gray-900">{{ offers.length }}</div>
+                  <div class="text-sm font-medium text-gray-500 dark:text-slate-400">Total Offers</div>
+                  <div class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{{ offers.length }}</div>
                 </div>
-                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
                   <FileText class="w-6 h-6 text-primary" />
                 </div>
               </div>
             </div>
           </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+          <div class="bg-white dark:bg-slate-900 overflow-hidden shadow dark:shadow-slate-900/50 rounded-lg cursor-pointer hover:shadow-md dark:hover:shadow-slate-800/50 transition-shadow"
             @click="statusFilter = 'pending'">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">Pending</div>
+                  <div class="text-sm font-medium text-gray-500 dark:text-slate-400">Pending</div>
                   <div class="mt-1 text-3xl font-semibold text-yellow-600">{{ statusCounts.pending }}</div>
                 </div>
-                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
                   <Clock class="w-6 h-6 text-yellow-600" />
                 </div>
               </div>
             </div>
           </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+          <div class="bg-white dark:bg-slate-900 overflow-hidden shadow dark:shadow-slate-900/50 rounded-lg cursor-pointer hover:shadow-md dark:hover:shadow-slate-800/50 transition-shadow"
             @click="statusFilter = 'approved'">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">Approved</div>
+                  <div class="text-sm font-medium text-gray-500 dark:text-slate-400">Approved</div>
                   <div class="mt-1 text-3xl font-semibold text-blue-600">{{ statusCounts.approved }}</div>
                 </div>
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                   <CheckCircle class="w-6 h-6 text-blue-600" />
                 </div>
               </div>
             </div>
           </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+          <div class="bg-white dark:bg-slate-900 overflow-hidden shadow dark:shadow-slate-900/50 rounded-lg cursor-pointer hover:shadow-md dark:hover:shadow-slate-800/50 transition-shadow"
             @click="statusFilter = 'declined'">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">Declined</div>
+                  <div class="text-sm font-medium text-gray-500 dark:text-slate-400">Declined</div>
                   <div class="mt-1 text-3xl font-semibold text-red-600">{{ statusCounts.declined }}</div>
                 </div>
-                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
                   <X class="w-6 h-6 text-red-600" />
                 </div>
               </div>
             </div>
           </div>
-          <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+          <div class="bg-white dark:bg-slate-900 overflow-hidden shadow dark:shadow-slate-900/50 rounded-lg cursor-pointer hover:shadow-md dark:hover:shadow-slate-800/50 transition-shadow"
             @click="statusFilter = 'sent'">
             <div class="p-5">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
-                  <div class="text-sm font-medium text-gray-500">Sent</div>
+                  <div class="text-sm font-medium text-gray-500 dark:text-slate-400">Sent</div>
                   <div class="mt-1 text-3xl font-semibold text-purple-600">{{ sentOffers.length }}</div>
                 </div>
-                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
                   <Mail class="w-6 h-6 text-purple-600" />
                 </div>
               </div>
@@ -91,16 +91,16 @@
         <div class="space-y-3 mb-6">
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search class="h-5 w-5 text-gray-400" />
+              <Search class="h-5 w-5 text-gray-400 dark:text-slate-500" />
             </div>
             <input v-model="searchQuery" type="text" placeholder="Search by property address or tenant name..."
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm" />
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md leading-5 bg-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm" />
           </div>
 
           <div class="flex gap-3">
             <div class="flex-1">
               <select v-model="statusFilter"
-                class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary sm:text-sm">
+                class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary sm:text-sm">
                 <option value="">All Statuses</option>
                 <option value="sent">Sent</option>
                 <option value="pending">Pending</option>
@@ -110,49 +110,49 @@
               </select>
             </div>
             <button v-if="statusFilter || searchQuery" @click="clearFilters"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700">
               Clear Filters
             </button>
           </div>
         </div>
 
         <!-- Offers Table -->
-        <div v-if="loading" class="bg-white rounded-lg shadow p-8 text-center">
-          <div class="text-gray-600">Loading offers...</div>
+        <div v-if="loading" class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-8 text-center">
+          <div class="text-gray-600 dark:text-slate-400">Loading offers...</div>
         </div>
 
-        <div v-else-if="filteredOffers.length === 0" class="bg-white rounded-lg shadow p-8 text-center">
-          <p class="text-gray-500">{{ statusFilter === 'sent' ? 'No sent offer forms found' : 'No offers found' }}</p>
+        <div v-else-if="filteredOffers.length === 0" class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-8 text-center">
+          <p class="text-gray-500 dark:text-slate-400">{{ statusFilter === 'sent' ? 'No sent offer forms found' : 'No offers found' }}</p>
         </div>
 
         <!-- Sent Offers List -->
-        <div v-else-if="statusFilter === 'sent'" class="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul class="divide-y divide-gray-200">
-            <li v-for="form in filteredOffers" :key="form.id" class="hover:bg-gray-50">
+        <div v-else-if="statusFilter === 'sent'" class="bg-white dark:bg-slate-900 shadow dark:shadow-slate-900/50 overflow-hidden sm:rounded-md">
+          <ul class="divide-y divide-gray-200 dark:divide-slate-700">
+            <li v-for="form in filteredOffers" :key="form.id" class="hover:bg-gray-50 dark:hover:bg-slate-800">
               <div class="px-6 py-4">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
                     <div class="flex items-center">
-                      <h3 class="text-lg font-medium text-gray-900">
+                      <h3 class="text-lg font-medium text-gray-900 dark:text-white">
                         {{ form.property_address }}
                       </h3>
-                      <span class="ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                      <span class="ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
                         Sent
                       </span>
                     </div>
                     <div v-if="form.offer_deposit_replacement" class="mt-2">
-                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300">
                         Deposit replacement offered
                       </span>
                     </div>
-                    <div class="mt-2 text-sm text-gray-500">
-                      <p><strong>Sent to:</strong> {{ form.tenant_email }}</p>
-                      <p v-if="form.rent_amount"><strong>Rent Amount:</strong> £{{ form.rent_amount }} per month</p>
-                      <p><strong>Sent:</strong> {{ formatDate(form.sent_at) }}</p>
+                    <div class="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                      <p><strong class="dark:text-slate-300">Sent to:</strong> {{ form.tenant_email }}</p>
+                      <p v-if="form.rent_amount"><strong class="dark:text-slate-300">Rent Amount:</strong> £{{ form.rent_amount }} per month</p>
+                      <p><strong class="dark:text-slate-300">Sent:</strong> {{ formatDate(form.sent_at) }}</p>
                     </div>
                   </div>
                   <div class="ml-4 flex-shrink-0 flex flex-col gap-2 items-end">
-                    <span class="text-sm text-gray-500 italic">Awaiting response</span>
+                    <span class="text-sm text-gray-500 dark:text-slate-400 italic">Awaiting response</span>
                   </div>
                 </div>
               </div>
@@ -161,14 +161,14 @@
         </div>
 
         <!-- Submitted Offers List -->
-        <div v-else class="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul class="divide-y divide-gray-200">
-            <li v-for="offer in filteredOffers" :key="offer.id" class="hover:bg-gray-50">
+        <div v-else class="bg-white dark:bg-slate-900 shadow dark:shadow-slate-900/50 overflow-hidden sm:rounded-md">
+          <ul class="divide-y divide-gray-200 dark:divide-slate-700">
+            <li v-for="offer in filteredOffers" :key="offer.id" class="hover:bg-gray-50 dark:hover:bg-slate-800">
               <div class="px-6 py-4">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
                     <div class="flex items-center">
-                      <h3 class="text-lg font-medium text-gray-900">
+                      <h3 class="text-lg font-medium text-gray-900 dark:text-white">
                         {{ offer.property_address }}
                       </h3>
                       <span
@@ -180,16 +180,16 @@
                     </div>
                     <div v-if="offer.deposit_replacement_requested" class="mt-2">
                       <span
-                        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300">
                         Deposit replacement service applied for
                       </span>
                     </div>
-                    <div class="mt-2 text-sm text-gray-500">
-                      <p><strong>Tenants:</strong> {{offer.tenants.map((t: any) => t.name).join(', ')}}</p>
-                      <p><strong>Offered Rent:</strong> £{{ offer.offered_rent_amount }} per month</p>
-                      <p><strong>Move-in Date:</strong> {{ formatDate(offer.proposed_move_in_date) }}</p>
-                      <p><strong>Tenancy Length:</strong> {{ offer.proposed_tenancy_length_months }} months</p>
-                      <p><strong>Submitted:</strong> {{ formatDate(offer.created_at) }}</p>
+                    <div class="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                      <p><strong class="dark:text-slate-300">Tenants:</strong> {{offer.tenants.map((t: any) => t.name).join(', ')}}</p>
+                      <p><strong class="dark:text-slate-300">Offered Rent:</strong> £{{ offer.offered_rent_amount }} per month</p>
+                      <p><strong class="dark:text-slate-300">Move-in Date:</strong> {{ formatDate(offer.proposed_move_in_date) }}</p>
+                      <p><strong class="dark:text-slate-300">Tenancy Length:</strong> {{ offer.proposed_tenancy_length_months }} months</p>
+                      <p><strong class="dark:text-slate-300">Submitted:</strong> {{ formatDate(offer.created_at) }}</p>
                     </div>
                   </div>
                   <div class="ml-4 flex-shrink-0 flex flex-col gap-2 items-end">
@@ -235,10 +235,10 @@ import {
   Check
 } from 'lucide-vue-next'
 
-const router = useRouter()
-const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const router = useRouter()
+const authStore = useAuthStore()
 const offers = ref<any[]>([])
 const sentOffers = ref<any[]>([])
 const loading = ref(false)
@@ -344,20 +344,20 @@ const showStatusTick = (offer: any) =>
 
 const getStatusBadgeClass = (offer: any) => {
   if (offer.status === 'approved') {
-    return showStatusTick(offer) ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+    return showStatusTick(offer) ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
   }
 
   if (offer.status === 'holding_deposit_received' || offer.status === 'reference_created') {
-    return 'bg-green-100 text-green-800'
+    return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
   }
 
   const map: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    declined: 'bg-red-100 text-red-800',
-    accepted_with_changes: 'bg-purple-100 text-purple-800'
+    pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+    declined: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+    accepted_with_changes: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
   }
 
-  return map[offer.status] || 'bg-gray-100 text-gray-800'
+  return map[offer.status] || 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-300'
 }
 
 const clearFilters = () => {

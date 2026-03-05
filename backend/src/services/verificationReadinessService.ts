@@ -269,6 +269,7 @@ function checkRightToRentSection(reference: any): SectionStatus {
     const hasPassport = !!reference.rtr_british_passport_path
     const hasNoPassport = reference.rtr_british_no_passport === true
     const hasAltDoc = !!reference.rtr_british_alt_doc_path
+    const hasIdDocument = !!reference.id_document_path
 
     // New flow: passport or alt doc required
     if (hasPassport) {
@@ -277,7 +278,12 @@ function checkRightToRentSection(reference: any): SectionStatus {
     if (hasNoPassport && hasAltDoc) {
       return { complete: true, reason: 'British citizen - alternative document uploaded' }
     }
-    if (hasNoPassport && !hasAltDoc) {
+    // If they clicked "no passport" for RTR but already uploaded ID document (likely passport),
+    // consider RTR complete - they've already proven their identity with a document
+    if (hasNoPassport && hasIdDocument) {
+      return { complete: true, reason: 'British citizen - ID document already uploaded in identity section' }
+    }
+    if (hasNoPassport && !hasAltDoc && !hasIdDocument) {
       return { complete: false, reason: 'British citizen without passport - driving license or birth certificate required' }
     }
 
@@ -500,6 +506,7 @@ function checkRightToRentSectionSync(reference: any): SectionStatus {
     const hasPassport = !!reference.rtr_british_passport_path
     const hasNoPassport = reference.rtr_british_no_passport === true
     const hasAltDoc = !!reference.rtr_british_alt_doc_path
+    const hasIdDocument = !!reference.id_document_path
 
     if (hasPassport) {
       return { complete: true, reason: 'British citizen - passport' }
@@ -507,7 +514,12 @@ function checkRightToRentSectionSync(reference: any): SectionStatus {
     if (hasNoPassport && hasAltDoc) {
       return { complete: true, reason: 'British citizen - alt document' }
     }
-    if (hasNoPassport && !hasAltDoc) {
+    // If they clicked "no passport" for RTR but already uploaded ID document (likely passport),
+    // consider RTR complete - they've already proven their identity with a document
+    if (hasNoPassport && hasIdDocument) {
+      return { complete: true, reason: 'British citizen - ID document already uploaded' }
+    }
+    if (hasNoPassport && !hasAltDoc && !hasIdDocument) {
       return { complete: false, reason: 'British citizen - alternative document required' }
     }
 
@@ -616,4 +628,109 @@ function checkResidentialSectionSync(reference: any): SectionStatus {
   }
 
   return { complete: false, reason: 'Residential evidence required (landlord or agent reference)' }
+}
+
+/**
+ * Get list of referees that have been REQUESTED but NOT YET SUBMITTED
+ * These are valid candidates for "Wait for Reference" action
+ *
+ * Includes:
+ * - External referees (employer, landlord, accountant) where record exists but submitted_at is null
+ * - Guarantor form where guarantor reference exists but status is still 'pending'
+ */
+export async function getOutstandingReferees(referenceId: string): Promise<{
+  type: string
+  recordId: string
+  contactName: string | null
+  contactEmail: string | null
+}[]> {
+  const { data: reference, error } = await supabase
+    .from('tenant_references')
+    .select(`
+      is_guarantor,
+      requires_guarantor,
+      employer_references (id, submitted_at, employer_name_encrypted, employer_email_encrypted),
+      landlord_references (id, submitted_at, landlord_name_encrypted, landlord_email_encrypted),
+      accountant_references (id, submitted_at, accountant_name_encrypted, accountant_email_encrypted)
+    `)
+    .eq('id', referenceId)
+    .single()
+
+  if (error || !reference) {
+    return []
+  }
+
+  const outstanding: {
+    type: string
+    recordId: string
+    contactName: string | null
+    contactEmail: string | null
+  }[] = []
+
+  // Check employer references - record exists but not submitted
+  const employerRefs = reference.employer_references || []
+  for (const ref of employerRefs) {
+    if (!ref.submitted_at) {
+      outstanding.push({
+        type: 'EMPLOYER_REF',
+        recordId: ref.id,
+        contactName: ref.employer_name_encrypted ? decrypt(ref.employer_name_encrypted) : null,
+        contactEmail: ref.employer_email_encrypted ? decrypt(ref.employer_email_encrypted) : null
+      })
+    }
+  }
+
+  // Check landlord references
+  const landlordRefs = reference.landlord_references || []
+  for (const ref of landlordRefs) {
+    if (!ref.submitted_at) {
+      outstanding.push({
+        type: 'LANDLORD_REF',
+        recordId: ref.id,
+        contactName: ref.landlord_name_encrypted ? decrypt(ref.landlord_name_encrypted) : null,
+        contactEmail: ref.landlord_email_encrypted ? decrypt(ref.landlord_email_encrypted) : null
+      })
+    }
+  }
+
+  // Check accountant references
+  const accountantRefs = reference.accountant_references || []
+  for (const ref of accountantRefs) {
+    if (!ref.submitted_at) {
+      outstanding.push({
+        type: 'ACCOUNTANT_REF',
+        recordId: ref.id,
+        contactName: ref.accountant_name_encrypted ? decrypt(ref.accountant_name_encrypted) : null,
+        contactEmail: ref.accountant_email_encrypted ? decrypt(ref.accountant_email_encrypted) : null
+      })
+    }
+  }
+
+  // Check for outstanding guarantor form (tenant requires guarantor but guarantor hasn't submitted)
+  // Only check this for tenant references, not for guarantor references themselves
+  if (!reference.is_guarantor && reference.requires_guarantor) {
+    const { data: guarantorRef, error: guarantorError } = await supabase
+      .from('tenant_references')
+      .select(`
+        id,
+        status,
+        first_name_encrypted,
+        email_encrypted
+      `)
+      .eq('guarantor_for_reference_id', referenceId)
+      .eq('is_guarantor', true)
+      .maybeSingle()
+
+    if (!guarantorError && guarantorRef && guarantorRef.status === 'pending') {
+      // Guarantor record exists but hasn't submitted their form yet
+      outstanding.push({
+        type: 'GUARANTOR_FORM',
+        recordId: guarantorRef.id,
+        contactName: guarantorRef.first_name_encrypted ? decrypt(guarantorRef.first_name_encrypted) : null,
+        contactEmail: guarantorRef.email_encrypted ? decrypt(guarantorRef.email_encrypted) : null
+      })
+    }
+  }
+
+  return outstanding
 }

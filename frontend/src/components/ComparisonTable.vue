@@ -111,8 +111,8 @@ const getMatchStatus = (row: ComparisonRow): 'match' | 'mismatch' | 'minor' | 'n
   }
 
   // If either value is not provided, return n/a
-  if (row.isNotApplicable ||
-      (row.tenantValue === null || row.tenantValue === undefined || row.tenantValue === '') ||
+  if (row.isNotApplicable
+      (row.tenantValue === null || row.tenantValue === undefined || row.tenantValue === '')
       (row.referenceValue === null || row.referenceValue === undefined || row.referenceValue === '')) {
     return 'n/a'
   }

@@ -18,7 +18,7 @@
       <!-- Date Range Filter -->
       <div class="bg-white shadow rounded-lg p-4 mb-6">
         <div class="flex items-center gap-4 flex-wrap">
-          <label class="text-sm font-medium text-gray-700">Date Range:</label>
+          <label class="text-sm font-medium text-gray-700 dark:text-slate-200">Date Range:</label>
           <div class="flex gap-2 flex-wrap">
             <button
               v-for="option in dateRangeOptions"
@@ -419,7 +419,7 @@
                       <div v-for="outcome in outcomesData.outcomes" :key="outcome.decision" class="flex items-center justify-between p-3 bg-gray-50 rounded">
                         <div class="flex items-center gap-3">
                           <div class="w-4 h-4 rounded" :style="{ backgroundColor: getOutcomeColor(outcome.decision) }"></div>
-                          <span class="text-sm font-medium text-gray-700">{{ formatDecision(outcome.decision) }}</span>
+                          <span class="text-sm font-medium text-gray-700 dark:text-slate-200">{{ formatDecision(outcome.decision) }}</span>
                         </div>
                         <div class="text-right">
                           <p class="text-sm font-bold text-gray-900">{{ outcome.count }}</p>
@@ -479,11 +479,11 @@ import { Chart, registerables } from 'chart.js'
 import { colors } from '../config/colors'
 import { ChevronDown } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 Chart.register(...registerables)
 
 const authStore = useAuthStore()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 // Tab management
 const activeTab = ref('financial')
 const tabs = [

@@ -132,6 +132,8 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../../stores/auth'
 import { X, Upload, FileText } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const props = defineProps<{
   show: boolean
   propertyId?: string
@@ -144,8 +146,6 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const uploading = ref(false)
 const isDragging = ref(false)
 const selectedFile = ref<File | null>(null)

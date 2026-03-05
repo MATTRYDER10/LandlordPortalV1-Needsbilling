@@ -22,7 +22,7 @@ import * as creditService from '../services/creditService'
 import { getClientIpAddress, normalizeGeolocationPayload } from '../utils/requestMetadata'
 import { isValidEmail } from '../utils/validation'
 import { assessApplicationScore } from '../services/application-assesment/assessApplication'
-import { isReadyForVerification } from '../services/verificationReadinessService'
+import { isReadyForVerification, getOutstandingReferees } from '../services/verificationReadinessService'
 import { ensureVerifyWorkItem, evaluateAndTransition, handleEvidenceUpload, transitionState } from '../services/verificationStateService'
 import { markDependencyReceivedByType, createDependenciesForReference, ensureExternalVerificationSections } from '../services/chaseDependencyService'
 import { DEFAULT_BRANDING } from '../config/colors'
@@ -436,13 +436,19 @@ const upload = multer({
 router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
+    const branchId = req.headers['x-branch-id'] as string | undefined
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
+    // Build query - filter by branch ID if provided
+    let query = supabase
       .from('company_users')
       .select('company_id')
       .eq('user_id', userId)
-      .limit(1)
+
+    if (branchId) {
+      query = query.eq('company_id', branchId)
+    }
+
+    const { data: companyUsers } = await query.limit(1)
 
     if (!companyUsers || companyUsers.length === 0) {
       return res.status(404).json({ error: 'Company not found' })
@@ -451,13 +457,14 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
     const companyId = companyUsers[0].company_id
 
     // Run all COUNT queries in parallel (much faster than fetching all data)
-    const [total, inProgress, pendingVerification, completed, rejected, pending] = await Promise.all([
+    const [total, inProgress, pendingVerification, completed, rejected, pending, actionRequired] = await Promise.all([
       supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_guarantor', false),
       supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'in_progress').eq('is_guarantor', false),
       supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending_verification').eq('is_guarantor', false),
       supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'completed').eq('is_guarantor', false),
       supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'rejected').eq('is_guarantor', false),
-      supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending').eq('is_guarantor', false)
+      supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending').eq('is_guarantor', false),
+      supabase.from('tenant_references').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'action_required').eq('is_guarantor', false)
     ])
 
     res.json({
@@ -466,7 +473,8 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
       pendingVerification: pendingVerification.count || 0,
       completed: completed.count || 0,
       rejected: rejected.count || 0,
-      pending: pending.count || 0
+      pending: pending.count || 0,
+      actionRequired: actionRequired.count || 0
     })
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -515,14 +523,20 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
   console.log('[Calendar] Endpoint called')
   try {
     const userId = req.user?.id
-    console.log('[Calendar] User ID:', userId)
+    const branchId = req.headers['x-branch-id'] as string | undefined
+    console.log('[Calendar] User ID:', userId, 'Branch ID:', branchId)
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
+    // Build query - filter by branch ID if provided
+    let query = supabase
       .from('company_users')
       .select('company_id')
       .eq('user_id', userId)
-      .limit(1)
+
+    if (branchId) {
+      query = query.eq('company_id', branchId)
+    }
+
+    const { data: companyUsers } = await query.limit(1)
 
     if (!companyUsers || companyUsers.length === 0) {
       console.log('No company found for user')
@@ -732,24 +746,41 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     console.log('=== FETCHING REFERENCES FOR USER:', userId, search ? `search: "${search}"` : '', statusFilter ? `status: ${statusFilter}` : '')
 
-    // Check if user is invited (to handle duplicate company entries from trigger bug)
-    const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
-    const isInvited = user?.user_metadata?.is_invited === true
-
-    // Get user's company - for invited users, prefer non-owner role (they were invited, not original)
+    // Check for X-Branch-Id header first (multi-branch support)
+    const branchId = req.headers['x-branch-id'] as string | undefined
     let companyUser: { company_id: string } | null = null
 
-    if (isInvited) {
-      // For invited users, try to get the company where they're NOT an owner
-      const { data: nonOwnerCompanies } = await supabase
+    if (branchId) {
+      // Verify user belongs to this branch
+      const { data: branchMembership } = await supabase
         .from('company_users')
         .select('company_id')
         .eq('user_id', userId)
-        .neq('role', 'owner')
+        .eq('company_id', branchId)
         .limit(1)
 
-      if (nonOwnerCompanies && nonOwnerCompanies.length > 0) {
-        companyUser = nonOwnerCompanies[0]
+      if (branchMembership && branchMembership.length > 0) {
+        companyUser = branchMembership[0]
+      }
+    }
+
+    // Fallback: Check if user is invited (to handle duplicate company entries from trigger bug)
+    if (!companyUser) {
+      const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
+      const isInvited = user?.user_metadata?.is_invited === true
+
+      if (isInvited) {
+        // For invited users, try to get the company where they're NOT an owner
+        const { data: nonOwnerCompanies } = await supabase
+          .from('company_users')
+          .select('company_id')
+          .eq('user_id', userId)
+          .neq('role', 'owner')
+          .limit(1)
+
+        if (nonOwnerCompanies && nonOwnerCompanies.length > 0) {
+          companyUser = nonOwnerCompanies[0]
+        }
       }
     }
 
@@ -771,7 +802,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    console.log('Using company_id:', companyUser.company_id, 'isInvited:', isInvited)
+    console.log('Using company_id:', companyUser.company_id)
 
     // Get status counts for all references (unfiltered) for stat cards display
     const { data: statusCountsData } = await supabase
@@ -1848,7 +1879,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
             notes_encrypted: encrypt(notes || ''),
             reference_token_hash: tokenHash,
             token_expires_at: expiresAt.toISOString(),
-            status: 'pending'
+            status: 'pending',
+            linked_property_id: linked_property_id || null
           })
           .select()
           .single()
@@ -1944,7 +1976,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
                 reference_token_hash: guarantorTokenHash,
                 token_expires_at: guarantorExpiresAt.toISOString(),
                 status: 'pending',
-                reference_type: 'landlord'
+                reference_type: 'landlord',
+                linked_property_id: linked_property_id || null
               })
               .select()
               .single()
@@ -2199,7 +2232,8 @@ router.post('/', authenticateToken, checkCredits, checkPaymentMethod, async (req
               reference_token_hash: guarantorTokenHash,
               token_expires_at: guarantorExpiresAt.toISOString(),
               status: 'pending',
-              reference_type: 'landlord'
+              reference_type: 'landlord',
+              linked_property_id: linked_property_id || null
             })
             .select()
             .single()
@@ -3239,7 +3273,10 @@ router.post('/submit/:token', async (req: Request, res) => {
               // Initial status
               status: 'pending',
 
-              reference_type: 'landlord' // Default, they'll select during form
+              reference_type: 'landlord', // Default, they'll select during form
+
+              // Inherit property link from parent
+              linked_property_id: reference.linked_property_id || null
             })
             .select()
             .single()
@@ -4113,6 +4150,14 @@ router.post('/upload/:token', (req, res, next) => {
       if (pensionStatementPath) evidenceTypes.push('pension_statement')
       if (landlordRentalBankStatementPath) evidenceTypes.push('landlord_rental_bank_statement')
 
+      // Log evidence upload to audit trail (used by wait guard to detect new uploads)
+      await logAuditAction({
+        referenceId: reference.id,
+        action: 'EVIDENCE_UPLOADED',
+        description: `Tenant uploaded evidence: ${evidenceTypes.join(', ')}`,
+        metadata: { evidenceTypes, uploadedBy: 'tenant' }
+      })
+
       // Use new state service for automatic transitions
       await handleEvidenceUpload(reference.id, evidenceTypes.join(', '))
     }
@@ -4885,7 +4930,7 @@ router.post('/employer/:tokenOrRefId', async (req: Request, res) => {
       employment_start_date: formData.employmentStartDate,
       employment_end_date: formData.employmentEndDate || null,
       is_current_employee: formData.isCurrentEmployee,
-      annual_salary_encrypted: encrypt(formData.annualSalary ? String(formData.annualSalary) : null),
+      annual_salary_encrypted: encrypt(formData.annualSalary != null ? String(formData.annualSalary) : null),
       salary_frequency: formData.salaryFrequency,
       is_probation: formData.isProbation,
       probation_end_date: formData.probationEndDate || null,
@@ -5001,8 +5046,8 @@ router.post('/accountant/:token', async (req: Request, res) => {
         business_name_encrypted: encrypt(formData.businessName),
         nature_of_business_encrypted: encrypt(formData.natureOfBusiness || ''),
         business_start_date: formData.businessStartDate,
-        annual_turnover_encrypted: encrypt(formData.annualTurnover ? String(formData.annualTurnover) : null),
-        annual_profit_encrypted: encrypt(formData.annualProfit ? String(formData.annualProfit) : null),
+        annual_turnover_encrypted: encrypt(formData.annualTurnover != null ? String(formData.annualTurnover) : null),
+        annual_profit_encrypted: encrypt(formData.annualProfit != null ? String(formData.annualProfit) : null),
         tax_returns_filed: formData.taxReturnsFiled,
         last_tax_return_date: formData.lastTaxReturnDate || null,
         accounts_prepared: formData.accountsPrepared,
@@ -5012,7 +5057,7 @@ router.post('/accountant/:token', async (req: Request, res) => {
         tax_liabilities_details_encrypted: encrypt(formData.taxLiabilitiesDetails || ''),
         business_financially_stable: formData.businessFinanciallyStable,
         accountant_confirms_income: formData.accountantConfirmsIncome,
-        estimated_monthly_income_encrypted: encrypt(formData.estimatedMonthlyIncome ? String(formData.estimatedMonthlyIncome) : null),
+        estimated_monthly_income_encrypted: encrypt(formData.estimatedMonthlyIncome != null ? String(formData.estimatedMonthlyIncome) : null),
         additional_comments_encrypted: encrypt(formData.additionalComments || ''),
         would_recommend: formData.wouldRecommend,
         recommendation_comments_encrypted: encrypt(formData.recommendationComments || ''),
@@ -5813,7 +5858,10 @@ router.post('/:id/add-guarantor', authenticateToken, async (req: AuthRequest, re
         // Initial status
         status: 'pending',
 
-        reference_type: 'landlord' // Default, they'll select during form
+        reference_type: 'landlord', // Default, they'll select during form
+
+        // Inherit property link from parent
+        linked_property_id: parentReference.linked_property_id || null
       })
       .select()
       .single()
@@ -6550,7 +6598,10 @@ router.post('/tenant-add-guarantor/:token', async (req, res) => {
         // Initial status
         status: 'pending',
 
-        reference_type: 'landlord' // Default, they'll select during form
+        reference_type: 'landlord', // Default, they'll select during form
+
+        // Inherit property link from parent
+        linked_property_id: parentReference.linked_property_id || null
       })
       .select()
       .single()
@@ -8118,6 +8169,280 @@ router.post('/:id/submit-for-re-referencing', authenticateToken, async (req: Aut
     })
   } catch (error: any) {
     console.error('Error in POST /:id/submit-for-re-referencing:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// STAFF: Return to Collecting Evidence (wait for external reference)
+// ============================================================================
+
+/**
+ * Get outstanding referees for a reference
+ * Returns list of referees that have been REQUESTED but NOT YET SUBMITTED
+ */
+router.get('/:id/outstanding-referees', staffAuth, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    const outstanding = await getOutstandingReferees(id)
+
+    res.json({ outstandingReferees: outstanding })
+  } catch (error: any) {
+    console.error('Error getting outstanding referees:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Return reference to Collecting Evidence state (waiting for external reference)
+ * Only valid when there are outstanding referees (requested but not submitted)
+ */
+router.post('/:id/return-to-collecting', staffAuth, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { waitingFor } = req.body // e.g., 'EMPLOYER_REF', 'LANDLORD_REF', 'ACCOUNTANT_REF'
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    // Validate reference exists
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('id, verification_state')
+      .eq('id', id)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Validate reference is in a reviewable state
+    if (!['READY_FOR_REVIEW', 'IN_VERIFICATION'].includes(reference.verification_state)) {
+      return res.status(400).json({
+        error: `Cannot return to collecting from state: ${reference.verification_state}`
+      })
+    }
+
+    // Validate there are outstanding referees to wait for
+    const outstanding = await getOutstandingReferees(id)
+    if (outstanding.length === 0) {
+      return res.status(400).json({
+        error: 'No outstanding referees to wait for. Use ACTION_REQUIRED if tenant needs to provide referee details.'
+      })
+    }
+
+    // If waitingFor specified, validate it's in the outstanding list
+    if (waitingFor) {
+      const validWaiting = outstanding.some(r => r.type === waitingFor)
+      if (!validWaiting) {
+        return res.status(400).json({
+          error: `${waitingFor} is not an outstanding referee for this reference`
+        })
+      }
+    }
+
+    // Transition state to COLLECTING_EVIDENCE
+    await transitionState(id, 'COLLECTING_EVIDENCE', `Returned to collecting - waiting for ${waitingFor || 'external reference'}`)
+
+    // Update work item to RETURNED
+    const { error: workItemError } = await supabase
+      .from('work_items')
+      .update({
+        status: 'RETURNED',
+        assigned_to: null,
+        updated_at: new Date().toISOString(),
+        metadata: {
+          returnedBy: staffUser.id,
+          returnedAt: new Date().toISOString(),
+          waitingFor: waitingFor || outstanding.map(r => r.type).join(', ')
+        }
+      })
+      .eq('reference_id', id)
+      .eq('work_type', 'VERIFY')
+      .in('status', ['AVAILABLE', 'ASSIGNED', 'IN_PROGRESS'])
+
+    if (workItemError) {
+      console.error('Error updating work item:', workItemError)
+    }
+
+    // Log audit
+    await logAuditAction({
+      referenceId: id,
+      action: 'RETURNED_TO_COLLECTING',
+      description: `Returned to Collecting Evidence - waiting for ${waitingFor || 'external reference'}`,
+      metadata: {
+        previousState: reference.verification_state,
+        waitingFor,
+        outstandingReferees: outstanding
+      },
+      userId: staffUser.id
+    })
+
+    res.json({
+      message: 'Reference returned to Collecting Evidence',
+      waitingFor: waitingFor || outstanding.map(r => r.type),
+      outstandingReferees: outstanding
+    })
+  } catch (error: any) {
+    console.error('Error returning to collecting:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get all tenant-submitted form data for staff review
+ * Returns ALL decrypted fields from the tenant's form submission
+ */
+router.get('/:id/tenant-form-data', staffAuth, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // Get the full reference with all fields
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Organize the data by section and decrypt encrypted fields
+    const formData = {
+      personalDetails: {
+        firstName: decrypt(reference.tenant_first_name_encrypted),
+        middleName: decrypt(reference.middle_name_encrypted),
+        lastName: decrypt(reference.tenant_last_name_encrypted),
+        email: decrypt(reference.tenant_email_encrypted),
+        phone: decrypt(reference.tenant_phone_encrypted),
+        dateOfBirth: decrypt(reference.date_of_birth_encrypted),
+        nationalInsuranceNumber: decrypt(reference.national_insurance_number_encrypted),
+        nationality: decrypt(reference.nationality_encrypted),
+        isBritishCitizen: reference.is_british_citizen
+      },
+      currentAddress: {
+        line1: decrypt(reference.current_address_line1_encrypted),
+        line2: decrypt(reference.current_address_line2_encrypted),
+        city: decrypt(reference.current_address_city_encrypted),
+        county: decrypt(reference.current_address_county_encrypted),
+        postcode: decrypt(reference.current_address_postcode_encrypted),
+        country: decrypt(reference.current_address_country_encrypted),
+        moveInDate: reference.current_address_move_in_date,
+        residentialStatus: reference.confirmed_residential_status
+      },
+      previousAddress: {
+        line1: decrypt(reference.previous_address_line1_encrypted),
+        line2: decrypt(reference.previous_address_line2_encrypted),
+        city: decrypt(reference.previous_address_city_encrypted),
+        county: decrypt(reference.previous_address_county_encrypted),
+        postcode: decrypt(reference.previous_address_postcode_encrypted),
+        country: decrypt(reference.previous_address_country_encrypted)
+      },
+      employment: {
+        status: reference.employment_status,
+        companyName: decrypt(reference.employment_company_name_encrypted),
+        jobTitle: decrypt(reference.employment_job_title_encrypted),
+        employerAddress: decrypt(reference.employment_address_encrypted),
+        employerPhone: decrypt(reference.employment_phone_encrypted),
+        startDate: reference.employment_start_date,
+        annualSalary: decrypt(reference.employment_salary_encrypted),
+        isSelfEmployed: reference.income_self_employed,
+        selfEmployedBusinessName: decrypt(reference.self_employed_business_name_encrypted),
+        selfEmployedIncome: decrypt(reference.self_employed_income_encrypted)
+      },
+      employerReferee: {
+        name: decrypt(reference.employer_ref_name_encrypted),
+        email: decrypt(reference.employer_ref_email_encrypted),
+        phone: decrypt(reference.employer_ref_phone_encrypted),
+        position: decrypt(reference.employer_ref_position_encrypted)
+      },
+      previousLandlord: {
+        name: decrypt(reference.previous_landlord_name_encrypted),
+        email: decrypt(reference.previous_landlord_email_encrypted),
+        phone: decrypt(reference.previous_landlord_phone_encrypted),
+        address: decrypt(reference.previous_landlord_address_encrypted),
+        referenceType: reference.reference_type // landlord or agent
+      },
+      previousAgency: {
+        name: decrypt(reference.previous_agency_name_encrypted),
+        email: decrypt(reference.previous_agency_email_encrypted),
+        phone: decrypt(reference.previous_agency_phone_encrypted)
+      },
+      accountant: {
+        name: decrypt(reference.accountant_name_encrypted),
+        email: decrypt(reference.accountant_email_encrypted),
+        phone: decrypt(reference.accountant_phone_encrypted),
+        company: decrypt(reference.accountant_company_encrypted)
+      },
+      bankDetails: {
+        bankName: decrypt(reference.bank_name_encrypted),
+        accountNumber: decrypt(reference.bank_account_number_encrypted),
+        sortCode: decrypt(reference.bank_sort_code_encrypted)
+      },
+      guarantor: {
+        required: reference.requires_guarantor,
+        firstName: decrypt(reference.guarantor_first_name_encrypted),
+        lastName: decrypt(reference.guarantor_last_name_encrypted),
+        email: decrypt(reference.guarantor_email_encrypted),
+        phone: decrypt(reference.guarantor_phone_encrypted),
+        relationship: decrypt(reference.guarantor_relationship_encrypted),
+        address: decrypt(reference.guarantor_address_encrypted)
+      },
+      documents: {
+        selfiePath: reference.selfie_path,
+        idDocumentPath: reference.id_document_path,
+        idDocumentType: reference.id_document_type,
+        payslipFiles: reference.payslip_files || [],
+        bankStatementsPaths: reference.bank_statements_paths || [],
+        proofOfAddressPath: reference.proof_of_address_path,
+        rtrBritishPassportPath: reference.rtr_british_passport_path,
+        rtrBritishAltDocPath: reference.rtr_british_alt_doc_path,
+        rtrAlternativeDocumentPath: reference.rtr_alternative_document_path,
+        pensionStatementPath: reference.pension_statement_path
+      },
+      rightToRent: {
+        isBritishCitizen: reference.is_british_citizen,
+        shareCode: reference.rtr_share_code,
+        noPassport: reference.rtr_british_no_passport,
+        altDocType: reference.rtr_british_alt_doc_type,
+        verified: reference.rtr_verified,
+        verificationDate: reference.rtr_verification_date,
+        verificationMethod: reference.rtr_verification_method,
+        indefiniteLeave: reference.rtr_indefinite_leave
+      },
+      consent: {
+        printedName: decrypt(reference.consent_printed_name_encrypted),
+        signatureDate: reference.consent_date,
+        signature: decrypt(reference.consent_signature_encrypted) ? '[SIGNATURE PROVIDED]' : null,
+        creditCheckConsent: reference.credit_check_consent,
+        dataProcessingConsent: reference.data_processing_consent
+      },
+      additionalInfo: {
+        pets: reference.has_pets,
+        petDetails: decrypt(reference.pet_details_encrypted),
+        smoker: reference.is_smoker,
+        additionalOccupants: reference.additional_occupants,
+        reasonForMoving: decrypt(reference.reason_for_moving_encrypted),
+        additionalNotes: decrypt(reference.additional_notes_encrypted)
+      },
+      metadata: {
+        submittedAt: reference.submitted_at,
+        createdAt: reference.created_at,
+        updatedAt: reference.updated_at,
+        status: reference.status,
+        verificationState: reference.verification_state,
+        isGuarantor: reference.is_guarantor,
+        guarantorForReferenceId: reference.guarantor_for_reference_id
+      }
+    }
+
+    res.json({ formData })
+  } catch (error: any) {
+    console.error('Error getting tenant form data:', error)
     res.status(500).json({ error: error.message })
   }
 })

@@ -13,12 +13,12 @@
       <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
       <div
-        class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
+        class="inline-block align-bottom bg-white dark:bg-slate-900 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
         @click.stop
       >
-        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <div class="bg-white dark:bg-slate-900 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
           <div class="flex justify-between items-center mb-4">
-            <h3 class="text-2xl font-bold text-gray-900">
+            <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
               {{ isEdit ? 'Edit Landlord' : 'Add new landlord' }}
             </h3>
             <button
@@ -36,19 +36,19 @@
                 <input
                   v-model="formData.is_company"
                   type="checkbox"
-                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                 />
-                <span class="ml-2 text-sm text-gray-700">Is landlord a company?</span>
+                <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Is landlord a company?</span>
               </label>
             </div>
 
             <!-- Personal Details -->
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label class="block text-sm font-medium text-gray-700">Title</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Title</label>
                 <select
                   v-model="formData.title"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 >
                   <option value="">Choose title</option>
                   <option value="Mr">Mr</option>
@@ -59,99 +59,99 @@
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">First name *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">First name *</label>
                 <input
                   v-model="formData.first_name"
                   type="text"
                   required
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Middle name(s) (optional)</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Middle name(s) (optional)</label>
                 <input
                   v-model="formData.middle_name"
                   type="text"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Last name *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Last name *</label>
                 <input
                   v-model="formData.last_name"
                   type="text"
                   required
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
 
             <!-- Company Name (if company) -->
             <div v-if="formData.is_company">
-              <label class="block text-sm font-medium text-gray-700">Company Name *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Company Name *</label>
               <input
                 v-model="formData.company_name"
                 type="text"
                 :required="formData.is_company"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
 
             <!-- Contact Details -->
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label class="block text-sm font-medium text-gray-700">Preferred email greeting</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Preferred email greeting</label>
                 <input
                   v-model="formData.preferred_email_greeting"
                   type="text"
                   placeholder="Dear"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Full name (displayed on contracts)</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Full name (displayed on contracts)</label>
                 <input
                   v-model="formData.full_name_displayed_on_contracts"
                   type="text"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Phone (optional)</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Phone (optional)</label>
                 <input
                   v-model="formData.phone"
                   type="tel"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Email *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email *</label>
                 <input
                   v-model="formData.email"
                   type="email"
                   required
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Date of birth (optional)</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Date of birth (optional)</label>
                 <input
                   v-model="formData.date_of_birth"
                   type="date"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
 
             <!-- Residential Address -->
-            <div class="border-t pt-6">
-              <h4 class="text-lg font-semibold text-gray-900 mb-4">Landlord's residential address</h4>
+            <div class="border-t dark:border-slate-700 pt-6">
+              <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Landlord's residential address</h4>
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
-                  <label class="block text-sm font-medium text-gray-700">Country</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Country</label>
                   <select
                     v-model="formData.residential_address.country"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Choose Country</option>
                     <option value="GB">United Kingdom</option>
@@ -163,92 +163,92 @@
                   </select>
                 </div>
                 <div class="sm:col-span-2">
-                  <label class="block text-sm font-medium text-gray-700">Address line 1</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address line 1</label>
                   <input
                     v-model="formData.residential_address.line1"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div class="sm:col-span-2">
-                  <label class="block text-sm font-medium text-gray-700">Address line 2</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address line 2</label>
                   <input
                     v-model="formData.residential_address.line2"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Town or city</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Town or city</label>
                   <input
                     v-model="formData.residential_address.city"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Postcode</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Postcode</label>
                   <input
                     v-model="formData.residential_address.postcode"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
               </div>
             </div>
 
             <!-- Section 48 Address -->
-            <div class="border-t pt-6">
+            <div class="border-t dark:border-slate-700 pt-6">
               <div class="flex items-center gap-2 mb-4">
-                <h4 class="text-lg font-semibold text-gray-900">Landlord address in England or Wales (Section 48)</h4>
+                <h4 class="text-lg font-semibold text-gray-900 dark:text-white">Landlord address in England or Wales (Section 48)</h4>
                 <Info class="w-5 h-5 text-blue-500 cursor-help" title="Section 48 address information" />
               </div>
               <label class="flex items-center mb-4">
                 <input
                   v-model="formData.has_section48_address"
                   type="checkbox"
-                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                 />
-                <span class="ml-2 text-sm text-gray-700">Add a different address for use as a Section 48 address</span>
+                <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Add a different address for use as a Section 48 address</span>
               </label>
               <div v-if="formData.has_section48_address" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
-                  <label class="block text-sm font-medium text-gray-700">Address line 1</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address line 1</label>
                   <input
                     v-model="formData.section48_address.line1"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div class="sm:col-span-2">
-                  <label class="block text-sm font-medium text-gray-700">Address line 2</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address line 2</label>
                   <input
                     v-model="formData.section48_address.line2"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">City</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">City</label>
                   <input
                     v-model="formData.section48_address.city"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Postcode</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Postcode</label>
                   <input
                     v-model="formData.section48_address.postcode"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Country</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Country</label>
                   <select
                     v-model="formData.section48_address.country"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="GB">United Kingdom</option>
                     <option value="US">United States</option>
@@ -259,56 +259,56 @@
             </div>
 
             <!-- Bank Details -->
-            <div class="border-t pt-6">
-              <h4 class="text-lg font-semibold text-gray-900 mb-4">Landlord bank details</h4>
-              <p class="text-sm text-gray-600 mb-4">
+            <div class="border-t dark:border-slate-700 pt-6">
+              <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Landlord bank details</h4>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
                 Payments to the landlord will be made using these bank details.
               </p>
-              <p class="text-sm text-gray-600 mb-4">
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
                 The landlord bank details will be displayed in contracts and standing order requests for Let Only tenancies. Managed contracts or Let Only + Rent Collect contracts will display the agency's bank details.
               </p>
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Account name (optional)</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Account name (optional)</label>
                   <input
                     v-model="formData.bank_details.account_name"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Account number (optional)</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Account number (optional)</label>
                   <input
                     v-model="formData.bank_details.account_number"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Sort code (optional)</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Sort code (optional)</label>
                   <div class="flex gap-2 mt-1">
                     <input
                       v-model="formData.bank_details.sort_code_part1"
                       type="text"
                       maxlength="2"
                       placeholder="XX"
-                      class="block w-20 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="block w-20 px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                     />
-                    <span class="self-center text-gray-500">-</span>
+                    <span class="self-center text-gray-500 dark:text-slate-400">-</span>
                     <input
                       v-model="formData.bank_details.sort_code_part2"
                       type="text"
                       maxlength="2"
                       placeholder="XX"
-                      class="block w-20 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="block w-20 px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                     />
-                    <span class="self-center text-gray-500">-</span>
+                    <span class="self-center text-gray-500 dark:text-slate-400">-</span>
                     <input
                       v-model="formData.bank_details.sort_code_part3"
                       type="text"
                       maxlength="2"
                       placeholder="XX"
-                      class="block w-20 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="block w-20 px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
                 </div>
@@ -317,38 +317,38 @@
                     <input
                       v-model="formData.bank_details.is_joint_account"
                       type="checkbox"
-                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                     />
-                    <span class="ml-2 text-sm text-gray-700">Is this a joint account? (optional)</span>
+                    <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Is this a joint account? (optional)</span>
                   </label>
                 </div>
               </div>
             </div>
 
             <!-- Regulatory Information -->
-            <div class="border-t pt-6">
-              <h4 class="text-lg font-semibold text-gray-900 mb-4">Regulatory information</h4>
+            <div class="border-t dark:border-slate-700 pt-6">
+              <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Regulatory information</h4>
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">
                     Landlord registration number (optional)
                     <a href="#" class="text-blue-500 hover:text-blue-700 ml-1" title="What is this?">What is this?</a>
                   </label>
                   <input
                     v-model="formData.regulatory.landlord_registration_number"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">
                     Landlord license number (optional)
                     <a href="#" class="text-blue-500 hover:text-blue-700 ml-1" title="What is this?">What is this?</a>
                   </label>
                   <input
                     v-model="formData.regulatory.landlord_license_number"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div class="sm:col-span-2">
@@ -356,20 +356,20 @@
                     <input
                       v-model="formData.regulatory.agent_sign_on_behalf"
                       type="checkbox"
-                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                     />
-                    <span class="ml-2 text-sm text-gray-700">Agent to sign on behalf of the landlord</span>
+                    <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Agent to sign on behalf of the landlord</span>
                   </label>
                 </div>
               </div>
             </div>
 
             <!-- Actions -->
-            <div class="flex justify-end gap-3 pt-6 border-t">
+            <div class="flex justify-end gap-3 pt-6 border-t dark:border-slate-700">
               <button
                 type="button"
                 @click="close"
-                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
               >
                 Cancel
               </button>
@@ -395,6 +395,8 @@ import { useAuthStore } from '../stores/auth'
 import { isValidEmail } from '../utils/validation'
 import { X, Info } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const props = defineProps<{
   show: boolean
   landlordId?: string
@@ -407,9 +409,6 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const submitting = ref(false)
 const isEdit = computed(() => !!props.landlordId)
 

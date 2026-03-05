@@ -1,90 +1,166 @@
 <template>
   <div
-    class="bg-white rounded-xl shadow-sm border border-gray-200 mb-4 hover:shadow-md transition-shadow relative"
-    :class="{ 'ring-2 ring-orange-300': tenancy.urgentReverify }"
+    class="reference-row group relative bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-lg hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 mb-4"
+    :class="{
+      'ring-2 ring-orange-300 dark:ring-orange-500/50': tenancy.urgentReverify,
+      'ring-2 ring-primary/20': isHovered && !tenancy.urgentReverify
+    }"
+    @click="$emit('toggle')"
+    @mouseenter="isHovered = true"
+    @mouseleave="isHovered = false"
   >
-    <!-- Collapsed View -->
-    <div
-      class="px-6 py-4 cursor-pointer"
-      @click="$emit('toggle')"
-    >
-      <!-- Line 1: Property address and Move-in date -->
-      <div class="flex justify-between items-start">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-3">
-            <div class="flex-1">
-              <h3 class="text-sm font-medium text-gray-900 truncate">
-                {{ tenancy.propertyAddress }}
-              </h3>
-              <p class="text-xs text-gray-500">
-                {{ tenancy.propertyCity }}{{ tenancy.propertyPostcode ? `, ${tenancy.propertyPostcode}` : '' }}
-              </p>
-            </div>
-            <router-link
-              :to="`/agreements/generate?referenceId=${tenancy.id}`"
-              @click.stop
-              class="text-xs font-medium text-primary hover:text-primary/80 whitespace-nowrap flex items-center gap-1"
-              title="Generate agreement from this reference"
-            >
-              <FileText class="w-3.5 h-3.5" />
-              Generate Agreement
-            </router-link>
+    <!-- Accent stripe - orange for references -->
+    <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 via-orange-400 to-primary opacity-80 rounded-l-xl" />
+
+    <div class="pl-4 pr-5 py-4">
+      <!-- Main Row Content -->
+      <div class="flex items-start gap-4">
+        <!-- Date Badge -->
+        <div class="flex-shrink-0 w-[68px] text-center">
+          <div class="bg-slate-900 dark:bg-slate-700 text-white rounded-lg px-2.5 py-2 shadow-sm">
+            <div class="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 font-medium">{{ moveInMonth }}</div>
+            <div class="text-xl font-bold leading-tight">{{ moveInDay }}</div>
           </div>
         </div>
-        <div class="ml-4 flex-shrink-0 flex items-center gap-2">
-          <span class="text-sm text-gray-500">
-            {{ formatDate(tenancy.moveInDate) }}
-          </span>
-          <button
-            @click.stop="$emit('changeMoveInDate', tenancy)"
-            class="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
-            title="Change move-in date"
-          >
-            <Pencil class="w-3.5 h-3.5" />
-          </button>
-          <ChevronDown
-            class="w-5 h-5 text-gray-400 transition-transform duration-200"
-            :class="{ 'rotate-180': isExpanded }"
+
+        <!-- Reference Label + Address & Tenant Info -->
+        <div class="flex-1 min-w-0">
+          <!-- Reference Badge + Single Status -->
+          <div class="flex items-center gap-2 mb-1">
+            <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 rounded">
+              Reference
+            </span>
+            <!-- Single simplified status -->
+            <span
+              class="px-2 py-0.5 text-xs font-medium rounded-full"
+              :class="mainStatusClasses"
+            >
+              {{ mainStatusLabel }}
+            </span>
+            <!-- Email delivery issue warning -->
+            <span
+              v-if="hasEmailIssue"
+              class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300 flex items-center gap-1"
+              :title="emailIssueTooltip"
+            >
+              <MailWarning class="w-3 h-3" />
+              {{ emailIssueBadgeText }}
+            </span>
+            <span
+              v-if="tenancy.urgentReverify"
+              class="px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300"
+            >
+              URGENT
+            </span>
+          </div>
+
+          <!-- Address -->
+          <h3 class="text-base font-semibold text-slate-900 dark:text-white truncate leading-tight">
+            {{ tenancy.propertyAddress }}
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {{ tenancy.propertyCity }}{{ tenancy.propertyPostcode ? `, ${tenancy.propertyPostcode}` : '' }}
+          </p>
+
+          <!-- Tenants -->
+          <div class="flex items-center gap-1.5 mt-2">
+            <div class="flex -space-x-1.5">
+              <div
+                v-for="(person, idx) in displayPeople"
+                :key="person.id"
+                class="w-6 h-6 rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center text-[9px] font-bold shadow-sm"
+                :class="person.role === 'GUARANTOR'
+                  ? 'bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-800 dark:to-orange-700 text-orange-600 dark:text-orange-200'
+                  : 'bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-600 dark:text-slate-300'"
+                :style="{ zIndex: displayPeople.length - idx }"
+                :title="`${person.name}${person.role === 'GUARANTOR' ? ' (Guarantor)' : ''}`"
+              >
+                {{ getInitials(person.name) }}
+              </div>
+              <div
+                v-if="extraPeopleCount > 0"
+                class="w-6 h-6 rounded-full bg-slate-800 dark:bg-slate-600 border-2 border-white dark:border-slate-800 flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
+              >
+                +{{ extraPeopleCount }}
+              </div>
+            </div>
+            <span class="text-xs text-slate-600 dark:text-slate-400 truncate">{{ tenantNames }}</span>
+          </div>
+        </div>
+
+        <!-- Progress Indicators - Verification Sections (Circular) -->
+        <div class="flex-shrink-0 flex items-center gap-1">
+          <ReferenceProgressIndicator
+            :completed="sectionStatuses.identity"
+            label="ID & Selfie"
+            icon="user"
           />
+          <ReferenceProgressIndicator
+            :completed="sectionStatuses.income"
+            label="Income"
+            icon="wallet"
+          />
+          <ReferenceProgressIndicator
+            :completed="sectionStatuses.residential"
+            label="Landlord Ref"
+            icon="home"
+          />
+          <ReferenceProgressIndicator
+            :completed="sectionStatuses.credit"
+            label="Credit"
+            icon="credit-card"
+          />
+          <ReferenceProgressIndicator
+            :completed="sectionStatuses.rtr"
+            label="Right to Rent"
+            icon="shield"
+          />
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex-shrink-0 flex items-center gap-2">
+          <router-link
+            :to="`/agreements/generate?referenceId=${tenancy.id}`"
+            @click.stop
+            class="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md flex items-center gap-1.5 transition-colors"
+            title="Generate standalone agreement from this reference"
+          >
+            <FileText class="w-3.5 h-3.5" />
+            <span class="hidden xl:inline">Generate Agreement</span>
+          </router-link>
+          <button
+            @click.stop="$emit('convertToTenancy', tenancy)"
+            class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md flex items-center gap-1.5 transition-colors"
+            title="Convert to active tenancy"
+          >
+            <ArrowRightCircle class="w-3.5 h-3.5" />
+            <span class="hidden xl:inline">Convert</span>
+          </button>
+        </div>
+
+        <!-- Expand Arrow -->
+        <div class="flex-shrink-0 flex items-center">
+          <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+            <ChevronDown
+              class="w-4 h-4 transition-transform duration-200"
+              :class="{ 'rotate-180': isExpanded }"
+            />
+          </div>
         </div>
       </div>
 
-      <!-- Line 2: Status pill, email warning, and URGENT tag -->
-      <div class="mt-2 flex items-center gap-2">
-        <StatusPill :status="tenancy.tenancyStatus" />
-        <!-- Email delivery issue warning -->
-        <span
-          v-if="hasEmailIssue"
-          class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 flex items-center gap-1"
-          :title="emailIssueTooltip"
-        >
-          <MailWarning class="w-3 h-3" />
-          {{ emailIssueBadgeText }}
-        </span>
-        <span
-          v-if="tenancy.urgentReverify"
-          class="px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800"
-        >
-          URGENT
+      <!-- Bottom Progress Bar -->
+      <div class="mt-3 flex items-center gap-2.5">
+        <div class="flex-1 h-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div
+            class="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-primary rounded-full transition-all duration-500 ease-out"
+            :style="{ width: `${progressPercentage}%` }"
+          />
+        </div>
+        <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">
+          {{ tenancy.progressSummary.tenantsVerified }}/{{ tenancy.progressSummary.tenantsTotal }} verified
         </span>
       </div>
-
-      <!-- Line 3: Blocking sentence -->
-      <p v-if="tenancy.blockingSentence" class="mt-2 text-sm text-gray-600 truncate">
-        {{ tenancy.blockingSentence }}
-      </p>
-
-      <!-- Line 4: Progress summary -->
-      <div class="mt-2 flex items-center gap-4">
-        <span class="text-xs text-gray-500">
-          Tenants: {{ tenancy.progressSummary.tenantsVerified }}/{{ tenancy.progressSummary.tenantsTotal }}
-        </span>
-        <span v-if="tenancy.progressSummary.guarantorsTotal > 0" class="text-xs text-gray-500">
-          Guarantors: {{ tenancy.progressSummary.guarantorsVerified }}/{{ tenancy.progressSummary.guarantorsTotal }}
-        </span>
-        <ProgressChips :failures="tenancy.progressSummary.checkFailures" />
-      </div>
-
     </div>
 
     <!-- Expanded View -->
@@ -96,25 +172,44 @@
       leave-from-class="opacity-100 max-h-[2000px]"
       leave-to-class="opacity-0 max-h-0"
     >
-      <div v-if="isExpanded" class="px-6 pb-4 overflow-hidden">
+      <div v-if="isExpanded" class="px-6 pb-4 overflow-hidden border-t border-slate-100 dark:border-slate-700">
         <!-- Action Required Banner -->
         <div
           v-if="tenancy.tenancyStatus === 'ACTION_REQUIRED'"
-          class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"
+          class="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
         >
           <div class="flex items-start gap-3">
-            <AlertTriangle class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle class="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div class="flex-1">
-              <h4 class="text-sm font-medium text-red-800">Action Required</h4>
-              <p class="mt-1 text-sm text-red-700">
+              <h4 class="text-sm font-medium text-red-800 dark:text-red-300">Action Required</h4>
+              <p class="mt-1 text-sm text-red-700 dark:text-red-400">
                 {{ getActionRequiredSummary() }}
               </p>
             </div>
           </div>
         </div>
 
+        <!-- Expanded Actions Row -->
+        <div class="mt-4 flex items-center gap-3 flex-wrap">
+          <button
+            @click.stop="$emit('changeMoveInDate', tenancy)"
+            class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-md flex items-center gap-1.5 transition-colors"
+          >
+            <Pencil class="w-3.5 h-3.5" />
+            Change Move-in Date
+          </button>
+          <button
+            v-if="canAddGuarantor"
+            @click.stop="$emit('addGuarantor')"
+            class="px-3 py-1.5 text-xs font-medium text-primary hover:text-primary/80 bg-primary/5 dark:bg-primary/10 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-md flex items-center gap-1.5 transition-colors"
+          >
+            <UserPlus class="w-3.5 h-3.5" />
+            Add Guarantor
+          </button>
+        </div>
+
         <!-- People cards -->
-        <div class="space-y-2">
+        <div class="mt-4 space-y-2">
           <template v-for="person in sortedPeople" :key="person.id">
             <PersonCard
               :person="person"
@@ -124,28 +219,17 @@
             />
           </template>
         </div>
-
-        <!-- Add Guarantor (for each tenant without one, if not completed) -->
-        <div v-if="canAddGuarantor" class="mt-3">
-          <button
-            @click="$emit('addGuarantor')"
-            class="text-sm text-primary hover:text-primary/80 font-medium"
-          >
-            + Add Guarantor
-          </button>
-        </div>
       </div>
     </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Tenancy, TenancyPerson } from '@/composables/useTenancies'
-import StatusPill from './StatusPill.vue'
-import ProgressChips from './ProgressChips.vue'
 import PersonCard from './PersonCard.vue'
-import { ChevronDown, AlertTriangle, MailWarning, Pencil, FileText } from 'lucide-vue-next'
+import ReferenceProgressIndicator from './ReferenceProgressIndicator.vue'
+import { ChevronDown, AlertTriangle, MailWarning, Pencil, FileText, ArrowRightCircle, UserPlus } from 'lucide-vue-next'
 
 const props = defineProps<{
   tenancy: Tenancy
@@ -158,7 +242,57 @@ defineEmits<{
   chase: [person: TenancyPerson]
   addGuarantor: []
   changeMoveInDate: [tenancy: Tenancy]
+  convertToTenancy: [tenancy: Tenancy]
 }>()
+
+const isHovered = ref(false)
+
+// Simplified main status - only shows ONE status
+const mainStatusLabel = computed(() => {
+  const status = props.tenancy.tenancyStatus
+  switch (status) {
+    case 'COMPLETED': return 'Verified'
+    case 'REJECTED': return 'Failed'
+    case 'ACTION_REQUIRED': return 'Action Required'
+    case 'IN_PROGRESS':
+    case 'COLLECTING_EVIDENCE':
+    case 'SENT':
+      return 'In Progress'
+    case 'AWAITING_VERIFICATION':
+      return 'Awaiting Review'
+    default:
+      return 'In Progress'
+  }
+})
+
+const mainStatusClasses = computed(() => {
+  const status = props.tenancy.tenancyStatus
+  switch (status) {
+    case 'COMPLETED':
+      return 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100'
+    case 'REJECTED':
+      return 'bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-100'
+    case 'ACTION_REQUIRED':
+      return 'bg-orange-100 dark:bg-orange-800 text-orange-800 dark:text-orange-100'
+    default:
+      return 'bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-100'
+  }
+})
+
+// Date computations
+const moveInDate = computed(() => {
+  return props.tenancy.moveInDate ? new Date(props.tenancy.moveInDate) : null
+})
+
+const moveInDay = computed(() => {
+  return moveInDate.value ? moveInDate.value.getDate() : '--'
+})
+
+const moveInMonth = computed(() => {
+  return moveInDate.value
+    ? moveInDate.value.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase()
+    : '---'
+})
 
 // Sort people: tenants first, then their guarantors underneath
 const sortedPeople = computed(() => {
@@ -175,6 +309,73 @@ const sortedPeople = computed(() => {
   }
 
   return result
+})
+
+// Display up to 3 people avatars
+const displayPeople = computed(() => {
+  return props.tenancy.people.slice(0, 3)
+})
+
+const extraPeopleCount = computed(() => {
+  return Math.max(0, props.tenancy.people.length - 3)
+})
+
+// Get tenant names for display
+const tenantNames = computed(() => {
+  const tenants = props.tenancy.people.filter(p => p.role === 'TENANT')
+  if (tenants.length === 0) return 'No tenants'
+  if (tenants.length === 1) return tenants[0]?.name || ''
+  if (tenants.length === 2) return `${tenants[0]?.name || ''} & ${tenants[1]?.name || ''}`
+  return `${tenants[0]?.name || ''} + ${tenants.length - 1} others`
+})
+
+// Get initials from name
+function getInitials(name: string): string {
+  const parts = name.split(' ')
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] || ''}${parts[parts.length - 1]?.[0] || ''}`
+  }
+  return name.substring(0, 2).toUpperCase()
+}
+
+// Compute section statuses from people's sectionStatuses
+const sectionStatuses = computed(() => {
+  // Check if any person has completed each section type
+  const statuses = {
+    identity: false,
+    income: false,
+    residential: false,
+    credit: false,
+    rtr: false
+  }
+
+  // For simplicity, check the first tenant's sections
+  const firstTenant = props.tenancy.people.find(p => p.role === 'TENANT')
+  if (firstTenant?.sectionStatuses) {
+    for (const section of firstTenant.sectionStatuses) {
+      if (section.decision === 'PASS' || section.decision === 'PASS_WITH_CONDITION') {
+        if (section.type === 'IDENTITY_SELFIE') statuses.identity = true
+        if (section.type === 'INCOME' || section.type === 'EMPLOYER_REFERENCE') statuses.income = true
+        if (section.type === 'RESIDENTIAL' || section.type === 'LANDLORD_REFERENCE') statuses.residential = true
+        if (section.type === 'CREDIT') statuses.credit = true
+        if (section.type === 'RTR') statuses.rtr = true
+      }
+    }
+  }
+
+  // Also check overall verification state
+  if (firstTenant?.verificationState === 'COMPLETED') {
+    return { identity: true, income: true, residential: true, credit: true, rtr: true }
+  }
+
+  return statuses
+})
+
+// Progress percentage based on verification
+const progressPercentage = computed(() => {
+  const { tenantsVerified, tenantsTotal } = props.tenancy.progressSummary
+  if (tenantsTotal === 0) return 0
+  return Math.round((tenantsVerified / tenantsTotal) * 100)
 })
 
 const canAddGuarantor = computed(() => {
@@ -219,16 +420,6 @@ function getContactLabel(refType: string): string {
   return labels[refType] || 'Email'
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return 'Not set'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  })
-}
-
 function getActionRequiredSummary(): string {
   const actionPeople = props.tenancy.people.filter(p => p.verificationState === 'ACTION_REQUIRED')
   if (actionPeople.length === 0) return ''
@@ -261,3 +452,9 @@ function formatSectionType(type: string): string {
   return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 </script>
+
+<style scoped>
+.reference-row {
+  will-change: transform, box-shadow;
+}
+</style>

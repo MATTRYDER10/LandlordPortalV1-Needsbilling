@@ -257,10 +257,10 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import UrgencyIndicator from '../shared/UrgencyIndicator.vue'
 
-const toast = useToast()
-const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const toast = useToast()
+const authStore = useAuthStore()
 defineProps<{
   items: ChaseQueueItem[]
   loading: boolean

@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-gray-50 dark:bg-slate-900 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl mx-auto">
       <!-- Header -->
       <div v-if="!initialLoading" class="text-center mb-8">
@@ -8,27 +8,28 @@
             <img :src="companyLogo" alt="Company Logo" class="h-20 object-contain" />
           </template>
           <template v-else>
-            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12" />
+            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12 dark:hidden" />
+            <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-12 hidden dark:block" />
           </template>
         </div>
-        <h1 class="text-3xl font-bold text-gray-900">Guarantor Reference Form</h1>
-        <p class="mt-2 text-gray-600">Please complete all sections to act as a guarantor</p>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Guarantor Reference Form</h1>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Please complete all sections to act as a guarantor</p>
       </div>
 
       <!-- Progress Bar -->
       <div v-if="showProgressBar" class="mb-8">
         <div class="flex justify-between items-center mb-2">
-          <span class="text-sm font-medium text-gray-700">Page {{ getDisplayPage(currentPage) }} of {{ totalPages }}</span>
-          <span class="text-sm text-gray-500">{{ Math.round((getDisplayPage(currentPage) / totalPages) * 100) }}% Complete</span>
+          <span class="text-sm font-medium text-gray-700 dark:text-slate-300">Page {{ getDisplayPage(currentPage) }} of {{ totalPages }}</span>
+          <span class="text-sm text-gray-500 dark:text-slate-400">{{ Math.round((getDisplayPage(currentPage) / totalPages) * 100) }}% Complete</span>
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-2">
+        <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
           <div class="h-2 rounded-full transition-all duration-300" :style="{ width: (getDisplayPage(currentPage) / totalPages * 100) + '%', backgroundColor: primaryColor }"></div>
         </div>
       </div>
 
       <!-- Loading State -->
-      <div v-if="initialLoading" class="bg-white rounded-lg shadow p-8 text-center">
-        <div class="text-gray-600">Loading reference details...</div>
+      <div v-if="initialLoading" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
+        <div class="text-gray-600 dark:text-slate-400">Loading reference details...</div>
       </div>
 
       <!-- Error State -->
@@ -37,10 +38,10 @@
       </div>
 
       <!-- Success/Already Submitted -->
-      <div v-else-if="reference && reference.submitted_at" class="bg-white rounded-lg shadow p-8 text-center">
+      <div v-else-if="reference && reference.submitted_at" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
         <CheckCircle class="mx-auto h-12 w-12 text-green-500" />
-        <h3 class="mt-4 text-lg font-semibold text-gray-900">{{ justSubmitted ? 'Thank You!' : 'Reference Already Submitted' }}</h3>
-        <p class="mt-2 text-gray-600">{{ justSubmitted ? 'Your reference has been submitted successfully. We appreciate you taking the time to complete this form.' : 'You have already submitted this reference. Thank you!' }}</p>
+        <h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">{{ justSubmitted ? 'Thank You!' : 'Reference Already Submitted' }}</h3>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">{{ justSubmitted ? 'Your reference has been submitted successfully. We appreciate you taking the time to complete this form.' : 'You have already submitted this reference. Thank you!' }}</p>
       </div>
 
       <!-- Form -->
@@ -65,29 +66,29 @@
         <form v-else @submit.prevent="handlePageSubmit" class="space-y-6">
 
         <!-- PAGE 1: ID Document Upload -->
-        <div v-if="currentPage === 1" class="bg-white rounded-lg shadow p-6">
+        <div v-if="currentPage === 1" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
           <!-- Reference Details Notice -->
           <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p class="text-sm text-gray-700 mb-2">
+            <p class="text-sm text-gray-700 dark:text-slate-300 mb-2">
               <strong>{{ reference.parent_tenant_first_name || reference.tenant_first_name }} {{ reference.parent_tenant_last_name || reference.tenant_last_name }}</strong> has requested you to act as their guarantor for the tenancy at <strong>{{ reference.property_address }}</strong>.
             </p>
-            <p class="text-sm text-gray-700">
+            <p class="text-sm text-gray-700 dark:text-slate-300">
               <strong>Important:</strong> As a guarantor, you will be legally responsible for paying rent and covering damages if the tenant is unable to do so. Please ensure you understand these obligations before proceeding.
             </p>
           </div>
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Identification Document</h2>
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Identification Document</h2>
 
-          <p class="text-sm text-gray-600 mb-6">Please upload a clear photo of your Driving Licence or Passport</p>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please upload a clear photo of your Driving Licence or Passport</p>
 
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Document Type *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Document Type *</label>
               <select
                 v-model="formData.id_document_type"
                 required
                 :class="[
-                  'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
-                  fieldErrors.id_document_type ? 'border-red-300' : 'border-gray-300'
+                  'mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border rounded-md focus:ring-primary focus:border-primary',
+                  fieldErrors.id_document_type ? 'border-red-300' : 'border-gray-300 dark:border-slate-600'
                 ]"
               >
                 <option value="">Select document type</option>
@@ -100,7 +101,7 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Upload Document *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Upload Document *</label>
               <input
                 ref="idDocumentInput"
                 type="file"
@@ -111,15 +112,15 @@
               <button
                 type="button"
                 @click="($refs.idDocumentInput as any).click()"
-                class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                 :style="{ color: buttonColor }"
               >
                 {{ idDocument ? 'Change File' : 'Choose File' }}
               </button>
-              <p class="mt-1 text-xs text-gray-500">Upload PDF or image (max 10MB)</p>
-              <div v-if="idDocument" class="mt-2 p-3 bg-gray-50 rounded">
+              <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload PDF or image (max 10MB)</p>
+              <div v-if="idDocument" class="mt-2 p-3 bg-gray-50 dark:bg-slate-800 rounded">
                 <div class="flex items-center justify-between">
-                  <span class="text-sm text-gray-700">{{ idDocument.name }} ({{ formatFileSize(idDocument.size) }})</span>
+                  <span class="text-sm text-gray-700 dark:text-slate-300">{{ idDocument.name }} ({{ formatFileSize(idDocument.size) }})</span>
                   <button type="button" @click="removeIdDocument" class="text-red-600 hover:text-red-800">
                     <X class="w-4 h-4" />
                   </button>
@@ -136,21 +137,21 @@
         </div>
 
         <!-- PAGE 2: Personal Details -->
-        <div v-if="currentPage === 2" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Personal Details</h2>
-          <p class="text-sm text-gray-600 mb-6">Please ensure these details match your ID document</p>
+        <div v-if="currentPage === 2" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Personal Details</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please ensure these details match your ID document</p>
 
           <div class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700">First Name *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">First Name *</label>
                 <input
                   v-model="formData.first_name"
                   type="text"
                   required
                   :class="[
-                    'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
-                    fieldErrors.first_name ? 'border-red-300' : 'border-gray-300'
+                    'mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border rounded-md focus:ring-primary focus:border-primary',
+                    fieldErrors.first_name ? 'border-red-300' : 'border-gray-300 dark:border-slate-600'
                   ]"
                 />
                 <p v-if="fieldErrors.first_name" class="mt-1 text-sm text-red-600">
@@ -158,24 +159,24 @@
                 </p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Middle Name</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Middle Name</label>
                 <input
                   v-model="formData.middle_name"
                   type="text"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Last Name *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Last Name *</label>
               <input
                 v-model="formData.last_name"
                 type="text"
                 required
                 :class="[
-                  'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
-                  fieldErrors.last_name ? 'border-red-300' : 'border-gray-300'
+                  'mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border rounded-md focus:ring-primary focus:border-primary',
+                  fieldErrors.last_name ? 'border-red-300' : 'border-gray-300 dark:border-slate-600'
                 ]"
               />
               <p v-if="fieldErrors.last_name" class="mt-1 text-sm text-red-600">
@@ -184,15 +185,15 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Date of Birth *</label>
               <div class="grid grid-cols-3 gap-3">
                 <div>
                   <select
                     v-model="dobDay"
                     required
                     :class="[
-                      'block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
-                      fieldErrors.dob ? 'border-red-300' : 'border-gray-300'
+                      'block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border rounded-md focus:ring-primary focus:border-primary',
+                      fieldErrors.dob ? 'border-red-300' : 'border-gray-300 dark:border-slate-600'
                     ]"
                   >
                     <option value="">Day</option>
@@ -204,8 +205,8 @@
                     v-model="dobMonth"
                     required
                     :class="[
-                      'block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
-                      fieldErrors.dob ? 'border-red-300' : 'border-gray-300'
+                      'block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border rounded-md focus:ring-primary focus:border-primary',
+                      fieldErrors.dob ? 'border-red-300' : 'border-gray-300 dark:border-slate-600'
                     ]"
                   >
                     <option value="">Month</option>
@@ -228,8 +229,8 @@
                     v-model="dobYear"
                     required
                     :class="[
-                      'block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
-                      fieldErrors.dob ? 'border-red-300' : 'border-gray-300'
+                      'block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border rounded-md focus:ring-primary focus:border-primary',
+                      fieldErrors.dob ? 'border-red-300' : 'border-gray-300 dark:border-slate-600'
                     ]"
                   >
                     <option value="">Year</option>
@@ -253,7 +254,7 @@
             </p>
 
             <div class="relative">
-              <label class="block text-sm font-medium text-gray-700">Nationality *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Nationality *</label>
               <input
                 v-model="nationalitySearch"
                 @focus="showNationalityDropdown = true"
@@ -264,19 +265,19 @@
                 placeholder="Search and select nationality..."
                 autocomplete="off"
                 :class="[
-                  'mt-1 block w-full px-3 py-2 bg-white border rounded-md focus:ring-primary focus:border-primary',
-                  fieldErrors.nationality ? 'border-red-300' : 'border-gray-300'
+                  'mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border rounded-md focus:ring-primary focus:border-primary',
+                  fieldErrors.nationality ? 'border-red-300' : 'border-gray-300 dark:border-slate-600'
                 ]"
               />
               <div
                 v-if="showNationalityDropdown && filteredNationalities.length > 0"
-                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                class="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-60 overflow-auto"
               >
                 <div
                   v-for="nationality in filteredNationalities"
                   :key="nationality"
                   @mousedown.prevent="selectNationality(nationality)"
-                  class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer text-sm dark:text-slate-300"
                 >
                   {{ nationality }}
                 </div>
@@ -289,13 +290,13 @@
         </div>
 
         <!-- PAGE 3: Selfie -->
-        <div v-if="currentPage === 3" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Selfie Verification</h2>
-          <p class="text-sm text-gray-600 mb-6">Please take a clear selfie for identity verification using your camera</p>
+        <div v-if="currentPage === 3" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Selfie Verification</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please take a clear selfie for identity verification using your camera</p>
 
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Take Selfie *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Take Selfie *</label>
 
               <!-- Camera stream view -->
               <div v-if="showCameraStream" class="space-y-4">
@@ -321,7 +322,7 @@
                   <button
                     type="button"
                     @click="stopCamera"
-                    class="px-4 py-2 text-sm font-semibold bg-gray-100 rounded-md hover:bg-gray-200 text-gray-700"
+                    class="px-4 py-2 text-sm font-semibold bg-gray-100 dark:bg-slate-700 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-300"
                   >
                     Cancel
                   </button>
@@ -331,9 +332,9 @@
               <!-- Camera start button or preview -->
               <div v-else>
                 <div v-if="selfie" class="space-y-4">
-                  <img v-if="selfiePreview" :src="selfiePreview" alt="Selfie preview" class="w-48 h-48 object-cover rounded-lg border-2 border-gray-300" />
+                  <img v-if="selfiePreview" :src="selfiePreview" alt="Selfie preview" class="w-48 h-48 object-cover rounded-lg border-2 border-gray-300 dark:border-slate-600" />
                   <div class="flex items-center gap-2">
-                    <span class="text-sm text-gray-700">Photo captured ({{ formatFileSize(selfie.size) }})</span>
+                    <span class="text-sm text-gray-700 dark:text-slate-300">Photo captured ({{ formatFileSize(selfie.size) }})</span>
                     <button type="button" @click="removeSelfie" class="text-red-600 hover:text-red-800 text-sm">
                       Remove
                     </button>
@@ -367,15 +368,15 @@
               </div>
 
               <p v-if="cameraError" class="mt-2 text-sm text-red-600">{{ cameraError }}</p>
-              <p v-else class="mt-1 text-xs text-gray-500">Please open this reference on your mobile phone. A photo must be taken using your device's camera for AML compliance.</p>
+              <p v-else class="mt-1 text-xs text-gray-500 dark:text-slate-400">Please open this reference on your mobile phone. A photo must be taken using your device's camera for AML compliance.</p>
             </div>
           </div>
         </div>
 
         <!-- PAGE 4: Address Details -->
-        <div v-if="currentPage === 4" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Current Address Details</h2>
-          <p class="text-sm text-gray-600 mb-6">Please provide your current residential address</p>
+        <div v-if="currentPage === 4" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Current Address Details</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please provide your current residential address</p>
 
           <div class="space-y-4">
             <div>
@@ -390,40 +391,40 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700">Address Line 2</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address Line 2</label>
               <input
                 v-model="formData.current_address_line2"
                 type="text"
                 placeholder="Apartment, suite, building, floor, etc."
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700">City *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">City *</label>
                 <input
                   v-model="formData.current_city"
                   type="text"
                   required
                   :placeholder="cityPlaceholder"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">{{ postcodeLabel }} *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">{{ postcodeLabel }} *</label>
                 <input
                   v-model="formData.current_postcode"
                   type="text"
                   required
                   :placeholder="postcodePlaceholder"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
 
             <div class="relative">
-              <label class="block text-sm font-medium text-gray-700">Country *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Country *</label>
               <input
                 v-model="countrySearch"
                 @focus="showCountryDropdown = true"
@@ -433,17 +434,17 @@
                 required
                 placeholder="Search and select country..."
                 autocomplete="off"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
               />
               <div
                 v-if="showCountryDropdown && filteredCountries.length > 0"
-                class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                class="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-60 overflow-auto"
               >
                 <div
                   v-for="country in filteredCountries"
                   :key="country?.code || ''"
                   @mousedown.prevent="country && selectCountry(country)"
-                  class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer text-sm dark:text-slate-300"
                 >
                   {{ country?.name }}
                 </div>
@@ -451,10 +452,10 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Time at Current Address *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Time at Current Address *</label>
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-xs text-gray-600 mb-1">Years</label>
+                  <label class="block text-xs text-gray-600 dark:text-slate-400 mb-1">Years</label>
                   <input
                     v-model.number="formData.time_at_address_years"
                     type="number"
@@ -462,11 +463,11 @@
                     max="100"
                     required
                     placeholder="0"
-                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label class="block text-xs text-gray-600 mb-1">Months</label>
+                  <label class="block text-xs text-gray-600 dark:text-slate-400 mb-1">Months</label>
                   <input
                     v-model.number="formData.time_at_address_months"
                     type="number"
@@ -474,27 +475,27 @@
                     max="11"
                     required
                     placeholder="0"
-                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
               </div>
-              <p class="mt-1 text-xs text-gray-500">How long have you been living at this address?</p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">How long have you been living at this address?</p>
             </div>
 
             <!-- Previous Addresses (if needed for 3-year history) -->
-            <div v-if="needsMoreAddressHistory || previousAddresses.length > 0" class="mt-8 pt-6 border-t">
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">Previous Address History</h3>
-              <p class="text-sm text-gray-600 mb-4">We need 3 years of address history. Please provide your previous addresses.</p>
-              <p class="text-xs text-gray-500 mb-6">
+            <div v-if="needsMoreAddressHistory || previousAddresses.length > 0" class="mt-8 pt-6 border-t dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Previous Address History</h3>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">We need 3 years of address history. Please provide your previous addresses.</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-6">
                 Current history: {{ totalAddressHistoryYears }} year{{ totalAddressHistoryYears !== 1 ? 's' : '' }},
                 {{ totalAddressHistoryMonths }} month{{ totalAddressHistoryMonths !== 1 ? 's' : '' }}
                 ({{ Math.floor(totalAddressHistoryInMonths / 12) }} years {{ totalAddressHistoryInMonths % 12 }} months total)
                 <span v-if="totalAddressHistoryInMonths >= 36" class="text-green-600 font-medium">✓ Requirement met</span>
               </p>
 
-              <div v-for="(address, index) in previousAddresses" :key="index" class="mb-6 p-4 bg-gray-50 rounded-lg">
+              <div v-for="(address, index) in previousAddresses" :key="index" class="mb-6 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
                 <div class="flex justify-between items-center mb-4">
-                  <h4 class="text-md font-semibold text-gray-900">Previous Address {{ index + 1 }}</h4>
+                  <h4 class="text-md font-semibold text-gray-900 dark:text-white">Previous Address {{ index + 1 }}</h4>
                   <button
                     type="button"
                     @click="removePreviousAddress(index)"
@@ -517,40 +518,40 @@
                   </div>
 
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Address Line 2</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address Line 2</label>
                     <input
                       v-model="address.address_line2"
                       type="text"
                       placeholder="Apartment, suite, building, floor, etc."
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
 
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700">City *</label>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">City *</label>
                       <input
                         v-model="address.city"
                         type="text"
                         required
                         :placeholder="getPreviousAddressCityPlaceholder(index)"
-                        class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                       />
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-gray-700">{{ getPreviousAddressPostcodeLabel(index) }} *</label>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">{{ getPreviousAddressPostcodeLabel(index) }} *</label>
                       <input
                         v-model="address.postcode"
                         type="text"
                         required
                         :placeholder="getPreviousAddressPostcodePlaceholder(index)"
-                        class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                       />
                     </div>
                   </div>
 
                   <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700">Country *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Country *</label>
                     <input
                       v-model="previousAddressCountrySearches[index]"
                       @focus="showPreviousAddressCountryDropdowns[index] = true"
@@ -560,17 +561,17 @@
                       required
                       placeholder="Search and select country..."
                       autocomplete="off"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                     />
                     <div
                       v-if="showPreviousAddressCountryDropdowns[index] && filteredPreviousAddressCountries(index).length > 0"
-                      class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                      class="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-60 overflow-auto"
                     >
                       <div
                         v-for="country in filteredPreviousAddressCountries(index)"
                         :key="country?.code || ''"
                         @mousedown.prevent="country && selectPreviousAddressCountry(index, country)"
-                        class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                        class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer text-sm dark:text-slate-300"
                       >
                         {{ country?.name }}
                       </div>
@@ -578,10 +579,10 @@
                   </div>
 
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Time at This Address *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Time at This Address *</label>
                     <div class="grid grid-cols-2 gap-4">
                       <div>
-                        <label class="block text-xs text-gray-600 mb-1">Years</label>
+                        <label class="block text-xs text-gray-600 dark:text-slate-400 mb-1">Years</label>
                         <input
                           v-model.number="address.time_at_address_years"
                           type="number"
@@ -589,12 +590,12 @@
                           max="100"
                           required
                           placeholder="0"
-                          class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                           @input="updateAddressHistory"
                         />
                       </div>
                       <div>
-                        <label class="block text-xs text-gray-600 mb-1">Months</label>
+                        <label class="block text-xs text-gray-600 dark:text-slate-400 mb-1">Months</label>
                         <input
                           v-model.number="address.time_at_address_months"
                           type="number"
@@ -602,7 +603,7 @@
                           max="11"
                           required
                           placeholder="0"
-                          class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                           @input="updateAddressHistory"
                         />
                       </div>
@@ -643,17 +644,17 @@
         </div>
 
         <!-- PAGE 5: Home Ownership Status -->
-        <div v-if="currentPage === 5" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Home Ownership Status</h2>
-          <p class="text-sm text-gray-600 mb-6">Help us understand your property ownership status</p>
+        <div v-if="currentPage === 5" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Home Ownership Status</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Help us understand your property ownership status</p>
 
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Do you own or rent your current home? *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Do you own or rent your current home? *</label>
               <select
                 v-model="formData.home_ownership_status"
                 required
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
               >
                 <option value="">Select an option</option>
                 <option value="owner">I own my home (outright)</option>
@@ -665,11 +666,11 @@
             </div>
 
             <!-- If owner, ask for property value -->
-            <div v-if="formData.home_ownership_status === 'owner' || formData.home_ownership_status === 'owner_with_mortgage'" class="pt-4 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Property Details</h3>
+            <div v-if="formData.home_ownership_status === 'owner' || formData.home_ownership_status === 'owner_with_mortgage'" class="pt-4 border-t border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Property Details</h3>
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Estimated Property Value (£) *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Estimated Property Value (£) *</label>
                   <input
                     v-model.number="formData.property_value"
                     type="number"
@@ -677,14 +678,14 @@
                     min="0"
                     :required="formData.home_ownership_status === 'owner' || formData.home_ownership_status === 'owner_with_mortgage'"
                     placeholder="e.g., 250000"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
-                  <p class="mt-1 text-xs text-gray-500">Approximate market value of your property</p>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Approximate market value of your property</p>
                 </div>
 
                 <!-- If owner with mortgage, ask for outstanding balance -->
                 <div v-if="formData.home_ownership_status === 'owner_with_mortgage'">
-                  <label class="block text-sm font-medium text-gray-700">Outstanding Mortgage Balance (£) *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Outstanding Mortgage Balance (£) *</label>
                   <input
                     v-model.number="formData.mortgage_balance"
                     type="number"
@@ -692,9 +693,9 @@
                     min="0"
                     :required="formData.home_ownership_status === 'owner_with_mortgage'"
                     placeholder="e.g., 150000"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
-                  <p class="mt-1 text-xs text-gray-500">Remaining balance on your mortgage</p>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Remaining balance on your mortgage</p>
                 </div>
               </div>
             </div>
@@ -702,13 +703,13 @@
         </div>
 
         <!-- PAGE 6: Proof of Address (only show if not driving licence) -->
-        <div v-if="currentPage === 6 && !shouldSkipProofOfAddress" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Proof of Address</h2>
-          <p class="text-sm text-gray-600 mb-6">Bank Statement, Utility bill or UK Driving License</p>
+        <div v-if="currentPage === 6 && !shouldSkipProofOfAddress" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Proof of Address</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Bank Statement, Utility bill or UK Driving License</p>
 
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Upload Document *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Upload Document *</label>
               <input
                 ref="proofOfAddressInput"
                 type="file"
@@ -719,15 +720,15 @@
               <button
                 type="button"
                 @click="($refs.proofOfAddressInput as any).click()"
-                class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                 :style="{ color: buttonColor }"
               >
                 {{ proofOfAddress ? 'Change File' : 'Choose File' }}
               </button>
-              <p class="mt-1 text-xs text-gray-500">Upload PDF or image (max 10MB)</p>
-              <div v-if="proofOfAddress" class="mt-2 p-3 bg-gray-50 rounded">
+              <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload PDF or image (max 10MB)</p>
+              <div v-if="proofOfAddress" class="mt-2 p-3 bg-gray-50 dark:bg-slate-800 rounded">
                 <div class="flex items-center justify-between">
-                  <span class="text-sm text-gray-700">{{ proofOfAddress.name }} ({{ formatFileSize(proofOfAddress.size) }})</span>
+                  <span class="text-sm text-gray-700 dark:text-slate-300">{{ proofOfAddress.name }} ({{ formatFileSize(proofOfAddress.size) }})</span>
                   <button type="button" @click="removeProofOfAddress" class="text-red-600 hover:text-red-800">
                     <X class="w-4 h-4" />
                   </button>
@@ -744,110 +745,110 @@
         </div>
 
         <!-- PAGE 7: Financial Information -->
-        <div v-if="currentPage === 7" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Financial Information</h2>
-          <p class="text-sm text-gray-600 mb-6">Please select all sources of income that apply to you</p>
+        <div v-if="currentPage === 7" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Financial Information</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please select all sources of income that apply to you</p>
 
           <div class="space-y-6">
             <!-- Income Sources -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">Income Sources *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Income Sources *</label>
               <div class="space-y-2">
                 <label class="flex items-center">
                   <input
                     v-model="formData.income_regular_employment"
                     type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Employed</span>
+                  <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Employed</span>
                 </label>
                 <label class="flex items-center">
                   <input
                     v-model="formData.income_self_employed"
                     type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Self Employed</span>
+                  <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Self Employed</span>
                 </label>
                 <label class="flex items-center">
                   <input
                     v-model="formData.income_benefits"
                     type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Benefits</span>
+                  <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Benefits</span>
                 </label>
                 <label class="flex items-center">
                   <input
                     v-model="formData.income_savings_pension_investments"
                     type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Savings & Investments</span>
+                  <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Savings & Investments</span>
                 </label>
                 <label class="flex items-center">
                   <input
                     v-model="formData.income_pension"
                     type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Pension Income</span>
+                  <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Pension Income</span>
                 </label>
                 <label class="flex items-center">
                   <input
                     v-model="formData.income_landlord_rental"
                     type="checkbox"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Landlord/Rental Income</span>
+                  <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Landlord/Rental Income</span>
                 </label>
               </div>
             </div>
 
             <!-- Pension Details (shown if Pension Income is selected) -->
-            <div v-if="formData.income_pension" class="pt-6 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Pension Details</h3>
+            <div v-if="formData.income_pension" class="pt-6 border-t border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Pension Details</h3>
 
               <div class="space-y-4">
                 <div>
-                  <label for="pension-monthly-amount" class="block text-sm font-medium text-gray-700">Monthly Pension Amount (£) *</label>
+                  <label for="pension-monthly-amount" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Monthly Pension Amount (£) *</label>
                   <input
                     id="pension-monthly-amount"
                     v-model.number="formData.pension_monthly_amount"
                     type="number"
                     step="0.01"
                     :required="formData.income_pension"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label for="pension-provider" class="block text-sm font-medium text-gray-700">Pension Provider/Source *</label>
+                  <label for="pension-provider" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Pension Provider/Source *</label>
                   <input
                     id="pension-provider"
                     v-model="formData.pension_provider"
                     type="text"
                     :required="formData.income_pension"
                     placeholder="e.g., State Pension, Private Pension Provider"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Pension Statement *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Pension Statement *</label>
                   <input ref="pensionStatementInput" type="file" @change="handlePensionStatementUpload"
                     accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
                   <button type="button" @click="($refs.pensionStatementInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                     :style="{ color: buttonColor }">
                     {{ pensionStatement ? 'Change Document' : 'Upload Document' }}
                   </button>
-                  <p class="mt-1 text-xs text-gray-500">Upload your most recent pension statement (max 10MB, PDF/JPG/PNG)</p>
-                  <div v-if="pensionStatement" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload your most recent pension statement (max 10MB, PDF/JPG/PNG)</p>
+                  <div v-if="pensionStatement" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
                     <div class="flex items-center justify-between">
                       <div class="flex items-center">
                         <FileText class="w-5 h-5 text-blue-600 mr-2" />
-                        <span class="text-sm text-gray-700">{{ pensionStatement.name }} ({{ formatFileSize(pensionStatement.size) }})</span>
+                        <span class="text-sm text-gray-700 dark:text-slate-300">{{ pensionStatement.name }} ({{ formatFileSize(pensionStatement.size) }})</span>
                       </div>
                       <button type="button" @click="removePensionStatement"
                         class="text-red-600 hover:text-red-800 text-sm">
@@ -867,34 +868,39 @@
             </div>
 
             <!-- Landlord/Rental Income Details (shown if selected) -->
-            <div v-if="formData.income_landlord_rental" class="pt-6 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Landlord/Rental Income Details</h3>
+            <div v-if="formData.income_landlord_rental" class="pt-6 border-t border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Landlord/Rental Income Details</h3>
 
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Monthly Rental Income (£) *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Monthly Rental Income (£) *</label>
                   <input v-model.number="formData.landlord_rental_monthly_amount" type="number" step="0.01" min="0"
                     :required="formData.income_landlord_rental"
                     placeholder="Enter monthly rental income"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
-                  <p class="mt-1 text-xs text-gray-500">Total monthly income from property rentals</p>
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary" />
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Total monthly income from property rentals</p>
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statement *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bank Statement *</label>
                   <input ref="landlordRentalBankStatementInput" type="file" @change="handleLandlordRentalBankStatementUpload"
                     accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
                   <button type="button" @click="($refs.landlordRentalBankStatementInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                     :style="{ color: buttonColor }">
                     {{ landlordRentalBankStatement ? 'Change Document' : 'Upload Document' }}
                   </button>
-                  <p class="mt-1 text-xs text-gray-500">Upload bank statement showing rental income deposits (max 10MB, PDF/JPG/PNG)</p>
-                  <div v-if="landlordRentalBankStatement" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload bank statement showing rental income deposits (max 10MB, PDF/JPG/PNG)</p>
+                  <div class="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
+                    <p class="text-xs text-blue-800 dark:text-blue-300">
+                      <strong>Tip:</strong> Your statement only needs to display the inbound rental income deposits. You may redact other transaction details for privacy.
+                    </p>
+                  </div>
+                  <div v-if="landlordRentalBankStatement" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
                     <div class="flex items-center justify-between">
                       <div class="flex items-center">
                         <FileText class="w-5 h-5 text-blue-600 mr-2" />
-                        <span class="text-sm text-gray-700">{{ landlordRentalBankStatement.name }} ({{ formatFileSize(landlordRentalBankStatement.size) }})</span>
+                        <span class="text-sm text-gray-700 dark:text-slate-300">{{ landlordRentalBankStatement.name }} ({{ formatFileSize(landlordRentalBankStatement.size) }})</span>
                       </div>
                       <button type="button" @click="removeLandlordRentalBankStatement"
                         class="text-red-600 hover:text-red-800 text-sm">
@@ -914,16 +920,16 @@
             </div>
 
             <!-- Employment Details (shown if Regular Employment is selected) -->
-            <div v-if="formData.income_regular_employment" class="pt-6 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Employment Details</h3>
+            <div v-if="formData.income_regular_employment" class="pt-6 border-t border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Employment Details</h3>
 
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Employment Type *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Employment Type *</label>
                   <select
                     v-model="formData.employment_contract_type"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Select an option</option>
                     <option value="full-time">Full-time</option>
@@ -935,13 +941,13 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Employment Start Date *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Employment Start Date *</label>
                   <div class="grid grid-cols-3 gap-3">
                     <div>
                       <select
                         v-model="employmentStartDay"
                         :required="formData.income_regular_employment"
-                        class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                       >
                         <option value="">Day</option>
                         <option v-for="day in 31" :key="day" :value="day">{{ day }}</option>
@@ -951,7 +957,7 @@
                       <select
                         v-model="employmentStartMonth"
                         :required="formData.income_regular_employment"
-                        class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                       >
                         <option value="">Month</option>
                         <option value="01">January</option>
@@ -972,7 +978,7 @@
                       <select
                         v-model="employmentStartYear"
                         :required="formData.income_regular_employment"
-                        class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                       >
                         <option value="">Year</option>
                         <option v-for="year in employmentYearRange" :key="year" :value="year">{{ year }}</option>
@@ -983,21 +989,21 @@
 
                 <!-- Employment End Date (for previous employment) -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     Employment End Date
                   </label>
                   <input
                     v-model="formData.employment_end_date"
                     type="date"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
-                  <p class="mt-1 text-xs text-gray-500">
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">
                     Leave blank if current employment
                   </p>
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Compensation Structure *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Compensation Structure *</label>
                   <div class="space-y-2">
                     <label class="flex items-center">
                       <input
@@ -1005,9 +1011,9 @@
                         type="radio"
                         :value="true"
                         :name="'compensation'"
-                        class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                        class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
                       />
-                      <span class="ml-2 text-sm text-gray-700">Hourly</span>
+                      <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Hourly</span>
                     </label>
                     <label class="flex items-center">
                       <input
@@ -1015,55 +1021,55 @@
                         type="radio"
                         :value="false"
                         :name="'compensation'"
-                        class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                        class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
                       />
-                      <span class="ml-2 text-sm text-gray-700">Salary</span>
+                      <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Salary</span>
                     </label>
                   </div>
                 </div>
 
                 <div v-if="formData.employment_is_hourly" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Hourly Rate (£) *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Hourly Rate (£) *</label>
                     <input
                       v-model="formData.employment_salary_amount"
                       type="number"
                       step="0.01"
                       :required="formData.income_regular_employment && formData.employment_is_hourly"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Hours per Month *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Hours per Month *</label>
                     <input
                       v-model="formData.employment_hours_per_month"
                       type="number"
                       :required="formData.income_regular_employment && formData.employment_is_hourly"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
                 </div>
 
                 <div v-else>
-                  <label class="block text-sm font-medium text-gray-700">Annual Salary (£) *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Annual Salary (£) *</label>
                   <input
                     v-model="formData.employment_salary_amount"
                     type="number"
                     step="0.01"
                     :required="formData.income_regular_employment && !formData.employment_is_hourly"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
                 <!-- Salary Payment Frequency -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     How Often Are You Paid? *
                   </label>
                   <select
                     v-model="formData.employment_salary_frequency"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Select frequency...</option>
                     <option value="weekly">Weekly</option>
@@ -1074,22 +1080,22 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Company Name *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Company Name *</label>
                   <input
                     v-model="formData.employment_company_name"
                     type="text"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Job Title *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Job Title *</label>
                   <input
                     v-model="formData.employment_job_title"
                     type="text"
                     :required="formData.income_regular_employment"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
@@ -1105,37 +1111,37 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Company Address Line 2</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Company Address Line 2</label>
                   <input
                     v-model="formData.employment_company_address_line2"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Company City *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Company City *</label>
                     <input
                       v-model="formData.employment_company_city"
                       type="text"
                       :required="formData.income_regular_employment"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Company Postcode *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Company Postcode *</label>
                     <input
                       v-model="formData.employment_company_postcode"
                       type="text"
                       :required="formData.income_regular_employment"
-                      class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                     />
                   </div>
                 </div>
 
                 <div class="relative">
-                  <label class="block text-sm font-medium text-gray-700">Company Country *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Company Country *</label>
                   <input
                     v-model="companyCountrySearch"
                     @focus="showCompanyCountryDropdown = true"
@@ -1145,17 +1151,17 @@
                     :required="formData.income_regular_employment"
                     placeholder="Search and select country..."
                     autocomplete="off"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                   <div
                     v-if="showCompanyCountryDropdown && filteredCompanyCountries.length > 0"
-                    class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                    class="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-60 overflow-auto"
                   >
                     <div
                       v-for="country in filteredCompanyCountries"
                       :key="country?.code || ''"
                       @mousedown.prevent="country && selectCompanyCountry(country)"
-                      class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer text-sm dark:text-slate-300"
                     >
                       {{ country?.name }}
                     </div>
@@ -1164,7 +1170,7 @@
 
                 <!-- Payslips Upload -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Payslips (Last 3 months) (Optional) - but will speed your reference up drastically</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Payslips (Last 3 months) (Optional) - but will speed your reference up drastically</label>
                   <input
                     ref="payslipInput"
                     type="file"
@@ -1176,14 +1182,14 @@
                   <button
                     type="button"
                     @click="($refs.payslipInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                     :style="{ color: buttonColor }"
                   >
                     Choose Files
                   </button>
-                  <p class="mt-1 text-xs text-gray-500">Upload PDF or images (max 10MB per file)</p>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload PDF or images (max 10MB per file)</p>
                   <div v-if="payslips.length > 0" class="mt-2 space-y-1">
-                    <div v-for="(file, index) in payslips" :key="index" class="flex items-center justify-between text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded">
+                    <div v-for="(file, index) in payslips" :key="index" class="flex items-center justify-between text-sm text-gray-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-800 px-3 py-2 rounded">
                       <span>{{ file.name }} ({{ formatFileSize(file.size) }})</span>
                       <button type="button" @click="removePayslip(index)" class="text-red-600 hover:text-red-800">
                         <X class="w-4 h-4" />
@@ -1199,38 +1205,38 @@
                 </div>
 
                 <!-- Employer Reference Contact -->
-                <div class="pt-4 border-t border-gray-200">
-                  <h4 class="text-md font-semibold text-gray-900 mb-3">Employer Reference Contact</h4>
+                <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">Employer Reference Contact</h4>
                   <div class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label class="block text-sm font-medium text-gray-700">Position *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Position *</label>
                         <input
                           v-model="formData.employer_ref_position"
                           type="text"
                           :required="formData.income_regular_employment"
                           placeholder="e.g. HR Manager"
-                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                         />
                       </div>
                       <div>
-                        <label class="block text-sm font-medium text-gray-700">Name *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Name *</label>
                         <input
                           v-model="formData.employer_ref_name"
                           type="text"
                           :required="formData.income_regular_employment"
-                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                         />
                       </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label class="block text-sm font-medium text-gray-700">Email *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email *</label>
                         <input
                           v-model="formData.employer_ref_email"
                           type="email"
                           :required="formData.income_regular_employment"
-                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                           :class="{ 'border-red-500': employerEmailError }"
                         />
                         <p v-if="employerEmailError" class="mt-1 text-sm text-red-600">{{ employerEmailError }}</p>
@@ -1248,22 +1254,22 @@
             </div>
 
             <!-- Business Details (shown if Self Employed is selected) -->
-            <div v-if="formData.income_self_employed" class="pt-6 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Business Details</h3>
+            <div v-if="formData.income_self_employed" class="pt-6 border-t border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Business Details</h3>
 
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Business Name *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Business Name *</label>
                   <input
                     v-model="formData.self_employed_business_name"
                     type="text"
                     :required="formData.income_self_employed"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Business Start Date *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Business Start Date *</label>
                   <DatePicker
                     v-model="formData.self_employed_start_date"
                     :required="formData.income_self_employed"
@@ -1272,57 +1278,57 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Nature of Business *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Nature of Business *</label>
                   <input
                     v-model="formData.self_employed_nature_of_business"
                     type="text"
                     :required="formData.income_self_employed"
                     placeholder="e.g. Freelance Graphic Design"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Annual Income (£) *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Annual Income (£) *</label>
                   <input
                     v-model="formData.self_employed_annual_income"
                     type="number"
                     step="0.01"
                     :required="formData.income_self_employed"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
 
                 <!-- Accountant Contact -->
-                <div class="pt-4 border-t border-gray-200">
-                  <h4 class="text-md font-semibold text-gray-900 mb-3">Accountant Contact</h4>
+                <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">Accountant Contact</h4>
                   <div class="space-y-4">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700">Accountant/Firm Name *</label>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Accountant/Firm Name *</label>
                       <input
                         v-model="formData.accountant_name"
                         type="text"
                         :required="formData.income_self_employed"
-                        class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                       />
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label class="block text-sm font-medium text-gray-700">Contact Name *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Contact Name *</label>
                         <input
                           v-model="formData.accountant_contact_name"
                           type="text"
                           :required="formData.income_self_employed"
-                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                         />
                       </div>
                       <div>
-                        <label class="block text-sm font-medium text-gray-700">Email *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email *</label>
                         <input
                           v-model="formData.accountant_email"
                           type="email"
                           :required="formData.income_self_employed"
-                          class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                           :class="{ 'border-red-500': accountantEmailError }"
                         />
                         <p v-if="accountantEmailError" class="mt-1 text-sm text-red-600">{{ accountantEmailError }}</p>
@@ -1338,11 +1344,11 @@
                 </div>
 
                 <!-- Tax Return Upload -->
-                <div class="pt-4 border-t border-gray-200">
-                  <h4 class="text-md font-semibold text-gray-900 mb-3">Tax Return Statement</h4>
+                <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">Tax Return Statement</h4>
                   <div class="space-y-4">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-2">Upload Most Recent Tax Return ({{ currentTaxYear }}) *</label>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Upload Most Recent Tax Return ({{ currentTaxYear }}) *</label>
                       <input
                         ref="taxReturnInput"
                         type="file"
@@ -1353,16 +1359,16 @@
                       <button
                         type="button"
                         @click="($refs.taxReturnInput as any).click()"
-                        class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                        class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                         :style="{ color: buttonColor }"
                       >
                         {{ taxReturn ? 'Change File' : 'Upload Tax Return' }}
                       </button>
-                      <p class="mt-1 text-xs text-gray-500">Upload your most recent tax return statement (max 10MB, PDF or image)</p>
+                      <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload your most recent tax return statement (max 10MB, PDF or image)</p>
 
-                      <div v-if="taxReturn" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                      <div v-if="taxReturn" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
                         <div class="flex items-center justify-between">
-                          <span class="text-sm text-gray-700">{{ taxReturn.name }} ({{ formatFileSize(taxReturn.size) }})</span>
+                          <span class="text-sm text-gray-700 dark:text-slate-300">{{ taxReturn.name }} ({{ formatFileSize(taxReturn.size) }})</span>
                           <button type="button" @click="removeTaxReturn" class="text-red-600 hover:text-red-800 text-sm">
                             Remove
                           </button>
@@ -1381,12 +1387,12 @@
             </div>
 
             <!-- Benefits Details (shown if selected) -->
-            <div v-if="formData.income_benefits" class="pt-6 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Benefits Details</h3>
+            <div v-if="formData.income_benefits" class="pt-6 border-t border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Benefits Details</h3>
 
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Monthly Benefits Amount (£) *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Monthly Benefits Amount (£) *</label>
                   <input
                     v-model.number="formData.benefits_monthly_amount"
                     type="number"
@@ -1394,13 +1400,13 @@
                     min="0"
                     :required="formData.income_benefits"
                     placeholder="Enter monthly benefits amount"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
-                  <p class="mt-1 text-xs text-gray-500">Enter the total amount you receive in benefits each month</p>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Enter the total amount you receive in benefits each month</p>
                 </div>
 
-                <div v-if="benefitsAnnualAmount > 0" class="p-3 bg-blue-50 rounded border border-blue-200">
-                  <p class="text-sm text-gray-700">
+                <div v-if="benefitsAnnualAmount > 0" class="p-3 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-800">
+                  <p class="text-sm text-gray-700 dark:text-slate-300">
                     <span class="font-semibold">Annual Benefits:</span> £{{ benefitsAnnualAmount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                   </p>
                 </div>
@@ -1408,12 +1414,12 @@
             </div>
 
             <!-- Savings & Investments Details (shown if selected) -->
-            <div v-if="formData.income_savings_pension_investments" class="pt-6 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Savings & Investments Details</h3>
+            <div v-if="formData.income_savings_pension_investments" class="pt-6 border-t border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Savings & Investments Details</h3>
 
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Total Savings Amount (£) *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Total Savings Amount (£) *</label>
                   <input
                     v-model.number="formData.savings_amount"
                     type="number"
@@ -1421,13 +1427,13 @@
                     min="0"
                     :required="formData.income_savings_pension_investments"
                     placeholder="Enter total amount in savings"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
-                  <p class="mt-1 text-xs text-gray-500">Include savings, pensions, and investment values</p>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Include savings, pensions, and investment values</p>
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Funds *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Proof of Funds *</label>
                   <input
                     ref="proofOfFundsInput"
                     type="file"
@@ -1438,17 +1444,22 @@
                   <button
                     type="button"
                     @click="($refs.proofOfFundsInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                     :style="{ color: buttonColor }"
                   >
                     {{ proofOfFunds ? 'Change Document' : 'Upload Document' }}
                   </button>
-                  <p class="mt-1 text-xs text-gray-500">Upload bank statement, pension statement, or investment portfolio statement (max 10MB, PDF/JPG/PNG)</p>
-                  <div v-if="proofOfFunds" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload bank statement, pension statement, or investment portfolio statement (max 10MB, PDF/JPG/PNG)</p>
+                  <div class="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
+                    <p class="text-xs text-blue-800 dark:text-blue-300">
+                      <strong>Tip:</strong> Your statement only needs to display the inbound income/deposits. You may redact other transaction details for privacy. Alternatively, you can upload payslips if you have regular employment income.
+                    </p>
+                  </div>
+                  <div v-if="proofOfFunds" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
                     <div class="flex items-center justify-between">
                       <div class="flex items-center">
                         <FileText class="w-5 h-5 text-blue-600 mr-2" />
-                        <span class="text-sm text-gray-700">{{ proofOfFunds.name }} ({{ formatFileSize(proofOfFunds.size) }})</span>
+                        <span class="text-sm text-gray-700 dark:text-slate-300">{{ proofOfFunds.name }} ({{ formatFileSize(proofOfFunds.size) }})</span>
                       </div>
                       <button type="button" @click="removeProofOfFunds" class="text-red-600 hover:text-red-800 text-sm">
                         Remove
@@ -1468,9 +1479,9 @@
         </div>
 
         <!-- PAGE 8: Additional Income or Savings -->
-        <div v-if="currentPage === 8" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Additional Income or Savings</h2>
-          <p class="text-sm text-gray-600 mb-6">Do you have any additional sources of income or savings to supplement your application?</p>
+        <div v-if="currentPage === 8" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Additional Income or Savings</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Do you have any additional sources of income or savings to supplement your application?</p>
 
           <div class="space-y-4">
             <div>
@@ -1478,16 +1489,16 @@
                 <input
                   v-model="formData.has_additional_income"
                   type="checkbox"
-                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                 />
-                <span class="ml-2 text-sm text-gray-700">Yes, I have additional income or savings</span>
+                <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Yes, I have additional income or savings</span>
               </label>
             </div>
 
             <div v-if="formData.has_additional_income" class="space-y-4 pt-4">
               <!-- Type Selection: Income or Savings -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-3">Type *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Type *</label>
                 <div class="flex gap-4">
                   <label class="flex items-center">
                     <input
@@ -1495,9 +1506,9 @@
                       type="radio"
                       value="income"
                       :required="formData.has_additional_income"
-                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
                     />
-                    <span class="ml-2 text-sm text-gray-700">Additional Income</span>
+                    <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Additional Income</span>
                   </label>
                   <label class="flex items-center">
                     <input
@@ -1505,15 +1516,15 @@
                       type="radio"
                       value="savings"
                       :required="formData.has_additional_income"
-                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
                     />
-                    <span class="ml-2 text-sm text-gray-700">Savings</span>
+                    <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Savings</span>
                   </label>
                 </div>
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700">
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">
                   {{ formData.additional_income_type === 'savings' ? 'Source of Savings' : 'Source of Additional Income' }} *
                 </label>
                 <input
@@ -1521,13 +1532,13 @@
                   type="text"
                   :required="formData.has_additional_income"
                   :placeholder="formData.additional_income_type === 'savings' ? 'e.g. Savings account, investments, ISA, etc.' : 'e.g. Freelance work, rental income, dividends, etc.'"
-                  class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">
                     {{ formData.additional_income_type === 'savings' ? 'Total Amount (£)' : 'Amount (£)' }} *
                   </label>
                   <input
@@ -1535,15 +1546,15 @@
                     type="number"
                     step="0.01"
                     :required="formData.has_additional_income"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div v-if="formData.additional_income_type === 'income'">
-                  <label class="block text-sm font-medium text-gray-700">Frequency *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Frequency *</label>
                   <select
                     v-model="formData.additional_income_frequency"
                     :required="formData.additional_income_type === 'income'"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   >
                     <option value="">Select frequency</option>
                     <option value="weekly">Weekly</option>
@@ -1554,7 +1565,7 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Proof of Additional Income or Savings *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Proof of Additional Income or Savings *</label>
                 <input
                   ref="proofOfAdditionalIncomeInput"
                   type="file"
@@ -1565,17 +1576,22 @@
                 <button
                   type="button"
                   @click="($refs.proofOfAdditionalIncomeInput as any).click()"
-                  class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                  class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                   :style="{ color: buttonColor }"
                 >
                   {{ proofOfAdditionalIncome ? 'Change Document' : 'Upload Document' }}
                 </button>
-                <p class="mt-1 text-xs text-gray-500">Upload proof such as bank statements, savings account statements, investment portfolios, invoices, contracts, etc. (max 10MB, PDF/JPG/PNG)</p>
-                <div v-if="proofOfAdditionalIncome" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload proof such as bank statements, savings account statements, investment portfolios, invoices, contracts, etc. (max 10MB, PDF/JPG/PNG)</p>
+                <div class="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
+                  <p class="text-xs text-blue-800 dark:text-blue-300">
+                    <strong>Tip:</strong> If uploading a bank statement, it only needs to display the inbound income. You may redact other transaction details for privacy.
+                  </p>
+                </div>
+                <div v-if="proofOfAdditionalIncome" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center">
                       <FileText class="w-5 h-5 text-blue-600 mr-2" />
-                      <span class="text-sm text-gray-700">{{ proofOfAdditionalIncome.name }} ({{ formatFileSize(proofOfAdditionalIncome.size) }})</span>
+                      <span class="text-sm text-gray-700 dark:text-slate-300">{{ proofOfAdditionalIncome.name }} ({{ formatFileSize(proofOfAdditionalIncome.size) }})</span>
                     </div>
                     <button type="button" @click="removeProofOfAdditionalIncome" class="text-red-600 hover:text-red-800 text-sm">
                       Remove
@@ -1594,46 +1610,46 @@
         </div>
 
         <!-- PAGE 9: Savings, Assets & Bank Statement -->
-        <div v-if="currentPage === 9" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Savings, Assets & Bank Statement</h2>
-          <p class="text-sm text-gray-600 mb-6">Please provide details about your financial position to demonstrate your ability to act as guarantor</p>
+        <div v-if="currentPage === 9" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Savings, Assets & Bank Statement</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please provide details about your financial position to demonstrate your ability to act as guarantor</p>
 
           <div class="space-y-6">
             <!-- Savings Section - Only show if "Savings, Pensions or Investments" is selected -->
-            <div v-if="formData.income_savings_pension_investments" class="pb-6 border-b border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Savings & Assets</h3>
+            <div v-if="formData.income_savings_pension_investments" class="pb-6 border-b border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Savings & Assets</h3>
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Total Savings (£)</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Total Savings (£)</label>
                   <input
                     v-model.number="formData.savings_amount"
                     type="number"
                     step="100"
                     min="0"
                     placeholder="e.g., 10000"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   />
-                  <p class="mt-1 text-xs text-gray-500">Include all bank accounts, ISAs, and liquid savings</p>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Include all bank accounts, ISAs, and liquid savings</p>
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Do you have any other significant assets?</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Do you have any other significant assets?</label>
                   <textarea
                     v-model="formData.other_assets"
                     rows="3"
                     placeholder="e.g., investments, stocks, shares, vehicles, property equity"
-                    class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
                   ></textarea>
-                  <p class="mt-1 text-xs text-gray-500">Describe any other assets that demonstrate financial stability</p>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Describe any other assets that demonstrate financial stability</p>
                 </div>
               </div>
             </div>
 
             <!-- Bank Statement Upload - Always required for guarantors -->
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Bank Statement</h3>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Bank Statement</h3>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Bank Statement (Last 3 months) *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bank Statement (Last 3 months) *</label>
                 <input
                   ref="bankStatementInput"
                   type="file"
@@ -1644,15 +1660,15 @@
                 <button
                   type="button"
                   @click="($refs.bankStatementInput as any).click()"
-                  class="px-4 py-2 text-sm font-semibold bg-blue-50 rounded-md hover:bg-blue-100"
+                  class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
                   :style="{ color: buttonColor }"
                 >
                   {{ bankStatement ? 'Change File' : 'Choose File' }}
                 </button>
-                <p class="mt-1 text-xs text-gray-500">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
-                <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 rounded">
+                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
+                <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 dark:bg-slate-800 rounded">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-700">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
+                    <span class="text-sm text-gray-700 dark:text-slate-300">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
                     <button type="button" @click="removeBankStatement" class="text-red-600 hover:text-red-800">
                       <X class="w-4 h-4" />
                     </button>
@@ -1670,9 +1686,9 @@
         </div>
 
         <!-- PAGE 10: Adverse Credit -->
-        <div v-if="currentPage === 10" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Adverse Credit</h2>
-          <p class="text-sm text-gray-600 mb-6">Do you have any personal adverse credit history?</p>
+        <div v-if="currentPage === 10" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Adverse Credit</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Do you have any personal adverse credit history?</p>
 
           <div class="space-y-4">
             <div>
@@ -1680,20 +1696,20 @@
                 <input
                   v-model="formData.has_adverse_credit"
                   type="checkbox"
-                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                 />
-                <span class="ml-2 text-sm text-gray-700">Yes, I have adverse credit</span>
+                <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Yes, I have adverse credit</span>
               </label>
             </div>
 
             <div v-if="formData.has_adverse_credit" class="pt-4">
-              <label class="block text-sm font-medium text-gray-700">Please provide details *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Please provide details *</label>
               <textarea
                 v-model="formData.adverse_credit_details"
                 :required="formData.has_adverse_credit"
                 rows="4"
                 placeholder="Please explain any CCJs, defaults, bankruptcies, or other adverse credit events..."
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
               ></textarea>
             </div>
           </div>
@@ -1701,11 +1717,10 @@
 
         <!-- PAGE 11: Previous Landlord/Agent Reference - REMOVED "About You" page as not relevant for guarantors -->
 
-
         <!-- PAGE 11: Legal Consent & Understanding (only show if not driving licence, or show consent if driving licence) -->
-        <div v-if="currentPage === 11 && !shouldSkipProofOfAddress" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Legal Obligations & Consent</h2>
-          <p class="text-sm text-gray-600 mb-6">Please read carefully and confirm your understanding of your legal obligations as a guarantor</p>
+        <div v-if="currentPage === 11 && !shouldSkipProofOfAddress" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Legal Obligations & Consent</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please read carefully and confirm your understanding of your legal obligations as a guarantor</p>
 
           <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
             <h3 class="font-semibold text-red-900 mb-2">⚠️ Important Legal Information</h3>
@@ -1713,57 +1728,57 @@
           </div>
 
           <div class="space-y-4">
-            <label class="flex items-start p-4 border-2 border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-all" :class="formData.understands_obligations ? 'border-green-500 bg-green-50' : ''">
+            <label class="flex items-start p-4 border-2 border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all" :class="formData.understands_obligations ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : ''">
               <input
                 v-model="formData.understands_obligations"
                 type="checkbox"
                 required
-                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
+                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded mt-0.5"
               />
-              <span class="ml-3 text-sm">
-                <strong class="text-gray-900">I understand</strong> that I am legally responsible for ensuring the rent is paid for the duration of the tenancy agreement. This obligation continues even if the tenant defaults on payments. *
+              <span class="ml-3 text-sm dark:text-slate-300">
+                <strong class="text-gray-900 dark:text-white">I understand</strong> that I am legally responsible for ensuring the rent is paid for the duration of the tenancy agreement. This obligation continues even if the tenant defaults on payments. *
               </span>
             </label>
 
-            <label class="flex items-start p-4 border-2 border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-all" :class="formData.willing_to_pay_rent ? 'border-green-500 bg-green-50' : ''">
+            <label class="flex items-start p-4 border-2 border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all" :class="formData.willing_to_pay_rent ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : ''">
               <input
                 v-model="formData.willing_to_pay_rent"
                 type="checkbox"
                 required
-                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
+                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded mt-0.5"
               />
-              <span class="ml-3 text-sm">
-                <strong class="text-gray-900">I confirm</strong> that I am willing and financially able to pay the full monthly rent if {{ reference.parent_tenant_first_name || 'the tenant' }} {{ reference.parent_tenant_last_name || '' }} is unable to do so. *
+              <span class="ml-3 text-sm dark:text-slate-300">
+                <strong class="text-gray-900 dark:text-white">I confirm</strong> that I am willing and financially able to pay the full monthly rent if {{ reference.parent_tenant_first_name || 'the tenant' }} {{ reference.parent_tenant_last_name || '' }} is unable to do so. *
               </span>
             </label>
 
-            <label class="flex items-start p-4 border-2 border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-all" :class="formData.willing_to_pay_damages ? 'border-green-500 bg-green-50' : ''">
+            <label class="flex items-start p-4 border-2 border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all" :class="formData.willing_to_pay_damages ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : ''">
               <input
                 v-model="formData.willing_to_pay_damages"
                 type="checkbox"
                 required
-                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
+                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded mt-0.5"
               />
-              <span class="ml-3 text-sm">
-                <strong class="text-gray-900">I confirm</strong> that I am willing and financially able to cover any damages to the property caused by the tenant if they fail to do so. This includes repairs, cleaning costs, and any other property damage. *
+              <span class="ml-3 text-sm dark:text-slate-300">
+                <strong class="text-gray-900 dark:text-white">I confirm</strong> that I am willing and financially able to cover any damages to the property caused by the tenant if they fail to do so. This includes repairs, cleaning costs, and any other property damage. *
               </span>
             </label>
 
-            <label class="flex items-start p-4 border-2 border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer transition-all" :class="formData.consent_legal_checks ? 'border-green-500 bg-green-50' : ''">
+            <label class="flex items-start p-4 border-2 border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all" :class="formData.consent_legal_checks ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : ''">
               <input
                 v-model="formData.consent_legal_checks"
                 type="checkbox"
                 required
-                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
+                class="h-5 w-5 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded mt-0.5"
               />
-              <span class="ml-3 text-sm">
-                <strong class="text-gray-900">I consent</strong> to credit and background checks being performed to verify my financial capability and identity. I understand this information will be shared with the landlord/agent. *
+              <span class="ml-3 text-sm dark:text-slate-300">
+                <strong class="text-gray-900 dark:text-white">I consent</strong> to credit and background checks being performed to verify my financial capability and identity. I understand this information will be shared with the landlord/agent. *
               </span>
             </label>
           </div>
 
           <!-- Signature Section -->
-          <div class="mt-8 pt-6 border-t border-gray-200 space-y-4">
+          <div class="mt-8 pt-6 border-t border-gray-200 dark:border-slate-700 space-y-4">
             <!-- Signature -->
             <SignaturePad
               v-model="formData.consent_signature_name"
@@ -1772,7 +1787,7 @@
 
             <!-- Printed Name -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Printed Name *
               </label>
               <input
@@ -1780,31 +1795,31 @@
                 type="text"
                 required
                 placeholder="Print your full name"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Date *</label>
               <input
                 v-model="formData.consent_date"
                 type="date"
                 required
                 :max="new Date().toISOString().split('T')[0]"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
           </div>
         </div>
 
         <!-- PAGE 12: Referencing Consent (or page 11 when driving licence is selected) -->
-        <div v-if="currentPage === 12 || (currentPage === 11 && shouldSkipProofOfAddress)" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Referencing Consent</h2>
-          <p class="text-sm text-gray-600 mb-6">Please read and sign the declaration below</p>
+        <div v-if="currentPage === 12 || (currentPage === 11 && shouldSkipProofOfAddress)" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Referencing Consent</h2>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Please read and sign the declaration below</p>
 
           <div class="space-y-6">
             <!-- Declaration Text -->
-            <div class="bg-gray-50 border border-gray-300 rounded-lg p-4 text-sm text-gray-700 space-y-3 max-h-96 overflow-y-auto">
+            <div class="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg p-4 text-sm text-gray-700 dark:text-slate-300 space-y-3 max-h-96 overflow-y-auto">
               <p>I confirm that all of the information I have provided in this application form is accurate, and to the best of my knowledge true. I consent to all of the information provided being checked and confirmed by fair and lawful means, I understand this will involve Propertygoose Ltd contacting the referees supplied.</p>
 
               <p>I agree that Propertygoose Ltd will use the information I provide on this application form and any information acquired from relevant sources to process my application for tenancy/to become a Guarantor for a tenancy. I understand that this application and the results of the findings will be forwarded to the instructing letting agent and/or landlord and that this information may be accessed again in the future should I default on my rental payments or payments due as a Guarantor, apply for a new tenancy or if there is a complaint or legal challenge with significance to this process.</p>
@@ -1834,20 +1849,20 @@
 
             <!-- Agreed On Date -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Agreed On *
               </label>
               <input
                 v-model="formData.consent_agreed_date"
                 type="text"
                 readonly
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-gray-50 dark:bg-slate-900 text-gray-700 dark:text-slate-300"
               />
             </div>
 
             <!-- Printed Name -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Printed Name *
               </label>
               <input
@@ -1855,7 +1870,7 @@
                 type="text"
                 required
                 placeholder="Print your full name"
-                class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
           </div>
@@ -1867,24 +1882,24 @@
         </div>
 
         <!-- Progress Indicator for Uploads -->
-        <div v-if="uploadProgress > 0 && uploadProgress < 100" class="bg-white rounded-lg shadow p-6">
+        <div v-if="uploadProgress > 0 && uploadProgress < 100" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-sm text-gray-600">Uploading files...</span>
-            <span class="text-sm text-gray-600">{{ uploadProgress }}%</span>
+            <span class="text-sm text-gray-600 dark:text-slate-400">Uploading files...</span>
+            <span class="text-sm text-gray-600 dark:text-slate-400">{{ uploadProgress }}%</span>
           </div>
-          <div class="w-full bg-gray-200 rounded-full h-2">
+          <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
             <div class="h-2 rounded-full transition-all duration-300" :style="{ width: uploadProgress + '%', backgroundColor: primaryColor }"></div>
           </div>
         </div>
 
         <!-- Navigation Buttons -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
           <div class="flex justify-between">
             <button
               v-if="currentPage > 1"
               type="button"
               @click="goToPreviousPage"
-              class="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+              class="px-6 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-md"
             >
               Back
             </button>
@@ -1929,9 +1944,9 @@ import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 import { defaultBranding } from '../config/colors'
 
-const route = useRoute()
-
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+const route = useRoute()
 const LEGACY_LINK_MESSAGE = "This link has expired. We've sent a new one."
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -1985,7 +2000,6 @@ const dobYear = ref('')
 const employmentStartDay = ref('')
 const employmentStartMonth = ref('')
 const employmentStartYear = ref('')
-
 
 // Generate year range (from current year - 18 to current year - 100)
 const currentYear = new Date().getFullYear()
@@ -2243,8 +2257,6 @@ const filteredCompanyCountries = computed(() => {
   return filtered
 })
 
-
-
 // Select nationality from dropdown
 const selectNationality = (nationality: string) => {
   nationalitySearch.value = nationality
@@ -2286,7 +2298,6 @@ const hideCompanyCountryDropdown = () => {
     showCompanyCountryDropdown.value = false
   }, 200)
 }
-
 
 // Dynamic postcode label based on country
 const postcodeLabel = computed(() => {
@@ -2401,7 +2412,7 @@ const totalAddressHistoryMonths = computed(() => {
 
 const needsMoreAddressHistory = computed(() => {
   // Check if we have at least some time at current address
-  const hasCurrentAddress = (formData.value.time_at_address_years !== null && formData.value.time_at_address_years !== undefined) ||
+  const hasCurrentAddress = (formData.value.time_at_address_years !== null && formData.value.time_at_address_years !== undefined)
                            (formData.value.time_at_address_months !== null && formData.value.time_at_address_months !== undefined)
 
   if (!hasCurrentAddress) return false
@@ -3443,11 +3454,11 @@ const handlePageSubmit = async () => {
   } else if (currentPage.value === 7) {
     // Validate that at least one income source is selected
     const hasIncomeSource =
-      formData.value.income_regular_employment ||
-      formData.value.income_self_employed ||
-      formData.value.income_benefits ||
-      formData.value.income_savings_pension_investments ||
-      formData.value.income_pension ||
+      formData.value.income_regular_employment
+      formData.value.income_self_employed
+      formData.value.income_benefits
+      formData.value.income_savings_pension_investments
+      formData.value.income_pension
       formData.value.income_landlord_rental
 
     if (!hasIncomeSource) {
@@ -3682,7 +3693,6 @@ const handleCompanyAddressSelected = (addressData: any) => {
     formData.value.employment_company_country = addressData.country.code
   }
 }
-
 
 </script>
 

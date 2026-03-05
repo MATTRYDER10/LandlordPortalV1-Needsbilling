@@ -1,21 +1,22 @@
 <template>
   <div class="min-h-screen bg-background">
     <!-- Header -->
-    <div class="bg-white shadow">
+    <div class="bg-white dark:bg-slate-800 shadow">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center py-6">
           <div class="flex items-center">
-            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-10 mr-3" />
+            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-10 mr-3 dark:hidden" />
+            <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-10 mr-3 hidden dark:block" />
             <span class="text-sm font-semibold px-3 py-1 bg-primary/10 text-primary rounded-full">Staff Portal</span>
           </div>
           <div class="flex items-center gap-4">
             <router-link to="/staff/work-queue"
-              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
+              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md">
               <ClipboardList class="w-5 h-5 mr-2" />
               Back to Work Queue
             </router-link>
             <button @click="handleSignOut"
-              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
+              class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md">
               <LogOut class="w-5 h-5 mr-2" />
               Sign Out
             </button>
@@ -25,14 +26,14 @@
     </div>
 
     <!-- Progress Bar -->
-    <div class="bg-white border-b">
+    <div class="bg-white dark:bg-slate-800 border-b dark:border-slate-700">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex items-center justify-between mb-2">
-          <h2 class="text-xl font-bold text-gray-900">{{ totalSteps }}-Step Verification</h2>
-          <span class="text-sm text-gray-500">Step {{ currentStep }} of {{ totalSteps }} • {{ Math.round((currentStep / totalSteps) * 100) }}%
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ totalSteps }}-Step Verification</h2>
+          <span class="text-sm text-gray-500 dark:text-slate-400">Step {{ currentStep }} of {{ totalSteps }} • {{ Math.round((currentStep / totalSteps) * 100) }}%
             Complete</span>
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-2">
+        <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
           <div class="bg-primary h-2 rounded-full transition-all duration-300"
             :style="{ width: `${(currentStep / totalSteps) * 100}%` }"></div>
         </div>
@@ -42,9 +43,9 @@
         ]">
           <div v-for="(step, index) in stepLabels" :key="index" :class="[
             'text-center py-2 px-3 rounded-md text-sm font-medium transition-all',
-            currentStep > index + 1 ? 'bg-green-100 text-green-800' :
+            currentStep > index + 1 ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' :
               currentStep === index + 1 ? 'bg-primary/10 text-primary' :
-                'bg-gray-100 text-gray-400'
+                'bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-slate-500'
           ]">
             <div class="flex items-center justify-center gap-2">
               <Check v-if="currentStep > index + 1" class="w-4 h-4" />
@@ -59,14 +60,14 @@
     <div v-if="loading" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p class="mt-2 text-gray-600">Loading verification data...</p>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Loading verification data...</p>
       </div>
     </div>
 
     <!-- Error State -->
     <div v-else-if="error" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p class="text-red-800">{{ error }}</p>
+      <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <p class="text-red-800 dark:text-red-300">{{ error }}</p>
         <button @click="loadData" class="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">
           Retry
         </button>
@@ -77,32 +78,32 @@
     <div v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
       <!-- Tenant Info Card -->
-      <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Reference Information</h3>
+      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Reference Information</h3>
 
         <!-- Profile-style header: image on left, name/email aligned horizontally -->
         <div class="flex items-center gap-4 mb-6">
           <!-- Tenant Image -->
           <div class="relative">
             <img v-if="selfieBlobUrl" :src="selfieBlobUrl" :alt="isGuarantor ? 'Guarantor Photo' : 'Tenant Photo'"
-              class="w-20 h-20 rounded-full object-cover border-4 border-gray-200 shadow-md" />
+              class="w-20 h-20 rounded-full object-cover border-4 border-gray-200 dark:border-slate-700 shadow-md" />
             <div v-else
-              class="w-20 h-20 rounded-full bg-gray-200 border-4 border-gray-200 shadow-md flex items-center justify-center">
-              <User class="w-10 h-10 text-gray-400" />
+              class="w-20 h-20 rounded-full bg-gray-200 dark:bg-slate-700 border-4 border-gray-200 dark:border-slate-700 shadow-md flex items-center justify-center">
+              <User class="w-10 h-10 text-gray-400 dark:text-slate-500" />
             </div>
           </div>
 
           <!-- Name & Email -->
           <div class="flex flex-col justify-center">
             <div>
-              <p class="text-sm text-gray-500">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Name</p>
-              <p class="font-semibold text-gray-900 text-lg">
+              <p class="text-sm text-gray-500 dark:text-slate-400">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Name</p>
+              <p class="font-semibold text-gray-900 dark:text-white text-lg">
                 {{ reference?.tenant_first_name }} {{ reference?.tenant_last_name }}
               </p>
             </div>
             <div class="mt-1">
-              <p class="text-sm text-gray-500">Email</p>
-              <p class="font-medium text-gray-900">
+              <p class="text-sm text-gray-500 dark:text-slate-400">Email</p>
+              <p class="font-medium text-gray-900 dark:text-white">
                 {{ reference?.tenant_email }}
               </p>
             </div>
@@ -112,22 +113,22 @@
         <!-- Other reference details in one line -->
         <div class="flex flex-wrap items-center gap-6 text-sm">
           <div>
-            <p class="text-xs text-gray-500 mb-1">Property</p>
-            <p class="font-medium text-gray-900">{{ reference?.property_address }}</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Property</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ reference?.property_address }}</p>
           </div>
           <div>
-            <p class="text-xs text-gray-500 mb-1">Status</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Status</p>
             <span :class="getStatusChipClasses(reference?.status)"
               class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold">
               {{ formatStatusText(reference?.status) }}
             </span>
           </div>
           <div v-if="reference?.submitted_ip_address">
-            <p class="text-xs text-gray-500 mb-1">Submitted IP</p>
-            <p class="font-mono text-gray-900">{{ reference.submitted_ip_address }}</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Submitted IP</p>
+            <p class="font-mono text-gray-900 dark:text-white">{{ reference.submitted_ip_address }}</p>
           </div>
           <div v-if="reference?.submitted_geolocation" class="relative group">
-            <p class="text-xs text-gray-500 mb-1">Approximate Location</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Approximate Location</p>
             <button type="button" class="flex items-center gap-1 text-primary hover:text-primary-dark transition-colors"
               :title="formatGeolocationText(reference.submitted_geolocation)"
               @click="openGeolocationMap(reference.submitted_geolocation)">
@@ -146,29 +147,29 @@
         </div>
 
         <!-- System Suggestion -->
-        <div class="mt-4 pt-4 border-t border-gray-200">
-          <p class="text-xs text-gray-500 mb-2">System Suggestion</p>
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+          <p class="text-xs text-gray-500 dark:text-slate-400 mb-2">System Suggestion</p>
           <div class="space-y-3">
             <!-- Decision -->
             <div>
-              <p class="text-xs text-gray-500 mb-1">Decision</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Decision</p>
               <span v-if="systemDecision" :class="getStatusChipClasses(systemDecision)"
                 class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold">
                 {{ formatStatusText(systemDecision) }}
               </span>
               <span v-else
-                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300">
                 Not available
               </span>
             </div>
             <!-- Risk Score -->
             <!-- <div>
-              <p class="text-xs text-gray-500 mb-1">Risk Score</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Risk Score</p>
               <p class="text-lg font-semibold text-gray-900">{{ riskScore ?? '—' }}</p>
             </div> -->
             <!-- Risk Level -->
             <!-- <div>
-              <p class="text-xs text-gray-500 mb-1">Risk Level</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Risk Level</p>
               <span v-if="creditAndAmlVerification?.verification?.risk_level" :class="[
                 'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold',
                 creditAndAmlVerification.verification.risk_level === 'very_high' ? 'bg-red-100 text-red-800' :
@@ -180,21 +181,21 @@
                 {{ creditAndAmlVerification.verification.risk_level.toUpperCase().replace('_', ' ') }}
               </span>
               <span v-else
-                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300">
                 Not available
               </span>
             </div> -->
             <!-- Critical Flags -->
             <div>
-              <p class="text-xs text-gray-500 mb-1">Critical Flags</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Critical Flags</p>
               <div v-if="activeGates.length > 0" class="flex flex-wrap gap-2">
                 <span v-for="gate in activeGates" :key="gate.key"
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-300">
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-700">
                   {{ gate.label }}
                 </span>
               </div>
               <div v-else
-                class="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-2 py-1 inline-block">
+                class="text-xs text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-2 py-1 inline-block">
                 None
               </div>
             </div>
@@ -204,36 +205,36 @@
 
       <!-- Guarantor Information Card -->
       <div v-if="guarantorReference && guarantorReference.submitted_at"
-        class="bg-purple-50 border border-purple-200 rounded-lg shadow p-6 mb-6">
-        <h3 class="text-lg font-semibold text-purple-900 mb-4">Guarantor Information</h3>
+        class="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg shadow p-6 mb-6">
+        <h3 class="text-lg font-semibold text-purple-900 dark:text-purple-200 mb-4">Guarantor Information</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div>
-            <p class="text-sm text-purple-700 font-medium">Name</p>
-            <p class="font-medium text-purple-900">{{ guarantorReference.guarantor_first_name }} {{
+            <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Name</p>
+            <p class="font-medium text-purple-900 dark:text-purple-200">{{ guarantorReference.guarantor_first_name }} {{
               guarantorReference.guarantor_last_name }}</p>
           </div>
           <div>
-            <p class="text-sm text-purple-700 font-medium">Email</p>
-            <p class="font-medium text-purple-900">{{ guarantorReference.email }}</p>
+            <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Email</p>
+            <p class="font-medium text-purple-900 dark:text-purple-200">{{ guarantorReference.email }}</p>
           </div>
           <div>
-            <p class="text-sm text-purple-700 font-medium">Phone</p>
-            <p class="font-medium text-purple-900">{{ guarantorReference.contact_number }}</p>
+            <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Phone</p>
+            <p class="font-medium text-purple-900 dark:text-purple-200">{{ guarantorReference.contact_number }}</p>
           </div>
           <div>
-            <p class="text-sm text-purple-700 font-medium">Relationship</p>
-            <p class="font-medium text-purple-900 capitalize">{{ guarantorReference.relationship_to_tenant }}</p>
+            <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Relationship</p>
+            <p class="font-medium text-purple-900 dark:text-purple-200 capitalize">{{ guarantorReference.relationship_to_tenant }}</p>
           </div>
         </div>
         <div v-if="guarantorReference.submitted_ip_address || guarantorReference.submitted_geolocation"
           class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div v-if="guarantorReference.submitted_ip_address">
-            <p class="text-sm text-purple-700 font-medium">Submitted IP</p>
-            <p class="font-mono text-sm text-purple-900">{{ guarantorReference.submitted_ip_address }}</p>
+            <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Submitted IP</p>
+            <p class="font-mono text-sm text-purple-900 dark:text-purple-200">{{ guarantorReference.submitted_ip_address }}</p>
           </div>
           <div v-if="guarantorReference.submitted_geolocation">
-            <p class="text-sm text-purple-700 font-medium">Approximate Location</p>
-            <div class="flex items-center gap-2 text-sm text-purple-900">
+            <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Approximate Location</p>
+            <div class="flex items-center gap-2 text-sm text-purple-900 dark:text-purple-200">
               {{ formatGeolocationText(guarantorReference.submitted_geolocation) }}
               <button type="button" class="text-xs text-purple-700 underline"
                 @click="openGeolocationMap(guarantorReference.submitted_geolocation)">
@@ -246,30 +247,30 @@
         <!-- Guarantor Documents -->
         <div
           v-if="guarantorReference.id_document_path || guarantorReference.selfie_path || guarantorReference.proof_of_address_path || guarantorReference.bank_statement_path"
-          class="mt-4 pt-4 border-t border-purple-300">
-          <h4 class="text-sm font-semibold text-purple-800 mb-3">Guarantor Documents</h4>
+          class="mt-4 pt-4 border-t border-purple-300 dark:border-purple-700">
+          <h4 class="text-sm font-semibold text-purple-800 dark:text-purple-300 mb-3">Guarantor Documents</h4>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div v-if="guarantorReference.id_document_path"
-              class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
-              <span class="text-sm text-purple-900">ID Document</span>
+              class="flex items-center justify-between bg-white dark:bg-slate-800 px-3 py-2 rounded border border-purple-200 dark:border-purple-700">
+              <span class="text-sm text-purple-900 dark:text-purple-200">ID Document</span>
               <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.id_document_path.split('/').pop()}`"
                 target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
             <div v-if="guarantorReference.selfie_path"
-              class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
-              <span class="text-sm text-purple-900">Selfie</span>
+              class="flex items-center justify-between bg-white dark:bg-slate-800 px-3 py-2 rounded border border-purple-200 dark:border-purple-700">
+              <span class="text-sm text-purple-900 dark:text-purple-200">Selfie</span>
               <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.selfie_path.split('/').pop()}`"
                 target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
             <div v-if="guarantorReference.proof_of_address_path"
-              class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
-              <span class="text-sm text-purple-900">Proof of Address</span>
+              class="flex items-center justify-between bg-white dark:bg-slate-800 px-3 py-2 rounded border border-purple-200 dark:border-purple-700">
+              <span class="text-sm text-purple-900 dark:text-purple-200">Proof of Address</span>
               <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.proof_of_address_path.split('/').pop()}`"
                 target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
             <div v-if="guarantorReference.bank_statement_path"
-              class="flex items-center justify-between bg-white px-3 py-2 rounded border border-purple-200">
-              <span class="text-sm text-purple-900">Bank Statement</span>
+              class="flex items-center justify-between bg-white dark:bg-slate-800 px-3 py-2 rounded border border-purple-200 dark:border-purple-700">
+              <span class="text-sm text-purple-900 dark:text-purple-200">Bank Statement</span>
               <a :href="`${API_URL}/api/staff/download-guarantor/${guarantorReference.id}/${guarantorReference.bank_statement_path.split('/').pop()}`"
                 target="_blank" class="text-xs text-purple-600 hover:text-purple-800 underline">View</a>
             </div>
@@ -278,45 +279,43 @@
 
         <!-- Guarantor Financial Summary -->
         <div v-if="guarantorReference.annual_income || guarantorReference.savings_amount"
-          class="mt-4 pt-4 border-t border-purple-300">
-          <h4 class="text-sm font-semibold text-purple-800 mb-3">Financial Summary</h4>
+          class="mt-4 pt-4 border-t border-purple-300 dark:border-purple-700">
+          <h4 class="text-sm font-semibold text-purple-800 dark:text-purple-300 mb-3">Financial Summary</h4>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div v-if="guarantorReference.annual_income">
-              <p class="text-sm text-purple-700 font-medium">Annual Income</p>
-              <p class="font-medium text-purple-900">£{{ parseFloat(guarantorReference.annual_income ||
-                '0').toLocaleString('en-GB') }}</p>
+              <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Annual Income</p>
+              <p class="font-medium text-purple-900 dark:text-purple-200">£{{ parseFloat(guarantorReference.annual_income || '0').toLocaleString('en-GB') }}</p>
             </div>
             <div v-if="guarantorReference.savings_amount">
-              <p class="text-sm text-purple-700 font-medium">Savings</p>
-              <p class="font-medium text-purple-900">£{{ parseFloat(guarantorReference.savings_amount ||
-                '0').toLocaleString('en-GB') }}</p>
+              <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Savings</p>
+              <p class="font-medium text-purple-900 dark:text-purple-200">£{{ parseFloat(guarantorReference.savings_amount || '0').toLocaleString('en-GB') }}</p>
             </div>
             <div v-if="guarantorReference.employment_status">
-              <p class="text-sm text-purple-700 font-medium">Employment Status</p>
-              <p class="font-medium text-purple-900 capitalize">{{ guarantorReference.employment_status }}</p>
+              <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Employment Status</p>
+              <p class="font-medium text-purple-900 dark:text-purple-200 capitalize">{{ guarantorReference.employment_status }}</p>
             </div>
             <div v-if="guarantorReference.home_ownership_status">
-              <p class="text-sm text-purple-700 font-medium">Home Ownership</p>
-              <p class="font-medium text-purple-900 capitalize">{{ guarantorReference.home_ownership_status }}</p>
+              <p class="text-sm text-purple-700 dark:text-purple-300 font-medium">Home Ownership</p>
+              <p class="font-medium text-purple-900 dark:text-purple-200 capitalize">{{ guarantorReference.home_ownership_status }}</p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Step Content -->
-      <div class="bg-white rounded-lg shadow p-6">
+      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
 
         <!-- Step 1: Identity Verification -->
         <div v-if="currentStep === 1">
           <div class="flex items-start justify-between mb-4 gap-4">
             <div>
-              <h3 class="text-xl font-bold text-gray-900">Step 1: Identity Verification</h3>
-              <p class="text-gray-600 mt-1">
+              <h3 class="text-xl font-bold text-gray-900 dark:text-white">Step 1: Identity Verification</h3>
+              <p class="text-gray-600 dark:text-slate-400 mt-1">
                 Compare the {{ isGuarantor ? 'guarantor\'s' : 'tenant\'s' }} ID document and selfie, and confirm their identity matches the application details.
               </p>
             </div>
             <div v-if="reference?.nationality" class="shrink-0">
-              <p class="text-xs text-gray-500 mb-1 text-right">Nationality</p>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-1 text-right">Nationality</p>
               <span
                 class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-100">
                 {{ reference.nationality }}
@@ -359,15 +358,15 @@
             <!-- Key identity details -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <!-- Full Name with verification -->
-              <div class="bg-gray-50 rounded p-4">
-                <p class="text-sm font-medium text-gray-700">Full Name</p>
-                <p class="mt-1 text-sm text-gray-900">
+              <div class="bg-gray-50 dark:bg-slate-800 rounded p-4">
+                <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Full Name</p>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">
                   {{ reference?.tenant_first_name }} {{ reference?.tenant_last_name }}
                 </p>
 
                 <!-- Name match question -->
-                <div class="mt-3 pt-3 border-t border-gray-200">
-                  <p class="text-sm text-gray-700 mb-2">Does name match full ID name?</p>
+                <div class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+                  <p class="text-sm text-gray-700 dark:text-slate-300 mb-2">Does name match full ID name?</p>
                   <div class="flex gap-2">
                     <button
                       type="button"
@@ -376,7 +375,7 @@
                         'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
                         nameMatchesId === true
                           ? 'bg-green-600 text-white'
-                          : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          : 'bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-600'
                       ]"
                     >
                       Yes
@@ -388,7 +387,7 @@
                         'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
                         nameMatchesId === false
                           ? 'bg-orange-600 text-white'
-                          : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          : 'bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-600'
                       ]"
                     >
                       No
@@ -397,23 +396,23 @@
                 </div>
 
                 <!-- Name correction form (shown when No is selected) -->
-                <div v-if="nameMatchesId === false" class="mt-3 pt-3 border-t border-gray-200 space-y-3">
-                  <p class="text-sm font-medium text-gray-700">Correct name as shown on ID:</p>
+                <div v-if="nameMatchesId === false" class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700 space-y-3">
+                  <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Correct name as shown on ID:</p>
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">First Name</label>
+                    <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">First Name</label>
                     <input
                       v-model="correctedFirstName"
                       type="text"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                       placeholder="First name from ID"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">Last Name</label>
+                    <label class="block text-xs text-gray-500 dark:text-slate-400 mb-1">Last Name</label>
                     <input
                       v-model="correctedLastName"
                       type="text"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                       placeholder="Last name from ID"
                     />
                   </div>
@@ -427,9 +426,9 @@
                   </button>
                 </div>
               </div>
-              <div class="bg-gray-50 rounded p-4">
-                <p class="text-sm font-medium text-gray-700">Date of Birth</p>
-                <p class="mt-1 text-sm text-gray-900">
+              <div class="bg-gray-50 dark:bg-slate-800 rounded p-4">
+                <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Date of Birth</p>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">
                   {{ formatDate(reference?.date_of_birth, 'Not provided') }}
                 </p>
               </div>
@@ -437,47 +436,47 @@
 
             <!-- External Reference Responses -->
             <!-- <div v-if="accountantReference" class="space-y-4">
-              <div class="bg-white border rounded-lg p-4">
-                <h4 class="font-semibold text-gray-900 mb-3">Accountant Reference Response</h4>
+              <div class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
+                <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Accountant Reference Response</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Firm</p>
-                    <p class="font-medium text-gray-900">{{ accountantReference.accountant_firm }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Firm</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ accountantReference.accountant_firm }}</p>
                   </div>
                   <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Contact</p>
-                    <p class="font-medium text-gray-900">{{ accountantReference.accountant_name }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Contact</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ accountantReference.accountant_name }}</p>
                     <p class="text-gray-600">{{ accountantReference.accountant_email }}</p>
                   </div>
                   <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Business</p>
-                    <p class="font-medium text-gray-900">{{ accountantReference.business_name }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Business</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ accountantReference.business_name }}</p>
                   </div>
                   <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Annual Turnover</p>
-                    <p class="font-medium text-gray-900">{{ accountantReference.annual_turnover }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Annual Turnover</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ accountantReference.annual_turnover }}</p>
                   </div>
                   <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Estimated Monthly Income</p>
-                    <p class="font-medium text-gray-900">{{ accountantReference.estimated_monthly_income }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Estimated Monthly Income</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ accountantReference.estimated_monthly_income }}</p>
                   </div>
                   <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Recommendation</p>
-                    <p class="font-medium text-gray-900">{{ formatBooleanDisplay(accountantReference.would_recommend) }}
+                    <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Recommendation</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ formatBooleanDisplay(accountantReference.would_recommend) }}
                     </p>
                   </div>
                 </div>
                 <div v-if="accountantReference.additional_comments" class="mt-3 text-sm text-gray-900">
-                  <p class="text-xs text-gray-500 uppercase tracking-wide">Comments</p>
+                  <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Comments</p>
                   <p class="whitespace-pre-line">{{ accountantReference.additional_comments }}</p>
                 </div>
                 <div v-if="accountantReference.signature" class="mt-3">
                   <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
                   <img :src="accountantReference.signature" alt="Accountant signature"
-                    class="h-20 object-contain border rounded bg-white p-2" />
+                    class="h-20 object-contain border dark:border-slate-700 rounded bg-white dark:bg-slate-800 p-2" />
                 </div>
                 <div v-if="accountantReference.submitted_ip_address || accountantReference.submitted_geolocation"
-                  class="mt-3 text-xs text-gray-500 space-y-1">
+                  class="mt-3 text-xs text-gray-500 dark:text-slate-400 space-y-1">
                   <p v-if="accountantReference.submitted_ip_address">IP: {{ accountantReference.submitted_ip_address }}
                   </p>
                   <p v-if="accountantReference.submitted_geolocation" class="flex items-center gap-2">
@@ -493,8 +492,8 @@
 
             <!-- Signature -->
             <div v-if="reference?.consent_signature" class="mb-6">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Signature</label>
-              <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Signature</label>
+              <div class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                 <img :src="reference.consent_signature" alt="Consent Signature"
                   class="max-w-xs h-24 object-contain border rounded bg-white p-2" />
               </div>
@@ -502,17 +501,16 @@
 
             <!-- Notes -->
             <div>
-              <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">External Notes - these notes will be shown to the reference creator</p>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
               <textarea v-model="steps[0]!.notes" rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 placeholder="Record any observations about the ID document and selfie (e.g. quality, discrepancies, additional checks performed)."></textarea>
             </div>
 
-
             <!-- Pass/Fail -->
             <div>
-              <p class="text-sm text-gray-700 mb-3">
+              <p class="text-sm text-gray-700 dark:text-slate-300 mb-3">
                 Please confirm you are satisfied that the ID document and selfie belong to the same person and that the
                 details above match the application before recording a Pass or Fail decision.
               </p>
@@ -521,7 +519,7 @@
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[0]!.overall_pass === true
                     ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-green-50 dark:hover:bg-green-900/30'
                 ]">
                   Pass - Identity confirmed
                 </button>
@@ -529,7 +527,7 @@
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[0]!.overall_pass === false
                     ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-red-50'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/30'
                 ]">
                   Fail - Identity not confirmed
                 </button>
@@ -541,7 +539,7 @@
         <!-- Step 2: RTR Verification -->
         <div v-if="currentStep === 2">
           <div class="flex items-center gap-4 mb-4">
-            <h3 class="text-xl font-bold text-gray-900">Step 2: RTR Verification</h3>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Step 2: RTR Verification</h3>
             <span
               class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-100">
               RTR Score: {{ domainScores.rtr ?? '—' }}
@@ -553,12 +551,12 @@
               {{ reference?.rtr_verified ? '✓ Verified' : '✗ Not Verified' }}
             </span>
           </div>
-          <p class="text-gray-600 mb-6">Verify the {{ isGuarantor ? 'guarantor\'s' : 'tenant\'s' }} Right to Rent status.</p>
+          <p class="text-gray-600 dark:text-slate-400 mb-6">Verify the {{ isGuarantor ? 'guarantor\'s' : 'tenant\'s' }} Right to Rent status.</p>
 
           <div class="space-y-6">
             <!-- Tenant Nationality -->
-            <div class="bg-white border rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Nationality</h4>
+            <div class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-3">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Nationality</h4>
               <div class="flex items-center gap-3">
                 <span
                   class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-100">
@@ -568,12 +566,12 @@
             </div>
 
             <!-- British Citizen Check -->
-            <div v-if="isBritishCitizen" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div v-if="isBritishCitizen" class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <div class="flex items-start gap-3">
                 <CheckCircle class="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 class="font-semibold text-blue-900 mb-1">British Citizen</h4>
-                  <p class="text-sm text-blue-800">
+                  <h4 class="font-semibold text-blue-900 dark:text-blue-200 mb-1">British Citizen</h4>
+                  <p class="text-sm text-blue-800 dark:text-blue-300">
                     {{ isGuarantor ? 'Guarantor' : 'Tenant' }} is a British citizen. No need to verify Right to Rent.
                   </p>
                 </div>
@@ -581,14 +579,14 @@
             </div>
 
             <!-- RTR Share Code (if provided and not British) -->
-            <div v-if="reference?.rtr_share_code" class="bg-white border relative rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">Right to Rent Share Code</h4>
+            <div v-if="reference?.rtr_share_code" class="bg-white dark:bg-slate-800 border dark:border-slate-700 relative rounded-lg p-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Right to Rent Share Code</h4>
               <div class="flex items-center gap-3">
                 <div class="flex-1">
-                  <p class="text-sm text-gray-600 mb-2">Share Code</p>
+                  <p class="text-sm text-gray-600 dark:text-slate-400 mb-2">Share Code</p>
                   <div class="flex items-center gap-2">
                     <code
-                      class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md font-mono text-lg font-semibold text-gray-900">
+                      class="px-4 py-2 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md font-mono text-lg font-semibold text-gray-900 dark:text-white">
                       {{ reference.rtr_share_code }}
                     </code>
                     <!-- <button type="button"
@@ -605,16 +603,16 @@
 
             <!-- Alternative Document (if share code not provided and not British) -->
             <div v-if="reference?.rtr_alternative_document_path && reference?.rtr_alternative_document_type"
-              class="bg-white border rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">Alternative Right to Rent Document</h4>
+              class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Alternative Right to Rent Document</h4>
               <div class="space-y-4">
                 <div>
-                  <p class="text-sm text-gray-600 mb-1">Document Type</p>
-                  <p class="font-medium text-gray-900">{{ reference.rtr_alternative_document_type }}</p>
+                  <p class="text-sm text-gray-600 dark:text-slate-400 mb-1">Document Type</p>
+                  <p class="font-medium text-gray-900 dark:text-white">{{ reference.rtr_alternative_document_type }}</p>
                 </div>
                 <div>
-                  <p class="text-sm text-gray-600 mb-2">Document Preview</p>
-                  <div class="h-96 border rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
+                  <p class="text-sm text-gray-600 dark:text-slate-400 mb-2">Document Preview</p>
+                  <div class="h-96 border dark:border-slate-700 rounded-md overflow-hidden bg-gray-50 dark:bg-slate-800 flex items-center justify-center">
                     <template v-if="rtrAlternativeDocumentBlobUrl">
                       <iframe v-if="rtrAlternativeDocumentIsPdf"
                         :src="rtrAlternativeDocumentBlobUrl"
@@ -624,7 +622,7 @@
                       ></iframe>
                       <img v-else :src="rtrAlternativeDocumentBlobUrl" class="max-w-full max-h-full object-contain" alt="RTR Alternative Document" />
                     </template>
-                    <div v-else class="flex items-center justify-center h-full text-xs text-gray-500">
+                    <div v-else class="flex items-center justify-center h-full text-xs text-gray-500 dark:text-slate-400">
                       Loading document preview...
                     </div>
                   </div>
@@ -639,12 +637,12 @@
             </div>
 
             <!-- No RTR Information -->
-            <div v-else class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div v-else class="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
               <div class="flex items-start gap-3">
-                <AlertTriangle class="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <AlertTriangle class="w-6 h-6 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 class="font-semibold text-yellow-900 mb-1">No Right to Rent Information</h4>
-                  <p class="text-sm text-yellow-800">
+                  <h4 class="font-semibold text-yellow-900 dark:text-yellow-200 mb-1">No Right to Rent Information</h4>
+                  <p class="text-sm text-yellow-800 dark:text-yellow-300">
                     No share code or alternative document has been provided for Right to Rent verification.
                   </p>
                 </div>
@@ -652,23 +650,23 @@
             </div>
 
             <!-- Notes -->
-            <div class="bg-white border rounded-lg p-4">
-              <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <div class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">External Notes - these notes will be shown to the reference creator</p>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
               <textarea v-model="steps[1]!.notes" rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 placeholder="Record any observations about the Right to Rent verification (e.g. share code verification results, document review notes, additional checks performed)."></textarea>
             </div>
 
             <!-- Pass/Fail Buttons -->
-            <div class="bg-white border rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">Verification Decision</h4>
+            <div class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Verification Decision</h4>
               <div class="flex gap-4">
                 <button @click="steps[1]!.overall_pass = true" :class="[
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[1]!.overall_pass === true
                     ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-green-50 dark:hover:bg-green-900/30'
                 ]">
                   Pass
                 </button>
@@ -676,7 +674,7 @@
                   'flex-1 py-3 px-4 rounded-md font-medium transition-all',
                   steps[1]!.overall_pass === false
                     ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-red-50'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/30'
                 ]">
                   Fail
                 </button>
@@ -688,23 +686,23 @@
         <!-- Step 3: Income & Affordability -->
         <div v-if="currentStep === 3">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-bold text-gray-900">Step 3: Income & Affordability</h3>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Step 3: Income & Affordability</h3>
             <span
               class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-100">
               Income Score: {{ domainScores.income ?? '—' }}
             </span>
           </div>
-          <p class="text-gray-600 mb-6">Review all available financial information to assess income and affordability.
+          <p class="text-gray-600 dark:text-slate-400 mb-6">Review all available financial information to assess income and affordability.
           </p>
 
           <div class="space-y-6">
             <!-- Property Details Section (Moved from Income Sources) -->
-            <div v-if="reference?.monthly_rent || reference?.rent_share" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">Property Details</h4>
+            <div v-if="reference?.monthly_rent || reference?.rent_share" class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Property Details</h4>
               <div class="space-y-1 text-sm">
                 <p v-if="reference?.rent_share">
                   <strong>Rent Share:</strong> £{{ reference.rent_share }}
-                  <span v-if="reference.monthly_rent && parseFloat(reference.monthly_rent) !== parseFloat(reference.rent_share)" class="text-gray-600">
+                  <span v-if="reference.monthly_rent && parseFloat(reference.monthly_rent) !== parseFloat(reference.rent_share)" class="text-gray-600 dark:text-slate-400">
                     (of £{{ reference.monthly_rent }} total)
                   </span>
                 </p>
@@ -715,33 +713,33 @@
             </div>
 
             <!-- Financial Information (from ReferenceDetail) -->
-            <div class="bg-white rounded-lg shadow p-6">
-              <h4 class="text-lg font-semibold text-gray-900 mb-4">Financial Information</h4>
+            <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+              <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Financial Information</h4>
 
               <!-- Income Sources -->
               <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-3">Income Sources</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Income Sources</label>
                 <div class="flex flex-wrap gap-2">
                   <span v-if="reference?.income_regular_employment"
-                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-800 rounded-full">Employed</span>
+                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full">Employed</span>
                   <span v-if="reference?.income_self_employed"
-                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-800 rounded-full">Self Employed</span>
+                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full">Self Employed</span>
                   <span v-if="reference?.income_benefits"
-                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-800 rounded-full">Benefits</span>
+                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full">Benefits</span>
                   <span v-if="reference?.income_savings_pension_investments"
-                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-800 rounded-full">Savings/Pension/Investments</span>
+                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full">Savings/Pension/Investments</span>
                   <span v-if="reference?.income_student"
-                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-800 rounded-full">Student</span>
+                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full">Student</span>
                   <span v-if="reference?.income_unemployed"
-                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-800 rounded-full">Unemployed</span>
+                    class="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full">Unemployed</span>
                   <span
                     v-if="!reference?.income_regular_employment && !reference?.income_self_employed && !reference?.income_benefits && !reference?.income_savings_pension_investments && !reference?.income_student && !reference?.income_unemployed"
-                    class="text-gray-500 text-sm">Not provided yet</span>
+                    class="text-gray-500 dark:text-slate-400 text-sm">Not provided yet</span>
                 </div>
 
                 <!-- Student / Unemployed info for guarantor context -->
                 <div v-if="reference?.income_student || reference?.income_unemployed"
-                  class="mt-3 p-3 rounded-md bg-yellow-50 border border-yellow-200 text-sm text-yellow-900">
+                  class="mt-3 p-3 rounded-md bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-900 dark:text-yellow-200">
                   The {{ isGuarantor ? 'guarantor' : 'tenant' }} has declared themselves as
                   <strong>{{ reference?.income_student ? 'student' : 'unemployed' }}</strong>, therefore a guarantor
                   may be required depending on the overall assessment.
@@ -749,82 +747,82 @@
               </div>
 
               <!-- Employment Details -->
-              <div v-if="reference?.income_regular_employment" class="border-t pt-6">
-                <h5 class="text-md font-semibold text-gray-900 mb-4">Employment Details</h5>
+              <div v-if="reference?.income_regular_employment" class="border-t dark:border-slate-700 pt-6">
+                <h5 class="text-md font-semibold text-gray-900 dark:text-white mb-4">Employment Details</h5>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p class="text-gray-500 font-medium">Employment Type</p>
-                    <p class="mt-1 text-gray-900 capitalize">
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Employment Type</p>
+                    <p class="mt-1 text-gray-900 dark:text-white capitalize">
                       {{ reference?.employment_contract_type?.replace(/-/g, ' ') || 'Not provided' }}
                     </p>
                   </div>
                   <div>
-                    <p class="text-gray-500 font-medium">Employment Start Date</p>
-                    <p class="mt-1 text-gray-900">
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Employment Start Date</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">
                       {{ reference?.employment_start_date ? formatDate(reference.employment_start_date) : 'Not provided'
                       }}
                     </p>
                   </div>
                   <div>
-                    <p class="text-gray-500 font-medium">Compensation Type</p>
-                    <p class="mt-1 text-gray-900">
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Compensation Type</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">
                       {{ reference?.employment_is_hourly ? 'Hourly' : 'Salary' }}
                     </p>
                   </div>
                   <div v-if="reference?.employment_is_hourly">
-                    <p class="text-gray-500 font-medium">Hourly Rate</p>
-                    <p class="mt-1 text-gray-900">
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Hourly Rate</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">
                       {{ reference?.employment_salary_amount ? `£${reference.employment_salary_amount}/hour` : 'Not provided' }}
                     </p>
                   </div>
                   <div v-if="reference?.employment_is_hourly">
-                    <p class="text-gray-500 font-medium">Hours per Month</p>
-                    <p class="mt-1 text-gray-900">
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Hours per Month</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">
                       {{ reference?.employment_hours_per_month || 'Not provided' }}
                     </p>
                   </div>
                   <div v-if="!reference?.employment_is_hourly">
-                    <p class="text-gray-500 font-medium">Annual Salary</p>
-                    <p class="mt-1 text-gray-900">
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Annual Salary</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">
                       {{ reference?.employment_salary_amount ? `£${reference.employment_salary_amount}` : 'Not provided'
                       }}
                     </p>
                   </div>
                   <div>
-                    <p class="text-gray-500 font-medium">Job Title</p>
-                    <p class="mt-1 text-gray-900">{{ reference?.employment_job_title || 'Not provided' }}</p>
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Job Title</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.employment_job_title || 'Not provided' }}</p>
                   </div>
                   <div>
-                    <p class="text-gray-500 font-medium">Company Name</p>
-                    <p class="mt-1 text-gray-900">{{ reference?.employment_company_name || 'Not provided' }}</p>
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Company Name</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.employment_company_name || 'Not provided' }}</p>
                   </div>
                   <div class="md:col-span-2">
-                    <p class="text-gray-500 font-medium">Company Address</p>
-                    <p class="mt-1 text-gray-900">
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Company Address</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">
                       {{ reference?.employment_company_address_line1 || 'Not provided' }}
                       <span v-if="reference?.employment_company_address_line2">, {{
                         reference.employment_company_address_line2 }}</span>
                     </p>
                   </div>
                   <div>
-                    <p class="text-gray-500 font-medium">Company City</p>
-                    <p class="mt-1 text-gray-900">{{ reference?.employment_company_city || 'Not provided' }}</p>
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Company City</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.employment_company_city || 'Not provided' }}</p>
                   </div>
                   <div>
-                    <p class="text-gray-500 font-medium">Company Postcode</p>
-                    <p class="mt-1 text-gray-900">{{ reference?.employment_company_postcode || 'Not provided' }}</p>
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Company Postcode</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.employment_company_postcode || 'Not provided' }}</p>
                   </div>
                 </div>
 
                 <!-- Payslips -->
                 <div class="mt-6">
-                  <p class="block text-sm font-medium text-gray-700 mb-3">Payslips (Last 3 months)</p>
+                  <p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Payslips (Last 3 months)</p>
                   <div v-if="reference?.payslip_files?.length" class="space-y-2">
                     <div v-for="(file, index) in reference.payslip_files" :key="index"
-                      class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                      class="flex items-center justify-between bg-gray-50 dark:bg-slate-800 px-4 py-3 rounded-lg">
                       <div class="flex items-center">
-                        <FileText class="w-5 h-5 text-gray-600 mr-3" />
-                        <span class="text-sm text-gray-900">Payslip {{ index + 1 }}</span>
+                        <FileText class="w-5 h-5 text-gray-600 dark:text-slate-400 mr-3" />
+                        <span class="text-sm text-gray-900 dark:text-white">Payslip {{ index + 1 }}</span>
                       </div>
                       <div class="flex gap-2">
                         <button type="button" @click="previewPayslip(file, index)"
@@ -837,7 +835,7 @@
 
                   <!-- Payslip upload/request section - ALWAYS show -->
                   <div class="bg-gray-50 rounded-lg p-4 mt-3">
-                    <p class="text-gray-500 text-center text-sm mb-3">
+                    <p class="text-gray-500 dark:text-slate-400 text-center text-sm mb-3">
                       {{ reference?.payslip_files?.length
                           ? `${reference.payslip_files.length} payslip(s) uploaded - 3 required`
                           : 'Payslips not uploaded yet' }}
@@ -855,12 +853,12 @@
                   </div>
 
                   <!-- Embedded payslip viewer -->
-                  <div v-if="payslipPreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
-                    <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
-                      <p class="text-sm font-medium text-gray-700">
+                  <div v-if="payslipPreviewUrl" class="mt-4 border dark:border-slate-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-slate-800">
+                    <div class="flex items-center justify-between px-4 py-2 border-b dark:border-slate-700 bg-white dark:bg-slate-800">
+                      <p class="text-sm font-medium text-gray-700 dark:text-slate-300">
                         Payslip preview
                       </p>
-                      <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
+                      <button type="button" class="text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
                         @click="clearPayslipPreview">
                         Close preview
                       </button>
@@ -874,61 +872,61 @@
             </div>
 
             <!-- Self-Employed Details -->
-            <div v-if="reference?.income_self_employed" class="border-t pt-6 mt-6">
-              <h5 class="text-md font-semibold text-gray-900 mb-4">Self-Employed Details</h5>
+            <div v-if="reference?.income_self_employed" class="border-t dark:border-slate-700 pt-6 mt-6">
+              <h5 class="text-md font-semibold text-gray-900 dark:text-white mb-4">Self-Employed Details</h5>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p class="text-gray-500 font-medium">Business Name</p>
-                  <p class="mt-1 text-gray-900">{{ reference?.self_employed_business_name || 'Not provided' }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Business Name</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.self_employed_business_name || 'Not provided' }}</p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Business Start Date</p>
-                  <p class="mt-1 text-gray-900">{{ reference?.self_employed_start_date ?
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Business Start Date</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.self_employed_start_date ?
                     formatDate(reference.self_employed_start_date) : 'Not provided' }}</p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Nature of Business</p>
-                  <p class="mt-1 text-gray-900">{{ reference?.self_employed_nature_of_business || 'Not provided' }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Nature of Business</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.self_employed_nature_of_business || 'Not provided' }}</p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Annual Income</p>
-                  <p class="mt-1 text-gray-900">{{ reference?.self_employed_annual_income ?
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Annual Income</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.self_employed_annual_income ?
                     `£${parseFloat(reference.self_employed_annual_income || '0').toLocaleString('en-GB')}` : 'Not provided' }}
                   </p>
                 </div>
               </div>
 
               <!-- Accountant Contact -->
-              <div class="mt-6 pt-6 border-t">
-                <h5 class="text-sm font-semibold text-gray-700 mb-3">Accountant Contact</h5>
+              <div class="mt-6 pt-6 border-t dark:border-slate-700">
+                <h5 class="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">Accountant Contact</h5>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p class="text-gray-500 font-medium">Accountant/Firm Name</p>
-                    <p class="mt-1 text-gray-900">{{ reference?.accountant_name || 'Not provided' }}</p>
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Accountant/Firm Name</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.accountant_name || 'Not provided' }}</p>
                   </div>
                   <div>
-                    <p class="text-gray-500 font-medium">Contact Name</p>
-                    <p class="mt-1 text-gray-900">{{ reference?.accountant_contact_name || 'Not provided' }}</p>
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Contact Name</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.accountant_contact_name || 'Not provided' }}</p>
                   </div>
                   <div>
-                    <p class="text-gray-500 font-medium">Email</p>
-                    <p class="mt-1 text-gray-900">{{ reference?.accountant_email || 'Not provided' }}</p>
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Email</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.accountant_email || 'Not provided' }}</p>
                   </div>
                   <div>
-                    <p class="text-gray-500 font-medium">Phone</p>
-                    <p class="mt-1 text-gray-900">{{ reference?.accountant_phone || 'Not provided' }}</p>
+                    <p class="text-gray-500 dark:text-slate-400 font-medium">Phone</p>
+                    <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.accountant_phone || 'Not provided' }}</p>
                   </div>
                 </div>
               </div>
 
               <!-- Tax Return Document -->
-              <div class="mt-6 pt-6 border-t">
-                <p class="block text-sm font-medium text-gray-700 mb-2">Tax Return Proof</p>
+              <div class="mt-6 pt-6 border-t dark:border-slate-700">
+                <p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Tax Return Proof</p>
                 <div v-if="reference?.tax_return_path">
-                  <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                  <div class="flex items-center justify-between bg-gray-50 dark:bg-slate-800 px-4 py-3 rounded-lg">
                     <div class="flex items-center">
-                      <FileText class="w-5 h-5 text-gray-600 mr-3" />
-                      <span class="text-sm text-gray-900">Tax Return Document</span>
+                      <FileText class="w-5 h-5 text-gray-600 dark:text-slate-400 mr-3" />
+                      <span class="text-sm text-gray-900 dark:text-white">Tax Return Document</span>
                     </div>
                     <div class="flex gap-2">
                       <button type="button" @click="previewTaxReturn(reference.tax_return_path)"
@@ -939,12 +937,12 @@
                   </div>
 
                   <!-- Embedded tax return viewer -->
-                  <div v-if="taxReturnPreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
-                    <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
-                      <p class="text-sm font-medium text-gray-700">
+                  <div v-if="taxReturnPreviewUrl" class="mt-4 border dark:border-slate-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-slate-800">
+                    <div class="flex items-center justify-between px-4 py-2 border-b dark:border-slate-700 bg-white dark:bg-slate-800">
+                      <p class="text-sm font-medium text-gray-700 dark:text-slate-300">
                         Tax return preview
                       </p>
-                      <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
+                      <button type="button" class="text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
                         @click="clearTaxReturnPreview">
                         Close preview
                       </button>
@@ -954,8 +952,8 @@
                     </div>
                   </div>
                 </div>
-                <div v-else class="bg-gray-50 rounded-lg p-4">
-                  <p class="text-gray-500 text-center text-sm mb-3">Tax return not uploaded yet</p>
+                <div v-else class="bg-gray-50 dark:bg-slate-800 rounded-lg p-4">
+                  <p class="text-gray-500 dark:text-slate-400 text-center text-sm mb-3">Tax return not uploaded yet</p>
                   <div class="flex justify-center gap-2">
                     <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
                       <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'tax_return')">
@@ -1092,8 +1090,7 @@
                     <div v-if="accountantReference.additional_comments || accountantReference.recommendation_comments"
                       class="mt-3 p-3 bg-white rounded border border-green-200">
                       <span class="text-green-700 font-medium text-sm">Comments:</span>
-                      <p class="text-green-900 text-sm mt-1">{{ accountantReference.additional_comments ||
-                        accountantReference.recommendation_comments }}</p>
+                      <p class="text-green-900 text-sm mt-1">{{ accountantReference.additional_comments || accountantReference.recommendation_comments }}</p>
                     </div>
                   </div>
 
@@ -1117,24 +1114,24 @@
                   </span>
                 </div>
                 <div class="overflow-x-auto">
-                  <table class="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead class="bg-gray-50">
+                  <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+                    <thead class="bg-gray-50 dark:bg-slate-700">
                       <tr>
-                        <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Field</th>
-                        <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Provided</th>
-                        <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Accountant Confirmed</th>
-                        <th class="px-4 py-2 text-center font-medium text-gray-600 uppercase tracking-wide">Status</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">Field</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Provided</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">Accountant Confirmed</th>
+                        <th class="px-4 py-2 text-center font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">Status</th>
                       </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
                       <tr v-for="row in accountantComparisonTable" :key="row.key" :class="row.status === 'mismatch'
                         ? 'bg-red-50'
                         : row.status === 'unknown'
                           ? 'bg-gray-50'
                           : ''">
-                        <td class="px-4 py-2 font-medium text-gray-900">{{ row.label }}</td>
-                        <td class="px-4 py-2 text-gray-900">{{ row.tenant }}</td>
-                        <td class="px-4 py-2 text-gray-900">{{ row.accountant }}</td>
+                        <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ row.label }}</td>
+                        <td class="px-4 py-2 text-gray-900 dark:text-white">{{ row.tenant }}</td>
+                        <td class="px-4 py-2 text-gray-900 dark:text-white">{{ row.accountant }}</td>
                         <td class="px-4 py-2 text-center">
                           <span :class="[
                             'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -1148,31 +1145,31 @@
                   </table>
                 </div>
                 <p v-if="accountantComparisonHasMismatch"
-                  class="mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                  class="mt-3 text-sm text-yellow-800 dark:text-yellow-200 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-md p-3">
                   Please add notes in this step explaining how you resolved these differences before proceeding.
                 </p>
               </div>
             </div>
 
             <!-- Savings, Pensions or Investments Details -->
-            <div v-if="reference?.income_savings_pension_investments" class="border-t pt-6 mt-6">
-              <h5 class="text-md font-semibold text-gray-900 mb-4">Savings, Pensions or Investments</h5>
+            <div v-if="reference?.income_savings_pension_investments" class="border-t dark:border-slate-700 pt-6 mt-6">
+              <h5 class="text-md font-semibold text-gray-900 dark:text-white mb-4">Savings, Pensions or Investments</h5>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p class="text-gray-500 font-medium">Total Savings Amount</p>
-                  <p class="mt-1 text-gray-900">{{ reference?.savings_amount ?
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Total Savings Amount</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.savings_amount ?
                     `£${parseFloat(reference.savings_amount || '0').toLocaleString('en-GB')}` : 'Not provided' }}</p>
                 </div>
               </div>
 
               <!-- Proof of Funds Document -->
               <div class="mt-4">
-                <p class="block text-sm font-medium text-gray-700 mb-2">Proof of Funds</p>
+                <p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Proof of Funds</p>
                 <div v-if="reference?.proof_of_funds_path"
-                  class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                  class="flex items-center justify-between bg-gray-50 dark:bg-slate-800 px-4 py-3 rounded-lg">
                   <div class="flex items-center">
-                    <FileText class="w-5 h-5 text-gray-600 mr-3" />
-                    <span class="text-sm text-gray-900">Proof of Funds Document</span>
+                    <FileText class="w-5 h-5 text-gray-600 dark:text-slate-400 mr-3" />
+                    <span class="text-sm text-gray-900 dark:text-white">Proof of Funds Document</span>
                   </div>
                   <div class="flex gap-2">
                     <button type="button" @click="previewProofOfFunds(reference.proof_of_funds_path)"
@@ -1181,8 +1178,8 @@
                     </button>
                   </div>
                 </div>
-                <div v-else class="bg-gray-50 rounded-lg p-4">
-                  <p class="text-gray-500 text-center text-sm mb-3">Proof of funds not uploaded yet</p>
+                <div v-else class="bg-gray-50 dark:bg-slate-800 rounded-lg p-4">
+                  <p class="text-gray-500 dark:text-slate-400 text-center text-sm mb-3">Proof of funds not uploaded yet</p>
                   <div class="flex justify-center gap-2">
                     <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
                       <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'proof_of_funds')">
@@ -1196,12 +1193,12 @@
                 </div>
 
                 <!-- Embedded proof of funds viewer -->
-                <div v-if="proofOfFundsPreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
-                  <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
-                    <p class="text-sm font-medium text-gray-700">
+                <div v-if="proofOfFundsPreviewUrl" class="mt-4 border dark:border-slate-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-slate-800">
+                  <div class="flex items-center justify-between px-4 py-2 border-b dark:border-slate-700 bg-white dark:bg-slate-800">
+                    <p class="text-sm font-medium text-gray-700 dark:text-slate-300">
                       Proof of funds preview
                     </p>
-                    <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
+                    <button type="button" class="text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
                       @click="clearProofOfFundsPreview">
                       Close preview
                     </button>
@@ -1214,49 +1211,47 @@
             </div>
 
             <!-- Benefits Details -->
-            <div v-if="reference?.income_benefits" class="border-t pt-6 mt-6">
-              <h5 class="text-md font-semibold text-gray-900 mb-4">Benefits</h5>
+            <div v-if="reference?.income_benefits" class="border-t dark:border-slate-700 pt-6 mt-6">
+              <h5 class="text-md font-semibold text-gray-900 dark:text-white mb-4">Benefits</h5>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div v-if="reference?.benefits_annual_amount">
-                  <p class="text-gray-500 font-medium">Annual Benefits Amount</p>
-                  <p class="mt-1 text-gray-900">£{{ parseFloat(reference.benefits_annual_amount ||
-                    '0').toLocaleString('en-GB') }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Annual Benefits Amount</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">£{{ parseFloat(reference.benefits_annual_amount || '0').toLocaleString('en-GB') }}</p>
                 </div>
                 <div v-if="reference?.benefits_type">
-                  <p class="text-gray-500 font-medium">Benefits Type</p>
-                  <p class="mt-1 text-gray-900 capitalize">{{ reference.benefits_type }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Benefits Type</p>
+                  <p class="mt-1 text-gray-900 dark:text-white capitalize">{{ reference.benefits_type }}</p>
                 </div>
               </div>
             </div>
 
             <!-- Additional Income -->
             <div v-if="reference?.has_additional_income || reference?.additional_income_amount"
-              class="border-t pt-6 mt-6">
-              <h5 class="text-md font-semibold text-gray-900 mb-4">Additional Income</h5>
+              class="border-t dark:border-slate-700 pt-6 mt-6">
+              <h5 class="text-md font-semibold text-gray-900 dark:text-white mb-4">Additional Income</h5>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div v-if="reference?.additional_income_source">
-                  <p class="text-gray-500 font-medium">Source</p>
-                  <p class="mt-1 text-gray-900">{{ reference.additional_income_source }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Source</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">{{ reference.additional_income_source }}</p>
                 </div>
                 <div v-if="reference?.additional_income_amount">
-                  <p class="text-gray-500 font-medium">Amount</p>
-                  <p class="mt-1 text-gray-900">£{{ parseFloat(reference.additional_income_amount ||
-                    '0').toLocaleString('en-GB') }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Amount</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">£{{ parseFloat(reference.additional_income_amount || '0').toLocaleString('en-GB') }}</p>
                 </div>
                 <div v-if="reference?.additional_income_frequency">
-                  <p class="text-gray-500 font-medium">Frequency</p>
-                  <p class="mt-1 text-gray-900 capitalize">{{ reference.additional_income_frequency }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Frequency</p>
+                  <p class="mt-1 text-gray-900 dark:text-white capitalize">{{ reference.additional_income_frequency }}</p>
                 </div>
               </div>
 
               <!-- Proof of Additional Income Document -->
               <div class="mt-4">
-                <p class="block text-sm font-medium text-gray-700 mb-2">Proof of Additional Income</p>
+                <p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Proof of Additional Income</p>
                 <div v-if="reference?.proof_of_additional_income_path">
-                  <div class="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
+                  <div class="flex items-center justify-between bg-gray-50 dark:bg-slate-800 px-4 py-3 rounded-lg">
                     <div class="flex items-center">
-                      <FileText class="w-5 h-5 text-gray-600 mr-3" />
-                      <span class="text-sm text-gray-900">Proof of Additional Income Document</span>
+                      <FileText class="w-5 h-5 text-gray-600 dark:text-slate-400 mr-3" />
+                      <span class="text-sm text-gray-900 dark:text-white">Proof of Additional Income Document</span>
                     </div>
                     <div class="flex gap-2">
                       <button type="button"
@@ -1268,12 +1263,12 @@
                   </div>
 
                   <!-- Embedded proof of additional income viewer -->
-                  <div v-if="proofOfAdditionalIncomePreviewUrl" class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
-                    <div class="flex items-center justify-between px-4 py-2 border-b bg-white">
-                      <p class="text-sm font-medium text-gray-700">
+                  <div v-if="proofOfAdditionalIncomePreviewUrl" class="mt-4 border dark:border-slate-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-slate-800">
+                    <div class="flex items-center justify-between px-4 py-2 border-b dark:border-slate-700 bg-white dark:bg-slate-800">
+                      <p class="text-sm font-medium text-gray-700 dark:text-slate-300">
                         Proof of additional income preview
                       </p>
-                      <button type="button" class="text-xs text-gray-500 hover:text-gray-700"
+                      <button type="button" class="text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
                         @click="clearProofOfAdditionalIncomePreview">
                         Close preview
                       </button>
@@ -1283,8 +1278,8 @@
                     </div>
                   </div>
                 </div>
-                <div v-else class="bg-gray-50 rounded-lg p-4">
-                  <p class="text-gray-500 text-center text-sm mb-3">Proof of additional income not uploaded yet</p>
+                <div v-else class="bg-gray-50 dark:bg-slate-800 rounded-lg p-4">
+                  <p class="text-gray-500 dark:text-slate-400 text-center text-sm mb-3">Proof of additional income not uploaded yet</p>
                   <div class="flex justify-center gap-2">
                     <label class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-md cursor-pointer">
                       <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="(e) => handleStaffUpload(e, 'proof_of_additional_income')">
@@ -1300,7 +1295,7 @@
             </div>
 
             <!-- Employer vs Tenant Comparison -->
-            <div v-if="employmentComparisonTable.length" class="bg-white border rounded-lg p-4">
+            <div v-if="employmentComparisonTable.length" class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-semibold text-gray-900">Employer Reference vs {{ isGuarantor ? 'Guarantor' : 'Tenant' }} Declaration</h4>
                 <span class="text-xs text-gray-500" v-if="employmentComparisonHasMismatch">
@@ -1308,26 +1303,26 @@
                 </span>
               </div>
               <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+                  <thead class="bg-gray-50 dark:bg-slate-700">
                     <tr>
-                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Field</th>
-                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Provided
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">Field</th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">{{ isGuarantor ? 'Guarantor' : 'Tenant' }} Provided
                       </th>
-                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Employer
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">Employer
                         Confirmed</th>
-                      <th class="px-4 py-2 text-center font-medium text-gray-600 uppercase tracking-wide">Status</th>
+                      <th class="px-4 py-2 text-center font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">Status</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-gray-100">
+                  <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
                     <tr v-for="row in employmentComparisonTable" :key="row.key" :class="row.status === 'mismatch'
                       ? 'bg-red-50'
                       : row.status === 'unknown'
                         ? 'bg-gray-50'
                         : ''">
-                      <td class="px-4 py-2 font-medium text-gray-900">{{ row.label }}</td>
-                      <td class="px-4 py-2 text-gray-900">{{ row.tenant }}</td>
-                      <td class="px-4 py-2 text-gray-900">{{ row.employer }}</td>
+                      <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ row.label }}</td>
+                      <td class="px-4 py-2 text-gray-900 dark:text-white">{{ row.tenant }}</td>
+                      <td class="px-4 py-2 text-gray-900 dark:text-white">{{ row.employer }}</td>
                       <td class="px-4 py-2 text-center">
                         <span :class="[
                           'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -1341,15 +1336,15 @@
                 </table>
               </div>
               <p v-if="employmentComparisonHasMismatch"
-                class="mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                class="mt-3 text-sm text-yellow-800 dark:text-yellow-200 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-md p-3">
                 Please add notes in this step explaining how you resolved these differences before proceeding.
               </p>
             </div>
 
             <!-- Employer Signature -->
             <div v-if="employerReference && (employerReference.signature || employerReference.signature_name)"
-              class="bg-white border rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">Employer Declaration & Signature</h4>
+              class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Employer Declaration & Signature</h4>
               <div class="space-y-2">
                 <p v-if="employerReference.signature_name" class="text-sm text-gray-700 font-medium">
                   {{ employerReference.signature_name }}
@@ -1367,13 +1362,13 @@
 
             <!-- Verification Checks -->
             <div v-if="!reference?.income_student && !reference?.income_unemployed"
-              class="bg-white border rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">Verification Checks</h4>
+              class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Verification Checks</h4>
               <div class="space-y-3">
                 <div v-if="reference?.income_employment || reference?.income_regular_employment"
-                  class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                  class="flex items-start justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded">
                   <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-700">Is the employer email genuine? (Business domain check)
+                    <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Is the employer email genuine? (Business domain check)
                     </p>
                     <p v-if="reference?.employer_ref_email" class="text-sm  text-gray-500 mt-1">{{
                       (reference.employer_ref_email?.includes('@') ? reference.employer_ref_email.split('@')[1] : 'Not provided')
@@ -1383,28 +1378,28 @@
                     <button @click="toggleCheck('employerEmailGenuine', true)" :class="['px-3 py-1 text-xs font-medium rounded transition-all',
                       getCheckValue('employerEmailGenuine') === true
                         ? 'bg-green-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-green-100']">
+                        : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300 hover:bg-green-100 dark:hover:bg-green-900/30']">
                       Pass
                     </button>
                     <button @click="toggleCheck('employerEmailGenuine', false)" :class="['px-3 py-1 text-xs font-medium rounded transition-all',
                       getCheckValue('employerEmailGenuine') === false
                         ? 'bg-red-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-red-100']">
+                        : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300 hover:bg-red-100 dark:hover:bg-red-900/30']">
                       Fail
                     </button>
                   </div>
                 </div>
 
                 <div v-if="reference?.income_employment || reference?.income_regular_employment"
-                  class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                  class="flex items-start justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded">
                   <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-700">Is the business actively trading?<a
+                    <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Is the business actively trading?<a
                         class="text-blue-500 text-xs underline cursor-pointer ml-2" rel="noopener noreferrer"
                         :href="`https://find-and-update.company-information.service.gov.uk/search?q=${reference.employment_company_name}`"
                         target="_blank">
                         verify status
                       </a></p>
-                    <p v-if="reference?.employment_company_name" class="text-xs text-gray-500 mt-1">{{
+                    <p v-if="reference?.employment_company_name" class="text-xs text-gray-500 dark:text-slate-400 mt-1">{{
                       reference.employment_company_name }}</p>
                   </div>
                   <div class="flex gap-2 ml-4">
@@ -1427,14 +1422,14 @@
                   </div>
                 </div>
 
-                <div class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded">
                   <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-700">Income sufficient for rent affordability?</p>
-                    <p v-if="reference?.rent_share" class="text-xs text-gray-500 mt-1">
+                    <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Income sufficient for rent affordability?</p>
+                    <p v-if="reference?.rent_share" class="text-xs text-gray-500 dark:text-slate-400 mt-1">
                       Rent share: £{{ reference.rent_share }}
                       <span v-if="reference.monthly_rent"> (of £{{ reference.monthly_rent }} total)</span>
                     </p>
-                    <p v-else-if="reference?.monthly_rent" class="text-xs text-gray-500 mt-1">Monthly rent: £{{ reference.monthly_rent }}</p>
+                    <p v-else-if="reference?.monthly_rent" class="text-xs text-gray-500 dark:text-slate-400 mt-1">Monthly rent: £{{ reference.monthly_rent }}</p>
                   </div>
                   <div class="flex gap-2 ml-4">
                     <button @click="toggleCheck('affordability', true)" :class="[
@@ -1460,11 +1455,11 @@
 
             <!-- Evidence Source Selection -->
             <div v-if="!reference?.income_student && !reference?.income_unemployed">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Evidence Sources Used</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Evidence Sources Used</label>
               <div class="grid grid-cols-2 gap-3">
                 <label v-for="source in evidenceSourceOptions.INCOME_AFFORDABILITY" :key="source.evidence_type"
-                  class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="steps[2]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'">
+                  class="flex items-center p-3 border dark:border-slate-600 rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700"
+                  :class="steps[2]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300 dark:border-slate-600'">
                   <input type="checkbox" :value="source.evidence_type" v-model="steps[2]!.evidence_sources"
                     class="mr-3 h-4 w-4 text-primary focus:ring-primary" />
                   <span class="text-sm">{{ source.display_label }}</span>
@@ -1474,10 +1469,10 @@
 
             <!-- Notes -->
             <div>
-              <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">External Notes - these notes will be shown to the reference creator</p>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
               <textarea v-model="steps[2]!.notes" rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 placeholder="Add notes about income verification, affordability calculations, guarantor rationale, etc."></textarea>
             </div>
 
@@ -1580,9 +1575,9 @@
               </div>
 
               <!-- Gross Total with Edit Capability -->
-              <div class="p-4 bg-gray-100 rounded mt-3">
+              <div class="p-4 bg-gray-100 dark:bg-slate-700 rounded mt-3">
                 <div class="flex items-center justify-between mb-2">
-                  <p class="text-lg font-semibold">Gross Total:</p>
+                  <p class="text-lg font-semibold text-gray-900 dark:text-white">Gross Total:</p>
                   <button
                     type="button"
                     @click="isEditingIncome = !isEditingIncome"
@@ -1600,20 +1595,20 @@
                 </div>
 
                 <div v-else class="space-y-2">
-                  <div class="text-sm text-gray-600 mb-2">
+                  <div class="text-sm text-gray-600 dark:text-slate-400 mb-2">
                     Edit individual income sources above, or override the total below:
                   </div>
                   <input
                     type="number"
                     v-model.number="manualIncomeOverride"
                     :placeholder="totalAnnualIncome.toString()"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                   />
                   <div class="flex gap-2">
                     <button
                       type="button"
                       @click="resetAllIncomeEdits"
-                      class="text-sm text-gray-600 hover:text-gray-800">
+                      class="text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-300">
                       Reset All to Original
                     </button>
                     <button
@@ -1625,7 +1620,7 @@
                   </div>
                 </div>
 
-                <p class="text-lg font-semibold mt-3">
+                <p class="text-lg font-semibold text-gray-900 dark:text-white mt-3">
                   Max Affordability (Gross ÷ 30):
                   <span class="text-green-600">£{{ maxAffordability.toFixed(2) }} pcm</span>
                 </p>
@@ -1642,8 +1637,8 @@
                 </p>
 
                 <!-- Rent/Income Ratio Indicator -->
-                <div v-if="reference.rent_share || reference.monthly_rent" class="mt-3 pt-3 border-t border-gray-300">
-                  <p class="text-sm font-medium text-gray-700">
+                <div v-if="reference.rent_share || reference.monthly_rent" class="mt-3 pt-3 border-t border-gray-300 dark:border-slate-600">
+                  <p class="text-sm font-medium text-gray-700 dark:text-slate-300">
                     Rent/Income Ratio:
                     <span :class="maxAffordability >= parseFloat(reference.rent_share || reference.monthly_rent || '0') ? 'text-green-600' : 'text-red-600'">
                       {{ ((parseFloat(reference.rent_share || reference.monthly_rent || '0') / maxAffordability) * 100).toFixed(1) }}%
@@ -1653,13 +1648,12 @@
                 </div>
               </div>
 
-
             </div>
 
             <!-- Overall Result: Pass / Fail / Guarantor Needed -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
-              <p class="text-sm text-gray-600 mb-3">
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Overall Result</label>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-3">
                 Based on all income, employment, benefits and savings information above, record whether the {{ isGuarantor ? 'guarantor' : 'tenant' }}
                 passes affordability on their own, fails{{ isGuarantor ? '.' : ', or requires a guarantor.' }}
               </p>
@@ -1708,17 +1702,17 @@
         <!-- Step 4: Residential -->
         <div v-if="currentStep === 4">
           <div class="flex items-center justify-between mb-2">
-            <h3 class="text-xl font-bold text-gray-900">Step 4: Residential Verification</h3>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Step 4: Residential Verification</h3>
             <span
               class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-100">
               Residential Score: {{ domainScores.residential ?? '—' }}
             </span>
           </div>
-          <p class="text-gray-600 mb-6">Verify residential history and landlord/letting agent references.</p>
+          <p class="text-gray-600 dark:text-slate-400 mb-6">Verify residential history and landlord/letting agent references.</p>
 
           <!-- Case 1: Tenant living with family -->
           <div v-if="reference?.reference_type === 'living_with_family'"
-            class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
+            class="bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-6 mb-6">
             <div class="flex items-start gap-4">
               <div class="flex-shrink-0">
                 <CheckCircle class="w-8 h-8 text-blue-600" />
@@ -1747,27 +1741,27 @@
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 <div class="md:col-span-2">
-                  <p class="text-gray-500 font-medium">Address</p>
-                  <p class="mt-1 text-gray-900">
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Address</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">
                     {{ reference?.current_address_line1 || 'Not provided' }}
                     <span v-if="reference?.current_address_line2">, {{ reference.current_address_line2 }}</span>
                   </p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">City</p>
-                  <p class="mt-1 text-gray-900">{{ reference?.current_city || 'Not provided' }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">City</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.current_city || 'Not provided' }}</p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Postcode</p>
-                  <p class="mt-1 text-gray-900">{{ reference?.current_postcode || 'Not provided' }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Postcode</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.current_postcode || 'Not provided' }}</p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Country</p>
-                  <p class="mt-1 text-gray-900">{{ reference?.current_country || 'Not provided' }}</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Country</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">{{ reference?.current_country || 'Not provided' }}</p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Time at Address</p>
-                  <p class="mt-1 text-gray-900">
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Time at Address</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">
                     <span v-if="reference?.time_at_address_years || reference?.time_at_address_months">
                       {{ reference.time_at_address_years || 0 }} year(s), {{ reference.time_at_address_months || 0 }}
                       month(s)
@@ -1784,7 +1778,7 @@
                   <div class="mb-2 flex items-center justify-between">
                     <div class="flex items-center">
                       <FileText class="w-5 h-5 text-gray-600 mr-2" />
-                      <span class="text-sm text-gray-900">Document Preview</span>
+                      <span class="text-sm text-gray-900 dark:text-white">Document Preview</span>
                     </div>
                     <a v-if="proofOfAddressBlobUrl" :href="proofOfAddressBlobUrl" target="_blank"
                       class="text-sm text-orange-600 hover:text-orange-700 font-medium">
@@ -1803,7 +1797,7 @@
                       <!-- Image Viewer -->
                       <img v-else :src="proofOfAddressBlobUrl" class="max-w-full max-h-full object-contain" alt="Proof of Address" />
                     </template>
-                    <div v-else class="flex items-center justify-center h-full text-xs text-gray-500">
+                    <div v-else class="flex items-center justify-center h-full text-xs text-gray-500 dark:text-slate-400">
                       Loading document preview...
                     </div>
                   </div>
@@ -1834,28 +1828,28 @@
                   <h5 class="text-sm font-semibold text-gray-900 mb-3">Previous Address {{ index + 1 }}</h5>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div class="md:col-span-2">
-                      <p class="text-gray-500 font-medium">Address</p>
-                      <p class="mt-1 text-gray-900">
+                      <p class="text-gray-500 dark:text-slate-400 font-medium">Address</p>
+                      <p class="mt-1 text-gray-900 dark:text-white">
                         {{ address.address_line1 || 'Not provided' }}
                         <span v-if="address.address_line2">, {{ address.address_line2 }}</span>
                       </p>
                     </div>
                     <div>
-                      <p class="text-gray-500 font-medium">City</p>
-                      <p class="mt-1 text-gray-900">{{ address.city || 'Not provided' }}</p>
+                      <p class="text-gray-500 dark:text-slate-400 font-medium">City</p>
+                      <p class="mt-1 text-gray-900 dark:text-white">{{ address.city || 'Not provided' }}</p>
                     </div>
                     <div>
-                      <p class="text-gray-500 font-medium">Postcode</p>
-                      <p class="mt-1 text-gray-900">{{ address.postcode || 'Not provided' }}</p>
+                      <p class="text-gray-500 dark:text-slate-400 font-medium">Postcode</p>
+                      <p class="mt-1 text-gray-900 dark:text-white">{{ address.postcode || 'Not provided' }}</p>
                     </div>
                     <div v-if="address.country">
-                      <p class="text-gray-500 font-medium">Country</p>
-                      <p class="mt-1 text-gray-900">{{ address.country }}</p>
+                      <p class="text-gray-500 dark:text-slate-400 font-medium">Country</p>
+                      <p class="mt-1 text-gray-900 dark:text-white">{{ address.country }}</p>
                     </div>
                     <div
                       v-if="address.time_at_address_years !== undefined || address.time_at_address_months !== undefined">
-                      <p class="text-gray-500 font-medium">Time at Address</p>
-                      <p class="mt-1 text-gray-900">
+                      <p class="text-gray-500 dark:text-slate-400 font-medium">Time at Address</p>
+                      <p class="mt-1 text-gray-900 dark:text-white">
                         {{ address.time_at_address_years || 0 }} year(s), {{ address.time_at_address_months || 0 }}
                         month(s)
                       </p>
@@ -1885,36 +1879,33 @@
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p class="text-gray-500 font-medium">{{ landlordReference ? 'Landlord Name' : 'Agent Name' }}</p>
-                  <p class="mt-1 text-gray-900">
-                    {{ landlordReference?.landlord_name || agentReference?.agent_name ||
-                      reference?.previous_landlord_name || 'Not provided yet' }}
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">{{ landlordReference ? 'Landlord Name' : 'Agent Name' }}</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">
+                    {{ landlordReference?.landlord_name || agentReference?.agent_name || reference?.previous_landlord_name || 'Not provided yet' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">{{ landlordReference ? 'Email' : 'Agent Email' }}</p>
-                  <p class="mt-1 text-gray-900">
-                    {{ landlordReference?.landlord_email || agentReference?.agent_email ||
-                      reference?.previous_landlord_email || 'Not provided yet' }}
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">{{ landlordReference ? 'Email' : 'Agent Email' }}</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">
+                    {{ landlordReference?.landlord_email || agentReference?.agent_email || reference?.previous_landlord_email || 'Not provided yet' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Phone</p>
-                  <p class="mt-1 text-gray-900">
-                    {{ landlordReference?.landlord_phone || agentReference?.agent_phone ||
-                      reference?.previous_landlord_phone || 'Not provided yet' }}
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Phone</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">
+                    {{ landlordReference?.landlord_phone || agentReference?.agent_phone || reference?.previous_landlord_phone || 'Not provided yet' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Previous Monthly Rent</p>
-                  <p class="mt-1 text-gray-900">
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Previous Monthly Rent</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">
                     <span v-if="reference?.previous_monthly_rent">£{{ reference.previous_monthly_rent }}/month</span>
                     <span v-else>Not provided yet</span>
                   </p>
                 </div>
                 <div class="md:col-span-2">
-                  <p class="text-gray-500 font-medium">Previous Address</p>
-                  <p class="mt-1 text-gray-900">
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Previous Address</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">
                     {{ reference?.previous_rental_address_line1 || 'Not provided yet' }}
                     <span v-if="reference?.previous_rental_address_line2">, {{ reference.previous_rental_address_line2
                       }}</span>
@@ -1927,8 +1918,8 @@
                   </p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Tenancy Period (Application)</p>
-                  <p class="mt-1 text-gray-900">
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Tenancy Period (Application)</p>
+                  <p class="mt-1 text-gray-900 dark:text-white">
                     <span v-if="reference?.previous_tenancy_start_date || reference?.previous_tenancy_end_date">
                       {{ formatDate(reference.previous_tenancy_start_date, 'N/A') }}
                       {{ ' to ' }}
@@ -1939,7 +1930,7 @@
                   </p>
                 </div>
                 <div>
-                  <p class="text-gray-500 font-medium">Tenancy Period (Reference)</p>
+                  <p class="text-gray-500 dark:text-slate-400 font-medium">Tenancy Period (Reference)</p>
                   <p class="mt-1 text-gray-900" v-if="landlordReference">
                     {{ formatDate(landlordReference.tenancy_start_date, 'N/A') }}
                     {{ ' to ' }}
@@ -1959,7 +1950,7 @@
 
             <!-- Landlord/Agent Reference Response (detailed) -->
             <div v-if="(landlordReference || agentReference) && reference?.reference_type !== 'living_with_family'"
-              class="bg-white border rounded-lg p-4">
+              class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-semibold text-gray-900">
                   {{ landlordReference ? 'Landlord' : 'Agent' }} Reference Response
@@ -1977,39 +1968,39 @@
                 <div v-if="landlordReference">
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <p class="text-xs text-gray-500 uppercase tracking-wide">Rent Paid On Time</p>
-                      <p class="font-medium capitalize text-gray-900">
+                      <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Rent Paid On Time</p>
+                      <p class="font-medium capitalize text-gray-900 dark:text-white">
                         {{ landlordReference.rent_paid_on_time || 'Not provided' }}
                       </p>
                     </div>
                     <div>
-                      <p class="text-xs text-gray-500 uppercase tracking-wide">Good Tenant</p>
-                      <p class="font-medium capitalize text-gray-900">
+                      <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Good Tenant</p>
+                      <p class="font-medium capitalize text-gray-900 dark:text-white">
                         {{ landlordReference.good_tenant || 'Not provided' }}
                       </p>
                     </div>
                     <div>
-                      <p class="text-xs text-gray-500 uppercase tracking-wide">Would Rent Again</p>
-                      <p class="font-medium capitalize text-gray-900">
+                      <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Would Rent Again</p>
+                      <p class="font-medium capitalize text-gray-900 dark:text-white">
                         {{ landlordReference.would_rent_again || 'Not provided' }}
                       </p>
                     </div>
                     <div v-if="landlordReference.monthly_rent">
-                      <p class="text-xs text-gray-500 uppercase tracking-wide">Monthly Rent (Confirmed)</p>
-                      <p class="font-medium text-gray-900">£{{ landlordReference.monthly_rent }}</p>
+                      <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Monthly Rent (Confirmed)</p>
+                      <p class="font-medium text-gray-900 dark:text-white">£{{ landlordReference.monthly_rent }}</p>
                     </div>
                   </div>
                   <div v-if="landlordReference.additional_comments" class="mt-2">
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Additional Comments</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Additional Comments</p>
                     <p class="text-sm text-gray-900 whitespace-pre-line">{{ landlordReference.additional_comments }}</p>
                   </div>
                   <div v-if="landlordReference.signature" class="mt-3">
                     <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
                     <img :src="landlordReference.signature" alt="Landlord signature"
-                      class="h-20 object-contain border rounded bg-white p-2" />
+                      class="h-20 object-contain border dark:border-slate-700 rounded bg-white dark:bg-slate-800 p-2" />
                   </div>
                   <div v-if="landlordReference.submitted_ip_address || landlordReference.submitted_geolocation"
-                    class="mt-3 text-xs text-gray-500 space-y-1">
+                    class="mt-3 text-xs text-gray-500 dark:text-slate-400 space-y-1">
                     <p v-if="landlordReference.submitted_ip_address">IP: {{ landlordReference.submitted_ip_address }}
                     </p>
                     <p v-if="landlordReference.submitted_geolocation" class="flex items-center gap-2">
@@ -2025,35 +2016,35 @@
                 <div v-if="agentReference">
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <p class="text-xs text-gray-500 uppercase tracking-wide">Rent Paid On Time</p>
-                      <p class="font-medium text-gray-900">
+                      <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Rent Paid On Time</p>
+                      <p class="font-medium text-gray-900 dark:text-white">
                         {{ formatBooleanDisplay(agentReference.rent_paid_on_time) }}
                       </p>
                     </div>
                     <div>
-                      <p class="text-xs text-gray-500 uppercase tracking-wide">Good Tenant</p>
-                      <p class="font-medium text-gray-900">
+                      <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Good Tenant</p>
+                      <p class="font-medium text-gray-900 dark:text-white">
                         {{ formatBooleanDisplay(agentReference.good_tenant) }}
                       </p>
                     </div>
                     <div>
-                      <p class="text-xs text-gray-500 uppercase tracking-wide">Would Rent Again</p>
-                      <p class="font-medium text-gray-900">
+                      <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Would Rent Again</p>
+                      <p class="font-medium text-gray-900 dark:text-white">
                         {{ formatBooleanDisplay(agentReference.would_rent_again) }}
                       </p>
                     </div>
                   </div>
                   <div v-if="agentReference.additional_comments" class="mt-2">
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Additional Comments</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">Additional Comments</p>
                     <p class="text-sm text-gray-900 whitespace-pre-line">{{ agentReference.additional_comments }}</p>
                   </div>
                   <div v-if="agentReference.signature" class="mt-3">
                     <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Signature</p>
                     <img :src="agentReference.signature" alt="Agent signature"
-                      class="h-20 object-contain border rounded bg-white p-2" />
+                      class="h-20 object-contain border dark:border-slate-700 rounded bg-white dark:bg-slate-800 p-2" />
                   </div>
                   <div v-if="agentReference.submitted_ip_address || agentReference.submitted_geolocation"
-                    class="mt-3 text-xs text-gray-500 space-y-1">
+                    class="mt-3 text-xs text-gray-500 dark:text-slate-400 space-y-1">
                     <p v-if="agentReference.submitted_ip_address">IP: {{ agentReference.submitted_ip_address }}</p>
                     <p v-if="agentReference.submitted_geolocation" class="flex items-center gap-2">
                       Location: {{ formatGeolocationText(agentReference.submitted_geolocation) }}
@@ -2068,33 +2059,33 @@
             </div>
 
             <!-- Residential Data Verification Comparison -->
-            <div v-if="residentialComparisonTable.length && reference?.reference_type !== 'living_with_family'" class="bg-white border rounded-lg p-4">
+            <div v-if="residentialComparisonTable.length && reference?.reference_type !== 'living_with_family'" class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-semibold text-gray-900">{{ landlordReference ? 'Landlord' : 'Agent' }} Reference Data Verification</h4>
                 <span class="text-xs text-gray-500" v-if="residentialComparisonHasMismatch">
                   Differences detected—document rationale below.
                 </span>
               </div>
-              <p class="text-sm text-gray-600 mb-4">Compare tenant-provided information with reference details</p>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">Compare tenant-provided information with reference details</p>
               <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+                  <thead class="bg-gray-50 dark:bg-slate-700">
                     <tr>
-                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Field</th>
-                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">Tenant Provided</th>
-                      <th class="px-4 py-2 text-left font-medium text-gray-600 uppercase tracking-wide">{{ landlordReference ? 'Landlord' : 'Agent' }} Confirmed</th>
-                      <th class="px-4 py-2 text-center font-medium text-gray-600 uppercase tracking-wide">Status</th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">Field</th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">Tenant Provided</th>
+                      <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">{{ landlordReference ? 'Landlord' : 'Agent' }} Confirmed</th>
+                      <th class="px-4 py-2 text-center font-medium text-gray-600 dark:text-slate-300 uppercase tracking-wide">Status</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-gray-100">
+                  <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
                     <tr v-for="row in residentialComparisonTable" :key="row.key" :class="row.status === 'mismatch'
                       ? 'bg-red-50'
                       : row.status === 'unknown'
                         ? 'bg-gray-50'
                         : ''">
-                      <td class="px-4 py-2 font-medium text-gray-900">{{ row.label }}</td>
-                      <td class="px-4 py-2 text-gray-900">{{ row.tenant }}</td>
-                      <td class="px-4 py-2 text-gray-900">{{ row.reference }}</td>
+                      <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ row.label }}</td>
+                      <td class="px-4 py-2 text-gray-900 dark:text-white">{{ row.tenant }}</td>
+                      <td class="px-4 py-2 text-gray-900 dark:text-white">{{ row.reference }}</td>
                       <td class="px-4 py-2 text-center">
                         <span :class="[
                           'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -2108,19 +2099,19 @@
                 </table>
               </div>
               <p v-if="residentialComparisonHasMismatch"
-                class="mt-3 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                class="mt-3 text-sm text-yellow-800 dark:text-yellow-200 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-md p-3">
                 Please add notes in this step explaining how you resolved these differences before proceeding.
               </p>
             </div>
 
             <!-- Verification Checks -->
-            <div v-if="reference?.reference_type !== 'living_with_family'" class="bg-white border rounded-lg p-4">
-              <h4 class="font-semibold text-gray-900 mb-3">Verification Checks</h4>
+            <div v-if="reference?.reference_type !== 'living_with_family'" class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Verification Checks</h4>
               <div class="space-y-3">
-                <div class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded">
                   <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-700">Do tenancy dates match application?</p>
-                    <p class="text-xs text-gray-500 mt-1">Check previous tenancy dates align with declared residential
+                    <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Do tenancy dates match application?</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Check previous tenancy dates align with declared residential
                       history
                     </p>
                   </div>
@@ -2145,13 +2136,11 @@
                 </div>
 
                 <div v-if="reference?.previous_landlord_email || (landlordReference || agentReference)"
-                  class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                  class="flex items-start justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded">
                   <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-700">Are contact details verifiable?</p>
-                    <p class="text-xs text-gray-500 mt-1">
-                      {{ reference?.previous_landlord_email || landlordReference?.landlord_email ||
-                        agentReference?.agent_email
-                      }}
+                    <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Are contact details verifiable?</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                      {{ reference?.previous_landlord_email || landlordReference?.landlord_email || agentReference?.agent_email }}
                     </p>
                   </div>
                   <div class="flex gap-2 ml-4">
@@ -2174,10 +2163,10 @@
                   </div>
                 </div>
 
-                <div class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded">
                   <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-700">Any conflicts vs. application?</p>
-                    <p class="text-xs text-gray-500 mt-1">Check for discrepancies between reference and application data
+                    <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Any conflicts vs. application?</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Check for discrepancies between reference and application data
                     </p>
                   </div>
                   <div class="flex gap-2 ml-4">
@@ -2201,10 +2190,10 @@
                 </div>
 
                 <div v-if="landlordReference?.submitted_at || agentReference?.submitted_at"
-                  class="flex items-start justify-between p-3 bg-gray-50 rounded">
+                  class="flex items-start justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded">
                   <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-700">Reference response received and satisfactory?</p>
-                    <p class="text-xs text-gray-500 mt-1">Review the full reference response for any red flags</p>
+                    <p class="text-sm font-medium text-gray-700 dark:text-slate-300">Reference response received and satisfactory?</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Review the full reference response for any red flags</p>
                   </div>
                   <div class="flex gap-2 ml-4">
                     <button @click="toggleResidentialCheck('referenceResponseSatisfactory', true)" :class="[
@@ -2230,11 +2219,11 @@
 
             <!-- Evidence Source Selection -->
             <div v-if="reference?.reference_type !== 'living_with_family'">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Evidence Sources Used</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Evidence Sources Used</label>
               <div class="grid grid-cols-2 gap-3">
                 <label v-for="source in evidenceSourceOptions.RESIDENTIAL" :key="source.evidence_type"
-                  class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="steps[3]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'">
+                  class="flex items-center p-3 border dark:border-slate-600 rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700"
+                  :class="steps[3]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300 dark:border-slate-600'">
                   <input type="checkbox" :value="source.evidence_type" v-model="steps[3]!.evidence_sources"
                     class="mr-3 h-4 w-4 text-primary focus:ring-primary" />
                   <span class="text-sm">{{ source.display_label }}</span>
@@ -2244,16 +2233,16 @@
 
             <!-- Notes -->
             <div>
-              <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+              <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">External Notes - these notes will be shown to the reference creator</p>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
               <textarea v-model="steps[3]!.notes" rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 placeholder="Add notes about landlord references, address history, etc."></textarea>
             </div>
 
             <!-- Pass/Fail -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Overall Result</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Overall Result</label>
               <div class="flex gap-4">
 
                 <!-- PASS -->
@@ -2299,7 +2288,7 @@
 
           <div class="space-y-6">
             <!-- Credit & AML Scores -->
-            <div class="bg-white border rounded-lg p-4">
+            <div class="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
                 <h4 class="font-semibold text-gray-900">Score Overview</h4>
                 <span v-if="domainScores.checked_at" class="text-xs text-gray-500">
@@ -2344,18 +2333,18 @@
 
             <!-- TAS Decision Section -->
             <div class="bg-white border-2 border-gray-300 rounded-lg p-6">
-              <h4 class="font-semibold text-gray-900 mb-4">Tenancy Assessment Score (TAS) Decision</h4>
-              <p class="text-sm text-gray-600 mb-4">
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-4">Tenancy Assessment Score (TAS) Decision</h4>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
                 Make your final decision based on all verification steps and credit checks above.
               </p>
 
               <!-- Evidence Source Selection -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Evidence Sources Used</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Evidence Sources Used</label>
                 <div class="grid grid-cols-2 gap-3">
                   <label v-for="source in evidenceSourceOptions.CREDIT_TAS" :key="source.evidence_type"
-                    class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                    :class="steps[4]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300'">
+                    class="flex items-center p-3 border dark:border-slate-600 rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700"
+                    :class="steps[4]!.evidence_sources.includes(source.evidence_type) ? 'border-primary bg-primary/5' : 'border-gray-300 dark:border-slate-600'">
                     <input type="checkbox" :value="source.evidence_type" v-model="steps[4]!.evidence_sources"
                       class="mr-3 h-4 w-4 text-primary focus:ring-primary" />
                     <span class="text-sm">{{ source.display_label }}</span>
@@ -2365,7 +2354,7 @@
 
               <!-- TAS Decision Categories -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-3">Select TAS Category</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Select TAS Category</label>
                 <div class="grid grid-cols-2 gap-4">
                   <button @click="tasDecision = 'PASS'" :class="[
                     'p-4 rounded-lg border-2 text-left transition-all',
@@ -2478,27 +2467,27 @@
 
               <!-- TAS Reason (required for PASS_ON_CONDITION, REFER and FAIL) -->
               <div v-if="tasDecision === 'PASS_ON_CONDITION' || tasDecision === 'REFER' || tasDecision === 'FAIL'">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   {{ tasDecision === 'PASS_ON_CONDITION' ? 'Condition Details' : `Reason for ${tasDecision} Decision` }} *
                 </label>
                 <textarea v-model="tasReason" rows="3"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                   :placeholder="tasDecision === 'PASS_ON_CONDITION' ? 'Specify the conditions required (e.g., agent to check ID in person, proof of address needed)...' : 'Explain the reason for this decision...'" required></textarea>
               </div>
 
               <!-- Notes -->
               <div>
-                <p class="text-xs text-gray-500 mb-1">External Notes - these notes will be shown to the reference creator</p>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes<sup
+                <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">External Notes - these notes will be shown to the reference creator</p>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Additional Notes<sup
                     class="text-red-500">*</sup></label>
                 <textarea v-model="steps[4]!.notes" rows="3"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                   placeholder="Add notes about credit checks, sanctions screening, etc."></textarea>
               </div>
 
               <!-- Overall Pass/Fail -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Overall Step Result</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Overall Step Result</label>
                 <div class="flex gap-4">
                   <button @click="steps[4]!.overall_pass = true" :disabled="!canMakeStep4Decision" :class="[
                     'flex-1 py-3 px-4 rounded-md font-medium transition-all',
@@ -2575,7 +2564,7 @@
                     'text-4xl font-bold',
                     riskScoreColorForPreview.text
                   ]">{{ reassesmentDataForPreview.risk_score ?? '—' }}</p>
-                  <p class="text-xs text-gray-500 mt-1">Total assessment score</p>
+                  <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Total assessment score</p>
                 </div>
 
                 <!-- Risk Level -->
@@ -3087,7 +3076,6 @@ const tasReason = ref('')
 type CreditAndAmlVerification = Omit<CreditsAndAmlUIProps, 'caller'>
 const creditAndAmlVerification = ref<CreditAndAmlVerification>()
 
-
 // Evidence source options
 const evidenceSourceOptions = ref<any>({
   INCOME_AFFORDABILITY: [],
@@ -3111,8 +3099,6 @@ const formatTasCategory = (category: string | null): string => {
 }
 
 //const hasTenantDocuments = computed(() => tenantDocuments.value.length > 0)
-
-
 
 const formatGeolocationText = (geo: any) => {
   if (!geo || typeof geo.latitude !== 'number' || typeof geo.longitude !== 'number') {
@@ -3272,11 +3258,11 @@ const effectiveSelfEmployedIncome = computed(() => verifiedSelfEmployedIncome.va
 
 // Check if any income has been manually verified/edited
 const hasVerifiedIncome = computed(() => {
-  return verifiedSalary.value !== null ||
-    verifiedBenefits.value !== null ||
-    verifiedSavings.value !== null ||
-    verifiedAdditionalIncome.value !== null ||
-    verifiedSelfEmployedIncome.value !== null ||
+  return verifiedSalary.value !== null
+    verifiedBenefits.value !== null
+    verifiedSavings.value !== null
+    verifiedAdditionalIncome.value !== null
+    verifiedSelfEmployedIncome.value !== null
     manualIncomeOverride.value !== null;
 });
 
@@ -4036,7 +4022,6 @@ const loadData = async () => {
     previousAddresses.value = refData.previousAddresses || []
     credit_status.value = refData?.score?.risk_level ?? null
 
-
     // Bind score data
     riskScore.value = refData?.score?.score_total ?? null
     systemDecision.value = refData?.score?.decision ?? null
@@ -4119,7 +4104,6 @@ const loadData = async () => {
       console.warn('No RTR alternative document path found')
     }
 
-
     // Load evidence source options
     const evidenceResponse = await fetch(`${API_URL}/api/verification-steps/evidence-sources`, {
       headers: {
@@ -4172,7 +4156,6 @@ const previousStep = () => {
     }
   }
 }
-
 
 const handleSignOut = async () => {
   await authStore.signOut()

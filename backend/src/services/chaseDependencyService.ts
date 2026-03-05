@@ -185,10 +185,10 @@ export async function createDependenciesForReference(referenceId: string): Promi
       return []
     }
 
-    // Insert dependencies (upsert to handle existing)
+    // Insert dependencies (only if they don't already exist - don't overwrite existing status)
     const { data: created, error: insertError } = await supabase
       .from('chase_dependencies')
-      .upsert(dependenciesToCreate, { onConflict: 'reference_id,dependency_type' })
+      .upsert(dependenciesToCreate, { onConflict: 'reference_id,dependency_type', ignoreDuplicates: true })
       .select()
 
     if (insertError) throw insertError

@@ -48,8 +48,8 @@ const sections = computed(() => {
 
 function getChipClass(section: { failures: number }): string {
   if (section.failures > 0) {
-    return 'bg-red-100 text-red-700 font-medium'
+    return 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 font-medium'
   }
-  return 'bg-gray-100 text-gray-600'
+  return 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300'
 }
 </script>

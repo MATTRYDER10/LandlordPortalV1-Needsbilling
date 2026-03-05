@@ -35,7 +35,7 @@ If any of these documents are missing when you come to sign this Tenancy Agreeme
 | Rent | \[RENT\_AMOUNT\] per month |
 | Rent Due Date | \[RENT DUE DATE\] |
 | Deposit | \[DEPOSIT\_ AMOUNT\] |
-| Deposit Scheme Type | DPS \[Insured\_Custodial\] |
+| Deposit Scheme Type | TDS \[Insured\_Custodial\] |
 | Commencement Date | \[tenancy\_start\_date\] |
 | Expiry Date | \[tenancy\_end\_date\] and thereafter from month-to-month. |
 
@@ -145,6 +145,7 @@ IT IS AGREED AS FOLLOWS:
 Account number: \[LANDLORD/AGENT\_ACCOUNT\_NUMBER\]
 
 Sort Code: \[LANDLORD/AGENT\_SORT\_CODE\]
+
 Payment Reference: \[PAYMENT_REFERENCE\]
 
 In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]

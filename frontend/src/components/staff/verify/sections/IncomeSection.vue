@@ -458,7 +458,22 @@
               <!-- Accountant Reference -->
               <div v-if="evidenceAccountantRef" class="column-section">
                 <h3 class="column-title">Accountant Reference</h3>
-                <div class="reference-preview">
+                <!-- Awaiting Response state - form not yet submitted -->
+                <div v-if="!evidenceAccountantRef.submittedAt" class="reference-preview awaiting-response">
+                  <div class="awaiting-message">
+                    <span class="awaiting-icon">&#128337;</span>
+                    <div class="awaiting-text">
+                      <strong>Awaiting Response</strong>
+                      <span>Request sent to accountant - pending submission</span>
+                    </div>
+                  </div>
+                  <div v-if="evidenceAccountantRef.firmName" class="ref-row">
+                    <span class="ref-label">Requested From</span>
+                    <span class="ref-value">{{ evidenceAccountantRef.firmName }}</span>
+                  </div>
+                </div>
+                <!-- Submitted state - show full data -->
+                <div v-else class="reference-preview">
                   <div class="ref-row">
                     <span class="ref-label">Firm</span>
                     <span class="ref-value">{{ evidenceAccountantRef.firmName }}</span>
@@ -709,6 +724,8 @@ import SectionCard from './SectionCard.vue'
 import EvidencePreview from '../shared/EvidencePreview.vue'
 import AffordabilityCalculator from '../shared/AffordabilityCalculator.vue'
 import { useAuthStore } from '@/stores/auth'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const authStore = useAuthStore()
 const authToken = computed(() => authStore.session?.access_token || '')
@@ -1668,6 +1685,41 @@ const formatIncomeExpectation = (value: string | null | undefined) => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.reference-preview.awaiting-response {
+  background: #fefce8;
+  border: 1px dashed #d97706;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.awaiting-message {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.awaiting-icon {
+  font-size: 1.5rem;
+}
+
+.awaiting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.awaiting-text strong {
+  color: #92400e;
+  font-size: 0.875rem;
+}
+
+.awaiting-text span {
+  color: #a16207;
+  font-size: 0.75rem;
 }
 
 .ref-row {

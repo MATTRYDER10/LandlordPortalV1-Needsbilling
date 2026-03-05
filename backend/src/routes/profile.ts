@@ -98,4 +98,41 @@ router.put('/', authenticateToken, async (req: AuthRequest, res) => {
   }
 })
 
+// Check if user has staff privileges (returns 200 with isStaff boolean, never 403)
+router.get('/check-staff', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+
+    const { data: staffUser } = await supabase
+      .from('staff_users')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .single()
+
+    res.json({ isStaff: !!staffUser })
+  } catch (error: any) {
+    // Return false on any error, don't fail
+    res.json({ isStaff: false })
+  }
+})
+
+// Check if user has admin privileges (returns 200 with isAdmin boolean, never 403)
+router.get('/check-admin', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+
+    const { data: staffUser } = await supabase
+      .from('staff_users')
+      .select('id, is_admin')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .single()
+
+    res.json({ isAdmin: !!staffUser?.is_admin })
+  } catch (error: any) {
+    res.json({ isAdmin: false })
+  }
+})
+
 export default router

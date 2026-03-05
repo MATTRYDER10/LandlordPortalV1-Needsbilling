@@ -222,6 +222,30 @@ class PDFGenerationService {
   }
 
   /**
+   * Build rent share clause for multi-tenant agreements
+   * Returns null if not applicable (single tenant or no tenants)
+   */
+  private buildRentShareClause(data: AgreementPDFData): string | null {
+    const tenants = data.tenants || []
+    if (tenants.length <= 1) return null
+    if (!data.rentAmount || data.rentAmount <= 0) return null
+
+    // Build tenant portions list
+    const tenantParts = tenants.map(t => {
+      const share = t.rentShare ?? (data.rentAmount! / tenants.length)
+      const pct = ((share / data.rentAmount!) * 100).toFixed(0)
+      return `${t.name} - £${this.formatCurrency(share)} (${pct}%)`
+    })
+
+    // Use appropriate term based on language
+    const term = data.language === 'welsh' ? 'Contract-Holder' : 'tenant'
+
+    return `**Rent Proportions:** The total monthly rent of £${this.formatCurrency(data.rentAmount)} ` +
+      `is payable in the following proportions: ${tenantParts.join('; ')}. ` +
+      `Each ${term} is jointly and severally liable for the total rent.`
+  }
+
+  /**
    * Format date for display
    */
   private formatDate(dateStr?: string): string {
@@ -375,8 +399,41 @@ class PDFGenerationService {
       result = result.replace(/\[Break_Clause_minus_1[ _]?Month\]/gi, breakClauseNoticeDate)
     }
 
-    // Deposit scheme type
-    result = result.replace(/\[Insured_Custodial\]/gi, data.depositSchemeType || 'Custodial')
+    // Deposit scheme type - handle both patterns:
+    // 1. Combined values like 'tds_custodial', 'dps_insured' (from TenancyAgreementModal)
+    // 2. Separate values where depositSchemeType is 'Custodial'/'Insured' and templateType is 'tds'/'dps' (from Agreements.vue)
+    const depositSchemeType = (typeof data.depositSchemeType === 'string' ? data.depositSchemeType : '') || 'custodial'
+    const templateType = (typeof data.templateType === 'string' ? data.templateType : '') || ''
+    let depositType = 'Custodial'
+    let depositSchemeName = 'TDS'
+
+    // Determine deposit type (Custodial or Insured)
+    const lowerSchemeType = depositSchemeType.toLowerCase()
+    if (lowerSchemeType.includes('insured') || lowerSchemeType === 'insured') {
+      depositType = 'Insured'
+    } else if (lowerSchemeType.includes('custodial') || lowerSchemeType === 'custodial') {
+      depositType = 'Custodial'
+    }
+
+    // Determine scheme name - check depositSchemeType first (combined), then templateType (separate)
+    const schemeSource = depositSchemeType.toLowerCase() + '_' + templateType.toLowerCase()
+    if (schemeSource.includes('tds')) {
+      depositSchemeName = 'TDS'
+    } else if (schemeSource.includes('dps')) {
+      depositSchemeName = 'DPS'
+    } else if (schemeSource.includes('mydeposits')) {
+      depositSchemeName = 'MyDeposits'
+    } else if (schemeSource.includes('reposit')) {
+      depositSchemeName = 'Reposit'
+      depositType = 'Deposit-free'
+    } else if (schemeSource.includes('no_deposit')) {
+      depositSchemeName = 'N/A'
+      depositType = 'No Deposit'
+    }
+
+    result = result.replace(/\[Insured_Custodial\]/gi, depositType)
+    result = result.replace(/\[Deposit_Scheme_Name\]/gi, depositSchemeName)
+    result = result.replace(/\[Deposit_Scheme_Full\]/gi, `${depositSchemeName} ${depositType}`)
 
     // Bank details
     result = result.replace(/\[LANDLORD\/AGENT_ACCOUNT_NUMBER\]/gi, data.bankAccountNumber || '________')
@@ -387,9 +444,10 @@ class PDFGenerationService {
       : this.formatAddress(data.propertyAddress)
     result = result.replace(/\[PAYMENT_REFERENCE\]/gi, paymentReference)
     if (!/Payment Reference:/i.test(result)) {
+      // Add payment reference on a new line after sort code
       result = result.replace(
         /(Sort Code:\s*[^\n]+)\n/i,
-        `$1\nPayment Reference: ${paymentReference}\n`
+        `$1\n\nPayment Reference: ${paymentReference}\n`
       )
     }
 
@@ -419,19 +477,46 @@ class PDFGenerationService {
     const specialTermsClauses: string[] = []
     let clauseNumber = 1
 
+    const breakClauseStr = typeof data.breakClause === 'string' ? data.breakClause : ''
+    const specialClausesStr = typeof data.specialClauses === 'string' ? data.specialClauses : ''
+    console.log('[PDF Gen] Break clause received:', breakClauseStr ? `"${breakClauseStr.substring(0, 50)}..."` : 'NONE')
+    console.log('[PDF Gen] Special clauses received:', specialClausesStr ? `"${specialClausesStr.substring(0, 50)}..."` : 'NONE')
+
     if (data.breakClause?.trim()) {
       const prefix = data.language === 'welsh'
         ? `**Additional Term ${clauseNumber}:**`
         : `**11.${clauseNumber + 1}**`
-      specialTermsClauses.push(`${prefix} ${data.breakClause}`)
+      specialTermsClauses.push(`${prefix} **Break Clause:** ${data.breakClause}`)
       clauseNumber++
+      console.log('[PDF Gen] Added break clause to special terms')
     }
 
-    if (data.specialClauses?.trim()) {
+    // Add rent share clause for multi-tenant agreements
+    const rentShareClause = this.buildRentShareClause(data)
+    if (rentShareClause) {
       const prefix = data.language === 'welsh'
         ? `**Additional Term ${clauseNumber}:**`
         : `**11.${clauseNumber + 1}**`
-      specialTermsClauses.push(`${prefix} ${data.specialClauses}`)
+      specialTermsClauses.push(`${prefix} ${rentShareClause}`)
+      clauseNumber++
+      console.log('[PDF Gen] Added rent share clause to special terms')
+    }
+
+    // Handle special clauses - can be a single string or multiple clauses separated by double newlines
+    if (data.specialClauses?.trim()) {
+      // Split on double newlines to get individual clauses, or treat as single clause
+      const clausesList = data.specialClauses
+        .split(/\n\n+/)
+        .map(c => c.trim())
+        .filter(c => c.length > 0)
+
+      clausesList.forEach((clause) => {
+        const prefix = data.language === 'welsh'
+          ? `**Additional Term ${clauseNumber}:**`
+          : `**11.${clauseNumber + 1}**`
+        specialTermsClauses.push(`${prefix} ${clause}`)
+        clauseNumber++
+      })
     }
 
     result = result.replace(/\[special_terms_numbered_clauses\]/gi, specialTermsClauses.join('\n\n'))
@@ -1062,6 +1147,1281 @@ class PDFGenerationService {
       includeAuditPage: true,
       agreementId
     })
+  }
+
+  /**
+   * Generate rent due date change confirmation letter PDF
+   */
+  async generateRentDueDateChangeConfirmation(data: {
+    tenantName: string
+    propertyAddress: string
+    previousDueDay: number
+    newDueDay: number
+    effectiveDate: string
+    monthlyRent: number
+    proRataDays: number
+    proRataAmount: number
+    adminFee: number
+    totalAmount: number
+    paymentReceivedDate: string
+    paymentReference?: string
+    nextRentDueDate: string
+    companyName: string
+    companyAddress?: string
+    companyEmail?: string
+    companyPhone?: string
+    companyLogoUrl?: string
+    documentRef: string
+  }): Promise<Buffer> {
+    try {
+      // Load the HTML template
+      const templatePath = path.join(__dirname, '../../email-templates/rent-due-date-change-notice.html')
+      let htmlContent = fs.readFileSync(templatePath, 'utf-8')
+
+      // Helper for ordinal suffix
+      const getOrdinal = (n: number): string => {
+        const s = ['th', 'st', 'nd', 'rd']
+        const v = n % 100
+        return n + (s[(v - 20) % 10] || s[v] || s[0])
+      }
+
+      // Build admin fee row if applicable
+      let adminFeeRow = ''
+      if (data.adminFee > 0) {
+        adminFeeRow = `
+          <tr>
+            <td class="label">Administration fee</td>
+            <td class="value">&pound;${data.adminFee.toFixed(2)}</td>
+          </tr>
+        `
+      }
+
+      // Payment reference text
+      const paymentRefText = data.paymentReference
+        ? ` (Reference: ${data.paymentReference})`
+        : ''
+
+      // Format date
+      const documentDate = new Date().toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      })
+
+      // Default logo if none provided
+      const logoUrl = data.companyLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+
+      // Replace all template variables
+      const replacements: Record<string, string> = {
+        '{{ TenantName }}': data.tenantName,
+        '{{ PropertyAddress }}': data.propertyAddress,
+        '{{ PreviousDueDay }}': getOrdinal(data.previousDueDay),
+        '{{ NewDueDay }}': getOrdinal(data.newDueDay),
+        '{{ EffectiveDate }}': data.effectiveDate,
+        '{{ MonthlyRent }}': data.monthlyRent.toFixed(2),
+        '{{ ProRataDays }}': data.proRataDays.toString(),
+        '{{ ProRataAmount }}': data.proRataAmount.toFixed(2),
+        '{{ AdminFeeRow }}': adminFeeRow,
+        '{{ TotalAmount }}': data.totalAmount.toFixed(2),
+        '{{ PaymentReceivedDate }}': data.paymentReceivedDate,
+        '{{ PaymentReferenceText }}': paymentRefText,
+        '{{ NextRentDueDate }}': data.nextRentDueDate,
+        '{{ CompanyName }}': data.companyName || 'Property Management',
+        '{{ CompanyAddress }}': data.companyAddress || '',
+        '{{ CompanyEmail }}': data.companyEmail || '',
+        '{{ CompanyPhone }}': data.companyPhone || '',
+        '{{ AgentLogoUrl }}': logoUrl,
+        '{{ DocumentDate }}': documentDate,
+        '{{ DocumentRef }}': data.documentRef
+      }
+
+      for (const [key, value] of Object.entries(replacements)) {
+        htmlContent = htmlContent.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value)
+      }
+
+      // Generate PDF using Puppeteer
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      })
+
+      const page = await browser.newPage()
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        margin: {
+          top: '25mm',
+          right: '20mm',
+          bottom: '25mm',
+          left: '20mm'
+        },
+        printBackground: true
+      })
+
+      await browser.close()
+
+      console.log(`[PDF] Rent due date change confirmation generated: ${pdfBuffer.length} bytes`)
+      return Buffer.from(pdfBuffer)
+    } catch (error: any) {
+      console.error('Error generating rent due date change confirmation PDF:', error)
+      throw new Error(`Failed to generate confirmation PDF: ${error.message}`)
+    }
+  }
+
+  /**
+   * Generate Section 13 Form 4 rent increase notice PDF
+   */
+  async generateSection13Notice(data: {
+    tenantNames: string
+    propertyAddress: string
+    currentRent: number
+    newRent: number
+    rentFrequency: 'weekly' | 'monthly' | 'yearly'
+    effectiveDate: string
+    noticeDate: string
+    anchorDate: string // Previous S13 date or tenancy start date
+    charges: {
+      councilTax: { existing: string; proposed: string }
+      water: { existing: string; proposed: string }
+      serviceCharges: { existing: string; proposed: string }
+    }
+    landlordName: string
+    landlordAddress: string
+    agentName?: string
+    agentAddress?: string
+    agentEmail?: string
+    agentPhone?: string
+    agentLogoUrl?: string
+    signature: string
+    signatureMethod: 'draw' | 'type'
+    signerName: string
+    documentRef: string
+  }): Promise<Buffer> {
+    try {
+      // Load the HTML template
+      const templatePath = path.join(__dirname, '../../email-templates/section-13-form-4.html')
+      let htmlContent = fs.readFileSync(templatePath, 'utf-8')
+
+      // Format rent frequency text
+      const rentFrequencyMap: Record<string, string> = {
+        'weekly': 'per week',
+        'monthly': 'per month',
+        'yearly': 'per year'
+      }
+      const rentFrequencyText = rentFrequencyMap[data.rentFrequency] || 'per month'
+
+      // Format dates
+      const formatDateForNotice = (dateStr: string): string => {
+        if (!dateStr) return ''
+        return new Date(dateStr).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })
+      }
+
+      // Format currency - show 'nil' if empty or zero
+      const formatCharge = (value: string): string => {
+        if (!value || value.trim() === '' || value === '0' || value === '0.00') {
+          return 'nil'
+        }
+        const num = parseFloat(value)
+        if (isNaN(num) || num === 0) return 'nil'
+        return `£${num.toFixed(2)}`
+      }
+
+      // Build signature HTML
+      let signatureHtml = ''
+      if (data.signatureMethod === 'draw' && data.signature.startsWith('data:image')) {
+        signatureHtml = `<img src="${data.signature}" class="signature-image" alt="Signature" />`
+      } else {
+        signatureHtml = `<span class="typed-signature">${data.signature || data.signerName}</span>`
+      }
+
+      // Build agent details section (paragraph 7)
+      let agentDetailsSection = ''
+      if (data.agentName) {
+        agentDetailsSection = `
+          <div class="section">
+            <div class="paragraph">
+              <span class="paragraph-number">7.</span>
+              <span>If signed by agent, address of agent:</span>
+            </div>
+            <div class="field-box">
+              <div class="field-value">${data.agentName}${data.agentAddress ? ', ' + data.agentAddress : ''}</div>
+            </div>
+          </div>
+        `
+      } else {
+        agentDetailsSection = `
+          <div class="section">
+            <div class="paragraph">
+              <span class="paragraph-number">7.</span>
+              <span>If signed by agent, address of agent: N/A</span>
+            </div>
+          </div>
+        `
+      }
+
+      // Build logo HTML - only show if logo URL provided
+      const agentLogoHtml = data.agentLogoUrl
+        ? `<img src="${data.agentLogoUrl}" alt="${data.agentName || 'Agent'}" class="agent-logo" />`
+        : ''
+
+      // Replace all template variables
+      const replacements: Record<string, string> = {
+        '{{ TenantNames }}': data.tenantNames,
+        '{{ PropertyAddress }}': data.propertyAddress,
+        '{{ NewRent }}': data.newRent.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        '{{ RentFrequencyText }}': rentFrequencyText,
+        '{{ EffectiveDate }}': formatDateForNotice(data.effectiveDate),
+        '{{ AnchorDate }}': formatDateForNotice(data.anchorDate),
+        '{{ CouncilTaxExisting }}': formatCharge(data.charges.councilTax.existing),
+        '{{ CouncilTaxProposed }}': formatCharge(data.charges.councilTax.proposed),
+        '{{ WaterExisting }}': formatCharge(data.charges.water.existing),
+        '{{ WaterProposed }}': formatCharge(data.charges.water.proposed),
+        '{{ ServiceChargesExisting }}': formatCharge(data.charges.serviceCharges.existing),
+        '{{ ServiceChargesProposed }}': formatCharge(data.charges.serviceCharges.proposed),
+        '{{ LandlordNameAndAddress }}': `${data.landlordName}${data.landlordAddress ? ', ' + data.landlordAddress : ''}`,
+        '{{ AgentDetailsSection }}': agentDetailsSection,
+        '{{ SignatureHtml }}': signatureHtml,
+        '{{ SignerName }}': data.signerName,
+        '{{ NoticeDate }}': formatDateForNotice(data.noticeDate),
+        '{{ AgentName }}': data.agentName || 'Property Management',
+        '{{ AgentAddress }}': data.agentAddress || '',
+        '{{ AgentEmail }}': data.agentEmail || '',
+        '{{ AgentPhone }}': data.agentPhone || '',
+        '{{ AgentLogoHtml }}': agentLogoHtml,
+        '{{ DocumentRef }}': data.documentRef,
+        '{{ GeneratedDate }}': formatDateForNotice(new Date().toISOString())
+      }
+
+      for (const [key, value] of Object.entries(replacements)) {
+        htmlContent = htmlContent.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value)
+      }
+
+      // Generate PDF using Puppeteer
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      })
+
+      const page = await browser.newPage()
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        margin: {
+          top: '15mm',
+          right: '15mm',
+          bottom: '15mm',
+          left: '15mm'
+        },
+        printBackground: true
+      })
+
+      await browser.close()
+
+      console.log(`[PDF] Section 13 notice generated: ${pdfBuffer.length} bytes`)
+      return Buffer.from(pdfBuffer)
+    } catch (error: any) {
+      console.error('Error generating Section 13 notice PDF:', error)
+      throw new Error(`Failed to generate Section 13 notice PDF: ${error.message}`)
+    }
+  }
+
+  /**
+   * Generate Section 8 Form 3 notice seeking possession PDF
+   */
+  async generateSection8Notice(data: {
+    tenantNames: string[]
+    propertyAddress: {
+      line1: string
+      line2?: string
+      town: string
+      county?: string
+      postcode: string
+    }
+    landlordNames: string[]
+    landlordAddress: {
+      line1: string
+      line2?: string
+      town: string
+      county?: string
+      postcode: string
+    }
+    servedByAgent: boolean
+    agentName?: string
+    agentAddress?: {
+      line1: string
+      line2?: string
+      town: string
+      county?: string
+      postcode: string
+    }
+    agentLogoUrl?: string
+    agentPhone?: string
+    agentEmail?: string
+    tenancyStartDate: string
+    rentAmount: number
+    rentFrequency: 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly'
+    rentDueDay: string
+    grounds: Array<{
+      id: string
+      number: string
+      type: 'mandatory' | 'discretionary'
+      title: string
+      statutoryWording: string
+      explanation: string
+    }>
+    serviceDate: string
+    earliestCourtDate: string
+    noticeExplanation: string
+    arrearsRows?: Array<{
+      period: string
+      dueDate?: string
+      amountDue: number
+      amountPaid: number
+      paidDate?: string
+      balance: number
+    }>
+    totalArrears?: number
+    arrearsNotes?: string
+    serviceMethod: string
+    signatoryName: string
+    signatoryCapacity: string
+    signature: string
+    signatureMethod: 'draw' | 'type'
+    documentRef: string
+  }): Promise<Buffer> {
+    try {
+      // Load the HTML template
+      const templatePath = path.join(__dirname, '../../email-templates/section-8-form-3.html')
+      let htmlContent = fs.readFileSync(templatePath, 'utf-8')
+
+      // Helper to format address
+      const formatAddr = (addr: { line1: string; line2?: string; town: string; county?: string; postcode: string }): string => {
+        const parts = [addr.line1, addr.line2, addr.town, addr.county, addr.postcode].filter(Boolean)
+        return parts.join(', ')
+      }
+
+      // Format date
+      const formatDateForNotice = (dateStr: string): string => {
+        if (!dateStr) return ''
+        return new Date(dateStr).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })
+      }
+
+      // Build tenant names (combined string)
+      const tenantNames = data.tenantNames.join(', ')
+
+      // Build ground numbers string (e.g., "Ground 8, Ground 10")
+      const groundNumbers = data.grounds.map(g => g.number).join(', ')
+
+      // Build grounds statutory content (full text of each ground)
+      const groundsStatutoryContent = data.grounds.map(ground => `
+        <div class="ground-item" style="margin-top: 15px;">
+          <div class="ground-header"><strong>${ground.number}</strong> (${ground.type === 'mandatory' ? 'Mandatory' : 'Discretionary'}) - ${ground.title}</div>
+          <div class="ground-statutory">
+            <div class="statutory-label">Statutory wording:</div>
+            ${ground.statutoryWording}
+          </div>
+        </div>
+      `).join('\n')
+
+      // Build grounds explanation content
+      const groundsExplanationContent = data.grounds.map(ground => `
+        <div class="ground-item">
+          <div class="ground-explanation">
+            <div class="explanation-label">${ground.number}:</div>
+            ${ground.explanation.replace(/\n/g, '<br>')}
+          </div>
+        </div>
+      `).join('\n')
+
+      // Build arrears section if applicable
+      let arrearsSection = ''
+      if (data.arrearsRows && data.arrearsRows.length > 0) {
+        const arrearsRowsHtml = data.arrearsRows.map(row => {
+          const isLate = row.dueDate && row.paidDate && new Date(row.paidDate) > new Date(row.dueDate)
+          const lateClass = isLate ? ' class="late"' : ''
+          return `
+            <tr>
+              <td>${row.period}</td>
+              <td class="date">${row.dueDate ? formatDateForNotice(row.dueDate) : '-'}</td>
+              <td class="amount">£${row.amountDue.toFixed(2)}</td>
+              <td class="amount">£${row.amountPaid.toFixed(2)}</td>
+              <td class="date"${lateClass}>${row.paidDate ? formatDateForNotice(row.paidDate) : '-'}</td>
+              <td class="amount" style="font-weight: bold; ${row.balance > 0 ? 'color: #b91c1c;' : ''}">£${row.balance.toFixed(2)}</td>
+            </tr>
+          `
+        }).join('\n')
+
+        arrearsSection = `
+          <div class="arrears-section">
+            <p style="font-weight: bold; margin-bottom: 10px;">Schedule of Rent Arrears:</p>
+            <table class="arrears-table">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th class="date">Due Date</th>
+                  <th class="amount">Amount Due</th>
+                  <th class="amount">Amount Paid</th>
+                  <th class="date">Paid Date</th>
+                  <th class="amount">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${arrearsRowsHtml}
+                <tr class="total-row">
+                  <td colspan="5" style="text-align: right;">TOTAL ARREARS:</td>
+                  <td class="amount" style="color: #b91c1c;">£${(data.totalArrears || 0).toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+            ${data.arrearsNotes ? `<p class="arrears-notes"><strong>Notes:</strong> ${data.arrearsNotes.replace(/\n/g, '<br>')}</p>` : ''}
+          </div>
+        `
+      }
+
+      // Build signature HTML
+      let signatureHtml = ''
+      if (data.signatureMethod === 'draw' && data.signature.startsWith('data:image')) {
+        signatureHtml = `<img src="${data.signature}" class="signature-image" alt="Signature" />`
+      } else {
+        signatureHtml = `<span class="typed-signature">${data.signature || data.signatoryName}</span>`
+      }
+
+      // Build signatory address
+      const signatoryAddress = data.servedByAgent && data.agentAddress
+        ? formatAddr(data.agentAddress)
+        : formatAddr(data.landlordAddress)
+
+      // Build signatory phone (agent phone when served by agent)
+      const signatoryPhone = data.servedByAgent && data.agentPhone ? data.agentPhone : ''
+
+      // Capacity checkboxes
+      const capacityLandlord = data.signatoryCapacity === 'landlord' ? 'checked' : ''
+      const capacityJointLandlord = data.signatoryCapacity === 'joint_landlord' ? 'checked' : ''
+      const capacityAgent = data.signatoryCapacity === 'agent' ? 'checked' : ''
+
+      // Replace all template variables
+      const replacements: Record<string, string> = {
+        '{{ TenantNames }}': tenantNames,
+        '{{ PropertyAddress }}': formatAddr(data.propertyAddress),
+        '{{ GroundNumbers }}': groundNumbers,
+        '{{ GroundsStatutoryContent }}': groundsStatutoryContent,
+        '{{ GroundsExplanationContent }}': groundsExplanationContent,
+        '{{ ArrearsSection }}': arrearsSection,
+        '{{ EarliestCourtDate }}': formatDateForNotice(data.earliestCourtDate),
+        '{{ NoticeExplanation }}': data.noticeExplanation || `(Based on the ${data.grounds.length > 1 ? 'grounds' : 'ground'} cited requiring the longest notice period)`,
+        '{{ LandlordNames }}': data.landlordNames.join(', '),
+        '{{ LandlordAddress }}': formatAddr(data.landlordAddress),
+        '{{ SignatureHtml }}': signatureHtml,
+        '{{ SignatoryName }}': data.signatoryName,
+        '{{ SignatoryAddress }}': signatoryAddress,
+        '{{ SignatoryPhone }}': signatoryPhone,
+        '{{ CapacityLandlord }}': capacityLandlord,
+        '{{ CapacityJointLandlord }}': capacityJointLandlord,
+        '{{ CapacityAgent }}': capacityAgent,
+        '{{ ServiceDate }}': formatDateForNotice(data.serviceDate),
+        '{{ AgentName }}': data.agentName || 'Property Management',
+        '{{ DocumentRef }}': data.documentRef
+      }
+
+      for (const [key, value] of Object.entries(replacements)) {
+        htmlContent = htmlContent.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value)
+      }
+
+      // Generate PDF using Puppeteer
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      })
+
+      const page = await browser.newPage()
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        margin: {
+          top: '15mm',
+          right: '15mm',
+          bottom: '15mm',
+          left: '15mm'
+        },
+        printBackground: true
+      })
+
+      await browser.close()
+
+      console.log(`[PDF] Section 8 notice generated: ${pdfBuffer.length} bytes`)
+      return Buffer.from(pdfBuffer)
+    } catch (error: any) {
+      console.error('Error generating Section 8 notice PDF:', error)
+      throw new Error(`Failed to generate Section 8 notice PDF: ${error.message}`)
+    }
+  }
+
+  /**
+   * Generate Section 48 Notice - Address for Service of Notices
+   * Landlord and Tenant Act 1987
+   */
+  async generateSection48Notice(data: {
+    tenantNames: string[]
+    propertyAddress: {
+      line1: string
+      line2?: string
+      city: string
+      county?: string
+      postcode: string
+    }
+    landlordNames: string[]
+    landlordDisplay: string
+    landlordAddress: {
+      line1: string
+      line2?: string
+      city: string
+      county?: string
+      postcode: string
+    }
+    isCompanyLandlord: boolean
+    companyRegisteredName?: string
+    companyRegistrationNumber?: string
+    addressForService: {
+      line1: string
+      line2?: string
+      city: string
+      county?: string
+      postcode: string
+    }
+    addressForServiceName: string
+    reasonForServing: string
+    reasonText?: string
+    tenancyStartDate: string
+    dateOfNotice: string
+    signatoryName: string
+    signatoryCapacity: string
+    agentName: string
+    agentAddress?: {
+      line1?: string
+      city?: string
+      postcode?: string
+    }
+    agentLogoUrl?: string
+    agentPhone?: string
+    agentEmail?: string
+    documentRef: string
+  }): Promise<Buffer> {
+    try {
+      // Helper to format address
+      const formatAddr = (addr: { line1?: string; line2?: string; city?: string; county?: string; postcode?: string }): string => {
+        const parts = [addr.line1, addr.line2, addr.city, addr.county, addr.postcode].filter(Boolean)
+        return parts.join(', ')
+      }
+
+      const formatAddrMultiline = (addr: { line1?: string; line2?: string; city?: string; county?: string; postcode?: string }): string => {
+        const parts = [addr.line1, addr.line2, addr.city, addr.county, addr.postcode].filter(Boolean)
+        return parts.join('<br/>')
+      }
+
+      const tenantNamesStr = data.tenantNames.join(' and ')
+      const propertyAddrStr = formatAddr(data.propertyAddress)
+      const landlordAddrStr = formatAddr(data.landlordAddress)
+      const serviceAddrStr = formatAddrMultiline(data.addressForService)
+
+      // Company registration info
+      const companyInfo = data.isCompanyLandlord && data.companyRegisteredName
+        ? `<p style="font-size: 11px; color: #666; margin-top: 3px;">
+             ${data.companyRegisteredName}${data.companyRegistrationNumber ? ` (Company No. ${data.companyRegistrationNumber})` : ''}
+           </p>`
+        : ''
+
+      // Reason text paragraph
+      const reasonParagraph = data.reasonText
+        ? `<p style="margin-top: 15px;">${data.reasonText}</p>`
+        : ''
+
+      // Build HTML content - Modern, clean design while remaining legally professional
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Section 48 Notice</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #374151;
+      padding: 40px;
+      background: #fff;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 35px;
+      padding-bottom: 25px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .header-title {
+      flex: 1;
+    }
+    .header-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      color: white;
+      font-size: 9pt;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .header-title h1 {
+      font-size: 22pt;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 4px;
+      letter-spacing: -0.5px;
+    }
+    .header-title h2 {
+      font-size: 11pt;
+      font-weight: 400;
+      color: #6b7280;
+    }
+    .logo {
+      max-height: 55px;
+      max-width: 160px;
+    }
+    .ref-line {
+      font-size: 9pt;
+      color: #9ca3af;
+      margin-bottom: 30px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+    .parties-section {
+      display: flex;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    .party-box {
+      flex: 1;
+      background: #f9fafb;
+      border-radius: 10px;
+      padding: 18px 20px;
+      border: 1px solid #f3f4f6;
+    }
+    .party-label {
+      font-weight: 600;
+      font-size: 9pt;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+    .party-content {
+      font-size: 10.5pt;
+      color: #374151;
+      line-height: 1.5;
+    }
+    .info-row {
+      display: flex;
+      gap: 30px;
+      margin-bottom: 25px;
+    }
+    .info-item {
+      flex: 1;
+    }
+    .info-label {
+      font-size: 9pt;
+      color: #9ca3af;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .info-value {
+      font-size: 11pt;
+      color: #111827;
+      font-weight: 500;
+    }
+    .property-highlight {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 28px;
+      border-left: 4px solid #f59e0b;
+    }
+    .property-highlight-label {
+      font-size: 9pt;
+      color: #92400e;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 3px;
+    }
+    .property-highlight-value {
+      font-size: 11pt;
+      color: #78350f;
+      font-weight: 600;
+    }
+    .body-text {
+      margin-bottom: 16px;
+      color: #374151;
+      line-height: 1.7;
+    }
+    .service-address-box {
+      margin: 28px 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border-radius: 12px;
+      border: 1px solid #bfdbfe;
+    }
+    .service-address-box .label {
+      font-weight: 600;
+      font-size: 9pt;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .service-address-box .label::before {
+      content: '📍';
+      font-size: 12pt;
+    }
+    .service-address-box .address {
+      font-size: 12pt;
+      font-weight: 600;
+      line-height: 1.6;
+      color: #1e3a8a;
+    }
+    .legal-reference {
+      margin-top: 28px;
+      padding: 16px 20px;
+      background: #f9fafb;
+      border-radius: 8px;
+      font-size: 10pt;
+      color: #6b7280;
+      border-left: 3px solid #d1d5db;
+    }
+    .signature-section {
+      margin-top: 45px;
+    }
+    .signature-section p {
+      color: #6b7280;
+      margin-bottom: 25px;
+    }
+    .signature-block {
+      display: inline-block;
+    }
+    .signature-name {
+      font-size: 13pt;
+      font-weight: 600;
+      color: #111827;
+      border-bottom: 2px solid #f97316;
+      padding-bottom: 4px;
+      display: inline-block;
+    }
+    .signature-capacity {
+      font-size: 10pt;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+    .signature-date {
+      font-size: 9pt;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+    .footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 9pt;
+      color: #9ca3af;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .footer-brand {
+      font-weight: 600;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">
+      <div class="header-badge">Legal Notice</div>
+      <h1>Section 48 Notice</h1>
+      <h2>Landlord and Tenant Act 1987 — Address for Service</h2>
+    </div>
+    ${data.agentLogoUrl ? `<img src="${data.agentLogoUrl}" class="logo" alt="Logo" />` : ''}
+  </div>
+
+  <div class="ref-line">
+    Reference: ${data.documentRef}
+  </div>
+
+  <div class="parties-section">
+    <div class="party-box">
+      <div class="party-label">Tenant</div>
+      <div class="party-content">
+        <strong>${tenantNamesStr}</strong><br/>
+        ${formatAddrMultiline(data.propertyAddress)}
+      </div>
+    </div>
+    <div class="party-box">
+      <div class="party-label">Landlord</div>
+      <div class="party-content">
+        <strong>${data.landlordDisplay}</strong>
+        ${companyInfo}
+        ${landlordAddrStr ? `<br/>${formatAddrMultiline(data.landlordAddress)}` : ''}
+      </div>
+    </div>
+  </div>
+
+  <div class="info-row">
+    <div class="info-item">
+      <div class="info-label">Date of Notice</div>
+      <div class="info-value">${data.dateOfNotice}</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Tenancy Commenced</div>
+      <div class="info-value">${data.tenancyStartDate || '—'}</div>
+    </div>
+  </div>
+
+  <div class="property-highlight">
+    <div class="property-highlight-label">Property</div>
+    <div class="property-highlight-value">${propertyAddrStr}</div>
+  </div>
+
+  <p class="body-text">
+    Dear ${tenantNamesStr},
+  </p>
+
+  <p class="body-text">
+    We write on behalf of ${data.landlordDisplay} ("<strong>the Landlord</strong>") regarding the above property.
+  </p>
+
+  <p class="body-text">
+    Pursuant to <strong>Section 48 of the Landlord and Tenant Act 1987</strong>, you are hereby notified that the address in England and Wales at which notices (including notices in legal proceedings) may be served on the Landlord is:
+  </p>
+
+  <div class="service-address-box">
+    <div class="label">Address for Service of Notices</div>
+    <div class="address">
+      ${data.addressForServiceName}<br/>
+      ${serviceAddrStr}
+    </div>
+  </div>
+
+  ${reasonParagraph}
+
+  <div class="legal-reference">
+    This notice is given under and in accordance with Section 48 of the Landlord and Tenant Act 1987.
+  </div>
+
+  <div class="signature-section">
+    <p>Yours sincerely,</p>
+
+    <div class="signature-block">
+      <div class="signature-name">${data.signatoryName}</div>
+      <div class="signature-capacity">${data.signatoryCapacity}</div>
+      <div class="signature-date">${data.dateOfNotice}</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span class="footer-brand">${data.agentName}</span>${data.agentAddress?.line1 ? ` · ${formatAddr(data.agentAddress)}` : ''}<br/>
+    ${data.agentPhone ? `${data.agentPhone}` : ''}${data.agentPhone && data.agentEmail ? ' · ' : ''}${data.agentEmail ? `${data.agentEmail}` : ''}
+  </div>
+</body>
+</html>
+      `
+
+      // Generate PDF using Puppeteer
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      })
+
+      const page = await browser.newPage()
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        margin: {
+          top: '15mm',
+          right: '15mm',
+          bottom: '15mm',
+          left: '15mm'
+        },
+        printBackground: true
+      })
+
+      await browser.close()
+
+      console.log(`[PDF] Section 48 notice generated: ${pdfBuffer.length} bytes`)
+      return Buffer.from(pdfBuffer)
+    } catch (error: any) {
+      console.error('Error generating Section 48 notice PDF:', error)
+      throw new Error(`Failed to generate Section 48 notice PDF: ${error.message}`)
+    }
+  }
+
+  /**
+   * Generate Tenant Change Addendum PDF
+   */
+  async generateTenantChangeAddendum(data: {
+    documentRef: string
+    documentDate: string
+    propertyAddress: string
+    outgoingTenants: Array<{
+      name: string
+      email?: string
+    }>
+    incomingTenants: Array<{
+      name: string
+      email?: string
+      currentAddress?: string
+    }>
+    remainingTenants: Array<{
+      name: string
+      email?: string
+    }>
+    landlordName: string
+    landlordAddress?: string
+    tenancyStartDate: string
+    monthlyRent: number
+    rentDueDay: number | string
+    changeoverDate: string
+    depositAmount: number
+    depositScheme: string
+    depositReference?: string
+    incomingDepositPayment: number
+    outgoingDepositRefund: number
+    companyName: string
+    agentLogoUrl?: string
+    primaryColor?: string
+    signatures?: Array<{
+      signerType: 'outgoing_tenant' | 'incoming_tenant' | 'remaining_tenant' | 'landlord_agent'
+      signerIndex: number
+      signerName: string
+      signatureData?: string
+      signatureType?: 'draw' | 'type'
+      typedName?: string
+      signedAt?: string
+      ipAddress?: string
+    }>
+    includeAuditPage?: boolean
+  }): Promise<Buffer> {
+    try {
+      // Load the HTML template
+      const templatePath = path.join(__dirname, '../../email-templates/tenant-change-addendum-pdf.html')
+      let htmlContent = fs.readFileSync(templatePath, 'utf-8')
+
+      const primaryColor = data.primaryColor || BRAND_COLORS.primary
+
+      // Format helpers
+      const formatDate = (dateStr: string): string => {
+        if (!dateStr) return ''
+        return new Date(dateStr).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })
+      }
+
+      const formatCurrency = (amount: number): string => {
+        return `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      }
+
+      const getOrdinal = (n: number): string => {
+        const s = ['th', 'st', 'nd', 'rd']
+        const v = n % 100
+        return n + (s[(v - 20) % 10] || s[v] || s[0])
+      }
+
+      // Build logo HTML
+      const agentLogoHtml = data.agentLogoUrl
+        ? `<img src="${data.agentLogoUrl}" class="logo" alt="Logo" />`
+        : ''
+
+      // Build outgoing tenants HTML
+      const outgoingTenantsHtml = data.outgoingTenants.map(tenant => `
+        <div class="party-box">
+          <div class="party-name">${tenant.name}</div>
+          ${tenant.email ? `<div class="party-detail">${tenant.email}</div>` : ''}
+        </div>
+      `).join('')
+
+      // Build incoming tenants HTML
+      const incomingTenantsHtml = data.incomingTenants.map(tenant => `
+        <div class="party-box">
+          <div class="party-name">${tenant.name}</div>
+          ${tenant.email ? `<div class="party-detail">${tenant.email}</div>` : ''}
+          ${tenant.currentAddress ? `<div class="party-detail" style="margin-top: 4px; font-size: 9pt;">Current address: ${tenant.currentAddress}</div>` : ''}
+        </div>
+      `).join('')
+
+      // Build remaining tenants section (only if there are remaining tenants)
+      let remainingTenantsSection = ''
+      if (data.remainingTenants && data.remainingTenants.length > 0) {
+        const remainingTenantsHtml = data.remainingTenants.map(tenant => `
+          <div class="party-box">
+            <div class="party-name">${tenant.name}</div>
+            ${tenant.email ? `<div class="party-detail">${tenant.email}</div>` : ''}
+          </div>
+        `).join('')
+
+        remainingTenantsSection = `
+          <div style="margin-bottom: 15px;">
+            <div class="party-label">Remaining Tenant(s)</div>
+            <div class="parties-grid">
+              ${remainingTenantsHtml}
+            </div>
+          </div>
+        `
+      }
+
+      // Signature type definition for internal use
+      type SignatureEntry = {
+        signerType: 'outgoing_tenant' | 'incoming_tenant' | 'remaining_tenant' | 'landlord_agent'
+        signerIndex: number
+        signerName: string
+        signatureData?: string
+        signatureType?: 'draw' | 'type'
+        typedName?: string
+        signedAt?: string
+        ipAddress?: string
+      }
+
+      // Build signature blocks
+      const buildSignatureBlock = (
+        signerName: string,
+        signerType: string,
+        signature?: SignatureEntry
+      ): string => {
+        let signatureContent = ''
+        let dateContent = 'Date: _________________'
+
+        if (signature && signature.signatureData) {
+          if (signature.signatureType === 'draw' && signature.signatureData.startsWith('data:image')) {
+            signatureContent = `<img src="${signature.signatureData}" class="signature-image" alt="Signature" />`
+          } else if (signature.signatureType === 'type') {
+            signatureContent = `<span class="typed-signature">${signature.typedName || signerName}</span>`
+          }
+          if (signature.signedAt) {
+            dateContent = `Signed: ${formatDate(signature.signedAt)}`
+          }
+        }
+
+        return `
+          <div class="signature-block">
+            <div class="signature-type">${signerType}</div>
+            <div class="signature-name">${signerName}</div>
+            <div class="signature-line">${signatureContent}</div>
+            <div class="signature-date">${dateContent}</div>
+          </div>
+        `
+      }
+
+      // Cast signatures to the proper type
+      const signatures = data.signatures as SignatureEntry[] | undefined
+
+      // Build outgoing signatures
+      const outgoingSignaturesHtml = data.outgoingTenants.map((tenant, index) => {
+        const sig = signatures?.find(s => s.signerType === 'outgoing_tenant' && s.signerIndex === index)
+        return buildSignatureBlock(tenant.name, 'Outgoing Tenant', sig)
+      }).join('')
+
+      // Build incoming signatures
+      const incomingSignaturesHtml = data.incomingTenants.map((tenant, index) => {
+        const sig = signatures?.find(s => s.signerType === 'incoming_tenant' && s.signerIndex === index)
+        return buildSignatureBlock(tenant.name, 'Incoming Tenant', sig)
+      }).join('')
+
+      // Build remaining signatures section
+      let remainingSignaturesSection = ''
+      if (data.remainingTenants && data.remainingTenants.length > 0) {
+        const remainingSignaturesHtml = data.remainingTenants.map((tenant, index) => {
+          const sig = signatures?.find(s => s.signerType === 'remaining_tenant' && s.signerIndex === index)
+          return buildSignatureBlock(tenant.name, 'Remaining Tenant', sig)
+        }).join('')
+
+        remainingSignaturesSection = `
+          <div style="margin-bottom: 25px;">
+            <div class="party-label" style="margin-bottom: 10px;">Remaining Tenant(s)</div>
+            <div class="signature-grid">
+              ${remainingSignaturesHtml}
+            </div>
+          </div>
+        `
+      }
+
+      // Build agent signature
+      const agentSig = signatures?.find(s => s.signerType === 'landlord_agent')
+      const agentSignatureHtml = buildSignatureBlock(
+        data.landlordName,
+        'On behalf of Landlord',
+        agentSig
+      )
+
+      // Build audit certificate if needed
+      let auditCertificateHtml = ''
+      if (data.includeAuditPage && signatures && signatures.filter(s => s.signedAt).length > 0) {
+        const signedSignatures = signatures.filter(s => s.signedAt)
+        const signerRows = signedSignatures.map(sig => `
+          <tr>
+            <td>${sig.signerName}</td>
+            <td style="text-transform: capitalize;">${sig.signerType.replace('_', ' ')}</td>
+            <td>${sig.signedAt ? new Date(sig.signedAt).toLocaleString('en-GB') : ''}</td>
+            <td>${sig.ipAddress || 'N/A'}</td>
+            <td style="text-transform: capitalize;">${sig.signatureType || 'N/A'}</td>
+          </tr>
+        `).join('')
+
+        auditCertificateHtml = `
+          <div class="audit-page">
+            <div class="audit-header">
+              <h1>Certificate of Completion</h1>
+              <p style="font-size: 11pt; color: #6b7280;">Electronic Signature Audit Trail</p>
+            </div>
+
+            <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+              <h3 style="margin: 0 0 15px; font-size: 12pt; color: #111827;">Document Details</h3>
+              <p style="margin: 5px 0; font-size: 10pt;"><strong>Document Type:</strong> Change of Tenant Addendum</p>
+              <p style="margin: 5px 0; font-size: 10pt;"><strong>Property:</strong> ${data.propertyAddress}</p>
+              <p style="margin: 5px 0; font-size: 10pt;"><strong>Document Reference:</strong> ${data.documentRef}</p>
+              <p style="margin: 5px 0; font-size: 10pt;"><strong>Changeover Date:</strong> ${formatDate(data.changeoverDate)}</p>
+              <p style="margin: 5px 0; font-size: 10pt;"><strong>Generated:</strong> ${new Date().toLocaleString('en-GB')}</p>
+            </div>
+
+            <h3 style="font-size: 12pt; margin-bottom: 15px;">Electronic Signatures</h3>
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Signed At</th>
+                  <th>IP Address</th>
+                  <th>Method</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${signerRows}
+              </tbody>
+            </table>
+
+            <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-top: 25px; border-left: 4px solid #f59e0b;">
+              <p style="margin: 0; font-size: 10pt; color: #92400e;">
+                <strong>Legal Notice:</strong> This document was signed electronically using a secure e-signing platform.
+                All parties received the document via email and signed using unique secure links.
+                Each signature was captured with the signer's IP address, timestamp, and verification of email ownership.
+                This electronic signature is legally binding under the Electronic Communications Act 2000 and
+                the eIDAS Regulation (EU) No 910/2014.
+              </p>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 10pt;">
+              <p>Powered by PropertyGoose - www.propertygoose.co.uk</p>
+            </div>
+          </div>
+        `
+      }
+
+      // Replace all template variables
+      const rentDueDay = typeof data.rentDueDay === 'number'
+        ? getOrdinal(data.rentDueDay)
+        : data.rentDueDay
+
+      const replacements: Record<string, string> = {
+        '{{ PrimaryColor }}': primaryColor,
+        '{{ DocumentRef }}': data.documentRef,
+        '{{ DocumentDate }}': formatDate(data.documentDate),
+        '{{ PropertyAddress }}': data.propertyAddress,
+        '{{ AgentLogoHtml }}': agentLogoHtml,
+        '{{ OutgoingTenantsHtml }}': outgoingTenantsHtml,
+        '{{ IncomingTenantsHtml }}': incomingTenantsHtml,
+        '{{ RemainingTenantsSection }}': remainingTenantsSection,
+        '{{ LandlordName }}': data.landlordName,
+        '{{ LandlordAddress }}': data.landlordAddress || '',
+        '{{ TenancyStartDate }}': formatDate(data.tenancyStartDate),
+        '{{ MonthlyRent }}': formatCurrency(data.monthlyRent),
+        '{{ RentDueDay }}': rentDueDay,
+        '{{ ChangeoverDate }}': formatDate(data.changeoverDate),
+        '{{ DepositAmount }}': formatCurrency(data.depositAmount),
+        '{{ DepositScheme }}': data.depositScheme,
+        '{{ DepositReference }}': data.depositReference || 'To be updated',
+        '{{ IncomingDepositPayment }}': formatCurrency(data.incomingDepositPayment),
+        '{{ OutgoingDepositRefund }}': formatCurrency(data.outgoingDepositRefund),
+        '{{ OutgoingSignaturesHtml }}': outgoingSignaturesHtml,
+        '{{ IncomingSignaturesHtml }}': incomingSignaturesHtml,
+        '{{ RemainingSignaturesSection }}': remainingSignaturesSection,
+        '{{ AgentSignatureHtml }}': agentSignatureHtml,
+        '{{ CompanyName }}': data.companyName,
+        '{{ AuditCertificateHtml }}': auditCertificateHtml
+      }
+
+      for (const [key, value] of Object.entries(replacements)) {
+        htmlContent = htmlContent.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value)
+      }
+
+      // Generate PDF using Puppeteer
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      })
+
+      const page = await browser.newPage()
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        margin: {
+          top: '20mm',
+          right: '15mm',
+          bottom: '20mm',
+          left: '15mm'
+        },
+        printBackground: true,
+        displayHeaderFooter: true,
+        headerTemplate: '<div></div>',
+        footerTemplate: `
+          <div style="font-size: 9px; color: #9ca3af; text-align: center; width: 100%; padding: 0 15mm;">
+            <span class="pageNumber"></span> of <span class="totalPages"></span>
+          </div>
+        `
+      })
+
+      await browser.close()
+
+      console.log(`[PDF] Tenant change addendum generated: ${pdfBuffer.length} bytes`)
+      return Buffer.from(pdfBuffer)
+    } catch (error: any) {
+      console.error('Error generating tenant change addendum PDF:', error)
+      throw new Error(`Failed to generate tenant change addendum PDF: ${error.message}`)
+    }
   }
 }
 

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Move Out Confirmation - {{ CompanyName }}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td style="padding: 40px 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <div style="display: inline-block; text-align: center;">
+                                            <img src="{{ AgentLogoUrl }}" alt="{{ CompanyName }}" style="height: 48px; width: auto;">
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: bold; color: #111827; text-align: center;">Move Out Confirmation</h1>
+
+                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                Dear {{ TenantName }},
+                            </p>
+
+                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                This email confirms that your tenancy at <strong>{{ PropertyAddress }}</strong> will end on <strong>{{ MoveOutDate }}</strong>.
+                            </p>
+
+                            <!-- Move Out Date Box -->
+                            <div style="margin: 24px 0; padding: 20px; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #92400e;">
+                                    Move Out Date: {{ MoveOutDate }}
+                                </p>
+                            </div>
+
+                            <!-- Move Out Instructions -->
+                            <h2 style="margin: 32px 0 16px; font-size: 18px; font-weight: 600; color: #111827;">Move Out Checklist</h2>
+
+                            <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; color: #4b5563;">
+                                Please ensure the following before handing back the keys:
+                            </p>
+
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="padding: 12px 16px; background-color: #f9fafb; border-radius: 6px; margin-bottom: 8px;">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="width: 24px; vertical-align: top; padding-top: 2px;">
+                                                    <span style="color: #10b981; font-size: 16px;">&#10003;</span>
+                                                </td>
+                                                <td style="font-size: 15px; line-height: 22px; color: #374151;">
+                                                    <strong>Clean the property thoroughly</strong> - including all rooms, kitchen appliances, bathrooms, and windows
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr><td style="height: 8px;"></td></tr>
+                                <tr>
+                                    <td style="padding: 12px 16px; background-color: #f9fafb; border-radius: 6px;">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="width: 24px; vertical-align: top; padding-top: 2px;">
+                                                    <span style="color: #10b981; font-size: 16px;">&#10003;</span>
+                                                </td>
+                                                <td style="font-size: 15px; line-height: 22px; color: #374151;">
+                                                    <strong>Repair any light damages</strong> - fill small nail holes, touch up any marks on walls
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr><td style="height: 8px;"></td></tr>
+                                <tr>
+                                    <td style="padding: 12px 16px; background-color: #f9fafb; border-radius: 6px;">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="width: 24px; vertical-align: top; padding-top: 2px;">
+                                                    <span style="color: #10b981; font-size: 16px;">&#10003;</span>
+                                                </td>
+                                                <td style="font-size: 15px; line-height: 22px; color: #374151;">
+                                                    <strong>Clean skirting boards</strong> - dust and wipe down all skirting boards throughout the property
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr><td style="height: 8px;"></td></tr>
+                                <tr>
+                                    <td style="padding: 12px 16px; background-color: #f9fafb; border-radius: 6px;">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="width: 24px; vertical-align: top; padding-top: 2px;">
+                                                    <span style="color: #10b981; font-size: 16px;">&#10003;</span>
+                                                </td>
+                                                <td style="font-size: 15px; line-height: 22px; color: #374151;">
+                                                    <strong>Review your inventory</strong> - if an inventory was provided at the start of your tenancy, please review it to ensure the property is returned in the same condition
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr><td style="height: 8px;"></td></tr>
+                                <tr>
+                                    <td style="padding: 12px 16px; background-color: #f9fafb; border-radius: 6px;">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="width: 24px; vertical-align: top; padding-top: 2px;">
+                                                    <span style="color: #10b981; font-size: 16px;">&#10003;</span>
+                                                </td>
+                                                <td style="font-size: 15px; line-height: 22px; color: #374151;">
+                                                    <strong>Return all keys</strong> - all keys provided at the start of your tenancy must be returned
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Pro-Rata Rent Section (conditional) -->
+                            {{ ProRataSection }}
+
+                            <!-- Contact Info -->
+                            <div style="margin-top: 32px; padding: 16px; background-color: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #1e40af;">
+                                    <strong>Questions?</strong> Please contact us at {{ ContactInfo }}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px 40px; background-color: #f9fafb; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 8px; font-size: 14px; line-height: 20px; color: #6b7280; text-align: center;">
+                                This is an automated message from {{ CompanyName }}.
+                            </p>
+                            <p style="margin: 0; font-size: 12px; line-height: 16px; color: #9ca3af; text-align: center;">
+                                Powered by PropertyGoose
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

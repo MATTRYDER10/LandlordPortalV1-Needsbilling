@@ -91,6 +91,8 @@ interface EmailOptions {
   subject: string;
   html: string;
   from?: string;
+  cc?: string | string[];
+  replyTo?: string;
   attachments?: {
     filename: string;
     content: Buffer | string;
@@ -118,29 +120,43 @@ const LOCALHOST_PATTERN = /(localhost|127\.0\.0\.1)/i;
 
 type ReferenceType = 'tenant' | 'guarantor' | 'landlord' | 'employer' | 'accountant' | 'agent';
 
+/**
+ * Check if we should allow localhost URLs (for local testing)
+ * When USE_LOCAL_EMAIL_LINKS=true, we allow localhost URLs in emails
+ */
+function shouldAllowLocalhostUrls(): boolean {
+  return process.env.USE_LOCAL_EMAIL_LINKS === 'true';
+}
+
 function containsLocalhost(input?: string): boolean {
   return !!input && LOCALHOST_PATTERN.test(input);
 }
 
 function sanitizeLocalhostUrls(input: string): string {
+  // If local email links are enabled, don't sanitize - allow localhost URLs
+  if (shouldAllowLocalhostUrls()) {
+    return input;
+  }
   return input.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/gi, PROD_FRONTEND_URL);
 }
 
 function buildReferenceLink(referenceId: string, referenceType?: ReferenceType | null): string {
+  // Use getFrontendUrl() which respects USE_LOCAL_EMAIL_LINKS
+  const baseUrl = getFrontendUrl();
   switch (referenceType) {
     case 'guarantor':
-      return `${PROD_FRONTEND_URL}/guarantor-reference/${referenceId}`;
+      return `${baseUrl}/guarantor-reference/${referenceId}`;
     case 'landlord':
-      return `${PROD_FRONTEND_URL}/landlord-reference/${referenceId}`;
+      return `${baseUrl}/landlord-reference/${referenceId}`;
     case 'agent':
-      return `${PROD_FRONTEND_URL}/agent-reference/${referenceId}`;
+      return `${baseUrl}/agent-reference/${referenceId}`;
     case 'employer':
-      return `${PROD_FRONTEND_URL}/submit-employer-reference/${referenceId}`;
+      return `${baseUrl}/submit-employer-reference/${referenceId}`;
     case 'accountant':
-      return `${PROD_FRONTEND_URL}/accountant-reference/${referenceId}`;
+      return `${baseUrl}/accountant-reference/${referenceId}`;
     case 'tenant':
     default:
-      return `${PROD_FRONTEND_URL}/submit-reference/${referenceId}`;
+      return `${baseUrl}/submit-reference/${referenceId}`;
   }
 }
 
@@ -331,17 +347,35 @@ export async function logEmailDeliveryToAuditLog(
  */
 async function sendEmailInternal(options: EmailOptions, html: string, subject: string): Promise<{ id: string } | null> {
   console.log(`[Resend] Calling Resend API for: ${options.to}`);
+  console.log(`[Resend] Subject: ${subject}`);
+  if (options.cc) console.log(`[Resend] CC: ${Array.isArray(options.cc) ? options.cc.join(', ') : options.cc}`);
+  console.log(`[Resend] Attachments: ${options.attachments?.length || 0} files`);
+  if (options.attachments) {
+    options.attachments.forEach((att, i) => {
+      const size = typeof att.content === 'string' ? att.content.length : att.content?.length || 0;
+      console.log(`[Resend] Attachment ${i + 1}: ${att.filename} (${size} bytes)`);
+    });
+  }
 
-  const { data, error } = await resend.emails.send({
+  const emailPayload: any = {
     from: options.from || 'PropertyGoose <hello@notifications.propertygoose.co.uk>',
     to: options.to,
     subject,
     html,
     attachments: options.attachments,
-  });
+  };
+
+  if (options.cc) {
+    emailPayload.cc = options.cc;
+  }
+  if (options.replyTo) {
+    emailPayload.reply_to = options.replyTo;
+  }
+
+  const { data, error } = await resend.emails.send(emailPayload);
 
   if (error) {
-    console.error(`[Resend] API error for ${options.to}:`, error);
+    console.error(`[Resend] API error for ${options.to}:`, JSON.stringify(error));
     throw error;
   }
 
@@ -366,9 +400,12 @@ function isRateLimitError(error: any): boolean {
  * Send an email using Resend with rate limiting and retry logic
  */
 export async function sendEmail(options: EmailOptions): Promise<void> {
+  console.log(`[sendEmail] Called - to: ${options.to}, subject: ${options.subject}, attachments: ${options.attachments?.length || 0}`)
+
   // Dev mode check - skip actual sending in development unless explicitly enabled
   if (process.env.NODE_ENV === 'development' && !process.env.ENABLE_EMAIL_DEV) {
-    console.log(`[DEV] Email skipped - would send to ${options.to}: ${options.subject}`);
+    console.log(`[DEV] ⚠️ Email SKIPPED (dev mode) - would send to ${options.to}: ${options.subject}`);
+    console.log(`[DEV] To enable emails in dev mode, set ENABLE_EMAIL_DEV=true`);
     return;
   }
 
@@ -376,7 +413,9 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
   let html = footer ? `${options.html}${footer}` : options.html;
   let subject = options.subject;
 
-  if (containsLocalhost(subject) || containsLocalhost(html)) {
+  // Only sanitize localhost URLs if USE_LOCAL_EMAIL_LINKS is not enabled
+  // This allows local testing with actual localhost links
+  if (!shouldAllowLocalhostUrls() && (containsLocalhost(subject) || containsLocalhost(html))) {
     const fallback = await buildLocalhostFallback(options);
     if (fallback) {
       console.warn(`[EmailGuard] Localhost detected, sending fallback link for ${options.to}.`);
@@ -387,6 +426,8 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
       html = sanitizeLocalhostUrls(html);
       subject = containsLocalhost(subject) ? sanitizeLocalhostUrls(subject) : subject;
     }
+  } else if (shouldAllowLocalhostUrls() && containsLocalhost(html)) {
+    console.log(`[EmailGuard] Localhost URLs allowed (USE_LOCAL_EMAIL_LINKS=true) for ${options.to}`);
   }
 
   const maxRetries = 3;
@@ -779,8 +820,39 @@ export async function sendGuarantorReferenceRequest(
   agentEmail: string,
   formLink: string,
   referenceId?: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  fullPropertyRent?: number,
+  guaranteeingShare?: number
 ): Promise<void> {
+  // Format rent amounts for display
+  const formatCurrency = (amount?: number): string => {
+    if (!amount) return ''
+    return amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
+  // Build the financial details section conditionally
+  let financialDetailsSection = ''
+  if (fullPropertyRent && guaranteeingShare) {
+    financialDetailsSection = `
+      <div style="margin: 0 0 24px; padding: 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #111827;">Financial Details:</p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+          <tr>
+            <td style="padding: 8px 0; font-size: 14px; color: #4b5563;">Full property rent:</td>
+            <td style="padding: 8px 0; font-size: 14px; font-weight: 600; color: #111827; text-align: right;">£${formatCurrency(fullPropertyRent)}/month</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="border-top: 1px solid #e2e8f0;"></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-size: 14px; color: #4b5563;">Your guaranteeing share:</td>
+            <td style="padding: 8px 0; font-size: 16px; font-weight: 700; color: #059669; text-align: right;">£${formatCurrency(guaranteeingShare)}/month</td>
+          </tr>
+        </table>
+      </div>
+    `
+  }
+
   const html = loadEmailTemplate('guarantor-reference-request', {
     GuarantorName: guarantorName,
     TenantName: tenantName,
@@ -790,6 +862,7 @@ export async function sendGuarantorReferenceRequest(
     AgentEmail: agentEmail,
     FormLink: formLink,
     AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+    FinancialDetailsSection: financialDetailsSection,
   });
 
   try {
@@ -1443,14 +1516,14 @@ async function getGroupStatusForEmail(referenceId: string): Promise<GroupStatusR
     // Get company details for agent email
     const { data: company } = await supabase
       .from('companies')
-      .select('name_encrypted, email_encrypted, reference_notification_email_encrypted')
+      .select('name_encrypted, email_encrypted, reference_notification_email')
       .eq('id', reference.company_id)
       .single()
 
-    // Prefer reference_notification_email, fallback to company email
+    // Prefer reference_notification_email (plaintext), fallback to company email (encrypted)
     let agentEmail = ''
-    if (company?.reference_notification_email_encrypted) {
-      agentEmail = decrypt(company.reference_notification_email_encrypted) || ''
+    if (company?.reference_notification_email) {
+      agentEmail = company.reference_notification_email
     }
     if (!agentEmail && company?.email_encrypted) {
       agentEmail = decrypt(company.email_encrypted) || ''
@@ -1705,4 +1778,814 @@ export async function sendActionRequiredNotification(
     console.error('[sendActionRequiredNotification] Error:', error)
     await logEmailToAuditLog(referenceId, 'action_required', 'failed', error.message)
   }
+}
+
+/**
+ * Additional charge item for initial monies
+ */
+interface AdditionalChargeItem {
+  name: string
+  amount: number
+}
+
+/**
+ * Send initial monies request email to tenant
+ */
+export async function sendInitialMoniesRequest(
+  tenantEmail: string,
+  tenantName: string,
+  propertyAddress: string,
+  firstMonthRent: number,
+  depositAmount: number,
+  additionalCharges: AdditionalChargeItem[],
+  holdingDepositPaid: number,
+  bankDetails: { accountName: string; accountNumber: string; sortCode: string },
+  dueDate: string,
+  paymentReference: string,
+  confirmPaymentLink: string,
+  companyName: string,
+  companyDetails?: ContactDetails,
+  agentLogoUrl?: string | null
+): Promise<void> {
+  // Calculate totals
+  const additionalChargesTotal = additionalCharges.reduce((sum, charge) => sum + charge.amount, 0)
+  const grossTotal = firstMonthRent + depositAmount + additionalChargesTotal
+  const finalMoniesDue = grossTotal - holdingDepositPaid
+
+  // Build additional charges rows HTML
+  let additionalChargesRows = ''
+  if (additionalCharges.length > 0) {
+    for (const charge of additionalCharges) {
+      additionalChargesRows += `
+                                    <tr>
+                                        <td style="padding: 8px 0;">${charge.name}</td>
+                                        <td style="padding: 8px 0; text-align: right; font-weight: 500;">&pound;${charge.amount.toFixed(2)}</td>
+                                    </tr>`
+    }
+  }
+
+  // Format currency values
+  const formatCurrency = (amount: number) => `&pound;${amount.toFixed(2)}`
+
+  const html = loadEmailTemplate('initial-monies-request', {
+    TenantName: capitalizeWords(tenantName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    FirstMonthRent: formatCurrency(firstMonthRent),
+    DepositAmount: formatCurrency(depositAmount),
+    AdditionalChargesRows: additionalChargesRows,
+    GrossTotal: formatCurrency(grossTotal),
+    HoldingDepositPaid: formatCurrency(holdingDepositPaid),
+    FinalMoniesDue: formatCurrency(finalMoniesDue),
+    BankAccountName: bankDetails.accountName,
+    BankAccountNumber: bankDetails.accountNumber,
+    BankSortCode: bankDetails.sortCode,
+    PaymentReference: paymentReference,
+    DueDate: dueDate,
+    ConfirmPaymentLink: confirmPaymentLink,
+    CompanyName: companyName,
+    AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL
+  })
+
+  await sendEmail({
+    to: tenantEmail,
+    subject: `Initial Monies Request - ${propertyAddress} - PropertyGoose`,
+    html,
+    contactDetails: companyDetails
+  })
+
+  console.log(`[sendInitialMoniesRequest] Email sent to ${tenantEmail} for ${propertyAddress}`)
+}
+
+/**
+ * Send notification to agent that tenant has confirmed payment
+ */
+export async function sendTenantPaymentConfirmedNotification(
+  agentEmail: string,
+  propertyAddress: string,
+  tenantName: string,
+  amountDue: number,
+  tenancyLink: string,
+  companyName?: string
+): Promise<void> {
+  const confirmedAt = new Date().toLocaleString('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h1 style="font-size: 24px; color: #111827; margin-bottom: 24px;">Tenant Payment Confirmed</h1>
+
+      <p style="font-size: 16px; color: #4b5563; line-height: 24px;">
+        <strong>${tenantName}</strong> has confirmed that they have paid the initial monies for:
+      </p>
+
+      <p style="font-size: 18px; font-weight: 600; color: #111827; margin: 16px 0;">
+        ${propertyAddress}
+      </p>
+
+      <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 24px 0;">
+        <p style="margin: 0 0 8px; font-size: 14px; color: #6b7280;">Amount Due</p>
+        <p style="margin: 0; font-size: 20px; font-weight: 600; color: #111827;">&pound;${amountDue.toFixed(2)}</p>
+        <p style="margin: 12px 0 0; font-size: 14px; color: #6b7280;">Confirmed at: ${confirmedAt}</p>
+      </div>
+
+      <p style="font-size: 16px; color: #4b5563; line-height: 24px;">
+        Please verify the payment has been received in your bank account and then confirm receipt in the tenancy record.
+      </p>
+
+      <div style="margin: 24px 0; text-align: center;">
+        <a href="${tenancyLink}" style="display: inline-block; padding: 12px 24px; background-color: #fe7a0f; color: #ffffff; text-decoration: none; border-radius: 9999px; font-size: 15px; font-weight: 600;">
+          View Tenancy
+        </a>
+      </div>
+    </div>
+  `
+
+  await sendEmail({
+    to: agentEmail,
+    subject: `Payment Confirmed - ${tenantName} - ${propertyAddress}`,
+    html,
+    contactDetails: {
+      companyName: companyName || undefined
+    }
+  })
+
+  console.log(`[sendTenantPaymentConfirmedNotification] Email sent to ${agentEmail}`)
+}
+
+/**
+ * Compliance document for move-in pack
+ */
+interface ComplianceDocument {
+  name: string
+  url: string
+  type: string
+}
+
+/**
+ * Send move-in pack email to tenants
+ */
+export async function sendMoveInPack(
+  tenants: { email: string; name: string }[],
+  propertyAddress: string,
+  moveInDate: string,
+  rentAmount: number,
+  rentDueDay: number,
+  depositAmount: number | null,
+  depositScheme: string | null,
+  documents: ComplianceDocument[],
+  contactDetails: { name: string; email: string; phone: string },
+  companyName: string,
+  agentLogoUrl?: string | null
+): Promise<void> {
+  // Build document list HTML
+  let documentListHtml = ''
+  if (documents.length > 0) {
+    documentListHtml = '<ul style="margin: 0; padding-left: 20px;">'
+    for (const doc of documents) {
+      documentListHtml += `
+        <li style="margin-bottom: 8px;">
+          <a href="${doc.url}" style="color: #2563eb; text-decoration: none; font-weight: 500;">${doc.name}</a>
+          <span style="color: #6b7280; font-size: 14px;"> (${doc.type})</span>
+        </li>`
+    }
+    documentListHtml += '</ul>'
+  } else {
+    documentListHtml = '<p style="color: #6b7280; font-style: italic;">No compliance documents currently available.</p>'
+  }
+
+  // Format deposit scheme label
+  const depositSchemeLabels: Record<string, string> = {
+    dps: 'Deposit Protection Service (DPS)',
+    mydeposits: 'mydeposits',
+    tds: 'Tenancy Deposit Scheme (TDS)',
+    custodial: 'Custodial Scheme',
+    insured: 'Insured Scheme'
+  }
+  const depositSchemeLabel = depositScheme ? (depositSchemeLabels[depositScheme] || depositScheme) : 'To be confirmed'
+
+  // Format contact block
+  const contactBlock = `
+    <p style="margin: 4px 0;"><strong>${contactDetails.name}</strong></p>
+    ${contactDetails.email ? `<p style="margin: 4px 0;">Email: <a href="mailto:${contactDetails.email}" style="color: #2563eb;">${contactDetails.email}</a></p>` : ''}
+    ${contactDetails.phone ? `<p style="margin: 4px 0;">Phone: <a href="tel:${contactDetails.phone}" style="color: #2563eb;">${contactDetails.phone}</a></p>` : ''}
+  `
+
+  // Send to each tenant
+  for (const tenant of tenants) {
+    const html = loadEmailTemplate('move-in-pack', {
+      TenantName: capitalizeWords(tenant.name),
+      PropertyAddress: capitalizeWords(propertyAddress),
+      MoveInDate: moveInDate,
+      MonthlyRent: `&pound;${rentAmount.toFixed(2)}`,
+      RentDueDay: ordinalSuffix(rentDueDay),
+      DepositAmount: depositAmount ? `&pound;${depositAmount.toFixed(2)}` : 'None',
+      DepositScheme: depositSchemeLabel,
+      DocumentList: documentListHtml,
+      HowToRentLink: 'https://www.gov.uk/government/publications/how-to-rent/how-to-rent-the-checklist-for-renting-in-england',
+      ContactBlock: contactBlock,
+      CompanyName: companyName,
+      AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL
+    })
+
+    await sendEmail({
+      to: tenant.email,
+      subject: `Welcome to Your New Home - ${propertyAddress}`,
+      html,
+      contactDetails: {
+        companyName,
+        email: contactDetails.email,
+        phone: contactDetails.phone
+      }
+    })
+
+    console.log(`[sendMoveInPack] Email sent to ${tenant.email} for ${propertyAddress}`)
+  }
+}
+
+/**
+ * Send enhanced move-in pack with management info and rent payment details
+ */
+export async function sendEnhancedMoveInPack(
+  tenants: { email: string; name: string }[],
+  propertyAddress: string,
+  moveInDate: string,
+  rentAmount: number,
+  rentDueDay: number,
+  depositAmount: number | null,
+  depositScheme: string | null,
+  documents: ComplianceDocument[],
+  contactDetails: { name: string; email: string; phone: string },
+  companyName: string,
+  agentLogoUrl: string | null | undefined,
+  managementInfoHtml: string,
+  rentPaymentHtml: string,
+  additionalInfoHtml: string
+): Promise<void> {
+  // Build document list HTML
+  let documentListHtml = ''
+  if (documents.length > 0) {
+    documentListHtml = '<ul style="margin: 0; padding-left: 20px;">'
+    for (const doc of documents) {
+      documentListHtml += `
+        <li style="margin-bottom: 8px;">
+          <a href="${doc.url}" style="color: #2563eb; text-decoration: none; font-weight: 500;">${doc.name}</a>
+          <span style="color: #6b7280; font-size: 14px;"> (${doc.type})</span>
+        </li>`
+    }
+    documentListHtml += '</ul>'
+  } else {
+    documentListHtml = '<p style="color: #6b7280; font-style: italic;">No compliance documents currently available.</p>'
+  }
+
+  // Format deposit scheme label
+  const depositSchemeLabels: Record<string, string> = {
+    dps: 'Deposit Protection Service (DPS)',
+    dps_custodial: 'DPS (Custodial)',
+    dps_insured: 'DPS (Insured)',
+    mydeposits: 'mydeposits',
+    mydeposits_custodial: 'mydeposits (Custodial)',
+    mydeposits_insured: 'mydeposits (Insured)',
+    tds: 'Tenancy Deposit Scheme (TDS)',
+    tds_custodial: 'TDS (Custodial)',
+    tds_insured: 'TDS (Insured)',
+    custodial: 'Custodial Scheme',
+    insured: 'Insured Scheme'
+  }
+  const depositSchemeLabel = depositScheme ? (depositSchemeLabels[depositScheme] || depositScheme) : 'To be confirmed'
+
+  // Format contact block
+  const contactBlock = `
+    <p style="margin: 4px 0;"><strong>${contactDetails.name}</strong></p>
+    ${contactDetails.email ? `<p style="margin: 4px 0;">Email: <a href="mailto:${contactDetails.email}" style="color: #2563eb;">${contactDetails.email}</a></p>` : ''}
+    ${contactDetails.phone ? `<p style="margin: 4px 0;">Phone: <a href="tel:${contactDetails.phone}" style="color: #2563eb;">${contactDetails.phone}</a></p>` : ''}
+  `
+
+  // Send to each tenant
+  for (const tenant of tenants) {
+    const html = loadEmailTemplate('move-in-pack-enhanced', {
+      TenantName: capitalizeWords(tenant.name),
+      PropertyAddress: capitalizeWords(propertyAddress),
+      MoveInDate: moveInDate,
+      MonthlyRent: `&pound;${rentAmount.toFixed(2)}`,
+      RentDueDay: ordinalSuffix(rentDueDay),
+      DepositAmount: depositAmount ? `&pound;${depositAmount.toFixed(2)}` : 'None',
+      DepositScheme: depositSchemeLabel,
+      DocumentList: documentListHtml,
+      HowToRentLink: 'https://www.gov.uk/government/publications/how-to-rent/how-to-rent-the-checklist-for-renting-in-england',
+      ContactBlock: contactBlock,
+      CompanyName: companyName,
+      AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+      ManagementInfoSection: managementInfoHtml,
+      RentPaymentSection: rentPaymentHtml,
+      AdditionalInfoSection: additionalInfoHtml
+    })
+
+    await sendEmail({
+      to: tenant.email,
+      subject: `Welcome to Your New Home - ${propertyAddress}`,
+      html,
+      contactDetails: {
+        companyName,
+        email: contactDetails.email,
+        phone: contactDetails.phone
+      }
+    })
+
+    console.log(`[sendEnhancedMoveInPack] Email sent to ${tenant.email} for ${propertyAddress}`)
+  }
+}
+
+/**
+ * Send move-in time request email to tenant
+ */
+export async function sendMoveInTimeRequest(
+  tenantEmail: string,
+  tenantName: string,
+  propertyAddress: string,
+  moveInDate: string,
+  selectTimeLink: string,
+  companyName: string,
+  contactDetails: { phone?: string; email?: string },
+  agentLogoUrl?: string | null
+): Promise<void> {
+  // Build logo HTML - use agent logo or PropertyGoose fallback
+  const logoHtml = agentLogoUrl
+    ? `<img src="${agentLogoUrl}" alt="${companyName}" style="height: 48px; width: auto;">`
+    : `<img src="${DEFAULT_LOGO_URL}" alt="PropertyGoose" style="height: 48px; width: auto;">`
+
+  // Build contact sections
+  const contactPhone = contactDetails.phone
+    ? `<p style="margin: 4px 0;">Phone: <a href="tel:${contactDetails.phone}" style="color: #2563eb;">${contactDetails.phone}</a></p>`
+    : ''
+  const contactEmail = contactDetails.email
+    ? `<p style="margin: 4px 0;">Email: <a href="mailto:${contactDetails.email}" style="color: #2563eb;">${contactDetails.email}</a></p>`
+    : ''
+
+  const html = loadEmailTemplate('move-in-time-request', {
+    TenantName: capitalizeWords(tenantName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    MoveInDate: moveInDate,
+    SelectTimeLink: selectTimeLink,
+    CompanyName: companyName,
+    LogoHtml: logoHtml,
+    ContactPhone: contactPhone,
+    ContactEmail: contactEmail
+  })
+
+  await sendEmail({
+    to: tenantEmail,
+    subject: `Choose Your Move-In Time - ${propertyAddress}`,
+    html,
+    contactDetails: {
+      companyName: companyName,
+      email: contactDetails.email,
+      phone: contactDetails.phone
+    }
+  })
+
+  console.log(`[sendMoveInTimeRequest] Email sent to ${tenantEmail} for ${propertyAddress}`)
+}
+
+/**
+ * Send move-in time suggestions email to tenant (agent-suggested times)
+ */
+export async function sendMoveInTimeSuggestions(
+  tenantEmail: string,
+  tenantName: string,
+  propertyAddress: string,
+  moveInDate: string,
+  suggestedTime1: string,
+  suggestedTime2: string,
+  confirmTimeLink: string,
+  companyName: string,
+  contactDetails: { phone?: string; email?: string },
+  agentLogoUrl?: string | null
+): Promise<void> {
+  // Build logo HTML - use agent logo or PropertyGoose fallback
+  const logoHtml = agentLogoUrl
+    ? `<img src="${agentLogoUrl}" alt="${companyName}" style="height: 48px; width: auto;">`
+    : `<img src="${DEFAULT_LOGO_URL}" alt="PropertyGoose" style="height: 48px; width: auto;">`
+
+  // Build contact sections
+  const contactPhone = contactDetails.phone
+    ? `<p style="margin: 4px 0;">Phone: <a href="tel:${contactDetails.phone}" style="color: #2563eb;">${contactDetails.phone}</a></p>`
+    : ''
+  const contactEmail = contactDetails.email
+    ? `<p style="margin: 4px 0;">Email: <a href="mailto:${contactDetails.email}" style="color: #2563eb;">${contactDetails.email}</a></p>`
+    : ''
+
+  const html = loadEmailTemplate('move-in-time-suggestions', {
+    TenantName: capitalizeWords(tenantName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    MoveInDate: moveInDate,
+    SuggestedTime1: suggestedTime1,
+    SuggestedTime2: suggestedTime2,
+    ConfirmTimeLink: confirmTimeLink,
+    CompanyName: companyName,
+    LogoHtml: logoHtml,
+    ContactPhone: contactPhone,
+    ContactEmail: contactEmail
+  })
+
+  await sendEmail({
+    to: tenantEmail,
+    subject: `Confirm Your Move-In Time - ${propertyAddress}`,
+    html,
+    contactDetails: {
+      companyName: companyName,
+      email: contactDetails.email,
+      phone: contactDetails.phone
+    }
+  })
+
+  console.log(`[sendMoveInTimeSuggestions] Email sent to ${tenantEmail} for ${propertyAddress}`)
+}
+
+/**
+ * Send notification to agent when tenant submits move-in time preferences
+ */
+export async function sendMoveInTimeSubmittedNotification(
+  agentEmail: string,
+  tenantName: string,
+  propertyAddress: string,
+  moveInDate: string,
+  timeSlot1: string,
+  timeSlot2: string,
+  tenantNotes: string | null,
+  viewTenancyLink: string,
+  companyName: string,
+  agentLogoUrl?: string | null
+): Promise<void> {
+  // Build logo HTML
+  const logoHtml = agentLogoUrl
+    ? `<img src="${agentLogoUrl}" alt="${companyName}" style="height: 48px; width: auto;">`
+    : `<img src="${DEFAULT_LOGO_URL}" alt="PropertyGoose" style="height: 48px; width: auto;">`
+
+  // Build tenant notes section if provided
+  const tenantNotesSection = tenantNotes
+    ? `<div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #e5e7eb;">
+        <p style="margin: 0 0 8px; font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Tenant Notes</p>
+        <p style="margin: 0; font-size: 15px; color: #374151;">${tenantNotes}</p>
+       </div>`
+    : ''
+
+  const html = loadEmailTemplate('move-in-time-submitted', {
+    TenantName: capitalizeWords(tenantName),
+    PropertyAddress: capitalizeWords(propertyAddress),
+    MoveInDate: moveInDate,
+    TimeSlot1: timeSlot1,
+    TimeSlot2: timeSlot2,
+    TenantNotesSection: tenantNotesSection,
+    ViewTenancyLink: viewTenancyLink,
+    CompanyName: companyName,
+    LogoHtml: logoHtml
+  })
+
+  await sendEmail({
+    to: agentEmail,
+    subject: `Move-In Time Submitted - ${tenantName} - ${propertyAddress}`,
+    html
+  })
+
+  console.log(`[sendMoveInTimeSubmittedNotification] Email sent to ${agentEmail} for ${propertyAddress}`)
+}
+
+/**
+ * Send move-in time confirmation email with .ics calendar invite
+ */
+export async function sendMoveInTimeConfirmation(
+  recipientEmail: string,
+  recipientName: string,
+  propertyAddress: string,
+  moveInDate: string,
+  confirmedTime: string,
+  companyName: string,
+  contactDetails: ContactDetails | null,
+  companyLogoUrl?: string | null,
+  icsContent?: string
+): Promise<void> {
+  const html = loadEmailTemplate('move-in-time-confirmed', {
+    RecipientName: capitalizeWords(recipientName) || 'there',
+    PropertyAddress: capitalizeWords(propertyAddress),
+    MoveInDate: moveInDate,
+    ConfirmedTime: confirmedTime,
+    CompanyName: companyName,
+    CompanyPhone: contactDetails?.phone || '',
+    CompanyEmail: contactDetails?.email || '',
+    ContactSection: contactDetails ? `
+      <p style="margin: 0; font-size: 14px; line-height: 20px; color: #4b5563;">
+        If you have any questions, please contact ${companyName}:
+        ${contactDetails.phone ? `<br>Phone: ${contactDetails.phone}` : ''}
+        ${contactDetails.email ? `<br>Email: ${contactDetails.email}` : ''}
+      </p>
+    ` : '',
+    AgentLogoUrl: companyLogoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+  })
+
+  // Prepare .ics attachment
+  const attachments = icsContent ? [{
+    filename: 'move-in-appointment.ics',
+    content: Buffer.from(icsContent, 'utf-8'),
+    contentType: 'text/calendar; method=REQUEST'
+  }] : undefined
+
+  await sendEmail({
+    to: recipientEmail,
+    subject: `Move-In Confirmed - ${confirmedTime} on ${moveInDate} - ${propertyAddress}`,
+    html,
+    attachments
+  })
+
+  console.log(`[sendMoveInTimeConfirmation] Email sent to ${recipientEmail} for ${propertyAddress}`)
+}
+
+interface CustomTenantEmailOptions {
+  to: string
+  subject: string
+  message: string
+  replyTo?: string
+  cc?: string | string[]
+  attachments?: Array<{
+    filename: string
+    content: Buffer
+  }>
+  branding?: any
+}
+
+/**
+ * Send a custom email to a tenant with optional attachments
+ * Uses branded template when branding is available
+ */
+export async function sendCustomTenantEmail(options: CustomTenantEmailOptions): Promise<void> {
+  const { to, subject, message, replyTo, cc, attachments, branding } = options
+
+  // Convert newlines to HTML paragraphs
+  const formattedMessage = message
+    .split('\n\n')
+    .map(para => `<p style="margin: 0 0 16px 0; font-size: 14px; line-height: 24px; color: #374151;">${para.replace(/\n/g, '<br>')}</p>`)
+    .join('')
+
+  // Use branded template if branding exists, otherwise use simple template
+  let html: string
+  if (branding && branding.primaryColor) {
+    html = loadEmailTemplate('custom-tenant-email', {
+      Subject: subject,
+      MessageBody: formattedMessage,
+      PrimaryColor: branding.primaryColor || '#f97316',
+      CompanyName: branding.companyName || 'Property Management',
+      AgentLogoUrl: branding.logoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+    })
+  } else {
+    // Fallback to PropertyGoose branded template
+    html = loadEmailTemplate('custom-tenant-email', {
+      Subject: subject,
+      MessageBody: formattedMessage,
+      PrimaryColor: '#f97316',
+      CompanyName: 'PropertyGoose',
+      AgentLogoUrl: 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+    })
+  }
+
+  await sendEmail({
+    to,
+    subject,
+    html,
+    cc,
+    replyTo,
+    attachments
+  })
+
+  console.log(`[sendCustomTenantEmail] Email sent to ${to}${cc ? ` (CC: ${Array.isArray(cc) ? cc.join(', ') : cc})` : ''} with subject: ${subject}`)
+}
+
+/**
+ * Helper to format a date string for display in emails
+ */
+function formatDateForEmail(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+}
+
+interface Section8NoticeOptions {
+  to: string
+  tenantName: string
+  propertyAddress: string
+  grounds: Array<{
+    number: number
+    title: string
+    details: string
+  }>
+  noticeDate: string
+  earliestCourtDate: string
+  companyName: string
+  branding?: any
+}
+
+/**
+ * Send Section 8 Notice (seeking possession) to tenant
+ */
+export async function sendSection8Notice(options: Section8NoticeOptions): Promise<void> {
+  const {
+    to,
+    tenantName,
+    propertyAddress,
+    grounds,
+    noticeDate,
+    earliestCourtDate,
+    companyName,
+    branding
+  } = options
+
+  const templateVariables: Record<string, string> = {
+    TenantName: tenantName,
+    PropertyAddress: propertyAddress,
+    NoticeDate: formatDateForEmail(noticeDate),
+    EarliestCourtDate: formatDateForEmail(earliestCourtDate),
+    CompanyName: companyName,
+    GroundsList: grounds.map(g =>
+      `<tr>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #dc2626; width: 80px;">Ground ${g.number}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${g.title}${g.details ? `<br><span style="color: #6b7280; font-size: 13px;">${g.details}</span>` : ''}</td>
+      </tr>`
+    ).join('\n'),
+    // Branding
+    LogoUrl: branding?.logo_url || '',
+    PrimaryColor: branding?.primary_color || '#f97316',
+    CompanyWebsite: branding?.website || ''
+  }
+
+  const html = loadEmailTemplate('section-8-notice', templateVariables)
+
+  await sendEmail({
+    to,
+    subject: `Important Legal Notice: Section 8 Notice Seeking Possession - ${propertyAddress}`,
+    html
+  })
+
+  console.log(`[sendSection8Notice] Section 8 notice sent to ${to} for ${propertyAddress}`)
+}
+
+/**
+ * Helper to add ordinal suffix to a number (1st, 2nd, 3rd, etc.)
+ */
+function ordinalSuffix(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+/**
+ * Calculate pro-rata rent for a partial month
+ * @param monthlyRent - The full monthly rent amount
+ * @param endDate - The date the tenant is moving out
+ * @param rentDueDay - The day of the month rent is due (e.g., 1, 3, 15)
+ * @returns Pro-rata amount and days charged, or null if no pro-rata needed
+ */
+export function calculateProRataRent(
+  monthlyRent: number,
+  endDate: Date,
+  rentDueDay: number
+): { amount: number; daysCharged: number; daysInPeriod: number } | null {
+  const moveOutDay = endDate.getDate()
+
+  // If moving out before rent is due, no pro-rata needed for the final period
+  if (moveOutDay <= rentDueDay) {
+    return null
+  }
+
+  // Calculate days in the rental period (rent due day to end of billing cycle)
+  // We need to figure out how many days from rent due day to move out day
+  const daysCharged = moveOutDay - rentDueDay
+
+  // Get days in the month for pro-rata calculation
+  const year = endDate.getFullYear()
+  const month = endDate.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  // Pro-rata calculation: (monthly_rent / days_in_month) * days_charged
+  const dailyRate = monthlyRent / daysInMonth
+  const proRataAmount = Math.round(dailyRate * daysCharged * 100) / 100
+
+  return {
+    amount: proRataAmount,
+    daysCharged,
+    daysInPeriod: daysInMonth
+  }
+}
+
+/**
+ * Send move-out confirmation email to tenant
+ */
+export async function sendMoveOutConfirmation(
+  tenantEmail: string,
+  tenantName: string,
+  propertyAddress: string,
+  moveOutDate: string,
+  proRataInfo: { amount: number; daysCharged: number } | null,
+  bankDetails: { accountName: string; sortCode: string; accountNumber: string } | null,
+  nextRentDueDate: string | null,
+  branding: { companyName: string; logoUrl?: string; email?: string; phone?: string; website?: string }
+): Promise<void> {
+  // Format the move out date
+  const moveOutDateObj = new Date(moveOutDate)
+  const formattedMoveOutDate = moveOutDateObj.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+
+  // Build pro-rata section if applicable
+  let proRataSection = ''
+  if (proRataInfo && proRataInfo.amount > 0) {
+    const formattedAmount = proRataInfo.amount.toLocaleString('en-GB', {
+      style: 'currency',
+      currency: 'GBP'
+    })
+
+    const rentDueDateFormatted = nextRentDueDate
+      ? new Date(nextRentDueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+      : 'your next rent due date'
+
+    // Bank details section (only if available)
+    let bankDetailsSection = ''
+    if (bankDetails) {
+      bankDetailsSection = `
+        <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; color: #4b5563;">
+          Please make payment to the following bank account:
+        </p>
+
+        <div style="margin: 16px 0 24px; padding: 16px; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="padding: 4px 0; font-size: 14px; color: #6b7280; width: 120px;">Account Name:</td>
+              <td style="padding: 4px 0; font-size: 14px; color: #111827; font-weight: 500;">${bankDetails.accountName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; font-size: 14px; color: #6b7280;">Sort Code:</td>
+              <td style="padding: 4px 0; font-size: 14px; color: #111827; font-weight: 500;">${bankDetails.sortCode}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; font-size: 14px; color: #6b7280;">Account No:</td>
+              <td style="padding: 4px 0; font-size: 14px; color: #111827; font-weight: 500;">${bankDetails.accountNumber}</td>
+            </tr>
+          </table>
+        </div>
+      `
+    } else {
+      bankDetailsSection = `
+        <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; color: #4b5563;">
+          Please contact us for payment details.
+        </p>
+      `
+    }
+
+    proRataSection = `
+      <h2 style="margin: 32px 0 16px; font-size: 18px; font-weight: 600; color: #111827;">Final Rent Payment</h2>
+
+      <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; color: #4b5563;">
+        As you're moving out mid-month, your final rent payment will be pro-rata for <strong>${proRataInfo.daysCharged} days</strong>.
+      </p>
+
+      <div style="margin: 24px 0; padding: 20px; background-color: #ecfdf5; border: 1px solid #10b981; border-radius: 8px;">
+        <p style="margin: 0 0 8px; font-size: 14px; color: #047857; font-weight: 500;">Pro-Rata Rent Due</p>
+        <p style="margin: 0; font-size: 28px; font-weight: 700; color: #065f46;">${formattedAmount}</p>
+        <p style="margin: 8px 0 0; font-size: 14px; color: #047857;">Due on ${rentDueDateFormatted}</p>
+      </div>
+
+      ${bankDetailsSection}
+    `
+  }
+
+  // Build contact info
+  const contactParts = []
+  if (branding.email) contactParts.push(branding.email)
+  if (branding.phone) contactParts.push(branding.phone)
+  const contactInfo = contactParts.length > 0 ? contactParts.join(' or ') : branding.companyName
+
+  const templateVariables: Record<string, string> = {
+    TenantName: tenantName,
+    PropertyAddress: propertyAddress,
+    MoveOutDate: formattedMoveOutDate,
+    ProRataSection: proRataSection,
+    CompanyName: branding.companyName,
+    AgentLogoUrl: branding.logoUrl || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
+    ContactInfo: contactInfo
+  }
+
+  const html = loadEmailTemplate('move-out-confirmation', templateVariables)
+
+  await sendEmail({
+    to: tenantEmail,
+    subject: `Move Out Confirmation - ${propertyAddress}`,
+    html
+  })
+
+  console.log(`[sendMoveOutConfirmation] Move out confirmation sent to ${tenantEmail} for ${propertyAddress}`)
 }

@@ -483,9 +483,9 @@ import {
 } from 'lucide-vue-next'
 import StaffHeader from '../components/StaffHeader.vue'
 
-const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const authStore = useAuthStore()
 // State
 const activeTab = ref<'test' | 'dependency' | 'logs'>('test')
 

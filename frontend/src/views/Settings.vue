@@ -1,16 +1,16 @@
 <template>
   <Sidebar>
-    <div class="p-8">
+    <div class="min-h-screen bg-slate-50 dark:bg-slate-950 p-8 transition-colors duration-300">
       <div class="mb-8">
-        <h2 class="text-3xl font-bold text-gray-900">Settings</h2>
-        <p class="mt-2 text-gray-600">Manage your account, team, and company settings</p>
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Settings</h2>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Manage your account, team, and company settings</p>
       </div>
 
       <!-- Tabs Layout -->
       <div class="flex gap-6">
         <!-- Vertical Tabs -->
         <nav class="w-64 flex-shrink-0">
-          <div class="bg-white rounded-lg shadow p-2 space-y-1">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-2 space-y-1">
             <router-link
               v-for="tab in tabs"
               :key="tab.id"
@@ -18,7 +18,7 @@
               class="block w-full text-left px-4 py-3 rounded-md font-medium text-sm transition-colors"
               :class="activeTab === tab.id
                 ? 'bg-primary text-white'
-                : 'text-gray-700 hover:bg-gray-100'"
+                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'"
             >
               {{ tab.name }}
             </router-link>
@@ -29,14 +29,14 @@
         <div class="flex-1">
         <!-- Permission Denied Message -->
         <div v-if="!hasPermission(activeTab)" class="max-w-3xl">
-          <div class="bg-white rounded-lg shadow p-8">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-8">
             <div class="flex items-center justify-center mb-6">
-              <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-                <Lock class="w-8 h-8 text-red-600" />
+              <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Lock class="w-8 h-8 text-red-600 dark:text-red-400" />
               </div>
             </div>
-            <h3 class="text-2xl font-bold text-gray-900 text-center mb-2">Access Denied</h3>
-            <p class="text-gray-600 text-center mb-6">
+            <h3 class="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">Access Denied</h3>
+            <p class="text-gray-600 dark:text-slate-400 text-center mb-6">
               You don't have permission to access this section. Please contact your company owner or admin for access.
             </p>
             <div class="flex justify-center">
@@ -52,46 +52,46 @@
 
         <!-- Profile Tab -->
         <div v-else-if="activeTab === 'profile'" class="max-w-3xl">
-          <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Personal Information</h3>
             <form @submit.prevent="handleUpdateProfile" class="space-y-4">
               <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email</label>
                 <input
                   id="email"
                   v-model="profileData.email"
                   type="email"
                   disabled
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-md bg-gray-100 dark:bg-slate-800 dark:text-slate-400 cursor-not-allowed"
                 />
-                <p class="mt-1 text-sm text-gray-500">Email cannot be changed</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">Email cannot be changed</p>
               </div>
 
               <div>
-                <label for="full-name" class="block text-sm font-medium text-gray-700">Full Name</label>
+                <label for="full-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Full Name</label>
                 <input
                   id="full-name"
                   v-model="profileData.fullName"
                   type="text"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
 
               <div>
-                <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Phone Number</label>
                 <input
                   id="phone"
                   v-model="profileData.phone"
                   type="tel"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
 
-              <div v-if="profileSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+              <div v-if="profileSuccess" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded">
                 {{ profileSuccess }}
               </div>
 
-              <div v-if="profileError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+              <div v-if="profileError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
                 {{ profileError }}
               </div>
 
@@ -105,36 +105,36 @@
             </form>
           </div>
 
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Change Password</h3>
             <form @submit.prevent="handleChangePassword" class="space-y-4">
               <div>
-                <label for="new-password" class="block text-sm font-medium text-gray-700">New Password</label>
+                <label for="new-password" class="block text-sm font-medium text-gray-700 dark:text-slate-300">New Password</label>
                 <input
                   id="new-password"
                   v-model="passwordData.newPassword"
                   type="password"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                   placeholder="At least 6 characters"
                 />
               </div>
 
               <div>
-                <label for="confirm-password" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+                <label for="confirm-password" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Confirm Password</label>
                 <input
                   id="confirm-password"
                   v-model="passwordData.confirmPassword"
                   type="password"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                   placeholder="Confirm new password"
                 />
               </div>
 
-              <div v-if="passwordSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+              <div v-if="passwordSuccess" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded">
                 {{ passwordSuccess }}
               </div>
 
-              <div v-if="passwordError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+              <div v-if="passwordError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
                 {{ passwordError }}
               </div>
 
@@ -151,133 +151,133 @@
 
         <!-- Company Tab -->
         <div v-else-if="activeTab === 'company'" class="max-w-3xl">
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Company Information</h3>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Company Information</h3>
             <form @submit.prevent="handleUpdateCompany" class="space-y-4">
               <div>
-                <label for="company-name" class="block text-sm font-medium text-gray-700">Company Name</label>
+                <label for="company-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Company Name</label>
                 <input
                   id="company-name"
                   v-model="companyData.name"
                   type="text"
                   required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
 
               <div>
-                <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                <label for="address" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address</label>
                 <textarea
                   id="address"
                   v-model="companyData.address"
                   rows="3"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                 ></textarea>
               </div>
 
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label for="city" class="block text-sm font-medium text-gray-700">City</label>
+                  <label for="city" class="block text-sm font-medium text-gray-700 dark:text-slate-300">City</label>
                   <input
                     id="city"
                     v-model="companyData.city"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode</label>
+                  <label for="postcode" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Postcode</label>
                   <input
                     id="postcode"
                     v-model="companyData.postcode"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                   />
                 </div>
               </div>
 
               <div>
-                <label for="company-phone" class="block text-sm font-medium text-gray-700">Company Phone</label>
+                <label for="company-phone" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Company Phone</label>
                 <input
                   id="company-phone"
                   v-model="companyData.phone"
                   type="tel"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                 />
               </div>
 
               <div>
-                <label for="website" class="block text-sm font-medium text-gray-700">Website</label>
+                <label for="website" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Website</label>
                 <input
                   id="website"
                   v-model="companyData.website"
                   type="text"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                   placeholder="example.com"
                   @blur="formatWebsiteUrl"
                 />
               </div>
 
               <div>
-                <label for="offer-notification-email" class="block text-sm font-medium text-gray-700">Offer Notification Email</label>
+                <label for="offer-notification-email" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Offer Notification Email</label>
                 <input
                   id="offer-notification-email"
                   v-model="companyData.offerNotificationEmail"
                   type="email"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                   placeholder="notifications@example.com or slack-channel@example.com"
                 />
-                <p class="mt-1 text-sm text-gray-500">Email address to receive notifications when tenant offers are completed. Can be set to a Slack channel email or any notification service.</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">Email address to receive notifications when tenant offers are completed. Can be set to a Slack channel email or any notification service.</p>
               </div>
 
               <div>
-                <label for="reference-notification-email" class="block text-sm font-medium text-gray-700">Reference Notification Email</label>
+                <label for="reference-notification-email" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Reference Notification Email</label>
                 <input
                   id="reference-notification-email"
                   v-model="companyData.referenceNotificationEmail"
                   type="email"
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                   placeholder="notifications@example.com or slack-channel@example.com"
                 />
-                <p class="mt-1 text-sm text-gray-500">Email address to receive notifications when references are completed. Can be set to a Slack channel email or any notification service.</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">Email address to receive notifications when references are completed. Can be set to a Slack channel email or any notification service.</p>
               </div>
 
               <!-- Bank Details Section -->
-              <div class="border-t pt-6">
-                <h4 class="text-md font-semibold text-gray-900 mb-4">Bank Details (for Agreements)</h4>
-                <p class="text-sm text-gray-600 mb-4">These details will be used when generating tenancy agreements for fully managed properties.</p>
+              <div class="border-t dark:border-slate-700 pt-6">
+                <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-4">Bank Details (for Agreements)</h4>
+                <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">These details will be used when generating tenancy agreements for fully managed properties.</p>
 
                 <div class="space-y-4">
                   <div>
-                    <label for="bank-account-name" class="block text-sm font-medium text-gray-700">Account Name</label>
+                    <label for="bank-account-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Account Name</label>
                     <input
                       id="bank-account-name"
                       v-model="companyData.bankAccountName"
                       type="text"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                       placeholder="Company Name Ltd"
                     />
                   </div>
 
                   <div class="grid grid-cols-2 gap-4">
                     <div>
-                      <label for="bank-account-number" class="block text-sm font-medium text-gray-700">Account Number</label>
+                      <label for="bank-account-number" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Account Number</label>
                       <input
                         id="bank-account-number"
                         v-model="companyData.bankAccountNumber"
                         type="text"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                         placeholder="12345678"
                         maxlength="8"
                       />
                     </div>
                     <div>
-                      <label for="bank-sort-code" class="block text-sm font-medium text-gray-700">Sort Code</label>
+                      <label for="bank-sort-code" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Sort Code</label>
                       <input
                         id="bank-sort-code"
                         v-model="companyData.bankSortCode"
                         type="text"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                         placeholder="12-34-56"
                         maxlength="8"
                       />
@@ -286,11 +286,30 @@
                 </div>
               </div>
 
-              <div v-if="companySuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+              <!-- Management Information Section -->
+              <div class="border-t dark:border-slate-700 pt-6">
+                <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-2">Management Information</h4>
+                <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                  The message below will be sent to your managed tenants in the move-in pack to tell them how to report maintenance issues. Please describe your process.
+                </p>
+                <div>
+                  <label for="management-info" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Maintenance Reporting Process</label>
+                  <textarea
+                    id="management-info"
+                    v-model="companyData.managementInfo"
+                    rows="4"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
+                    placeholder="e.g. For any maintenance issues, please report them via email to maintenance@company.com or call 01onal23 456789 during office hours (Mon-Fri 9am-5pm). For emergencies outside of hours, please call our 24/7 line on 01234 567890."
+                  ></textarea>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-slate-500">This is only shown for managed tenancies. Let Only tenancies will show landlord contact details instead.</p>
+                </div>
+              </div>
+
+              <div v-if="companySuccess" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded">
                 {{ companySuccess }}
               </div>
 
-              <div v-if="companyError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+              <div v-if="companyError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
                 {{ companyError }}
               </div>
 
@@ -307,21 +326,21 @@
 
         <!-- Branding Tab -->
         <div v-else-if="activeTab === 'branding'" class="max-w-3xl">
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Branding Settings</h3>
-            <p class="text-sm text-gray-600 mb-6">Customize the appearance of forms sent to tenants, landlords, and employers</p>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Branding Settings</h3>
+            <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">Customize the appearance of forms sent to tenants, landlords, and employers</p>
 
             <form @submit.prevent="handleUpdateBranding" class="space-y-6">
               <!-- Logo Upload -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Company Logo</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Company Logo</label>
                 <div class="flex items-center space-x-6">
                   <div class="flex-shrink-0">
-                    <div class="w-32 h-32 border-2 border-gray-300 border-dashed rounded-lg flex items-center justify-center bg-gray-50">
+                    <div class="w-32 h-32 border-2 border-gray-300 dark:border-slate-700 border-dashed rounded-lg flex items-center justify-center bg-gray-50 dark:bg-slate-800">
                       <img v-if="logoPreview" :src="logoPreview" alt="Logo preview" class="w-full h-full object-contain rounded-lg" />
                       <div v-else class="text-center">
-                        <Image class="mx-auto h-12 w-12 text-gray-400" />
-                        <p class="mt-1 text-xs text-gray-500">No logo</p>
+                        <Image class="mx-auto h-12 w-12 text-gray-400 dark:text-slate-500" />
+                        <p class="mt-1 text-xs text-gray-500 dark:text-slate-500">No logo</p>
                       </div>
                     </div>
                   </div>
@@ -332,7 +351,7 @@
                       accept="image/png,image/jpeg,image/jpg,image/webp"
                       class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-white hover:file:bg-primary/90"
                     />
-                    <p class="mt-2 text-xs text-gray-500">PNG, JPG, or WEBP. Max 2MB.</p>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-slate-500">PNG, JPG, or WEBP. Max 2MB.</p>
                     <button
                       v-if="logoPreview"
                       type="button"
@@ -347,55 +366,55 @@
 
               <!-- Primary Color -->
               <div>
-                <label for="primary-color" class="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
+                <label for="primary-color" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Primary Color</label>
                 <div class="flex items-center space-x-4">
                   <input
                     id="primary-color"
                     v-model="brandingData.primary_color"
                     type="color"
-                    class="h-10 w-20 border border-gray-300 rounded cursor-pointer"
+                    class="h-10 w-20 border border-gray-300 dark:border-slate-600 rounded cursor-pointer"
                   />
                   <input
                     v-model="brandingData.primary_color"
                     type="text"
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                     placeholder="#fe7a0f"
                   />
                 </div>
-                <p class="mt-1 text-xs text-gray-500">Used for headings and key UI elements</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-slate-500">Used for headings and key UI elements</p>
               </div>
 
               <!-- Button Color -->
               <div>
-                <label for="button-color" class="block text-sm font-medium text-gray-700 mb-2">Button Color</label>
+                <label for="button-color" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Button Color</label>
                 <div class="flex items-center space-x-4">
                   <input
                     id="button-color"
                     v-model="brandingData.button_color"
                     type="color"
-                    class="h-10 w-20 border border-gray-300 rounded cursor-pointer"
+                    class="h-10 w-20 border border-gray-300 dark:border-slate-600 rounded cursor-pointer"
                   />
                   <input
                     v-model="brandingData.button_color"
                     type="text"
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                     placeholder="#fe7a0f"
                   />
                 </div>
-                <p class="mt-1 text-xs text-gray-500">Used for action buttons throughout forms</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-slate-500">Used for action buttons throughout forms</p>
               </div>
 
               <!-- Preview -->
-              <div class="border-t pt-6">
-                <h4 class="text-sm font-medium text-gray-700 mb-3">Preview</h4>
-                <div class="border border-gray-200 rounded-lg p-6 bg-gray-50">
+              <div class="border-t dark:border-slate-700 pt-6">
+                <h4 class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Preview</h4>
+                <div class="border border-gray-200 dark:border-slate-700 rounded-lg p-6 bg-gray-50 dark:bg-slate-800">
                   <div v-if="logoPreview" class="mb-4">
                     <img :src="logoPreview" alt="Logo" class="h-12 object-contain" />
                   </div>
                   <h3 class="text-xl font-bold mb-4" :style="{ color: brandingData.primary_color }">
                     Reference Request Form
                   </h3>
-                  <p class="text-gray-600 mb-4">This is how your forms will appear to recipients.</p>
+                  <p class="text-gray-600 dark:text-slate-400 mb-4">This is how your forms will appear to recipients.</p>
                   <button
                     type="button"
                     class="px-4 py-2 rounded-md text-white font-medium"
@@ -406,11 +425,11 @@
                 </div>
               </div>
 
-              <div v-if="brandingSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+              <div v-if="brandingSuccess" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded">
                 {{ brandingSuccess }}
               </div>
 
-              <div v-if="brandingError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+              <div v-if="brandingError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
                 {{ brandingError }}
               </div>
 
@@ -426,7 +445,7 @@
                   type="button"
                   @click="handleResetBranding"
                   :disabled="brandingLoading"
-                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md disabled:opacity-50"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md disabled:opacity-50"
                 >
                   Reset to Default
                 </button>
@@ -437,7 +456,13 @@
 
         <!-- Team Tab -->
         <div v-else-if="activeTab === 'team'">
-          <div class="mb-6 flex justify-end">
+          <div class="mb-6 flex justify-end gap-3">
+            <button
+              @click="showAddToBranchModal = true"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md"
+            >
+              Add Existing User to Branch
+            </button>
             <button
               @click="showInviteModal = true"
               class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md"
@@ -447,20 +472,20 @@
           </div>
 
           <!-- Team Members List -->
-          <div class="bg-white rounded-lg shadow overflow-hidden mb-8">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 overflow-hidden mb-8">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+              <thead class="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Role</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Joined</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
+              <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
                 <tr v-if="teamMembers.length === 0">
-                  <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                  <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
                     No team members yet. Invite your first user!
                   </td>
                 </tr>
@@ -471,22 +496,22 @@
                         {{ getInitials(member.email) }}
                       </div>
                       <div class="ml-4">
-                        <div class="text-sm font-medium text-gray-900">{{ member.name || 'N/A' }}</div>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ member.name || 'N/A' }}</div>
                       </div>
                     </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ member.email }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ member.email }}</td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
                       :class="{
-                        'bg-purple-100 text-purple-800': member.role === 'owner',
-                        'bg-blue-100 text-blue-800': member.role === 'admin',
-                        'bg-gray-100 text-gray-800': member.role === 'member'
+                        'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300': member.role === 'owner',
+                        'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300': member.role === 'admin',
+                        'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-slate-300': member.role === 'member'
                       }">
                       {{ member.role }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(member.joined) }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ formatDate(member.joined) }}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       v-if="member.role !== 'owner'"
@@ -502,35 +527,35 @@
           </div>
 
           <!-- Pending Invitations -->
-          <div class="bg-white rounded-lg shadow overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900">Pending Invitations</h3>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Pending Invitations</h3>
             </div>
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+              <thead class="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invited</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires</th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Role</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Invited</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Expires</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
+              <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
                 <tr v-if="pendingInvitations.length === 0">
-                  <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                  <td colspan="5" class="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                     No pending invitations
                   </td>
                 </tr>
                 <tr v-for="invite in pendingInvitations" :key="invite.id">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ invite.email }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ invite.email }}</td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">
                       {{ invite.role }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(invite.created) }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(invite.expires) }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ formatDate(invite.created) }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ formatDate(invite.expires) }}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       @click="handleResendInvite(invite)"
@@ -554,15 +579,15 @@
         <!-- Audit Logs Tab -->
         <div v-else-if="activeTab === 'audit-logs'">
           <!-- Filters -->
-          <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Action Type</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Action Type</label>
                 <select
                   v-model="auditFilters.action_type"
                   @change="fetchAuditLogs"
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                  class="w-full rounded-md border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white shadow-sm focus:border-primary focus:ring-primary"
                 >
                   <option value="">All Actions</option>
                   <option value="user.invited">User Invited</option>
@@ -578,11 +603,11 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Resource Type</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Resource Type</label>
                 <select
                   v-model="auditFilters.resource_type"
                   @change="fetchAuditLogs"
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                  class="w-full rounded-md border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white shadow-sm focus:border-primary focus:ring-primary"
                 >
                   <option value="">All Resources</option>
                   <option value="user">User</option>
@@ -593,22 +618,22 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Date From</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Date From</label>
                 <input
                   type="date"
                   v-model="auditFilters.start_date"
                   @change="fetchAuditLogs"
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                  class="w-full rounded-md border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white shadow-sm focus:border-primary focus:ring-primary"
                 />
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Date To</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Date To</label>
                 <input
                   type="date"
                   v-model="auditFilters.end_date"
                   @change="fetchAuditLogs"
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                  class="w-full rounded-md border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white shadow-sm focus:border-primary focus:ring-primary"
                 />
               </div>
             </div>
@@ -616,7 +641,7 @@
             <div class="mt-4 flex justify-between items-center">
               <button
                 @click="resetAuditFilters"
-                class="text-sm text-gray-600 hover:text-gray-900"
+                class="text-sm text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
               >
                 Reset Filters
               </button>
@@ -633,35 +658,35 @@
           <!-- Loading State -->
           <div v-if="auditLoading" class="text-center py-12">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <p class="mt-2 text-gray-600">Loading audit logs...</p>
+            <p class="mt-2 text-gray-600 dark:text-slate-400">Loading audit logs...</p>
           </div>
 
           <!-- Error State -->
-          <div v-else-if="auditError" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p class="text-red-800">{{ auditError }}</p>
+          <div v-else-if="auditError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+            <p class="text-red-800 dark:text-red-400">{{ auditError }}</p>
           </div>
 
           <!-- Audit Logs Table -->
-          <div v-else class="bg-white rounded-lg shadow overflow-hidden">
+          <div v-else class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 overflow-hidden">
             <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+                <thead class="bg-gray-50 dark:bg-slate-800">
                   <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date/Time</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Date/Time</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">User</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Action</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">IP Address</th>
                   </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
                   <tr v-if="auditLogs.length === 0">
-                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
                       No audit logs found
                     </td>
                   </tr>
-                  <tr v-for="log in auditLogs" :key="log.id" class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr v-for="log in auditLogs" :key="log.id" class="hover:bg-gray-50 dark:hover:bg-slate-800">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {{ formatAuditDateTime(log.created_at) }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -670,8 +695,8 @@
                           {{ getAuditUserInitials(log.user) }}
                         </div>
                         <div class="ml-3">
-                          <div class="text-sm font-medium text-gray-900">{{ log.user?.name || 'System' }}</div>
-                          <div class="text-xs text-gray-500">{{ log.user?.email || '-' }}</div>
+                          <div class="text-sm font-medium text-gray-900 dark:text-white">{{ log.user?.name || 'System' }}</div>
+                          <div class="text-xs text-gray-500 dark:text-slate-400">{{ log.user?.email || '-' }}</div>
                         </div>
                       </div>
                     </td>
@@ -681,10 +706,10 @@
                         {{ formatAuditActionType(log.action_type) }}
                       </span>
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-900">
+                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
                       {{ log.description }}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
                       {{ log.ip_address || '-' }}
                     </td>
                   </tr>
@@ -693,8 +718,8 @@
             </div>
 
             <!-- Pagination -->
-            <div v-if="auditPagination.totalPages > 1" class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
-              <div class="text-sm text-gray-700">
+            <div v-if="auditPagination.totalPages > 1" class="bg-gray-50 dark:bg-slate-800 px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-slate-700">
+              <div class="text-sm text-gray-700 dark:text-slate-300">
                 Showing {{ (auditPagination.page - 1) * auditPagination.limit + 1 }} to
                 {{ Math.min(auditPagination.page * auditPagination.limit, auditPagination.total) }} of
                 {{ auditPagination.total }} results
@@ -703,19 +728,36 @@
                 <button
                   @click="changeAuditPage(auditPagination.page - 1)"
                   :disabled="auditPagination.page === 1"
-                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
                 <button
                   @click="changeAuditPage(auditPagination.page + 1)"
                   :disabled="auditPagination.page >= auditPagination.totalPages"
-                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Integrations Tab -->
+        <div v-else-if="activeTab === 'integrations'" class="max-w-3xl">
+          <!-- TDS Integration temporarily disabled -->
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6 text-center">
+            <div class="text-amber-600 dark:text-amber-400 mb-2">
+              <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-amber-800 dark:text-amber-300 mb-2">TDS Integration Coming Soon</h3>
+            <p class="text-amber-700 dark:text-amber-400 text-sm">
+              Direct integration with TDS Custodial and TDS Insured is currently being finalised.
+              In the meantime, you can manually mark deposits as protected in the tenancy details.
+            </p>
           </div>
         </div>
 
@@ -729,38 +771,38 @@
 
     <!-- Invite Modal -->
     <div v-if="showInviteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Invite Team Member</h3>
+      <div class="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Invite Team Member</h3>
         <form @submit.prevent="handleInvite" class="space-y-4">
           <div>
-            <label for="invite-email" class="block text-sm font-medium text-gray-700">Email</label>
+            <label for="invite-email" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email</label>
             <input
               id="invite-email"
               v-model="inviteData.email"
               type="email"
               required
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
               placeholder="user@example.com"
             />
           </div>
 
           <div>
-            <label for="invite-role" class="block text-sm font-medium text-gray-700">Role</label>
+            <label for="invite-role" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Role</label>
             <select
               id="invite-role"
               v-model="inviteData.role"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
             >
               <option value="member">Member</option>
               <option value="admin">Admin</option>
             </select>
           </div>
 
-          <div v-if="inviteError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+          <div v-if="inviteError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
             {{ inviteError }}
           </div>
 
-          <div v-if="inviteSuccess" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+          <div v-if="inviteSuccess" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded">
             {{ inviteSuccess }}
           </div>
 
@@ -768,7 +810,7 @@
             <button
               type="button"
               @click="closeInviteModal"
-              class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md"
             >
               Cancel
             </button>
@@ -784,23 +826,83 @@
       </div>
     </div>
 
+    <!-- Add to Branch Modal -->
+    <div v-if="showAddToBranchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Add Existing User to Branch</h3>
+        <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+          Add a user who already has a PropertyGoose account to this branch. They will gain access immediately.
+        </p>
+        <form @submit.prevent="handleAddToBranch" class="space-y-4">
+          <div>
+            <label for="branch-user-email" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email</label>
+            <input
+              id="branch-user-email"
+              v-model="addToBranchData.email"
+              type="email"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
+              placeholder="user@example.com"
+            />
+          </div>
+
+          <div>
+            <label for="branch-user-role" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Role</label>
+            <select
+              id="branch-user-role"
+              v-model="addToBranchData.role"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md focus:ring-primary focus:border-primary"
+            >
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+
+          <div v-if="addToBranchError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
+            {{ addToBranchError }}
+          </div>
+
+          <div v-if="addToBranchSuccess" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded">
+            {{ addToBranchSuccess }}
+          </div>
+
+          <div class="flex justify-end space-x-3">
+            <button
+              type="button"
+              @click="closeAddToBranchModal"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              :disabled="addToBranchLoading"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+            >
+              {{ addToBranchLoading ? 'Adding...' : 'Add to Branch' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Reset Branding Confirmation Modal -->
     <div v-if="showResetBrandingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div class="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4">
         <div class="flex items-center mb-4">
-          <div class="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
-            <AlertTriangle class="w-6 h-6 text-yellow-600" />
+          <div class="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+            <AlertTriangle class="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
           </div>
-          <h3 class="ml-3 text-lg font-semibold text-gray-900">Reset to Default Branding?</h3>
+          <h3 class="ml-3 text-lg font-semibold text-gray-900 dark:text-white">Reset to Default Branding?</h3>
         </div>
-        <p class="text-gray-600 mb-6">
+        <p class="text-gray-600 dark:text-slate-400 mb-6">
           This will remove your custom logo and reset colors to PropertyGoose orange. This action cannot be undone.
         </p>
         <div class="flex justify-end space-x-3">
           <button
             type="button"
             @click="showResetBrandingModal = false"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
+            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md"
           >
             Cancel
           </button>
@@ -822,15 +924,16 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import Billing from './Billing.vue'
+import TDSIntegrationSettings from '../components/settings/TDSIntegrationSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
 import { Lock, Image, AlertTriangle } from 'lucide-vue-next'
 
-const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const authStore = useAuthStore()
 const route = useRoute()
 
 const activeTab = computed(() => {
@@ -840,6 +943,7 @@ const activeTab = computed(() => {
   if (path.includes('/settings/team')) return 'team'
   if (path.includes('/settings/billing')) return 'billing'
   if (path.includes('/settings/audit-logs')) return 'audit-logs'
+  if (path.includes('/settings/integrations')) return 'integrations'
   return 'profile'
 })
 
@@ -850,15 +954,16 @@ const tabs = computed(() => {
     { id: 'company', name: 'Company' },
     { id: 'branding', name: 'Branding' },
     { id: 'team', name: 'Team' },
+    { id: 'integrations', name: 'Integrations' },
     { id: 'billing', name: 'Billing' },
     { id: 'audit-logs', name: 'Audit Logs' }
   ]
 
   const userRole = authStore.company?.role || ''
 
-  // Members can see Profile and Billing tabs
+  // Members can only see Profile tab
   if (userRole === 'member') {
-    return allTabs.filter(tab => tab.id === 'profile' || tab.id === 'billing')
+    return allTabs.filter(tab => tab.id === 'profile')
   }
 
   // Admins and Owners see all tabs
@@ -898,7 +1003,8 @@ const companyData = ref({
   website: '',
   bankAccountName: '',
   bankAccountNumber: '',
-  bankSortCode: ''
+  bankSortCode: '',
+  managementInfo: ''
 })
 
 const companyLoading = ref(false)
@@ -937,6 +1043,16 @@ const inviteData = ref({
 const inviteLoading = ref(false)
 const inviteError = ref('')
 const inviteSuccess = ref('')
+
+// Add to branch data
+const showAddToBranchModal = ref(false)
+const addToBranchData = ref({
+  email: '',
+  role: 'member'
+})
+const addToBranchLoading = ref(false)
+const addToBranchError = ref('')
+const addToBranchSuccess = ref('')
 
 const teamMembers = ref<any[]>([])
 
@@ -1007,11 +1123,19 @@ const fetchTeamMembers = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/company/members`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     })
 
     if (response.ok) {
@@ -1035,11 +1159,19 @@ const fetchPendingInvitations = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/invitations`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     })
 
     if (response.status === 403 || response.status === 404) {
@@ -1068,11 +1200,19 @@ const fetchCompanyData = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/company`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     })
 
     if (response.ok) {
@@ -1089,6 +1229,7 @@ const fetchCompanyData = async () => {
         companyData.value.bankAccountName = data.company.bank_account_name || ''
         companyData.value.bankAccountNumber = data.company.bank_account_number || ''
         companyData.value.bankSortCode = data.company.bank_sort_code || ''
+        companyData.value.managementInfo = data.company.management_info || ''
 
         // Load branding data
         brandingData.value.logo_url = data.company.logo_url || ''
@@ -1212,12 +1353,20 @@ const handleUpdateCompany = async () => {
       return
     }
 
+    const companyHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      companyHeaders['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/company`, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers: companyHeaders,
       body: JSON.stringify({
         name: companyData.value.name,
         address: companyData.value.address,
@@ -1229,7 +1378,8 @@ const handleUpdateCompany = async () => {
         reference_notification_email: companyData.value.referenceNotificationEmail,
         bank_account_name: companyData.value.bankAccountName,
         bank_account_number: companyData.value.bankAccountNumber,
-        bank_sort_code: companyData.value.bankSortCode
+        bank_sort_code: companyData.value.bankSortCode,
+        management_info: companyData.value.managementInfo
       })
     })
 
@@ -1280,12 +1430,20 @@ const handleInvite = async () => {
       return
     }
 
+    const inviteHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      inviteHeaders['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/invitations`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers: inviteHeaders,
       body: JSON.stringify({
         email: inviteData.value.email,
         role: inviteData.value.role
@@ -1319,6 +1477,73 @@ const closeInviteModal = () => {
   inviteSuccess.value = ''
 }
 
+// Add existing user to branch
+const handleAddToBranch = async () => {
+  addToBranchLoading.value = true
+  addToBranchError.value = ''
+  addToBranchSuccess.value = ''
+
+  // Validate email
+  if (!isValidEmail(addToBranchData.value.email)) {
+    addToBranchError.value = 'Please enter a valid email address'
+    addToBranchLoading.value = false
+    return
+  }
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      addToBranchError.value = 'No auth token available'
+      return
+    }
+
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
+
+    const response = await fetch(`${API_URL}/api/company/add-branch-user`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        email: addToBranchData.value.email,
+        role: addToBranchData.value.role
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to add user to branch')
+    }
+
+    addToBranchSuccess.value = `${addToBranchData.value.email} has been added to this branch`
+
+    // Refresh team members list
+    await fetchTeamMembers()
+
+    setTimeout(() => {
+      closeAddToBranchModal()
+    }, 2000)
+  } catch (error: any) {
+    addToBranchError.value = error.message || 'Failed to add user to branch'
+  } finally {
+    addToBranchLoading.value = false
+  }
+}
+
+const closeAddToBranchModal = () => {
+  showAddToBranchModal.value = false
+  addToBranchData.value = { email: '', role: 'member' }
+  addToBranchError.value = ''
+  addToBranchSuccess.value = ''
+}
+
 const handleRemoveMember = async (member: any) => {
   if (!confirm(`Are you sure you want to remove ${member.email}?`)) {
     return
@@ -1328,12 +1553,20 @@ const handleRemoveMember = async (member: any) => {
     const token = authStore.session?.access_token
     if (!token) return
 
+    const deleteHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      deleteHeaders['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/company/members/${member.user_id}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers: deleteHeaders
     })
 
     if (!response.ok) {
@@ -1353,12 +1586,20 @@ const handleResendInvite = async (invite: any) => {
     const token = authStore.session?.access_token
     if (!token) return
 
+    const resendHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      resendHeaders['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/invitations/${invite.id}/resend`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers: resendHeaders
     })
 
     if (!response.ok) {
@@ -1382,12 +1623,20 @@ const handleRevokeInvite = async (invite: any) => {
     const token = authStore.session?.access_token
     if (!token) return
 
+    const revokeHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      revokeHeaders['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/invitations/${invite.id}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers: revokeHeaders
     })
 
     if (!response.ok) {
@@ -1454,13 +1703,21 @@ const confirmResetBranding = async () => {
       return
     }
 
+    const resetHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      resetHeaders['X-Branch-Id'] = activeBranchId
+    }
+
     // Reset to default values
     const response = await fetch(`${API_URL}/api/company`, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers: resetHeaders,
       body: JSON.stringify({
         logo_url: null,
         primary_color: defaultBranding.primaryColor,
@@ -1502,16 +1759,24 @@ const handleUpdateBranding = async () => {
 
     let logoUrl = brandingData.value.logo_url
 
+    // Get active branch ID for all requests
+    const activeBranchId = localStorage.getItem('activeBranchId')
+
     // Upload logo if a new file was selected
     if (logoFile.value) {
       const formData = new FormData()
       formData.append('logo', logoFile.value)
 
+      const uploadHeaders: Record<string, string> = {
+        'Authorization': `Bearer ${token}`
+      }
+      if (activeBranchId) {
+        uploadHeaders['X-Branch-Id'] = activeBranchId
+      }
+
       const uploadResponse = await fetch(`${API_URL}/api/company/logo`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: uploadHeaders,
         body: formData
       })
 
@@ -1525,12 +1790,17 @@ const handleUpdateBranding = async () => {
     }
 
     // Update branding settings
+    const brandingHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+    if (activeBranchId) {
+      brandingHeaders['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/company`, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers: brandingHeaders,
       body: JSON.stringify({
         logo_url: logoUrl,
         primary_color: brandingData.value.primary_color,
@@ -1574,11 +1844,20 @@ const fetchAuditLogs = async () => {
     if (auditFilters.value.end_date) params.end_date = new Date(auditFilters.value.end_date).toISOString()
 
     const queryString = new URLSearchParams(params).toString()
+
+    const auditHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      auditHeaders['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/audit-logs?${queryString}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers: auditHeaders
     })
 
     if (!response.ok) {
@@ -1622,10 +1901,19 @@ const exportAuditLogs = async () => {
     if (auditFilters.value.end_date) params.end_date = new Date(auditFilters.value.end_date).toISOString()
 
     const queryString = new URLSearchParams(params).toString()
+
+    const exportHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${token}`
+    }
+
+    // Include active branch ID if set
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      exportHeaders['X-Branch-Id'] = activeBranchId
+    }
+
     const response = await fetch(`${API_URL}/api/audit-logs/export?${queryString}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers: exportHeaders
     })
 
     if (!response.ok) {
@@ -1677,14 +1965,14 @@ const getAuditUserInitials = (user: any) => {
 
 const getAuditActionBadgeClass = (actionType: string) => {
   if (actionType.includes('deleted') || actionType.includes('removed')) {
-    return 'bg-red-100 text-red-800'
+    return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
   }
   if (actionType.includes('created') || actionType.includes('invited') || actionType.includes('joined')) {
-    return 'bg-green-100 text-green-800'
+    return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
   }
   if (actionType.includes('updated')) {
-    return 'bg-blue-100 text-blue-800'
+    return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
   }
-  return 'bg-gray-100 text-gray-800'
+  return 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-slate-300'
 }
 </script>

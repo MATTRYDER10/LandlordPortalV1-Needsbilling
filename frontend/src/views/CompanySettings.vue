@@ -11,7 +11,7 @@
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Company Information</h3>
           <form @submit.prevent="handleUpdate" class="space-y-4">
             <div>
-              <label for="company-name" class="block text-sm font-medium text-gray-700">Company Name</label>
+              <label for="company-name" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Company Name</label>
               <input
                 id="company-name"
                 v-model="companyData.name"
@@ -22,7 +22,7 @@
             </div>
 
             <div>
-              <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+              <label for="address" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Address</label>
               <textarea
                 id="address"
                 v-model="companyData.address"
@@ -33,7 +33,7 @@
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label for="city" class="block text-sm font-medium text-gray-700">City</label>
+                <label for="city" class="block text-sm font-medium text-gray-700 dark:text-slate-200">City</label>
                 <input
                   id="city"
                   v-model="companyData.city"
@@ -42,7 +42,7 @@
                 />
               </div>
               <div>
-                <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode</label>
+                <label for="postcode" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Postcode</label>
                 <input
                   id="postcode"
                   v-model="companyData.postcode"
@@ -53,7 +53,7 @@
             </div>
 
             <div>
-              <label for="phone" class="block text-sm font-medium text-gray-700">Company Phone</label>
+              <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Company Phone</label>
               <input
                 id="phone"
                 v-model="companyData.phone"
@@ -63,7 +63,7 @@
             </div>
 
             <div>
-              <label for="email" class="block text-sm font-medium text-gray-700">Company Email</label>
+              <label for="email" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Company Email</label>
               <input
                 id="email"
                 v-model="companyData.email"
@@ -74,7 +74,7 @@
             </div>
 
             <div>
-              <label for="website" class="block text-sm font-medium text-gray-700">Website</label>
+              <label for="website" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Website</label>
               <input
                 id="website"
                 v-model="companyData.website"
@@ -112,10 +112,9 @@ import Sidebar from '../components/Sidebar.vue'
 import { useAuthStore } from '../stores/auth'
 import { isValidEmail } from '../utils/validation'
 
-const authStore = useAuthStore()
-
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const authStore = useAuthStore()
 const companyData = ref({
   name: '',
   address: '',

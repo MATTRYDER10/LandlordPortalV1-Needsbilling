@@ -2,10 +2,10 @@
   <Sidebar>
     <div class="p-8">
       <div v-if="loading" class="flex justify-center items-center h-64">
-        <div class="text-gray-600">Loading landlord...</div>
+        <div class="text-gray-600 dark:text-slate-400">Loading landlord...</div>
       </div>
 
-      <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+      <div v-else-if="error" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 px-4 py-3 rounded">
         {{ error }}
       </div>
 
@@ -14,15 +14,15 @@
         <div class="flex justify-between items-start">
           <div>
             <button @click="$router.push('/landlords')"
-              class="text-gray-600 hover:text-gray-900 mb-4 flex items-center">
+              class="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white mb-4 flex items-center">
               <ArrowLeft class="w-5 h-5 mr-2" />
               Back to Landlords
             </button>
-            <h2 class="text-3xl font-bold text-gray-900">
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white">
               {{ landlord.first_name }} {{ landlord.middle_name ? landlord.middle_name + ' ' : '' }}{{
               landlord.last_name }}
             </h2>
-            <p class="mt-2 text-gray-600">Complete Landlord Details</p>
+            <p class="mt-2 text-gray-600 dark:text-slate-400">Complete Landlord Details</p>
           </div>
           <div class="flex items-center gap-3">
             <button @click="showEditModal = true"
@@ -31,10 +31,10 @@
               Edit
             </button>
             <span class="px-3 py-1 text-sm font-semibold rounded-full" :class="{
-              'bg-green-100 text-green-800': landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed',
-              'bg-red-100 text-red-800': landlord.aml_status === 'unsatisfactory' || landlord.aml_status === 'failed',
-              'bg-blue-100 text-blue-800': landlord.aml_status === 'requested' || landlord.aml_status === 'pending' || landlord.aml_status === 'submitted',
-              'bg-gray-100 text-gray-800': landlord.aml_status === 'not_requested'
+              'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200': landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed',
+              'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200': landlord.aml_status === 'unsatisfactory' || landlord.aml_status === 'failed',
+              'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200': landlord.aml_status === 'requested' || landlord.aml_status === 'pending' || landlord.aml_status === 'submitted',
+              'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200': landlord.aml_status === 'not_requested'
             }">
               {{ formatAMLStatus(landlord.aml_status) }}
             </span>
@@ -42,13 +42,13 @@
         </div>
 
         <!-- Tabs -->
-        <div class="border-b border-gray-200">
+        <div class="border-b border-gray-200 dark:border-slate-700">
           <nav class="-mb-px flex space-x-8">
             <button @click="activeTab = 'overview'" :class="[
               'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
               activeTab === 'overview'
                 ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-500'
             ]">
               Overview
             </button>
@@ -56,7 +56,7 @@
               'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
               activeTab === 'aml'
                 ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-500'
             ]">
               AML checks
             </button>
@@ -66,9 +66,9 @@
         <!-- Overview Tab -->
         <div v-if="activeTab === 'overview'" class="space-y-6">
           <!-- AML Card -->
-          <div class="bg-white rounded-lg shadow p-6">
+          <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-lg font-semibold text-gray-900">AML</h3>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">AML</h3>
             </div>
             <div>
               <span class="px-3 py-1 text-sm font-semibold rounded-full inline-flex items-center gap-2" :class="{
@@ -87,9 +87,9 @@
           </div>
 
           <!-- Linked Properties Card (from Properties module) -->
-          <div class="bg-white rounded-lg shadow p-6">
+          <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-lg font-semibold text-gray-900">Linked Properties</h3>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Linked Properties</h3>
               <button
                 @click="showLinkPropertyModal = true"
                 class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80"
@@ -102,14 +102,14 @@
                 v-for="lp in landlord.linked_properties"
                 :key="lp.id"
                 :to="`/properties/${lp.property_id}`"
-                class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                class="block p-3 bg-gray-50 dark:bg-slate-700 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors"
               >
                 <div class="flex justify-between items-start">
                   <div class="flex-1 min-w-0">
-                    <div class="text-sm font-medium text-gray-900">
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">
                       {{ getPropertyDisplayAddress(lp) }}
                     </div>
-                    <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                    <div class="text-xs text-gray-500 dark:text-slate-400 mt-1 flex items-center gap-2">
                       <span v-if="lp.property_type" class="capitalize">{{ lp.property_type }}</span>
                       <span v-if="lp.number_of_bedrooms">{{ lp.number_of_bedrooms }} bed</span>
                       <span :class="lp.status === 'in_tenancy' ? 'text-green-600' : 'text-gray-500'">
@@ -119,40 +119,40 @@
                   </div>
                   <div class="flex items-center gap-2 ml-3">
                     <span v-if="lp.is_primary_contact"
-                      class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                      class="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded">
                       Primary
                     </span>
-                    <span class="text-sm font-semibold text-gray-900 bg-gray-200 px-2 py-0.5 rounded">
+                    <span class="text-sm font-semibold text-gray-900 dark:text-white bg-gray-200 dark:bg-slate-600 px-2 py-0.5 rounded">
                       {{ lp.ownership_percentage }}%
                     </span>
                   </div>
                 </div>
                 <!-- Ownership bar -->
-                <div class="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div class="mt-2 h-1.5 bg-gray-200 dark:bg-slate-600 rounded-full overflow-hidden">
                   <div class="h-full bg-primary rounded-full" :style="{ width: `${lp.ownership_percentage}%` }"></div>
                 </div>
               </router-link>
             </div>
-            <div v-else class="text-sm text-gray-500">
+            <div v-else class="text-sm text-gray-500 dark:text-slate-400">
               No properties linked to this landlord
             </div>
           </div>
 
           <!-- Legacy Properties Card (if any exist) -->
-          <div v-if="landlord.properties && landlord.properties.length > 0" class="bg-white rounded-lg shadow p-6">
+          <div v-if="landlord.properties && landlord.properties.length > 0" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-lg font-semibold text-gray-900">Properties (Legacy)</h3>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Properties (Legacy)</h3>
               <button @click="showAddPropertyModal = true"
                 class="px-3 py-1 text-sm font-medium text-primary hover:text-primary/80">
                 + Add
               </button>
             </div>
             <div class="space-y-3">
-              <div v-for="property in landlord.properties" :key="property.id" class="p-3 bg-gray-50 rounded-lg">
-                <div class="text-sm font-medium text-gray-900">
+              <div v-for="property in landlord.properties" :key="property.id" class="p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                <div class="text-sm font-medium text-gray-900 dark:text-white">
                   {{ property.address.line1 }}{{ property.address.line2 ? ', ' + property.address.line2 : '' }}
                 </div>
-                <div class="text-sm text-gray-600">
+                <div class="text-sm text-gray-600 dark:text-slate-400">
                   {{ property.address.city }}, {{ property.address.postcode }}
                 </div>
               </div>
@@ -160,99 +160,98 @@
           </div>
 
           <!-- Details Card -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Details</h3>
+          <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Details</h3>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label class="block text-sm font-medium text-gray-500">Name</label>
-                <p class="mt-1 text-sm text-gray-900">
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Name</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">
                   {{ landlord.title ? landlord.title + ' ' : '' }}{{ landlord.first_name }} {{ landlord.middle_name ?
                   landlord.middle_name + ' ' : '' }}{{ landlord.last_name }}
                 </p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">Email</label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.email }}</p>
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Email</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ landlord.email }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">Phone</label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.phone || 'Not provided' }}</p>
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Phone</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ landlord.phone || 'Not provided' }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">Date of Birth</label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.date_of_birth ? formatDate(landlord.date_of_birth) :
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Date of Birth</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ landlord.date_of_birth ? formatDate(landlord.date_of_birth) :
                   'Not provided' }}</p>
               </div>
             </div>
           </div>
 
           <!-- Residential Address Card -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Residential Address</h3>
+          <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Residential Address</h3>
             <div class="space-y-2">
-              <p class="text-sm text-gray-900">
+              <p class="text-sm text-gray-900 dark:text-white">
                 {{ landlord.residential_address.line1 }}{{ landlord.residential_address.line2 ? ', ' +
                 landlord.residential_address.line2 : '' }}
               </p>
-              <p class="text-sm text-gray-900">
+              <p class="text-sm text-gray-900 dark:text-white">
                 {{ landlord.residential_address.city }}, {{ landlord.residential_address.postcode }}
               </p>
-              <p class="text-sm text-gray-900">{{ landlord.residential_address.country || 'GB' }}</p>
+              <p class="text-sm text-gray-900 dark:text-white">{{ landlord.residential_address.country || 'GB' }}</p>
             </div>
           </div>
 
           <!-- Bank Details Card -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Landlord bank details</h3>
+          <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Landlord bank details</h3>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label class="block text-sm font-medium text-gray-500">Account name</label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.bank_details.account_name || 'Not provided' }}</p>
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Account name</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ landlord.bank_details.account_name || 'Not provided' }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">Account number</label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.bank_details.account_number || 'Not provided' }}</p>
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Account number</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ landlord.bank_details.account_number || 'Not provided' }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">Sort code</label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.bank_details.sort_code || 'Not provided' }}</p>
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Sort code</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ landlord.bank_details.sort_code || 'Not provided' }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">Joint account</label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.bank_details.is_joint_account ? 'Yes' : 'No' }}</p>
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Joint account</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ landlord.bank_details.is_joint_account ? 'Yes' : 'No' }}</p>
               </div>
             </div>
           </div>
 
           <!-- Regulatory Information Card -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Regulatory information</h3>
+          <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Regulatory information</h3>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label class="block text-sm font-medium text-gray-500">
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">
                   Landlord registration number (optional)
                   <span class="text-blue-500 hover:text-blue-700 ml-1"
                     title="In Wales we require a Rent Smart Wales License Number, In England we require the Landlord’s registration number (From Feb 27th 2026)">What
                     is this?</span>
                 </label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.regulatory.landlord_registration_number ||
-                  'Notprovided' }}</p>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ landlord.regulatory.landlord_registration_number || 'Not provided' }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-500">
+                <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">
                   Landlord license number (optional)
                   <span class="text-blue-500 hover:text-blue-700 ml-1"
                     title="In Wales we require a Rent Smart Wales License Number, In England we require the Landlord’s registration number (From Feb 27th 2026)">What
                     is this?</span>
                 </label>
-                <p class="mt-1 text-sm text-gray-900">{{ landlord.regulatory.landlord_license_number || 'Not provided'
+                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ landlord.regulatory.landlord_license_number || 'Not provided'
                   }}</p>
               </div>
               <div class="sm:col-span-2">
                 <label class="flex items-center">
                   <input type="checkbox" :checked="landlord.regulatory.agent_sign_on_behalf" disabled
                     class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" />
-                  <span class="ml-2 text-sm text-gray-700">Agent to sign on behalf of the landlord</span>
+                  <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Agent to sign on behalf of the landlord</span>
                 </label>
               </div>
             </div>
@@ -261,9 +260,9 @@
 
         <!-- AML Checks Tab -->
         <div v-if="activeTab === 'aml'" class="space-y-6">
-          <div class="bg-white rounded-lg shadow p-6">
+          <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-lg font-semibold text-gray-900">AML Check Status</h3>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">AML Check Status</h3>
               <button id="aml-request" @click="requestIdVerification" :disabled="initiatingAML"
                 class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                 {{ initiatingAML ? 'Sending...' : landlord.aml_check ? 'Resend Verification Request' : 'Request ID Verification'
@@ -273,9 +272,9 @@
 
             <div v-if="landlord.aml_check">
               <!-- Top Summary (Status + Identity Match + Risk Level + Score) -->
-              <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <header class="mb-6 border-b border-gray-100 pb-6">
-                  <h2 class="text-lg font-semibold text-gray-900 mb-1">Verification Result</h2>
+              <section class="rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
+                <header class="mb-6 border-b border-gray-100 dark:border-slate-700 pb-6">
+                  <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Verification Result</h2>
                 </header>
 
                 <!-- <div class="flex flex-wrap justify-between gap-6">
@@ -302,12 +301,12 @@
 
                 <!-- Compliance Screening -->
                 <div class="mt-10">
-                  <h3 class="text-base font-semibold text-gray-800">Compliance Screening</h3>
-                  <div class="mt-4 divide-y divide-gray-100">
+                  <h3 class="text-base font-semibold text-gray-800 dark:text-slate-200">Compliance Screening</h3>
+                  <div class="mt-4 divide-y divide-gray-100 dark:divide-slate-700">
                     <!-- PEP Check -->
                     <div class="flex items-center justify-between py-4">
                       <div>
-                        <p class="text-sm font-semibold text-gray-800">Politically Exposed Person (PEP)</p>
+                        <p class="text-sm font-semibold text-gray-800 dark:text-slate-200">Politically Exposed Person (PEP)</p>
                       </div>
                       <div class="flex items-center gap-2">
                         <span :class="statusClass(getComplianceStatus(landlord.aml_check.pep_check_result))">
@@ -325,7 +324,7 @@
                     <!-- Sanctions Check -->
                     <div class="flex items-center justify-between py-4">
                       <div>
-                        <p class="text-sm font-semibold text-gray-800">Sanctions Screening</p>
+                        <p class="text-sm font-semibold text-gray-800 dark:text-slate-200">Sanctions Screening</p>
                       </div>
                       <div class="flex items-center gap-2">
                         <span
@@ -346,26 +345,26 @@
                   </div>
                 </div>
 
-                <div v-if="landlord.aml_check.verified_at" class="mt-6 border-t border-gray-100 pt-4">
-                  <label class="block text-sm font-medium text-gray-500">Verified At</label>
-                  <p class="mt-1 text-sm text-gray-900">
+                <div v-if="landlord.aml_check.verified_at" class="mt-6 border-t border-gray-100 dark:border-slate-700 pt-4">
+                  <label class="block text-sm font-medium text-gray-500 dark:text-slate-400">Verified At</label>
+                  <p class="mt-1 text-sm text-gray-900 dark:text-white">
                     {{ formatDateTime(landlord.aml_check.verified_at) }}
                   </p>
                 </div>
 
                 <!-- ID Document and Selfie -->
                 <div v-if="landlord.aml_check.id_document_path || landlord.aml_check.selfie_path" class="mt-10">
-                  <h3 class="text-base font-semibold text-gray-800">Uploaded Documents</h3>
+                  <h3 class="text-base font-semibold text-gray-800 dark:text-slate-200">Uploaded Documents</h3>
                   <div class="mt-4 grid gap-6 sm:grid-cols-2">
                     <!-- ID Document -->
-                    <div v-if="landlord.aml_check.id_document_path" class="rounded-lg border border-gray-200 p-4">
+                    <div v-if="landlord.aml_check.id_document_path" class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
                       <div class="flex items-center justify-between mb-3">
-                        <span class="text-sm font-medium text-gray-700">ID Document</span>
-                        <span v-if="landlord.aml_check.id_document_type" class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        <span class="text-sm font-medium text-gray-700 dark:text-slate-300">ID Document</span>
+                        <span v-if="landlord.aml_check.id_document_type" class="text-xs text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded">
                           {{ landlord.aml_check.id_document_type === 'driving_licence' ? 'Driving Licence' : 'Passport' }}
                         </span>
                       </div>
-                      <div class="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
+                      <div class="relative aspect-[4/3] bg-gray-100 dark:bg-slate-700 rounded-lg overflow-hidden">
                         <img
                           v-if="idDocumentUrl"
                           :src="idDocumentUrl"
@@ -388,11 +387,11 @@
                     </div>
 
                     <!-- Selfie -->
-                    <div v-if="landlord.aml_check.selfie_path" class="rounded-lg border border-gray-200 p-4">
+                    <div v-if="landlord.aml_check.selfie_path" class="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
                       <div class="flex items-center justify-between mb-3">
-                        <span class="text-sm font-medium text-gray-700">Selfie</span>
+                        <span class="text-sm font-medium text-gray-700 dark:text-slate-300">Selfie</span>
                       </div>
-                      <div class="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
+                      <div class="relative aspect-[4/3] bg-gray-100 dark:bg-slate-700 rounded-lg overflow-hidden">
                         <img
                           v-if="selfieUrl"
                           :src="selfieUrl"
@@ -417,7 +416,7 @@
                 </div>
               </section>
             </div>
-            <div v-else class="text-sm text-gray-500">
+            <div v-else class="text-sm text-gray-500 dark:text-slate-400">
               No AML check has been initiated yet.
             </div>
           </div>
@@ -452,12 +451,11 @@ import LinkPropertyModal from '../components/landlords/LinkPropertyModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const route = useRoute()
 const toast = useToast()
 const authStore = useAuthStore()
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const loading = ref(false)
 const error = ref('')
 const landlord = ref<any>(null)

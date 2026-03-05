@@ -11,6 +11,40 @@ import { signatureService } from '../services/signatureService'
 const router = Router()
 
 /**
+ * Helper to get user's company ID with multi-branch support
+ * Checks X-Branch-Id header first, then falls back to first company
+ */
+async function getUserCompanyId(req: AuthRequest): Promise<string | null> {
+  const userId = req.user?.id
+  if (!userId) return null
+
+  const branchId = req.headers['x-branch-id'] as string | undefined
+
+  if (branchId) {
+    // Verify user belongs to this branch
+    const { data: branchMembership } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .eq('company_id', branchId)
+      .limit(1)
+
+    if (branchMembership && branchMembership.length > 0) {
+      return branchMembership[0].company_id
+    }
+  }
+
+  // Fallback: Get user's first company (don't use .single() for multi-branch users)
+  const { data: companyUsers } = await supabase
+    .from('company_users')
+    .select('company_id')
+    .eq('user_id', userId)
+    .limit(1)
+
+  return companyUsers && companyUsers.length > 0 ? companyUsers[0].company_id : null
+}
+
+/**
  * POST /api/agreements
  * Create a new agreement
  */
@@ -18,14 +52,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    const companyId = companyUser?.company_id
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
     if (!userId || !companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -74,17 +102,21 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       language,
       referenceId,
       propertyId,
-      complianceOverride
+      complianceOverride,
+      tenancyId
     }: AgreementData & {
       referenceId?: string
       propertyId?: string
       complianceOverride?: { acknowledged: boolean; reason?: string }
+      tenancyId?: string
     } = req.body
 
     console.log('DEBUG Extracted values:')
     console.log('  rentDueDay:', rentDueDay)
     console.log('  depositSchemeType:', depositSchemeType)
     console.log('  permittedOccupiers:', permittedOccupiers)
+    console.log('  breakClause:', breakClause ? `"${breakClause.substring(0, 80)}..."` : 'NONE')
+    console.log('  specialClauses:', specialClauses ? `"${specialClauses.substring(0, 80)}..."` : 'NONE')
 
     // Validation
     if (!templateType || !propertyAddress || !landlords || !tenants) {
@@ -194,6 +226,25 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     // Get the saved agreement
     const agreement = await agreementService.getAgreement(agreementId)
 
+    // If tenancyId was provided, link the agreement to the tenancy
+    if (tenancyId) {
+      const { error: updateError } = await supabase
+        .from('tenancies')
+        .update({
+          agreement_id: agreementId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', tenancyId)
+        .eq('company_id', companyId)
+
+      if (updateError) {
+        console.error('Failed to link agreement to tenancy:', updateError)
+        // Don't fail the request, just log the error
+      } else {
+        console.log(`Linked agreement ${agreementId} to tenancy ${tenancyId}`)
+      }
+    }
+
     res.status(201).json({
       message: 'Agreement created successfully',
       agreement
@@ -216,14 +267,8 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
     const { id } = req.params
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    const companyId = companyUser?.company_id
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
     if (!userId || !companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -231,6 +276,10 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
 
     // Get the agreement
     const agreement = await agreementService.getAgreement(id)
+
+    console.log('[PDF Generate] Agreement retrieved from DB:')
+    console.log('  break_clause:', agreement.break_clause ? `"${agreement.break_clause.substring(0, 80)}..."` : 'NONE')
+    console.log('  special_clauses:', agreement.special_clauses ? `"${agreement.special_clauses.substring(0, 80)}..."` : 'NONE')
 
     // Verify company ownership
     if (agreement.company_id !== companyId) {
@@ -403,16 +452,9 @@ router.post('/:id/generate', authenticateToken, async (req: AuthRequest, res) =>
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params
-    const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    const companyId = companyUser?.company_id
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
     if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -442,16 +484,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/reference/:referenceId', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { referenceId } = req.params
-    const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    const companyId = companyUser?.company_id
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
     if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -477,14 +512,34 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
+    // Check for X-Branch-Id header first (multi-branch support)
+    const branchId = req.headers['x-branch-id'] as string | undefined
+    let companyId: string | null = null
 
-    const companyId = companyUser?.company_id
+    if (branchId) {
+      // Verify user belongs to this branch
+      const { data: branchMembership } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .eq('company_id', branchId)
+        .limit(1)
+
+      if (branchMembership && branchMembership.length > 0) {
+        companyId = branchMembership[0].company_id
+      }
+    }
+
+    // Fallback: Get user's first company (don't use .single() for multi-branch users)
+    if (!companyId) {
+      const { data: companyUsers } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      companyId = companyUsers && companyUsers.length > 0 ? companyUsers[0].company_id : null
+    }
 
     if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -510,16 +565,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params
-    const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    const companyId = companyUser?.company_id
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
     if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -647,14 +695,8 @@ router.post('/:id/recall-and-edit', authenticateToken, async (req: AuthRequest, 
     const { id } = req.params
     const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    const companyId = companyUser?.company_id
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
     if (!userId || !companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -742,16 +784,9 @@ router.post('/:id/recall-and-edit', authenticateToken, async (req: AuthRequest, 
 router.put('/:id/recipients', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params
-    const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    const companyId = companyUser?.company_id
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
     if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -881,16 +916,9 @@ router.put('/:id/recipients', authenticateToken, async (req: AuthRequest, res) =
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params
-    const userId = req.user?.id
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .single()
-
-    const companyId = companyUser?.company_id
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
 
     if (!companyId) {
       return res.status(401).json({ error: 'Unauthorized' })
@@ -958,6 +986,118 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       error: 'Failed to delete agreement',
       details: error.message
     })
+  }
+})
+
+/**
+ * POST /api/agreements/:id/execute
+ * Mark a fully-signed agreement as executed
+ */
+router.post('/:id/execute', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
+
+    if (!companyId) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    // Verify agreement ownership and status
+    const { data: agreement } = await supabase
+      .from('agreements')
+      .select('id, company_id, signing_status')
+      .eq('id', id)
+      .single()
+
+    if (!agreement) {
+      return res.status(404).json({ error: 'Agreement not found' })
+    }
+
+    if (agreement.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    if (agreement.signing_status !== 'fully_signed') {
+      return res.status(400).json({
+        error: 'Agreement cannot be executed',
+        message: 'Only fully signed agreements can be executed.',
+        currentStatus: agreement.signing_status
+      })
+    }
+
+    // Update to executed status
+    const { error: updateError } = await supabase
+      .from('agreements')
+      .update({
+        signing_status: 'executed',
+        executed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (updateError) {
+      throw new Error(`Failed to execute agreement: ${updateError.message}`)
+    }
+
+    res.json({
+      success: true,
+      message: 'Agreement executed successfully'
+    })
+  } catch (error: any) {
+    console.error('Error executing agreement:', error)
+    res.status(500).json({ error: error.message || 'Failed to execute agreement' })
+  }
+})
+
+/**
+ * POST /api/agreements/:id/send-for-signing
+ * Initiate the signing workflow - sends emails to all parties
+ */
+router.post('/:id/send-for-signing', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // Get user's company with multi-branch support
+    const companyId = await getUserCompanyId(req)
+
+    if (!companyId) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    // Verify agreement ownership
+    const { data: agreement } = await supabase
+      .from('agreements')
+      .select('id, company_id, signing_status')
+      .eq('id', id)
+      .single()
+
+    if (!agreement) {
+      return res.status(404).json({ error: 'Agreement not found' })
+    }
+
+    if (agreement.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    if (agreement.signing_status && agreement.signing_status !== 'draft') {
+      return res.status(400).json({
+        error: 'Signing has already been initiated for this agreement',
+        signingStatus: agreement.signing_status
+      })
+    }
+
+    // Initiate signing workflow
+    await signatureService.initiateSigning(id)
+
+    res.json({
+      success: true,
+      message: 'Signing workflow initiated. Emails have been sent to all parties.'
+    })
+  } catch (error: any) {
+    console.error('Error initiating signing:', error)
+    res.status(500).json({ error: error.message || 'Failed to initiate signing' })
   }
 })
 

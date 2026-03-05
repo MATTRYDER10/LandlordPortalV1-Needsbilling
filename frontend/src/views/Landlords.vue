@@ -1,16 +1,16 @@
 <template>
   <Sidebar>
-    <div class="p-8">
+    <div class="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
       <div class="mb-8">
         <div class="flex justify-between items-center mb-4">
           <div>
-            <h2 class="text-3xl font-bold text-gray-900">Landlords</h2>
-            <p class="mt-2 text-gray-600">Manage all landlord details and AML checks</p>
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Landlords</h2>
+            <p class="mt-2 text-gray-600 dark:text-slate-400">Manage all landlord details and AML checks</p>
           </div>
           <div class="flex gap-3">
             <button
               @click="showImportModal = true"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Import CSV
             </button>
@@ -31,17 +31,17 @@
               v-model="searchQuery"
               type="text"
               placeholder="Search landlords..."
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 rounded-md leading-5 bg-white dark:bg-slate-800 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
             />
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search class="h-5 w-5 text-gray-400" />
+              <Search class="h-5 w-5 text-gray-400 dark:text-slate-500" />
             </div>
           </div>
 
           <!-- AML Status Filter -->
           <select
             v-model="amlStatusFilter"
-            class="block pl-3 pr-10 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+            class="block pl-3 pr-10 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
           >
             <option value="">All AML Status</option>
             <option value="not_requested">Not Requested</option>
@@ -53,9 +53,9 @@
 
         <div
           v-if="outdatedAmlLandlords.length > 0"
-          class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3"
+          class="mb-6 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 px-4 py-3"
         >
-          <p class="text-sm font-medium text-amber-900">
+          <p class="text-sm font-medium text-amber-900 dark:text-amber-200">
             {{ outdatedAmlLandlords.length }} landlord{{ outdatedAmlLandlords.length === 1 ? '' : 's' }} have AML checks older than 2 years. Please re-check.
           </p>
           <div class="mt-2 flex flex-wrap gap-2">
@@ -63,7 +63,7 @@
               v-for="landlord in outdatedAmlLandlords"
               :key="landlord.id"
               @click="goToAmlRecheck(landlord.id)"
-              class="text-sm font-medium text-amber-900 underline underline-offset-2 hover:text-amber-700"
+              class="text-sm font-medium text-amber-900 dark:text-amber-300 underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-200"
             >
               Re-check AML for {{ landlord.first_name }} {{ landlord.last_name }}
             </button>
@@ -73,15 +73,15 @@
         <!-- Bulk Actions Bar -->
         <div
           v-if="selectedLandlords.size > 0"
-          class="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between"
+          class="mb-4 p-3 bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 rounded-lg flex items-center justify-between"
         >
-          <span class="text-sm font-medium text-gray-700">
+          <span class="text-sm font-medium text-gray-700 dark:text-slate-300">
             {{ selectedLandlords.size }} landlord{{ selectedLandlords.size === 1 ? '' : 's' }} selected
           </span>
           <div class="flex gap-2">
             <button
               @click="clearSelection"
-              class="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800"
+              class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
             >
               Clear selection
             </button>
@@ -96,20 +96,20 @@
         </div>
 
         <!-- Loading State -->
-        <div v-if="loading" class="bg-white rounded-lg shadow overflow-hidden">
-          <div class="p-8 text-center text-gray-600">Loading landlords...</div>
+        <div v-if="loading" class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+          <div class="p-8 text-center text-gray-600 dark:text-slate-400">Loading landlords...</div>
         </div>
 
         <!-- Error State -->
-        <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-lg">
+        <div v-else-if="error" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-6 py-4 rounded-lg">
           {{ error }}
         </div>
 
         <!-- Landlords Table -->
-        <div v-else class="bg-white rounded-lg shadow overflow-visible">
+        <div v-else class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-visible">
           <div class="overflow-x-autol">
-            <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+            <thead class="bg-gray-50 dark:bg-slate-900">
               <tr>
                 <th scope="col" class="px-6 py-3 text-left">
                   <input
@@ -117,16 +117,16 @@
                     :checked="landlords.length > 0 && selectedLandlords.size === landlords.length"
                     :indeterminate="selectedLandlords.size > 0 && selectedLandlords.size < landlords.length"
                     @change="toggleSelectAll"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                   />
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                   Landlords
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                   AML Status
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                   Date AML Completed
                 </th>
                 <th scope="col" class="relative px-6 py-3">
@@ -134,17 +134,17 @@
                 </th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
               <tr v-if="landlords.length === 0">
-                <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                <td colspan="5" class="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                   No landlords found
                 </td>
               </tr>
               <tr
                 v-for="landlord in landlords"
                 :key="landlord.id"
-                class="hover:bg-gray-50 cursor-pointer"
-                :class="{ 'bg-primary/5': selectedLandlords.has(landlord.id) }"
+                class="hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+                :class="{ 'bg-primary/5 dark:bg-primary/10': selectedLandlords.has(landlord.id) }"
                 @click="viewLandlord(landlord.id)"
               >
                 <td class="px-6 py-4 whitespace-nowrap" @click.stop>
@@ -152,16 +152,16 @@
                     type="checkbox"
                     :checked="selectedLandlords.has(landlord.id)"
                     @change="toggleSelectLandlord(landlord.id)"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                   />
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
                     <div>
-                      <div class="text-sm font-medium text-gray-900">
+                      <div class="text-sm font-medium text-gray-900 dark:text-white">
                         {{ landlord.first_name }} {{ landlord.last_name }}
                       </div>
-                      <div class="text-sm text-gray-500">{{ landlord.email }}</div>
+                      <div class="text-sm text-gray-500 dark:text-slate-400">{{ landlord.email }}</div>
                     </div>
                   </div>
                 </td>
@@ -169,16 +169,16 @@
                   <span
                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
                     :class="{
-                      'bg-green-100 text-green-800': landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed',
-                      'bg-red-100 text-red-800': landlord.aml_status === 'unsatisfactory' || landlord.aml_status === 'failed',
-                      'bg-blue-100 text-blue-800': landlord.aml_status === 'requested' || landlord.aml_status === 'pending' || landlord.aml_status === 'submitted',
-                      'bg-gray-100 text-gray-800': landlord.aml_status === 'not_requested'
+                      'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300': landlord.aml_status === 'satisfactory' || landlord.aml_status === 'passed',
+                      'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300': landlord.aml_status === 'unsatisfactory' || landlord.aml_status === 'failed',
+                      'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300': landlord.aml_status === 'requested' || landlord.aml_status === 'pending' || landlord.aml_status === 'submitted',
+                      'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-slate-300': landlord.aml_status === 'not_requested'
                     }"
                   >
                     {{ formatAMLStatus(landlord.aml_status) }}
                   </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
                   {{ landlord.aml_completed_at ? formatDate(landlord.aml_completed_at) : 'n/a' }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -192,32 +192,32 @@
                     <div class="relative actions-menu-container" style="z-index: 50;">
                       <button
                         @click.stop="toggleActionsMenu(landlord.id)"
-                        class="text-gray-400 hover:text-gray-600"
+                        class="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
                       >
                         <MoreVertical class="w-5 h-5" />
                       </button>
                       <div
                         v-if="actionsMenuOpen === landlord.id"
-                        class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+                        class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-slate-800 ring-1 ring-black ring-opacity-5 dark:ring-slate-700"
                         style="z-index: 9999;"
                       >
                         <div class="py-1">
                           <button
                             @click.stop="editLandlord(landlord.id)"
-                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
                           >
                             Edit
                           </button>
                           <button
                             v-if="landlord.aml_status === 'not_requested' || landlord.aml_status === 'requested'"
                             @click.stop="requestIdVerification(landlord.id)"
-                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
                           >
                             Request ID Verification
                           </button>
                           <button
                             @click.stop="deleteLandlord(landlord.id)"
-                            class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                            class="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700"
                           >
                             Delete
                           </button>
@@ -232,8 +232,8 @@
           </div>
 
           <!-- Load More / Pagination Info -->
-          <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <span class="text-sm text-gray-600">
+          <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex items-center justify-between">
+            <span class="text-sm text-gray-600 dark:text-slate-400">
               Showing {{ landlords.length }} of {{ totalCount }} landlord{{ totalCount === 1 ? '' : 's' }}
             </span>
             <button
@@ -287,13 +287,12 @@ import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { Search, MoreVertical } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const authStore = useAuthStore()
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const loading = ref(false)
 const loadingMore = ref(false)
 const error = ref('')

@@ -8,10 +8,16 @@ export type NotificationType =
   | 'PROPERTY_CREATED'
   | 'LANDLORD_LINKED'
   | 'DOCUMENT_UPLOADED'
+  | 'TENANT_OFFER'
+  | 'PAYMENT_CONFIRMED'
+  | 'INITIAL_MONIES_PAID'
+  | 'TENANCY_STARTED'
+  | 'AGREEMENT_SIGNED'
+  | 'ACTION_REQUIRED'
 
 export type NotificationSeverity = 'INFO' | 'WARNING' | 'URGENT'
 
-export type ResourceType = 'property' | 'compliance_record' | 'landlord' | 'document'
+export type ResourceType = 'property' | 'compliance_record' | 'landlord' | 'document' | 'tenant_offer' | 'tenancy' | 'tenant_reference' | 'agreement'
 
 interface CreateNotificationParams {
   companyId: string
@@ -345,4 +351,140 @@ export async function cleanupExpiredNotifications(olderThanDays: number = 90): P
     console.error('Exception cleaning up notifications:', err)
     return 0
   }
+}
+
+// ============================================
+// Helper functions for specific notification types
+// ============================================
+
+/**
+ * Create notification when a tenant submits an offer
+ */
+export async function notifyTenantOffer(
+  companyId: string,
+  offerId: string,
+  propertyAddress: string,
+  tenantName: string
+): Promise<void> {
+  await createNotification({
+    companyId,
+    notificationType: 'TENANT_OFFER',
+    resourceType: 'tenant_offer',
+    resourceId: offerId,
+    title: 'New Tenant Offer',
+    message: `${tenantName} has submitted an offer for ${propertyAddress}`,
+    severity: 'INFO',
+    metadata: { propertyAddress, tenantName }
+  })
+}
+
+/**
+ * Create notification when initial monies are paid
+ */
+export async function notifyInitialMoniesPaid(
+  companyId: string,
+  tenancyId: string,
+  propertyAddress: string,
+  amount: number
+): Promise<void> {
+  await createNotification({
+    companyId,
+    notificationType: 'INITIAL_MONIES_PAID',
+    resourceType: 'tenancy',
+    resourceId: tenancyId,
+    title: 'Initial Monies Paid',
+    message: `Initial monies of £${amount.toLocaleString()} received for ${propertyAddress}`,
+    severity: 'INFO',
+    metadata: { propertyAddress, amount }
+  })
+}
+
+/**
+ * Create notification when a payment is confirmed (generic)
+ */
+export async function notifyPaymentConfirmed(
+  companyId: string,
+  resourceType: ResourceType,
+  resourceId: string,
+  paymentType: string,
+  propertyAddress: string,
+  amount?: number
+): Promise<void> {
+  await createNotification({
+    companyId,
+    notificationType: 'PAYMENT_CONFIRMED',
+    resourceType,
+    resourceId,
+    title: 'Payment Confirmed',
+    message: amount
+      ? `${paymentType} of £${amount.toLocaleString()} confirmed for ${propertyAddress}`
+      : `${paymentType} confirmed for ${propertyAddress}`,
+    severity: 'INFO',
+    metadata: { propertyAddress, paymentType, amount }
+  })
+}
+
+/**
+ * Create notification when a tenancy is activated/started
+ */
+export async function notifyTenancyStarted(
+  companyId: string,
+  tenancyId: string,
+  propertyAddress: string,
+  tenantNames: string
+): Promise<void> {
+  await createNotification({
+    companyId,
+    notificationType: 'TENANCY_STARTED',
+    resourceType: 'tenancy',
+    resourceId: tenancyId,
+    title: 'Tenancy Started',
+    message: `Tenancy at ${propertyAddress} is now active with ${tenantNames}`,
+    severity: 'INFO',
+    metadata: { propertyAddress, tenantNames }
+  })
+}
+
+/**
+ * Create notification when an agreement is fully signed
+ */
+export async function notifyAgreementSigned(
+  companyId: string,
+  agreementId: string,
+  propertyAddress: string,
+  agreementType: string
+): Promise<void> {
+  await createNotification({
+    companyId,
+    notificationType: 'AGREEMENT_SIGNED',
+    resourceType: 'agreement',
+    resourceId: agreementId,
+    title: 'Agreement Fully Signed',
+    message: `${agreementType} for ${propertyAddress} has been fully signed`,
+    severity: 'INFO',
+    metadata: { propertyAddress, agreementType }
+  })
+}
+
+/**
+ * Create notification when action is required
+ */
+export async function notifyActionRequired(
+  companyId: string,
+  resourceType: ResourceType,
+  resourceId: string,
+  title: string,
+  message: string,
+  metadata?: Record<string, any>
+): Promise<void> {
+  await createNotification({
+    companyId,
+    notificationType: 'ACTION_REQUIRED',
+    resourceType,
+    resourceId,
+    title,
+    message,
+    severity: 'WARNING',
+    metadata
+  })
 }

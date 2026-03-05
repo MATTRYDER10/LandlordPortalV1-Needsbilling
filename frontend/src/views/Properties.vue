@@ -1,17 +1,17 @@
 <template>
   <Sidebar>
-    <div class="p-8">
+    <div class="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
       <div class="mb-8">
         <!-- Header -->
         <div class="flex justify-between items-center mb-4">
           <div>
-            <h2 class="text-3xl font-bold text-gray-900">Properties</h2>
-            <p class="mt-2 text-gray-600">Manage all property details and compliance</p>
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Properties</h2>
+            <p class="mt-2 text-gray-600 dark:text-slate-400">Manage all property details and compliance</p>
           </div>
           <div class="flex gap-3">
             <button
               @click="showImportModal = true"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Import CSV
             </button>
@@ -26,21 +26,21 @@
 
         <!-- Stats Cards -->
         <div class="grid grid-cols-4 gap-4 mb-6">
-          <div class="bg-white rounded-lg shadow p-4">
-            <p class="text-sm text-gray-500">Total Properties</p>
-            <p class="text-2xl font-bold text-gray-900">{{ stats.total }}</p>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4">
+            <p class="text-sm text-gray-500 dark:text-slate-400">Total Properties</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.total }}</p>
           </div>
-          <div class="bg-white rounded-lg shadow p-4">
-            <p class="text-sm text-gray-500">Vacant</p>
-            <p class="text-2xl font-bold text-gray-600">{{ stats.vacant }}</p>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4">
+            <p class="text-sm text-gray-500 dark:text-slate-400">Vacant</p>
+            <p class="text-2xl font-bold text-gray-600 dark:text-slate-300">{{ stats.vacant }}</p>
           </div>
-          <div class="bg-white rounded-lg shadow p-4">
-            <p class="text-sm text-gray-500">In Tenancy</p>
-            <p class="text-2xl font-bold text-green-600">{{ stats.inTenancy }}</p>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4">
+            <p class="text-sm text-gray-500 dark:text-slate-400">In Tenancy</p>
+            <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ stats.inTenancy }}</p>
           </div>
-          <div class="bg-white rounded-lg shadow p-4">
-            <p class="text-sm text-gray-500">Compliance Issues</p>
-            <p class="text-2xl font-bold text-red-600">{{ stats.complianceIssues }}</p>
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-4">
+            <p class="text-sm text-gray-500 dark:text-slate-400">Compliance Issues</p>
+            <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ stats.complianceIssues }}</p>
           </div>
         </div>
 
@@ -52,17 +52,17 @@
               v-model="searchQuery"
               type="text"
               placeholder="Search by address, postcode..."
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 rounded-md leading-5 bg-white dark:bg-slate-800 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
             />
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search class="h-5 w-5 text-gray-400" />
+              <Search class="h-5 w-5 text-gray-400 dark:text-slate-500" />
             </div>
           </div>
 
           <!-- Compliance Status Filter -->
           <select
             v-model="complianceFilter"
-            class="block pl-3 pr-10 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+            class="block pl-3 pr-10 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
           >
             <option value="">All Compliance</option>
             <option value="valid">Valid</option>
@@ -73,7 +73,7 @@
           <!-- Status Filter -->
           <select
             v-model="statusFilter"
-            class="block pl-3 pr-10 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+            class="block pl-3 pr-10 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
           >
             <option value="">All Status</option>
             <option value="vacant">Vacant</option>
@@ -83,7 +83,7 @@
           <!-- Landlord Filter -->
           <select
             v-model="landlordFilter"
-            class="block pl-3 pr-10 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+            class="block pl-3 pr-10 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
           >
             <option value="">All Landlords</option>
             <option value="true">Has Landlord</option>
@@ -96,13 +96,13 @@
           v-if="selectedProperties.size > 0"
           class="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between"
         >
-          <span class="text-sm font-medium text-gray-700">
+          <span class="text-sm font-medium text-gray-700 dark:text-slate-300">
             {{ selectedProperties.size }} propert{{ selectedProperties.size === 1 ? 'y' : 'ies' }} selected
           </span>
           <div class="flex gap-2">
             <button
               @click="clearSelection"
-              class="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800"
+              class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
             >
               Clear selection
             </button>
@@ -117,20 +117,20 @@
         </div>
 
         <!-- Loading State -->
-        <div v-if="loading" class="bg-white rounded-lg shadow overflow-hidden">
-          <div class="p-8 text-center text-gray-600">Loading properties...</div>
+        <div v-if="loading" class="bg-white dark:bg-slate-800 rounded-lg shadow dark:shadow-slate-900/50 overflow-hidden">
+          <div class="p-8 text-center text-gray-600 dark:text-slate-400">Loading properties...</div>
         </div>
 
         <!-- Error State -->
-        <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-lg">
+        <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-6 py-4 rounded-lg">
           {{ error }}
         </div>
 
         <!-- Properties Table -->
-        <div v-else class="bg-white rounded-lg shadow overflow-visible">
+        <div v-else class="bg-white dark:bg-slate-800 rounded-lg shadow dark:shadow-slate-900/50 overflow-visible">
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+              <thead class="bg-gray-50 dark:bg-slate-900">
                 <tr>
                   <th scope="col" class="px-6 py-3 text-left">
                     <input
@@ -138,22 +138,22 @@
                       :checked="properties.length > 0 && selectedProperties.size === properties.length"
                       :indeterminate="selectedProperties.size > 0 && selectedProperties.size < properties.length"
                       @change="toggleSelectAll"
-                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                     />
                   </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Property Address
                   </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Landlord(s)
                   </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Compliance
                   </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Next Expiry
                   </th>
                   <th scope="col" class="relative px-6 py-3">
@@ -161,16 +161,16 @@
                   </th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
+              <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
                 <tr v-if="properties.length === 0">
-                  <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                  <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                     No properties found
                   </td>
                 </tr>
                 <tr
                   v-for="property in properties"
                   :key="property.id"
-                  class="hover:bg-gray-50 cursor-pointer"
+                  class="hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
                   :class="{ 'bg-primary/5': selectedProperties.has(property.id) }"
                   @click="viewProperty(property.id)"
                 >
@@ -179,24 +179,24 @@
                       type="checkbox"
                       :checked="selectedProperties.has(property.id)"
                       @change="toggleSelectProperty(property.id)"
-                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                      class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
                     />
                   </td>
                   <td class="px-6 py-4">
                     <div class="flex items-center">
                       <div>
-                        <div class="text-sm font-medium text-gray-900">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">
                           {{ property.address || property.postcode }}
                         </div>
-                        <div class="text-sm text-gray-500">{{ property.postcode }}</div>
+                        <div class="text-sm text-gray-500 dark:text-slate-400">{{ property.postcode }}</div>
                       </div>
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span v-if="property.landlord_count === 0" class="text-sm text-gray-400">
+                    <span v-if="property.landlord_count === 0" class="text-sm text-gray-400 dark:text-slate-500">
                       No landlord
                     </span>
-                    <span v-else class="text-sm text-gray-900">
+                    <span v-else class="text-sm text-gray-900 dark:text-white">
                       {{ property.landlord_count }} landlord{{ property.landlord_count === 1 ? '' : 's' }}
                     </span>
                   </td>
@@ -217,40 +217,49 @@
                       {{ formatComplianceStatus(property.compliance_status) }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
                     {{ property.next_expiry_date ? formatDate(property.next_expiry_date) : '-' }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
-                    <div class="relative">
+                    <div class="flex items-center justify-end gap-2">
                       <button
-                        @click="toggleActionsMenu(property.id)"
-                        class="text-gray-400 hover:text-gray-600 p-1"
+                        @click="deleteProperty(property.id)"
+                        class="text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 p-1 transition-colors"
+                        title="Delete property"
                       >
-                        <MoreVertical class="h-5 w-5" />
+                        <Trash2 class="h-4 w-4" />
                       </button>
-                      <div
-                        v-if="actionsMenuOpen === property.id"
-                        class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
-                      >
-                        <div class="py-1">
-                          <button
-                            @click="viewProperty(property.id)"
-                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            View Details
-                          </button>
-                          <button
-                            @click="editProperty(property.id)"
-                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            @click="deleteProperty(property.id)"
-                            class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                          >
-                            Delete
-                          </button>
+                      <div class="relative">
+                        <button
+                          @click="toggleActionsMenu(property.id)"
+                          class="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1"
+                        >
+                          <MoreVertical class="h-5 w-5" />
+                        </button>
+                        <div
+                          v-if="actionsMenuOpen === property.id"
+                          class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-slate-800 ring-1 ring-black ring-opacity-5 dark:ring-slate-700 z-10"
+                        >
+                          <div class="py-1">
+                            <button
+                              @click="viewProperty(property.id)"
+                              class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+                            >
+                              View Details
+                            </button>
+                            <button
+                              @click="editProperty(property.id)"
+                              class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              @click="deleteProperty(property.id)"
+                              class="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -261,8 +270,8 @@
           </div>
 
           <!-- Load More / Pagination Info -->
-          <div class="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
-            <span class="text-sm text-gray-600">
+          <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-between items-center">
+            <span class="text-sm text-gray-600 dark:text-slate-400">
               Showing {{ properties.length }} of {{ totalCount }} properties
             </span>
             <button
@@ -314,7 +323,9 @@ import AddEditPropertyModal from '../components/properties/AddEditPropertyModal.
 import PropertyCSVImportModal from '../components/properties/PropertyCSVImportModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
-import { Search, MoreVertical } from 'lucide-vue-next'
+import { Search, MoreVertical, Trash2 } from 'lucide-vue-next'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 interface Property {
   id: string
@@ -341,9 +352,6 @@ const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const authStore = useAuthStore()
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const loading = ref(false)
 const loadingMore = ref(false)
 const error = ref('')
@@ -581,8 +589,8 @@ const formatStatus = (status: string) => {
 
 const getStatusClasses = (status: string) => {
   return status === 'in_tenancy'
-    ? 'bg-green-100 text-green-800'
-    : 'bg-gray-100 text-gray-800'
+    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
+    : 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200'
 }
 
 const formatComplianceStatus = (status: string) => {
@@ -597,12 +605,12 @@ const formatComplianceStatus = (status: string) => {
 
 const getComplianceClasses = (status: string) => {
   const classes: Record<string, string> = {
-    valid: 'bg-green-100 text-green-800',
-    expiring_soon: 'bg-amber-100 text-amber-800',
-    expired: 'bg-red-100 text-red-800',
-    none: 'bg-gray-100 text-gray-500'
+    valid: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+    expiring_soon: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400',
+    expired: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400',
+    none: 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400'
   }
-  return classes[status] || 'bg-gray-100 text-gray-800'
+  return classes[status] || 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200'
 }
 
 const getComplianceDotClass = (status: string) => {

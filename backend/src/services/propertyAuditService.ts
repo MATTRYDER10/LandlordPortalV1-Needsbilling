@@ -27,6 +27,7 @@ export type PropertyAuditAction =
   | 'REFERENCE_COMPLETED'
   | 'AGREEMENT_SENT'
   | 'AML_BYPASSED'
+  | 'SPECIAL_CLAUSES_UPDATED'
 
 export interface PropertyAuditParams {
   propertyId: string
@@ -206,11 +207,15 @@ export async function auditComplianceAdded(
   complianceType: string,
   expiryDate: string
 ): Promise<void> {
+  // Format expiry date for UK display
+  const expiryDateFormatted = new Date(expiryDate).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  })
   await logPropertyAuditAction({
     propertyId,
     companyId,
     action: 'COMPLIANCE_ADDED',
-    description: `${formatComplianceType(complianceType)} certificate added, expires ${expiryDate}`,
+    description: `${formatComplianceType(complianceType)} certificate added, expires ${expiryDateFormatted}`,
     metadata: { compliance_type: complianceType, expiry_date: expiryDate },
     userId
   })

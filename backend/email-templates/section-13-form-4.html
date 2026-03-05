@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form 4 - Section 13 Rent Increase Notice</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm 15mm 15mm 15mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000000;
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #000;
+        }
+
+        .form-number {
+            font-weight: bold;
+            font-size: 12pt;
+            margin-bottom: 5px;
+        }
+
+        .form-title {
+            font-weight: bold;
+            font-size: 14pt;
+            text-transform: uppercase;
+            margin: 10px 0;
+        }
+
+        .legal-reference {
+            font-size: 9pt;
+            font-style: italic;
+            color: #333;
+        }
+
+        .section {
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+
+        .section-title {
+            font-weight: bold;
+            font-size: 11pt;
+            margin-bottom: 8px;
+            text-decoration: underline;
+        }
+
+        .paragraph {
+            margin: 12px 0;
+        }
+
+        .paragraph-number {
+            font-weight: bold;
+            display: inline-block;
+            width: 25px;
+        }
+
+        .field-box {
+            border: 1px solid #000;
+            padding: 8px 10px;
+            margin: 5px 0 10px 0;
+            min-height: 20px;
+            background-color: #fafafa;
+        }
+
+        .field-label {
+            font-size: 9pt;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .field-value {
+            font-size: 11pt;
+        }
+
+        .inline-field {
+            display: inline;
+            border-bottom: 1px solid #000;
+            padding: 0 5px;
+            min-width: 100px;
+        }
+
+        .charges-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .charges-table th,
+        .charges-table td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 10pt;
+        }
+
+        .charges-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .charges-table td:last-child,
+        .charges-table td:nth-child(2) {
+            text-align: right;
+            width: 120px;
+        }
+
+        .note-box {
+            border: 1px solid #666;
+            padding: 10px;
+            margin: 15px 0;
+            background-color: #f9f9f9;
+            font-size: 9pt;
+        }
+
+        .note-box strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .signature-section {
+            margin-top: 25px;
+            page-break-inside: avoid;
+        }
+
+        .signature-row {
+            display: flex;
+            margin: 15px 0;
+            align-items: flex-end;
+        }
+
+        .signature-label {
+            width: 100px;
+            font-weight: bold;
+        }
+
+        .signature-line {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            min-height: 30px;
+            margin-left: 10px;
+        }
+
+        .signature-image {
+            max-height: 50px;
+            max-width: 200px;
+        }
+
+        .typed-signature {
+            font-family: 'Brush Script MT', 'Segoe Script', cursive;
+            font-size: 18pt;
+            color: #1e40af;
+        }
+
+        .important-notes {
+            border: 2px solid #000;
+            padding: 12px;
+            margin-top: 20px;
+            font-size: 9pt;
+            page-break-inside: avoid;
+        }
+
+        .important-notes h4 {
+            margin: 0 0 10px 0;
+            font-size: 10pt;
+            text-transform: uppercase;
+        }
+
+        .important-notes ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+
+        .important-notes li {
+            margin: 4px 0;
+        }
+
+        .footer {
+            margin-top: 25px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            font-size: 8pt;
+            color: #666;
+            text-align: center;
+        }
+
+        .agent-letterhead {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f97316;
+        }
+
+        .agent-logo {
+            max-height: 50px;
+            max-width: 150px;
+            object-fit: contain;
+        }
+
+        .agent-details {
+            text-align: right;
+            font-size: 9pt;
+            color: #666;
+        }
+
+        .agent-name {
+            font-weight: bold;
+            font-size: 11pt;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <!-- Agent Letterhead -->
+    <div class="agent-letterhead">
+        {{ AgentLogoHtml }}
+        <div class="agent-details">
+            <div class="agent-name">{{ AgentName }}</div>
+            <div>{{ AgentAddress }}</div>
+            <div>{{ AgentEmail }}</div>
+            <div>{{ AgentPhone }}</div>
+        </div>
+    </div>
+
+    <!-- Form Header -->
+    <div class="header">
+        <div class="form-number">Form No. 4</div>
+        <div class="form-title">Landlord's Notice Proposing a New Rent<br/>Under an Assured Periodic Tenancy of a Dwelling in England</div>
+        <div class="legal-reference">Housing Act 1988 section 13(2) as amended by Tenant Fees Act 2019</div>
+    </div>
+
+    <!-- Important Initial Note -->
+    <div class="note-box">
+        <strong>Please read this notice carefully. If you need help or advice, contact a Citizens Advice Bureau, a housing advice centre, a solicitor or a surveyor. To find out more about your renting rights, visit www.gov.uk/private-renting</strong>
+    </div>
+
+    <!-- Paragraph 1: Tenant Details -->
+    <div class="section">
+        <div class="paragraph">
+            <span class="paragraph-number">1.</span>
+            <span>To:</span>
+        </div>
+        <div class="field-box">
+            <div class="field-label">Name(s) of tenant(s)</div>
+            <div class="field-value">{{ TenantNames }}</div>
+        </div>
+    </div>
+
+    <!-- Paragraph 2: Property Address -->
+    <div class="section">
+        <div class="paragraph">
+            <span class="paragraph-number">2.</span>
+            <span>Address of premises to which this notice relates (including postcode):</span>
+        </div>
+        <div class="field-box">
+            <div class="field-value">{{ PropertyAddress }}</div>
+        </div>
+    </div>
+
+    <!-- Paragraph 3: Rent Details -->
+    <div class="section">
+        <div class="paragraph">
+            <span class="paragraph-number">3.</span>
+            <span>The landlord proposes a new rent of</span>
+            <strong>&pound;{{ NewRent }}</strong>
+            <span>{{ RentFrequencyText }}, to take effect from</span>
+            <strong>{{ EffectiveDate }}</strong>
+        </div>
+    </div>
+
+    <!-- Paragraph 4: Rental Period Start Day -->
+    <div class="section">
+        <div class="paragraph">
+            <span class="paragraph-number">4.</span>
+            <span>The previous rent was increased on or the tenancy commenced on</span>
+            <strong>{{ AnchorDate }}</strong>.
+            <span>The new rent will take effect at the start of a new period of the tenancy.</span>
+        </div>
+        <div class="note-box" style="margin-top: 10px; font-size: 9pt;">
+            The proposed rent cannot take effect any earlier than 52 weeks after the date that a previous notice took effect under section 13 of the Housing Act 1988, or if the tenancy has not been subject to a previous notice under section 13, 52 weeks after the start of the tenancy. The first day of a period of the tenancy is the anniversary of the day on which the first period of the tenancy began and each day that is the monthly anniversary of that day.
+        </div>
+    </div>
+
+    <!-- Paragraph 5: Charges Table -->
+    <div class="section">
+        <div class="paragraph">
+            <span class="paragraph-number">5.</span>
+            <span>The following amounts are currently payable with the rent and will continue to be payable under the new rent (only fill in where applicable):</span>
+        </div>
+        <table class="charges-table">
+            <thead>
+                <tr>
+                    <th>Charge</th>
+                    <th>Amount in existing rent</th>
+                    <th>Amount in proposed new rent</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Council Tax</td>
+                    <td>{{ CouncilTaxExisting }}</td>
+                    <td>{{ CouncilTaxProposed }}</td>
+                </tr>
+                <tr>
+                    <td>Water charges</td>
+                    <td>{{ WaterExisting }}</td>
+                    <td>{{ WaterProposed }}</td>
+                </tr>
+                <tr>
+                    <td>Amount for fixed service charges</td>
+                    <td>{{ ServiceChargesExisting }}</td>
+                    <td>{{ ServiceChargesProposed }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paragraph 6: Landlord Details -->
+    <div class="section">
+        <div class="paragraph">
+            <span class="paragraph-number">6.</span>
+            <span>Landlord's name and address:</span>
+        </div>
+        <div class="field-box">
+            <div class="field-value">{{ LandlordNameAndAddress }}</div>
+        </div>
+    </div>
+
+    <!-- Paragraph 7: Agent Details -->
+    {{ AgentDetailsSection }}
+
+    <!-- Signature Section -->
+    <div class="signature-section">
+        <div class="paragraph">
+            <span class="paragraph-number">8.</span>
+            <span>Signed:</span>
+        </div>
+        <div class="signature-row">
+            <div class="signature-label">Signature:</div>
+            <div class="signature-line">
+                {{ SignatureHtml }}
+            </div>
+        </div>
+        <div class="signature-row">
+            <div class="signature-label">Name:</div>
+            <div class="signature-line">
+                <span style="padding-left: 10px;">{{ SignerName }}</span>
+            </div>
+        </div>
+        <div class="signature-row">
+            <div class="signature-label">Date:</div>
+            <div class="signature-line">
+                <span style="padding-left: 10px;">{{ NoticeDate }}</span>
+            </div>
+        </div>
+        <p style="font-size: 9pt; color: #666; margin-top: 5px;">
+            *To be signed and dated by the landlord or his agent (someone acting on the landlord's behalf). If there are joint landlords, each landlord or agent must sign unless one signs on behalf of all.
+        </p>
+    </div>
+
+    <!-- Important Notes to Tenant -->
+    <div class="important-notes">
+        <h4>Important Notes for Tenant(s)</h4>
+        <p>This notice proposes a new rent. If you want to object or have this notice referred to a tribunal, you must do so before the date the new rent is due to start.</p>
+        <ul>
+            <li>You may accept the proposed rent by doing nothing. If you do not apply to the tribunal before the start date, the rent proposed in this notice will become payable.</li>
+            <li>If you think the proposed rent is too high compared to similar properties in your area, you can apply to the First-tier Tribunal (Property Chamber) for them to decide a market rent for your property.</li>
+            <li>You can get an application form online at www.gov.uk/housing-tribunal or by contacting the tribunal.</li>
+            <li>The tribunal may set a rent that is higher, lower, or the same as the proposed rent.</li>
+            <li>If you apply to the tribunal, the rent set by the tribunal will apply from the date given in paragraph 3 above.</li>
+        </ul>
+        <p style="margin-top: 10px;"><strong>Contact details for the First-tier Tribunal (Property Chamber):</strong><br/>
+        Telephone: 0300 1234 524<br/>
+        Email: rpsouthern@justice.gov.uk<br/>
+        Website: www.gov.uk/courts-tribunals/first-tier-tribunal-property-chamber</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>This notice was generated by {{ AgentName }}</p>
+        <p>Document Reference: S13-{{ DocumentRef }} | Generated: {{ GeneratedDate }}</p>
+    </div>
+</body>
+</html>

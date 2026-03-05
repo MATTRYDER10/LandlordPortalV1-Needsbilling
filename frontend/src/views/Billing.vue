@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-6">
     <!-- Credit Balance Card -->
-    <div class="bg-white rounded-lg shadow p-6" :class="{ 'border-l-4 border-amber-500': billingStore.isLowCredits }">
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6" :class="{ 'border-l-4 border-amber-500': billingStore.isLowCredits }">
       <div class="flex justify-between items-center">
         <div>
-          <p class="text-sm text-gray-500">Available Credits</p>
-          <p class="text-4xl font-bold text-gray-900">{{ billingStore.creditsCount }}</p>
+          <p class="text-sm text-gray-500 dark:text-slate-400">Available Credits</p>
+          <p class="text-4xl font-bold text-gray-900 dark:text-white">{{ billingStore.creditsCount }}</p>
           <p v-if="billingStore.isLowCredits" class="mt-1 text-sm text-amber-600">
             Low credits -- consider topping up
           </p>
@@ -14,7 +14,7 @@
           <button @click="showPurchaseModal = true" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
             Buy Credits
           </button>
-          <button v-if="!billingStore.hasActiveSubscription" @click="showSubscriptionModal = true" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md">
+          <button v-if="!billingStore.hasActiveSubscription" @click="showSubscriptionModal = true" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md">
             Subscribe & Save
           </button>
         </div>
@@ -22,73 +22,73 @@
     </div>
 
     <!-- Active Subscription -->
-    <div v-if="billingStore.activeSubscription" class="bg-white rounded-lg shadow overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Active Subscription</h3>
+    <div v-if="billingStore.activeSubscription" class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Active Subscription</h3>
       </div>
-      <dl class="divide-y divide-gray-200">
+      <dl class="divide-y divide-gray-200 dark:divide-slate-700">
         <div class="px-6 py-3 flex justify-between">
-          <dt class="text-sm text-gray-500">Plan</dt>
-          <dd class="text-sm font-semibold text-gray-900">{{ formatTierName(billingStore.activeSubscription.tier) }}</dd>
+          <dt class="text-sm text-gray-500 dark:text-slate-400">Plan</dt>
+          <dd class="text-sm font-semibold text-gray-900 dark:text-white">{{ formatTierName(billingStore.activeSubscription.tier) }}</dd>
         </div>
         <div class="px-6 py-3 flex justify-between">
-          <dt class="text-sm text-gray-500">Credits per month</dt>
-          <dd class="text-sm font-semibold text-gray-900">{{ billingStore.activeSubscription.credits_per_month }}</dd>
+          <dt class="text-sm text-gray-500 dark:text-slate-400">Credits per month</dt>
+          <dd class="text-sm font-semibold text-gray-900 dark:text-white">{{ billingStore.activeSubscription.credits_per_month }}</dd>
         </div>
         <div class="px-6 py-3 flex justify-between">
-          <dt class="text-sm text-gray-500">Monthly cost</dt>
-          <dd class="text-sm font-semibold text-gray-900">&pound;{{ billingStore.activeSubscription.monthly_total.toFixed(2) }}</dd>
+          <dt class="text-sm text-gray-500 dark:text-slate-400">Monthly cost</dt>
+          <dd class="text-sm font-semibold text-gray-900 dark:text-white">&pound;{{ billingStore.activeSubscription.monthly_total.toFixed(2) }}</dd>
         </div>
         <div class="px-6 py-3 flex justify-between">
-          <dt class="text-sm text-gray-500">Price per credit</dt>
-          <dd class="text-sm font-semibold text-gray-900">&pound;{{ billingStore.activeSubscription.price_per_credit.toFixed(2) }}</dd>
+          <dt class="text-sm text-gray-500 dark:text-slate-400">Price per credit</dt>
+          <dd class="text-sm font-semibold text-gray-900 dark:text-white">&pound;{{ billingStore.activeSubscription.price_per_credit.toFixed(2) }}</dd>
         </div>
         <div class="px-6 py-3 flex justify-between">
-          <dt class="text-sm text-gray-500">Next billing date</dt>
-          <dd class="text-sm font-semibold text-gray-900">{{ formatDate(billingStore.activeSubscription.current_period_end) }}</dd>
+          <dt class="text-sm text-gray-500 dark:text-slate-400">Next billing date</dt>
+          <dd class="text-sm font-semibold text-gray-900 dark:text-white">{{ formatDate(billingStore.activeSubscription.current_period_end) }}</dd>
         </div>
         <div class="px-6 py-3 flex justify-between">
-          <dt class="text-sm text-gray-500">Status</dt>
+          <dt class="text-sm text-gray-500 dark:text-slate-400">Status</dt>
           <dd>
             <span
               class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-              :class="billingStore.activeSubscription.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+              :class="billingStore.activeSubscription.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'"
             >
               {{ billingStore.activeSubscription.status }}
             </span>
           </dd>
         </div>
       </dl>
-      <div class="px-6 py-4 border-t border-gray-200">
+      <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700">
         <button
           v-if="!billingStore.activeSubscription.cancel_at_period_end"
           @click="handleCancelSubscription"
-          class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md"
+          class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-md"
         >
           Cancel Subscription
         </button>
-        <p v-else class="text-sm text-gray-500 italic">
+        <p v-else class="text-sm text-gray-500 dark:text-slate-400 italic">
           Subscription will cancel on {{ formatDate(billingStore.activeSubscription.current_period_end) }}
         </p>
       </div>
     </div>
 
     <!-- Payment Methods -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Payment Methods</h3>
-        <p class="mt-1 text-sm text-gray-500">Manage your saved payment methods for subscriptions and auto-recharge</p>
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Payment Methods</h3>
+        <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Manage your saved payment methods for subscriptions and auto-recharge</p>
       </div>
 
       <div v-if="loadingPaymentMethods" class="p-8 text-center">
-        <div class="inline-block h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-primary"></div>
+        <div class="inline-block h-10 w-10 animate-spin rounded-full border-4 border-gray-200 dark:border-slate-700 border-t-primary"></div>
       </div>
 
       <div v-else-if="paymentMethods.length === 0" class="p-8">
-        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-          <CreditCard class="mx-auto h-12 w-12 text-gray-400" />
-          <p class="mt-2 text-sm text-gray-500">No payment methods saved</p>
-          <p class="mt-1 text-xs text-gray-400">Add a payment method to enable auto-recharge</p>
+        <div class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-8 text-center">
+          <CreditCard class="mx-auto h-12 w-12 text-gray-400 dark:text-slate-500" />
+          <p class="mt-2 text-sm text-gray-500 dark:text-slate-400">No payment methods saved</p>
+          <p class="mt-1 text-xs text-gray-400 dark:text-slate-500">Add a payment method to enable auto-recharge</p>
           <button @click="showAddPaymentMethod = true" class="mt-4 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md">
             Add Payment Method
           </button>
@@ -100,15 +100,15 @@
           v-for="method in paymentMethods"
           :key="method.id"
           class="flex items-center justify-between p-4 border-2 rounded-lg"
-          :class="method.id === defaultPaymentMethodId ? 'border-primary bg-primary/5' : 'border-gray-200'"
+          :class="method.id === defaultPaymentMethodId ? 'border-primary bg-primary/5' : 'border-gray-200 dark:border-slate-700'"
         >
           <div class="flex items-center gap-4">
-            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-              <CreditCard class="w-6 h-6 text-gray-500" />
+            <div class="w-10 h-10 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+              <CreditCard class="w-6 h-6 text-gray-500 dark:text-slate-400" />
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <span class="font-semibold text-gray-900">
+                <span class="font-semibold text-gray-900 dark:text-white">
                   {{ method.card.brand.toUpperCase() }} &bull;&bull;&bull;&bull; {{ method.card.last4 }}
                 </span>
                 <span
@@ -118,7 +118,7 @@
                   Default
                 </span>
               </div>
-              <p class="text-sm text-gray-500">Expires {{ method.card.exp_month }}/{{ method.card.exp_year }}</p>
+              <p class="text-sm text-gray-500 dark:text-slate-400">Expires {{ method.card.exp_month }}/{{ method.card.exp_year }}</p>
             </div>
           </div>
           <div class="flex gap-2">
@@ -131,7 +131,7 @@
             </button>
             <button
               @click="confirmDeletePaymentMethod(method.id)"
-              class="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="method.is_default && paymentMethods.length > 1"
               :title="method.is_default && paymentMethods.length > 1 ? 'Set another card as default before deleting' : 'Delete payment method'"
             >
@@ -140,31 +140,31 @@
           </div>
         </div>
 
-        <button @click="showAddPaymentMethod = true" class="mt-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md">
+        <button @click="showAddPaymentMethod = true" class="mt-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md">
           + Add New Payment Method
         </button>
       </div>
     </div>
 
     <!-- Auto-Recharge Settings -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Auto-Recharge Settings</h3>
-        <p class="mt-1 text-sm text-gray-500">Automatically purchase credits when your balance runs low</p>
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Auto-Recharge Settings</h3>
+        <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Automatically purchase credits when your balance runs low</p>
       </div>
 
       <div class="p-6 space-y-6">
-        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+        <div class="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
           <div>
-            <p class="font-semibold text-gray-900">Enable Auto-Recharge</p>
-            <p class="text-sm text-gray-500">Automatically purchase a credit pack when your balance falls below the threshold</p>
+            <p class="font-semibold text-gray-900 dark:text-white">Enable Auto-Recharge</p>
+            <p class="text-sm text-gray-500 dark:text-slate-400">Automatically purchase a credit pack when your balance falls below the threshold</p>
           </div>
           <button
             role="switch"
             :aria-checked="autoRechargeEnabled"
             @click="autoRechargeEnabled = !autoRechargeEnabled; handleAutoRechargeToggle()"
             class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-            :class="autoRechargeEnabled ? 'bg-primary' : 'bg-gray-200'"
+            :class="autoRechargeEnabled ? 'bg-primary' : 'bg-gray-200 dark:bg-slate-600'"
           >
             <span
               class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
@@ -173,31 +173,31 @@
           </button>
         </div>
 
-        <div v-if="autoRechargeEnabled" class="space-y-4 p-4 bg-gray-50 rounded-lg">
+        <div v-if="autoRechargeEnabled" class="space-y-4 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
           <div>
-            <label for="threshold" class="block text-sm font-medium text-gray-700">
+            <label for="threshold" class="block text-sm font-medium text-gray-700 dark:text-slate-300">
               Threshold (credits)
             </label>
-            <p class="text-xs text-gray-500 mb-1">Purchase credits when balance reaches this number</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Purchase credits when balance reaches this number</p>
             <input
               id="threshold"
               type="number"
               v-model.number="autoRechargeThreshold"
               min="1"
               max="50"
-              class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 dark:text-white focus:ring-primary focus:border-primary"
             />
           </div>
 
           <div>
-            <label for="pack-size" class="block text-sm font-medium text-gray-700">
+            <label for="pack-size" class="block text-sm font-medium text-gray-700 dark:text-slate-300">
               Pack Size (credits)
             </label>
-            <p class="text-xs text-gray-500 mb-1">Number of credits to purchase each time</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400 mb-1">Number of credits to purchase each time</p>
             <select
               id="pack-size"
               v-model.number="autoRechargePackSize"
-              class="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:ring-primary focus:border-primary"
+              class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 dark:text-white focus:ring-primary focus:border-primary"
             >
               <option :value="10">10 credits (&pound;210)</option>
               <option :value="25">25 credits (&pound;525)</option>
@@ -214,10 +214,10 @@
             {{ savingAutoRecharge ? 'Saving...' : 'Save Settings' }}
           </button>
 
-          <div v-if="autoRechargeSaved" class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded text-sm">
+          <div v-if="autoRechargeSaved" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded text-sm">
             Auto-recharge settings saved successfully
           </div>
-          <div v-if="autoRechargeError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm">
+          <div v-if="autoRechargeError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
             {{ autoRechargeError }}
           </div>
         </div>
@@ -225,31 +225,31 @@
     </div>
 
     <!-- Transaction History -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Transaction History</h3>
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Transaction History</h3>
       </div>
 
-      <div v-if="billingStore.transactions.length === 0" class="px-6 py-12 text-center text-gray-500">
+      <div v-if="billingStore.transactions.length === 0" class="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
         No transactions yet
       </div>
 
       <div v-else class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+          <thead class="bg-gray-50 dark:bg-slate-700">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Type</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Credits</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Amount</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Balance</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
+          <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
             <tr v-for="transaction in billingStore.transactions" :key="transaction.id">
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(transaction.created_at) }}</td>
-              <td class="px-6 py-4 text-sm text-gray-900">{{ transaction.description }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ formatDate(transaction.created_at) }}</td>
+              <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">{{ transaction.description }}</td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
@@ -258,14 +258,14 @@
                   {{ formatTransactionType(transaction.type) }}
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold" :class="transaction.credits_change > 0 ? 'text-green-600' : 'text-red-600'">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold" :class="transaction.credits_change > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                 {{ transaction.credits_change > 0 ? '+' : '' }}{{ transaction.credits_change }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
                 <span v-if="transaction.amount_gbp">&pound;{{ transaction.amount_gbp.toFixed(2) }}</span>
                 <span v-else>-</span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ transaction.credits_balance_after }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ transaction.credits_balance_after }}</td>
             </tr>
           </tbody>
         </table>
@@ -316,9 +316,9 @@ import { CreditCard } from 'lucide-vue-next'
 import axios from 'axios'
 import { formatDate as formatUkDate } from '../utils/date'
 
-const toast = useToast()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const toast = useToast()
 const billingStore = useBillingStore()
 const authStore = useAuthStore()
 const showPurchaseModal = ref(false)
@@ -388,14 +388,14 @@ function formatTransactionType(type: string): string {
 
 function transactionTypeBadgeClass(type: string): string {
   const classes: Record<string, string> = {
-    subscription_credit: 'bg-green-100 text-green-800',
-    pack_purchase: 'bg-green-100 text-green-800',
-    signup_bonus: 'bg-green-100 text-green-800',
-    auto_recharge: 'bg-blue-100 text-blue-800',
-    credit_used: 'bg-red-100 text-red-800',
-    refund: 'bg-amber-100 text-amber-800'
+    subscription_credit: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    pack_purchase: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    signup_bonus: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    auto_recharge: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+    credit_used: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+    refund: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300'
   }
-  return classes[type] || 'bg-gray-100 text-gray-800'
+  return classes[type] || 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-slate-300'
 }
 
 function handleCancelSubscription() {

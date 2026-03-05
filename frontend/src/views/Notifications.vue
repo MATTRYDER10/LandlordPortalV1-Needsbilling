@@ -6,6 +6,8 @@ import { useToast } from 'vue-toastification'
 import Sidebar from '../components/Sidebar.vue'
 import { Bell, Building, Check, Clock, AlertTriangle, X, ChevronRight } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
@@ -33,7 +35,6 @@ const selectedFilter = ref<'all' | 'unread' | 'urgent'>('all')
 async function fetchNotifications() {
   loading.value = true
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     const response = await fetch(`${API_URL}/api/notifications?includeRead=true`, {
@@ -57,7 +58,6 @@ async function fetchNotifications() {
 // Mark notification as read
 async function markAsRead(notificationId: string) {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     const response = await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
@@ -82,7 +82,6 @@ async function markAsRead(notificationId: string) {
 // Dismiss notification
 async function dismissNotification(notificationId: string) {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     const response = await fetch(`${API_URL}/api/notifications/${notificationId}/dismiss`, {
@@ -106,7 +105,6 @@ async function dismissNotification(notificationId: string) {
 // Mark all as read
 async function markAllAsRead() {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     const response = await fetch(`${API_URL}/api/notifications/read-all`, {

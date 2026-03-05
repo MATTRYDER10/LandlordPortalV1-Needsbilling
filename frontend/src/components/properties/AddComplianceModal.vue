@@ -205,6 +205,8 @@ import { useAuthStore } from '../../stores/auth'
 import { X, Upload, FileText } from 'lucide-vue-next'
 import { formatDate as formatUkDate } from '../../utils/date'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 interface ComplianceRecord {
   id: string
   compliance_type: string
@@ -230,8 +232,6 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const saving = ref(false)
 const isDragging = ref(false)
 const selectedFile = ref<File | null>(null)
@@ -256,15 +256,14 @@ const isValid = computed(() => {
 })
 
 // Auto-calculate expiry date based on compliance type
+// Gas: 1 year minus 1 day, EICR: 5 years minus 1 day, EPC: 10 years minus 1 day
 const autoExpiryDate = computed(() => {
   if (!form.value.issue_date || !form.value.compliance_type) return null
 
   // Parse the YYYY-MM-DD string directly to avoid timezone issues
   const parts = form.value.issue_date.split('-')
   if (parts.length !== 3) return null
-  const year = parts[0]!
-  const month = parts[1]!
-  const day = parts[2]!
+
   let yearsToAdd = 0
 
   switch (form.value.compliance_type) {
@@ -282,8 +281,17 @@ const autoExpiryDate = computed(() => {
       return null
   }
 
-  const expiryYear = parseInt(year, 10) + yearsToAdd
-  return `${expiryYear}-${month}-${day}`
+  // Calculate expiry: add years, then subtract 1 day
+  const issueDate = new Date(form.value.issue_date + 'T12:00:00') // Use noon to avoid timezone issues
+  issueDate.setFullYear(issueDate.getFullYear() + yearsToAdd)
+  issueDate.setDate(issueDate.getDate() - 1) // Subtract 1 day
+
+  // Format as YYYY-MM-DD
+  const year = issueDate.getFullYear()
+  const month = String(issueDate.getMonth() + 1).padStart(2, '0')
+  const day = String(issueDate.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 })
 
 const resetForm = () => {
@@ -300,8 +308,9 @@ const resetForm = () => {
 }
 
 // Watch for issue date and type changes to auto-set expiry
+// Always auto-fill when issue_date or compliance_type changes
 watch([() => form.value.issue_date, () => form.value.compliance_type], () => {
-  if (autoExpiryDate.value && !form.value.expiry_date) {
+  if (autoExpiryDate.value) {
     form.value.expiry_date = autoExpiryDate.value
   }
 })

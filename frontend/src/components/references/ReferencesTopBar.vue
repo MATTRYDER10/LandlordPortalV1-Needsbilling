@@ -1,23 +1,23 @@
 <template>
-  <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-20">
+  <div class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 py-4 sticky top-0 z-20">
     <div class="flex items-center justify-between gap-4">
       <!-- Title -->
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">References</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">References</h1>
       </div>
 
       <!-- Search -->
       <div class="flex-1 max-w-md">
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search class="h-5 w-5 text-gray-400" />
+            <Search class="h-5 w-5 text-gray-400 dark:text-slate-500" />
           </div>
           <input
             :value="search"
             @input="$emit('update:search', ($event.target as HTMLInputElement).value)"
             type="text"
             placeholder="Search by property, tenant..."
-            class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+            class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md text-sm placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
           />
         </div>
       </div>
@@ -29,33 +29,33 @@
           <select
             :value="sortBy"
             @change="handleSortChange"
-            class="block w-full pl-3 pr-8 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-white"
+            class="block w-full pl-3 pr-8 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-white dark:bg-slate-800"
           >
             <option value="move_in_date">Move-in Date</option>
             <option value="created_at">Created Date</option>
           </select>
           <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-            <ChevronDown class="h-4 w-4 text-gray-400" />
+            <ChevronDown class="h-4 w-4 text-gray-400 dark:text-slate-500" />
           </div>
         </div>
 
         <!-- Sort order toggle -->
         <button
           @click="toggleSortOrder"
-          class="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          class="p-2 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800"
           :title="sortOrder === 'asc' ? 'Ascending' : 'Descending'"
         >
-          <ArrowUpNarrowWide v-if="sortOrder === 'asc'" class="h-5 w-5 text-gray-600" />
-          <ArrowDownNarrowWide v-else class="h-5 w-5 text-gray-600" />
+          <ArrowUpNarrowWide v-if="sortOrder === 'asc'" class="h-5 w-5 text-gray-600 dark:text-slate-400" />
+          <ArrowDownNarrowWide v-else class="h-5 w-5 text-gray-600 dark:text-slate-400" />
         </button>
 
         <!-- Refresh -->
         <button
           @click="$emit('refresh')"
-          class="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          class="p-2 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800"
           title="Refresh"
         >
-          <RefreshCw class="h-5 w-5 text-gray-600" />
+          <RefreshCw class="h-5 w-5 text-gray-600 dark:text-slate-400" />
         </button>
 
         <!-- Create Reference -->

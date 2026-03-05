@@ -1,6 +1,6 @@
 <template>
   <div class="w-full">
-    <label v-if="label" class="block text-sm font-medium text-gray-700">
+    <label v-if="label" class="block text-sm font-medium text-gray-700 dark:text-slate-200">
       {{ label }} <span v-if="required" class="text-red-500">*</span>
     </label>
     <div :class="label ? 'mt-1 flex gap-2' : 'flex gap-2'">
@@ -45,8 +45,8 @@ const props = withDefaults(defineProps<Props>(), {
   label: '',
   id: 'phone-input',
   required: false,
-  selectClass: 'px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary',
-  inputClass: 'px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary'
+  selectClass: 'px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary',
+  inputClass: 'px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary'
 })
 
 const emit = defineEmits<{

@@ -316,6 +316,53 @@
             </div>
           </section>
 
+          <!-- Rent Shares Section (Multi-tenant only) -->
+          <section v-if="formData.tenants.length > 1" class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-medium text-gray-900">Rent Shares</h3>
+              <button
+                @click="splitRentEvenly"
+                type="button"
+                class="text-sm text-primary hover:text-primary-dark"
+              >
+                Split Evenly
+              </button>
+            </div>
+            <p class="text-sm text-gray-500 mb-4">
+              Specify how the monthly rent of £{{ formatNumber(formData.rentAmount || 0) }} is split between tenants.
+            </p>
+
+            <div class="space-y-3">
+              <div v-for="(tenant, index) in formData.tenants" :key="index" class="flex items-center gap-3">
+                <span class="flex-1 text-sm font-medium text-gray-700 dark:text-slate-200">{{ tenant.name || `Tenant ${index + 1}` }}</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-gray-500">£</span>
+                  <input
+                    v-model.number="tenant.rentShare"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    :max="formData.rentAmount"
+                    placeholder="0.00"
+                    class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    @input="validateRentShares"
+                  />
+                  <span class="text-sm text-gray-500 w-12 text-right">{{ getRentSharePercentage(tenant.rentShare) }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Validation Message -->
+            <div class="mt-3 p-2 rounded" :class="rentSharesValid ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'">
+              <p class="text-sm">
+                Total: £{{ formatNumber(totalRentShares) }} / £{{ formatNumber(formData.rentAmount || 0) }}
+                <span v-if="!rentSharesValid" class="font-medium">
+                  ({{ rentShareDifference > 0 ? '+' : '' }}£{{ formatNumber(rentShareDifference) }})
+                </span>
+              </p>
+            </div>
+          </section>
+
           <!-- Guarantors Section -->
           <section class="bg-white rounded-lg shadow p-6 mb-6">
             <div class="flex justify-between items-center mb-4">
@@ -644,6 +691,51 @@ const addGuarantor = () => {
 
 const removeGuarantor = (index: number) => {
   formData.value.guarantors.splice(index, 1)
+}
+
+// Rent share computed properties and methods
+const totalRentShares = computed(() => {
+  return formData.value.tenants.reduce((sum, t) => sum + (Number(t.rentShare) || 0), 0)
+})
+
+const rentShareDifference = computed(() => {
+  return totalRentShares.value - (formData.value.rentAmount || 0)
+})
+
+const rentSharesValid = computed(() => {
+  return Math.abs(rentShareDifference.value) < 0.01
+})
+
+const formatNumber = (amount: number) => {
+  return amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const getRentSharePercentage = (rentShare?: number) => {
+  if (!formData.value.rentAmount || formData.value.rentAmount === 0) return '0'
+  return (((rentShare || 0) / formData.value.rentAmount) * 100).toFixed(0)
+}
+
+const splitRentEvenly = () => {
+  const rentAmount = formData.value.rentAmount || 0
+  const tenantCount = formData.value.tenants.length
+  if (tenantCount === 0 || rentAmount === 0) return
+
+  const shareAmount = rentAmount / tenantCount
+  let remaining = rentAmount
+
+  formData.value.tenants.forEach((tenant, index) => {
+    if (index === tenantCount - 1) {
+      // Last tenant gets remainder to avoid rounding issues
+      tenant.rentShare = Math.round(remaining * 100) / 100
+    } else {
+      tenant.rentShare = Math.round(shareAmount * 100) / 100
+      remaining -= tenant.rentShare
+    }
+  })
+}
+
+const validateRentShares = () => {
+  // Just triggers reactivity, validation is done via computed
 }
 
 const handleClose = () => {

@@ -375,15 +375,15 @@ const riskLevelColor = computed(() => {
 
 const hasMatchScores = computed(() => {
   if (!props.verification) return false
-  return props.verification.name_match_score !== null ||
-         props.verification.address_match_score !== null ||
+  return props.verification.name_match_score !== null
+         props.verification.address_match_score !== null
          props.verification.dob_match_score !== null
 })
 
 const hasComplianceChecks = computed(() => {
   if (!props.verification) return false
-  return props.verification.pep_check_result !== null ||
-         props.verification.sanctions_check_result !== null ||
+  return props.verification.pep_check_result !== null
+         props.verification.sanctions_check_result !== null
          props.verification.adverse_media_result !== null
 })
 

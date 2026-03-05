@@ -1,7 +1,7 @@
 <template>
   <div class="signature-pad-container">
     <div class="mb-2 flex items-center justify-between">
-      <label class="block text-sm font-medium text-gray-700">
+      <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">
         {{ label }} *
       </label>
       <button

@@ -41,15 +41,39 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single()
+    // Check for X-Branch-Id header first (multi-branch support)
+    const branchId = req.headers['x-branch-id'] as string | undefined
+    let companyId: string | null = null
 
-    if (!companyUser) {
+    if (branchId) {
+      // Verify user belongs to this branch
+      const { data: branchMembership } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .eq('company_id', branchId)
+        .limit(1)
+
+      if (branchMembership && branchMembership.length > 0) {
+        companyId = branchMembership[0].company_id
+      }
+    }
+
+    // Fallback: Get user's first company
+    if (!companyId) {
+      const { data: companyUser } = await supabase
+        .from('company_users')
+        .select('company_id')
+        .eq('user_id', userId)
+        .limit(1)
+        .single()
+
+      if (companyUser) {
+        companyId = companyUser.company_id
+      }
+    }
+
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
@@ -64,7 +88,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     let countQuery = supabase
       .from('landlords')
       .select('id', { count: 'exact', head: true })
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
 
     if (aml_status && typeof aml_status === 'string') {
       countQuery = countQuery.eq('aml_status', aml_status)
@@ -85,7 +109,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         aml_completed_at,
         created_at
       `)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false })
 
     // Apply AML status filter

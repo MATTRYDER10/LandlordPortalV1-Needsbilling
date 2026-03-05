@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-gray-50 dark:bg-slate-800 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl mx-auto">
       <!-- Header -->
       <div v-if="brandingLoaded" class="text-center mb-8">
@@ -8,76 +8,77 @@
             <img :src="companyLogo" alt="Company Logo" class="h-20 object-contain" />
           </template>
           <template v-else>
-            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12" />
+            <img src="/PropertyGooseLogo.png" alt="PropertyGoose" class="h-12 dark:hidden" />
+            <img src="/PropertyGooseLogoDark.png" alt="PropertyGoose" class="h-12 hidden dark:block" />
           </template>
         </div>
         <h1 class="text-3xl font-bold" :style="{ color: primaryColor }">Letting Agent Reference Form</h1>
-        <p class="mt-2 text-gray-600">Please provide a reference for your previous/current tenant</p>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Please provide a reference for your previous/current tenant</p>
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="bg-white rounded-lg shadow p-8 text-center">
-        <div class="text-gray-600">Loading...</div>
+      <div v-if="loading" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
+        <div class="text-gray-600 dark:text-slate-400">Loading...</div>
       </div>
 
       <!-- Success State -->
-      <div v-else-if="submitted" class="bg-white rounded-lg shadow p-8 text-center">
+      <div v-else-if="submitted" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
         <CheckCircle2 class="mx-auto h-12 w-12 text-green-500" />
-        <h3 class="mt-4 text-lg font-semibold text-gray-900">Thank You!</h3>
-        <p class="mt-2 text-gray-600">Your agent reference has been submitted successfully.</p>
+        <h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Thank You!</h3>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Your agent reference has been submitted successfully.</p>
       </div>
 
       <!-- Expired Link State -->
-      <div v-else-if="linkExpired" class="bg-white rounded-lg shadow p-8 text-center">
+      <div v-else-if="linkExpired" class="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
         <AlertTriangle class="mx-auto h-12 w-12 text-red-500" />
-        <h3 class="mt-4 text-lg font-semibold text-gray-900">{{ expiredMessage }}</h3>
-        <p class="mt-2 text-gray-600">Please check your email for a fresh link.</p>
+        <h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">{{ expiredMessage }}</h3>
+        <p class="mt-2 text-gray-600 dark:text-slate-400">Please check your email for a fresh link.</p>
       </div>
 
       <!-- Form -->
       <form v-else @submit.prevent="handleSubmit" class="space-y-6">
         <!-- Instruction Banner -->
-        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-          <p class="text-sm text-blue-900">
+        <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded">
+          <p class="text-sm text-blue-900 dark:text-blue-200">
             The tenant has made the below statement about their tenancy, please confirm and amend if required the details below.
           </p>
         </div>
 
         <!-- Agent Information -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Agent Information</h2>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Agent Information</h2>
           <div class="space-y-4">
             <div>
-              <label for="agent-name" class="block text-sm font-medium text-gray-700">Agent's Full Name *</label>
+              <label for="agent-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Agent's Full Name *</label>
               <input
                 id="agent-name"
                 v-model="formData.agentName"
                 type="text"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label for="agency-name" class="block text-sm font-medium text-gray-700">Agency/Company Name *</label>
+              <label for="agency-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Agency/Company Name *</label>
               <input
                 id="agency-name"
                 v-model="formData.agencyName"
                 type="text"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
               />
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label for="agent-email" class="block text-sm font-medium text-gray-700">Email Address *</label>
+                <label for="agent-email" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Email Address *</label>
                 <input
                   id="agent-email"
                   v-model="formData.agentEmail"
                   type="email"
                   required
-                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
                 />
               </div>
 
@@ -86,27 +87,27 @@
                 label="Phone Number"
                 id="agent-phone"
                 :required="true"
-                select-class="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                input-class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                select-class="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
+                input-class="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
               />
             </div>
           </div>
         </div>
 
         <!-- Property & Tenancy Information -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Property & Tenancy Information</h2>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Property & Tenancy Information</h2>
           <div class="space-y-4">
             <DatePicker
               v-model="formData.tenancyStartDate"
               label="Tenancy Start Date"
               :required="true"
               year-range-type="tenancy"
-              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              select-class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
             />
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">Tenancy Status *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Tenancy Status *</label>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button
                   type="button"
@@ -115,7 +116,7 @@
                     'py-3 px-4 rounded-lg border-2 font-medium transition-colors text-sm',
                     formData.tenancyStatus === 'ended'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.tenancyStatus === 'ended' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -128,7 +129,7 @@
                     'py-3 px-4 rounded-lg border-2 font-medium transition-colors text-sm',
                     formData.tenancyStatus === 'notice-served'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.tenancyStatus === 'notice-served' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -141,7 +142,7 @@
                     'py-3 px-4 rounded-lg border-2 font-medium transition-colors text-sm',
                     formData.tenancyStatus === 'in-situ'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.tenancyStatus === 'in-situ' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -156,40 +157,40 @@
               label="Tenancy End Date"
               :required="formData.tenancyStatus === 'ended'"
               year-range-type="tenancy"
-              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              select-class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
             />
 
             <div>
-              <label for="monthly-rent" class="block text-sm font-medium text-gray-700">Monthly Rent (£) *</label>
+              <label for="monthly-rent" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Monthly Rent (£) *</label>
               <input
                 id="monthly-rent"
                 v-model.number="formData.monthlyRent"
                 type="number"
                 step="1"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
               />
             </div>
           </div>
         </div>
 
         <!-- Address Confirmation -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Address Confirmation</h2>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Address Confirmation</h2>
 
           <!-- Display pre-populated address -->
-          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-            <p class="text-sm font-medium text-gray-700 mb-2">Property Address:</p>
-            <p class="text-gray-900">{{ formData.propertyAddressLine1 }}</p>
-            <p v-if="formData.propertyAddressLine2" class="text-gray-900">{{ formData.propertyAddressLine2 }}</p>
-            <p class="text-gray-900">{{ formData.propertyCity }}, {{ formData.propertyPostcode }}</p>
+          <div class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 mb-4">
+            <p class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Property Address:</p>
+            <p class="text-gray-900 dark:text-white">{{ formData.propertyAddressLine1 }}</p>
+            <p v-if="formData.propertyAddressLine2" class="text-gray-900 dark:text-white">{{ formData.propertyAddressLine2 }}</p>
+            <p class="text-gray-900 dark:text-white">{{ formData.propertyCity }}, {{ formData.propertyPostcode }}</p>
           </div>
 
-          <p class="text-sm text-gray-600 mb-4">(If the address is not correct please answer "No", proceed with the reference and supply the correct address in the comments section below)</p>
+          <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">(If the address is not correct please answer "No", proceed with the reference and supply the correct address in the comments section below)</p>
 
           <div class="space-y-6">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">The address is correct *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">The address is correct *</label>
               <div class="flex gap-2">
                 <button
                   type="button"
@@ -198,7 +199,7 @@
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
                     formData.addressCorrect === 'yes'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.addressCorrect === 'yes' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -211,7 +212,7 @@
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
                     formData.addressCorrect === 'no'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.addressCorrect === 'no' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -221,48 +222,48 @@
             </div>
 
             <!-- Corrected Address (shown if address is incorrect) -->
-            <div v-if="formData.addressCorrect === 'no'" class="mt-6 pt-6 border-t border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Correct Property Address</h3>
-              <p class="text-sm text-gray-600 mb-4">Please provide the correct property address</p>
+            <div v-if="formData.addressCorrect === 'no'" class="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Correct Property Address</h3>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">Please provide the correct property address</p>
               <div class="space-y-4">
                 <div>
-                  <label for="corrected-address-line1" class="block text-sm font-medium text-gray-700">Address Line 1 *</label>
+                  <label for="corrected-address-line1" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address Line 1 *</label>
                   <input
                     id="corrected-address-line1"
                     v-model="formData.correctedAddressLine1"
                     type="text"
                     :required="formData.addressCorrect === 'no'"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label for="corrected-address-line2" class="block text-sm font-medium text-gray-700">Address Line 2</label>
+                  <label for="corrected-address-line2" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Address Line 2</label>
                   <input
                     id="corrected-address-line2"
                     v-model="formData.correctedAddressLine2"
                     type="text"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
                   />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label for="corrected-city" class="block text-sm font-medium text-gray-700">City *</label>
+                    <label for="corrected-city" class="block text-sm font-medium text-gray-700 dark:text-slate-300">City *</label>
                     <input
                       id="corrected-city"
                       v-model="formData.correctedCity"
                       type="text"
                       :required="formData.addressCorrect === 'no'"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label for="corrected-postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
+                    <label for="corrected-postcode" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Postcode *</label>
                     <input
                       id="corrected-postcode"
                       v-model="formData.correctedPostcode"
                       type="text"
                       :required="formData.addressCorrect === 'no'"
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
@@ -272,11 +273,11 @@
         </div>
 
         <!-- Reference Questions -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Reference Questions</h2>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Reference Questions</h2>
           <div class="space-y-6">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">Rent paid on time *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Rent paid on time *</label>
               <div class="flex gap-2">
                 <button
                   type="button"
@@ -285,7 +286,7 @@
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
                     formData.rentPaidOnTime === 'yes'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.rentPaidOnTime === 'yes' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -298,7 +299,7 @@
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
                     formData.rentPaidOnTime === 'no'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.rentPaidOnTime === 'no' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -308,7 +309,7 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">Have they been a good tenant *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Have they been a good tenant *</label>
               <div class="flex gap-2">
                 <button
                   type="button"
@@ -317,7 +318,7 @@
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
                     formData.goodTenant === 'yes'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.goodTenant === 'yes' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -330,7 +331,7 @@
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
                     formData.goodTenant === 'no'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.goodTenant === 'no' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -340,7 +341,7 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">Would you rent to them again *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Would you rent to them again *</label>
               <div class="flex gap-2">
                 <button
                   type="button"
@@ -349,7 +350,7 @@
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
                     formData.wouldRentAgain === 'yes'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.wouldRentAgain === 'yes' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -362,7 +363,7 @@
                     'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-colors',
                     formData.wouldRentAgain === 'no'
                       ? 'text-white'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
                   ]"
                   :style="formData.wouldRentAgain === 'no' ? { backgroundColor: buttonColor, borderColor: buttonColor } : {}"
                 >
@@ -372,22 +373,22 @@
             </div>
 
             <div>
-              <label for="additional-comments" class="block text-sm font-medium text-gray-700">If you have any further comments that you feel will support their application please add them here</label>
+              <label for="additional-comments" class="block text-sm font-medium text-gray-700 dark:text-slate-300">If you have any further comments that you feel will support their application please add them here</label>
               <textarea
                 id="additional-comments"
                 v-model="formData.additionalComments"
                 rows="4"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
               ></textarea>
             </div>
           </div>
         </div>
 
         <!-- Declaration -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Declaration</h2>
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-            <p class="text-sm text-gray-700">
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Declaration</h2>
+          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+            <p class="text-sm text-gray-700 dark:text-slate-300">
               I declare that the information provided in this reference is true and accurate to the best of my knowledge.
               I understand that this information will be used to assess the tenant's suitability for a tenancy.
             </p>
@@ -395,13 +396,13 @@
 
           <div class="space-y-4">
             <div>
-              <label for="signature-name" class="block text-sm font-medium text-gray-700">Full Name *</label>
+              <label for="signature-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Full Name *</label>
               <input
                 id="signature-name"
                 v-model="formData.signatureName"
                 type="text"
                 required
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
               />
             </div>
 
@@ -415,18 +416,18 @@
               label="Date"
               :required="true"
               year-range-type="current"
-              select-class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              select-class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-900 dark:text-white"
             />
           </div>
         </div>
 
         <!-- Error Message -->
-        <div v-if="error" class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-lg">
+        <div v-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-6 py-4 rounded-lg">
           {{ error }}
         </div>
 
         <!-- Submit Button -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
           <button
             type="submit"
             :disabled="submitting"
@@ -452,9 +453,9 @@ import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
 import { CheckCircle2, AlertTriangle } from 'lucide-vue-next'
 
-const route = useRoute()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const route = useRoute()
 const loading = ref(false)
 const submitted = ref(false)
 const submitting = ref(false)

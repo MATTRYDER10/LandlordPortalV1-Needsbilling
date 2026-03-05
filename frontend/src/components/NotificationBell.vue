@@ -2,14 +2,18 @@
   <div class="relative">
     <button
       @click="toggleDropdown"
-      class="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-      :class="{ 'bg-gray-100': isOpen }"
+      class="relative p-2 rounded-lg transition-all duration-200"
+      :class="[
+        isOpen
+          ? (isDark ? 'bg-slate-700/50 text-white' : 'bg-gray-200 text-gray-900')
+          : (isDark ? 'text-slate-400 hover:text-white hover:bg-slate-700/50' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200')
+      ]"
     >
       <Bell class="w-5 h-5" />
       <!-- Badge -->
       <span
         v-if="unreadCount > 0"
-        class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-red-500 rounded-full"
+        class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-orange-500 rounded-full animate-pulse"
       >
         {{ unreadCount > 99 ? '99+' : unreadCount }}
       </span>
@@ -18,68 +22,70 @@
     <!-- Dropdown (opens upward, positioned to fit in sidebar) -->
     <div
       v-if="isOpen"
-      class="absolute -left-48 bottom-full mb-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+      :class="[
+        'absolute -left-48 bottom-full mb-2 w-72 rounded-xl shadow-2xl border z-50 overflow-hidden',
+        isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
+      ]"
     >
       <!-- Header -->
-      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-        <h3 class="text-sm font-semibold text-gray-900">Notifications</h3>
+      <div :class="[
+        'flex items-center justify-between px-4 py-3 border-b',
+        isDark ? 'border-slate-700 bg-slate-800/80' : 'border-gray-200 bg-gray-50'
+      ]">
+        <h3 :class="['text-sm font-semibold', isDark ? 'text-white' : 'text-gray-900']">Notifications</h3>
         <button
           v-if="notifications.length > 0"
           @click="markAllRead"
-          class="text-xs text-primary hover:text-primary/80"
+          :disabled="markingAllRead"
+          class="text-xs text-orange-400 hover:text-orange-300 disabled:opacity-50 flex items-center gap-1 transition-colors"
         >
-          Mark all read
+          <CheckCheck v-if="!markingAllRead" class="w-3 h-3" />
+          <Loader2 v-else class="w-3 h-3 animate-spin" />
+          {{ markingAllRead ? 'Marking...' : 'Mark all read' }}
         </button>
       </div>
 
       <!-- Notifications List -->
       <div class="max-h-96 overflow-y-auto">
         <div v-if="loading" class="flex items-center justify-center py-8">
-          <div class="text-gray-500 text-sm">Loading...</div>
+          <Loader2 :class="['w-5 h-5 animate-spin', isDark ? 'text-slate-400' : 'text-gray-400']" />
         </div>
 
         <div v-else-if="notifications.length === 0" class="flex flex-col items-center justify-center py-8 px-4">
-          <BellOff class="w-8 h-8 text-gray-300 mb-2" />
-          <p class="text-sm text-gray-500">No notifications</p>
+          <BellOff :class="['w-8 h-8 mb-2', isDark ? 'text-slate-600' : 'text-gray-400']" />
+          <p :class="['text-sm', isDark ? 'text-slate-400' : 'text-gray-500']">No notifications</p>
         </div>
 
         <div v-else>
           <div
             v-for="notification in notifications"
             :key="notification.id"
-            class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 cursor-pointer"
-            :class="{
-              'bg-blue-50/50': !isRead(notification),
-              'bg-white': isRead(notification)
-            }"
+            :class="[
+              'px-4 py-3 cursor-pointer transition-colors last:border-b-0',
+              isDark ? 'hover:bg-slate-700/50 border-b border-slate-700/50' : 'hover:bg-gray-100 border-b border-gray-100',
+              !isRead(notification) ? 'bg-orange-500/10' : (isDark ? 'bg-transparent' : 'bg-white')
+            ]"
             @click="handleNotificationClick(notification)"
           >
             <div class="flex items-start gap-3">
               <!-- Severity Icon -->
               <div class="flex-shrink-0 mt-0.5">
-                <AlertTriangle
-                  v-if="notification.severity === 'URGENT'"
-                  class="w-5 h-5 text-red-500"
-                />
-                <AlertCircle
-                  v-else-if="notification.severity === 'WARNING'"
-                  class="w-5 h-5 text-amber-500"
-                />
-                <Info
-                  v-else
-                  class="w-5 h-5 text-blue-500"
+                <component
+                  :is="getNotificationIcon(notification)"
+                  :class="getNotificationIconClass(notification)"
+                  class="w-5 h-5"
                 />
               </div>
 
               <!-- Content -->
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-gray-900 truncate">
+                <p :class="['text-sm font-medium truncate', isDark ? 'text-white' : 'text-gray-900']">
                   {{ notification.title }}
                 </p>
-                <p class="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                <p :class="['text-xs mt-0.5 line-clamp-2', isDark ? 'text-slate-400' : 'text-gray-500']">
                   {{ notification.message }}
                 </p>
-                <p class="text-xs text-gray-400 mt-1">
+                <p :class="['text-xs mt-1', isDark ? 'text-slate-500' : 'text-gray-400']">
                   {{ formatTimeAgo(notification.created_at) }}
                 </p>
               </div>
@@ -87,7 +93,7 @@
               <!-- Dismiss Button -->
               <button
                 @click.stop="dismissNotification(notification.id)"
-                class="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600"
+                :class="['flex-shrink-0 p-1 transition-colors', isDark ? 'text-slate-500 hover:text-slate-300' : 'text-gray-400 hover:text-gray-600']"
               >
                 <X class="w-4 h-4" />
               </button>
@@ -97,10 +103,13 @@
       </div>
 
       <!-- Footer -->
-      <div v-if="notifications.length > 0" class="px-4 py-2 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+      <div v-if="notifications.length > 0" :class="[
+        'px-4 py-2.5 border-t',
+        isDark ? 'border-slate-700 bg-slate-800/80' : 'border-gray-200 bg-gray-50'
+      ]">
         <router-link
           to="/notifications"
-          class="text-xs text-primary hover:text-primary/80"
+          class="text-xs text-orange-400 hover:text-orange-300 transition-colors"
           @click="isOpen = false"
         >
           View all notifications
@@ -120,8 +129,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell, BellOff, X, AlertTriangle, AlertCircle, Info } from 'lucide-vue-next'
+import {
+  Bell, BellOff, X, AlertTriangle, AlertCircle, Info,
+  CheckCheck, Loader2, FileSignature, Banknote, Home,
+  UserPlus, Clock
+} from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
+import { useDarkMode } from '@/composables/useDarkMode'
+import { API_URL } from '@/lib/apiUrl'
+
+const { isDark } = useDarkMode()
 
 interface Notification {
   id: string
@@ -139,10 +156,9 @@ interface Notification {
 
 const router = useRouter()
 const authStore = useAuthStore()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const isOpen = ref(false)
 const loading = ref(false)
+const markingAllRead = ref(false)
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
 let pollInterval: ReturnType<typeof setInterval> | null = null
@@ -151,6 +167,53 @@ const userId = computed(() => authStore.user?.id)
 
 const isRead = (notification: Notification) => {
   return notification.read_by?.includes(userId.value || '')
+}
+
+const getNotificationIcon = (notification: Notification) => {
+  switch (notification.notification_type) {
+    case 'TENANT_OFFER':
+      return UserPlus
+    case 'PAYMENT_CONFIRMED':
+    case 'INITIAL_MONIES_PAID':
+      return Banknote
+    case 'TENANCY_STARTED':
+      return Home
+    case 'AGREEMENT_SIGNED':
+      return FileSignature
+    case 'ACTION_REQUIRED':
+      return Clock
+    case 'COMPLIANCE_EXPIRING':
+    case 'COMPLIANCE_EXPIRED':
+      return AlertTriangle
+    default:
+      if (notification.severity === 'URGENT') return AlertTriangle
+      if (notification.severity === 'WARNING') return AlertCircle
+      return Info
+  }
+}
+
+const getNotificationIconClass = (notification: Notification) => {
+  switch (notification.notification_type) {
+    case 'TENANT_OFFER':
+      return 'text-blue-400'
+    case 'PAYMENT_CONFIRMED':
+    case 'INITIAL_MONIES_PAID':
+      return 'text-green-400'
+    case 'TENANCY_STARTED':
+      return 'text-emerald-400'
+    case 'AGREEMENT_SIGNED':
+      return 'text-purple-400'
+    case 'ACTION_REQUIRED':
+      return 'text-orange-400'
+    case 'COMPLIANCE_EXPIRING':
+      return 'text-amber-400'
+    case 'COMPLIANCE_EXPIRED':
+      return 'text-red-400'
+    default:
+      if (notification.severity === 'URGENT') return 'text-red-400'
+      if (notification.severity === 'WARNING') return 'text-amber-400'
+      return 'text-blue-400'
+  }
 }
 
 const toggleDropdown = () => {
@@ -212,17 +275,24 @@ const markAsRead = async (notificationId: string) => {
 }
 
 const markAllRead = async () => {
+  markingAllRead.value = true
   try {
-    await fetch(`${API_URL}/api/notifications/read-all`, {
+    const response = await fetch(`${API_URL}/api/notifications/read-all`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.session?.access_token}`
       }
     })
-    await fetchNotifications()
-    await fetchUnreadCount()
+
+    if (response.ok) {
+      // Clear notifications from the dropdown after marking all as read
+      notifications.value = []
+      unreadCount.value = 0
+    }
   } catch (err) {
     console.error('Failed to mark all as read:', err)
+  } finally {
+    markingAllRead.value = false
   }
 }
 
@@ -257,6 +327,18 @@ const handleNotificationClick = async (notification: Notification) => {
   if (notification.resource_type === 'property' || notification.resource_type === 'compliance_record') {
     const propertyId = notification.metadata?.property_id || notification.resource_id
     router.push(`/properties/${propertyId}`)
+    isOpen.value = false
+  } else if (notification.resource_type === 'tenant_offer') {
+    router.push(`/offers/${notification.resource_id}`)
+    isOpen.value = false
+  } else if (notification.resource_type === 'tenancy') {
+    router.push(`/tenancies?id=${notification.resource_id}`)
+    isOpen.value = false
+  } else if (notification.resource_type === 'tenant_reference') {
+    router.push(`/references?id=${notification.resource_id}`)
+    isOpen.value = false
+  } else if (notification.resource_type === 'agreement') {
+    router.push(`/agreements/${notification.resource_id}`)
     isOpen.value = false
   }
 }

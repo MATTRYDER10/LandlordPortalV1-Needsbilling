@@ -9,17 +9,17 @@
       <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="handleClose"></div>
 
       <!-- Modal panel -->
-      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+      <div class="inline-block align-bottom bg-white dark:bg-slate-900 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
         <form @submit.prevent="handleSubmit">
-          <div class="bg-white px-6 pt-6 pb-4">
+          <div class="bg-white dark:bg-slate-900 px-6 pt-6 pb-4">
             <div class="flex justify-between items-center mb-6">
-              <h3 class="text-xl font-semibold text-gray-900">
+              <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
                 {{ isEdit ? 'Edit Property' : 'Add Property' }}
               </h3>
               <button
                 type="button"
                 @click="handleClose"
-                class="text-gray-400 hover:text-gray-600"
+                class="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300"
               >
                 <X class="h-6 w-6" />
               </button>
@@ -27,7 +27,7 @@
 
             <!-- Address Section -->
             <div class="mb-6">
-              <h4 class="text-sm font-medium text-gray-900 mb-3">Address</h4>
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Address</h4>
 
               <!-- Address Mode Toggle -->
               <div class="flex gap-4 mb-4">
@@ -36,39 +36,39 @@
                     type="radio"
                     v-model="addressMode"
                     value="split"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Split fields</span>
+                  <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Split fields</span>
                 </label>
                 <label class="flex items-center">
                   <input
                     type="radio"
                     v-model="addressMode"
                     value="full"
-                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600"
                   />
-                  <span class="ml-2 text-sm text-gray-700">Full address</span>
+                  <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Full address</span>
                 </label>
               </div>
 
               <!-- Full Address -->
               <div v-if="addressMode === 'full'" class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Full Address</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Full Address</label>
                   <textarea
                     v-model="form.full_address"
                     rows="3"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     placeholder="Enter complete address..."
                   ></textarea>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Postcode <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Postcode <span class="text-red-500">*</span></label>
                   <input
                     v-model="form.postcode"
                     type="text"
                     required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     placeholder="e.g. SW1A 1AA"
                   />
                 </div>
@@ -86,39 +86,39 @@
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Address Line 2</label>
                   <input
                     v-model="form.line2"
                     type="text"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     placeholder="Apartment, suite, etc."
                   />
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">City</label>
                     <input
                       v-model="form.city"
                       type="text"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">County</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">County</label>
                     <input
                       v-model="form.county"
                       type="text"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     />
                   </div>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Postcode <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Postcode <span class="text-red-500">*</span></label>
                   <input
                     v-model="form.postcode"
                     type="text"
                     required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     placeholder="e.g. SW1A 1AA"
                   />
                 </div>
@@ -127,13 +127,13 @@
 
             <!-- Property Details Section (Optional) -->
             <div class="mb-6">
-              <h4 class="text-sm font-medium text-gray-900 mb-3">Property Details (Optional)</h4>
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Property Details (Optional)</h4>
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Property Type</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Property Type</label>
                   <select
                     v-model="form.property_type"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   >
                     <option value="">Select type...</option>
                     <option value="flat">Flat</option>
@@ -146,10 +146,10 @@
                   </select>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Furnished Status</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Furnished Status</label>
                   <select
                     v-model="form.furnishing_status"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   >
                     <option value="">Select...</option>
                     <option value="furnished">Furnished</option>
@@ -158,39 +158,44 @@
                   </select>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Management Type</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                    Management Type <span class="text-red-500">*</span>
+                  </label>
                   <select
                     v-model="form.management_type"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    required
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                    :class="{ 'border-red-500': !form.management_type && formSubmitted }"
                   >
                     <option value="">Select...</option>
                     <option value="managed">Managed</option>
                     <option value="let_only">Let Only</option>
                   </select>
+                  <p v-if="!form.management_type && formSubmitted" class="text-xs text-red-500 mt-1">Management type is required</p>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bedrooms</label>
                   <input
                     v-model.number="form.number_of_bedrooms"
                     type="number"
                     min="0"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Bathrooms</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bathrooms</label>
                   <input
                     v-model.number="form.number_of_bathrooms"
                     type="number"
                     min="0"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Council Tax Band</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Council Tax Band</label>
                   <select
                     v-model="form.council_tax_band"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   >
                     <option value="">Select...</option>
                     <option v-for="band in ['A','B','C','D','E','F','G','H']" :key="band" :value="band">
@@ -203,9 +208,9 @@
                     <input
                       type="checkbox"
                       v-model="form.bills_included"
-                      class="rounded border-gray-300 text-primary focus:ring-primary"
+                      class="rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary"
                     />
-                    <span class="ml-2 text-sm text-gray-700">Bills included in rent</span>
+                    <span class="ml-2 text-sm text-gray-700 dark:text-slate-300">Bills included in rent</span>
                   </label>
                 </div>
               </div>
@@ -213,24 +218,24 @@
 
             <!-- Landlords Section -->
             <div class="mb-6">
-              <h4 class="text-sm font-medium text-gray-900 mb-3">Landlords</h4>
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Landlords</h4>
 
               <!-- Existing landlords list -->
               <div v-if="form.landlords.length > 0" class="space-y-3 mb-4">
                 <div
                   v-for="(landlord, index) in form.landlords"
                   :key="index"
-                  class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                  class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg"
                 >
                   <div class="flex-1">
                     <template v-if="landlord.create_new">
-                      <span class="text-sm font-medium text-gray-900">
+                      <span class="text-sm font-medium text-gray-900 dark:text-white">
                         {{ landlord.first_name }} {{ landlord.last_name }} (New)
                       </span>
-                      <span class="text-sm text-gray-500 block">{{ landlord.email }}</span>
+                      <span class="text-sm text-gray-500 dark:text-slate-400 block">{{ landlord.email }}</span>
                     </template>
                     <template v-else>
-                      <span class="text-sm font-medium text-gray-900">
+                      <span class="text-sm font-medium text-gray-900 dark:text-white">
                         {{ getLandlordName(landlord.landlord_id) }}
                       </span>
                     </template>
@@ -242,9 +247,9 @@
                       min="0"
                       max="100"
                       step="0.01"
-                      class="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     />
-                    <span class="text-sm text-gray-500">%</span>
+                    <span class="text-sm text-gray-500 dark:text-slate-400">%</span>
                     <button
                       type="button"
                       @click="removeLandlord(index)"
@@ -259,7 +264,7 @@
               <!-- Total ownership indicator -->
               <div v-if="form.landlords.length > 0" class="mb-4">
                 <div class="flex items-center gap-2">
-                  <span class="text-sm text-gray-600">Total ownership:</span>
+                  <span class="text-sm text-gray-600 dark:text-slate-400">Total ownership:</span>
                   <span
                     :class="totalOwnership === 100 ? 'text-green-600' : 'text-amber-600'"
                     class="text-sm font-medium"
@@ -281,7 +286,7 @@
                   class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
                   :class="showLandlordSearch
                     ? 'text-white bg-primary border border-primary'
-                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'"
+                    : 'text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'"
                 >
                   Link Existing Landlord
                 </button>
@@ -304,19 +309,19 @@
                     v-model="landlordSearchQuery"
                     type="text"
                     placeholder="Search landlords..."
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     @input="searchLandlords"
                   />
                   <div
                     v-if="landlordSearchResults.length > 0"
-                    class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto"
+                    class="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-48 overflow-y-auto"
                   >
                     <button
                       v-for="landlord in landlordSearchResults"
                       :key="landlord.id"
                       type="button"
                       @click="addExistingLandlord(landlord)"
-                      class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                      class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-sm text-gray-900 dark:text-white"
                     >
                       {{ landlord.first_name }} {{ landlord.last_name }} ({{ landlord.email }})
                     </button>
@@ -325,15 +330,15 @@
               </div>
 
               <!-- New landlord form -->
-              <div v-if="showNewLandlordForm" class="mt-3 p-4 bg-gray-50 rounded-lg">
-                <h5 class="text-sm font-medium text-gray-900 mb-3">New Landlord Details</h5>
+              <div v-if="showNewLandlordForm" class="mt-3 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                <h5 class="text-sm font-medium text-gray-900 dark:text-white mb-3">New Landlord Details</h5>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
                     <input
                       v-model="newLandlord.first_name"
                       type="text"
                       placeholder="First name *"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     />
                   </div>
                   <div>
@@ -341,7 +346,7 @@
                       v-model="newLandlord.last_name"
                       type="text"
                       placeholder="Last name *"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     />
                   </div>
                   <div class="col-span-2">
@@ -349,7 +354,7 @@
                       v-model="newLandlord.email"
                       type="email"
                       placeholder="Email *"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     />
                   </div>
                   <div class="col-span-2">
@@ -357,7 +362,7 @@
                       v-model="newLandlord.phone"
                       type="tel"
                       placeholder="Phone (optional)"
-                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                     />
                   </div>
                   <div class="col-span-2">
@@ -376,22 +381,22 @@
 
             <!-- Notes Section -->
             <div class="mb-6">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Notes (Optional)</label>
               <textarea
                 v-model="form.notes"
                 rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                 placeholder="Any additional notes..."
               ></textarea>
             </div>
           </div>
 
           <!-- Footer -->
-          <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+          <div class="bg-gray-50 dark:bg-slate-800 px-6 py-4 flex justify-end gap-3">
             <button
               type="button"
               @click="handleClose"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-600"
             >
               Cancel
             </button>
@@ -415,6 +420,8 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../../stores/auth'
 import { X, CheckCircle } from 'lucide-vue-next'
 import AddressAutocomplete from '../AddressAutocomplete.vue'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 interface LandlordAssignment {
   landlord_id?: string
@@ -464,11 +471,10 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const isEdit = computed(() => !!props.propertyId)
 const saving = ref(false)
 const loading = ref(false)
+const formSubmitted = ref(false)
 const addressMode = ref<'split' | 'full'>('split')
 
 const form = ref<PropertyForm>({
@@ -514,16 +520,38 @@ const getLandlordName = (id?: string) => {
 
 const fetchExistingLandlords = async () => {
   try {
-    const response = await fetch(`${API_URL}/api/landlords?limit=100`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
+    // Fetch ALL landlords by paginating through all pages
+    let allLandlords: any[] = []
+    let page = 1
+    const limit = 100
+    let hasMore = true
+
+    while (hasMore) {
+      const response = await fetch(`${API_URL}/api/landlords?page=${page}&limit=${limit}`, {
+        headers: {
+          'Authorization': `Bearer ${authStore.session?.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const pageLandlords = data.landlords || []
+        allLandlords = [...allLandlords, ...pageLandlords]
+
+        // Check if there are more pages
+        if (pageLandlords.length < limit) {
+          hasMore = false
+        } else {
+          page++
+        }
+      } else {
+        hasMore = false
       }
-    })
-    if (response.ok) {
-      const data = await response.json()
-      existingLandlords.value = data.landlords || []
     }
+
+    existingLandlords.value = allLandlords
+    console.log(`[AddEditPropertyModal] Loaded ${allLandlords.length} landlords`)
   } catch (err) {
     console.error('Failed to fetch landlords:', err)
   }
@@ -535,10 +563,11 @@ const searchLandlords = () => {
     landlordSearchResults.value = []
     return
   }
+  // No limit on search results - show all matching
   landlordSearchResults.value = existingLandlords.value.filter(l =>
     `${l.first_name} ${l.last_name}`.toLowerCase().includes(query) ||
     l.email.toLowerCase().includes(query)
-  ).slice(0, 10)
+  )
 }
 
 const addExistingLandlord = (landlord: ExistingLandlord) => {
@@ -635,6 +664,8 @@ const handleAddressSelected = (addr: any) => {
 }
 
 const handleSubmit = async () => {
+  formSubmitted.value = true
+
   // Validate ownership
   if (form.value.landlords.length > 0 && totalOwnership.value !== 100) {
     toast.error('Total ownership percentage must equal 100%')
@@ -644,6 +675,12 @@ const handleSubmit = async () => {
   // Validate postcode
   if (!form.value.postcode) {
     toast.error('Postcode is required')
+    return
+  }
+
+  // Validate management type
+  if (!form.value.management_type) {
+    toast.error('Management type is required')
     return
   }
 
@@ -724,6 +761,7 @@ const resetForm = () => {
   showNewLandlordForm.value = false
   landlordSearchQuery.value = ''
   landlordSearchResults.value = []
+  formSubmitted.value = false
   newLandlord.value = { first_name: '', last_name: '', email: '', phone: '' }
 }
 

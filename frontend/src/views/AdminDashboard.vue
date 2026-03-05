@@ -8,7 +8,7 @@
       <!-- Date Selector -->
       <div class="bg-white shadow rounded-lg p-4 mb-6">
         <div class="flex items-center gap-4 flex-wrap">
-          <label class="text-sm font-medium text-gray-700">Select Date:</label>
+          <label class="text-sm font-medium text-gray-700 dark:text-slate-200">Select Date:</label>
           <div class="flex gap-2 flex-wrap">
             <button
               @click="setDateFilter('today')"
@@ -457,9 +457,9 @@ import { useAuthStore } from '../stores/auth'
 import AdminHeader from '../components/AdminHeader.vue'
 import { FileText, CheckCircle, Building, CircleDollarSign, Plus, Minus, Users } from 'lucide-vue-next'
 
-const authStore = useAuthStore()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+const authStore = useAuthStore()
 interface DashboardData {
   today?: {
     referencesSubmitted: number

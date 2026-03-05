@@ -1,6 +1,6 @@
 <template>
   <Sidebar>
-    <div class="h-screen flex flex-col bg-gray-50">
+    <div class="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <!-- Top Bar -->
       <ReferencesTopBar
         v-model:search="search"
@@ -20,12 +20,12 @@
       <div class="flex-1 overflow-y-auto">
         <!-- Loading State -->
         <div v-if="loading" class="p-6">
-          <div class="bg-white rounded-lg shadow divide-y divide-gray-100">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 divide-y divide-gray-100 dark:divide-slate-800">
             <div v-for="i in 5" :key="i" class="px-6 py-4">
               <div class="animate-pulse">
-                <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div class="h-3 bg-gray-100 rounded w-1/2 mb-2"></div>
-                <div class="h-3 bg-gray-100 rounded w-1/3"></div>
+                <div class="h-4 bg-gray-200 dark:bg-slate-700 rounded w-3/4 mb-2"></div>
+                <div class="h-3 bg-gray-100 dark:bg-slate-800 rounded w-1/2 mb-2"></div>
+                <div class="h-3 bg-gray-100 dark:bg-slate-800 rounded w-1/3"></div>
               </div>
             </div>
           </div>
@@ -43,17 +43,18 @@
             @chase="handleChase"
             @addGuarantor="handleAddGuarantor(tenancy)"
             @changeMoveInDate="handleChangeMoveInDate"
+            @convertToTenancy="handleConvertToTenancy"
           />
         </div>
 
         <!-- Empty State -->
         <div v-else class="p-6">
-          <div class="bg-white rounded-lg shadow p-12 text-center">
-            <FileText class="mx-auto h-12 w-12 text-gray-400" />
-            <h3 class="mt-2 text-sm font-medium text-gray-900">
+          <div class="bg-white dark:bg-slate-900 rounded-lg shadow dark:shadow-slate-900/50 p-12 text-center">
+            <FileText class="mx-auto h-12 w-12 text-gray-400 dark:text-slate-600" />
+            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">
               {{ search ? 'No references found' : 'No references yet' }}
             </h3>
-            <p class="mt-1 text-sm text-gray-500">
+            <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">
               {{ search ? 'Try adjusting your search terms.' : 'Get started by creating a new tenant reference.' }}
             </p>
             <div v-if="!search" class="mt-6">
@@ -81,17 +82,17 @@
 
     <!-- Create Reference Modal -->
     <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col">
+      <div class="bg-white dark:bg-slate-900 rounded-lg max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col border border-gray-200 dark:border-slate-700">
         <div class="p-6 pb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Create New Reference</h3>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Create New Reference</h3>
         </div>
         <form @submit.prevent="handleCreate" class="flex flex-col flex-1 min-h-0">
           <div class="px-6 overflow-y-auto flex-1 space-y-4">
             <!-- Tenant Count Selector -->
             <div>
-              <label for="tenant-count" class="block text-sm font-medium text-gray-700 mb-2">Number of Tenants *</label>
+              <label for="tenant-count" class="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">Number of Tenants *</label>
               <select id="tenant-count" v-model.number="tenantCount" @change="updateTenantCount(tenantCount)"
-                class="block w-1/3 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+                class="block w-1/3 px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary">
                 <option :value="1">1 Tenant</option>
                 <option :value="2">2 Tenants</option>
                 <option :value="3">3 Tenants</option>
@@ -112,7 +113,7 @@
 
             <!-- Property Information (shown once) -->
             <div>
-              <h4 class="text-md font-semibold text-gray-700 mb-3">Property Information</h4>
+              <h4 class="text-md font-semibold text-gray-700 dark:text-slate-200 mb-3">Property Information</h4>
 
               <!-- Entry Mode Toggle -->
               <div class="mb-4 flex gap-3">
@@ -122,7 +123,7 @@
                   class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2"
                   :class="propertyEntryMode === 'select'
                     ? 'bg-primary text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600'
                   "
                 >
                   <Building class="w-4 h-4" />
@@ -134,7 +135,7 @@
                   class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
                   :class="propertyEntryMode === 'manual'
                     ? 'bg-primary text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600'
                   "
                 >
                   Enter Manually
@@ -142,15 +143,15 @@
               </div>
 
               <!-- Selected Property Banner -->
-              <div v-if="selectedPropertyId" class="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+              <div v-if="selectedPropertyId" class="mb-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-3 flex items-center justify-between">
                 <div class="flex items-center">
-                  <Building class="w-4 h-4 text-green-600 mr-2" />
-                  <span class="text-sm font-medium text-green-900">{{ formData.property_address }}, {{ formData.property_city }} {{ formData.property_postcode }}</span>
+                  <Building class="w-4 h-4 text-green-600 dark:text-green-400 mr-2" />
+                  <span class="text-sm font-medium text-green-900 dark:text-green-200">{{ formData.property_address }}, {{ formData.property_city }} {{ formData.property_postcode }}</span>
                 </div>
                 <button
                   @click="clearPropertySelection"
                   type="button"
-                  class="text-sm text-green-700 hover:text-green-900 font-medium"
+                  class="text-sm text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 font-medium"
                 >
                   Clear
                 </button>
@@ -164,7 +165,7 @@
                       v-model="propertySearchQuery"
                       type="text"
                       placeholder="Search by address or postcode..."
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                       @keyup.enter="fetchProperties"
                     />
                   </div>
@@ -185,7 +186,7 @@
 
                 <!-- No Properties -->
                 <div v-else-if="!loadingProperties && availableProperties.length === 0" class="text-center py-4">
-                  <p class="text-sm text-gray-600">
+                  <p class="text-sm text-gray-600 dark:text-slate-400">
                     {{ propertySearchQuery
                       ? 'No properties match your search'
                       : 'Search by address or postcode to select a property'
@@ -196,7 +197,7 @@
                 <!-- Property Cards -->
                 <div v-else class="space-y-2">
                   <!-- Results limit warning -->
-                  <div v-if="availableProperties.length >= 20" class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                  <div v-if="availableProperties.length >= 20" class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded px-2 py-1.5">
                     Showing first 20 results. Refine your search for more specific results.
                   </div>
 
@@ -205,11 +206,11 @@
                       v-for="property in availableProperties"
                       :key="property.id"
                       @click="selectPropertyForReference(property)"
-                      class="border rounded-md p-3 cursor-pointer transition-all hover:shadow-sm hover:border-primary/50 flex items-center justify-between"
+                      class="border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-md p-3 cursor-pointer transition-all hover:shadow-sm hover:border-primary/50 flex items-center justify-between"
                     >
                       <div>
-                        <span class="font-medium text-gray-900">{{ property.address_line1 }}</span>
-                        <span class="text-sm text-gray-600 ml-2">{{ property.city }}, {{ property.postcode }}</span>
+                        <span class="font-medium text-gray-900 dark:text-white">{{ property.address_line1 }}</span>
+                        <span class="text-sm text-gray-600 dark:text-slate-400 ml-2">{{ property.city }}, {{ property.postcode }}</span>
                       </div>
                       <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -228,43 +229,43 @@
                     @addressSelected="handlePropertyAddressSelected" />
                 </div>
                 <div>
-                  <label for="city" class="block text-sm font-medium text-gray-700">City *</label>
+                  <label for="city" class="block text-sm font-medium text-gray-700 dark:text-slate-200">City *</label>
                   <input id="city" v-model="formData.property_city" type="text" required
                     :disabled="!!selectedPropertyId"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary disabled:bg-gray-100" />
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary disabled:bg-gray-100 dark:disabled:bg-slate-700 disabled:text-gray-500 dark:disabled:text-slate-400" />
                 </div>
                 <div>
-                  <label for="postcode" class="block text-sm font-medium text-gray-700">Postcode *</label>
+                  <label for="postcode" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Postcode *</label>
                   <input id="postcode" v-model="formData.property_postcode" type="text" required
                     :disabled="!!selectedPropertyId"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary disabled:bg-gray-100" />
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary disabled:bg-gray-100 dark:disabled:bg-slate-700 disabled:text-gray-500 dark:disabled:text-slate-400" />
                 </div>
                 <div>
-                  <label for="rent" class="block text-sm font-medium text-gray-700">Total Monthly Rent (£) *</label>
+                  <label for="rent" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Total Monthly Rent (£) *</label>
                   <input id="rent" v-model.number="formData.monthly_rent" type="number" step="1" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                 </div>
               </div>
             </div>
 
             <!-- Single Tenant Information (v-if tenantCount === 1) -->
             <div v-if="tenantCount === 1">
-              <h4 class="text-md font-semibold text-gray-700 mb-3">Tenant Information</h4>
+              <h4 class="text-md font-semibold text-gray-700 dark:text-slate-200 mb-3">Tenant Information</h4>
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label for="first-name" class="block text-sm font-medium text-gray-700">First Name *</label>
+                  <label for="first-name" class="block text-sm font-medium text-gray-700 dark:text-slate-200">First Name *</label>
                   <input id="first-name" v-model="formData.tenant_first_name" type="text" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                 </div>
                 <div>
-                  <label for="last-name" class="block text-sm font-medium text-gray-700">Last Name *</label>
+                  <label for="last-name" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Last Name *</label>
                   <input id="last-name" v-model="formData.tenant_last_name" type="text" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                 </div>
                 <div>
-                  <label for="email" class="block text-sm font-medium text-gray-700">Email *</label>
+                  <label for="email" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Email *</label>
                   <input id="email" v-model="formData.tenant_email" type="email" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                 </div>
                 <div>
                   <PhoneInput v-model="formData.tenant_phone" label="Phone" id="phone" :required="true" />
@@ -272,35 +273,35 @@
               </div>
 
               <!-- Guarantor for single tenant -->
-              <div class="mt-4 pt-4 border-t border-gray-200">
+              <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
                 <div class="flex items-center justify-between mb-3">
-                  <h5 class="text-sm font-semibold text-gray-700">Add Guarantor (Optional)</h5>
+                  <h5 class="text-sm font-semibold text-gray-700 dark:text-slate-200">Add Guarantor (Optional)</h5>
                   <button type="button" @click="showGuarantorFields = !showGuarantorFields"
                     class="text-sm text-primary hover:underline">
                     {{ showGuarantorFields ? 'Hide' : 'Show' }}
                   </button>
                 </div>
 
-                <div v-if="showGuarantorFields" class="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <p class="text-sm text-gray-600">Add guarantor details. They will receive an email to complete the
+                <div v-if="showGuarantorFields" class="space-y-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+                  <p class="text-sm text-gray-600 dark:text-slate-400">Add guarantor details. They will receive an email to complete the
                     reference form.</p>
 
                   <div class="grid grid-cols-2 gap-4">
                     <div>
-                      <label for="guarantor-first-name" class="block text-sm font-medium text-gray-700">First
+                      <label for="guarantor-first-name" class="block text-sm font-medium text-gray-700 dark:text-slate-200">First
                         Name</label>
                       <input id="guarantor-first-name" v-model="formData.guarantor_first_name" type="text"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                     </div>
                     <div>
-                      <label for="guarantor-last-name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                      <label for="guarantor-last-name" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Last Name</label>
                       <input id="guarantor-last-name" v-model="formData.guarantor_last_name" type="text"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                     </div>
                     <div>
-                      <label for="guarantor-email" class="block text-sm font-medium text-gray-700">Email</label>
+                      <label for="guarantor-email" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Email</label>
                       <input id="guarantor-email" v-model="formData.guarantor_email" type="email"
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                     </div>
                     <div>
                       <PhoneInput v-model="formData.guarantor_phone" label="Phone" id="guarantor-phone"
@@ -313,47 +314,47 @@
 
             <!-- Multiple Tenants (v-if tenantCount > 1) -->
             <div v-if="tenantCount > 1">
-              <h4 class="text-md font-semibold text-gray-700 mb-3">Tenants</h4>
+              <h4 class="text-md font-semibold text-gray-700 dark:text-slate-200 mb-3">Tenants</h4>
               <div v-for="(tenant, index) in tenants" :key="index"
-                class="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <h5 class="text-sm font-semibold text-gray-700 mb-3">Tenant {{ index + 1 }}</h5>
+                class="mb-4 p-4 border border-gray-200 dark:border-slate-700 rounded-lg bg-gray-50 dark:bg-slate-800">
+                <h5 class="text-sm font-semibold text-gray-700 dark:text-slate-200 mb-3">Tenant {{ index + 1 }}</h5>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label :for="`tenant-${index}-first-name`" class="block text-sm font-medium text-gray-700">First
+                    <label :for="`tenant-${index}-first-name`" class="block text-sm font-medium text-gray-700 dark:text-slate-200">First
                       Name *</label>
                     <input :id="`tenant-${index}-first-name`" v-model="tenant.first_name" type="text" required
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                   </div>
                   <div>
-                    <label :for="`tenant-${index}-last-name`" class="block text-sm font-medium text-gray-700">Last Name
+                    <label :for="`tenant-${index}-last-name`" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Last Name
                       *</label>
                     <input :id="`tenant-${index}-last-name`" v-model="tenant.last_name" type="text" required
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                   </div>
                   <div>
-                    <label :for="`tenant-${index}-email`" class="block text-sm font-medium text-gray-700">Email
+                    <label :for="`tenant-${index}-email`" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Email
                       *</label>
                     <input :id="`tenant-${index}-email`" v-model="tenant.email" type="email" required
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                   </div>
                   <div>
                     <PhoneInput v-model="tenant.phone" :label="`Phone`" :id="`tenant-${index}-phone`"
                       :required="true" />
                   </div>
                   <div class="col-span-2">
-                    <label :for="`tenant-${index}-rent-share`" class="block text-sm font-medium text-gray-700">Rent
+                    <label :for="`tenant-${index}-rent-share`" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Rent
                       Share (£) *</label>
                     <input :id="`tenant-${index}-rent-share`" v-model.number="tenant.rent_share" type="number"
                       step="0.01" required
-                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                       placeholder="0.00" />
                   </div>
                 </div>
 
                 <!-- Guarantor for this tenant -->
-                <div class="mt-3 pt-3 border-t border-gray-300">
+                <div class="mt-3 pt-3 border-t border-gray-300 dark:border-slate-600">
                   <div class="flex items-center justify-between mb-2">
-                    <h6 class="text-sm font-medium text-gray-700">Add Guarantor (Optional)</h6>
+                    <h6 class="text-sm font-medium text-gray-700 dark:text-slate-200">Add Guarantor (Optional)</h6>
                     <button type="button" @click="tenant.showGuarantorFields = !tenant.showGuarantorFields"
                       class="text-xs text-primary hover:underline">
                       {{ tenant.showGuarantorFields ? 'Hide' : 'Show' }}
@@ -361,43 +362,43 @@
                   </div>
 
                   <div v-if="tenant.showGuarantorFields"
-                    class="space-y-3 p-3 bg-white rounded-lg border border-gray-200">
-                    <p class="text-xs text-gray-600">Add guarantor details for this tenant. They will receive an email
+                    class="space-y-3 p-3 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
+                    <p class="text-xs text-gray-600 dark:text-slate-400">Add guarantor details for this tenant. They will receive an email
                       to complete the reference form.</p>
 
                     <div class="grid grid-cols-2 gap-3">
                       <div>
                         <label :for="`tenant-${index}-guarantor-first-name`"
-                          class="block text-xs font-medium text-gray-700">First Name</label>
+                          class="block text-xs font-medium text-gray-700 dark:text-slate-200">First Name</label>
                         <input :id="`tenant-${index}-guarantor-first-name`" :value="tenant.guarantor?.first_name || ''"
                           @input="(e: Event) => { const target = e.target as HTMLInputElement; if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.first_name = target.value }"
                           type="text"
-                          class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                          class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-600 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                       </div>
                       <div>
                         <label :for="`tenant-${index}-guarantor-last-name`"
-                          class="block text-xs font-medium text-gray-700">Last Name</label>
+                          class="block text-xs font-medium text-gray-700 dark:text-slate-200">Last Name</label>
                         <input :id="`tenant-${index}-guarantor-last-name`" :value="tenant.guarantor?.last_name || ''"
                           @input="(e: Event) => { const target = e.target as HTMLInputElement; if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.last_name = target.value }"
                           type="text"
-                          class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                          class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-600 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                       </div>
                       <div>
                         <label :for="`tenant-${index}-guarantor-email`"
-                          class="block text-xs font-medium text-gray-700">Email</label>
+                          class="block text-xs font-medium text-gray-700 dark:text-slate-200">Email</label>
                         <input :id="`tenant-${index}-guarantor-email`" :value="tenant.guarantor?.email || ''"
                           @input="(e: Event) => { const target = e.target as HTMLInputElement; if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.email = target.value }"
                           type="email"
-                          class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                          class="mt-1 block w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-600 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                       </div>
                       <div>
                         <label :for="`tenant-${index}-guarantor-phone`"
-                          class="block text-xs font-medium text-gray-700">Phone</label>
+                          class="block text-xs font-medium text-gray-700 dark:text-slate-200">Phone</label>
                         <PhoneInput :modelValue="tenant.guarantor?.phone || ''"
                           @update:modelValue="(val) => { if (!tenant.guarantor) tenant.guarantor = { first_name: '', last_name: '', email: '', phone: '' }; tenant.guarantor.phone = val }"
                           :id="`tenant-${index}-guarantor-phone`" :required="false"
-                          input-class="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                          select-class="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                          input-class="px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-600 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary"
+                          select-class="px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-600 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
                       </div>
                     </div>
                   </div>
@@ -406,19 +407,19 @@
 
               <!-- Rent Calculator -->
               <div class="p-4 rounded-lg"
-                :class="rentSharesValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
+                :class="rentSharesValid ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700'">
                 <div class="flex justify-between items-center">
-                  <span class="text-sm font-medium" :class="rentSharesValid ? 'text-green-900' : 'text-red-900'">
+                  <span class="text-sm font-medium" :class="rentSharesValid ? 'text-green-900 dark:text-green-200' : 'text-red-900 dark:text-red-200'">
                     Total Rent Shares:
                   </span>
-                  <span class="text-lg font-bold" :class="rentSharesValid ? 'text-green-900' : 'text-red-900'">
+                  <span class="text-lg font-bold" :class="rentSharesValid ? 'text-green-900 dark:text-green-200' : 'text-red-900 dark:text-red-200'">
                     £{{ totalRentShare.toFixed(2) }} / £{{ Number(formData.monthly_rent || 0).toFixed(2) }}
                   </span>
                 </div>
-                <p v-if="!rentSharesValid" class="text-xs text-red-700 mt-2">
+                <p v-if="!rentSharesValid" class="text-xs text-red-700 dark:text-red-400 mt-2">
                   Rent shares must sum exactly to the total monthly rent
                 </p>
-                <p v-else class="text-xs text-green-700 mt-2">
+                <p v-else class="text-xs text-green-700 dark:text-green-400 mt-2">
                   Rent shares match total rent
                 </p>
               </div>
@@ -431,18 +432,18 @@
                   year-range-type="move-in" />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Term Length</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">Term Length</label>
                 <div class="grid grid-cols-2 gap-3">
                   <div class="flex items-center gap-2">
-                    <label for="term-years" class="text-sm text-gray-600 whitespace-nowrap">Years</label>
+                    <label for="term-years" class="text-sm text-gray-600 dark:text-slate-400 whitespace-nowrap">Years</label>
                     <input id="term-years" v-model.number="formData.term_years" type="number" min="0"
-                      class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                       placeholder="0" />
                   </div>
                   <div class="flex items-center gap-2">
-                    <label for="term-months" class="text-sm text-gray-600 whitespace-nowrap">Months</label>
+                    <label for="term-months" class="text-sm text-gray-600 dark:text-slate-400 whitespace-nowrap">Months</label>
                     <input id="term-months" v-model.number="formData.term_months" type="number" min="0" max="11"
-                      class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                      class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                       placeholder="0" />
                   </div>
                 </div>
@@ -451,23 +452,23 @@
 
             <!-- Internal Notes -->
             <div>
-              <label for="notes" class="block text-sm font-medium text-gray-700">Internal Notes</label>
+              <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-slate-200">Internal Notes</label>
               <textarea id="notes" v-model="formData.notes" rows="2"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Optional internal notes about this reference..."></textarea>
             </div>
 
-            <div v-if="createError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+            <div v-if="createError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 px-4 py-3 rounded">
               {{ createError }}
             </div>
 
           </div>
 
           <!-- Sticky Footer with Buttons -->
-          <div class="p-6 pt-4 border-t border-gray-200 bg-white rounded-b-lg">
+          <div class="p-6 pt-4 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-b-lg">
             <div class="flex justify-end space-x-3">
               <button type="button" @click="closeCreateModal"
-                class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
+                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md">
                 Cancel
               </button>
               <button type="submit" :disabled="createLoading"
@@ -489,31 +490,31 @@
 
     <!-- Delete Confirmation Modal -->
     <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg max-w-md w-full p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Delete Reference</h3>
-        <p class="text-sm text-gray-600 mb-4">
+      <div class="bg-white dark:bg-slate-900 rounded-lg max-w-md w-full p-6 border border-gray-200 dark:border-slate-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Delete Reference</h3>
+        <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
           Are you sure you want to delete the reference for
-          <span class="font-medium">{{ referenceToDelete?.name }}</span>?
+          <span class="font-medium text-gray-900 dark:text-white">{{ referenceToDelete?.name }}</span>?
           This action cannot be undone.
         </p>
 
         <!-- Refund Information -->
-        <div v-if="refundAmount > 0" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-          <p class="text-sm text-green-800">
+        <div v-if="refundAmount > 0" class="mb-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-md">
+          <p class="text-sm text-green-800 dark:text-green-200">
             <span class="font-medium">Credit Refund:</span>
             {{ refundAmount }} {{ refundAmount === 1 ? 'credit' : 'credits' }} will be refunded to your account.
           </p>
         </div>
 
-        <div v-else class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <p class="text-sm text-gray-600">
+        <div v-else class="mb-4 p-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md">
+          <p class="text-sm text-gray-600 dark:text-slate-400">
             No credits will be refunded for this reference.
           </p>
         </div>
 
         <div class="flex justify-end space-x-3">
           <button @click="showDeleteModal = false"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700">
             Cancel
           </button>
           <button @click="handleDelete" :disabled="deleteLoading"
@@ -527,14 +528,14 @@
     <!-- Add Guarantor Modal -->
     <div v-if="showAddGuarantorModal"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg max-w-md w-full p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Guarantor</h3>
+      <div class="bg-white dark:bg-slate-900 rounded-lg max-w-md w-full p-6 border border-gray-200 dark:border-slate-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Add Guarantor</h3>
 
         <!-- Tenant Selection (if multiple tenants) -->
         <div v-if="tenantsForGuarantor.length > 1" class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Select Tenant *</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">Select Tenant *</label>
           <select v-model="selectedTenantForGuarantor"
-            class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary">
+            class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary">
             <option value="">Select a tenant</option>
             <option v-for="tenant in tenantsForGuarantor" :key="tenant.id" :value="tenant.id">
               {{ tenant.name }}
@@ -544,41 +545,41 @@
 
         <form @submit.prevent="addGuarantor" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">First Name *</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">First Name *</label>
             <input v-model="guarantorForm.first_name" type="text" required
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Last Name *</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">Last Name *</label>
             <input v-model="guarantorForm.last_name" type="text" required
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Email *</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">Email *</label>
             <input v-model="guarantorForm.email" type="email" required
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Phone</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">Phone</label>
             <input v-model="guarantorForm.phone" type="tel"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary" />
           </div>
 
-          <div v-if="guarantorError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm">
+          <div v-if="guarantorError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
             {{ guarantorError }}
           </div>
 
           <div v-if="guarantorSuccess"
-            class="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded text-sm">
+            class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-600 dark:text-green-400 px-4 py-3 rounded text-sm">
             {{ guarantorSuccess }}
           </div>
 
           <div class="flex justify-end space-x-3 pt-4">
             <button type="button" @click="closeGuarantorModal"
-              class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md">
               Cancel
             </button>
             <button type="submit" :disabled="addingGuarantor || (tenantsForGuarantor.length > 1 && !selectedTenantForGuarantor)"
@@ -596,6 +597,14 @@
       :tenancy="selectedTenancyForDateChange"
       @close="showChangeMoveInDateModal = false"
       @saved="handleMoveInDateSaved"
+    />
+
+    <!-- Convert to Tenancy Modal -->
+    <ConversionModal
+      :show="showConversionModal"
+      :tenancy="selectedTenancyForConversion"
+      @close="showConversionModal = false"
+      @converted="handleConversionComplete"
     />
   </Sidebar>
 </template>
@@ -616,17 +625,17 @@ import ReferencesStatusTabs from '../components/references/ReferencesStatusTabs.
 import TenancyRow from '../components/references/TenancyRow.vue'
 import PersonDrawer from '../components/references/PersonDrawer.vue'
 import ChangeMoveInDateModal from '../components/references/ChangeMoveInDateModal.vue'
+import ConversionModal from '../components/references/ConversionModal.vue'
 import { useTenancies, type Tenancy, type TenancyPerson, type TabKey } from '../composables/useTenancies'
 import { isValidEmail } from '../utils/validation'
 import { Building, FileText } from 'lucide-vue-next'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const authStore = useAuthStore()
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 // Use the tenancies composable
 const {
   tenancies,
@@ -645,7 +654,7 @@ const {
 const search = ref('')
 const sortBy = ref<'move_in_date' | 'created_at'>('move_in_date')
 const sortOrder = ref<'asc' | 'desc'>('asc')
-const activeTab = ref<TabKey>('ALL')
+const activeTab = ref<TabKey>('IN_PROGRESS')
 
 // Create modal state
 const showCreateModal = ref(false)
@@ -715,6 +724,10 @@ const showAddGuarantorModal = ref(false)
 // Change Move-in Date modal state
 const showChangeMoveInDateModal = ref(false)
 const selectedTenancyForDateChange = ref<Tenancy | null>(null)
+
+// Convert to Tenancy modal state
+const showConversionModal = ref(false)
+const selectedTenancyForConversion = ref<Tenancy | null>(null)
 const addingGuarantor = ref(false)
 const guarantorError = ref('')
 const guarantorSuccess = ref('')
@@ -783,7 +796,6 @@ const selectedPropertyId = ref<string | null>(null)
 async function fetchProperties() {
   loadingProperties.value = true
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
     const token = authStore.session?.access_token
 
     if (!token) return
@@ -1267,6 +1279,18 @@ const handleChangeMoveInDate = (tenancy: Tenancy) => {
 
 const handleMoveInDateSaved = () => {
   loadTenancies()
+}
+
+const handleConvertToTenancy = (tenancy: Tenancy) => {
+  selectedTenancyForConversion.value = tenancy
+  showConversionModal.value = true
+}
+
+const handleConversionComplete = () => {
+  showConversionModal.value = false
+  selectedTenancyForConversion.value = null
+  loadTenancies()
+  toast.success('Reference successfully converted to active tenancy!')
 }
 
 // Handler for when add guarantor is triggered from the PersonDrawer

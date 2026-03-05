@@ -39,6 +39,8 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import { formatDateTime as formatUkDateTime } from '../utils/date'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const props = defineProps<{
   referenceId: string
 }>()
@@ -47,9 +49,6 @@ const toast = useToast()
 const authStore = useAuthStore()
 const auditLog = ref<any[]>([])
 const loading = ref(false)
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const loadAuditLog = async () => {
   loading.value = true
   try {

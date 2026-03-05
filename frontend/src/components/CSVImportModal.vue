@@ -109,7 +109,7 @@
               <div class="space-y-3 max-h-96 overflow-y-auto">
                 <div v-for="field in requiredFields" :key="field.key" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-200">{{ field.label }}</label>
                     <p class="text-xs text-gray-500">{{ field.required ? 'Required' : 'Optional' }}</p>
                   </div>
                   <select
@@ -172,6 +172,8 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
 import { X, Upload, CheckCircle, Download } from 'lucide-vue-next'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 defineProps<{
   show: boolean
 }>()
@@ -183,9 +185,6 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 const step = ref(1)
 const selectedFile = ref<File | null>(null)
 const isDragging = ref(false)

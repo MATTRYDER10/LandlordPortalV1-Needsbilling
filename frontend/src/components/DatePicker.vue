@@ -1,6 +1,6 @@
 <template>
   <div>
-    <label v-if="label" class="block text-sm font-medium text-gray-700 mb-2">
+    <label v-if="label" class="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">
       {{ label }} <span v-if="required" class="text-red-500">*</span>
     </label>
     <div class="flex" :class="gap">
@@ -65,7 +65,7 @@ const props = withDefaults(defineProps<Props>(), {
   modelValue: '',
   label: '',
   required: false,
-  selectClass: 'block w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary',
+  selectClass: 'block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary',
   yearRangeType: 'past',
   gap: 'gap-3'
 })

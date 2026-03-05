@@ -48,11 +48,11 @@ import { loadStripe } from '@stripe/stripe-js'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const emit = defineEmits(['close', 'added'])
 const processing = ref(false)
 const error = ref<string | null>(null)
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const authStore = useAuthStore()
 
 let stripe: any = null
