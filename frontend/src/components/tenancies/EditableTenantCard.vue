@@ -38,6 +38,16 @@
             <Phone class="w-3 h-3 text-gray-300 dark:text-slate-600" />
             No phone
           </p>
+          <!-- Current Address (from reference) -->
+          <div v-if="address && (address.line1 || address.city || address.postcode)" class="mt-2 pt-2 border-t border-gray-100 dark:border-slate-700">
+            <p class="text-xs text-gray-500 dark:text-slate-400 mb-1 flex items-center gap-1">
+              <MapPin class="w-3 h-3" />
+              Current Address
+            </p>
+            <p class="text-sm text-gray-600 dark:text-slate-400">
+              {{ [address.line1, address.line2, address.city, address.postcode].filter(Boolean).join(', ') }}
+            </p>
+          </div>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -153,7 +163,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { User, Mail, Phone, Pencil, X } from 'lucide-vue-next'
+import { User, Mail, Phone, Pencil, X, MapPin } from 'lucide-vue-next'
 
 interface Tenant {
   id: string
@@ -166,10 +176,18 @@ interface Tenant {
   status: string
 }
 
+interface Address {
+  line1?: string
+  line2?: string
+  city?: string
+  postcode?: string
+}
+
 const props = defineProps<{
   tenant: Tenant
   canEditRentShare?: boolean
   monthlyRent?: number
+  address?: Address
 }>()
 
 const emit = defineEmits<{

@@ -890,6 +890,7 @@
               :tenant="tenant"
               :can-edit-rent-share="isDraftTenancy"
               :monthly-rent="rentAmount"
+              :address="tenantAddressMap.get(`${tenant.first_name} ${tenant.last_name}`.toLowerCase())"
               @update="(data) => updateTenant(tenant.id, data)"
               @remove="() => removeTenant(tenant.id)"
             />
