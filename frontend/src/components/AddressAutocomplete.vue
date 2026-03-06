@@ -1,23 +1,23 @@
 <template>
   <div class="relative">
-    <label v-if="label" :for="id" class="block text-sm font-medium text-gray-700 dark:text-slate-200">
+    <label v-if="label" :for="id" class="block text-sm font-medium text-gray-700">
       {{ label }} {{ required ? '*' : '' }}
     </label>
     <input :id="id" ref="inputRef" v-model="query" type="text" :required="required"
       :placeholder="apiError ? 'Address lookup unavailable - please type manually' : placeholder" autocomplete="off"
       :class="[
-        'mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border rounded-md focus:ring-primary focus:border-primary',
-        apiError ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-slate-600'
+        'mt-1 block w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:ring-primary focus:border-primary',
+        apiError ? 'border-red-300' : 'border-gray-300'
       ]" @input="handleInput" @focus="showDropdown = true" @blur="handleBlur" @keydown.down.prevent="navigateDown"
       @keydown.up.prevent="navigateUp" @keydown.enter.prevent="selectHighlighted" @keydown.escape="hideDropdown" />
     <p v-if="apiError" class="mt-1 text-xs text-red-600">
       {{ apiError }}. Please type the address manually.
     </p>
     <div v-if="showDropdown && suggestions.length > 0"
-      class="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-60 overflow-auto">
+      class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
       <div v-for="(suggestion, index) in suggestions" :key="index" :class="[
-        'px-3 py-2 cursor-pointer text-sm text-gray-900 dark:text-white',
-        highlightedIndex === index ? 'bg-primary/10 dark:bg-primary/20' : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+        'px-3 py-2 cursor-pointer text-sm text-gray-900',
+        highlightedIndex === index ? 'bg-primary/10' : 'hover:bg-gray-100'
       ]" @mousedown.prevent="selectSuggestion(suggestion)" @mouseenter="highlightedIndex = index">
         {{ suggestion.description }}
       </div>
