@@ -285,6 +285,9 @@
                   </span>
                   <span v-else-if="initialMoniesRequested" class="text-xs text-gray-500 dark:text-slate-400 mt-1 text-center">
                     Requested {{ formatDate(tenancy?.initial_monies_requested_at) }}
+                    <button @click="showManualReceiptModal = true" class="ml-1 text-primary hover:text-primary/80 underline hover:no-underline">
+                      Receipt manually
+                    </button>
                   </span>
                   <span v-else-if="!hasTenantsWithEmail" class="text-xs text-red-500 dark:text-red-400 mt-1 text-center">
                     No tenant email
@@ -1977,6 +1980,14 @@
       @sent="handleInitialMoniesSent"
     />
 
+    <!-- Manual Receipt Modal -->
+    <ManualReceiptModal
+      :show="showManualReceiptModal"
+      :tenancy="tenancy"
+      @close="showManualReceiptModal = false"
+      @confirmed="handleInitialMoniesSent"
+    />
+
     <!-- Agreement Generation Modal -->
     <TenancyAgreementModal
       :show="showAgreementModal"
@@ -2191,6 +2202,7 @@ import {
 import EndTenancyModal from './EndTenancyModal.vue'
 import ProtectDepositModal from './ProtectDepositModal.vue'
 import InitialMoniesModal from './InitialMoniesModal.vue'
+import ManualReceiptModal from './ManualReceiptModal.vue'
 import TenancyAgreementModal from './TenancyAgreementModal.vue'
 import TenancyAgreementStatus from './TenancyAgreementStatus.vue'
 import MoveInPackModal from './MoveInPackModal.vue'
@@ -2230,6 +2242,7 @@ const showRegisterWithTDSModal = ref(false)
 const showSection48Modal = ref(false)
 const showMoveInPackModal = ref(false)
 const showInitialMoniesModal = ref(false)
+const showManualReceiptModal = ref(false)
 const showAgreementModal = ref(false)
 const showSigningStatusModal = ref(false)
 const showDrawerActions = ref(false)

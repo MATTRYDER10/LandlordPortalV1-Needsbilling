@@ -1,5 +1,5 @@
 import { Router, Request } from 'express'
-import { authenticateToken, AuthRequest, getCompanyIdForRequest, authenticateTokenOrStaff, DualAuthRequest } from '../middleware/auth'
+import { authenticateToken, requireMember, AuthRequest, getCompanyIdForRequest, authenticateTokenOrStaff, DualAuthRequest } from '../middleware/auth'
 import { authenticateStaff as staffAuth, StaffAuthRequest } from '../middleware/staffAuth'
 import { checkCredits } from '../middleware/checkCredits'
 import { checkPaymentMethod } from '../middleware/checkPaymentMethod'
@@ -846,79 +846,22 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 // Get all references for company
-router.get('/', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/', authenticateToken, requireMember, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
+    const companyId = req.companyId!
 
     // Search and filter params
     const search = req.query.search as string | undefined
     const statusFilter = req.query.status as string | undefined
 
-    console.log('=== FETCHING REFERENCES FOR USER:', userId, search ? `search: "${search}"` : '', statusFilter ? `status: ${statusFilter}` : '')
-
-    // Check for X-Branch-Id header first (multi-branch support)
-    const branchId = req.headers['x-branch-id'] as string | undefined
-    let companyUser: { company_id: string } | null = null
-
-    if (branchId) {
-      // Verify user belongs to this branch
-      const { data: branchMembership } = await supabase
-        .from('company_users')
-        .select('company_id')
-        .eq('user_id', userId)
-        .eq('company_id', branchId)
-        .limit(1)
-
-      if (branchMembership && branchMembership.length > 0) {
-        companyUser = branchMembership[0]
-      }
-    }
-
-    // Fallback: Check if user is invited (to handle duplicate company entries from trigger bug)
-    if (!companyUser) {
-      const { data: { user } } = await supabase.auth.admin.getUserById(userId!)
-      const isInvited = user?.user_metadata?.is_invited === true
-
-      if (isInvited) {
-        // For invited users, try to get the company where they're NOT an owner
-        const { data: nonOwnerCompanies } = await supabase
-          .from('company_users')
-          .select('company_id')
-          .eq('user_id', userId)
-          .neq('role', 'owner')
-          .limit(1)
-
-        if (nonOwnerCompanies && nonOwnerCompanies.length > 0) {
-          companyUser = nonOwnerCompanies[0]
-        }
-      }
-    }
-
-    // Fallback: get any company association
-    if (!companyUser) {
-      const { data: companyUsers } = await supabase
-        .from('company_users')
-        .select('company_id')
-        .eq('user_id', userId)
-        .limit(1)
-
-      if (companyUsers && companyUsers.length > 0) {
-        companyUser = companyUsers[0]
-      }
-    }
-
-    if (!companyUser) {
-      console.log('ERROR: No company found for user')
-      return res.status(404).json({ error: 'Company not found' })
-    }
-
-    console.log('Using company_id:', companyUser.company_id)
+    console.log('=== FETCHING REFERENCES FOR USER:', userId, 'BRANCH:', companyId, search ? `search: "${search}"` : '', statusFilter ? `status: ${statusFilter}` : '')
 
     // Get status counts for all references (unfiltered) for stat cards display
     const { data: statusCountsData } = await supabase
       .from('tenant_references')
       .select('status')
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .neq('is_guarantor', true)
       .limit(10000)
 
@@ -944,7 +887,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     const { data: allRefs, error: allRefsError } = await supabase
       .from('tenant_references')
       .select('*')
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false })
       .limit(10000)
 

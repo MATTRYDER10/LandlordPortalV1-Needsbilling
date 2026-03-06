@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticateToken, AuthRequest } from '../middleware/auth'
+import { authenticateToken, requireMember, AuthRequest } from '../middleware/auth'
 import { agreementService, AgreementData, PropertyIntegration } from '../services/agreementService'
 import { pdfGenerationService, AgreementPDFData } from '../services/pdfGenerationService'
 import { supabase } from '../config/supabase'
@@ -508,42 +508,9 @@ router.get('/reference/:referenceId', authenticateToken, async (req: AuthRequest
  * GET /api/agreements
  * Get all agreements for the user's company
  */
-router.get('/', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/', authenticateToken, requireMember, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id
-
-    // Check for X-Branch-Id header first (multi-branch support)
-    const branchId = req.headers['x-branch-id'] as string | undefined
-    let companyId: string | null = null
-
-    if (branchId) {
-      // Verify user belongs to this branch
-      const { data: branchMembership } = await supabase
-        .from('company_users')
-        .select('company_id')
-        .eq('user_id', userId)
-        .eq('company_id', branchId)
-        .limit(1)
-
-      if (branchMembership && branchMembership.length > 0) {
-        companyId = branchMembership[0].company_id
-      }
-    }
-
-    // Fallback: Get user's first company (don't use .single() for multi-branch users)
-    if (!companyId) {
-      const { data: companyUsers } = await supabase
-        .from('company_users')
-        .select('company_id')
-        .eq('user_id', userId)
-        .limit(1)
-
-      companyId = companyUsers && companyUsers.length > 0 ? companyUsers[0].company_id : null
-    }
-
-    if (!companyId) {
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
+    const companyId = req.companyId!
 
     const agreements = await agreementService.getAgreementsByCompany(companyId)
 

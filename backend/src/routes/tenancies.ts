@@ -2706,8 +2706,64 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
 })
 
 /**
+ * GET /api/tenancies/records/:id/payment-request
+ * Get payment request details for manual receipt
+ */
+router.get('/records/:id/payment-request', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const tenancy = await tenancyService.getTenancy(req.params.id, companyId)
+    if (!tenancy) {
+      return res.status(404).json({ error: 'Tenancy not found' })
+    }
+
+    // Get the payment request if it exists
+    const { data: paymentRequest } = await supabase
+      .from('payment_requests')
+      .select('*')
+      .eq('tenancy_id', req.params.id)
+      .eq('type', 'initial_monies')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    // Calculate amounts
+    const firstMonthRent = paymentRequest?.first_month_rent || tenancy.monthly_rent || 0
+    const depositAmount = paymentRequest?.deposit_amount || tenancy.deposit_amount || 0
+    const holdingDeposit = paymentRequest?.holding_deposit_paid || 0
+    const additionalCharges = paymentRequest?.additional_charges_total || 0
+    const totalAmount = firstMonthRent + depositAmount + additionalCharges - holdingDeposit
+
+    const propertyAddress = [
+      tenancy.property?.address_line1,
+      tenancy.property?.city,
+      tenancy.property?.postcode
+    ].filter(Boolean).join(', ')
+
+    res.json({
+      propertyAddress,
+      totalAmount,
+      firstMonthRent,
+      depositAmount,
+      holdingDeposit,
+      additionalCharges,
+      requestedAt: tenancy.initial_monies_requested_at,
+      status: paymentRequest?.status || 'pending'
+    })
+  } catch (error: any) {
+    console.error('Error getting payment request:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * POST /api/tenancies/records/:id/confirm-initial-monies
  * Agent confirms receipt of initial monies payment
+ * Supports both: after tenant confirmation AND manual receipt
  */
 router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -2717,33 +2773,41 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
       return res.status(404).json({ error: 'Company not found' })
     }
 
+    const { amountReceived, notes, manualReceipt } = req.body
+
     // Get current tenancy to calculate the paid amount
     const currentTenancy = await tenancyService.getTenancy(req.params.id, companyId)
     if (!currentTenancy) {
       return res.status(404).json({ error: 'Tenancy not found' })
     }
 
-    // Calculate the total initial monies amount
-    const firstMonthRent = currentTenancy.monthly_rent || 0
-    const depositAmount = currentTenancy.deposit_amount || 0
-    const additionalCharges = (currentTenancy.additional_charges || [])
-      .filter((c: any) => c.frequency === 'one_time')
-      .reduce((sum: number, c: any) => sum + (parseFloat(String(c.amount)) || 0), 0)
+    // Use provided amount or calculate from tenancy
+    let totalPaidAmount: number
+    if (amountReceived !== undefined && amountReceived !== null) {
+      totalPaidAmount = parseFloat(amountReceived)
+    } else {
+      // Calculate the total initial monies amount
+      const firstMonthRent = currentTenancy.monthly_rent || 0
+      const depositAmount = currentTenancy.deposit_amount || 0
+      const additionalCharges = (currentTenancy.additional_charges || [])
+        .filter((c: any) => c.frequency === 'one_time')
+        .reduce((sum: number, c: any) => sum + (parseFloat(String(c.amount)) || 0), 0)
 
-    // Get holding deposit from tenant_offers if available
-    let holdingDepositPaid = 0
-    if (currentTenancy.primary_reference_id) {
-      const { data: offer } = await supabase
-        .from('tenant_offers')
-        .select('holding_deposit_amount_paid')
-        .eq('reference_id', currentTenancy.primary_reference_id)
-        .single()
-      if (offer?.holding_deposit_amount_paid) {
-        holdingDepositPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
+      // Get holding deposit from tenant_offers if available
+      let holdingDepositPaid = 0
+      if (currentTenancy.primary_reference_id) {
+        const { data: offer } = await supabase
+          .from('tenant_offers')
+          .select('holding_deposit_amount_paid')
+          .eq('reference_id', currentTenancy.primary_reference_id)
+          .single()
+        if (offer?.holding_deposit_amount_paid) {
+          holdingDepositPaid = parseFloat(offer.holding_deposit_amount_paid) || 0
+        }
       }
-    }
 
-    const totalPaidAmount = firstMonthRent + depositAmount + additionalCharges - holdingDepositPaid
+      totalPaidAmount = firstMonthRent + depositAmount + additionalCharges - holdingDepositPaid
+    }
 
     // Update tenancy with paid timestamp and amount
     const { error: updateError } = await supabase
@@ -2761,28 +2825,34 @@ router.post('/records/:id/confirm-initial-monies', authenticateToken, async (req
       return res.status(500).json({ error: 'Failed to confirm payment' })
     }
 
-    // Update payment_requests status to paid
+    // Update payment_requests status to paid (handles both pending and tenant_confirmed)
     await supabase
       .from('payment_requests')
       .update({
         status: 'paid',
         paid_at: new Date().toISOString(),
-        confirmed_by: userId
+        confirmed_by: userId,
+        notes: notes || null,
+        manual_receipt: manualReceipt || false
       })
       .eq('tenancy_id', req.params.id)
       .eq('type', 'initial_monies')
-      .eq('status', 'tenant_confirmed')
+      .in('status', ['pending', 'tenant_confirmed'])
 
     // Get updated tenancy
     const tenancy = await tenancyService.getTenancy(req.params.id, companyId)
 
     // Log activity
+    const actionDescription = manualReceipt
+      ? `Agent manually receipted £${totalPaidAmount.toLocaleString()} initial monies${notes ? ` - ${notes}` : ''}`
+      : `Agent confirmed receipt of £${totalPaidAmount.toLocaleString()} initial monies payment`
+
     await tenancyService.logTenancyActivity(req.params.id, {
       action: 'INITIAL_MONIES_CONFIRMED',
       category: 'payments',
-      title: 'Initial Monies Confirmed',
-      description: `Agent confirmed receipt of £${totalPaidAmount.toLocaleString()} initial monies payment`,
-      metadata: { amount: totalPaidAmount },
+      title: manualReceipt ? 'Initial Monies Manually Receipted' : 'Initial Monies Confirmed',
+      description: actionDescription,
+      metadata: { amount: totalPaidAmount, manualReceipt: manualReceipt || false },
       performedBy: userId
     })
 

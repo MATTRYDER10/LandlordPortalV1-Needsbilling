@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticateToken, AuthRequest } from '../middleware/auth'
+import { authenticateToken, requireMember, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption'
 import { sendEmail, sendTenantReferenceRequest, sendTenantOfferRequest, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendPaymentConfirmedToAgentEmail } from '../services/emailService'
@@ -180,47 +180,9 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 // Get all offers for company
-router.get('/', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/', authenticateToken, requireMember, async (req: AuthRequest, res) => {
     try {
-        const userId = req.user?.id
-        if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' })
-        }
-
-        // Check for X-Branch-Id header first (multi-branch support)
-        const branchId = req.headers['x-branch-id'] as string | undefined
-        let companyId: string | null = null
-
-        if (branchId) {
-            // Verify user belongs to this branch
-            const { data: branchMembership } = await supabase
-                .from('company_users')
-                .select('company_id')
-                .eq('user_id', userId)
-                .eq('company_id', branchId)
-                .limit(1)
-
-            if (branchMembership && branchMembership.length > 0) {
-                companyId = branchMembership[0].company_id
-            }
-        }
-
-        // Fallback: Get user's first company
-        if (!companyId) {
-            const { data: companyUsers } = await supabase
-                .from('company_users')
-                .select('company_id')
-                .eq('user_id', userId)
-                .limit(1)
-
-            if (companyUsers && companyUsers.length > 0) {
-                companyId = companyUsers[0].company_id
-            }
-        }
-
-        if (!companyId) {
-            return res.status(404).json({ error: 'Company not found' })
-        }
+        const companyId = req.companyId!
 
         // Get all offers for the company with tenants
         const { data: offers, error } = await supabase
