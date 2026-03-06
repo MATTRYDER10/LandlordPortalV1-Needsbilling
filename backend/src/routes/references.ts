@@ -559,28 +559,28 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       .select(`
         id,
         primary_reference_id,
-        start_date,
+        tenancy_start_date,
         monthly_rent,
         status,
         property_id,
         properties!inner (
-          address_encrypted,
+          full_address_encrypted,
+          address_line1_encrypted,
           city_encrypted,
-          postcode_encrypted
+          postcode
         ),
         tenancy_tenants (
           id,
-          first_name_encrypted,
-          last_name_encrypted,
-          status,
-          is_lead_tenant
+          tenant_name_encrypted,
+          tenant_order,
+          status
         )
       `)
       .eq('company_id', companyId)
       .eq('status', 'pending')
-      .gte('start_date', startOfThisMonth.toISOString().split('T')[0])
-      .lte('start_date', endDate.toISOString().split('T')[0])
-      .order('start_date', { ascending: true })
+      .gte('tenancy_start_date', startOfThisMonth.toISOString().split('T')[0])
+      .lte('tenancy_start_date', endDate.toISOString().split('T')[0])
+      .order('tenancy_start_date', { ascending: true })
 
     console.log('Tenancies found:', tenancies?.length || 0)
 
@@ -659,9 +659,9 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       let propertyPostcode = ''
       try {
         const props = tenancy.properties as any
-        propertyAddress = props?.address_encrypted ? (decrypt(props.address_encrypted) || '') : ''
+        propertyAddress = props?.full_address_encrypted ? (decrypt(props.full_address_encrypted) || '') : (props?.address_line1_encrypted ? (decrypt(props.address_line1_encrypted) || '') : '')
         propertyCity = props?.city_encrypted ? (decrypt(props.city_encrypted) || '') : ''
-        propertyPostcode = props?.postcode_encrypted ? (decrypt(props.postcode_encrypted) || '') : ''
+        propertyPostcode = props?.postcode || ''
       } catch (e) {
         // Decryption failed
       }
@@ -673,14 +673,12 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       for (const tenant of (tenancy as any).tenancy_tenants || []) {
         let tenantName = 'Unknown'
         try {
-          const firstName = tenant.first_name_encrypted ? decrypt(tenant.first_name_encrypted) : ''
-          const lastName = tenant.last_name_encrypted ? decrypt(tenant.last_name_encrypted) : ''
-          tenantName = `${firstName} ${lastName}`.trim() || 'Unknown'
+          tenantName = tenant.tenant_name_encrypted ? (decrypt(tenant.tenant_name_encrypted) || 'Unknown') : 'Unknown'
         } catch (e) {
           // Decryption failed
         }
 
-        if (tenant.is_lead_tenant) {
+        if (tenant.tenant_order === 1) {
           leadTenantId = tenant.id
         }
 
@@ -696,7 +694,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       tenancyMap.set(tenancy.id, {
         tenancyId: tenancy.id,
         leadTenantId,
-        moveInDate: tenancy.start_date,
+        moveInDate: (tenancy as any).tenancy_start_date,
         propertyAddress,
         propertyCity,
         propertyPostcode,
