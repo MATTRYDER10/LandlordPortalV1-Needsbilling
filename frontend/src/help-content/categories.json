@@ -1,0 +1,85 @@
+{
+  "categories": [
+    {
+      "id": "getting-started",
+      "slug": "getting-started",
+      "title": "Getting Started",
+      "description": "New to PropertyGoose? Learn how to set up your account and navigate the platform.",
+      "icon": "Rocket",
+      "color": "blue",
+      "sortOrder": 1
+    },
+    {
+      "id": "dashboard",
+      "slug": "dashboard",
+      "title": "Dashboard",
+      "description": "Understanding your dashboard, quick stats, and navigation shortcuts.",
+      "icon": "LayoutDashboard",
+      "color": "purple",
+      "sortOrder": 2
+    },
+    {
+      "id": "offers",
+      "slug": "offers",
+      "title": "Tenant Offers",
+      "description": "Sending offer forms to prospective tenants and managing submissions.",
+      "icon": "Send",
+      "color": "amber",
+      "sortOrder": 3
+    },
+    {
+      "id": "references",
+      "slug": "references",
+      "title": "References",
+      "description": "Creating, tracking, and managing tenant reference checks.",
+      "icon": "ClipboardCheck",
+      "color": "green",
+      "sortOrder": 4
+    },
+    {
+      "id": "tenancies",
+      "slug": "tenancies",
+      "title": "Tenancies",
+      "description": "Managing active tenancies, deposits, agreements, and tenant changes.",
+      "icon": "FileText",
+      "color": "emerald",
+      "sortOrder": 5
+    },
+    {
+      "id": "properties",
+      "slug": "properties",
+      "title": "Properties",
+      "description": "Adding properties, tracking compliance certificates, and managing your portfolio.",
+      "icon": "Home",
+      "color": "orange",
+      "sortOrder": 6
+    },
+    {
+      "id": "landlords",
+      "slug": "landlords",
+      "title": "Landlords",
+      "description": "Managing landlord records, AML checks, and property assignments.",
+      "icon": "Users",
+      "color": "indigo",
+      "sortOrder": 7
+    },
+    {
+      "id": "agreements",
+      "slug": "agreements",
+      "title": "Agreements",
+      "description": "Generating AST agreements, e-signatures, and document management.",
+      "icon": "FileSignature",
+      "color": "teal",
+      "sortOrder": 8
+    },
+    {
+      "id": "account-settings",
+      "slug": "account-settings",
+      "title": "Account & Settings",
+      "description": "Profile settings, team management, integrations, and billing.",
+      "icon": "Settings",
+      "color": "slate",
+      "sortOrder": 9
+    }
+  ]
+}

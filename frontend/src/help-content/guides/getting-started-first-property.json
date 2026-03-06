@@ -1,0 +1,63 @@
+{
+  "id": "getting-started-first-property",
+  "slug": "adding-your-first-property",
+  "title": "Adding Your First Property",
+  "category": "getting-started",
+  "tags": ["properties", "setup", "beginner"],
+  "createdAt": "2024-01-15",
+  "updatedAt": "2024-03-01",
+  "sortOrder": 1,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "This guide walks you through adding your first property to PropertyGoose. Once added, you can link landlords, track compliance, and start managing tenancies.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Add a Property",
+        "steps": [
+          {
+            "title": "Navigate to Properties",
+            "content": "Click on 'Properties' in the sidebar navigation to open the properties list.",
+            "image": null
+          },
+          {
+            "title": "Click Add Property",
+            "content": "Click the 'Add Property' button in the top right corner of the properties page.",
+            "image": null
+          },
+          {
+            "title": "Enter the Address",
+            "content": "Start typing the property address. Our address lookup will suggest matching addresses. Select the correct one or enter manually if not found.",
+            "image": null
+          },
+          {
+            "title": "Add Property Details",
+            "content": "Fill in the property type (house, flat, etc.), number of bedrooms, bathrooms, and any other relevant details.",
+            "image": null
+          },
+          {
+            "title": "Save the Property",
+            "content": "Click 'Save Property' to add it to your portfolio. You can now link a landlord and add compliance documents.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Pro Tip",
+        "content": "You can add multiple properties at once by clicking 'Add Another' after saving each property."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Important",
+        "content": "Make sure to add compliance certificates (Gas Safety, EPC, EICR) to your property to receive expiry reminders."
+      }
+    ],
+    "relatedArticles": [
+      "linking-landlord-to-property",
+      "managing-compliance-certificates"
+    ]
+  }
+}

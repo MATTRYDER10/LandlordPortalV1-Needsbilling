@@ -1,0 +1,67 @@
+{
+  "id": "sending-tenant-offers",
+  "slug": "sending-tenant-offers",
+  "title": "Sending Tenant Offer Forms",
+  "category": "offers",
+  "tags": ["offers", "tenants", "applications", "prospective tenants"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "The Offers section allows you to send offer forms to prospective tenants before starting the full referencing process. Tenants can view property details, confirm they're interested, and submit their initial information.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Send an Offer Form",
+        "steps": [
+          {
+            "title": "Navigate to Offers",
+            "content": "Click 'Offers' in the sidebar navigation to open the Tenant Offers page.",
+            "image": null
+          },
+          {
+            "title": "Click 'Send Offer Form'",
+            "content": "Click the 'Send Offer Form' button in the top right corner to open the offer creation modal.",
+            "image": null
+          },
+          {
+            "title": "Select or enter property details",
+            "content": "Choose an existing property from the dropdown or enter the property address manually. Include the monthly rent amount.",
+            "image": null
+          },
+          {
+            "title": "Enter tenant details",
+            "content": "Add the prospective tenant's email address. You can also indicate if a deposit replacement product will be offered instead of a traditional deposit.",
+            "image": null
+          },
+          {
+            "title": "Send the offer",
+            "content": "Review the details and click 'Send Offer'. The tenant will receive an email with a link to view and respond to the offer.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Understanding Offer Statuses",
+        "content": "Offers progress through several statuses: 'Sent' (offer email sent to tenant), 'Pending' (tenant has opened the form but not responded), 'Approved' (you've approved the tenant's response), 'Declined' (you've declined the offer), and 'Accepted with Changes' (tenant accepted but requested modifications)."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Filter by Status",
+        "content": "Use the status filter dropdown and search bar to quickly find specific offers. The stats cards at the top show counts for each status - click them to filter the list."
+      },
+      {
+        "type": "text",
+        "title": "What Happens After Approval",
+        "content": "Once you approve an offer, you can proceed to create a full reference for the tenant. The offer information will be available to import when starting the reference, saving you from re-entering the same details."
+      }
+    ],
+    "relatedArticles": [
+      "managing-offer-responses",
+      "creating-your-first-reference"
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "id": "adding-property",
+  "slug": "adding-your-first-property",
+  "title": "Adding a Property",
+  "category": "properties",
+  "tags": ["property", "add property", "portfolio", "address"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "Properties are the foundation of your portfolio in PropertyGoose. Adding a property allows you to link it to landlords, track compliance certificates, and use it when creating references and tenancies.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Add a Property",
+        "steps": [
+          {
+            "title": "Navigate to Properties",
+            "content": "Click 'Properties' in the sidebar to open the Properties page.",
+            "image": null
+          },
+          {
+            "title": "Click 'Add Property'",
+            "content": "Click the 'Add Property' button in the top right corner.",
+            "image": null
+          },
+          {
+            "title": "Enter the address",
+            "content": "Start typing the property address. The autocomplete will suggest matching addresses. Select the correct one, or switch to manual entry mode using the toggle.",
+            "image": null
+          },
+          {
+            "title": "Fill in property details",
+            "content": "Add information like property type (house, flat, etc.), number of bedrooms, and any other relevant details.",
+            "image": null
+          },
+          {
+            "title": "Assign a landlord (optional)",
+            "content": "If you've already added the landlord, you can link them to this property now. Otherwise, you can do this later.",
+            "image": null
+          },
+          {
+            "title": "Save the property",
+            "content": "Click 'Save Property' to add it to your portfolio.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Bulk Import",
+        "content": "Need to add many properties at once? Click 'Import CSV' to upload a spreadsheet of properties. Download the template first to see the required format."
+      },
+      {
+        "type": "text",
+        "title": "Property Stats",
+        "content": "The Properties page shows stats at the top: Total Properties, Vacant (not currently let), In Tenancy (currently let), and Compliance Issues (expired or expiring certificates)."
+      }
+    ],
+    "relatedArticles": [
+      "property-compliance",
+      "linking-landlord-to-property",
+      "properties-overview"
+    ]
+  }
+}

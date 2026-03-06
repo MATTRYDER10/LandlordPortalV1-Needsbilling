@@ -1,0 +1,68 @@
+{
+  "id": "section-8-notices",
+  "slug": "section-8-notices",
+  "title": "Section 8 Notices",
+  "category": "tenancies",
+  "tags": ["section 8", "notice", "possession", "eviction", "arrears"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 5,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "A Section 8 notice is used when seeking possession of a property due to a breach of the tenancy agreement, most commonly rent arrears. PropertyGoose helps you generate and track these notices.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Generating a Section 8 Notice",
+        "steps": [
+          {
+            "title": "Open the tenancy",
+            "content": "Navigate to Tenancies and click on the tenancy requiring the notice.",
+            "image": null
+          },
+          {
+            "title": "Click 'Section 8 Notice'",
+            "content": "In the tenancy detail view, click the 'Section 8 Notice' button from the actions menu.",
+            "image": null
+          },
+          {
+            "title": "Select grounds",
+            "content": "Choose the applicable grounds for possession. Ground 8 (mandatory) and Grounds 10/11 (discretionary) are common for rent arrears.",
+            "image": null
+          },
+          {
+            "title": "Enter arrears details",
+            "content": "Input the current arrears amount and any relevant dates.",
+            "image": null
+          },
+          {
+            "title": "Generate and serve",
+            "content": "Click 'Generate Notice' to create the document. You must then serve it to the tenant according to legal requirements.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Legal Advice Recommended",
+        "content": "Section 8 notices have strict legal requirements. We strongly recommend seeking legal advice before serving a notice to ensure it's valid and enforceable."
+      },
+      {
+        "type": "text",
+        "title": "Notice Periods",
+        "content": "Different grounds require different notice periods. Ground 8 (serious arrears) requires 2 weeks notice. Grounds 10 and 11 require 2 months notice. PropertyGoose calculates the correct dates for you."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Tracking Notices",
+        "content": "All notices are stored in the tenancy's document history. You can track when notices were generated, served, and when the notice period expires."
+      }
+    ],
+    "relatedArticles": [
+      "tenancies-overview",
+      "rent-increase-notices"
+    ]
+  }
+}

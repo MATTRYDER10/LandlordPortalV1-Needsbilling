@@ -48,6 +48,11 @@ import AdminCustomerManagement from '../views/AdminCustomerManagement.vue'
 import AdminReports from '../views/AdminReports.vue'
 import AgreementSigning from '../views/AgreementSigning.vue'
 import TenantChangeAddendumSigning from '../views/TenantChangeAddendumSigning.vue'
+import HelpCentre from '../views/HelpCentre.vue'
+import HelpCategory from '../views/HelpCategory.vue'
+import HelpArticleView from '../views/HelpArticleView.vue'
+import HelpFaq from '../views/HelpFaq.vue'
+import HelpSearchResults from '../views/HelpSearchResults.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -339,6 +344,36 @@ const router = createRouter({
           meta: { requiresAuth: true }
         }
       ]
+    },
+    {
+      path: '/help-centre',
+      name: 'HelpCentre',
+      component: HelpCentre,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/help-centre/category/:slug',
+      name: 'HelpCategory',
+      component: HelpCategory,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/help-centre/article/:slug',
+      name: 'HelpArticle',
+      component: HelpArticleView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/help-centre/faq',
+      name: 'HelpFaq',
+      component: HelpFaq,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/help-centre/search',
+      name: 'HelpSearch',
+      component: HelpSearchResults,
+      meta: { requiresAuth: true }
     },
     {
       path: '/staff',

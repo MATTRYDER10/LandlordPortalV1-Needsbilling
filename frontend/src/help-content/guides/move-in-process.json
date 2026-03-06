@@ -1,0 +1,89 @@
+{
+  "id": "move-in-process",
+  "slug": "move-in-process",
+  "title": "Move-In Process & Checklist",
+  "category": "tenancies",
+  "tags": ["move-in", "checklist", "keys", "inventory", "start date"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 7,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "The move-in process covers everything from reference completion to handing over keys. PropertyGoose tracks pending move-ins on your dashboard calendar and helps ensure nothing is missed.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Pre-Move-In Checklist",
+        "steps": [
+          {
+            "title": "Complete references",
+            "content": "Ensure all tenant references are complete and approved before proceeding.",
+            "image": null
+          },
+          {
+            "title": "Collect initial monies",
+            "content": "Request and confirm receipt of the deposit, first month's rent, and any rent up front.",
+            "image": null
+          },
+          {
+            "title": "Protect the deposit",
+            "content": "Register the deposit with a protection scheme within 30 days and send prescribed information.",
+            "image": null
+          },
+          {
+            "title": "Sign tenancy agreement",
+            "content": "Generate and have all parties sign the AST agreement.",
+            "image": null
+          },
+          {
+            "title": "Prepare compliance docs",
+            "content": "Gather Gas Safety Certificate, EPC, EICR, and How to Rent guide to provide to tenants.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "steps",
+        "title": "Move-In Day",
+        "steps": [
+          {
+            "title": "Conduct inventory",
+            "content": "Complete a detailed inventory check-in report with the tenant present.",
+            "image": null
+          },
+          {
+            "title": "Take meter readings",
+            "content": "Record gas, electric, and water meter readings and notify suppliers of the change.",
+            "image": null
+          },
+          {
+            "title": "Hand over keys",
+            "content": "Provide all keys and access devices, noting quantities in your records.",
+            "image": null
+          },
+          {
+            "title": "Provide documents",
+            "content": "Give the tenant copies of all compliance documents and the How to Rent guide.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Dashboard Calendar",
+        "content": "The dashboard calendar shows all upcoming move-ins. Click on a date to see which tenancies are starting and what's still pending."
+      },
+      {
+        "type": "text",
+        "title": "Updating Move-In Dates",
+        "content": "If the move-in date changes, you can update it from the reference or tenancy detail page. The calendar will automatically reflect the new date."
+      }
+    ],
+    "relatedArticles": [
+      "tenancies-overview",
+      "protecting-deposits",
+      "initial-monies"
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "id": "landlord-aml",
+  "slug": "landlord-aml-checks",
+  "title": "Landlord AML Checks",
+  "category": "landlords",
+  "tags": ["AML", "anti-money laundering", "verification", "compliance"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 2,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "Anti-Money Laundering (AML) checks are required for all landlords as part of your regulatory obligations. PropertyGoose tracks AML status and alerts you when checks need to be renewed.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "AML Status Types",
+        "content": "Each landlord has an AML status: 'Not Requested' (no check has been initiated), 'Requested' (check is pending), 'Satisfactory' (check passed), or 'Unsatisfactory' (check failed or concerns identified). You can filter landlords by AML status using the dropdown at the top of the Landlords page."
+      },
+      {
+        "type": "steps",
+        "title": "Requesting an AML Check",
+        "steps": [
+          {
+            "title": "Open the landlord record",
+            "content": "Go to Landlords and click on the landlord you want to check.",
+            "image": null
+          },
+          {
+            "title": "Initiate AML check",
+            "content": "Click the AML verification button to start the check process. The landlord will receive a verification request.",
+            "image": null
+          },
+          {
+            "title": "Landlord completes verification",
+            "content": "The landlord follows the link to verify their identity. This typically involves providing ID documents and confirming personal details.",
+            "image": null
+          },
+          {
+            "title": "Review results",
+            "content": "Once complete, the AML status will update to 'Satisfactory' or 'Unsatisfactory'. View the full report in the landlord's profile.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "AML Renewal",
+        "content": "AML checks should be renewed every 2 years. PropertyGoose shows a warning banner when landlords have outdated AML checks. Click 'Re-check AML' to initiate a new verification."
+      },
+      {
+        "type": "text",
+        "title": "Bulk AML Status",
+        "content": "The Landlords page shows the 'Date AML Completed' column. Landlords with checks older than 2 years will be flagged for attention."
+      }
+    ],
+    "relatedArticles": [
+      "adding-a-landlord",
+      "linking-landlord-to-property"
+    ]
+  }
+}

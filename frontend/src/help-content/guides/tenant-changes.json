@@ -1,0 +1,67 @@
+{
+  "id": "tenant-changes",
+  "slug": "tenant-changes",
+  "title": "Managing Tenant Changes",
+  "category": "tenancies",
+  "tags": ["tenant change", "replacement", "add tenant", "remove tenant"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 4,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "When tenants need to be added, removed, or replaced during an active tenancy, you can create a tenant change request. This process includes referencing new tenants and updating the tenancy record.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Requesting a Tenant Change",
+        "steps": [
+          {
+            "title": "Open the tenancy",
+            "content": "Navigate to Tenancies and click on the active tenancy that needs modification.",
+            "image": null
+          },
+          {
+            "title": "Click 'Tenant Change'",
+            "content": "In the tenancy detail view, click the 'Tenant Change' button in the actions area.",
+            "image": null
+          },
+          {
+            "title": "Select change type",
+            "content": "Choose from: Add tenant, Remove tenant, or Replace tenant (one out, one in).",
+            "image": null
+          },
+          {
+            "title": "Enter new tenant details",
+            "content": "If adding or replacing, enter the new tenant's name, email, and contact information.",
+            "image": null
+          },
+          {
+            "title": "Submit the request",
+            "content": "Click 'Submit' to create the tenant change request. A reference request will be sent to any new tenants.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Reference Requirements",
+        "content": "New tenants joining an existing tenancy must complete the standard reference process. Once their reference passes, the tenant change can be completed and the tenancy updated."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Deposit Implications",
+        "content": "Tenant changes may require updating the deposit protection details. Ensure you amend the protection with your deposit scheme to reflect the correct tenant names."
+      },
+      {
+        "type": "text",
+        "title": "Tracking Changes",
+        "content": "View pending and completed tenant changes in the tenancy detail page under the 'Changes' tab. Each change shows the date, type, and current status."
+      }
+    ],
+    "relatedArticles": [
+      "tenancies-overview",
+      "creating-reference"
+    ]
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "id": "agreement-signing-process",
+  "slug": "agreement-signing-process",
+  "title": "Agreement Signing Process",
+  "category": "agreements",
+  "tags": ["agreement", "signing", "e-signature", "AST", "contract"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 2,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "After generating an AST agreement, you can send it for electronic signatures. All parties sign online, and you receive a fully executed document when complete.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Sending for Signatures",
+        "steps": [
+          {
+            "title": "Generate the agreement",
+            "content": "Complete the agreement wizard and click 'Generate Agreement'. The document will be created as a PDF.",
+            "image": null
+          },
+          {
+            "title": "Preview the document",
+            "content": "Review the generated agreement to ensure all details are correct before sending.",
+            "image": null
+          },
+          {
+            "title": "Click 'Send for Signing'",
+            "content": "Click the 'Send for Signing' button to initiate the signature process.",
+            "image": null
+          },
+          {
+            "title": "Confirm recipients",
+            "content": "Verify the email addresses for all signatories (tenants and landlord) are correct.",
+            "image": null
+          },
+          {
+            "title": "Send invitations",
+            "content": "Click 'Send' to email signature requests to all parties.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Signing Order",
+        "content": "By default, all tenants sign first, followed by the landlord or agent. Each party receives an email with a secure link to view and sign the document."
+      },
+      {
+        "type": "text",
+        "title": "Tracking Progress",
+        "content": "Check the Agreement History page to see signing status. The status column shows: 'Draft' (not yet sent), 'Awaiting Signatures' (sent but not complete), or 'Signed' (fully executed)."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Resending Invitations",
+        "content": "If a party hasn't signed, you can resend the signing invitation from the agreement detail page. Click the actions menu and select 'Resend Invitation'."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Completed Agreements",
+        "content": "Once all parties have signed, the executed agreement is automatically emailed to everyone and stored in Agreement History for download."
+      }
+    ],
+    "relatedArticles": [
+      "generating-tenancy-agreement",
+      "tenancies-overview"
+    ]
+  }
+}

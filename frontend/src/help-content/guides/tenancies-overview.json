@@ -1,0 +1,63 @@
+{
+  "id": "tenancies-overview",
+  "slug": "tenancies-overview",
+  "title": "Managing Tenancies",
+  "category": "tenancies",
+  "tags": ["tenancies", "overview", "active", "draft"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "The Tenancies section is where you manage all your rental agreements. Here you can track draft tenancies awaiting move-in, active tenancies, and those with notice served.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "Tenancy Tabs",
+        "content": "The Tenancies page has three main tabs: 'Draft' (tenancies awaiting move-in, shown in amber), 'Active' (currently occupied properties, shown in green), and 'Notice Served' (tenancies where notice has been given, shown in red). Each tab shows a count of tenancies in that status."
+      },
+      {
+        "type": "steps",
+        "title": "Finding a Tenancy",
+        "steps": [
+          {
+            "title": "Use the search bar",
+            "content": "Type in the search box to find tenancies by tenant name, property address, or landlord name.",
+            "image": null
+          },
+          {
+            "title": "Filter by tab",
+            "content": "Click the Draft, Active, or Notice Served tabs to see only tenancies in that status.",
+            "image": null
+          },
+          {
+            "title": "Filter unprotected deposits",
+            "content": "Click the filter badge to show only tenancies with unprotected deposits.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Draft Tenancies",
+        "content": "Draft tenancies are created when you convert a completed reference. They show the pending move-in date and allow you to: request initial monies, generate a tenancy agreement, change the move-in date, and complete the move-in process."
+      },
+      {
+        "type": "text",
+        "title": "Active Tenancies",
+        "content": "Active tenancies are properties currently being rented. From an active tenancy you can: view deposit protection status, generate rent increase notices, process tenant changes, serve Section 8 notices, end the tenancy, and email tenants."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Expand for Details",
+        "content": "Click on any tenancy row to expand it and see more details, including tenant information, agreement status, and available actions."
+      }
+    ],
+    "relatedArticles": [
+      "requesting-initial-monies",
+      "protecting-deposits",
+      "generating-tenancy-agreement"
+    ]
+  }
+}

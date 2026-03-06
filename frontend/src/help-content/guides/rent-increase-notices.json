@@ -1,0 +1,67 @@
+{
+  "id": "rent-increase-notices",
+  "slug": "rent-increase-notices",
+  "title": "Rent Increase Notices",
+  "category": "tenancies",
+  "tags": ["rent increase", "section 13", "notice", "rent review"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 6,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "When you need to increase rent during a tenancy, a Section 13 notice formally notifies the tenant. PropertyGoose helps generate compliant notices and tracks the increase timeline.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Creating a Rent Increase Notice",
+        "steps": [
+          {
+            "title": "Open the tenancy",
+            "content": "Navigate to Tenancies and click on the tenancy requiring a rent increase.",
+            "image": null
+          },
+          {
+            "title": "Click 'Rent Increase'",
+            "content": "In the tenancy actions, click the 'Rent Increase' button.",
+            "image": null
+          },
+          {
+            "title": "Enter new rent amount",
+            "content": "Input the proposed new monthly rent amount.",
+            "image": null
+          },
+          {
+            "title": "Set effective date",
+            "content": "Choose when the new rent should take effect. This must be after the required notice period.",
+            "image": null
+          },
+          {
+            "title": "Generate and serve",
+            "content": "Click 'Generate Notice' to create the Section 13 form. Serve it to the tenant by the required date.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Notice Period Requirements",
+        "content": "For monthly tenancies, you must give at least one month's notice ending on a rent due date. For yearly tenancies, six months notice is required. PropertyGoose calculates the earliest valid increase date."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Frequency Limit",
+        "content": "Rent can only be increased once every 12 months for periodic tenancies. PropertyGoose warns you if the last increase was too recent."
+      },
+      {
+        "type": "text",
+        "title": "After the Notice",
+        "content": "Once the notice period passes and the new rent takes effect, remember to update your payment collection to reflect the new amount. The tenancy record will automatically show the updated rent."
+      }
+    ],
+    "relatedArticles": [
+      "tenancies-overview",
+      "section-8-notices"
+    ]
+  }
+}

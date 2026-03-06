@@ -1,0 +1,79 @@
+{
+  "id": "ending-tenancy",
+  "slug": "ending-tenancy",
+  "title": "Ending a Tenancy",
+  "category": "tenancies",
+  "tags": ["end tenancy", "move out", "tenancy termination", "notice", "checkout"],
+  "createdAt": "2024-03-06",
+  "updatedAt": "2024-03-06",
+  "sortOrder": 6,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "When a tenancy comes to an end, whether through natural expiry, mutual agreement, or notice, you need to formally end it in PropertyGoose. This moves the tenancy to the archived section and releases the property for re-letting.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to End a Tenancy",
+        "steps": [
+          {
+            "title": "Open the active tenancy",
+            "content": "Navigate to Tenancies, select the Active tab, and click on the tenancy you want to end.",
+            "image": null
+          },
+          {
+            "title": "Open the actions menu",
+            "content": "Click the three-dot menu button on the tenancy row, or find the actions in the tenancy detail drawer.",
+            "image": null
+          },
+          {
+            "title": "Select 'End Tenancy'",
+            "content": "Click this option to open the end tenancy modal.",
+            "image": null
+          },
+          {
+            "title": "Select the end reason",
+            "content": "Choose from: Natural end of term, Tenant gave notice, Landlord gave notice, Mutual agreement, or Other.",
+            "image": null
+          },
+          {
+            "title": "Set the end date",
+            "content": "Enter the actual date the tenancy ended (or will end). This is typically the last day the tenant has access to the property.",
+            "image": null
+          },
+          {
+            "title": "Confirm ending",
+            "content": "Review the details and click 'End Tenancy'. The tenancy will move to the Archived tab.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Before Ending",
+        "content": "Ensure you have: Completed the checkout inspection, Agreed on any deposit deductions, Collected all keys, and Confirmed the final meter readings."
+      },
+      {
+        "type": "text",
+        "title": "What Happens After Ending",
+        "content": "Once ended, the tenancy moves to the Archived tab where you can still access its full history. The property becomes available for new tenancies, and the tenants are marked as inactive."
+      },
+      {
+        "type": "text",
+        "title": "Deposit Returns",
+        "content": "After ending a tenancy, you should process any deposit returns through your deposit protection scheme. PropertyGoose will remind you if the deposit is still marked as protected."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Revert to Draft",
+        "content": "If you ended a tenancy by mistake, you can use the 'Revert to Draft' action to restore it. This resets all progress and moves it back to the Draft tab."
+      }
+    ],
+    "relatedArticles": [
+      "tenancies-overview",
+      "protecting-deposits",
+      "section-8-notices"
+    ]
+  }
+}

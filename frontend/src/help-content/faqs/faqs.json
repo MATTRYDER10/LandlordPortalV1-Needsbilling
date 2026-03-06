@@ -1,0 +1,373 @@
+{
+  "faqs": [
+    {
+      "id": "faq-add-property",
+      "category": "getting-started",
+      "question": "How do I add my first property?",
+      "answer": "Navigate to Properties from the sidebar, then click 'Add Property'. Fill in the address and details. You can link a landlord and add compliance documents at this stage or later.",
+      "tags": ["properties", "setup"],
+      "relatedGuide": "adding-property",
+      "sortOrder": 1
+    },
+    {
+      "id": "faq-reference-vs-tenancy",
+      "category": "getting-started",
+      "question": "What's the difference between a Reference and a Tenancy?",
+      "answer": "A Reference checks a potential tenant's background, employment, and credit. Once approved, you convert it into a Tenancy, which represents an active rental agreement. References are the 'before' and Tenancies are the 'after'.",
+      "tags": ["references", "tenancies"],
+      "relatedGuide": "converting-to-tenancy",
+      "sortOrder": 2
+    },
+    {
+      "id": "faq-invite-team",
+      "category": "account-settings",
+      "question": "How do I invite team members to my branch?",
+      "answer": "Go to Settings > Team, click 'Invite User', enter their email and select a role (Admin or Member). They'll receive an email invitation to join your branch.",
+      "tags": ["team", "invitations", "settings"],
+      "relatedGuide": "inviting-team-members",
+      "sortOrder": 1
+    },
+    {
+      "id": "faq-rent-upfront",
+      "category": "tenancies",
+      "question": "What is rent up front?",
+      "answer": "Rent up front charges multiple months of rent at tenancy start instead of just the first month. Common for students or tenants without UK credit history. You can request 1-60 months when creating initial monies.",
+      "tags": ["rent", "payments", "initial monies"],
+      "relatedGuide": "initial-monies",
+      "sortOrder": 1
+    },
+    {
+      "id": "faq-pro-rata",
+      "category": "tenancies",
+      "question": "What is pro-rata rent?",
+      "answer": "Pro-rata rent covers partial months when the move-in date doesn't align with the rent due date. For example, moving in on the 15th when rent is due on the 1st. PropertyGoose calculates this automatically.",
+      "tags": ["rent", "pro-rata", "calculations"],
+      "relatedGuide": "initial-monies",
+      "sortOrder": 2
+    },
+    {
+      "id": "faq-compliance-required",
+      "category": "properties",
+      "question": "What compliance documents are required?",
+      "answer": "At minimum: Gas Safety Certificate (annual), EPC (valid for 10 years), and EICR (every 5 years). PropertyGoose tracks expiry dates and alerts you when renewals are due.",
+      "tags": ["gas safety", "epc", "eicr", "certificates"],
+      "relatedGuide": "property-compliance",
+      "sortOrder": 1
+    },
+    {
+      "id": "faq-send-offer",
+      "category": "offers",
+      "question": "How do I send an offer form to a tenant?",
+      "answer": "Go to Offers, click 'Send Offer', enter the tenant's email and property details. They'll receive an email with a link to complete the offer form online.",
+      "tags": ["offers", "send", "tenant"],
+      "relatedGuide": "sending-tenant-offers",
+      "sortOrder": 1
+    },
+    {
+      "id": "faq-start-reference",
+      "category": "references",
+      "question": "How do I start a reference check?",
+      "answer": "Go to References, click 'Create Reference'. Enter tenant details, property, and move-in date. The tenant will receive an email to complete their reference questionnaire.",
+      "tags": ["references", "create"],
+      "relatedGuide": "creating-reference",
+      "sortOrder": 1
+    },
+    {
+      "id": "faq-reference-pending",
+      "category": "references",
+      "question": "What does 'Pending' status mean on a reference?",
+      "answer": "Pending means the reference has been sent but the tenant hasn't completed their questionnaire yet. They need to fill in employment, landlord, and personal details before checks can proceed.",
+      "tags": ["reference", "status", "pending"],
+      "relatedGuide": "reference-statuses",
+      "sortOrder": 2
+    },
+    {
+      "id": "faq-reference-in-progress",
+      "category": "references",
+      "question": "What does 'In Progress' status mean?",
+      "answer": "In Progress means the tenant has submitted their information and the system is verifying details with employers, previous landlords, and credit agencies. This typically takes 24-48 hours.",
+      "tags": ["reference", "status", "in progress"],
+      "relatedGuide": "reference-statuses",
+      "sortOrder": 3
+    },
+    {
+      "id": "faq-reference-passed",
+      "category": "references",
+      "question": "What does 'Passed' status mean?",
+      "answer": "Passed means all reference checks have been completed satisfactorily. The tenant's employment, previous tenancy, and credit checks all met the required criteria. You can now convert to a tenancy.",
+      "tags": ["reference", "status", "passed"],
+      "relatedGuide": "reference-statuses",
+      "sortOrder": 4
+    },
+    {
+      "id": "faq-reference-failed",
+      "category": "references",
+      "question": "What does 'Failed' status mean?",
+      "answer": "Failed indicates issues were found during checks. Review the reference report for details - it could be adverse credit, unverifiable employment, or poor landlord feedback. You may request a guarantor.",
+      "tags": ["reference", "status", "failed"],
+      "relatedGuide": "reference-statuses",
+      "sortOrder": 5
+    },
+    {
+      "id": "faq-convert-tenancy",
+      "category": "references",
+      "question": "How do I convert a reference to a tenancy?",
+      "answer": "Open the passed reference and click 'Convert to Tenancy'. Confirm the tenancy details (dates, rent) and click 'Convert'. This creates the tenancy record and moves the reference to completed.",
+      "tags": ["convert", "tenancy", "reference"],
+      "relatedGuide": "converting-to-tenancy",
+      "sortOrder": 6
+    },
+    {
+      "id": "faq-cannot-convert",
+      "category": "references",
+      "question": "Why can't I convert this reference to a tenancy?",
+      "answer": "References can only be converted when status is 'Passed'. If status is Pending, In Progress, or Failed, conversion isn't available. Check the reference report to see what's blocking progress.",
+      "tags": ["convert", "blocked", "status"],
+      "relatedGuide": "converting-to-tenancy",
+      "sortOrder": 7
+    },
+    {
+      "id": "faq-protect-deposit",
+      "category": "tenancies",
+      "question": "How do I protect a deposit?",
+      "answer": "Open the tenancy, click 'Protect Deposit'. If TDS integration is connected, details are sent automatically. Otherwise, record protection details manually. You must protect within 30 days of receipt.",
+      "tags": ["deposit", "protection", "TDS"],
+      "relatedGuide": "protecting-deposits",
+      "sortOrder": 3
+    },
+    {
+      "id": "faq-what-happens-deposit-not-protected",
+      "category": "tenancies",
+      "question": "What happens if I don't protect a deposit in time?",
+      "answer": "You must protect deposits within 30 days and provide prescribed information. Failure to comply can result in penalties of 1-3 times the deposit amount and inability to serve Section 21 notices.",
+      "tags": ["deposit", "penalty", "compliance"],
+      "relatedGuide": "protecting-deposits",
+      "sortOrder": 4
+    },
+    {
+      "id": "faq-generate-agreement",
+      "category": "agreements",
+      "question": "How do I generate a tenancy agreement?",
+      "answer": "Go to Standalone Agreements > Generate. You can import data from existing references or enter details manually. Complete the 6-step wizard covering tenants, property, terms, and landlord info.",
+      "tags": ["agreement", "AST", "generate"],
+      "relatedGuide": "generating-tenancy-agreement",
+      "sortOrder": 1
+    },
+    {
+      "id": "faq-esign-agreement",
+      "category": "agreements",
+      "question": "How do I send an agreement for electronic signing?",
+      "answer": "After generating an agreement, click 'Send for Signing'. Verify all recipient emails are correct and click 'Send'. Each party receives an email with a secure signing link.",
+      "tags": ["agreement", "signing", "electronic"],
+      "relatedGuide": "agreement-signing-process",
+      "sortOrder": 2
+    },
+    {
+      "id": "faq-add-landlord",
+      "category": "landlords",
+      "question": "How do I add a landlord?",
+      "answer": "Go to Landlords, click 'Add Landlord'. Choose individual or company, enter contact details and address. Optionally add bank details for rent payments. Save to create the record.",
+      "tags": ["landlord", "add", "create"],
+      "relatedGuide": "adding-a-landlord",
+      "sortOrder": 1
+    },
+    {
+      "id": "faq-aml-status",
+      "category": "landlords",
+      "question": "What does AML status mean?",
+      "answer": "AML (Anti-Money Laundering) status shows if the landlord has completed identity verification. Statuses are: Not Requested, Requested (pending), Satisfactory (passed), or Unsatisfactory (failed/concerns).",
+      "tags": ["AML", "status", "verification"],
+      "relatedGuide": "landlord-aml-checks",
+      "sortOrder": 2
+    },
+    {
+      "id": "faq-request-aml",
+      "category": "landlords",
+      "question": "How do I request an AML check?",
+      "answer": "Open the landlord record and click the AML verification button. The landlord receives an email with a link to verify their identity by providing ID documents and confirming personal details.",
+      "tags": ["AML", "request", "verify"],
+      "relatedGuide": "landlord-aml-checks",
+      "sortOrder": 3
+    },
+    {
+      "id": "faq-link-landlord-property",
+      "category": "landlords",
+      "question": "How do I link a landlord to a property?",
+      "answer": "Either open the landlord and click 'Link Property', or edit the property and select the landlord from the dropdown. A landlord can be linked to multiple properties.",
+      "tags": ["landlord", "property", "link"],
+      "relatedGuide": "linking-landlord-to-property",
+      "sortOrder": 4
+    },
+    {
+      "id": "faq-user-roles",
+      "category": "account-settings",
+      "question": "What's the difference between Owner, Admin, and Member roles?",
+      "answer": "Owner has full access including billing. Admin has full feature access except billing and can manage team. Member has access to core features (references, tenancies, properties) but cannot access settings or team management.",
+      "tags": ["roles", "permissions", "team"],
+      "relatedGuide": "inviting-team-members",
+      "sortOrder": 2
+    },
+    {
+      "id": "faq-cannot-access-settings",
+      "category": "account-settings",
+      "question": "Why can't I access some settings tabs?",
+      "answer": "Settings access depends on your role. Members only see the Profile tab. Admins see everything except Billing. Only Owners can access Billing. Contact your branch Owner to change your role.",
+      "tags": ["settings", "permissions", "access"],
+      "relatedGuide": "settings-overview",
+      "sortOrder": 3
+    },
+    {
+      "id": "faq-what-happens-offer-submitted",
+      "category": "offers",
+      "question": "What happens when a tenant submits an offer?",
+      "answer": "You receive an email notification and the offer appears in your Offers list with 'Submitted' status. Review the details and either convert it to a reference or reject it. The tenant is notified of your decision.",
+      "tags": ["offer", "submitted", "workflow"],
+      "relatedGuide": "sending-tenant-offers",
+      "sortOrder": 2
+    },
+    {
+      "id": "faq-change-move-in-date",
+      "category": "references",
+      "question": "How do I change a move-in date?",
+      "answer": "Open the reference or tenancy and click 'Edit'. Update the start/move-in date field and save. The dashboard calendar will automatically reflect the new date.",
+      "tags": ["move-in", "date", "change"],
+      "relatedGuide": "move-in-process",
+      "sortOrder": 8
+    },
+    {
+      "id": "faq-tenant-change",
+      "category": "tenancies",
+      "question": "How do I add or remove a tenant from an existing tenancy?",
+      "answer": "Open the tenancy and click 'Tenant Change'. Choose to add, remove, or replace a tenant. New tenants must complete references. Remember to update deposit protection with the new names.",
+      "tags": ["tenant change", "add", "remove"],
+      "relatedGuide": "tenant-changes",
+      "sortOrder": 5
+    },
+    {
+      "id": "faq-section-8",
+      "category": "tenancies",
+      "question": "What is a Section 8 notice?",
+      "answer": "A Section 8 notice seeks possession due to tenancy breaches, usually rent arrears. You specify grounds (reasons) and the notice period varies by ground. Legal advice is recommended before serving.",
+      "tags": ["section 8", "notice", "possession"],
+      "relatedGuide": "section-8-notices",
+      "sortOrder": 6
+    },
+    {
+      "id": "faq-rent-increase",
+      "category": "tenancies",
+      "question": "How do I increase the rent?",
+      "answer": "Open the tenancy and click 'Rent Increase'. Enter the new amount and effective date. PropertyGoose generates a Section 13 notice. Serve it to the tenant with proper notice (usually 1 month for monthly tenancies).",
+      "tags": ["rent increase", "section 13"],
+      "relatedGuide": "rent-increase-notices",
+      "sortOrder": 7
+    },
+    {
+      "id": "faq-cannot-increase-rent",
+      "category": "tenancies",
+      "question": "Why can't I increase the rent yet?",
+      "answer": "Rent can only be increased once every 12 months for periodic tenancies. If you increased rent recently, you must wait until 12 months have passed before the next increase takes effect.",
+      "tags": ["rent increase", "restriction", "frequency"],
+      "relatedGuide": "rent-increase-notices",
+      "sortOrder": 8
+    },
+    {
+      "id": "faq-connect-tds",
+      "category": "account-settings",
+      "question": "How do I connect my TDS account?",
+      "answer": "Go to Settings > Integrations, find TDS, and click 'Connect'. Enter your TDS Member ID and API key from your TDS portal. Test the connection and save. You can then protect deposits directly from PropertyGoose.",
+      "tags": ["TDS", "integration", "connect"],
+      "relatedGuide": "tds-integration-setup",
+      "sortOrder": 4
+    },
+    {
+      "id": "faq-dashboard-calendar",
+      "category": "dashboard",
+      "question": "What does the dashboard calendar show?",
+      "answer": "The calendar displays upcoming move-in dates from both references and tenancies. Click on a date to see details. It helps you prepare for upcoming tenancy starts and track your schedule.",
+      "tags": ["dashboard", "calendar", "move-in"],
+      "relatedGuide": "dashboard-overview",
+      "sortOrder": 1
+    },
+    {
+      "id": "faq-quick-stats",
+      "category": "dashboard",
+      "question": "What are the quick stats on the dashboard?",
+      "answer": "Quick stats show: Active References (in progress), Pending Tenancies (not yet started), Active Tenancies (current), and properties count. Click any stat to go directly to that section.",
+      "tags": ["dashboard", "stats", "overview"],
+      "relatedGuide": "dashboard-overview",
+      "sortOrder": 2
+    },
+    {
+      "id": "faq-compliance-expired",
+      "category": "properties",
+      "question": "What happens when a compliance certificate expires?",
+      "answer": "PropertyGoose alerts you before expiry with warnings on the property page and dashboard. Expired certificates show in red. You should arrange renewals before expiry to remain legally compliant.",
+      "tags": ["compliance", "expired", "certificate"],
+      "relatedGuide": "property-compliance",
+      "sortOrder": 2
+    },
+    {
+      "id": "faq-import-csv",
+      "category": "landlords",
+      "question": "Can I import landlords from a spreadsheet?",
+      "answer": "Yes. Go to Landlords and click 'Import CSV'. Download the template to see the required column format. Fill it in with your landlord data and upload. Records are created in bulk.",
+      "tags": ["import", "CSV", "bulk"],
+      "relatedGuide": "adding-a-landlord",
+      "sortOrder": 5
+    },
+    {
+      "id": "faq-aml-renewal",
+      "category": "landlords",
+      "question": "When do AML checks need renewing?",
+      "answer": "AML checks should be renewed every 2 years. PropertyGoose shows a warning banner on landlords with outdated checks. Click 'Re-check AML' to initiate a new verification.",
+      "tags": ["AML", "renewal", "expiry"],
+      "relatedGuide": "landlord-aml-checks",
+      "sortOrder": 6
+    },
+    {
+      "id": "faq-notification-emails",
+      "category": "account-settings",
+      "question": "How do I change where notifications are sent?",
+      "answer": "Go to Settings > Company. Update the 'Offer notification email' and 'Reference notification email' fields. These control where system notifications go, separate from your personal email.",
+      "tags": ["notifications", "email", "settings"],
+      "relatedGuide": "settings-overview",
+      "sortOrder": 5
+    },
+    {
+      "id": "faq-resend-reference",
+      "category": "references",
+      "question": "Can I resend a reference request to the tenant?",
+      "answer": "Yes. Open the reference and click 'Resend Invite'. The tenant will receive a new email with the link to complete their questionnaire. Useful if the original email was missed or expired.",
+      "tags": ["reference", "resend", "invite"],
+      "relatedGuide": "creating-reference",
+      "sortOrder": 9
+    },
+    {
+      "id": "faq-multiple-tenants",
+      "category": "references",
+      "question": "How do I reference multiple tenants for one property?",
+      "answer": "Create a reference for each tenant individually, selecting the same property. All references can be converted to a single joint tenancy once they pass. Group them by using the same property address.",
+      "tags": ["multiple", "tenants", "joint"],
+      "relatedGuide": "creating-reference",
+      "sortOrder": 10
+    },
+    {
+      "id": "faq-tenancy-statuses",
+      "category": "tenancies",
+      "question": "What do the tenancy statuses mean?",
+      "answer": "Pending: not yet started (future start date). Active: currently running. Ended: tenancy has finished. Each status determines what actions are available on the tenancy.",
+      "tags": ["tenancy", "status", "active", "pending"],
+      "relatedGuide": "tenancies-overview",
+      "sortOrder": 9
+    },
+    {
+      "id": "faq-change-password",
+      "category": "account-settings",
+      "question": "How do I change my password?",
+      "answer": "Go to Settings > Profile. Scroll to 'Change Password'. Enter your new password (minimum 6 characters), confirm it, and click 'Update Password'. Your new password takes effect immediately.",
+      "tags": ["password", "security", "profile"],
+      "relatedGuide": "settings-overview",
+      "sortOrder": 6
+    }
+  ]
+}

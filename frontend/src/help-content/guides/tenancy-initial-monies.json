@@ -1,0 +1,78 @@
+{
+  "id": "tenancy-initial-monies",
+  "slug": "requesting-initial-monies",
+  "title": "Requesting Initial Monies from Tenants",
+  "category": "payments",
+  "tags": ["payments", "deposit", "rent", "tenancy", "initial monies"],
+  "createdAt": "2024-02-10",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "7 min",
+  "content": {
+    "intro": "Initial monies include the first month's rent, deposit, and any additional charges. This guide explains how to request and track these payments from your tenants.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "What are Initial Monies?",
+        "content": "Initial monies are the upfront payments required before a tenancy begins. This typically includes the first month's rent (or multiple months if rent is paid upfront), the security deposit, and any applicable fees."
+      },
+      {
+        "type": "steps",
+        "title": "How to Request Initial Monies",
+        "steps": [
+          {
+            "title": "Open the Tenancy",
+            "content": "Navigate to Tenancies and select the tenancy you want to request payment for.",
+            "image": null
+          },
+          {
+            "title": "Click Request Initial Monies",
+            "content": "Find and click the 'Request Initial Monies' button. This opens the payment configuration modal.",
+            "image": null
+          },
+          {
+            "title": "Configure Rent Payment",
+            "content": "Choose between standard first month's rent or rent upfront. If choosing rent upfront, specify the number of months (1-60). Pro-rata is automatically calculated if the move-in date differs from the rent due date.",
+            "image": null
+          },
+          {
+            "title": "Set Deposit Amount",
+            "content": "Enter the deposit amount. Note: The maximum deposit is typically 5 weeks' rent for tenancies with annual rent under £50,000.",
+            "image": null
+          },
+          {
+            "title": "Add Additional Charges",
+            "content": "If applicable, add any additional charges such as admin fees or inventory fees. Be aware of the Tenant Fees Act restrictions.",
+            "image": null
+          },
+          {
+            "title": "Review and Send",
+            "content": "Review the total amount and holding deposit deduction. Click 'Send Request' to email the payment request to the lead tenant.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Holding Deposit",
+        "content": "If a holding deposit was paid during the offer stage, it's automatically deducted from the total initial monies. You can adjust this amount if needed."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Pro-rata Calculation",
+        "content": "Pro-rata rent applies when the move-in date doesn't align with the rent due date. For example, if rent is due on the 1st but the tenant moves in on the 15th, pro-rata covers the remaining days of that month."
+      },
+      {
+        "type": "text",
+        "title": "Tracking Payment Status",
+        "content": "Once requested, you can track the payment status from the tenancy details page. You'll receive a notification when the tenant confirms they've made the payment, and you can then verify and mark it as received."
+      }
+    ],
+    "relatedArticles": [
+      "understanding-pro-rata-rent",
+      "deposit-protection-requirements"
+    ]
+  }
+}

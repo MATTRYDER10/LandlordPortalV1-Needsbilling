@@ -1,0 +1,64 @@
+{
+  "id": "getting-started-overview",
+  "slug": "getting-started-overview",
+  "title": "Getting Started with PropertyGoose",
+  "category": "getting-started",
+  "tags": ["setup", "onboarding", "first steps", "new user"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "Welcome to PropertyGoose! This guide will walk you through setting up your account and getting familiar with the platform. PropertyGoose helps property managers and letting agents manage tenant references, tenancies, properties, and landlords all in one place.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Creating Your Account",
+        "steps": [
+          {
+            "title": "Register for an account",
+            "content": "Go to the registration page and enter your email address and create a password. Your password must be at least 6 characters long.",
+            "image": null
+          },
+          {
+            "title": "Verify your email",
+            "content": "Check your inbox for a verification email from PropertyGoose. Click the link to verify your account.",
+            "image": null
+          },
+          {
+            "title": "Complete onboarding",
+            "content": "After logging in for the first time, you'll be guided through the onboarding process. This includes setting up your company details, adding bank information, uploading your logo, and configuring your payment method.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Understanding the Navigation",
+        "content": "The main navigation is located in the sidebar on the left. You'll find: Dashboard (your home screen with quick stats), Offers (send and manage tenant offer forms), References (create and track tenant references), Tenancies (manage active and draft tenancies), Properties (your property portfolio), Landlords (landlord records and AML), Standalone Agreements (generate AST agreements), Settings (account and company settings), and Help Centre (you're here!)."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Quick Create Menu",
+        "content": "Look for the '+' button in the header to quickly create a new Reference, Agreement, Property, or Landlord from anywhere in the app."
+      },
+      {
+        "type": "text",
+        "title": "User Roles",
+        "content": "PropertyGoose has three user roles: Owner (full access to everything including billing), Admin (full access except billing management), and Member (access to core features but not company settings, team management, or billing). Your role determines which features and settings tabs you can access."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Multi-Branch Support",
+        "content": "If you're invited to multiple branches (companies), you'll see a branch selector after logging in. You can switch between branches using the 'Switch Branch' option."
+      }
+    ],
+    "relatedArticles": [
+      "dashboard-overview",
+      "adding-your-first-property",
+      "creating-your-first-reference"
+    ]
+  }
+}

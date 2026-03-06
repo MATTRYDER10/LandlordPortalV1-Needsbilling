@@ -1,0 +1,62 @@
+{
+  "id": "settings-overview",
+  "slug": "settings-overview",
+  "title": "Managing Your Settings",
+  "category": "account-settings",
+  "tags": ["settings", "profile", "company", "team", "account"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "The Settings section allows you to manage your personal profile, company details, team members, integrations, and billing. The tabs available depend on your user role.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "Settings Tabs by Role",
+        "content": "All users can access the Profile tab. Admins and Owners can additionally access: Company (company details and bank info), Branding (logo and colors), Team (manage team members), Integrations (third-party connections like TDS), Billing (subscription and credits), and Audit Logs (activity history)."
+      },
+      {
+        "type": "steps",
+        "title": "Updating Your Profile",
+        "steps": [
+          {
+            "title": "Go to Settings > Profile",
+            "content": "Click 'Settings' in the sidebar, then ensure the 'Profile' tab is selected.",
+            "image": null
+          },
+          {
+            "title": "Update personal information",
+            "content": "Edit your full name and phone number. Note: Your email address cannot be changed.",
+            "image": null
+          },
+          {
+            "title": "Save changes",
+            "content": "Click 'Save Changes' to update your profile.",
+            "image": null
+          },
+          {
+            "title": "Change password (optional)",
+            "content": "To change your password, scroll to the 'Change Password' section. Enter your new password (minimum 6 characters) and confirm it, then click 'Update Password'.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Company Settings",
+        "content": "The Company tab (admin only) lets you update: company name and address, phone and website, notification email addresses for offers and references, and bank account details for receiving payments."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Notification Emails",
+        "content": "The 'Offer notification email' and 'Reference notification email' fields control where system notifications are sent. These can be different from your personal email."
+      }
+    ],
+    "relatedArticles": [
+      "inviting-team-members",
+      "tds-integration-setup"
+    ]
+  }
+}

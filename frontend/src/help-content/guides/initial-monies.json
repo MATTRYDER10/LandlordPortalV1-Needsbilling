@@ -1,0 +1,79 @@
+{
+  "id": "initial-monies",
+  "slug": "requesting-initial-monies",
+  "title": "Requesting Initial Monies",
+  "category": "tenancies",
+  "tags": ["initial monies", "deposit", "rent", "payment", "move-in"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 2,
+  "estimatedReadTime": "6 min",
+  "content": {
+    "intro": "Initial monies are the upfront payments required before a tenancy begins. This typically includes the first month's rent, security deposit, and any additional charges. You can configure exactly what to charge and send a payment request to the tenant.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Request Initial Monies",
+        "steps": [
+          {
+            "title": "Open the tenancy",
+            "content": "Go to Tenancies and find the draft tenancy you want to request payment for. Click to expand the row.",
+            "image": null
+          },
+          {
+            "title": "Click 'Request Initial Monies'",
+            "content": "Click the 'Request Initial Monies' button to open the payment configuration modal.",
+            "image": null
+          },
+          {
+            "title": "Configure rent payment",
+            "content": "Choose between standard first month's rent or 'Rent Up Front'. If you enable Rent Up Front, you can specify how many months of rent to charge upfront (1-60 months).",
+            "image": null
+          },
+          {
+            "title": "Set deposit amount",
+            "content": "Enter the deposit amount. For most tenancies, this is capped at 5 weeks' rent.",
+            "image": null
+          },
+          {
+            "title": "Add additional charges",
+            "content": "If applicable, add any extra charges like inventory fees. Be aware of Tenant Fees Act restrictions.",
+            "image": null
+          },
+          {
+            "title": "Review holding deposit deduction",
+            "content": "If a holding deposit was paid, it will be automatically deducted from the total. You can adjust this amount if needed.",
+            "image": null
+          },
+          {
+            "title": "Send the request",
+            "content": "Review the total amount and click 'Send Request'. The lead tenant will receive an email with payment instructions.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Pro-Rata Rent",
+        "content": "If the move-in date doesn't align with the rent due date, pro-rata rent is automatically calculated. For example, if rent is due on the 1st but the tenant moves in on the 15th, pro-rata covers the remaining days of that month."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Rent Up Front",
+        "content": "Rent Up Front is useful for tenants without UK credit history or students. You can charge 6, 12, or any number of months' rent upfront. The total will be calculated automatically."
+      },
+      {
+        "type": "text",
+        "title": "Tracking Payment",
+        "content": "After sending the request, you can track the payment status from the tenancy details. You'll receive a notification when the tenant confirms they've made the payment. You then verify receipt and mark the payment as received."
+      }
+    ],
+    "relatedArticles": [
+      "tenancies-overview",
+      "protecting-deposits",
+      "move-in-process"
+    ]
+  }
+}

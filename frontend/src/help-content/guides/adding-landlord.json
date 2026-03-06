@@ -1,0 +1,77 @@
+{
+  "id": "adding-landlord",
+  "slug": "adding-a-landlord",
+  "title": "Adding a Landlord",
+  "category": "landlords",
+  "tags": ["landlord", "add landlord", "AML", "property owner"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "Landlords are the property owners you manage properties for. Adding landlord records allows you to link them to properties, manage their AML (Anti-Money Laundering) checks, and store their bank details for rent payments.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Add a Landlord",
+        "steps": [
+          {
+            "title": "Navigate to Landlords",
+            "content": "Click 'Landlords' in the sidebar to open the Landlords page.",
+            "image": null
+          },
+          {
+            "title": "Click 'Add Landlord'",
+            "content": "Click the 'Add Landlord' button in the top right corner.",
+            "image": null
+          },
+          {
+            "title": "Select landlord type",
+            "content": "Check the 'Is landlord a company?' box if the landlord is a corporate entity rather than an individual.",
+            "image": null
+          },
+          {
+            "title": "Enter personal details",
+            "content": "For individuals: select title (Mr, Mrs, Miss, Ms, Dr), enter first name, middle name (optional), and last name. For companies: enter the company name.",
+            "image": null
+          },
+          {
+            "title": "Add contact information",
+            "content": "Enter the landlord's email address and phone number.",
+            "image": null
+          },
+          {
+            "title": "Enter address",
+            "content": "Fill in the landlord's correspondence address.",
+            "image": null
+          },
+          {
+            "title": "Add bank details (optional)",
+            "content": "If you handle rent payments, enter the landlord's bank account name, account number, and sort code.",
+            "image": null
+          },
+          {
+            "title": "Save the landlord",
+            "content": "Click 'Save Landlord' to create the record.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Bulk Import",
+        "content": "You can import multiple landlords at once using 'Import CSV'. Download the template to see the required column format."
+      },
+      {
+        "type": "text",
+        "title": "Linking Properties",
+        "content": "After adding a landlord, you can link them to properties. Go to the landlord's detail page and click 'Link Property', or edit a property and assign the landlord from there."
+      }
+    ],
+    "relatedArticles": [
+      "landlord-aml-checks",
+      "linking-landlord-to-property"
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "id": "generating-agreement",
+  "slug": "generating-tenancy-agreement",
+  "title": "Generating an AST Agreement",
+  "category": "agreements",
+  "tags": ["agreement", "AST", "tenancy agreement", "contract", "signing"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "6 min",
+  "content": {
+    "intro": "PropertyGoose allows you to generate Assured Shorthold Tenancy (AST) agreements. You can import data from existing references or landlords, customize the terms, and send the agreement for electronic signing.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Generate an Agreement",
+        "steps": [
+          {
+            "title": "Navigate to Agreements",
+            "content": "Click 'Standalone Agreements' in the sidebar, then click 'Generate' or go directly to the 'Generate AST Agreement' page.",
+            "image": null
+          },
+          {
+            "title": "Import data (optional)",
+            "content": "Step 1 allows you to import data from an existing reference or landlord. Search for a reference by tenant name or property address, or import landlord details. This pre-fills many fields for you.",
+            "image": null
+          },
+          {
+            "title": "Enter tenant information",
+            "content": "Step 2: Add or verify tenant details including names, addresses, and contact information. You can add multiple tenants.",
+            "image": null
+          },
+          {
+            "title": "Enter property information",
+            "content": "Step 3: Enter the property address and details. If imported, verify the information is correct.",
+            "image": null
+          },
+          {
+            "title": "Set agreement terms",
+            "content": "Step 4: Configure the tenancy terms including start date, end date, rent amount, rent due date, deposit amount, and any special clauses.",
+            "image": null
+          },
+          {
+            "title": "Add landlord information",
+            "content": "Step 5: Enter or verify landlord details. If imported, the information will be pre-filled.",
+            "image": null
+          },
+          {
+            "title": "Review and generate",
+            "content": "Step 6: Review all information. When ready, click 'Generate Agreement' to create the document.",
+            "image": null
+          },
+          {
+            "title": "Send for signing",
+            "content": "After generation, you can preview the agreement and send it to all parties for electronic signature.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Progress Indicator",
+        "content": "The progress bar at the top shows your progress through the 6 steps. You can click on completed steps to go back and make changes."
+      },
+      {
+        "type": "text",
+        "title": "Agreement History",
+        "content": "All generated agreements are saved in Agreement History. You can view, download, or delete agreements from this page. The status column shows whether agreements are draft, sent for signing, or fully executed."
+      }
+    ],
+    "relatedArticles": [
+      "agreement-signing-process",
+      "tenancies-overview"
+    ]
+  }
+}

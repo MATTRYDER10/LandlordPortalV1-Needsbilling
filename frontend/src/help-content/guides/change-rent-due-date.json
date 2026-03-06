@@ -1,0 +1,68 @@
+{
+  "id": "change-rent-due-date",
+  "slug": "change-rent-due-date",
+  "title": "Changing the Rent Due Date",
+  "category": "tenancies",
+  "tags": ["rent due date", "payment date", "rent collection", "mid-tenancy"],
+  "createdAt": "2024-03-06",
+  "updatedAt": "2024-03-06",
+  "sortOrder": 5,
+  "estimatedReadTime": "3 min",
+  "content": {
+    "intro": "If you need to change when rent is collected during an active tenancy, you can request a rent due date change. This process notifies all tenants of the new payment date.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Requesting a Rent Due Date Change",
+        "steps": [
+          {
+            "title": "Open the active tenancy",
+            "content": "Navigate to Tenancies, select the Active tab, and click on the tenancy you want to modify.",
+            "image": null
+          },
+          {
+            "title": "Open the actions menu",
+            "content": "Click the three-dot menu button on the tenancy row, or find the actions in the tenancy detail drawer.",
+            "image": null
+          },
+          {
+            "title": "Select 'Change Rent Due Date'",
+            "content": "Click this option to open the rent due date change modal.",
+            "image": null
+          },
+          {
+            "title": "Select the new due day",
+            "content": "Choose the new day of the month when rent should be collected (1st-28th). The system will show a preview of the next payment date.",
+            "image": null
+          },
+          {
+            "title": "Confirm the change",
+            "content": "Click 'Confirm Change' to update the rent due date. All tenants will be notified via email.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "When Does It Take Effect?",
+        "content": "The new rent due date takes effect from the next payment cycle. The current month's rent collection is not affected."
+      },
+      {
+        "type": "text",
+        "title": "Tenant Notification",
+        "content": "When you change the rent due date, PropertyGoose automatically sends an email to all active tenants on the tenancy, informing them of the new payment date and when it takes effect."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Standing Orders",
+        "content": "Remind tenants that if they pay by standing order, they will need to update their bank instruction to match the new payment date."
+      }
+    ],
+    "relatedArticles": [
+      "tenancies-overview",
+      "emailing-tenants"
+    ]
+  }
+}

@@ -1783,8 +1783,7 @@ export async function markSectionReceived(sectionId: string, staffId: string): P
       const { error: depUpdateError } = await supabase
         .from('chase_dependencies')
         .update({
-          status: 'RECEIVED',
-          received_at: new Date().toISOString()
+          status: 'RECEIVED'
         })
         .eq('reference_id', current.reference.id)
         .eq('dependency_type', dependencyType)
@@ -1794,6 +1793,71 @@ export async function markSectionReceived(sectionId: string, staffId: string): P
         console.error(`[Chase] Failed to update chase_dependency for ${dependencyType}:`, depUpdateError)
       } else {
         console.log(`[Chase] Marked ${dependencyType} chase_dependency as RECEIVED`)
+      }
+
+      // Also update the linked external reference table with submitted_at
+      // This is required for evaluateMinimumEvidence to detect the evidence as received
+      const referenceId = current.reference.id
+      const now = new Date().toISOString()
+
+      if (dependencyType === 'RESIDENTIAL_REF') {
+        // Check if landlord_reference exists, if not create one with submitted_at
+        const { data: existing } = await supabase
+          .from('landlord_references')
+          .select('id, submitted_at')
+          .eq('reference_id', referenceId)
+          .maybeSingle()
+
+        if (existing && !existing.submitted_at) {
+          await supabase
+            .from('landlord_references')
+            .update({ submitted_at: now })
+            .eq('id', existing.id)
+          console.log(`[Chase] Updated landlord_references.submitted_at for ref ${referenceId}`)
+        } else if (!existing) {
+          // Create a minimal record to satisfy evaluateMinimumEvidence
+          // Note: tenancy_start_date and rent_paid_on_time are required
+          await supabase
+            .from('landlord_references')
+            .insert({
+              reference_id: referenceId,
+              submitted_at: now,
+              tenancy_start_date: new Date().toISOString().split('T')[0],
+              rent_paid_on_time: 'unknown',
+              would_rent_again: 'unknown',
+              good_tenant: 'unknown',
+              date: new Date().toISOString().split('T')[0]
+            })
+          console.log(`[Chase] Created landlord_references with submitted_at for ref ${referenceId}`)
+        }
+      } else if (dependencyType === 'EMPLOYER_REF') {
+        const { data: existing } = await supabase
+          .from('employer_references')
+          .select('id, submitted_at')
+          .eq('reference_id', referenceId)
+          .maybeSingle()
+
+        if (existing && !existing.submitted_at) {
+          await supabase
+            .from('employer_references')
+            .update({ submitted_at: now })
+            .eq('id', existing.id)
+          console.log(`[Chase] Updated employer_references.submitted_at for ref ${referenceId}`)
+        }
+      } else if (dependencyType === 'ACCOUNTANT_REF') {
+        const { data: existing } = await supabase
+          .from('accountant_references')
+          .select('id, submitted_at')
+          .eq('reference_id', referenceId)
+          .maybeSingle()
+
+        if (existing && !existing.submitted_at) {
+          await supabase
+            .from('accountant_references')
+            .update({ submitted_at: now })
+            .eq('id', existing.id)
+          console.log(`[Chase] Updated accountant_references.submitted_at for ref ${referenceId}`)
+        }
       }
     }
 

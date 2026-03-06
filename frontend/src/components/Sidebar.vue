@@ -388,6 +388,18 @@ const GooseSettings = {
   }
 }
 
+// Help Centre - Question mark circle
+const GooseHelp = {
+  render() {
+    return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
+      h('circle', { cx: '12', cy: '12', r: '10', fill: 'currentColor', opacity: '0.15' }),
+      h('circle', { cx: '12', cy: '12', r: '10' }),
+      h('path', { d: 'M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3' }),
+      h('line', { x1: '12', y1: '17', x2: '12.01', y2: '17' })
+    ])
+  }
+}
+
 const showCreateMenu = ref(false)
 const isMobileMenuOpen = ref(false)
 
@@ -420,7 +432,8 @@ const navigation = [
   { name: 'Properties', path: '/properties', icon: GooseProperty },
   { name: 'Landlords', path: '/landlords', icon: GooseLandlord },
   { name: 'Standalone Agreements', path: '/agreements/history', icon: GooseDocument },
-  { name: 'Settings', path: '/settings', icon: GooseSettings }
+  { name: 'Settings', path: '/settings', icon: GooseSettings },
+  { name: 'Help Centre', path: '/help-centre', icon: GooseHelp }
 ]
 
 const userEmail = computed(() => authStore.user?.email || '')

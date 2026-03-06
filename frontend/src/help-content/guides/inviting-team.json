@@ -1,0 +1,67 @@
+{
+  "id": "inviting-team",
+  "slug": "inviting-team-members",
+  "title": "Inviting Team Members",
+  "category": "account-settings",
+  "tags": ["team", "invite", "users", "admin", "member"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 2,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "As an admin or owner, you can invite new team members to your PropertyGoose branch. Team members can help manage references, tenancies, and properties.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Invite a Team Member",
+        "steps": [
+          {
+            "title": "Go to Settings > Team",
+            "content": "Click 'Settings' in the sidebar, then click the 'Team' tab.",
+            "image": null
+          },
+          {
+            "title": "Click 'Invite User'",
+            "content": "Click the 'Invite User' button to open the invitation modal.",
+            "image": null
+          },
+          {
+            "title": "Enter email address",
+            "content": "Enter the email address of the person you want to invite.",
+            "image": null
+          },
+          {
+            "title": "Select their role",
+            "content": "Choose 'Admin' (full access except billing) or 'Member' (limited to core features). See below for role details.",
+            "image": null
+          },
+          {
+            "title": "Send invitation",
+            "content": "Click 'Send Invite'. The person will receive an email with instructions to join your branch.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Understanding Roles",
+        "content": "Owner: Full access including billing and subscription management. There can only be one owner per branch. Admin: Full access to features and settings except billing. Can invite and manage other team members. Member: Access to core features (references, tenancies, properties, landlords) but cannot access company settings, team management, or billing."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Existing Users",
+        "content": "If the person you're inviting already has a PropertyGoose account with another branch, they'll simply be added to your branch. They can switch between branches after logging in."
+      },
+      {
+        "type": "text",
+        "title": "Managing Team Members",
+        "content": "From the Team tab, you can see all current team members, their roles, and when they last logged in. You can change roles or remove team members using the actions menu on each row."
+      }
+    ],
+    "relatedArticles": [
+      "settings-overview",
+      "getting-started-overview"
+    ]
+  }
+}

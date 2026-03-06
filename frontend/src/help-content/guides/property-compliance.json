@@ -1,0 +1,77 @@
+{
+  "id": "property-compliance",
+  "slug": "property-compliance",
+  "title": "Managing Property Compliance",
+  "category": "properties",
+  "tags": ["compliance", "gas safety", "EPC", "EICR", "certificates"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 2,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "Every rental property requires certain compliance certificates to be legally let. PropertyGoose helps you track these certificates and alerts you when they're expiring.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "Required Certificates",
+        "content": "The main compliance certificates are: Gas Safety Certificate (annual inspection required), Energy Performance Certificate (EPC - valid for 10 years, minimum rating E required), and Electrical Installation Condition Report (EICR - required every 5 years). Additional certificates may be required based on property type and local regulations."
+      },
+      {
+        "type": "steps",
+        "title": "Adding a Compliance Certificate",
+        "steps": [
+          {
+            "title": "Open the property",
+            "content": "Go to Properties and click on the property you want to update.",
+            "image": null
+          },
+          {
+            "title": "Find the Compliance section",
+            "content": "In the property details, locate the Compliance section.",
+            "image": null
+          },
+          {
+            "title": "Click 'Add Certificate'",
+            "content": "Click 'Add Certificate' or the '+' button to add a new compliance record.",
+            "image": null
+          },
+          {
+            "title": "Select certificate type",
+            "content": "Choose the type of certificate: Gas Safety, EPC, EICR, or other.",
+            "image": null
+          },
+          {
+            "title": "Enter dates",
+            "content": "Enter the issue date and expiry date of the certificate.",
+            "image": null
+          },
+          {
+            "title": "Upload document (optional)",
+            "content": "Upload a copy of the certificate for your records.",
+            "image": null
+          },
+          {
+            "title": "Save",
+            "content": "Click 'Save' to add the compliance record.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "title": "Compliance Status Indicators",
+        "content": "Each property shows a compliance status: 'Valid' (green - all certificates current), 'Expiring Soon' (amber - certificate expiring within 3 months), or 'Expired' (red - certificate has expired). Use the Compliance Status filter to find properties needing attention."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Expiry Notifications",
+        "content": "PropertyGoose sends notifications when certificates are approaching expiry. Make sure to renew certificates before they expire to avoid legal issues."
+      }
+    ],
+    "relatedArticles": [
+      "adding-your-first-property",
+      "properties-overview"
+    ]
+  }
+}

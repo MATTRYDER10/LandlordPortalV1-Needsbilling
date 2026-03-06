@@ -1,0 +1,68 @@
+{
+  "id": "emailing-tenants",
+  "slug": "emailing-tenants",
+  "title": "Emailing Tenants",
+  "category": "tenancies",
+  "tags": ["email", "communication", "tenants", "messaging", "notifications"],
+  "createdAt": "2024-03-06",
+  "updatedAt": "2024-03-06",
+  "sortOrder": 7,
+  "estimatedReadTime": "2 min",
+  "content": {
+    "intro": "PropertyGoose allows you to quickly send emails to all tenants on a tenancy. This is useful for maintenance notices, rent reminders, or any other communications that need to reach everyone at the property.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Sending an Email to All Tenants",
+        "steps": [
+          {
+            "title": "Open the tenancy",
+            "content": "Navigate to Tenancies and click on the tenancy whose tenants you want to email.",
+            "image": null
+          },
+          {
+            "title": "Open the actions menu",
+            "content": "Click the three-dot menu button on the tenancy row.",
+            "image": null
+          },
+          {
+            "title": "Select 'Email All Tenants'",
+            "content": "Click this option to open the email composer modal.",
+            "image": null
+          },
+          {
+            "title": "Write your message",
+            "content": "Enter a subject line and compose your message. The property address will be automatically included.",
+            "image": null
+          },
+          {
+            "title": "Send the email",
+            "content": "Click 'Send' to deliver the email to all active tenants on the tenancy.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Who Receives the Email?",
+        "content": "Emails are sent to all tenants with 'active' status on the tenancy. Former tenants or those pending referencing will not receive the message."
+      },
+      {
+        "type": "text",
+        "title": "Email Records",
+        "content": "All emails sent through PropertyGoose are logged in the tenancy's activity history, providing a complete communication trail."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Professional Communication",
+        "content": "Emails are sent from your agency's configured email address and include your branding, ensuring a professional appearance to tenants."
+      }
+    ],
+    "relatedArticles": [
+      "tenancies-overview",
+      "tenant-changes"
+    ]
+  }
+}

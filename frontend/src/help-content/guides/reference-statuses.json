@@ -1,0 +1,73 @@
+{
+  "id": "reference-statuses",
+  "slug": "understanding-reference-statuses",
+  "title": "Understanding Reference Statuses",
+  "category": "references",
+  "tags": ["references", "status", "workflow", "tracking"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 2,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "References progress through several statuses as they move through the verification process. Understanding these statuses helps you track where each reference is and what actions may be needed.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Reference Status Workflow",
+        "steps": [
+          {
+            "title": "Sent",
+            "content": "The reference form has been sent to the tenant via email. They haven't started filling it in yet. You can see how long ago the email was sent.",
+            "image": null
+          },
+          {
+            "title": "In Progress",
+            "content": "The tenant has opened the form and started completing it. They may still be entering their details or uploading documents.",
+            "image": null
+          },
+          {
+            "title": "Collecting Evidence",
+            "content": "The tenant has submitted their questionnaire. The system is now collecting supporting evidence - this includes employer references, landlord references, and any additional documents.",
+            "image": null
+          },
+          {
+            "title": "Awaiting Verification",
+            "content": "All information has been collected and the reference is in the verification queue. Our verification team will review the submitted information and evidence.",
+            "image": null
+          },
+          {
+            "title": "Action Required",
+            "content": "The verification team has flagged something that needs your attention. Check the reference details to see what action is needed.",
+            "image": null
+          },
+          {
+            "title": "Completed",
+            "content": "The reference has been fully verified and is complete. You can now convert it to a tenancy.",
+            "image": null
+          },
+          {
+            "title": "Rejected",
+            "content": "The reference has failed verification. Check the reference details for the reason.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Status Tab Counts",
+        "content": "The tabs at the top of the References page show the count for each status. Click a tab to filter the list to only show references in that status."
+      },
+      {
+        "type": "text",
+        "title": "Chasing Pending Responses",
+        "content": "If a reference is stuck in 'Sent' or 'In Progress' for a while, you may need to chase the tenant. The system can send automated reminders, but you can also manually resend the reference invitation."
+      }
+    ],
+    "relatedArticles": [
+      "creating-your-first-reference",
+      "converting-to-tenancy",
+      "adding-guarantors"
+    ]
+  }
+}

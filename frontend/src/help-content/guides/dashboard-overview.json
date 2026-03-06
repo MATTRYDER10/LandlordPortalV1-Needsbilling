@@ -1,0 +1,63 @@
+{
+  "id": "dashboard-overview",
+  "slug": "dashboard-overview",
+  "title": "Understanding Your Dashboard",
+  "category": "dashboard",
+  "tags": ["dashboard", "overview", "stats", "navigation"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "The Dashboard is your home screen in PropertyGoose. It provides a quick overview of your current workload and shortcuts to common actions. The greeting at the top changes based on the time of day and shows your company name.",
+    "sections": [
+      {
+        "type": "text",
+        "title": "Quick Action Buttons",
+        "content": "At the top of the dashboard, you'll find four quick action buttons: 'New Tenancy' (create a new tenancy record), 'Reference' (start a new tenant reference), 'Landlord' (add a new landlord), and 'Property' (add a new property). These are shortcuts to the most common tasks."
+      },
+      {
+        "type": "steps",
+        "title": "Understanding the Stats Cards",
+        "steps": [
+          {
+            "title": "Draft Tenancies",
+            "content": "Shows the number of tenancies in draft status awaiting move-in. Click this card to go directly to the Tenancies page filtered to show only drafts.",
+            "image": null
+          },
+          {
+            "title": "Active Tenancies",
+            "content": "Displays the count of currently occupied properties with active tenancies. Click to view all active tenancies.",
+            "image": null
+          },
+          {
+            "title": "References",
+            "content": "Shows references currently in progress. This includes all statuses except Completed and Rejected.",
+            "image": null
+          },
+          {
+            "title": "Deposits",
+            "content": "Shows the number of unprotected deposits. If this number is greater than zero, the card will be highlighted in orange as a warning. Click to see which tenancies need deposit protection.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "Deposit Protection Alert",
+        "content": "If the Deposits card shows 'Need protection!' instead of 'All protected', you have tenancies with unprotected deposits. You must protect deposits within 30 days of receiving them. Click the card to identify which tenancies need attention."
+      },
+      {
+        "type": "text",
+        "title": "Move-In Calendar",
+        "content": "Below the stats, you'll see a calendar showing upcoming move-in dates for the next 12 months. Each entry shows the property address, number of tenants, and monthly rent. Click an entry to go to the tenancy details."
+      }
+    ],
+    "relatedArticles": [
+      "creating-a-tenancy",
+      "protecting-deposits",
+      "creating-your-first-reference"
+    ]
+  }
+}

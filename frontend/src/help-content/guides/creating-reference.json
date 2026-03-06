@@ -1,0 +1,79 @@
+{
+  "id": "creating-reference",
+  "slug": "creating-your-first-reference",
+  "title": "Creating a New Reference",
+  "category": "references",
+  "tags": ["references", "tenant referencing", "new reference", "create"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 1,
+  "estimatedReadTime": "6 min",
+  "content": {
+    "intro": "References are the core of PropertyGoose. When you create a reference, the tenant receives an email with a link to complete their reference questionnaire. The system then collects employment references, landlord references, credit checks, and ID verification.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Create a Reference",
+        "steps": [
+          {
+            "title": "Navigate to References",
+            "content": "Click 'References' in the sidebar navigation to open the References page.",
+            "image": null
+          },
+          {
+            "title": "Click 'Create New Reference'",
+            "content": "Click the 'Create New Reference' button to open the reference creation modal.",
+            "image": null
+          },
+          {
+            "title": "Select number of tenants",
+            "content": "Use the 'Number of Tenants' selector to specify how many tenants will be on this tenancy (1-15). Each tenant will receive their own reference questionnaire.",
+            "image": null
+          },
+          {
+            "title": "Choose property entry mode",
+            "content": "Toggle between 'Select from Properties' to choose an existing property from your portfolio, or 'Enter Manually' to type in a new property address.",
+            "image": null
+          },
+          {
+            "title": "Enter property details",
+            "content": "If entering manually, fill in the property address, city, and postcode. Add the monthly rent amount and proposed move-in date.",
+            "image": null
+          },
+          {
+            "title": "Add tenant details",
+            "content": "For each tenant, enter their title, first name, last name, email address, phone number, and date of birth.",
+            "image": null
+          },
+          {
+            "title": "Add guarantors (optional)",
+            "content": "If any tenant requires a guarantor, tick the guarantor checkbox and enter the guarantor's details. They'll receive a separate reference form.",
+            "image": null
+          },
+          {
+            "title": "Submit the reference",
+            "content": "Review all details and click 'Create Reference'. All tenants and guarantors will receive email invitations to complete their references.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Import from Offer",
+        "content": "If you've already sent an offer to this tenant, you can import their details when creating the reference to avoid re-entering information."
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Lead Tenant",
+        "content": "The first tenant you enter is automatically designated as the 'lead tenant'. This person will be the primary contact for communications about the tenancy."
+      }
+    ],
+    "relatedArticles": [
+      "understanding-reference-statuses",
+      "adding-guarantors",
+      "converting-to-tenancy"
+    ]
+  }
+}

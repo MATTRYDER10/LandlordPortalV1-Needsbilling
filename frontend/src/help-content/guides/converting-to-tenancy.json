@@ -1,0 +1,69 @@
+{
+  "id": "converting-to-tenancy",
+  "slug": "converting-to-tenancy",
+  "title": "Converting a Reference to a Tenancy",
+  "category": "references",
+  "tags": ["references", "tenancy", "conversion", "completed reference"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 3,
+  "estimatedReadTime": "4 min",
+  "content": {
+    "intro": "Once a reference is completed, you can convert it into a tenancy. This creates a formal tenancy record with all the tenant information pre-filled from the reference.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "How to Convert a Reference",
+        "steps": [
+          {
+            "title": "Find the completed reference",
+            "content": "Go to References and click the 'Completed' tab to see all completed references.",
+            "image": null
+          },
+          {
+            "title": "Click 'Convert to Tenancy'",
+            "content": "On the reference row, click the 'Convert to Tenancy' button. This opens the conversion modal.",
+            "image": null
+          },
+          {
+            "title": "Review tenancy details",
+            "content": "The conversion modal shows all details from the reference. Review the property address, rent amount, move-in date, and tenant information.",
+            "image": null
+          },
+          {
+            "title": "Make any adjustments",
+            "content": "If needed, you can adjust the move-in date, rent amount, or other details before converting.",
+            "image": null
+          },
+          {
+            "title": "Confirm conversion",
+            "content": "Click 'Convert to Tenancy' to create the tenancy. The reference will be marked as converted and a new draft tenancy will be created.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "Draft Tenancies",
+        "content": "Newly converted tenancies start in 'Draft' status. You'll need to request initial monies, generate an agreement, and complete the move-in process to activate the tenancy."
+      },
+      {
+        "type": "text",
+        "title": "What Gets Copied",
+        "content": "The conversion copies all tenant details (names, contact info, dates of birth), guarantor details if applicable, property information, rent amount, and proposed move-in date. You don't need to re-enter any of this information."
+      },
+      {
+        "type": "callout",
+        "style": "warning",
+        "title": "All Tenants Must Complete",
+        "content": "You can only convert a reference once all tenants (and any guarantors) have completed their reference forms. If some are still pending, you'll need to wait or chase them to complete."
+      }
+    ],
+    "relatedArticles": [
+      "understanding-reference-statuses",
+      "requesting-initial-monies",
+      "generating-tenancy-agreement"
+    ]
+  }
+}

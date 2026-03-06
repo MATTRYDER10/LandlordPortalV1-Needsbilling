@@ -1,0 +1,68 @@
+{
+  "id": "tds-integration-setup",
+  "slug": "tds-integration-setup",
+  "title": "TDS Integration Setup",
+  "category": "account-settings",
+  "tags": ["TDS", "integration", "deposit protection", "setup"],
+  "createdAt": "2024-03-05",
+  "updatedAt": "2024-03-05",
+  "sortOrder": 3,
+  "estimatedReadTime": "5 min",
+  "content": {
+    "intro": "PropertyGoose integrates with The Deposit Scheme (TDS) to automate deposit protection. This guide walks you through connecting your TDS account.",
+    "sections": [
+      {
+        "type": "steps",
+        "title": "Connecting Your TDS Account",
+        "steps": [
+          {
+            "title": "Go to Settings > Integrations",
+            "content": "Click 'Settings' in the sidebar, then select the 'Integrations' tab.",
+            "image": null
+          },
+          {
+            "title": "Locate TDS Integration",
+            "content": "Find the TDS card in the integrations list. Click 'Connect' to begin setup.",
+            "image": null
+          },
+          {
+            "title": "Enter your TDS credentials",
+            "content": "Enter your TDS Member ID and API key. You can find these in your TDS member portal under API access.",
+            "image": null
+          },
+          {
+            "title": "Test connection",
+            "content": "Click 'Test Connection' to verify your credentials are correct.",
+            "image": null
+          },
+          {
+            "title": "Save and activate",
+            "content": "Once the test passes, click 'Save' to enable the integration.",
+            "image": null
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "style": "info",
+        "title": "TDS Membership Required",
+        "content": "You must have an active TDS membership to use this integration. Visit tds.gb.com to register if you don't have an account."
+      },
+      {
+        "type": "text",
+        "title": "Using the Integration",
+        "content": "Once connected, you can protect deposits directly from the tenancy detail page. Click 'Protect Deposit' and the information will be automatically sent to TDS. You'll receive confirmation and a protection certificate when complete."
+      },
+      {
+        "type": "callout",
+        "style": "tip",
+        "title": "Automatic Prescribed Info",
+        "content": "When you protect a deposit through PropertyGoose, the system automatically generates the prescribed information letter required by law and sends it to the tenant."
+      }
+    ],
+    "relatedArticles": [
+      "protecting-deposits",
+      "settings-overview"
+    ]
+  }
+}
