@@ -568,7 +568,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
           city_encrypted,
           postcode_encrypted
         ),
-        tenants (
+        tenancy_tenants (
           id,
           first_name_encrypted,
           last_name_encrypted,
@@ -670,7 +670,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       const tenantList: Array<{ id: string; name: string; status: string; verificationState: string | null; isGuarantor: boolean }> = []
       let leadTenantId = tenancy.id
 
-      for (const tenant of tenancy.tenants || []) {
+      for (const tenant of (tenancy as any).tenancy_tenants || []) {
         let tenantName = 'Unknown'
         try {
           const firstName = tenant.first_name_encrypted ? decrypt(tenant.first_name_encrypted) : ''
