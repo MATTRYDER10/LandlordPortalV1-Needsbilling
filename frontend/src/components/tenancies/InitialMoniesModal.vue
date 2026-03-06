@@ -46,26 +46,43 @@
                 <h4 class="text-sm font-semibold text-gray-700 dark:text-slate-300 uppercase">Payment Breakdown</h4>
 
                 <!-- Rent Up Front Toggle -->
-                <div class="flex items-center justify-between gap-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <div>
-                    <label class="text-sm font-medium text-gray-700 dark:text-slate-300">Rent Up Front</label>
-                    <p class="text-xs text-gray-500 dark:text-slate-400">Charge full {{ termMonths }} months rent</p>
-                  </div>
-                  <button
-                    type="button"
-                    @click="rentUpFront = !rentUpFront"
-                    :class="[
-                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                      rentUpFront ? 'bg-primary' : 'bg-gray-300 dark:bg-slate-600'
-                    ]"
-                  >
-                    <span
+                <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg space-y-3">
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <label class="text-sm font-medium text-gray-700 dark:text-slate-300">Rent Up Front</label>
+                      <p class="text-xs text-gray-500 dark:text-slate-400">Charge multiple months rent upfront</p>
+                    </div>
+                    <button
+                      type="button"
+                      @click="rentUpFront = !rentUpFront"
                       :class="[
-                        'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                        rentUpFront ? 'translate-x-6' : 'translate-x-1'
+                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                        rentUpFront ? 'bg-primary' : 'bg-gray-300 dark:bg-slate-600'
                       ]"
+                    >
+                      <span
+                        :class="[
+                          'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                          rentUpFront ? 'translate-x-6' : 'translate-x-1'
+                        ]"
+                      />
+                    </button>
+                  </div>
+                  <!-- Term months input when rent up front is enabled -->
+                  <div v-if="rentUpFront" class="flex items-center gap-3">
+                    <label class="text-sm text-gray-700 dark:text-slate-300 whitespace-nowrap">Number of months:</label>
+                    <input
+                      v-model.number="termMonths"
+                      type="number"
+                      min="1"
+                      max="60"
+                      class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
+                      @change="recalculateRentUpFront"
                     />
-                  </button>
+                    <span class="text-xs text-gray-500 dark:text-slate-400">
+                      (£{{ (monthlyRent * termMonths).toLocaleString() }} total)
+                    </span>
+                  </div>
                 </div>
 
                 <!-- Pro-rata info if applicable -->
@@ -272,6 +289,14 @@ watch(rentUpFront, (upFront) => {
     editableAmounts.value.firstMonthRent = monthlyRent.value + proRataAmount.value
   }
 })
+
+// Recalculate when term months changes
+const recalculateRentUpFront = () => {
+  if (rentUpFront.value) {
+    editableAmounts.value.firstMonthRent = monthlyRent.value * termMonths.value
+  }
+}
+
 
 // Computed
 const additionalChargesTotal = computed(() => {

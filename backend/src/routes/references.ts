@@ -546,11 +546,54 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
     const companyId = companyUsers[0].company_id
     console.log('[Calendar] Company ID:', companyId)
 
-    // Calculate date range: start of current month to end of next month
+    // Calculate date range: start of current month to 12 months out
     const now = new Date()
     const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0) // Last day of next month
-    console.log('Date range:', startOfThisMonth.toISOString().split('T')[0], 'to', endOfNextMonth.toISOString().split('T')[0])
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 12, 0) // 12 months out
+    console.log('Date range:', startOfThisMonth.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0])
+
+    // First, fetch tenancies that haven't started yet (status = 'pending')
+    // These take priority over references as they represent the most up-to-date move-in dates
+    const { data: tenancies, error: tenancyError } = await supabase
+      .from('tenancies')
+      .select(`
+        id,
+        primary_reference_id,
+        start_date,
+        monthly_rent,
+        status,
+        property_id,
+        properties!inner (
+          address_encrypted,
+          city_encrypted,
+          postcode_encrypted
+        ),
+        tenants (
+          id,
+          first_name_encrypted,
+          last_name_encrypted,
+          status,
+          is_lead_tenant
+        )
+      `)
+      .eq('company_id', companyId)
+      .eq('status', 'pending')
+      .gte('start_date', startOfThisMonth.toISOString().split('T')[0])
+      .lte('start_date', endDate.toISOString().split('T')[0])
+      .order('start_date', { ascending: true })
+
+    console.log('Tenancies found:', tenancies?.length || 0)
+
+    // Create a set of reference IDs that have been converted to tenancies
+    const convertedReferenceIds = new Set<string>()
+    if (tenancies) {
+      for (const t of tenancies) {
+        if (t.primary_reference_id) {
+          convertedReferenceIds.add(t.primary_reference_id)
+        }
+      }
+    }
+    console.log('Converted reference IDs:', convertedReferenceIds.size)
 
     // Fetch all references with move_in_date in range, grouped by parent_reference_id
     // We want all references (not guarantors) with their associated tenants
@@ -573,7 +616,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       `)
       .eq('company_id', companyId)
       .gte('move_in_date', startOfThisMonth.toISOString().split('T')[0])
-      .lte('move_in_date', endOfNextMonth.toISOString().split('T')[0])
+      .lte('move_in_date', endDate.toISOString().split('T')[0])
       .order('move_in_date', { ascending: true })
 
     console.log('References found:', references?.length || 0)
@@ -583,8 +626,13 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(500).json({ error: 'Failed to fetch calendar data' })
     }
 
-    // Group references by parent_reference_id (or by id if standalone)
-    // and decrypt tenant names
+    if (tenancyError) {
+      console.error('Tenancy calendar query error:', tenancyError)
+      // Continue with just references if tenancies fail
+    }
+
+    // Group by tenancy/reference ID
+    // Include both converted tenancies and unconverted references
     const tenancyMap = new Map<string, {
       tenancyId: string
       leadTenantId: string
@@ -593,6 +641,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       propertyCity: string
       propertyPostcode: string
       rentAmount: number | null
+      isConverted: boolean
       tenants: Array<{
         id: string
         name: string
@@ -602,12 +651,71 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       }>
     }>()
 
+    // First, add tenancies (converted references) - these have the most up-to-date dates
+    for (const tenancy of tenancies || []) {
+      // Decrypt property address from properties relation
+      let propertyAddress = ''
+      let propertyCity = ''
+      let propertyPostcode = ''
+      try {
+        const props = tenancy.properties as any
+        propertyAddress = props?.address_encrypted ? (decrypt(props.address_encrypted) || '') : ''
+        propertyCity = props?.city_encrypted ? (decrypt(props.city_encrypted) || '') : ''
+        propertyPostcode = props?.postcode_encrypted ? (decrypt(props.postcode_encrypted) || '') : ''
+      } catch (e) {
+        // Decryption failed
+      }
+
+      // Build tenant list from tenancy.tenants
+      const tenantList: Array<{ id: string; name: string; status: string; verificationState: string | null; isGuarantor: boolean }> = []
+      let leadTenantId = tenancy.id
+
+      for (const tenant of tenancy.tenants || []) {
+        let tenantName = 'Unknown'
+        try {
+          const firstName = tenant.first_name_encrypted ? decrypt(tenant.first_name_encrypted) : ''
+          const lastName = tenant.last_name_encrypted ? decrypt(tenant.last_name_encrypted) : ''
+          tenantName = `${firstName} ${lastName}`.trim() || 'Unknown'
+        } catch (e) {
+          // Decryption failed
+        }
+
+        if (tenant.is_lead_tenant) {
+          leadTenantId = tenant.id
+        }
+
+        tenantList.push({
+          id: tenant.id,
+          name: tenantName,
+          status: tenant.status,
+          verificationState: null,
+          isGuarantor: false
+        })
+      }
+
+      tenancyMap.set(tenancy.id, {
+        tenancyId: tenancy.id,
+        leadTenantId,
+        moveInDate: tenancy.start_date,
+        propertyAddress,
+        propertyCity,
+        propertyPostcode,
+        rentAmount: tenancy.monthly_rent || null,
+        isConverted: true,
+        tenants: tenantList
+      })
+    }
+
+    // Then add references that haven't been converted to tenancies
     for (const ref of references || []) {
       // Skip guarantors in the main grouping - we'll add them separately
       if (ref.is_guarantor) continue
 
       // Group by parent_reference_id if it exists (multi-tenant), otherwise by own id
       const groupKey = ref.parent_reference_id || ref.id
+
+      // Skip if this reference group has been converted to a tenancy
+      if (convertedReferenceIds.has(groupKey)) continue
 
       // Decrypt tenant name
       let tenantName = 'Unknown'
@@ -644,6 +752,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
           propertyAddress,
           propertyCity,
           propertyPostcode,
+          isConverted: false,
           rentAmount,
           tenants: []
         })
@@ -704,19 +813,22 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
       })
     }
 
-    // Convert map to array and format response
-    const calendarData = Array.from(tenancyMap.values()).map(tenancy => ({
-      tenancyId: tenancy.tenancyId,
-      leadTenantId: tenancy.leadTenantId,
-      moveInDate: tenancy.moveInDate,
-      property: {
-        address: tenancy.propertyAddress,
-        city: tenancy.propertyCity,
-        postcode: tenancy.propertyPostcode
-      },
-      rentAmount: tenancy.rentAmount,
-      tenants: tenancy.tenants
-    }))
+    // Convert map to array, format response, and sort by moveInDate
+    const calendarData = Array.from(tenancyMap.values())
+      .map(tenancy => ({
+        tenancyId: tenancy.tenancyId,
+        leadTenantId: tenancy.leadTenantId,
+        moveInDate: tenancy.moveInDate,
+        property: {
+          address: tenancy.propertyAddress,
+          city: tenancy.propertyCity,
+          postcode: tenancy.propertyPostcode
+        },
+        rentAmount: tenancy.rentAmount,
+        tenants: tenancy.tenants,
+        isConverted: tenancy.isConverted
+      }))
+      .sort((a, b) => new Date(a.moveInDate).getTime() - new Date(b.moveInDate).getTime())
 
     console.log('Calendar data entries:', calendarData.length)
     if (calendarData.length > 0) {
@@ -725,7 +837,7 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
 
     res.json({
       startDate: startOfThisMonth.toISOString().split('T')[0],
-      endDate: endOfNextMonth.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
       entries: calendarData
     })
   } catch (error: any) {
