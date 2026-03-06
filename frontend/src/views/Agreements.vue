@@ -2042,8 +2042,8 @@ async function selectLandlord(landlord: any) {
     (l: any) => l.name === `${fullLandlord.first_name} ${fullLandlord.last_name}`
   )
 
-  const landlordName = fullLandlord.company_name
-    fullLandlord.full_name_displayed_on_contracts
+  const landlordName = fullLandlord.company_name ||
+    fullLandlord.full_name_displayed_on_contracts ||
     `${fullLandlord.first_name} ${fullLandlord.last_name}`.trim()
   const landlordData = {
     id: fullLandlord.id,
@@ -2627,8 +2627,8 @@ async function importSelectedLandlords() {
 
   for (const landlord of selectedLandlords) {
     const fullLandlord = await fetchLandlordDetails(landlord)
-    const landlordName = fullLandlord.company_name
-      fullLandlord.full_name_displayed_on_contracts
+    const landlordName = fullLandlord.company_name ||
+      fullLandlord.full_name_displayed_on_contracts ||
       `${fullLandlord.first_name} ${fullLandlord.last_name}`.trim()
     const addressSource = fullLandlord.residential_address || fullLandlord.section48_address || {}
     const landlordData = {

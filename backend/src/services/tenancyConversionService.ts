@@ -292,7 +292,7 @@ export async function convertReferenceToTenancy(
     // Determine deposit amount
     const depositAmount = options.depositAmount ||
       refData.depositAmount ||
-      Math.floor(refData.monthlyRent * 5 / 4) // Default to 5 weeks rent
+      Math.round((refData.monthlyRent * 12 / 52) * 5 * 100) / 100 // Default to 5 weeks rent
 
     // Build tenant inputs
     const tenantInputs: TenancyTenantInput[] = refData.tenants.map(t => ({

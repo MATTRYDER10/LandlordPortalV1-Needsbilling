@@ -461,7 +461,7 @@ const pendingPropertyData = ref<any>(null)
 // Computed
 const defaultDeposit = computed(() => {
   if (!previewData.value) return 0
-  return Math.floor(previewData.value.monthlyRent * 5 / 4) // 5 weeks rent
+  return Math.round((previewData.value.monthlyRent * 12 / 52) * 5 * 100) / 100 // 5 weeks rent
 })
 
 const defaultRentDueDay = computed(() => {
@@ -816,7 +816,7 @@ const splitRentEvenly = () => {
 // When rent changes, recalculate shares
 const onRentChange = () => {
   // Update deposit default (5 weeks)
-  options.value.depositAmount = Math.floor(editableDetails.value.monthlyRent * 5 / 4)
+  options.value.depositAmount = Math.round((editableDetails.value.monthlyRent * 12 / 52) * 5 * 100) / 100
   // Recalculate rent shares
   initializeRentShares()
 }

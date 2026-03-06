@@ -67,12 +67,12 @@
               </label>
 
               <!-- How to Rent Guide (always included) -->
-              <div class="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <CheckCircle class="w-5 h-5 text-blue-600" />
-                <Book class="w-5 h-5 text-blue-600" />
+              <div class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+                <CheckCircle class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <Book class="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 <div class="flex-1">
                   <span class="text-sm font-medium text-gray-900 dark:text-white">How to Rent Guide</span>
-                  <span class="text-xs text-blue-600 ml-2">Always included (Gov.uk)</span>
+                  <span class="text-xs text-blue-600 dark:text-blue-400 ml-2">Always included (Gov.uk)</span>
                 </div>
               </div>
 

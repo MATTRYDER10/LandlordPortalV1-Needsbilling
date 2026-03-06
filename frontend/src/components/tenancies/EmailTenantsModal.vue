@@ -383,8 +383,26 @@ const canSend = computed(() => {
 
 const selectTemplate = (template: EmailTemplate) => {
   selectedTemplate.value = template
-  subject.value = template.subject.replace('{{ property_address }}', props.propertyAddress)
-  message.value = template.body
+
+  // Get first selected tenant for preview (backend personalizes per recipient)
+  const firstTenant = props.tenants.find(t => selectedTenantIds.value.includes(t.id))
+  const tenantName = firstTenant ? `${firstTenant.first_name} ${firstTenant.last_name}` : 'Tenant'
+
+  // Get agent/company info from auth store
+  const agentName = authStore.user?.full_name || authStore.user?.email?.split('@')[0] || 'Your Agent'
+  const companyName = authStore.company?.name || 'PropertyGoose'
+
+  // Merge all variables
+  const mergeVariables = (text: string) => {
+    return text
+      .replace(/\{\{\s*tenant_name\s*\}\}/g, tenantName)
+      .replace(/\{\{\s*property_address\s*\}\}/g, props.propertyAddress)
+      .replace(/\{\{\s*agent_name\s*\}\}/g, agentName)
+      .replace(/\{\{\s*company_name\s*\}\}/g, companyName)
+  }
+
+  subject.value = mergeVariables(template.subject)
+  message.value = mergeVariables(template.body)
 }
 
 const handleFileSelect = (e: Event) => {
