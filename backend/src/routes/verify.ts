@@ -1085,7 +1085,7 @@ router.post('/confirm-income/:referenceId', staffAuth, async (req: StaffAuthRequ
       .from('reference_scores')
       .upsert({
         reference_id: referenceId,
-        income_ratio: incomeRatioValue,
+        ratio: incomeRatioValue,
         updated_at: new Date().toISOString()
       }, { onConflict: 'reference_id' });
 
