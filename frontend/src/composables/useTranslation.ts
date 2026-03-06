@@ -57,8 +57,8 @@ export function useTranslation() {
    */
   const t = (key: string, params?: Record<string, string | number>): string => {
     const locale = currentLocale.value
-    const localeTranslations = translations[locale] || translations.en
-    let text = localeTranslations[key] || key
+    const localeTranslations = translations[locale] ?? translations.en
+    let text = localeTranslations?.[key] ?? key
 
     // Simple interpolation: replace {param} with value
     if (params) {

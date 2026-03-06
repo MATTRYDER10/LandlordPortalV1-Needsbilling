@@ -5,7 +5,7 @@
  * including guides, FAQs, and categories.
  */
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import Fuse from 'fuse.js'
 
 // Import content
@@ -131,8 +131,8 @@ const initializeContent = () => {
   const loadedGuides: Guide[] = []
   for (const path in guideModules) {
     const module = guideModules[path] as { default?: Guide } | Guide
-    const guide = 'default' in module ? module.default : module
-    if (guide && guide.id) {
+    const guide = ('default' in module ? module.default : module) as Guide | undefined
+    if (guide && 'id' in guide && guide.id) {
       loadedGuides.push(guide as Guide)
     }
   }

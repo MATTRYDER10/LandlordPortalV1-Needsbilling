@@ -169,8 +169,9 @@ const navigateResults = (direction: number) => {
 
 // Handle enter key
 const handleEnter = () => {
-  if (highlightedIndex.value >= 0 && results.value[highlightedIndex.value]) {
-    selectResult(results.value[highlightedIndex.value])
+  const selected = highlightedIndex.value >= 0 ? results.value[highlightedIndex.value] : undefined
+  if (selected) {
+    selectResult(selected)
   } else if (query.value.trim()) {
     viewAllResults()
   }

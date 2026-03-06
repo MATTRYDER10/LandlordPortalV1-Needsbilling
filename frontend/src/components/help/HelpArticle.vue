@@ -201,7 +201,7 @@ const calloutClasses = (style: string): string => {
     info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-800 dark:text-blue-200',
     important: 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-800 dark:text-red-200'
   }
-  return classes[style] || classes.info
+  return classes[style] ?? classes.info ?? ''
 }
 
 // Callout icon

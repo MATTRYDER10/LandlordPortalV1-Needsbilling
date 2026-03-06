@@ -73,6 +73,6 @@ const colorClasses = computed(() => {
     indigo: { bg: 'bg-indigo-100 dark:bg-indigo-900/30', icon: 'text-indigo-600 dark:text-indigo-400' },
     teal: { bg: 'bg-teal-100 dark:bg-teal-900/30', icon: 'text-teal-600 dark:text-teal-400' }
   }
-  return colorMap[props.category.color] || colorMap.blue
+  return colorMap[props.category.color] ?? colorMap.blue ?? { bg: '', icon: '' }
 })
 </script>

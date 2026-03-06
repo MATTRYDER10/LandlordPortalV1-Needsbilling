@@ -40,3 +40,9 @@ Thumbs.db
 *.tmp
 .cache/
 .node-bin/
+
+# vue-tsc build output (emitted alongside source files)
+frontend/src/**/*.js
+frontend/src/**/*.d.ts
+frontend/src/**/*.vue.js
+frontend/src/**/*.vue.d.ts

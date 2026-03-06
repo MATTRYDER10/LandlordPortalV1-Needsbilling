@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# vue-tsc declaration output
+*.vue.js
+*.vue.d.ts

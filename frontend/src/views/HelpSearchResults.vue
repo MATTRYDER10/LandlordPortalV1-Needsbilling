@@ -84,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Search, HelpCircle, BookOpen, ChevronRight } from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
