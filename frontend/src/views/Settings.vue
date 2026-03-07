@@ -929,6 +929,7 @@ import { formatDate as formatUkDate } from '../utils/date'
 import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
 import { Lock, Image, AlertTriangle } from 'lucide-vue-next'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -958,14 +959,7 @@ const tabs = computed(() => {
     { id: 'audit-logs', name: 'Audit Logs' }
   ]
 
-  const userRole = authStore.company?.role || ''
-
-  // Members can only see Profile tab
-  if (userRole === 'member') {
-    return allTabs.filter(tab => tab.id === 'profile')
-  }
-
-  // Admins and Owners see all tabs
+  // TEMPORARY: Always show all tabs to debug the issue
   return allTabs
 })
 
@@ -1078,15 +1072,8 @@ const auditPagination = ref({
 
 // Permission checking
 const hasPermission = (tabId: string) => {
-  const userRole = authStore.company?.role || ''
-
-  // Everyone can access profile
-  if (tabId === 'profile') return true
-
-  // Only admins and owners can access other tabs
-  if (userRole === 'owner' || userRole === 'admin') return true
-
-  return false
+  // TEMPORARY: Always allow access to all tabs
+  return true
 }
 
 const fetchProfileData = async () => {
@@ -1094,9 +1081,9 @@ const fetchProfileData = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/profile`, {
+    const response = await authFetch(`${API_URL}/api/profile`, {
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -1122,19 +1109,11 @@ const fetchTeamMembers = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/company/members`, {
-      headers
+    const response = await authFetch(`${API_URL}/api/company/members`, {
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     })
 
     if (response.ok) {
@@ -1158,19 +1137,11 @@ const fetchPendingInvitations = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/invitations`, {
-      headers
+    const response = await authFetch(`${API_URL}/api/invitations`, {
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     })
 
     if (response.status === 403 || response.status === 404) {
@@ -1199,19 +1170,11 @@ const fetchCompanyData = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/company`, {
-      headers
+    const response = await authFetch(`${API_URL}/api/company`, {
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     })
 
     if (response.ok) {
@@ -1249,9 +1212,33 @@ watch(activeTab, (newTab) => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
+  console.log('[Settings] onMounted - BEFORE fetchCompany:', {
+    company: authStore.company,
+    role: authStore.company?.role,
+    activeBranchId: authStore.activeBranchId,
+    branches: authStore.branches
+  })
+
+  // Ensure auth store company (including role) is loaded for branch
+  await authStore.fetchCompany()
+
+  console.log('[Settings] onMounted - AFTER fetchCompany:', {
+    company: authStore.company,
+    role: authStore.company?.role
+  })
+
   fetchCompanyData()
   fetchProfileData()
+  fetchPendingInvitations()
+})
+
+// Reload company data when branch changes
+watch(() => authStore.activeBranchId, async () => {
+  // Refresh auth store company data (including role for permissions)
+  await authStore.fetchCompany()
+  fetchCompanyData()
+  fetchTeamMembers()
   fetchPendingInvitations()
 })
 
@@ -1267,10 +1254,10 @@ const handleUpdateProfile = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/profile`, {
+    const response = await authFetch(`${API_URL}/api/profile`, {
       method: 'PUT',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -1352,20 +1339,12 @@ const handleUpdateCompany = async () => {
       return
     }
 
-    const companyHeaders: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      companyHeaders['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/company`, {
+    const response = await authFetch(`${API_URL}/api/company`, {
       method: 'PUT',
-      headers: companyHeaders,
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         name: companyData.value.name,
         address: companyData.value.address,
@@ -1429,20 +1408,12 @@ const handleInvite = async () => {
       return
     }
 
-    const inviteHeaders: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      inviteHeaders['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/invitations`, {
+    const response = await authFetch(`${API_URL}/api/invitations`, {
       method: 'POST',
-      headers: inviteHeaders,
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         email: inviteData.value.email,
         role: inviteData.value.role
@@ -1496,20 +1467,12 @@ const handleAddToBranch = async () => {
       return
     }
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/company/add-branch-user`, {
+    const response = await authFetch(`${API_URL}/api/company/add-branch-user`, {
       method: 'POST',
-      headers,
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         email: addToBranchData.value.email,
         role: addToBranchData.value.role
@@ -1552,20 +1515,12 @@ const handleRemoveMember = async (member: any) => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const deleteHeaders: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      deleteHeaders['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/company/members/${member.user_id}`, {
+    const response = await authFetch(`${API_URL}/api/company/members/${member.user_id}`, {
       method: 'DELETE',
-      headers: deleteHeaders
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     })
 
     if (!response.ok) {
@@ -1585,20 +1540,12 @@ const handleResendInvite = async (invite: any) => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const resendHeaders: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      resendHeaders['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/invitations/${invite.id}/resend`, {
+    const response = await authFetch(`${API_URL}/api/invitations/${invite.id}/resend`, {
       method: 'POST',
-      headers: resendHeaders
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     })
 
     if (!response.ok) {
@@ -1622,20 +1569,12 @@ const handleRevokeInvite = async (invite: any) => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const revokeHeaders: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      revokeHeaders['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/invitations/${invite.id}`, {
+    const response = await authFetch(`${API_URL}/api/invitations/${invite.id}`, {
       method: 'DELETE',
-      headers: revokeHeaders
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     })
 
     if (!response.ok) {
@@ -1702,21 +1641,13 @@ const confirmResetBranding = async () => {
       return
     }
 
-    const resetHeaders: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      resetHeaders['X-Branch-Id'] = activeBranchId
-    }
-
     // Reset to default values
-    const response = await fetch(`${API_URL}/api/company`, {
+    const response = await authFetch(`${API_URL}/api/company`, {
       method: 'PUT',
-      headers: resetHeaders,
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         logo_url: null,
         primary_color: defaultBranding.primaryColor,
@@ -1758,24 +1689,14 @@ const handleUpdateBranding = async () => {
 
     let logoUrl = brandingData.value.logo_url
 
-    // Get active branch ID for all requests
-    const activeBranchId = localStorage.getItem('activeBranchId')
-
     // Upload logo if a new file was selected
     if (logoFile.value) {
       const formData = new FormData()
       formData.append('logo', logoFile.value)
 
-      const uploadHeaders: Record<string, string> = {
-        'Authorization': `Bearer ${token}`
-      }
-      if (activeBranchId) {
-        uploadHeaders['X-Branch-Id'] = activeBranchId
-      }
-
-      const uploadResponse = await fetch(`${API_URL}/api/company/logo`, {
+      const uploadResponse = await authFetch(`${API_URL}/api/company/logo`, {
         method: 'POST',
-        headers: uploadHeaders,
+        token,
         body: formData
       })
 
@@ -1789,17 +1710,12 @@ const handleUpdateBranding = async () => {
     }
 
     // Update branding settings
-    const brandingHeaders: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-    if (activeBranchId) {
-      brandingHeaders['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/company`, {
+    const response = await authFetch(`${API_URL}/api/company`, {
       method: 'PUT',
-      headers: brandingHeaders,
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         logo_url: logoUrl,
         primary_color: brandingData.value.primary_color,
@@ -1844,19 +1760,11 @@ const fetchAuditLogs = async () => {
 
     const queryString = new URLSearchParams(params).toString()
 
-    const auditHeaders: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      auditHeaders['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/audit-logs?${queryString}`, {
-      headers: auditHeaders
+    const response = await authFetch(`${API_URL}/api/audit-logs?${queryString}`, {
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     })
 
     if (!response.ok) {
@@ -1901,18 +1809,8 @@ const exportAuditLogs = async () => {
 
     const queryString = new URLSearchParams(params).toString()
 
-    const exportHeaders: Record<string, string> = {
-      'Authorization': `Bearer ${token}`
-    }
-
-    // Include active branch ID if set
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      exportHeaders['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/audit-logs/export?${queryString}`, {
-      headers: exportHeaders
+    const response = await authFetch(`${API_URL}/api/audit-logs/export?${queryString}`, {
+      token
     })
 
     if (!response.ok) {

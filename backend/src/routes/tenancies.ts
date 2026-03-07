@@ -506,21 +506,13 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
  */
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id
     const tenancyId = req.params.id
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company from X-Branch-Id header or user's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyId = companyUsers[0].company_id
 
     // Define the select fields for references (including readiness check fields)
     const referenceSelectFields = `
@@ -953,7 +945,8 @@ router.put('/records/:id', authenticateToken, async (req: AuthRequest, res) => {
       depositProtectedAt,
       billsIncluded,
       additionalCharges,
-      notes
+      notes,
+      managementType
     } = req.body
 
     const tenancy = await tenancyService.updateTenancy(req.params.id, companyId, {
@@ -970,7 +963,8 @@ router.put('/records/:id', authenticateToken, async (req: AuthRequest, res) => {
       depositProtectedAt,
       billsIncluded,
       additionalCharges,
-      notes
+      notes,
+      managementType
     }, userId)
 
     res.json({ tenancy })
@@ -1113,17 +1107,19 @@ router.post('/records/:id/send-move-out-notice', authenticateToken, async (req: 
       }
     }
 
-    // Get company branding and bank details
+    // Get company branding and bank details from the TENANCY's company
+    // This ensures emails show the correct company for multi-branch users
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: company } = await supabase
       .from('companies')
       .select('name_encrypted, logo_url, email_encrypted, phone_encrypted, website, bank_account_name_encrypted, bank_sort_code_encrypted, bank_account_number_encrypted')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     console.log('[send-move-out-notice] Company data:', {
       hasCompany: !!company,
       hasNameEncrypted: !!company?.name_encrypted,
-      companyId
+      companyId: tenancyCompanyId
     })
 
     const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : null
@@ -1132,8 +1128,19 @@ router.post('/records/:id/send-move-out-notice', authenticateToken, async (req: 
 
     console.log('[send-move-out-notice] Decrypted company name:', companyName)
 
+    // Build a sensible company name - never use generic "Your Agent"
+    let displayCompanyName = companyName
+    if (!displayCompanyName && companyEmail) {
+      // Extract domain from email as fallback (e.g., "info@rgproperty.co.uk" -> "RG Property")
+      const domain = companyEmail.split('@')[1]?.split('.')[0]
+      displayCompanyName = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) + ' Property Management' : null
+    }
+    if (!displayCompanyName) {
+      displayCompanyName = 'Your letting agent'
+    }
+
     const branding = {
-      companyName: companyName || 'Your Agent',
+      companyName: displayCompanyName,
       logoUrl: company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
       email: companyEmail || undefined,
       phone: companyPhone || undefined,
@@ -1893,11 +1900,12 @@ router.post('/records/:id/compliance-pack', authenticateToken, async (req: AuthR
       return res.status(400).json({ error: 'No tenants with email addresses found' })
     }
 
-    // Get company details for contact info and logo
+    // Get company details from the TENANCY's company for correct branding
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: company } = await supabase
       .from('companies')
       .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'PropertyGoose' : 'PropertyGoose'
@@ -2056,11 +2064,12 @@ router.post('/records/:id/move-in-pack', authenticateToken, async (req: AuthRequ
       return res.status(400).json({ error: 'No tenants with email addresses found' })
     }
 
-    // Get company details for contact info, logo, and bank details
+    // Get company details from the TENANCY's company for correct branding
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: company } = await supabase
       .from('companies')
       .select('name_encrypted, phone_encrypted, email_encrypted, logo_url, bank_account_name, bank_account_number, bank_sort_code, management_info')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'PropertyGoose' : 'PropertyGoose'
@@ -2558,11 +2567,12 @@ router.post('/records/:id/request-initial-monies', authenticateToken, async (req
       return res.status(400).json({ error: 'No tenant with email address found' })
     }
 
-    // Get company details including bank details
+    // Get company details from the TENANCY's company for correct branding
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: company } = await supabase
       .from('companies')
       .select('name_encrypted, phone_encrypted, email_encrypted, bank_account_name, bank_account_number, bank_sort_code, logo_url')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     if (!company?.bank_account_name || !company?.bank_account_number || !company?.bank_sort_code) {
@@ -3098,11 +3108,12 @@ router.post('/records/:id/generate-agreement', authenticateToken, async (req: Au
       return res.status(400).json({ error: 'Property not found' })
     }
 
-    // Get company details
+    // Get company details from the TENANCY's company for correct branding
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: company } = await supabase
       .from('companies')
       .select('id, name_encrypted, bank_account_name, bank_account_number, bank_sort_code')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     // Format property address
@@ -3280,11 +3291,12 @@ router.post('/records/:id/request-move-in-time', authenticateToken, async (req: 
       return res.status(400).json({ error: 'No tenant with email address found' })
     }
 
-    // Get company details
+    // Get company details from the TENANCY's company for correct branding
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: company } = await supabase
       .from('companies')
       .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'PropertyGoose' : 'PropertyGoose'
@@ -3991,11 +4003,12 @@ router.post('/records/:id/confirm-move-in-time', authenticateToken, async (req: 
       return res.status(400).json({ error: 'No tenant email available' })
     }
 
-    // Get company details
+    // Get company details from the TENANCY's company for correct branding
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: company } = await supabase
       .from('companies')
       .select('name_encrypted, email_encrypted, phone_encrypted, reference_notification_email, logo_url')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'PropertyGoose' : 'PropertyGoose'
@@ -4125,8 +4138,17 @@ router.post('/records/:id/email-tenants', authenticateToken, emailAttachmentUplo
     const { tenantIds, subject, message, templateKey } = req.body
     const attachments = req.files as Express.Multer.File[] || []
 
-    // Parse tenantIds if it's a string (from FormData)
-    const parsedTenantIds = typeof tenantIds === 'string' ? JSON.parse(tenantIds) : tenantIds
+    // Parse tenantIds if it's a string (from FormData) - safely handle JSON parse
+    let parsedTenantIds: string[]
+    if (typeof tenantIds === 'string') {
+      try {
+        parsedTenantIds = JSON.parse(tenantIds)
+      } catch {
+        return res.status(400).json({ error: 'Invalid tenant IDs format' })
+      }
+    } else {
+      parsedTenantIds = tenantIds || []
+    }
 
     if (!parsedTenantIds || parsedTenantIds.length === 0) {
       return res.status(400).json({ error: 'At least one tenant must be selected' })
@@ -4168,11 +4190,12 @@ router.post('/records/:id/email-tenants', authenticateToken, emailAttachmentUplo
       return res.status(500).json({ error: 'Failed to fetch tenants' })
     }
 
-    // Get company/agent details for branding and reply-to
+    // Get company/agent details from the TENANCY's company for correct branding
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: company, error: companyError } = await supabase
       .from('companies')
       .select('name_encrypted, email_encrypted, logo_url, primary_color, reference_notification_email')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     if (companyError) {
@@ -4190,7 +4213,7 @@ router.post('/records/:id/email-tenants', authenticateToken, emailAttachmentUplo
       .eq('id', userId)
       .single()
 
-    const agentName = agent ? `${agent.first_name || ''} ${agent.last_name || ''}`.trim() : 'Your Agent'
+    const agentName = agent ? `${agent.first_name || ''} ${agent.last_name || ''}`.trim() || companyName : companyName
     const agentEmail = agent?.email || companyEmail
 
     // Decrypt property address
@@ -4618,7 +4641,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
     const { data: tenancy, error: tenancyError } = await supabase
       .from('tenancies')
       .select(`
-        id, rent_due_day, rent_amount, tenancy_start_date, status, agreement_id, property_id,
+        id, company_id, rent_due_day, rent_amount, tenancy_start_date, status, agreement_id, property_id,
         properties!inner(id, company_id, address_line1_encrypted, city_encrypted, postcode),
         tenancy_tenants(id, tenant_order, tenant_name_encrypted, tenant_email_encrypted)
       `)
@@ -4706,11 +4729,12 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
       return res.status(400).json({ error: 'Lead tenant email not found' })
     }
 
-    // Get company details (name, logo, bank details)
+    // Get company details from the TENANCY's company for correct branding
+    const tenancyCompanyId = (tenancy as any).company_id || companyId
     const { data: company } = await supabase
       .from('companies')
       .select('name_encrypted, logo_url, bank_account_name, bank_account_number, bank_sort_code, email_encrypted, phone_encrypted')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     if (!company?.bank_account_name || !company?.bank_account_number || !company?.bank_sort_code) {
@@ -4718,9 +4742,18 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
     }
 
     // Decrypt company details
-    const companyName = company.name_encrypted ? decrypt(company.name_encrypted) || 'Your Agent' : 'Your Agent'
+    let companyName = company.name_encrypted ? decrypt(company.name_encrypted) : null
     const companyEmail = company.email_encrypted ? decrypt(company.email_encrypted) || '' : ''
     const companyPhone = company.phone_encrypted ? decrypt(company.phone_encrypted) || '' : ''
+
+    // Build a sensible company name - never use generic "Your Agent"
+    if (!companyName && companyEmail) {
+      const domain = companyEmail.split('@')[1]?.split('.')[0]
+      companyName = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) + ' Property Management' : 'Your letting agent'
+    }
+    if (!companyName) {
+      companyName = 'Your letting agent'
+    }
 
     // Create rent due date change record
     const { data: changeRecord, error: insertError } = await supabase
@@ -5000,11 +5033,22 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
     }
 
     // Get company details for email and PDF
-    const { data: company } = await supabase
+    const { data: companyRaw } = await supabase
       .from('companies')
-      .select('name, logo_url, email, phone, address_line1, city, postcode')
+      .select('name_encrypted, logo_url, email_encrypted, phone_encrypted, address_encrypted, city_encrypted, postcode_encrypted')
       .eq('id', tenancy.company_id)
       .single()
+
+    // Decrypt company fields
+    const company = companyRaw ? {
+      name: decrypt(companyRaw.name_encrypted) || 'Your letting agent',
+      logo_url: companyRaw.logo_url,
+      email: decrypt(companyRaw.email_encrypted) || undefined,
+      phone: decrypt(companyRaw.phone_encrypted) || undefined,
+      address_line1: decrypt(companyRaw.address_encrypted) || undefined,
+      city: decrypt(companyRaw.city_encrypted) || undefined,
+      postcode: decrypt(companyRaw.postcode_encrypted) || undefined
+    } : null
 
     // Build property address
     const tenancyProperty = tenancy.properties as any
@@ -5185,7 +5229,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
         PaymentConfirmedDate: paymentReceivedDate,
         MonthlyRent: parseFloat(change.monthly_rent).toFixed(2),
         NextRentDueDate: nextRentDueDateStr,
-        CompanyName: company?.name || 'Your Letting Agent',
+        CompanyName: company?.name || 'Your letting agent',
         AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
         ContactSection: contactSection
       })
@@ -5373,11 +5417,22 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
     }
 
     // Get company details
-    const { data: company } = await supabase
+    const { data: companyRaw } = await supabase
       .from('companies')
-      .select('name, logo_url, bank_account_name, bank_account_number, bank_sort_code, email, phone')
+      .select('name_encrypted, logo_url, bank_account_name, bank_account_number, bank_sort_code, email_encrypted, phone_encrypted')
       .eq('id', tenancy.company_id)
       .single()
+
+    // Decrypt company fields
+    const company = companyRaw ? {
+      name: decrypt(companyRaw.name_encrypted) || 'Your letting agent',
+      logo_url: companyRaw.logo_url,
+      email: decrypt(companyRaw.email_encrypted) || undefined,
+      phone: decrypt(companyRaw.phone_encrypted) || undefined,
+      bank_account_name: companyRaw.bank_account_name,
+      bank_account_number: companyRaw.bank_account_number,
+      bank_sort_code: companyRaw.bank_sort_code
+    } : null
 
     const tenancyProperty = tenancy.properties as any
     const propertyAddress = [
@@ -5435,7 +5490,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
       BankAccountNumber: company?.bank_account_number || '',
       PaymentReference: `RDC-${change.id.slice(0, 8).toUpperCase()}`,
       ConfirmationUrl: confirmationUrl,
-      CompanyName: company?.name || 'Your Letting Agent',
+      CompanyName: company?.name || 'Your letting agent',
       AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
       ContactSection: contactSection
     })
@@ -5534,30 +5589,33 @@ router.post('/records/:id/rent-increase-notice', authenticateToken, async (req: 
     }
 
     // Get all tenants for this tenancy
+    // Note: tenancy_tenants uses is_active (boolean), not status
+    // Column is tenant_email_encrypted NOT email_encrypted
     const { data: tenants, error: tenantsError } = await supabase
       .from('tenancy_tenants')
-      .select('id, first_name_encrypted, last_name_encrypted, email_encrypted, is_lead_tenant')
+      .select('id, tenant_name_encrypted, tenant_email_encrypted, tenant_order')
       .eq('tenancy_id', req.params.id)
-      .eq('status', 'active')
-      .order('is_lead_tenant', { ascending: false })
+      .eq('is_active', true)
+      .order('tenant_order', { ascending: true })
 
     console.log('[S13] Tenants query result:', tenants?.length, 'error:', tenantsError?.message)
 
     const tenantNames = tenants?.map(t => {
-      const firstName = decrypt(t.first_name_encrypted) || ''
-      const lastName = decrypt(t.last_name_encrypted) || ''
-      return `${firstName} ${lastName}`.trim()
+      const name = decrypt(t.tenant_name_encrypted) || ''
+      return name.trim()
     }).filter(Boolean).join(', ') || 'Tenant'
-    const leadTenant = tenants?.find(t => t.is_lead_tenant) || tenants?.[0]
-    const leadTenantEmail = leadTenant ? decrypt(leadTenant.email_encrypted) : null
+    const leadTenant = tenants?.find(t => t.tenant_order === 1) || tenants?.[0]
+    const leadTenantEmail = leadTenant ? decrypt(leadTenant.tenant_email_encrypted) : null
 
     console.log('[S13] Lead tenant email:', leadTenantEmail || 'NULL/EMPTY')
 
-    // Get company details (encrypted fields)
+    // Get company details from the TENANCY's company (not user's active branch)
+    // This ensures emails show the correct company for multi-branch users
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: companyRaw } = await supabase
       .from('companies')
       .select('name_encrypted, email_encrypted, phone_encrypted, address_encrypted, city_encrypted, postcode_encrypted, logo_url')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     // Decrypt company data
@@ -5769,9 +5827,25 @@ router.post('/records/:id/rent-increase-notice', authenticateToken, async (req: 
       return res.status(500).json({ error: 'Failed to create notice record' })
     }
 
-    // If email delivery, send the notice with PDF attachment
-    console.log('[rent-increase-notice] Email check - deliveryMethod:', deliveryMethod, 'leadTenantEmail:', leadTenantEmail ? 'present' : 'MISSING')
-    if (deliveryMethod === 'email' && leadTenantEmail) {
+    // Track email sending status
+    let tenantEmailSent = false
+    let agentEmailSent = false
+
+    // If email delivery, the email MUST be sent - this is a legal requirement
+    if (deliveryMethod === 'email') {
+      console.log('[rent-increase-notice] Email delivery selected, email is MANDATORY')
+      console.log('[rent-increase-notice] leadTenantEmail:', leadTenantEmail ? 'present' : 'MISSING')
+
+      // Validate we have an email address BEFORE proceeding
+      if (!leadTenantEmail) {
+        console.error('[rent-increase-notice] CRITICAL: No lead tenant email found for email delivery')
+        // Rollback the notice record since email cannot be sent
+        await supabase.from('rent_increase_notices').delete().eq('id', notice.id)
+        return res.status(400).json({
+          error: 'Cannot send Section 13 notice by email: No email address found for the lead tenant. Please add a tenant email or select a different delivery method.'
+        })
+      }
+
       console.log('[rent-increase-notice] Attempting to send email to:', leadTenantEmail)
       try {
         const effectiveDateFormatted = new Date(effectiveDate).toLocaleDateString('en-GB', {
@@ -5795,7 +5869,7 @@ For more information about your rights, visit www.gov.uk/private-renting or cont
 If you have any questions about this notice, please do not hesitate to contact us.
 
 Kind regards,
-${company?.name || 'Your Letting Agent'}`,
+${company?.name || 'Your letting agent'}`,
           replyTo: company?.email,
           attachments: [{
             filename: `Section_13_Notice_${propertyAddress.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
@@ -5809,14 +5883,79 @@ ${company?.name || 'Your Letting Agent'}`,
           .update({ delivered_at: new Date().toISOString() })
           .eq('id', notice.id)
 
-        console.log('[rent-increase-notice] Email with PDF sent successfully to:', leadTenantEmail)
+        tenantEmailSent = true
+        console.log('[rent-increase-notice] ✓ Email with PDF sent successfully to:', leadTenantEmail)
       } catch (emailError: any) {
-        console.error('[rent-increase-notice] Failed to send email:', emailError?.message || emailError)
+        // EMAIL FAILED - This is a critical failure, rollback and fail the request
+        console.error('[rent-increase-notice] CRITICAL: Failed to send S13 email:', emailError?.message || emailError)
         console.error('[rent-increase-notice] Full email error:', JSON.stringify(emailError, null, 2))
-        // Continue - don't fail the whole request
+
+        // Rollback: Delete the notice record since email failed
+        await supabase.from('rent_increase_notices').delete().eq('id', notice.id)
+
+        // Return clear error to user
+        return res.status(500).json({
+          error: `Failed to send Section 13 notice email to tenant. The notice has NOT been served. Error: ${emailError?.message || 'Email service error'}. Please try again or contact support.`
+        })
       }
     } else {
-      console.log('[rent-increase-notice] Email NOT sent - deliveryMethod:', deliveryMethod, 'leadTenantEmail exists:', !!leadTenantEmail)
+      console.log('[rent-increase-notice] Non-email delivery method:', deliveryMethod)
+    }
+
+    // Send confirmation email to agent (always, regardless of delivery method)
+    if (company?.email) {
+      try {
+        const effectiveDateFormatted = new Date(effectiveDate).toLocaleDateString('en-GB', {
+          day: 'numeric', month: 'long', year: 'numeric'
+        })
+        const noticeDateFormatted = new Date(noticeDate).toLocaleDateString('en-GB', {
+          day: 'numeric', month: 'long', year: 'numeric'
+        })
+
+        await emailService.sendEmail({
+          to: company.email,
+          subject: `Section 13 Notice Served - ${propertyAddress}`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: #f97316; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px;">Section 13 Notice Served</h1>
+              </div>
+              <div style="padding: 24px; background: #ffffff;">
+                <p style="margin: 0 0 16px; color: #374151;">A Section 13 Rent Increase Notice has been served for:</p>
+
+                <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                  <p style="margin: 0 0 8px;"><strong>Property:</strong> ${propertyAddress}</p>
+                  <p style="margin: 0 0 8px;"><strong>Tenant(s):</strong> ${tenantNames}</p>
+                  <p style="margin: 0 0 8px;"><strong>Current Rent:</strong> £${currentRentAmount?.toLocaleString() || 0}</p>
+                  <p style="margin: 0 0 8px;"><strong>New Rent:</strong> £${newRent.toLocaleString()}</p>
+                  <p style="margin: 0 0 8px;"><strong>Effective Date:</strong> ${effectiveDateFormatted}</p>
+                  <p style="margin: 0;"><strong>Notice Date:</strong> ${noticeDateFormatted}</p>
+                </div>
+
+                <div style="background: ${tenantEmailSent ? '#dcfce7' : '#fef3c7'}; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;">
+                  <p style="margin: 0; color: ${tenantEmailSent ? '#166534' : '#92400e'}; font-size: 14px;">
+                    <strong>${deliveryMethod === 'email' ? '✓ Tenant email sent successfully' : 'Notice delivered via: ' + deliveryMethod}</strong>
+                  </p>
+                </div>
+
+                <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                  The notice document has been saved to the property documents. ${documentId ? `Document ID: ${documentId}` : ''}
+                </p>
+              </div>
+              <div style="padding: 16px 24px; background: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center;">
+                <p style="margin: 0; color: #9ca3af; font-size: 12px;">This is an automated notification from PropertyGoose</p>
+              </div>
+            </div>
+          `
+        })
+        agentEmailSent = true
+        console.log('[rent-increase-notice] ✓ Agent notification sent to:', company.email)
+      } catch (agentError: any) {
+        // Agent notification failure is not critical - log but don't fail
+        console.error('[rent-increase-notice] Failed to send agent notification (non-critical):', agentError?.message || agentError)
+      }
+    } else {
+      console.log('[rent-increase-notice] No agent email configured, skipping agent notification')
     }
 
     // Log activity - format date for UK display
@@ -5844,12 +5983,15 @@ ${company?.name || 'Your Letting Agent'}`,
 
     console.log('[rent-increase-notice] Completed. noticeId:', notice.id, 'documentId:', documentId, 'pdfUrl:', pdfPublicUrl ? 'yes' : 'no')
 
+    // Build response - if we get here, tenant email was successful (or not required)
     res.json({
       success: true,
       noticeId: notice.id,
       documentId,
       pdfUrl: pdfPublicUrl || (deliveryMethod === 'download' ? `/api/tenancies/rent-increase-notices/${notice.id}/pdf` : undefined),
-      emailSent: deliveryMethod === 'email' && leadTenantEmail ? true : false
+      tenantEmailSent: deliveryMethod === 'email' ? tenantEmailSent : null,
+      agentEmailSent,
+      deliveryMethod
     })
   } catch (error: any) {
     console.error('[rent-increase-notice] FATAL ERROR:', error.message, error.stack)
@@ -6036,11 +6178,12 @@ router.post('/records/:id/section-8-notice', authenticateToken, async (req: Auth
     const activeTenants = tenancy.tenants?.filter((t: any) => t.status === 'active') || []
     const leadTenant = activeTenants.find((t: any) => t.is_lead_tenant) || activeTenants[0]
 
-    // Get company branding for emails
+    // Get company branding from the TENANCY's company for correct branding
+    const tenancyCompanyId = tenancy.company_id || companyId
     const { data: company } = await supabase
       .from('companies')
       .select('name, branding')
-      .eq('id', companyId)
+      .eq('id', tenancyCompanyId)
       .single()
 
     // Record the notice

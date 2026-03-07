@@ -1,4 +1,7 @@
 import { supabase } from '../config/supabase';
+import { sendEmail, loadEmailTemplate } from './emailService';
+import { decrypt } from './encryption';
+import { getFrontendUrl } from '../utils/frontendUrl';
 
 /**
  * Credit Service
@@ -254,7 +257,48 @@ async function checkAutoRecharge(companyId: string, currentBalance: number): Pro
       await purchaseCreditPackAutoRecharge(companyId, auto_recharge_pack_size || 25);
     } catch (error: any) {
       console.error(`Auto-recharge failed for company ${companyId}:`, error.message);
-      // TODO: Send email notification about failed auto-recharge
+
+      // Send email notification about failed auto-recharge
+      try {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('name_encrypted, email_encrypted')
+          .eq('id', companyId)
+          .single();
+
+        if (companyData && companyData.email_encrypted) {
+          const companyName = decrypt(companyData.name_encrypted) || 'Valued Customer';
+          const companyEmail = decrypt(companyData.email_encrypted);
+
+          if (companyEmail) {
+            const html = loadEmailTemplate('payment-failed', {
+              CompanyName: companyName,
+              PaymentType: 'Auto-Recharge',
+              Amount: '—',
+              FailureReason: error.message || 'Payment could not be processed',
+              AttemptDate: new Date().toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              PaymentMethod: 'Saved Card',
+              BillingLink: `${getFrontendUrl()}/billing`
+            });
+
+            await sendEmail({
+              to: companyEmail,
+              subject: 'Auto-Recharge Payment Failed - Action Required',
+              html
+            });
+
+            console.log(`[Credits] Sent auto-recharge failure notification to ${companyEmail}`);
+          }
+        }
+      } catch (emailError) {
+        console.error('[Credits] Failed to send auto-recharge failure email:', emailError);
+      }
     }
   }
 }

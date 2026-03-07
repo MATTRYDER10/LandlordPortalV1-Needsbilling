@@ -746,8 +746,15 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
       return res.status(400).json({ error: 'CSV file must have at least a header row and one data row' })
     }
 
-    // Get field mapping from request body
-    const fieldMapping = req.body.fieldMapping ? JSON.parse(req.body.fieldMapping) : {}
+    // Get field mapping from request body (safely parse JSON)
+    let fieldMapping: Record<string, string> = {}
+    if (req.body.fieldMapping) {
+      try {
+        fieldMapping = JSON.parse(req.body.fieldMapping)
+      } catch {
+        return res.status(400).json({ error: 'Invalid field mapping format' })
+      }
+    }
 
     // Properly parse a CSV line handling quoted fields with commas
     const parseCSVLine = (line: string): string[] => {

@@ -149,13 +149,36 @@ watch(query, (newQuery) => {
   }, 200)
 })
 
-// Highlight matching text
+// Escape special regex characters
+const escapeRegExp = (string: string): string => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Escape HTML entities to prevent XSS
+const escapeHtml = (text: string): string => {
+  const htmlEntities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }
+  return text.replace(/[&<>"']/g, char => htmlEntities[char] || char)
+}
+
+// Highlight matching text (XSS-safe)
 const highlightMatches = (text: string): string => {
-  if (!query.value.trim()) return text
+  // First, escape HTML to prevent XSS
+  const safeText = escapeHtml(text)
+
+  if (!query.value.trim()) return safeText
+
   const words = query.value.trim().split(/\s+/)
-  let result = text
+  let result = safeText
   words.forEach(word => {
-    const regex = new RegExp(`(${word})`, 'gi')
+    // Escape both regex special chars and HTML entities in the search term
+    const escapedWord = escapeRegExp(escapeHtml(word))
+    const regex = new RegExp(`(${escapedWord})`, 'gi')
     result = result.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-900/50 text-inherit rounded px-0.5">$1</mark>')
   })
   return result

@@ -62,6 +62,10 @@ export interface TenantDataForConversion {
   isLeadTenant: boolean
   guarantorReferenceId?: string
   status: string
+  // Residential address
+  residentialAddressLine1?: string
+  residentialCity?: string
+  residentialPostcode?: string
 }
 
 export interface ConversionOptions {
@@ -108,11 +112,14 @@ export async function validateConversion(
         tenant_last_name_encrypted,
         tenant_email_encrypted,
         tenant_phone_encrypted,
+        current_address_line1_encrypted,
+        current_city_encrypted,
+        current_postcode_encrypted,
         rent_share,
         guarantor_for_reference_id,
         is_guarantor
       ),
-      agreements!agreements_reference_id_fkey(
+      agreements(
         id,
         signing_status,
         signing_completed_at,
@@ -123,7 +130,17 @@ export async function validateConversion(
     .eq('company_id', companyId)
     .single()
 
-  if (refError || !reference) {
+  if (refError) {
+    console.error('[ConversionService] Error fetching reference:', refError)
+    return {
+      canConvert: false,
+      errors: [`Reference not found: ${refError.message}`],
+      warnings: []
+    }
+  }
+
+  if (!reference) {
+    console.log('[ConversionService] Reference not found for id:', referenceId, 'company:', companyId)
     return {
       canConvert: false,
       errors: ['Reference not found'],
@@ -208,7 +225,11 @@ export async function validateConversion(
           rentShare: child.rent_share,
           isLeadTenant: tenants.length === 0, // First tenant is lead
           guarantorReferenceId: guarantor?.id,
-          status: child.status
+          status: child.status,
+          // Current address from reference (stored as current_* in tenant_references)
+          residentialAddressLine1: decrypt(child.current_address_line1_encrypted) || '',
+          residentialCity: decrypt(child.current_city_encrypted) || '',
+          residentialPostcode: decrypt(child.current_postcode_encrypted) || ''
         })
       }
     } else {
@@ -221,7 +242,11 @@ export async function validateConversion(
         phone: decrypt(reference.tenant_phone_encrypted) || '',
         rentShare: reference.monthly_rent,
         isLeadTenant: true,
-        status: reference.status
+        status: reference.status,
+        // Current address from reference (stored as current_* in tenant_references)
+        residentialAddressLine1: decrypt(reference.current_address_line1_encrypted) || '',
+        residentialCity: decrypt(reference.current_city_encrypted) || '',
+        residentialPostcode: decrypt(reference.current_postcode_encrypted) || ''
       })
     }
 
@@ -303,7 +328,11 @@ export async function convertReferenceToTenancy(
       phone: t.phone,
       isLeadTenant: t.isLeadTenant,
       rentShare: t.rentShare,
-      guarantorReferenceId: t.guarantorReferenceId
+      guarantorReferenceId: t.guarantorReferenceId,
+      // Residential address from reference
+      residentialAddressLine1: t.residentialAddressLine1,
+      residentialCity: t.residentialCity,
+      residentialPostcode: t.residentialPostcode
     }))
 
     // Create the tenancy
@@ -340,6 +369,39 @@ export async function convertReferenceToTenancy(
 
       if (!updateError) {
         tenancy.status = 'active'
+      }
+    }
+
+    // Update property address if it's null (for legacy properties without encrypted addresses)
+    if (refData.propertyId && (refData.propertyAddress || refData.propertyCity)) {
+      // Check if property has null address fields
+      const { data: property } = await supabase
+        .from('properties')
+        .select('address_line1_encrypted, city_encrypted')
+        .eq('id', refData.propertyId)
+        .single()
+
+      if (property && !property.address_line1_encrypted && !property.city_encrypted) {
+        // Update property with address from reference
+        const updateData: Record<string, any> = {
+          updated_at: new Date().toISOString()
+        }
+        if (refData.propertyAddress) {
+          updateData.address_line1_encrypted = encrypt(refData.propertyAddress)
+          updateData.full_address_encrypted = encrypt(
+            [refData.propertyAddress, refData.propertyCity, refData.propertyPostcode].filter(Boolean).join(', ')
+          )
+        }
+        if (refData.propertyCity) {
+          updateData.city_encrypted = encrypt(refData.propertyCity)
+        }
+
+        await supabase
+          .from('properties')
+          .update(updateData)
+          .eq('id', refData.propertyId)
+
+        console.log('[ConversionService] Updated property address from reference:', refData.propertyId)
       }
     }
 

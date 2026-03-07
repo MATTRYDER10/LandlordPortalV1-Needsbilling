@@ -53,6 +53,11 @@ export interface TenancyTenantInput {
   rentShare?: number
   rentSharePercentage?: number
   guarantorReferenceId?: string
+  // Residential address
+  residentialAddressLine1?: string
+  residentialAddressLine2?: string
+  residentialCity?: string
+  residentialPostcode?: string
 }
 
 export interface UpdateTenancyInput {
@@ -179,6 +184,11 @@ export interface TenancyTenant {
   status: 'active' | 'replaced' | 'removed' | 'never_moved_in' | 'pending'
   left_date: string | null
   guarantor_reference_id: string | null
+  // Residential address
+  residential_address_line1: string | null
+  residential_address_line2: string | null
+  residential_city: string | null
+  residential_postcode: string | null
 }
 
 // ============================================================================
@@ -322,7 +332,7 @@ export async function createTenancyFromReference(
     .from('tenant_references')
     .select(`
       *,
-      agreements!agreements_reference_id_fkey(*)
+      agreements(*)
     `)
     .eq('id', referenceId)
     .eq('company_id', companyId)
@@ -599,9 +609,10 @@ export async function updateTenancy(
   }
 
   // Map input fields to database columns
+  // Note: Database uses tenancy_start_date, tenancy_end_date (not start_date, end_date)
   if (input.status !== undefined) updateData.status = input.status
-  if (input.startDate !== undefined) updateData.start_date = input.startDate
-  if (input.endDate !== undefined) updateData.end_date = input.endDate
+  if (input.startDate !== undefined) updateData.tenancy_start_date = input.startDate
+  if (input.endDate !== undefined) updateData.tenancy_end_date = input.endDate
   if (input.actualEndDate !== undefined) updateData.actual_end_date = input.actualEndDate
   if (input.tenancyType !== undefined) updateData.tenancy_type = input.tenancyType
   if (input.monthlyRent !== undefined) updateData.monthly_rent = input.monthlyRent
@@ -785,7 +796,12 @@ export async function addTenantToTenancy(
       tenant_order: tenantOrder,
       rent_share_amount: tenant.rentShare,
       rent_share_percentage: tenant.rentSharePercentage,
-      is_active: true
+      is_active: true,
+      // Residential address
+      residential_address_line1_encrypted: tenant.residentialAddressLine1 ? encrypt(tenant.residentialAddressLine1) : null,
+      residential_address_line2_encrypted: tenant.residentialAddressLine2 ? encrypt(tenant.residentialAddressLine2) : null,
+      residential_city_encrypted: tenant.residentialCity ? encrypt(tenant.residentialCity) : null,
+      residential_postcode_encrypted: tenant.residentialPostcode ? encrypt(tenant.residentialPostcode) : null
     })
     .select()
     .single()
@@ -882,9 +898,38 @@ export async function updateTenancyTenant(
     updateData.tenant_phone_encrypted = input.phone ? encrypt(input.phone) : null
   }
 
-  // Handle lead tenant update
+  // Handle lead tenant update - needs atomic swap to avoid unique constraint violation
   if (input.isLeadTenant !== undefined) {
-    updateData.tenant_order = input.isLeadTenant ? 1 : 2
+    if (input.isLeadTenant) {
+      // When promoting to lead, first demote the current lead tenant
+      const tenancyId = existing.tenancy_id
+
+      // Find and demote the current lead tenant (tenant_order = 1)
+      const { error: demoteError } = await supabase
+        .from('tenancy_tenants')
+        .update({
+          tenant_order: 2,
+          is_lead_tenant: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('tenancy_id', tenancyId)
+        .eq('tenant_order', 1)
+        .eq('is_active', true)
+        .neq('id', tenantId) // Don't demote the tenant we're promoting
+
+      if (demoteError) {
+        console.error('[TenancyService] Failed to demote current lead tenant:', demoteError)
+        // Continue anyway - there might not be an existing lead
+      }
+
+      // Now set this tenant as lead
+      updateData.tenant_order = 1
+      updateData.is_lead_tenant = true
+    } else {
+      // Demoting from lead
+      updateData.tenant_order = 2
+      updateData.is_lead_tenant = false
+    }
   }
 
   // Handle rent share updates
@@ -1287,7 +1332,12 @@ function formatTenancyTenant(data: any): TenancyTenant {
     rent_share_percentage: data.rent_share_percentage ? parseFloat(data.rent_share_percentage) : null,
     status,
     left_date: data.left_date || null,
-    guarantor_reference_id: null
+    guarantor_reference_id: null,
+    // Residential address
+    residential_address_line1: decrypt(data.residential_address_line1_encrypted),
+    residential_address_line2: decrypt(data.residential_address_line2_encrypted),
+    residential_city: decrypt(data.residential_city_encrypted),
+    residential_postcode: decrypt(data.residential_postcode_encrypted)
   }
 }
 

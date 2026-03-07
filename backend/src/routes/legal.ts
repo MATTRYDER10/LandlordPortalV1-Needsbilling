@@ -774,7 +774,7 @@ router.post('/section8-notices/:noticeId/serve', authenticateToken, handleServeU
       .eq('id', companyId)
       .single()
 
-    const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : 'Your Letting Agent'
+    const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) : 'Your letting agent'
     const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : undefined
     const companyLogoUrl = company?.logo_url
 

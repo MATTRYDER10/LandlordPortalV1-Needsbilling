@@ -7711,11 +7711,11 @@ router.post('/:id/resend-form', authenticateToken, async (req: AuthRequest, res)
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    // Get company info
+    // Get company info from the REFERENCE's company for correct branding
     const { data: companyData } = await supabase
       .from('companies')
       .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
-      .eq('id', companyId)
+      .eq('id', reference.company_id)
       .single()
 
     const recipientEmail = decrypt(reference.tenant_email_encrypted) || ''

@@ -388,11 +388,12 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
           name,
           email: t.email || t.tenant_email || '',
           address: {
-            line1: refAddress?.line1 || t.current_address_line1 || t.address?.line1 || '',
-            line2: refAddress?.line2 || t.current_address_line2 || t.address?.line2 || '',
-            city: refAddress?.city || t.current_city || t.address?.city || '',
+            // Check residential_ fields first (from tenancy_tenants), then reference data, then legacy fields
+            line1: t.residential_address_line1 || refAddress?.line1 || t.current_address_line1 || t.address?.line1 || '',
+            line2: t.residential_address_line2 || refAddress?.line2 || t.current_address_line2 || t.address?.line2 || '',
+            city: t.residential_city || refAddress?.city || t.current_city || t.address?.city || '',
             county: refAddress?.county || t.current_county || t.address?.county || '',
-            postcode: refAddress?.postcode || t.current_postcode || t.address?.postcode || ''
+            postcode: t.residential_postcode || refAddress?.postcode || t.current_postcode || t.address?.postcode || ''
           }
         }
       })

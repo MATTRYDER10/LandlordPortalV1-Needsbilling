@@ -7,9 +7,35 @@ import * as creditService from '../services/creditService';
 import { supabase } from '../config/supabase';
 import { updateSMSDeliveryStatus } from '../services/smsService';
 import { updateCallStatus } from '../services/vapiService';
-import { updateEmailDeliveryStatus, logEmailDeliveryToAuditLog } from '../services/emailService';
+import { updateEmailDeliveryStatus, logEmailDeliveryToAuditLog, sendEmail, loadEmailTemplate } from '../services/emailService';
+import { decrypt } from '../services/encryption';
+import { getFrontendUrl } from '../utils/frontendUrl';
 
 const router = Router();
+
+/**
+ * Helper function to get company email details for sending notifications
+ */
+async function getCompanyEmailDetails(companyId: string): Promise<{ name: string; email: string } | null> {
+  try {
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted, email_encrypted')
+      .eq('id', companyId)
+      .single();
+
+    if (company && company.email_encrypted) {
+      const name = decrypt(company.name_encrypted) || 'Valued Customer';
+      const email = decrypt(company.email_encrypted);
+      if (email) {
+        return { name, email };
+      }
+    }
+  } catch (error) {
+    console.error('[Webhooks] Failed to get company email details:', error);
+  }
+  return null;
+}
 
 /**
  * Stripe Webhook Handler
@@ -462,6 +488,13 @@ async function handleSubscriptionDeleted(subscription: any) {
 
   console.log(`Subscription ${id} deleted`);
 
+  // Get subscription details before updating
+  const { data: dbSub } = await supabase
+    .from('subscriptions')
+    .select('company_id, plan_name, credits_per_month')
+    .eq('stripe_subscription_id', id)
+    .single();
+
   // Update subscription status in database
   await supabase
     .from('subscriptions')
@@ -472,7 +505,47 @@ async function handleSubscriptionDeleted(subscription: any) {
     .eq('stripe_subscription_id', id);
 
   // Note: We do NOT remove credits - they roll over forever
-  // TODO: Send cancellation confirmation email
+
+  // Send cancellation confirmation email
+  if (dbSub?.company_id) {
+    try {
+      const companyDetails = await getCompanyEmailDetails(dbSub.company_id);
+      if (companyDetails) {
+        // Get remaining credits
+        const { data: balanceData } = await supabase
+          .from('company_credits')
+          .select('balance')
+          .eq('company_id', dbSub.company_id)
+          .single();
+
+        const html = loadEmailTemplate('credits-purchased-receipt', {
+          CompanyName: companyDetails.name,
+          CreditsAdded: '0',
+          AmountPaid: '0.00',
+          PricePerCredit: '—',
+          PaymentMethod: 'Subscription Cancelled',
+          TransactionId: id.substring(0, 20) + '...',
+          PurchaseDate: new Date().toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          }),
+          NewBalance: (balanceData?.balance || 0).toString() + ' (remaining credits never expire)',
+          DashboardLink: `${getFrontendUrl()}/billing`
+        });
+
+        await sendEmail({
+          to: companyDetails.email,
+          subject: 'Subscription Cancelled - PropertyGoose',
+          html
+        });
+
+        console.log(`[Webhooks] Sent subscription cancellation email to ${companyDetails.email}`);
+      }
+    } catch (emailError) {
+      console.error('[Webhooks] Failed to send cancellation email:', emailError);
+    }
+  }
 }
 
 /**
@@ -582,7 +655,7 @@ async function handlePaymentSucceeded(paymentIntent: any) {
     );
 
     console.log(`Fulfilled credit pack purchase: ${credits} credits to company ${companyId}`);
-    // TODO: Send receipt email
+    // Receipt email is sent by fulfillCreditPackPurchase
   } else if (metadata.agreement_id) {
     // This is an agreement payment - upsert payment record
     const agreementId = metadata.agreement_id;
@@ -624,7 +697,48 @@ async function handlePaymentSucceeded(paymentIntent: any) {
     }
 
     console.log(`Agreement payment succeeded for agreement ${agreementId}`);
-    // TODO: Send receipt email
+
+    // Send agreement payment receipt email
+    if (companyId) {
+      try {
+        const companyDetails = await getCompanyEmailDetails(companyId);
+        if (companyDetails) {
+          // Get agreement details
+          const { data: agreement } = await supabase
+            .from('agreements')
+            .select('property_address, tenant_names, agreement_type, pdf_url')
+            .eq('id', agreementId)
+            .single();
+
+          const html = loadEmailTemplate('agreement-payment-receipt', {
+            AgentLogoUrl: 'https://app.propertygoose.co.uk/PropertyGooseLogo.png',
+            CompanyName: companyDetails.name,
+            PropertyAddress: agreement?.property_address || 'Property Address',
+            TenantNames: agreement?.tenant_names || 'Tenants',
+            AgreementType: agreementType.charAt(0).toUpperCase() + agreementType.slice(1),
+            AmountPaid: amountGbp.toFixed(2),
+            PaymentMethod: 'Card',
+            TransactionId: id.substring(0, 20) + '...',
+            PaymentDate: new Date().toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
+            }),
+            AgreementLink: agreement?.pdf_url || `${getFrontendUrl()}/agreements`
+          });
+
+          await sendEmail({
+            to: companyDetails.email,
+            subject: 'Agreement Payment Receipt - PropertyGoose',
+            html
+          });
+
+          console.log(`[Webhooks] Sent agreement payment receipt to ${companyDetails.email}`);
+        }
+      } catch (emailError) {
+        console.error('[Webhooks] Failed to send agreement payment receipt:', emailError);
+      }
+    }
   }
 }
 
@@ -647,7 +761,40 @@ async function handlePaymentFailed(paymentIntent: any) {
       })
       .eq('stripe_payment_intent_id', id);
 
-    // TODO: Send payment failed email
+    // Send payment failed email
+    const companyId = metadata.company_id;
+    if (companyId) {
+      try {
+        const companyDetails = await getCompanyEmailDetails(companyId);
+        if (companyDetails) {
+          const html = loadEmailTemplate('payment-failed', {
+            CompanyName: companyDetails.name,
+            PaymentType: 'Agreement Payment',
+            Amount: ((paymentIntent.amount || 0) / 100).toFixed(2),
+            FailureReason: last_payment_error?.message || 'Payment could not be processed',
+            AttemptDate: new Date().toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            PaymentMethod: last_payment_error?.payment_method?.type || 'Card',
+            BillingLink: `${getFrontendUrl()}/billing`
+          });
+
+          await sendEmail({
+            to: companyDetails.email,
+            subject: 'Payment Failed - Action Required',
+            html
+          });
+
+          console.log(`[Webhooks] Sent payment failed notification to ${companyDetails.email}`);
+        }
+      } catch (emailError) {
+        console.error('[Webhooks] Failed to send payment failed email:', emailError);
+      }
+    }
   }
 }
 
@@ -713,7 +860,45 @@ async function handleInvoicePaid(invoice: any) {
     );
 
     console.log(`Successfully delivered ${creditsPerMonth} credits to company ${companyId} for invoice ${id}`);
-    // TODO: Send invoice receipt email
+
+    // Send subscription renewal receipt email
+    try {
+      const companyDetails = await getCompanyEmailDetails(companyId);
+      if (companyDetails) {
+        // Get new balance
+        const { data: balanceData } = await supabase
+          .from('company_credits')
+          .select('balance')
+          .eq('company_id', companyId)
+          .single();
+
+        const html = loadEmailTemplate('credits-purchased-receipt', {
+          CompanyName: companyDetails.name,
+          CreditsAdded: creditsPerMonth.toString(),
+          AmountPaid: monthlyTotal.toFixed(2),
+          PricePerCredit: (monthlyTotal / creditsPerMonth).toFixed(2),
+          PaymentMethod: 'Subscription (Auto-Renewal)',
+          TransactionId: id.substring(0, 20) + '...',
+          PurchaseDate: new Date().toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          }),
+          NewBalance: (balanceData?.balance || creditsPerMonth).toString(),
+          DashboardLink: `${getFrontendUrl()}/billing`
+        });
+
+        await sendEmail({
+          to: companyDetails.email,
+          subject: 'Subscription Renewal Receipt - PropertyGoose',
+          html
+        });
+
+        console.log(`[Webhooks] Sent subscription renewal receipt to ${companyDetails.email}`);
+      }
+    } catch (emailError) {
+      console.error('[Webhooks] Failed to send invoice receipt email:', emailError);
+    }
   } catch (error) {
     console.error('Error handling invoice payment:', error);
   }
@@ -727,13 +912,60 @@ async function handleInvoicePaymentFailed(invoice: any) {
 
   console.error(`Invoice payment failed: ${id}, attempt ${attempt_count}`);
 
+  // Get subscription details
+  const { data: dbSub } = await supabase
+    .from('subscriptions')
+    .select('company_id, plan_name, monthly_total')
+    .eq('stripe_subscription_id', subscription)
+    .single();
+
   // Update subscription status to past_due
   await supabase
     .from('subscriptions')
     .update({ status: 'past_due' })
     .eq('stripe_subscription_id', subscription);
 
-  // TODO: Send payment failed email with retry date
+  // Send payment failed email with retry date
+  if (dbSub?.company_id) {
+    try {
+      const companyDetails = await getCompanyEmailDetails(dbSub.company_id);
+      if (companyDetails) {
+        const retryDate = next_payment_attempt
+          ? new Date(next_payment_attempt * 1000).toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
+            })
+          : 'Soon';
+
+        const html = loadEmailTemplate('payment-failed', {
+          CompanyName: companyDetails.name,
+          PaymentType: `Subscription (${dbSub.plan_name || 'Monthly'})`,
+          Amount: (dbSub.monthly_total || 0).toFixed(2),
+          FailureReason: `Payment attempt ${attempt_count} failed. Next retry: ${retryDate}`,
+          AttemptDate: new Date().toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          PaymentMethod: 'Saved Card',
+          BillingLink: `${getFrontendUrl()}/billing`
+        });
+
+        await sendEmail({
+          to: companyDetails.email,
+          subject: 'Subscription Payment Failed - Action Required',
+          html
+        });
+
+        console.log(`[Webhooks] Sent subscription payment failed notification to ${companyDetails.email}`);
+      }
+    } catch (emailError) {
+      console.error('[Webhooks] Failed to send payment failed email:', emailError);
+    }
+  }
 }
 
 export default router;

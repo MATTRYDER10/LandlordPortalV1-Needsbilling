@@ -347,26 +347,39 @@
                   </div>
                 </div>
 
-                <!-- Bank Details (for managed - read only, from agency settings) -->
+                <!-- Agency Details (for managed - read only, from agency settings) -->
                 <div v-if="formData.managementType === 'managed'" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h5 class="text-sm font-medium text-blue-800 mb-2">Agency Bank Details</h5>
-                  <p class="text-xs text-blue-600 mb-3">These details are pulled from your agency settings.</p>
+                  <h5 class="text-sm font-medium text-blue-800 mb-2">Agency Details</h5>
+                  <p class="text-xs text-blue-600 mb-3">These details are pulled from your agency settings and will appear on the agreement.</p>
                   <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
-                      <span class="text-gray-600 dark:text-slate-400">Account Name:</span>
-                      <span class="font-medium text-gray-900 dark:text-white">{{ formData.bankAccountName || 'Not set' }}</span>
+                      <span class="text-gray-600">Agency Name:</span>
+                      <span class="font-medium text-gray-900">{{ companyDetails?.name || 'Not set' }}</span>
                     </div>
                     <div class="flex justify-between">
-                      <span class="text-gray-600 dark:text-slate-400">Account Number:</span>
-                      <span class="font-medium text-gray-900 dark:text-white">{{ formData.bankAccountNumber || 'Not set' }}</span>
+                      <span class="text-gray-600">Address:</span>
+                      <span class="font-medium text-gray-900 text-right max-w-[60%]">
+                        <template v-if="companyDetails?.addressLine1">
+                          {{ companyDetails.addressLine1 }}<template v-if="companyDetails.addressLine2">, {{ companyDetails.addressLine2 }}</template><template v-if="companyDetails.city">, {{ companyDetails.city }}</template><template v-if="companyDetails.postcode"> {{ companyDetails.postcode }}</template>
+                        </template>
+                        <template v-else>Not set</template>
+                      </span>
                     </div>
                     <div class="flex justify-between">
-                      <span class="text-gray-600 dark:text-slate-400">Sort Code:</span>
-                      <span class="font-medium text-gray-900 dark:text-white">{{ formData.bankSortCode || 'Not set' }}</span>
+                      <span class="text-gray-600">Account Name:</span>
+                      <span class="font-medium text-gray-900">{{ formData.bankAccountName || 'Not set' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Account Number:</span>
+                      <span class="font-medium text-gray-900">{{ formData.bankAccountNumber || 'Not set' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Sort Code:</span>
+                      <span class="font-medium text-gray-900">{{ formData.bankSortCode || 'Not set' }}</span>
                     </div>
                   </div>
-                  <p v-if="!formData.bankAccountName && !formData.bankAccountNumber" class="text-xs text-amber-600 mt-2">
-                    ⚠️ Bank details not configured. Please update in Settings.
+                  <p v-if="!companyDetails?.name || (!formData.bankAccountName && !formData.bankAccountNumber)" class="text-xs text-amber-600 mt-2">
+                    ⚠️ Some agency details not configured. Please update in Settings.
                   </p>
                 </div>
 
@@ -628,7 +641,7 @@
                 <div class="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 p-4">
                   <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Recipients</h4>
                   <p class="text-xs text-gray-500 dark:text-slate-400 mb-4">
-                    These parties will receive an email with a secure link to sign the agreement.
+                    These parties will receive an email with a secure link to sign the agreement. Click an email to edit.
                   </p>
                   <div class="space-y-2">
                     <div
@@ -640,7 +653,15 @@
                         <User class="w-4 h-4 text-blue-600" />
                         <span class="text-sm font-medium text-gray-900 dark:text-white">{{ landlord.name || 'Landlord ' + (i + 1) }}</span>
                       </div>
-                      <p class="text-xs text-gray-500 dark:text-slate-400 ml-6">{{ landlord.email || 'No email' }}</p>
+                      <div class="ml-6">
+                        <input
+                          v-model="landlord.email"
+                          type="email"
+                          placeholder="Enter email address"
+                          class="w-full text-xs px-2 py-1 border border-transparent hover:border-gray-300 dark:hover:border-slate-600 focus:border-primary focus:ring-1 focus:ring-primary rounded bg-transparent dark:bg-transparent text-gray-600 dark:text-slate-400 focus:text-gray-900 dark:focus:text-white"
+                          :class="{ 'border-red-300 dark:border-red-700': landlord.email && !isValidEmail(landlord.email) }"
+                        />
+                      </div>
                     </div>
                     <div
                       v-for="(tenant, i) in formData.tenants"
@@ -651,7 +672,15 @@
                         <User class="w-4 h-4 text-green-600" />
                         <span class="text-sm font-medium text-gray-900 dark:text-white">{{ tenant.name || 'Tenant ' + (i + 1) }}</span>
                       </div>
-                      <p class="text-xs text-gray-500 dark:text-slate-400 ml-6">{{ tenant.email || 'No email' }}</p>
+                      <div class="ml-6">
+                        <input
+                          v-model="tenant.email"
+                          type="email"
+                          placeholder="Enter email address"
+                          class="w-full text-xs px-2 py-1 border border-transparent hover:border-gray-300 dark:hover:border-slate-600 focus:border-primary focus:ring-1 focus:ring-primary rounded bg-transparent dark:bg-transparent text-gray-600 dark:text-slate-400 focus:text-gray-900 dark:focus:text-white"
+                          :class="{ 'border-red-300 dark:border-red-700': tenant.email && !isValidEmail(tenant.email) }"
+                        />
+                      </div>
                     </div>
                     <div
                       v-for="(guarantor, i) in formData.guarantors"
@@ -662,7 +691,15 @@
                         <User class="w-4 h-4 text-purple-600" />
                         <span class="text-sm font-medium text-gray-900 dark:text-white">{{ guarantor.name || 'Guarantor ' + (i + 1) }}</span>
                       </div>
-                      <p class="text-xs text-gray-500 dark:text-slate-400 ml-6">{{ guarantor.email || 'No email' }}</p>
+                      <div class="ml-6">
+                        <input
+                          v-model="guarantor.email"
+                          type="email"
+                          placeholder="Enter email address"
+                          class="w-full text-xs px-2 py-1 border border-transparent hover:border-gray-300 dark:hover:border-slate-600 focus:border-primary focus:ring-1 focus:ring-primary rounded bg-transparent dark:bg-transparent text-gray-600 dark:text-slate-400 focus:text-gray-900 dark:focus:text-white"
+                          :class="{ 'border-red-300 dark:border-red-700': guarantor.email && !isValidEmail(guarantor.email) }"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -755,6 +792,7 @@ import {
 } from 'lucide-vue-next'
 import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   show: boolean
@@ -815,12 +853,20 @@ const {
   prefillFromTenancy
 } = useAgreementForm()
 
-// Company bank details for managed properties
-const companyBankDetails = ref<{
+// Company details for managed properties (includes name, address, and bank details)
+const companyDetails = ref<{
+  name: string
+  addressLine1: string
+  addressLine2: string
+  city: string
+  postcode: string
   accountName: string
   accountNumber: string
   sortCode: string
 } | null>(null)
+
+// Alias for backward compatibility
+const companyBankDetails = companyDetails
 
 // Landlord bank details backup for let_only
 const landlordBankDetails = ref<{
@@ -829,23 +875,45 @@ const landlordBankDetails = ref<{
   sortCode: string
 } | null>(null)
 
-// Fetch company bank details
-const fetchCompanyBankDetails = async () => {
+// Fetch company details (name, address, and bank details)
+// Uses the tenancy's company_id to ensure we get the correct branch's details
+const fetchCompanyDetails = async () => {
   try {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/company`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+    // Use tenancy's company_id to fetch the correct company's details
+    // This ensures we get the correct branch's agency details for the agreement
+    const tenancyCompanyId = props.tenancy?.company_id
+    console.log('[AgreementModal] fetchCompanyDetails:', {
+      tenancyId: props.tenancy?.id,
+      tenancyCompanyId,
+      activeBranchId: localStorage.getItem('activeBranchId')
+    })
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
+
+    // CRITICAL: Use tenancy's company_id, NOT the user's active branch
+    if (tenancyCompanyId) {
+      headers['X-Branch-Id'] = tenancyCompanyId
+    }
+
+    const response = await authFetch(`${API_URL}/api/company`, {
+      token,
+      headers
     })
 
     if (response.ok) {
       const data = await response.json()
       if (data.company) {
-        companyBankDetails.value = {
+        companyDetails.value = {
+          name: data.company.name || '',
+          addressLine1: data.company.address || '',  // API returns 'address' not 'address_line1'
+          addressLine2: '',  // Company doesn't have separate address_line2
+          city: data.company.city || '',
+          postcode: data.company.postcode || '',
           accountName: data.company.bank_account_name || '',
           accountNumber: data.company.bank_account_number || '',
           sortCode: data.company.bank_sort_code || ''
@@ -853,9 +921,12 @@ const fetchCompanyBankDetails = async () => {
       }
     }
   } catch (err) {
-    console.error('Failed to fetch company bank details:', err)
+    console.error('Failed to fetch company details:', err)
   }
 }
+
+// Alias for backward compatibility
+const fetchCompanyBankDetails = fetchCompanyDetails
 
 // Watch for management type changes to update bank details accordingly
 watch(() => formData.value.managementType, (newType) => {
@@ -971,8 +1042,8 @@ const canSendForSigning = computed(() => {
   const landlordsValid = formData.value.landlords.every(l => l.email && isValidEmail(l.email))
   // At least lead tenant must have email (or all tenants)
   const tenantsValid = formData.value.tenants.some(t => t.email && isValidEmail(t.email))
-  // All guarantors must have email
-  const guarantorsValid = formData.value.guarantors.length === 0
+  // All guarantors must have email (or no guarantors)
+  const guarantorsValid = formData.value.guarantors.length === 0 ||
     formData.value.guarantors.every(g => g.email && isValidEmail(g.email))
 
   return landlordsValid && tenantsValid && guarantorsValid
@@ -1066,10 +1137,10 @@ const generateAgreement = async () => {
     console.log('  formData.breakClauseEnabled:', formData.value.breakClauseEnabled)
 
     // Create agreement
-    const createResponse = await fetch(`${API_URL}/api/agreements`, {
+    const createResponse = await authFetch(`${API_URL}/api/agreements`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(requestData)
@@ -1083,11 +1154,9 @@ const generateAgreement = async () => {
     const { agreement } = await createResponse.json()
 
     // Generate PDF
-    const generateResponse = await fetch(`${API_URL}/api/agreements/${agreement.id}/generate`, {
+    const generateResponse = await authFetch(`${API_URL}/api/agreements/${agreement.id}/generate`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      token
     })
 
     if (!generateResponse.ok) {
@@ -1101,10 +1170,8 @@ const generateAgreement = async () => {
     const { agreementId } = await generateResponse.json()
 
     // Fetch the full agreement with PDF URL
-    const fetchResponse = await fetch(`${API_URL}/api/agreements/${agreementId || agreement.id}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    const fetchResponse = await authFetch(`${API_URL}/api/agreements/${agreementId || agreement.id}`, {
+      token
     })
 
     if (fetchResponse.ok) {
@@ -1137,10 +1204,10 @@ const sendForSigning = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(`${API_URL}/api/agreements/${generatedAgreement.value.id}/send-for-signing`, {
+    const response = await authFetch(`${API_URL}/api/agreements/${generatedAgreement.value.id}/send-for-signing`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })

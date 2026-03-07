@@ -93,8 +93,8 @@
                         class="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
                         @mousedown.prevent="selectProperty(prop)"
                       >
-                        <span class="font-medium">{{ prop.address_line1 }}</span>
-                        <span class="text-gray-500 ml-2">{{ prop.city }} {{ prop.postcode }}</span>
+                        <span class="font-medium">{{ prop.address_line1 || prop.address || prop.postcode }}</span>
+                        <span v-if="prop.city || prop.postcode" class="text-gray-500 ml-2">{{ [prop.city, prop.postcode].filter(Boolean).join(' ') }}</span>
                       </button>
                       <div v-if="filteredProperties.length === 0 && propertySearch" class="px-3 py-2 text-sm text-gray-500">
                         No properties found
@@ -109,7 +109,7 @@
                     </div>
                   </div>
                   <p v-if="selectedProperty" class="mt-2 text-xs text-green-600">
-                    Selected: {{ selectedProperty.address_line1 }}, {{ selectedProperty.city }} {{ selectedProperty.postcode }}
+                    Selected: {{ editableDetails.address || selectedProperty.address_line1 }}, {{ editableDetails.city || selectedProperty.city }} {{ editableDetails.postcode || selectedProperty.postcode }}
                     <span v-if="propertyMatchedFromReference" class="text-blue-600 ml-1">(auto-matched)</span>
                   </p>
                   <p v-else-if="pendingPropertyData" class="mt-2 text-xs text-amber-600">
@@ -386,6 +386,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { X, AlertTriangle, User, Loader2, ArrowRightCircle, Search, Building2, FileText, Home } from 'lucide-vue-next'
 import type { Tenancy } from '@/composables/useTenancies'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -595,8 +596,8 @@ const loadProperties = async () => {
     let hasMore = true
 
     while (hasMore) {
-      const response = await fetch(`${API_URL}/api/properties?limit=${limit}&page=${page}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const response = await authFetch(`${API_URL}/api/properties?limit=${limit}&page=${page}`, {
+        token
       })
 
       if (response.ok) {
@@ -674,7 +675,9 @@ const fuzzyMatchProperty = (referenceAddress: string): any | null => {
 // Select a property from dropdown
 const selectProperty = (prop: any) => {
   selectedProperty.value = prop
-  propertySearch.value = `${prop.address_line1}, ${prop.city} ${prop.postcode}`
+  // Build display string, filtering out null/empty values
+  const addressParts = [prop.address_line1, prop.city, prop.postcode].filter(Boolean)
+  propertySearch.value = addressParts.join(', ') || prop.postcode || 'Unknown address'
   showPropertyDropdown.value = false
   propertyMatchedFromReference.value = false
   pendingPropertyData.value = null
@@ -730,10 +733,10 @@ const createProperty = async (addressData: any): Promise<string | null> => {
 
     console.log('[CreateProperty] Parsed:', { addressLine1, city, postcode, original: fullAddress })
 
-    const response = await fetch(`${API_URL}/api/properties`, {
+    const response = await authFetch(`${API_URL}/api/properties`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -872,12 +875,10 @@ const loadPreview = async () => {
     // Load properties for fuzzy matching
     await loadProperties()
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/convert/preview/${props.tenancy.id}`,
       {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        token
       }
     )
 
@@ -910,12 +911,16 @@ const loadPreview = async () => {
         const matchedProperty = fuzzyMatchProperty(fullAddress)
         if (matchedProperty) {
           selectedProperty.value = matchedProperty
-          propertySearch.value = `${matchedProperty.address_line1}, ${matchedProperty.city} ${matchedProperty.postcode}`
+          // Use reference address if property has null address fields
+          const displayAddress = matchedProperty.address_line1 || props.tenancy.propertyAddress || ''
+          const displayCity = matchedProperty.city || props.tenancy.propertyCity || ''
+          const displayPostcode = matchedProperty.postcode || props.tenancy.propertyPostcode || ''
+          propertySearch.value = `${displayAddress}, ${displayCity} ${displayPostcode}`
           propertyMatchedFromReference.value = true
-          // Populate editable details from matched property
-          editableDetails.value.address = matchedProperty.address_line1 || ''
-          editableDetails.value.city = matchedProperty.city || ''
-          editableDetails.value.postcode = matchedProperty.postcode || ''
+          // Populate editable details - prefer property data, fallback to reference
+          editableDetails.value.address = displayAddress
+          editableDetails.value.city = displayCity
+          editableDetails.value.postcode = displayPostcode
         } else {
           // Pre-fill search with full reference address
           propertySearch.value = fullAddress
@@ -1087,10 +1092,10 @@ const convert = async () => {
       console.log('[ConversionModal] Sending tenants:', tenantsToSend)
 
       // Use the manual create endpoint for legacy references
-      const response = await fetch(`${API_URL}/api/tenancies/create`, {
+      const response = await authFetch(`${API_URL}/api/tenancies/create`, {
         method: 'POST',
+        token,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -1116,10 +1121,10 @@ const convert = async () => {
       tenancyId = data.tenancy?.id
     } else {
       // Use the standard convert endpoint (has linked_property_id)
-      const response = await fetch(`${API_URL}/api/tenancies/convert`, {
+      const response = await authFetch(`${API_URL}/api/tenancies/convert`, {
         method: 'POST',
+        token,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

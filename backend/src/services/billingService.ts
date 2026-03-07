@@ -1,6 +1,9 @@
 import { supabase } from '../config/supabase';
 import * as stripeService from './stripeService';
 import * as creditService from './creditService';
+import { sendEmail, loadEmailTemplate } from './emailService';
+import { decrypt } from './encryption';
+import { getFrontendUrl } from '../utils/frontendUrl';
 
 /**
  * Billing Service
@@ -420,7 +423,59 @@ export async function fulfillCreditPackPurchase(
     }
   );
 
-  // TODO: Send receipt email
+  // Send receipt email
+  try {
+    // Get company details
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted, email_encrypted')
+      .eq('id', companyId)
+      .single();
+
+    if (company && company.email_encrypted) {
+      const companyName = decrypt(company.name_encrypted) || 'Valued Customer';
+      const companyEmail = decrypt(company.email_encrypted);
+
+      if (companyEmail) {
+        // Get new balance
+        const { data: balanceData } = await supabase
+          .from('company_credits')
+          .select('balance')
+          .eq('company_id', companyId)
+          .single();
+
+        const newBalance = balanceData?.balance || credits;
+        const pricePerCredit = (amountGbp / credits).toFixed(2);
+
+        const html = loadEmailTemplate('credits-purchased-receipt', {
+          CompanyName: companyName,
+          CreditsAdded: credits.toString(),
+          AmountPaid: amountGbp.toFixed(2),
+          PricePerCredit: pricePerCredit,
+          PaymentMethod: 'Card',
+          TransactionId: paymentIntentId.substring(0, 20) + '...',
+          PurchaseDate: new Date().toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          }),
+          NewBalance: newBalance.toString(),
+          DashboardLink: `${getFrontendUrl()}/billing`
+        });
+
+        await sendEmail({
+          to: companyEmail,
+          subject: 'Credit Purchase Receipt - PropertyGoose',
+          html
+        });
+
+        console.log(`[Billing] Sent credit purchase receipt to ${companyEmail}`);
+      }
+    }
+  } catch (emailError) {
+    console.error('[Billing] Failed to send credit purchase receipt:', emailError);
+    // Don't throw - email failure shouldn't fail the purchase
+  }
 }
 
 /**
@@ -470,7 +525,58 @@ export async function purchaseCreditPackAutoRecharge(
       }
     );
 
-    // TODO: Send auto-recharge confirmation email
+    // Send auto-recharge confirmation email
+    try {
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name_encrypted, email_encrypted')
+        .eq('id', companyId)
+        .single();
+
+      if (company && company.email_encrypted) {
+        const companyName = decrypt(company.name_encrypted) || 'Valued Customer';
+        const companyEmail = decrypt(company.email_encrypted);
+
+        if (companyEmail) {
+          // Get new balance
+          const { data: balanceData } = await supabase
+            .from('company_credits')
+            .select('balance')
+            .eq('company_id', companyId)
+            .single();
+
+          const newBalance = balanceData?.balance || pack.credits_quantity;
+          const pricePerCredit = (pack.price_gbp / pack.credits_quantity).toFixed(2);
+
+          const html = loadEmailTemplate('credits-purchased-receipt', {
+            CompanyName: companyName,
+            CreditsAdded: pack.credits_quantity.toString(),
+            AmountPaid: pack.price_gbp.toFixed(2),
+            PricePerCredit: pricePerCredit,
+            PaymentMethod: 'Auto-Recharge (Saved Card)',
+            TransactionId: paymentIntent.id.substring(0, 20) + '...',
+            PurchaseDate: new Date().toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
+            }),
+            NewBalance: newBalance.toString(),
+            DashboardLink: `${getFrontendUrl()}/billing`
+          });
+
+          await sendEmail({
+            to: companyEmail,
+            subject: 'Auto-Recharge Confirmation - PropertyGoose',
+            html
+          });
+
+          console.log(`[Billing] Sent auto-recharge confirmation to ${companyEmail}`);
+        }
+      }
+    } catch (emailError) {
+      console.error('[Billing] Failed to send auto-recharge confirmation:', emailError);
+      // Don't throw - email failure shouldn't fail the recharge
+    }
   } else {
     throw new Error(`Auto-recharge payment failed: ${paymentIntent.status}`);
   }

@@ -939,8 +939,13 @@ router.post('/import-csv', authenticateToken, requireMember, upload.single('csv'
     const fieldMappingStr = req.body.fieldMapping
 
     if (fieldMappingStr) {
-      // Use manual mapping provided by frontend
-      const fieldMapping = JSON.parse(fieldMappingStr) as Record<string, string>
+      // Use manual mapping provided by frontend (safely parse JSON)
+      let fieldMapping: Record<string, string>
+      try {
+        fieldMapping = JSON.parse(fieldMappingStr) as Record<string, string>
+      } catch {
+        return res.status(400).json({ error: 'Invalid field mapping format' })
+      }
       columnMapping = {}
 
       // Convert header names to column indices
