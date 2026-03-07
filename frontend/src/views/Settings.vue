@@ -1071,7 +1071,7 @@ const auditPagination = ref({
 })
 
 // Permission checking
-const hasPermission = (tabId: string) => {
+const hasPermission = (_tabId: string) => {
   // TEMPORARY: Always allow access to all tabs
   return true
 }
