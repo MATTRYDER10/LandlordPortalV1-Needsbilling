@@ -629,6 +629,7 @@ import ConversionModal from '../components/references/ConversionModal.vue'
 import { useTenancies, type Tenancy, type TenancyPerson, type TabKey } from '../composables/useTenancies'
 import { isValidEmail } from '../utils/validation'
 import { Building, FileText } from 'lucide-vue-next'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -807,10 +808,8 @@ async function fetchProperties() {
     }
     params.append('limit', '20') // Limit to 20 results for performance
 
-    const response = await fetch(`${API_URL}/api/properties?${params.toString()}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    const response = await authFetch(`${API_URL}/api/properties?${params.toString()}`, {
+      token
     })
 
     if (response.ok) {
@@ -1090,10 +1089,10 @@ const handleCreate = async () => {
       }
     }
 
-    const response = await fetch(`${API_URL}/api/references`, {
+    const response = await authFetch(`${API_URL}/api/references`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
@@ -1184,9 +1183,9 @@ const handleChase = async (person: TenancyPerson) => {
     }
 
     // Get chase dependencies for this person
-    const depsResponse = await fetch(`${API_URL}/api/chase/agent/reference/${person.id}`, {
+    const depsResponse = await authFetch(`${API_URL}/api/chase/agent/reference/${person.id}`, {
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -1203,10 +1202,10 @@ const handleChase = async (person: TenancyPerson) => {
 
     for (const dep of dependencies) {
       if (dep.canChase) {
-        const chaseResponse = await fetch(`${API_URL}/api/chase/agent/${dep.id}`, {
+        const chaseResponse = await authFetch(`${API_URL}/api/chase/agent/${dep.id}`, {
           method: 'POST',
+          token,
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         })
@@ -1361,10 +1360,10 @@ const addGuarantor = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/references/${tenantId}/add-guarantor`, {
+    const response = await authFetch(`${API_URL}/api/references/${tenantId}/add-guarantor`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -1406,10 +1405,10 @@ const handleDelete = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/references/${referenceToDelete.value.id}`, {
+    const response = await authFetch(`${API_URL}/api/references/${referenceToDelete.value.id}`, {
       method: 'DELETE',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })

@@ -579,6 +579,7 @@ import { ArrowLeft, Check, Pencil, Trash2, CheckCircle } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import RentShareModal from '../components/RentShareModal.vue'
 import { formatDateTime } from '../utils/date'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -707,9 +708,9 @@ const fetchOffer = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}`, {
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -747,9 +748,9 @@ const fetchNotes = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/offer-notes/${route.params.id}`, {
+    const response = await authFetch(`${API_URL}/api/offer-notes/${route.params.id}`, {
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -768,9 +769,9 @@ const fetchAuditLog = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/offer-audit-log/${route.params.id}`, {
+    const response = await authFetch(`${API_URL}/api/offer-audit-log/${route.params.id}`, {
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -792,10 +793,10 @@ const addNote = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/offer-notes/${route.params.id}`, {
+    const response = await authFetch(`${API_URL}/api/offer-notes/${route.params.id}`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ note: newNote.value })
@@ -831,10 +832,10 @@ const saveNoteEdit = async (noteId: string) => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/offer-notes/${route.params.id}/${noteId}`, {
+    const response = await authFetch(`${API_URL}/api/offer-notes/${route.params.id}/${noteId}`, {
       method: 'PUT',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ note: editNoteText.value })
@@ -860,10 +861,10 @@ const deleteNote = async (noteId: string) => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/offer-notes/${route.params.id}/${noteId}`, {
+    const response = await authFetch(`${API_URL}/api/offer-notes/${route.params.id}/${noteId}`, {
       method: 'DELETE',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -883,10 +884,10 @@ const resendEmail = async (emailType: 'approval' | 'decline') => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}/resend-email`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}/resend-email`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ email_type: emailType })
@@ -913,10 +914,10 @@ const approveOffer = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}/approve`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}/approve`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -945,10 +946,10 @@ const declineOffer = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}/decline`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}/decline`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ reason: declineReason.value })
@@ -977,10 +978,10 @@ const acceptWithChanges = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}`, {
       method: 'PUT',
+      token,
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(editForm.value)
@@ -998,10 +999,10 @@ const acceptWithChanges = async () => {
     )
 
     if (shouldApprove) {
-      const approveResponse = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}/approve`, {
+      const approveResponse = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}/approve`, {
         method: 'POST',
+        token,
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
@@ -1058,10 +1059,10 @@ const confirmHoldingDepositReceived = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}/holding-deposit-received`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}/holding-deposit-received`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ amount_paid: parsedAmount })
@@ -1107,10 +1108,10 @@ const handleRentSharesConfirm = async (tenantShares: Array<{ tenantId: string; r
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}/set-rent-shares`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}/set-rent-shares`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ tenantShares })
@@ -1148,10 +1149,10 @@ const confirmDelete = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/${route.params.id}`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${route.params.id}`, {
       method: 'DELETE',
+      token,
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })

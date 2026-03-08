@@ -1369,6 +1369,7 @@ interface GroupStatusResult {
   agentEmail: string
   agentName: string
   companyId: string
+  agentLogoUrl?: string
 }
 
 /**
@@ -1516,7 +1517,7 @@ async function getGroupStatusForEmail(referenceId: string): Promise<GroupStatusR
     // Get company details for agent email
     const { data: company } = await supabase
       .from('companies')
-      .select('name_encrypted, email_encrypted, reference_notification_email')
+      .select('name_encrypted, email_encrypted, reference_notification_email, logo_url')
       .eq('id', reference.company_id)
       .single()
 
@@ -1537,7 +1538,8 @@ async function getGroupStatusForEmail(referenceId: string): Promise<GroupStatusR
       propertyAddress,
       agentEmail,
       agentName,
-      companyId: reference.company_id
+      companyId: reference.company_id,
+      agentLogoUrl: company?.logo_url || ''
     }
   } catch (error) {
     console.error('[getGroupStatusForEmail] Error:', error)
@@ -1662,7 +1664,9 @@ export async function sendVerificationCompleteNotification(
       }),
       DashboardLink: dashboardLink,
       GroupStatusSection: groupStatusHtml,
-      PdfAttachmentNotice: pdfNoticeHtml
+      PdfAttachmentNotice: pdfNoticeHtml,
+      AgentLogoUrl: groupStatus.agentLogoUrl || 'https://app.propertygoose.co.uk/logo.png',
+      CompanyName: groupStatus.agentName || 'Property Goose'
     })
 
     // Prepare attachments if PDF URL is provided

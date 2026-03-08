@@ -5,31 +5,11 @@
  */
 
 import express, { Router } from 'express'
-import { authenticateToken, AuthRequest } from '../middleware/auth'
+import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import * as tenantChangeService from '../services/tenantChangeService'
 
 const router: Router = express.Router()
-
-/**
- * Helper to get company ID from request
- */
-async function getCompanyIdForRequest(req: AuthRequest): Promise<string> {
-  const userId = req.user?.id
-  if (!userId) throw new Error('User not authenticated')
-
-  const { data, error } = await supabase
-    .from('company_users')
-    .select('company_id')
-    .eq('user_id', userId)
-    .single()
-
-  if (error || !data) {
-    throw new Error('Company not found for user')
-  }
-
-  return data.company_id
-}
 
 // ============================================================================
 // AUTHENTICATED ROUTES
@@ -43,6 +23,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     const { tenancyId, outgoingTenantIds, incomingTenants, expectedMoveOutDate, expectedMoveInDate } = req.body
 
@@ -88,6 +71,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
     const tenantChange = await tenantChangeService.getTenantChange(req.params.id, companyId)
 
     if (!tenantChange) {
@@ -108,6 +94,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/tenancy/:tenancyId', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     // Verify company owns this tenancy
     const { data: tenancy } = await supabase
@@ -137,6 +126,9 @@ router.patch('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     const { outgoing_tenant_ids, incoming_tenants, expected_move_out_date, expected_move_in_date } = req.body
 
@@ -168,6 +160,9 @@ router.post('/:id/advance', authenticateToken, async (req: AuthRequest, res) => 
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     const tenantChange = await tenantChangeService.advanceStage(req.params.id, companyId, userId)
     res.json({ tenantChange })
@@ -185,6 +180,9 @@ router.post('/:id/referencing', authenticateToken, async (req: AuthRequest, res)
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
     const { requiresReferencing } = req.body
 
     if (requiresReferencing === undefined) {
@@ -213,6 +211,9 @@ router.post('/:id/override-referencing', authenticateToken, async (req: AuthRequ
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
     const { reason } = req.body
 
     if (!reason) {
@@ -240,6 +241,9 @@ router.post('/:id/override-referencing', authenticateToken, async (req: AuthRequ
 router.post('/:id/calculate-pro-rata', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
     const { changeoverDate } = req.body
 
     if (!changeoverDate) {
@@ -267,6 +271,9 @@ router.patch('/:id/fee-details', authenticateToken, async (req: AuthRequest, res
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     const tenantChange = await tenantChangeService.updateFeeDetails(
       req.params.id,
@@ -290,6 +297,9 @@ router.post('/:id/send-invoice', authenticateToken, async (req: AuthRequest, res
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     const tenantChange = await tenantChangeService.sendFeeInvoice(req.params.id, companyId, userId)
     res.json({ tenantChange })
@@ -307,6 +317,9 @@ router.post('/:id/mark-fee-received', authenticateToken, async (req: AuthRequest
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
     const { amount, notes } = req.body
 
     if (amount === undefined || amount < 0) {
@@ -335,6 +348,9 @@ router.post('/:id/send-for-signing', authenticateToken, async (req: AuthRequest,
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     const tenantChange = await tenantChangeService.sendAddendumForSigning(
       req.params.id,
@@ -356,6 +372,9 @@ router.post('/:id/send-for-signing', authenticateToken, async (req: AuthRequest,
 router.get('/:id/signing-status', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     const status = await tenantChangeService.getSigningStatus(req.params.id, companyId)
     res.json(status)
@@ -373,6 +392,9 @@ router.post('/:id/resend/:signatureId', authenticateToken, async (req: AuthReque
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     await tenantChangeService.resendSigningEmail(req.params.signatureId, companyId, userId)
     res.json({ success: true })
@@ -390,6 +412,9 @@ router.post('/:id/complete', authenticateToken, async (req: AuthRequest, res) =>
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     const tenantChange = await tenantChangeService.completeChangeover(
       req.params.id,
@@ -412,6 +437,9 @@ router.patch('/:id/checklist', authenticateToken, async (req: AuthRequest, res) 
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
 
     const tenantChange = await tenantChangeService.updateChecklist(
       req.params.id,
@@ -443,6 +471,9 @@ router.post('/:id/finalize', authenticateToken, async (req: AuthRequest, res) =>
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
     console.log(`[TenantChange] Finalizing tenant change ${req.params.id} for company ${companyId}`)
 
     const tenantChange = await tenantChangeService.finalizeTenantChange(
@@ -467,6 +498,9 @@ router.post('/:id/cancel', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id
     const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
     const { reason } = req.body
 
     if (!reason) {

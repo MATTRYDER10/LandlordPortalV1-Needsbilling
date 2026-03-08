@@ -392,6 +392,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { authFetch } from '../lib/authFetch'
 import { isValidEmail } from '../utils/validation'
 import { X, Info } from 'lucide-vue-next'
 
@@ -458,12 +459,11 @@ const fetchLandlord = async () => {
   if (!props.landlordId) return
 
   try {
-    const response = await fetch(`${API_URL}/api/landlords/${props.landlordId}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const token = authStore.session?.access_token
+    if (!token) {
+      throw new Error('Not authenticated')
+    }
+    const response = await authFetch(`${API_URL}/api/landlords/${props.landlordId}`, { token })
 
     if (!response.ok) {
       throw new Error('Failed to fetch landlord')
@@ -566,10 +566,15 @@ const handleSubmit = async () => {
 
     const method = isEdit.value ? 'PUT' : 'POST'
 
-    const response = await fetch(url, {
+    const token = authStore.session?.access_token
+    if (!token) {
+      throw new Error('Not authenticated')
+    }
+
+    const response = await authFetch(url, {
       method,
+      token,
       headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)

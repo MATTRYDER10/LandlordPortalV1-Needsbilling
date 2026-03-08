@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticateToken, requireMember, AuthRequest } from '../middleware/auth'
+import { authenticateToken, requireMember, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption'
 import * as creditService from '../services/creditService'
@@ -191,15 +191,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single()
-
-    if (!companyUser) {
+    // Get company from X-Branch-Id header or user's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
@@ -208,7 +202,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .from('landlords')
       .select('*')
       .eq('id', landlordId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     if (error || !landlord) {
@@ -365,15 +359,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single()
-
-    if (!companyUser) {
+    // Get company from X-Branch-Id header or user's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
@@ -404,7 +392,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // Prepare encrypted data
     const landlordData: any = {
-      company_id: companyUser.company_id,
+      company_id: companyId,
       title_encrypted: title ? encrypt(title) : null,
       first_name_encrypted: encrypt(first_name),
       middle_name_encrypted: middle_name ? encrypt(middle_name) : null,
@@ -491,15 +479,9 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single()
-
-    if (!companyUser) {
+    // Get company from X-Branch-Id header or user's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
@@ -508,7 +490,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .from('landlords')
       .select('id')
       .eq('id', landlordId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     if (!existingLandlord) {
@@ -612,15 +594,9 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single()
-
-    if (!companyUser) {
+    // Get company from X-Branch-Id header or user's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
@@ -629,7 +605,7 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
       .from('landlords')
       .select('id')
       .eq('id', landlordId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     if (!existingLandlord) {
@@ -670,15 +646,9 @@ router.post('/bulk-delete', authenticateToken, async (req: AuthRequest, res) => 
       return res.status(400).json({ error: 'No landlord IDs provided' })
     }
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single()
-
-    if (!companyUser) {
+    // Get company from X-Branch-Id header or user's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
@@ -687,7 +657,7 @@ router.post('/bulk-delete', authenticateToken, async (req: AuthRequest, res) => 
       .from('landlords')
       .select('id')
       .in('id', ids)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
 
     if (!landlords || landlords.length === 0) {
       return res.status(404).json({ error: 'No landlords found' })
@@ -727,15 +697,9 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
       return res.status(400).json({ error: 'CSV file is required' })
     }
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single()
-
-    if (!companyUser) {
+    // Get company from X-Branch-Id header or user's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
@@ -805,7 +769,7 @@ router.post('/import-csv', authenticateToken, upload.single('csv'), async (req: 
     const landlordsToInsert: any[] = []
     for (const row of csvData) {
       const landlordData: any = {
-        company_id: companyUser.company_id,
+        company_id: companyId,
         created_by: userId
       }
 
@@ -922,15 +886,9 @@ router.post('/:id/request-id-verification', authenticateToken, async (req: AuthR
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    // Get user's company
-    const { data: companyUser } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .single()
-
-    if (!companyUser) {
+    // Get company from X-Branch-Id header or user's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
 
@@ -939,7 +897,7 @@ router.post('/:id/request-id-verification', authenticateToken, async (req: AuthR
       .from('landlords')
       .select('*')
       .eq('id', landlordId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     if (landlordError || !landlord) {
@@ -991,7 +949,7 @@ router.post('/:id/request-id-verification', authenticateToken, async (req: AuthR
         landlordEmail,
         landlordName,
         verificationLink,
-        companyUser.company_id
+        companyId
       )
       console.log(`Landlord verification email sent to ${landlordEmail}`)
     } catch (emailError) {
@@ -1352,25 +1310,18 @@ router.get('/:id/document/:type', authenticateToken, async (req: AuthRequest, re
       return res.status(400).json({ error: 'Invalid document type. Use "id" or "selfie"' })
     }
 
-    // Get user's company
-    const { data: companyUsers } = await supabase
-      .from('company_users')
-      .select('company_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (!companyUsers || companyUsers.length === 0) {
+    // Get company from X-Branch-Id header or user's company
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
     }
-
-    const companyUser = companyUsers[0]
 
     // Verify landlord belongs to user's company
     const { data: landlord, error: landlordError } = await supabase
       .from('landlords')
       .select('id, company_id')
       .eq('id', landlordId)
-      .eq('company_id', companyUser.company_id)
+      .eq('company_id', companyId)
       .single()
 
     if (landlordError || !landlord) {

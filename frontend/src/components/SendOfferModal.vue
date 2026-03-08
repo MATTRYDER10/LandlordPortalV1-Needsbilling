@@ -219,6 +219,7 @@
 import { ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../stores/auth'
+import { authFetch } from '../lib/authFetch'
 import AddressAutocomplete from './AddressAutocomplete.vue'
 import { isValidEmail } from '../utils/validation'
 import { X, Building } from 'lucide-vue-next'
@@ -294,11 +295,7 @@ async function fetchProperties() {
     }
     params.append('limit', '20') // Limit to 20 results for performance
 
-    const response = await fetch(`${API_URL}/api/properties?${params.toString()}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
+    const response = await authFetch(`${API_URL}/api/properties?${params.toString()}`, { token })
 
     if (response.ok) {
       const data = await response.json()
@@ -358,10 +355,10 @@ const handleSubmit = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/send-link`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/send-link`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

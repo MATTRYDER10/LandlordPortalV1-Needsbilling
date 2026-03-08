@@ -324,6 +324,7 @@ import PropertyCSVImportModal from '../components/properties/PropertyCSVImportMo
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { Search, MoreVertical, Trash2 } from 'lucide-vue-next'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -396,12 +397,8 @@ watch([complianceFilter, statusFilter, landlordFilter], () => {
 
 const fetchStats = async () => {
   try {
-    const response = await fetch(`${API_URL}/api/properties/stats`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/properties/stats`, { token })
 
     if (response.ok) {
       stats.value = await response.json()
@@ -438,12 +435,8 @@ const fetchProperties = async (page = 1, append = false) => {
       params.set('has_landlord', landlordFilter.value)
     }
 
-    const response = await fetch(`${API_URL}/api/properties?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/properties?${params}`, { token })
 
     if (!response.ok) {
       throw new Error('Failed to fetch properties')
@@ -493,12 +486,10 @@ const deleteProperty = async (id: string) => {
   if (!confirm('Are you sure you want to delete this property?')) return
 
   try {
-    const response = await fetch(`${API_URL}/api/properties/${id}`, {
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/properties/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
+      token
     })
 
     if (!response.ok) {
@@ -543,13 +534,11 @@ const bulkArchiveProperties = async () => {
 
   bulkProcessing.value = true
   try {
+    const token = authStore.session?.access_token
     for (const id of selectedProperties.value) {
-      await fetch(`${API_URL}/api/properties/${id}`, {
+      await authFetch(`${API_URL}/api/properties/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
+        token
       })
     }
     toast.success(`${selectedProperties.value.size} properties archived`)

@@ -18,8 +18,77 @@ import {
 } from '../services/propertyMatchingService'
 import { supabase } from '../config/supabase'
 import multer from 'multer'
+import { encrypt, decrypt } from '../services/encryption'
 
 const router = Router()
+
+// Fix properties with null addresses by copying from references
+router.post('/fix-addresses', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const branchId = req.headers['x-branch-id'] as string
+
+    if (!branchId) {
+      return res.status(400).json({ error: 'Branch ID required' })
+    }
+
+    // Get properties with null addresses
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id, postcode')
+      .eq('company_id', branchId)
+      .is('address_line1_encrypted', null)
+
+    if (!properties || properties.length === 0) {
+      return res.json({ message: 'No properties need fixing', fixed: 0 })
+    }
+
+    // Get references for this company
+    const { data: references } = await supabase
+      .from('tenant_references')
+      .select('id, property_postcode_encrypted, property_address_encrypted, property_city_encrypted')
+      .eq('company_id', branchId)
+      .not('property_address_encrypted', 'is', null)
+
+    if (!references || references.length === 0) {
+      return res.json({ message: 'No references with addresses found', fixed: 0 })
+    }
+
+    // Build a map of postcode -> reference
+    const postcodeMap = new Map<string, any>()
+    for (const ref of references) {
+      const postcode = decrypt(ref.property_postcode_encrypted)?.toUpperCase().replace(/\s/g, '')
+      if (postcode && !postcodeMap.has(postcode)) {
+        postcodeMap.set(postcode, ref)
+      }
+    }
+
+    // Fix each property
+    let fixed = 0
+    for (const prop of properties) {
+      const normalizedPostcode = prop.postcode?.toUpperCase().replace(/\s/g, '')
+      const matchingRef = postcodeMap.get(normalizedPostcode)
+
+      if (matchingRef) {
+        await supabase
+          .from('properties')
+          .update({
+            address_line1_encrypted: matchingRef.property_address_encrypted,
+            city_encrypted: matchingRef.property_city_encrypted,
+            full_address_encrypted: matchingRef.property_address_encrypted,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', prop.id)
+        fixed++
+      }
+    }
+
+    res.json({ message: `Fixed ${fixed} properties`, fixed })
+  } catch (error: any) {
+    console.error('Fix addresses error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
 
 // Configure multer for file uploads
 const upload = multer({
@@ -63,6 +132,26 @@ const ensurePropertyDocumentsBucket = async (): Promise<void> => {
   if (createResult.error) {
     throw new Error(`Failed to create ${PROPERTY_DOCS_BUCKET} bucket: ${createResult.error.message}`)
   }
+}
+
+/**
+ * Sanitize filename for Supabase Storage
+ * Removes/replaces special characters that are invalid in storage keys
+ */
+const sanitizeFilename = (filename: string): string => {
+  return filename
+    // Replace unicode dashes (em-dash, en-dash) with regular dash
+    .replace(/[\u2013\u2014\u2015\u2212]/g, '-')
+    // Replace spaces with underscores
+    .replace(/\s+/g, '_')
+    // Remove parentheses and brackets
+    .replace(/[()[\]{}]/g, '')
+    // Replace any remaining non-alphanumeric chars (except dash, underscore, period) with underscore
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    // Collapse multiple underscores
+    .replace(/_+/g, '_')
+    // Remove leading/trailing underscores
+    .replace(/^_+|_+$/g, '')
 }
 
 // ============================================================================
@@ -499,7 +588,8 @@ router.post('/:id/compliance', authenticateToken, requireMember, upload.single('
     // Handle document upload if provided
     if (req.file) {
       await ensurePropertyDocumentsBucket()
-      const fileName = `${Date.now()}_${req.file.originalname}`
+      const sanitizedName = sanitizeFilename(req.file.originalname)
+      const fileName = `${Date.now()}_${sanitizedName}`
       const filePath = `${companyId}/${propertyId}/compliance/${result.id}/${fileName}`
 
       // Upload to Supabase storage
@@ -565,7 +655,8 @@ router.put('/:id/compliance/:complianceId', authenticateToken, requireMember, up
         .eq('compliance_record_id', complianceId)
 
       // Upload new document
-      const fileName = `${Date.now()}_${req.file.originalname}`
+      const sanitizedName = sanitizeFilename(req.file.originalname)
+      const fileName = `${Date.now()}_${sanitizedName}`
       const filePath = `${companyId}/${propertyId}/compliance/${complianceId}/${fileName}`
 
       const { error: uploadError } = await supabase.storage
@@ -746,8 +837,9 @@ router.post('/:id/documents', authenticateToken, requireMember, upload.single('d
     }
 
     await ensurePropertyDocumentsBucket()
-    // Upload to Supabase storage
-    const fileName = `${Date.now()}_${req.file.originalname}`
+    // Upload to Supabase storage - sanitize filename for storage key
+    const sanitizedName = sanitizeFilename(req.file.originalname)
+    const fileName = `${Date.now()}_${sanitizedName}`
     const filePath = `${companyId}/${propertyId}/documents/${fileName}`
 
     const { error: uploadError } = await supabase.storage

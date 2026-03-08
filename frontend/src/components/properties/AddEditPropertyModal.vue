@@ -418,6 +418,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../../stores/auth'
+import { authFetch } from '../../lib/authFetch'
 import { X, CheckCircle } from 'lucide-vue-next'
 import AddressAutocomplete from '../AddressAutocomplete.vue'
 
@@ -526,13 +527,11 @@ const fetchExistingLandlords = async () => {
     const limit = 100
     let hasMore = true
 
+    const token = authStore.session?.access_token
+    if (!token) return
+
     while (hasMore) {
-      const response = await fetch(`${API_URL}/api/landlords?page=${page}&limit=${limit}`, {
-        headers: {
-          'Authorization': `Bearer ${authStore.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await authFetch(`${API_URL}/api/landlords?page=${page}&limit=${limit}`, { token })
 
       if (response.ok) {
         const data = await response.json()
@@ -610,12 +609,11 @@ const fetchProperty = async () => {
 
   loading.value = true
   try {
-    const response = await fetch(`${API_URL}/api/properties/${props.propertyId}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const token = authStore.session?.access_token
+    if (!token) {
+      throw new Error('Not authenticated')
+    }
+    const response = await authFetch(`${API_URL}/api/properties/${props.propertyId}`, { token })
 
     if (!response.ok) {
       throw new Error('Failed to fetch property')
@@ -711,10 +709,15 @@ const handleSubmit = async () => {
       ? `${API_URL}/api/properties/${props.propertyId}`
       : `${API_URL}/api/properties`
 
-    const response = await fetch(url, {
+    const token = authStore.session?.access_token
+    if (!token) {
+      throw new Error('Not authenticated')
+    }
+
+    const response = await authFetch(url, {
       method: isEdit.value ? 'PUT' : 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)

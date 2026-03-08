@@ -242,6 +242,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import { Loader2, Send, X, Plus } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   show: boolean
@@ -338,10 +339,10 @@ const loadInitialData = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    // Get preview data from backend
-    const response = await fetch(
+    // Get preview data from backend (with branch isolation headers)
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancy.id}/initial-monies-preview`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -530,12 +531,12 @@ const sendRequest = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancy.id}/request-initial-monies`,
       {
         method: 'POST',
+        token,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

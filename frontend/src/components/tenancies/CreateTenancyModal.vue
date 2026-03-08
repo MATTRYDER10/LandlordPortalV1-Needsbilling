@@ -404,6 +404,7 @@
 import { ref, computed, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
+import { authFetch } from '@/lib/authFetch'
 import { X, Calendar, Search } from 'lucide-vue-next'
 import { API_URL } from '@/lib/apiUrl'
 
@@ -618,9 +619,7 @@ const loadProperties = async () => {
     let hasMore = true
 
     while (hasMore) {
-      const response = await fetch(`${API_URL}/api/properties?page=${page}&limit=${limit}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      const response = await authFetch(`${API_URL}/api/properties?page=${page}&limit=${limit}`, { token })
 
       if (response.ok) {
         const data = await response.json()
@@ -651,9 +650,7 @@ const loadCompletedReferences = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/tenancies?status=completed`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    const response = await authFetch(`${API_URL}/api/tenancies?status=completed`, { token })
 
     if (response.ok) {
       const data = await response.json()
@@ -811,10 +808,10 @@ const createProperty = async (addressData: any): Promise<string | null> => {
     const city = parts[1] || ''
     const postcode = parts[parts.length - 1] || ''
 
-    const response = await fetch(`${API_URL}/api/properties`, {
+    const response = await authFetch(`${API_URL}/api/properties`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -918,10 +915,10 @@ const handleSubmit = async () => {
       }]
     }
 
-    const response = await fetch(`${API_URL}/api/tenancies/create`, {
+    const response = await authFetch(`${API_URL}/api/tenancies/create`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)

@@ -390,6 +390,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { authFetch } from '../lib/authFetch'
 import Sidebar from '../components/Sidebar.vue'
 import {
   Plus,
@@ -630,16 +631,7 @@ const fetchStats = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/references/stats`, { headers })
+    const response = await authFetch(`${API_URL}/api/references/stats`, { token })
 
     if (response.status === 404) {
       await authStore.signOut()
@@ -664,21 +656,9 @@ const fetchStats = async () => {
 const fetchTenancyStats = async () => {
   try {
     const token = authStore.session?.access_token
-    if (!token) {
-      console.warn('No auth token for tenancy stats')
-      return
-    }
+    if (!token) return
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${API_URL}/api/tenancies/records/stats`, { headers })
+    const response = await authFetch(`${API_URL}/api/tenancies/records/stats`, { token })
 
     if (response.ok) {
       const stats = await response.json()
@@ -700,17 +680,8 @@ const fetchCalendarData = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
     calendarLoading.value = true
-    const response = await fetch(`${API_URL}/api/references/calendar`, { headers })
+    const response = await authFetch(`${API_URL}/api/references/calendar`, { token })
 
     if (response.ok) {
       const data = await response.json()

@@ -682,6 +682,7 @@ import ActiveTenancyRow from '@/components/tenancies/ActiveTenancyRow.vue'
 import MonthBanner from '@/components/tenancies/MonthBanner.vue'
 import EmptyState from '@/components/tenancies/EmptyState.vue'
 import { Search, RefreshCw, Plus, FileEdit, CheckCircle2, Archive, Send, Shield, X, AlertTriangle } from 'lucide-vue-next'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -879,10 +880,8 @@ const loadTenancies = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/tenancies/records/active`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    const response = await authFetch(`${API_URL}/api/tenancies/records/active`, {
+      token
     })
 
     if (!response.ok) {
@@ -907,10 +906,8 @@ const loadArchivedTenancies = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/tenancies/records/archived`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    const response = await authFetch(`${API_URL}/api/tenancies/records/archived`, {
+      token
     })
 
     if (!response.ok) {
@@ -1086,11 +1083,9 @@ const handleDeleteTenancy = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(`${API_URL}/api/tenancies/records/${actionTenancy.value.id}`, {
+    const response = await authFetch(`${API_URL}/api/tenancies/records/${actionTenancy.value.id}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      token
     })
 
     if (!response.ok) {
@@ -1124,10 +1119,10 @@ const handleRevertToDraft = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(`${API_URL}/api/tenancies/records/${actionTenancy.value.id}/revert-to-draft`, {
+    const response = await authFetch(`${API_URL}/api/tenancies/records/${actionTenancy.value.id}/revert-to-draft`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })

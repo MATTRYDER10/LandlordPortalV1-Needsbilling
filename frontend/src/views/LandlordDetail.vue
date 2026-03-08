@@ -449,6 +449,7 @@ import Sidebar from '../components/Sidebar.vue'
 import AddEditLandlordModal from '../components/AddEditLandlordModal.vue'
 import LinkPropertyModal from '../components/landlords/LinkPropertyModal.vue'
 import { useAuthStore } from '../stores/auth'
+import { authFetch } from '../lib/authFetch'
 import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -478,11 +479,7 @@ const loadDocumentAsBlob = async (landlordId: string, docType: 'id' | 'selfie'):
 
   try {
     const url = `${API_URL}/api/landlords/${landlordId}/document/${docType}`
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
+    const response = await authFetch(url, { token })
 
     if (!response.ok) return null
 
@@ -540,12 +537,11 @@ const fetchLandlord = async () => {
 
   try {
     const landlordId = route.params.id as string
-    const response = await fetch(`${API_URL}/api/landlords/${landlordId}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const token = authStore.session?.access_token
+    if (!token) {
+      throw new Error('Not authenticated')
+    }
+    const response = await authFetch(`${API_URL}/api/landlords/${landlordId}`, { token })
 
     if (!response.ok) {
       throw new Error('Failed to fetch landlord')
@@ -580,10 +576,14 @@ const requestIdVerification = async () => {
   initiatingAML.value = true
 
   try {
-    const response = await fetch(`${API_URL}/api/landlords/${landlord.value.id}/request-id-verification`, {
+    const token = authStore.session?.access_token
+    if (!token) {
+      throw new Error('Not authenticated')
+    }
+    const response = await authFetch(`${API_URL}/api/landlords/${landlord.value.id}/request-id-verification`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
       }
     })

@@ -716,6 +716,7 @@ import AddComplianceModal from '../components/properties/AddComplianceModal.vue'
 import UploadDocumentModal from '../components/properties/UploadDocumentModal.vue'
 import EditPropertyLandlordsModal from '../components/properties/EditPropertyLandlordsModal.vue'
 import { useAuthStore } from '../stores/auth'
+import { authFetch } from '../lib/authFetch'
 import { useDownload } from '../composables/useDownload'
 import { formatDate as formatUkDate } from '../utils/date'
 
@@ -863,13 +864,11 @@ const fetchProperty = async () => {
   error.value = ''
 
   try {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
     const propertyId = route.params.id as string
-    const response = await fetch(`${API_URL}/api/properties/${propertyId}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const response = await authFetch(`${API_URL}/api/properties/${propertyId}`, { token })
 
     if (!response.ok) {
       throw new Error('Failed to fetch property')
@@ -910,12 +909,12 @@ const deleteProperty = async () => {
 
   deleting.value = true
   try {
-    const response = await fetch(`${API_URL}/api/properties/${property.value.id}`, {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(`${API_URL}/api/properties/${property.value.id}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
+      token
     })
 
     if (!response.ok) {
@@ -938,12 +937,13 @@ const saveSpecialClauses = async (clauses: string[]) => {
 
   savingClauses.value = true
   try {
-    const response = await fetch(`${API_URL}/api/properties/${property.value.id}/special-clauses`, {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(`${API_URL}/api/properties/${property.value.id}/special-clauses`, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      },
+      token,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ clauses })
     })
 
@@ -1004,12 +1004,13 @@ const enhanceAllClauses = async () => {
   showEnhancedPreview.value = false
 
   try {
-    const response = await fetch(`${API_URL}/api/properties/${property.value.id}/enhance-clauses`, {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(`${API_URL}/api/properties/${property.value.id}/enhance-clauses`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      },
+      token,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ clauses: specialClauses.value })
     })
 
@@ -1053,11 +1054,10 @@ const viewComplianceDocument = async (record: ComplianceRecord) => {
 
   // Open in new tab with auth token
   try {
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`
-      }
-    })
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(url, { token })
 
     if (!response.ok) {
       throw new Error('Failed to fetch document')
@@ -1099,12 +1099,10 @@ const fetchPropertyTenancies = async () => {
 
   loadingTenancies.value = true
   try {
-    const response = await fetch(`${API_URL}/api/tenancies/records/active?propertyId=${property.value.id}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(`${API_URL}/api/tenancies/records/active?propertyId=${property.value.id}`, { token })
 
     if (!response.ok) {
       throw new Error('Failed to fetch tenancies')
@@ -1162,12 +1160,10 @@ const fetchActivity = async () => {
 
   loadingActivity.value = true
   try {
-    const response = await fetch(`${API_URL}/api/properties/${property.value.id}/activity`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(`${API_URL}/api/properties/${property.value.id}/activity`, { token })
 
     if (!response.ok) {
       throw new Error('Failed to fetch activity')
@@ -1263,11 +1259,10 @@ const openDocumentPreview = async (doc: PropertyDocument) => {
       url = `${API_URL}/api/properties/${property.value?.id}/documents/${doc.id}/download`
     }
 
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`
-      }
-    })
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(url, { token })
 
     if (!response.ok) throw new Error('Failed to load document')
 

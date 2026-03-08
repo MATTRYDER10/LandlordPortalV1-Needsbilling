@@ -911,11 +911,12 @@ class PropertyService {
       nextExpiryDate = sortedRecords[0]?.expiry_date || null
     }
 
-    const addressLine1 = decrypt(property.address_line1_encrypted)
-    const addressLine2 = decrypt(property.address_line2_encrypted)
-    const city = decrypt(property.city_encrypted)
-    const county = decrypt(property.county_encrypted)
-    const fullAddress = decrypt(property.full_address_encrypted)
+    // Try encrypted fields first, fallback to unencrypted for legacy data
+    const addressLine1 = decrypt(property.address_line1_encrypted) || property.address_line1 || null
+    const addressLine2 = decrypt(property.address_line2_encrypted) || property.address_line2 || null
+    const city = decrypt(property.city_encrypted) || property.city || null
+    const county = decrypt(property.county_encrypted) || property.county || null
+    const fullAddress = decrypt(property.full_address_encrypted) || property.full_address || null
 
     return {
       id: property.id,
@@ -962,12 +963,12 @@ class PropertyService {
   }
 
   private formatPropertyDetail(property: any): PropertyDetail {
-    // Build formatted address
-    const fullAddress = decrypt(property.full_address_encrypted)
-    const line1 = decrypt(property.address_line1_encrypted)
-    const line2 = decrypt(property.address_line2_encrypted)
-    const city = decrypt(property.city_encrypted)
-    const county = decrypt(property.county_encrypted)
+    // Build formatted address - try encrypted fields first, fallback to unencrypted for legacy data
+    const fullAddress = decrypt(property.full_address_encrypted) || property.full_address || null
+    const line1 = decrypt(property.address_line1_encrypted) || property.address_line1 || null
+    const line2 = decrypt(property.address_line2_encrypted) || property.address_line2 || null
+    const city = decrypt(property.city_encrypted) || property.city || null
+    const county = decrypt(property.county_encrypted) || property.county || null
 
     let formatted = fullAddress
     if (!formatted) {

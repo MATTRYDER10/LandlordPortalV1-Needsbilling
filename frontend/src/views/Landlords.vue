@@ -286,6 +286,7 @@ import CSVImportModal from '../components/CSVImportModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { Search, MoreVertical } from 'lucide-vue-next'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -355,12 +356,8 @@ const fetchLandlords = async (page = 1, append = false) => {
       params.set('aml_status', amlStatusFilter.value)
     }
 
-    const response = await fetch(`${API_URL}/api/landlords?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/landlords?${params}`, { token })
 
     if (!response.ok) {
       throw new Error('Failed to fetch landlords')
@@ -428,12 +425,10 @@ const deleteLandlord = async (id: string) => {
   }
 
   try {
-    const response = await fetch(`${API_URL}/api/landlords/${id}`, {
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/landlords/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
+      token
     })
 
     if (!response.ok) {
@@ -480,10 +475,11 @@ const bulkDeleteLandlords = async () => {
 
   bulkDeleting.value = true
   try {
-    const response = await fetch(`${API_URL}/api/landlords/bulk-delete`, {
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/landlords/bulk-delete`, {
       method: 'POST',
+      token,
       headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ ids: Array.from(selectedLandlords.value) })
@@ -507,12 +503,10 @@ const bulkDeleteLandlords = async () => {
 
 const requestIdVerification = async (id: string) => {
   try {
-    const response = await fetch(`${API_URL}/api/landlords/${id}/request-id-verification`, {
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/landlords/${id}/request-id-verification`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json'
-      }
+      token
     })
 
     if (!response.ok) {

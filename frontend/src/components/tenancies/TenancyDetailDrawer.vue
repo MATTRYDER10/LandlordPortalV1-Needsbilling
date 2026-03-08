@@ -2218,6 +2218,7 @@ import TenantChangeModal from './TenantChangeModal.vue'
 import TenantChangeStatusTracker from './TenantChangeStatusTracker.vue'
 import MoveOutNoticeModal from './MoveOutNoticeModal.vue'
 import { API_URL } from '@/lib/apiUrl'
+import { authFetch } from '@/lib/authFetch'
 
 const props = defineProps<{
   open: boolean
@@ -2592,16 +2593,18 @@ const rentDueDayOptions = Array.from({ length: 28 }, (_, i) => ({
 const updateTenancyField = async (field: string, value: any) => {
   if (!tenancy.value?.id) return
 
+  console.log('[TenancyDrawer] Updating field:', { field, value, tenancyId: tenancy.value.id })
+
   try {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}`,
       {
         method: 'PUT',
+        token,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ [field]: value })
@@ -2612,6 +2615,15 @@ const updateTenancyField = async (field: string, value: any) => {
       const error = await response.json()
       throw new Error(error.error || 'Failed to update')
     }
+
+    const result = await response.json()
+    console.log('[TenancyDrawer] Update response:', {
+      field,
+      newValue: result.tenancy?.[field === 'startDate' ? 'start_date' : field],
+      tenancy_type: result.tenancy?.tenancy_type,
+      start_date: result.tenancy?.start_date,
+      deposit_scheme: result.tenancy?.deposit_scheme
+    })
 
     toast.success('Updated successfully')
     await loadFullTenancyData()
@@ -2767,9 +2779,9 @@ const loadFullTenancyData = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const tenancyResponse = await fetch(
+    const tenancyResponse = await authFetch(
       `${API_URL}/api/tenancies/records/${props.tenancy.id}`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
     if (tenancyResponse.ok) {
       const data = await tenancyResponse.json()
@@ -2780,7 +2792,8 @@ const loadFullTenancyData = async () => {
           property_id: data.tenancy.property_id,
           tenants_count: data.tenancy.tenants?.length || 0,
           start_date: data.tenancy.start_date,
-          end_date: data.tenancy.end_date
+          end_date: data.tenancy.end_date,
+          deposit_amount: data.tenancy.deposit_amount
         })
       }
     } else {
@@ -2797,9 +2810,9 @@ const loadAgentSettings = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/company/settings`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -2817,17 +2830,9 @@ const loadTDSConfigStatus = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`
-    }
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tds/config-status`,
-      { headers }
+      { token }
     )
 
     if (response.ok) {
@@ -2850,17 +2855,9 @@ const loadTDSRegistration = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`
-    }
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tds/registration/${props.tenancy.id}`,
-      { headers }
+      { token }
     )
 
     if (response.ok) {
@@ -2883,9 +2880,9 @@ const downloadTDSDPC = async () => {
     if (!token) throw new Error('Not authenticated')
 
     // Use unified certificate endpoint that auto-detects scheme
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tds/certificate/${tdsRegistration.value.dan}`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (!response.ok) {
@@ -2948,9 +2945,9 @@ const loadAdditionalData = async () => {
     if (!token) return
 
     // Load property data (includes landlords, compliance, special clauses)
-    const propertyResponse = await fetch(
+    const propertyResponse = await authFetch(
       `${API_URL}/api/properties/${propertyId}`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
     if (propertyResponse.ok) {
       const data = await propertyResponse.json()
@@ -3009,9 +3006,9 @@ const loadAdditionalData = async () => {
     const agreementId = fullTenancyData.value?.agreement_id || props.tenancy?.agreement_id
     if (agreementId) {
       try {
-        const agreementResponse = await fetch(
+        const agreementResponse = await authFetch(
           `${API_URL}/api/agreements/${agreementId}`,
-          { headers: { 'Authorization': `Bearer ${token}` } }
+          { token }
         )
         if (agreementResponse.ok) {
           const data = await agreementResponse.json()
@@ -3036,9 +3033,9 @@ const loadAdditionalData = async () => {
     console.log('[TenancyDrawer] Looking for reference ID:', referenceId, 'from fullTenancyData:', fullTenancyData.value?.primary_reference_id, 'or props:', props.tenancy?.primary_reference_id)
     if (referenceId) {
       try {
-        const refResponse = await fetch(
+        const refResponse = await authFetch(
           `${API_URL}/api/references/${referenceId}`,
-          { headers: { 'Authorization': `Bearer ${token}` } }
+          { token }
         )
         if (refResponse.ok) {
           const refData = await refResponse.json()
@@ -3163,9 +3160,9 @@ const loadAdditionalData = async () => {
       for (const tenant of tenants) {
         if (tenant.reference_id) {
           try {
-            const refResponse = await fetch(
+            const refResponse = await authFetch(
               `${API_URL}/api/references/${tenant.reference_id}`,
-              { headers: { 'Authorization': `Bearer ${token}` } }
+              { token }
             )
             if (refResponse.ok) {
               const refData = await refResponse.json()
@@ -3235,9 +3232,9 @@ const loadAgreementStatus = async () => {
     if (!token) return
 
     // Fetch agreement details
-    const agreementResponse = await fetch(
+    const agreementResponse = await authFetch(
       `${API_URL}/api/agreements/${agreementId}`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (agreementResponse.ok) {
@@ -3247,9 +3244,9 @@ const loadAgreementStatus = async () => {
 
     // Fetch signing status if agreement exists and not in draft
     if (agreementData.value?.signing_status && agreementData.value.signing_status !== 'draft') {
-      const signingResponse = await fetch(
+      const signingResponse = await authFetch(
         `${API_URL}/api/signing/agreements/${agreementId}/signing-status`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { token }
       )
 
       if (signingResponse.ok) {
@@ -3280,11 +3277,11 @@ const handleSendForSigning = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/agreements/${agreementId}/send-for-signing`,
       {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        token
       }
     )
 
@@ -3313,15 +3310,15 @@ const handleResendSignature = async (signature: any) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/signing/agreements/${agreementId}/send-reminder/${signature.id}`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
+        token
       }
     )
 
@@ -3350,15 +3347,15 @@ const handleResendAll = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/signing/agreements/${agreementId}/resend-all`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
+        token
       }
     )
 
@@ -3387,11 +3384,11 @@ const handleRecallAgreement = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/signing/agreements/${agreementId}/cancel-signing?revertToDraft=true`,
       {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        token
       }
     )
 
@@ -3422,11 +3419,11 @@ const handleExecuteAgreement = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/agreements/${agreementId}/execute`,
       {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        token
       }
     )
 
@@ -3518,9 +3515,9 @@ const loadRentDueDateChanges = async () => {
       return
     }
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancyId}/rent-due-date-changes`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -3555,9 +3552,9 @@ const loadActiveTenantChange = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenant-change/tenancy/${tenancyId}`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -3599,9 +3596,9 @@ const loadRentIncreaseNotices = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancyId}/rent-increase-notices`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -3623,11 +3620,11 @@ const resendRentDueDateEmail = async (change: any) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/rent-due-date-change/${change.id}/resend`,
       {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        token
       }
     )
 
@@ -3655,15 +3652,15 @@ const cancelRentDueDateChange = async (change: any) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/rent-due-date-change/${change.id}/cancel`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ reason: 'Cancelled by agent' })
+        body: JSON.stringify({ reason: 'Cancelled by agent' }),
+        token
       }
     )
 
@@ -3784,9 +3781,9 @@ const searchLandlords = async () => {
     let hasMore = true
 
     while (hasMore) {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_URL}/api/landlords?page=${page}&limit=${limit}${query ? `&search=${encodeURIComponent(query)}` : ''}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { token }
       )
 
       if (response.ok) {
@@ -3819,12 +3816,11 @@ const linkLandlordToProperty = async (landlord: any) => {
     if (!token) throw new Error('Not authenticated')
 
     // Add landlord to property
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/properties/${tenancy.value.property_id}/landlords`,
       {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -3832,7 +3828,8 @@ const linkLandlordToProperty = async (landlord: any) => {
             ...landlord,
             is_primary_contact: allLandlords.value.length === 0
           }]
-        })
+        }),
+        token
       }
     )
 
@@ -3881,7 +3878,7 @@ const uploadDocument = async () => {
     formData.append('source_type', 'tenancy')
     formData.append('source_id', tenancy.value.id)
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/properties/${tenancy.value.property_id}/documents`,
       {
         method: 'POST',
@@ -3889,6 +3886,8 @@ const uploadDocument = async () => {
           'Authorization': `Bearer ${token}`
         },
         body: formData
+,
+        token
       }
     )
 
@@ -3918,13 +3917,15 @@ const deleteDocument = async (documentId: string) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/properties/${tenancy.value.property_id}/documents/${documentId}`,
       {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
+,
+        token
       }
     )
 
@@ -3953,9 +3954,9 @@ const loadTenancyDocuments = async () => {
     if (!token) return
 
     // Get all property documents
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/properties/${propertyId}/documents`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -4008,13 +4009,15 @@ const activateTenancy = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/activate`,
       {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         }
+,
+        token
       }
     )
 
@@ -4048,13 +4051,15 @@ const revertToActive = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/revert-to-active`,
       {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         }
+,
+        token
       }
     )
 
@@ -4094,13 +4099,15 @@ const confirmDeleteTenancy = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}`,
       {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
+,
+        token
       }
     )
 
@@ -4128,13 +4135,11 @@ const confirmInitialMonies = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/confirm-initial-monies`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        token
       }
     )
 
@@ -4237,15 +4242,15 @@ const confirmMoveInTime = async (timeSlot: string) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/confirm-move-in-time`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ confirmedTime: timeSlot })
+        body: JSON.stringify({ confirmedTime: timeSlot }),
+        token
       }
     )
 
@@ -4285,12 +4290,11 @@ const addTenant = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/tenants`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -4299,7 +4303,8 @@ const addTenant = async () => {
           email: newTenant.value.email || undefined,
           phone: newTenant.value.phone || undefined,
           isLeadTenant: newTenant.value.isLeadTenant
-        })
+        }),
+        token
       }
     )
 
@@ -4328,15 +4333,15 @@ const updateTenant = async (tenantId: string, data: any) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/tenants/${tenantId}`,
       {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        token
       }
     )
 
@@ -4361,17 +4366,17 @@ const removeTenant = async (tenantId: string) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/tenants/${tenantId}`,
       {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           leftDate: new Date().toISOString().split('T')[0]
-        })
+        }),
+        token
       }
     )
 
@@ -4397,10 +4402,10 @@ const loadTenancyGuarantors = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/guarantors`,
       {
-        headers: { 'Authorization': `Bearer ${token}` }
+        token
       }
     )
 
@@ -4421,12 +4426,11 @@ const addGuarantor = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/guarantors`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -4435,7 +4439,8 @@ const addGuarantor = async () => {
           email: newGuarantor.value.email || undefined,
           phone: newGuarantor.value.phone || undefined,
           relationshipToTenant: newGuarantor.value.relationshipToTenant || undefined
-        })
+        }),
+        token
       }
     )
 
@@ -4474,15 +4479,15 @@ const updateGuarantor = async (guarantorId: string, data: any) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/guarantors/${guarantorId}`,
       {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        token
       }
     )
 
@@ -4507,13 +4512,15 @@ const removeGuarantor = async (guarantorId: string) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/guarantors/${guarantorId}`,
       {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
+,
+        token
       }
     )
 
@@ -4542,9 +4549,9 @@ const loadTenancyNotes = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/notes`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -4565,9 +4572,9 @@ const loadTenancyActivity = async () => {
     if (!token) return
 
     const categoryParam = activityFilter.value !== 'all' ? `&category=${activityFilter.value}` : ''
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/activity?limit=100${categoryParam}`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      { token }
     )
 
     if (response.ok) {
@@ -4589,15 +4596,15 @@ const addNote = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/notes`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ content: newNoteContent.value.trim() })
+        body: JSON.stringify({ content: newNoteContent.value.trim() }),
+        token
       }
     )
 
@@ -4624,11 +4631,11 @@ const deleteNote = async (noteId: string) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/notes/${noteId}`,
       {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        token
       }
     )
 
@@ -4652,15 +4659,15 @@ const togglePinNote = async (note: any) => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/notes/${note.id}`,
       {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ isPinned: !note.is_pinned })
+        body: JSON.stringify({ isPinned: !note.is_pinned }),
+        token
       }
     )
 

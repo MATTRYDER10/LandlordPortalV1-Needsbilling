@@ -234,6 +234,7 @@ import {
   Search,
   Check
 } from 'lucide-vue-next'
+import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -382,10 +383,10 @@ const deleteOffer = async (offerId: string) => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/${offerId}`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/${offerId}`, {
       method: 'DELETE',
+      token,
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -414,9 +415,9 @@ const fetchOffers = async () => {
       return
     }
 
-    const response = await fetch(`${API_URL}/api/tenant-offers`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers`, {
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -439,9 +440,9 @@ const fetchSentOffers = async () => {
     const token = authStore.session?.access_token
     if (!token) return
 
-    const response = await fetch(`${API_URL}/api/tenant-offers/sent`, {
+    const response = await authFetch(`${API_URL}/api/tenant-offers/sent`, {
+      token,
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticateToken, requireMember, AuthRequest } from '../middleware/auth'
+import { authenticateToken, requireMember, AuthRequest, getCompanyIdForRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt, generateToken, hash } from '../services/encryption'
 import { sendEmail, sendTenantReferenceRequest, sendTenantOfferRequest, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendPaymentConfirmedToAgentEmail } from '../services/emailService'
@@ -83,28 +83,29 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Tenant email and property address are required' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id, companies:company_id(name_encrypted, phone_encrypted, email_encrypted, logo_url)')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company from X-Branch-Id header or user's company
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
 
-        const companyUser = companyUsers[0]
-        const companyName = (companyUser as any).companies?.name_encrypted
-            ? (decrypt((companyUser as any).companies.name_encrypted) || 'Your agent')
+        // Get company details for email branding
+        const { data: company } = await supabase
+            .from('companies')
+            .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
+            .eq('id', companyId)
+            .single()
+
+        const companyName = company?.name_encrypted
+            ? (decrypt(company.name_encrypted) || 'Your agent')
             : 'Your agent'
-        const companyPhone = (companyUser as any).companies?.phone_encrypted
-            ? (decrypt((companyUser as any).companies.phone_encrypted) || '')
+        const companyPhone = company?.phone_encrypted
+            ? (decrypt(company.phone_encrypted) || '')
             : ''
-        const companyEmail = (companyUser as any).companies?.email_encrypted
-            ? (decrypt((companyUser as any).companies.email_encrypted) || '')
+        const companyEmail = company?.email_encrypted
+            ? (decrypt(company.email_encrypted) || '')
             : ''
-        const companyLogoUrl = (companyUser as any).companies?.logo_url || null
+        const companyLogoUrl = company?.logo_url || null
 
         // Generate offer form link with company ID and pre-filled data
         const depositReplacementQuery = offer_deposit_replacement ? '&deposit_replacement_offered=1' : ''
@@ -113,7 +114,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
         const propertyCityQuery = property_city ? `&property_city=${encodeURIComponent(property_city)}` : ''
         const propertyPostcodeQuery = property_postcode ? `&property_postcode=${encodeURIComponent(property_postcode)}` : ''
         const rentAmountQuery = rent_amount ? `&rent_amount=${encodeURIComponent(rent_amount)}` : ''
-        const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyUser.company_id}${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
+        const offerLink = `${frontendUrl}/tenant-offer?company_id=${companyId}${depositReplacementQuery}${billsIncludedQuery}${propertyAddressQuery}${propertyCityQuery}${propertyPostcodeQuery}${rentAmountQuery}`
 
         // Send email to tenant with offer form link
         try {
@@ -137,7 +138,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             await supabase
                 .from('sent_offer_forms')
                 .insert({
-                    company_id: companyUser.company_id,
+                    company_id: companyId,
                     sent_by: userId,
                     tenant_email: tenant_email,
                     property_address_encrypted: encrypt(property_address),
@@ -157,7 +158,7 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
             try {
                 await auditOfferSent(
                     linked_property_id,
-                    companyUser.company_id,
+                    companyId,
                     userId,
                     tenant_email
                 )
@@ -257,18 +258,11 @@ router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(401).json({ error: 'Unauthorized' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company from X-Branch-Id header or user's company
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
-
-        const companyId = companyUsers[0].company_id
 
         // Get all sent offer forms that haven't been submitted yet
         const { data: sentForms, error } = await supabase
@@ -313,18 +307,11 @@ router.get('/by-reference/:referenceId', authenticateToken, async (req: AuthRequ
             return res.status(401).json({ error: 'Unauthorized' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company ID with branch isolation support
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
-
-        const companyId = companyUsers[0].company_id
 
         // Get offer by reference_id
         const { data: offer, error } = await supabase
@@ -401,18 +388,11 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(401).json({ error: 'Unauthorized' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company ID with branch isolation support
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
-
-        const companyId = companyUsers[0].company_id
 
         // Get offer with tenants
         const { data: offer, error } = await supabase
@@ -906,18 +886,11 @@ router.post('/:id/approve', authenticateToken, async (req: AuthRequest, res) => 
             return res.status(401).json({ error: 'Unauthorized' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company from X-Branch-Id header or user's company
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
-
-        const companyId = companyUsers[0].company_id
 
         // Get offer (with tenants and company for email)
         const { data: offer, error: offerError } = await supabase
@@ -1090,18 +1063,11 @@ router.post('/:id/decline', authenticateToken, async (req: AuthRequest, res) => 
             return res.status(400).json({ error: 'Decline reason is required' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company from X-Branch-Id header or user's company
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
-
-        const companyId = companyUsers[0].company_id
 
         // Get offer
         const { data: offer, error: offerError } = await supabase
@@ -1214,18 +1180,11 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(401).json({ error: 'Unauthorized' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company from X-Branch-Id header or user's company
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
-
-        const companyId = companyUsers[0].company_id
 
         // Get offer
         const { data: offer, error: offerError } = await supabase
@@ -1329,18 +1288,11 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(401).json({ error: 'Unauthorized' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company from X-Branch-Id header or user's company
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
-
-        const companyId = companyUsers[0].company_id
 
         // Verify offer belongs to this company
         const { data: offer, error: offerError } = await supabase
@@ -1401,18 +1353,11 @@ router.post('/:id/set-rent-shares', authenticateToken, async (req: AuthRequest, 
             return res.status(400).json({ error: 'Tenant shares are required' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company from X-Branch-Id header or user's company
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
-
-        const companyId = companyUsers[0].company_id
 
         // Get offer to verify ownership and get rent amount
         const { data: offer, error: offerError } = await supabase
@@ -1487,7 +1432,13 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
             return res.status(401).json({ error: 'Unauthorized' })
         }
 
-        // Get offer with company details and tenants
+        // Get company from X-Branch-Id header or user's company
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
+            return res.status(404).json({ error: 'Company not found' })
+        }
+
+        // Get offer with company details and tenants (filtered by company)
         const { data: offerData, error: offerFetchError } = await supabase
             .from('tenant_offers')
             .select(`
@@ -1502,6 +1453,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                 )
             `)
             .eq('id', id)
+            .eq('company_id', companyId)
             .single()
 
         if (offerFetchError || !offerData) {
@@ -1509,11 +1461,6 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
         }
 
         const company = (offerData as any).companies
-        if (!company || !company.id) {
-            return res.status(404).json({ error: 'Company not found for this offer' })
-        }
-
-        const companyId = company.id
         const companyName = company?.name_encrypted
             ? (decrypt(company.name_encrypted) || 'Your agent')
             : 'Your agent'
@@ -1524,18 +1471,6 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
             ? (decrypt(company.email_encrypted) || '')
             : ''
         const companyLogoUrl = company?.logo_url || null
-
-        // Verify user has access to this company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .eq('company_id', companyId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
-            return res.status(403).json({ error: 'You do not have access to this company' })
-        }
 
         // Validate offer status
         if (offerData.status !== 'approved') {
@@ -1875,18 +1810,11 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
             return res.status(400).json({ error: 'Valid email_type (approval or decline) is required' })
         }
 
-        // Get user's company
-        const { data: companyUsers } = await supabase
-            .from('company_users')
-            .select('company_id')
-            .eq('user_id', userId)
-            .limit(1)
-
-        if (!companyUsers || companyUsers.length === 0) {
+        // Get company from X-Branch-Id header or user's company
+        const companyId = await getCompanyIdForRequest(req)
+        if (!companyId) {
             return res.status(404).json({ error: 'Company not found' })
         }
-
-        const companyId = companyUsers[0].company_id
 
         // Get offer with tenants and company details
         const { data: offer, error: offerError } = await supabase
