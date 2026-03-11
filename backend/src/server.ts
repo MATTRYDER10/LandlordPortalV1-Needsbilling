@@ -43,6 +43,13 @@ import legalRoutes from './routes/legal'
 import tdsSettingsRoutes from './routes/tds-settings'
 import tdsRoutes from './routes/tds'
 import tenantChangeRoutes from './routes/tenant-change'
+import repositSettingsRoutes from './routes/reposit-settings'
+import repositRoutes from './routes/reposit'
+import reviewLinksRoutes from './routes/review-links'
+
+// V2 Reference System Routes
+import { referencesRouter as v2ReferencesRouter, sectionsRouter as v2SectionsRouter, chaseRouter as v2ChaseRouter, finalReviewRouter as v2FinalReviewRouter, tenantFormRouter as v2TenantFormRouter, refereeFormsRouter as v2RefereeFormsRouter, reportsRouter as v2ReportsRouter, adminRouter as v2AdminRouter, verifyRouter as v2VerifyRouter, offersRouter as v2OffersRouter } from './routes/v2'
+import { startChaseSchedulerV2 } from './services/v2'
 
 dotenv.config()
 
@@ -143,11 +150,15 @@ app.use('/api/webhooks/resend', express.json({
   }
 }))
 
+// Reposit webhook sends JSON data
+app.use('/api/webhooks/reposit', express.json())
+
 // Mount webhook routes
 app.use('/api/webhooks', webhookRoutes)
 
-// Middleware
-app.use(express.json())
+// Middleware - 50mb limit to support 25MB file uploads (base64 encoded)
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -192,6 +203,25 @@ app.use('/api/legal', legalRoutes)
 app.use('/api/settings/tds', tdsSettingsRoutes)
 app.use('/api/tds', tdsRoutes)
 app.use('/api/tenant-change', tenantChangeRoutes)
+app.use('/api/settings/reposit', repositSettingsRoutes)
+app.use('/api/reposit', repositRoutes)
+app.use('/api/review-links', reviewLinksRoutes)
+
+// V2 Reference System Routes (new section-based verification)
+app.use('/api/v2/references', v2ReferencesRouter)
+app.use('/api/v2/staff/sections', v2SectionsRouter)
+app.use('/api/v2/staff/chase', v2ChaseRouter)
+app.use('/api/v2/staff/final-review', v2FinalReviewRouter)
+// Frontend-compatible route aliases (without /staff/ prefix)
+app.use('/api/v2/sections', v2SectionsRouter)
+app.use('/api/v2/chase', v2ChaseRouter)
+app.use('/api/v2/final-review', v2FinalReviewRouter)
+app.use('/api/v2/tenant-form', v2TenantFormRouter)
+app.use('/api/v2', v2RefereeFormsRouter)
+app.use('/api/v2/reports', v2ReportsRouter)
+app.use('/api/v2/admin', v2AdminRouter)
+app.use('/api/v2/verify', v2VerifyRouter)
+app.use('/api/v2/offers', v2OffersRouter)
 
 // Start server - listen on all interfaces for local network access
 app.listen(PORT, '0.0.0.0', () => {
@@ -205,4 +235,7 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // Start rent increase scheduler
   startRentIncreaseScheduler()
+
+  // Start V2 chase scheduler
+  startChaseSchedulerV2()
 })

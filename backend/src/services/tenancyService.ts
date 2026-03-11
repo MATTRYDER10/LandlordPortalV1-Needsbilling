@@ -40,6 +40,8 @@ export interface CreateTenancyInput {
   notes?: string
   createdBy?: string
   managementType?: 'managed' | 'let_only'
+  holdingDepositAmount?: number
+  holdingDepositReceivedAt?: string
 }
 
 export interface TenancyTenantInput {
@@ -223,7 +225,9 @@ export async function createTenancy(
     breakClauseNoticeDays,
     notes,
     createdBy,
-    managementType
+    managementType,
+    holdingDepositAmount,
+    holdingDepositReceivedAt
   } = input
 
   // Generate reference number (TEN-YYYYMMDD-XXXX format)
@@ -259,6 +263,8 @@ export async function createTenancy(
   if (notes) insertData.notes_encrypted = encrypt(notes)
   if (startDate) insertData.move_in_date = startDate
   if (managementType) insertData.management_type = managementType
+  if (holdingDepositAmount) insertData.holding_deposit_amount = holdingDepositAmount
+  if (holdingDepositReceivedAt) insertData.holding_deposit_received_at = holdingDepositReceivedAt
 
   const { data: tenancy, error } = await supabase
     .from('tenancies')

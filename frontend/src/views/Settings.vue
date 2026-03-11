@@ -744,21 +744,19 @@
           </div>
         </div>
 
-        <!-- Integrations Tab -->
-        <div v-else-if="activeTab === 'integrations'" class="max-w-3xl">
-          <!-- TDS Integration temporarily disabled -->
-          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6 text-center">
-            <div class="text-amber-600 dark:text-amber-400 mb-2">
-              <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h3 class="text-lg font-semibold text-amber-800 dark:text-amber-300 mb-2">TDS Integration Coming Soon</h3>
-            <p class="text-amber-700 dark:text-amber-400 text-sm">
-              Direct integration with TDS Custodial and TDS Insured is currently being finalised.
-              In the meantime, you can manually mark deposits as protected in the tenancy details.
-            </p>
-          </div>
+        <!-- TDS Integration Tab -->
+        <div v-else-if="activeTab === 'tds'" class="max-w-3xl">
+          <TDSIntegrationSettings />
+        </div>
+
+        <!-- Reposit Tab -->
+        <div v-else-if="activeTab === 'reposit'" class="max-w-3xl">
+          <RepositIntegrationSettings />
+        </div>
+
+        <!-- Review Links Tab -->
+        <div v-else-if="activeTab === 'review-links'" class="max-w-3xl">
+          <ReviewLinkSettings />
         </div>
 
         <!-- Billing Tab -->
@@ -924,6 +922,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import Billing from './Billing.vue'
+import TDSIntegrationSettings from '../components/settings/TDSIntegrationSettings.vue'
+import RepositIntegrationSettings from '../components/settings/RepositIntegrationSettings.vue'
+import ReviewLinkSettings from '../components/settings/ReviewLinkSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
 import { isValidEmail } from '../utils/validation'
@@ -943,7 +944,11 @@ const activeTab = computed(() => {
   if (path.includes('/settings/team')) return 'team'
   if (path.includes('/settings/billing')) return 'billing'
   if (path.includes('/settings/audit-logs')) return 'audit-logs'
-  if (path.includes('/settings/integrations')) return 'integrations'
+  if (path.includes('/settings/tds')) return 'tds'
+  if (path.includes('/settings/reposit')) return 'reposit'
+  if (path.includes('/settings/review-links')) return 'review-links'
+  // Legacy route support
+  if (path.includes('/settings/integrations')) return 'tds'
   return 'profile'
 })
 
@@ -954,7 +959,9 @@ const tabs = computed(() => {
     { id: 'company', name: 'Company' },
     { id: 'branding', name: 'Branding' },
     { id: 'team', name: 'Team' },
-    { id: 'integrations', name: 'Integrations' },
+    { id: 'tds', name: 'TDS Integration' },
+    { id: 'reposit', name: 'Reposit' },
+    { id: 'review-links', name: 'Review Links' },
     { id: 'billing', name: 'Billing' },
     { id: 'audit-logs', name: 'Audit Logs' }
   ]

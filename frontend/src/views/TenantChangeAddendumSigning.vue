@@ -38,7 +38,7 @@
         <XCircle class="mx-auto h-16 w-16 text-red-500" />
         <h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Signature Declined</h3>
         <p class="mt-2 text-gray-600 dark:text-slate-400">You have declined to sign this addendum.</p>
-        <p class="mt-4 text-sm text-gray-500 dark:text-slate-400">If this was a mistake, please contact your letting agent.</p>
+        <p class="mt-4 text-sm text-gray-500 dark:text-slate-400">If this was a mistake, please contact the agent.</p>
       </div>
 
       <!-- Success State (just signed) -->

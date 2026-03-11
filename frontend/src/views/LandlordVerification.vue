@@ -434,7 +434,7 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-const agentCompanyName = computed(() => companyDetails.value?.name || 'your letting agent')
+const agentCompanyName = computed(() => companyDetails.value?.name || 'PropertyGoose')
 const agentCompanyEmail = computed(() => companyDetails.value?.email || '')
 const agentCompanyPhone = computed(() => companyDetails.value?.phone || '')
 const agentCompanyAddress = computed(() => {

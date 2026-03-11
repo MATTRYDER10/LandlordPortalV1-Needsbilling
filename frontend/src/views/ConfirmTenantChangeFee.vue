@@ -69,10 +69,10 @@
           Thank you for confirming your Change of Tenant fee payment.
         </p>
         <p class="text-sm text-gray-600 mb-4">
-          Your agent has been notified and will verify the payment has been received in their account. Once confirmed, they will proceed with the tenancy addendum.
+          The agent has been notified and will verify the payment has been received in their account. Once confirmed, they will proceed with the tenancy addendum.
         </p>
         <p class="text-sm text-gray-600">
-          If you have any questions, please contact your agent directly.
+          If you have any questions, please contact the agent directly.
         </p>
       </template>
 
@@ -90,7 +90,7 @@
           You've already confirmed your payment for this tenant change.
         </p>
         <p class="text-sm text-gray-600">
-          Your agent is processing your payment. If you have any questions, please contact them directly.
+          The agent is processing your payment. If you have any questions, please contact them directly.
         </p>
       </template>
 
@@ -108,7 +108,7 @@
           {{ errorMessage }}
         </p>
         <p class="text-sm text-gray-600">
-          Please contact your agent directly to let them know you've made the payment.
+          Please contact the agent directly to let them know you've made the payment.
         </p>
       </template>
 
@@ -123,7 +123,7 @@
           Invalid Link
         </h1>
         <p class="text-sm text-gray-600">
-          This link appears to be invalid or expired. Please use the link from your email or contact your agent directly.
+          This link appears to be invalid or expired. Please use the link from your email or contact the agent directly.
         </p>
       </template>
     </div>

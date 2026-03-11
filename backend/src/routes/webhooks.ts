@@ -968,4 +968,107 @@ async function handleInvoicePaymentFailed(invoice: any) {
   }
 }
 
+// ============================================================================
+// REPOSIT WEBHOOK HANDLER
+// ============================================================================
+
+/**
+ * Reposit Webhook Handler
+ *
+ * Receives status updates from Reposit for deposit replacement registrations.
+ *
+ * Events from Reposit:
+ * - reposit.tenant.confirmed: Tenant confirmed the Reposit
+ * - reposit.tenant.signed: Tenant signed the agreement
+ * - reposit.tenant.paid: Tenant paid the fee
+ * - reposit.completed: Reposit is active and coverage started
+ * - reposit.deactivated: Reposit was cancelled
+ * - reposit.closed: Tenancy ended
+ */
+router.post('/reposit', async (req: Request, res: Response) => {
+  const { event, data } = req.body;
+
+  console.log(`[Reposit Webhook] Received: event=${event}, repositId=${data?.id || 'unknown'}`);
+
+  if (!data?.id) {
+    console.log('[Reposit Webhook] No reposit ID in payload, acknowledging');
+    return res.status(200).send('OK');
+  }
+
+  const repositId = data.id;
+
+  try {
+    const { updateRepositRegistrationStatus } = await import('../services/repositService');
+
+    switch (event) {
+      case 'reposit.tenant.confirmed':
+        await updateRepositRegistrationStatus(repositId, 'tenant_confirmed', {
+          tenant_confirmed_at: new Date().toISOString()
+        });
+        console.log(`[Reposit Webhook] Tenant confirmed for ${repositId}`);
+        break;
+
+      case 'reposit.tenant.signed':
+        await updateRepositRegistrationStatus(repositId, 'tenant_signed', {
+          tenant_signed_at: new Date().toISOString()
+        });
+        console.log(`[Reposit Webhook] Tenant signed for ${repositId}`);
+        break;
+
+      case 'reposit.tenant.paid':
+        await updateRepositRegistrationStatus(repositId, 'tenant_paid', {
+          tenant_paid_at: new Date().toISOString()
+        });
+        console.log(`[Reposit Webhook] Tenant paid for ${repositId}`);
+        break;
+
+      case 'reposit.completed':
+        await updateRepositRegistrationStatus(repositId, 'completed', {
+          completed_at: new Date().toISOString()
+        });
+
+        // Update tenancy.deposit_protected_at
+        const { data: registration } = await supabase
+          .from('reposit_registrations')
+          .select('tenancy_id')
+          .eq('reposit_id', repositId)
+          .single();
+
+        if (registration?.tenancy_id) {
+          await supabase
+            .from('tenancies')
+            .update({ deposit_protected_at: new Date().toISOString() })
+            .eq('id', registration.tenancy_id);
+          console.log(`[Reposit Webhook] Updated tenancy ${registration.tenancy_id} deposit_protected_at`);
+        }
+
+        console.log(`[Reposit Webhook] Reposit completed for ${repositId}`);
+        break;
+
+      case 'reposit.deactivated':
+        await updateRepositRegistrationStatus(repositId, 'deactivated', {
+          deactivated_at: new Date().toISOString()
+        });
+        console.log(`[Reposit Webhook] Reposit deactivated for ${repositId}`);
+        break;
+
+      case 'reposit.closed':
+        await updateRepositRegistrationStatus(repositId, 'closed', {
+          closed_at: new Date().toISOString()
+        });
+        console.log(`[Reposit Webhook] Reposit closed for ${repositId}`);
+        break;
+
+      default:
+        console.log(`[Reposit Webhook] Unhandled event: ${event}`);
+    }
+
+    res.status(200).send('OK');
+  } catch (error: any) {
+    console.error('[Reposit Webhook] Error handling webhook:', error);
+    // Still return 200 to prevent retries
+    res.status(200).send('OK');
+  }
+});
+
 export default router;

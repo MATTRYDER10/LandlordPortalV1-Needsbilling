@@ -218,6 +218,14 @@
                           Email All Tenants
                         </button>
 
+                        <button
+                          @click="handleDrawerAction('send-review-link')"
+                          class="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-3"
+                        >
+                          <Star class="w-4 h-4 text-amber-500" />
+                          Send Review Request
+                        </button>
+
                         <div class="border-t border-gray-100 dark:border-slate-700 my-1" />
 
                         <button
@@ -440,6 +448,21 @@
                     No tenant email
                   </span>
                 </div>
+
+                <!-- Send Review Request -->
+                <div class="flex flex-col">
+                  <button
+                    @click="showReviewLinkModal = true"
+                    :disabled="!hasTenantsWithEmail"
+                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Star class="w-4 h-4 text-amber-500" />
+                    Send Review Request
+                  </button>
+                  <span v-if="!hasTenantsWithEmail" class="text-xs text-red-500 dark:text-red-400 mt-1 text-center">
+                    No tenant email
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -475,6 +498,21 @@
                   >
                     <Mail class="w-4 h-4 text-emerald-600" />
                     Email Tenants
+                  </button>
+                  <span v-if="!hasTenantsWithEmail" class="text-xs text-red-500 dark:text-red-400 mt-1 text-center">
+                    No tenant email
+                  </span>
+                </div>
+
+                <!-- Send Review Request -->
+                <div class="flex flex-col">
+                  <button
+                    @click="showReviewLinkModal = true"
+                    :disabled="!hasTenantsWithEmail"
+                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Star class="w-4 h-4 text-amber-500" />
+                    Send Review Request
                   </button>
                   <span v-if="!hasTenantsWithEmail" class="text-xs text-red-500 dark:text-red-400 mt-1 text-center">
                     No tenant email
@@ -638,8 +676,120 @@
                   </button>
                 </div>
 
-                <!-- No TDS Integration -->
-                <div v-else-if="tenancy?.deposit_amount && !depositProtected" class="mt-2">
+                <!-- Reposit Section (Deposit Replacement) -->
+                <div v-if="showRepositSection" class="mt-4 pt-3 border-t border-gray-200 dark:border-slate-700">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <Sparkles class="w-4 h-4 text-blue-600" />
+                      <a
+                        href="https://reposit.co.uk/tenants/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-xs font-bold text-gray-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        Rep<span class="text-blue-500">o</span>sit
+                      </a>
+                    </div>
+                    <a
+                      href="https://reposit.co.uk/tenants/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-xs text-blue-500 hover:text-blue-700"
+                    >
+                      Learn more →
+                    </a>
+                  </div>
+
+                  <!-- Reposit Registered -->
+                  <div v-if="repositRegistration" class="space-y-1">
+                    <p class="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                      <CheckCircle class="w-3 h-3" />
+                      Reposit Active
+                    </p>
+                    <p class="text-xs text-gray-600 dark:text-slate-400">ID: {{ repositRegistration.repositId }}</p>
+                    <p class="text-xs text-gray-600 dark:text-slate-400">
+                      Fee: &pound;{{ repositRegistration.totalFee?.toFixed(2) || 'N/A' }} total
+                    </p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">
+                      Status: <span class="capitalize">{{ repositRegistration.status?.replace(/_/g, ' ') }}</span>
+                    </p>
+                  </div>
+
+                  <!-- Reposit Scheme Selected (manual) -->
+                  <div v-else-if="isRepositScheme && !hasRepositIntegration" class="space-y-2">
+                    <p class="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                      <CheckCircle class="w-3 h-3" />
+                      <span class="font-bold">Rep<span class="text-blue-500">o</span>sit</span> Selected
+                    </p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">
+                      Deposit replacement via Reposit
+                    </p>
+                    <router-link
+                      to="/settings/reposit"
+                      class="block text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      Connect Reposit in Settings →
+                    </router-link>
+                  </div>
+
+                  <!-- Reposit Available but Not Created -->
+                  <div v-else-if="hasRepositIntegration">
+                    <div v-if="repositPricing" class="mb-2">
+                      <p class="text-xs text-gray-600 dark:text-slate-400">
+                        Tenant fee: <span class="font-medium text-blue-600">&pound;{{ repositPricing.perTenantFee?.toFixed(2) }}</span> per tenant
+                      </p>
+                      <p class="text-xs text-gray-500 dark:text-slate-400">
+                        Total: &pound;{{ repositPricing.totalFee?.toFixed(2) }} for {{ repositPricing.headcount }} tenant(s)
+                      </p>
+                    </div>
+
+                    <!-- Eligibility Status -->
+                    <div v-if="repositEligibility" class="mb-2">
+                      <p v-if="repositEligibility.allEligible" class="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                        <CheckCircle class="w-3 h-3" />
+                        All tenants eligible
+                      </p>
+                      <p v-else class="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <AlertCircle class="w-3 h-3" />
+                        {{ repositEligibility.notes || 'Some tenants may need guarantors' }}
+                      </p>
+                    </div>
+
+                    <button
+                      @click="showCreateRepositModal = true"
+                      :disabled="creatingReposit"
+                      class="w-full px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center justify-center gap-2"
+                    >
+                      <Loader2 v-if="creatingReposit" class="w-4 h-4 animate-spin" />
+                      <Sparkles v-else class="w-4 h-4" />
+                      {{ creatingReposit ? 'Creating...' : 'Create Reposit' }}
+                    </button>
+
+                    <button
+                      @click="checkRepositEligibility"
+                      :disabled="checkingEligibility"
+                      class="mt-1 w-full text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
+                    >
+                      {{ checkingEligibility ? 'Checking...' : 'Check eligibility' }}
+                    </button>
+                  </div>
+
+                  <!-- No Reposit Integration (from offer flow) -->
+                  <div v-else>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">
+                      Deposit replacement requested
+                    </p>
+                    <router-link
+                      to="/settings/reposit"
+                      class="block mt-1 text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      Connect Reposit in Settings →
+                    </router-link>
+                  </div>
+                </div>
+
+                <!-- No TDS Integration (only show if TDS not connected and not protected) -->
+                <div v-if="!hasTDSIntegration && !tdsRegistration && tenancy?.deposit_amount && !depositProtected && !showRepositSection" class="mt-2">
                   <button
                     @click="showProtectDepositModal = true"
                     class="text-xs font-medium text-primary hover:text-primary/80"
@@ -647,7 +797,7 @@
                     Mark as protected
                   </button>
                   <router-link
-                    to="/settings/integrations"
+                    to="/settings/tds"
                     class="block mt-1 text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                   >
                     Link TDS account in Settings
@@ -655,7 +805,7 @@
                 </div>
 
                 <!-- Protected (non-TDS) -->
-                <p v-else-if="depositProtected && !tdsRegistration" class="text-xs text-green-600 mt-1">
+                <p v-if="depositProtected && !tdsRegistration" class="text-xs text-green-600 mt-1">
                   Protected {{ formatDate(tenancy?.deposit_protected_at) }}
                 </p>
               </div>
@@ -2186,6 +2336,86 @@
     @close="showMoveOutModal = false"
     @sent="handleMoveOutNoticeSent"
   />
+
+  <!-- Create Reposit Modal -->
+  <CreateRepositModal
+    :show="showCreateRepositModal"
+    :tenancy-id="tenancy?.id || ''"
+    :pricing="repositPricing"
+    :eligibility="repositEligibility"
+    @close="showCreateRepositModal = false"
+    @created="handleRepositCreated"
+  />
+
+  <!-- Send Review Link Modal -->
+  <div v-if="showReviewLinkModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-[60] flex items-center justify-center">
+    <div class="relative bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-md mx-4 p-6 w-full">
+      <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+            <Star class="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Send Review Request</h3>
+        </div>
+        <button @click="showReviewLinkModal = false" class="text-gray-400 dark:text-slate-500 hover:text-gray-500 dark:hover:text-slate-400">
+          <X class="h-6 w-6" />
+        </button>
+      </div>
+
+      <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+        Send a review request email to the tenants at {{ tenancy?.property?.address_line1 }}.
+      </p>
+
+      <div class="space-y-3 mb-4">
+        <div
+          v-for="tenant in tenantsWithEmail"
+          :key="tenant.id"
+          class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg"
+        >
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ tenant.first_name }} {{ tenant.last_name }}</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400">{{ tenant.email }}</p>
+          </div>
+          <CheckCircle class="w-5 h-5 text-green-500" />
+        </div>
+      </div>
+
+      <!-- Note from Agent -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+          Personal Note (optional)
+        </label>
+        <textarea
+          v-model="reviewNote"
+          rows="3"
+          placeholder="Add a personal message to the tenant, e.g. 'Hi, it's been great having you as a tenant! - Sarah'"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+        ></textarea>
+        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">This will be included in the email sent to the tenant.</p>
+      </div>
+
+      <div v-if="tenantsWithEmail.length === 0" class="text-center py-4 text-sm text-gray-500 dark:text-slate-400">
+        No tenants with email addresses found.
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button
+          @click="showReviewLinkModal = false"
+          class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
+        >
+          Cancel
+        </button>
+        <button
+          @click="sendReviewRequest"
+          :disabled="sendingReviewLink || tenantsWithEmail.length === 0"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <Loader2 v-if="sendingReviewLink" class="w-4 h-4 animate-spin" />
+          {{ sendingReviewLink ? 'Sending...' : 'Send Review Request' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -2197,7 +2427,8 @@ import {
   UserCircle, MapPin, AlertCircle, Shield, ShieldCheck, Wallet,
   FileSignature, Send, Loader2, Plus, Search, ExternalLink, Upload, Trash2, Clock,
   ClipboardCheck, CheckCircle, Download, RotateCcw, Calendar,
-  UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX
+  UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX,
+  Sparkles, Star
 } from 'lucide-vue-next'
 import EndTenancyModal from './EndTenancyModal.vue'
 import ProtectDepositModal from './ProtectDepositModal.vue'
@@ -2217,6 +2448,7 @@ import Section48GeneratorModal from './Section48GeneratorModal.vue'
 import TenantChangeModal from './TenantChangeModal.vue'
 import TenantChangeStatusTracker from './TenantChangeStatusTracker.vue'
 import MoveOutNoticeModal from './MoveOutNoticeModal.vue'
+import CreateRepositModal from './CreateRepositModal.vue'
 import { API_URL } from '@/lib/apiUrl'
 import { authFetch } from '@/lib/authFetch'
 
@@ -2264,6 +2496,29 @@ const showTenantChangeModal = ref(false)
 const activeTenantChange = ref<any>(null)
 const loadingTenantChange = ref(false)
 
+// Review Link state
+const showReviewLinkModal = ref(false)
+const sendingReviewLink = ref(false)
+const reviewNote = ref('')
+
+// Reposit state
+const showCreateRepositModal = ref(false)
+const repositRegistration = ref<any>(null)
+const repositPricing = ref<{
+  totalFee: number
+  perTenantFee: number
+  monthlyRent: number
+  headcount: number
+} | null>(null)
+const repositEligibility = ref<{
+  allEligible: boolean
+  notes?: string
+  tenants?: any[]
+} | null>(null)
+const repositConfigStatus = ref<{ configured: boolean } | null>(null)
+const creatingReposit = ref(false)
+const checkingEligibility = ref(false)
+
 // Rent increase notices state
 const rentIncreaseNotices = ref<any[]>([])
 const loadingRentIncreaseNotices = ref(false)
@@ -2274,12 +2529,11 @@ interface TDSConfigStatus {
   insured: { configured: boolean; authorized: boolean; environment: string | null }
 }
 const tdsConfigStatus = ref<TDSConfigStatus | null>(null)
-// TDS integration temporarily disabled for production launch
+// TDS integration - checks if either scheme is configured
 const hasTDSIntegration = computed(() => {
-  return false // TODO: Re-enable when TDS integration is ready
-  // if (!tdsConfigStatus.value) return false
-  // return tdsConfigStatus.value.custodial.configured ||
-  //   (tdsConfigStatus.value.insured.configured && tdsConfigStatus.value.insured.authorized)
+  if (!tdsConfigStatus.value) return false
+  return tdsConfigStatus.value.custodial.configured ||
+    (tdsConfigStatus.value.insured.configured && tdsConfigStatus.value.insured.authorized)
 })
 const hasTDSCustodial = computed(() => tdsConfigStatus.value?.custodial.configured || false)
 const hasTDSInsured = computed(() =>
@@ -2289,6 +2543,25 @@ const tdsRegistration = ref<any>(null)
 const downloadingDPC = ref(false)
 const showTDSSchemeMenu = ref(false)
 const selectedTDSScheme = ref<'custodial' | 'insured'>('custodial')
+
+// Reposit computed properties
+const hasRepositIntegration = computed(() => repositConfigStatus.value?.configured || false)
+const isRepositScheme = computed(() => props.tenancy?.deposit_scheme === 'reposit')
+const showRepositSection = computed(() => {
+  // Show Reposit section when:
+  // 1. Deposit scheme is set to 'reposit', OR
+  // 2. Deposit replacement was offered/requested, OR
+  // 3. Reposit is already registered for this tenancy
+  if (isRepositScheme.value) return true
+  if (repositRegistration.value) return true
+  // Check if deposit replacement was part of the offer
+  const offer = props.tenancy?.offer
+  if (offer?.deposit_replacement_offered || offer?.deposit_replacement_requested) return true
+  // Also check primary reference
+  const primaryRef = props.tenancy?.primary_reference
+  if (primaryRef?.offer?.deposit_replacement_requested) return true
+  return false
+})
 
 // Notes and Activity state
 const tenancyNotes = ref<any[]>([])
@@ -2433,6 +2706,12 @@ watch(() => props.open, async (isOpen) => {
     tdsConfigStatus.value = null
     showTDSSchemeMenu.value = false
     showReceiptRentDueDateChangeModal.value = false
+    // Reset Reposit state
+    repositRegistration.value = null
+    repositConfigStatus.value = null
+    repositPricing.value = null
+    repositEligibility.value = null
+    showCreateRepositModal.value = false
     // Reset tenant change state
     activeTenantChange.value = null
     showTenantChangeModal.value = false
@@ -2450,8 +2729,15 @@ watch(() => props.open, async (isOpen) => {
       loadRentIncreaseNotices(),
       loadTDSConfigStatus(),
       loadTDSRegistration(),
-      loadActiveTenantChange()
+      loadActiveTenantChange(),
+      loadRepositConfigStatus(),
+      loadRepositRegistration()
     ])
+
+    // Load Reposit pricing if integration is configured
+    if (repositConfigStatus.value?.configured) {
+      loadRepositPricing()
+    }
   }
 })
 
@@ -2563,7 +2849,9 @@ const tenancyTypeOptions = [
 const depositSchemeOptions = [
   { value: 'dps', label: 'DPS' },
   { value: 'mydeposits', label: 'mydeposits' },
-  { value: 'tds', label: 'TDS' }
+  { value: 'tds', label: 'TDS' },
+  { value: 'reposit', label: 'Reposit' },
+  { value: 'no_deposit', label: 'No Deposit' }
 ]
 
 // Management type options for dropdown
@@ -2638,6 +2926,11 @@ const updateTenancyField = async (field: string, value: any) => {
 const hasTenantsWithEmail = computed(() => {
   const tenantsList = tenants.value || []
   return tenantsList.some((t: any) => t.email && t.status === 'active')
+})
+
+const tenantsWithEmail = computed(() => {
+  const tenantsList = tenants.value || []
+  return tenantsList.filter((t: any) => t.email && t.status === 'active')
 })
 
 const leadTenant = computed(() => {
@@ -2867,6 +3160,153 @@ const loadTDSRegistration = async () => {
   } catch (error) {
     console.error('[TenancyDrawer] Error loading TDS registration:', error)
   }
+}
+
+// Load Reposit config status
+const loadRepositConfigStatus = async () => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/config-status`,
+      { token }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      repositConfigStatus.value = { configured: data.configured || false }
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error loading Reposit config status:', error)
+  }
+}
+
+// Load Reposit registration for this tenancy
+const loadRepositRegistration = async () => {
+  if (!props.tenancy?.id) return
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/${props.tenancy.id}`,
+      { token }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      repositRegistration.value = data.registration
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error loading Reposit registration:', error)
+  }
+}
+
+// Load Reposit pricing for this tenancy
+const loadRepositPricing = async () => {
+  if (!props.tenancy?.id || !hasRepositIntegration.value) return
+
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/pricing`,
+      {
+        token,
+        method: 'POST',
+        body: JSON.stringify({ tenancyId: props.tenancy.id })
+      }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      repositPricing.value = data.pricing
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error loading Reposit pricing:', error)
+  }
+}
+
+// Check Reposit eligibility for tenants
+const checkRepositEligibility = async () => {
+  if (!props.tenancy?.id) return
+
+  checkingEligibility.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/eligibility-check`,
+      {
+        token,
+        method: 'POST',
+        body: JSON.stringify({ tenancyId: props.tenancy.id })
+      }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      repositEligibility.value = {
+        allEligible: data.allEligible,
+        notes: data.allEligible ? undefined : 'Some tenants may need guarantors',
+        tenants: data.tenants
+      }
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error checking Reposit eligibility:', error)
+  } finally {
+    checkingEligibility.value = false
+  }
+}
+
+// Create Reposit for this tenancy
+const createReposit = async (publishImmediately: boolean = true) => {
+  if (!props.tenancy?.id) return
+
+  creatingReposit.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/create`,
+      {
+        token,
+        method: 'POST',
+        body: JSON.stringify({
+          tenancyId: props.tenancy.id,
+          publishImmediately
+        })
+      }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      toast.success('Reposit created successfully')
+      await loadRepositRegistration()
+      showCreateRepositModal.value = false
+    } else {
+      const data = await response.json()
+      toast.error(data.error || 'Failed to create Reposit')
+    }
+  } catch (error: any) {
+    console.error('[TenancyDrawer] Error creating Reposit:', error)
+    toast.error(error.message || 'Failed to create Reposit')
+  } finally {
+    creatingReposit.value = false
+  }
+}
+
+// Handle Reposit created from modal
+const handleRepositCreated = async (repositId: string) => {
+  toast.success('Reposit created successfully')
+  showCreateRepositModal.value = false
+  await loadRepositRegistration()
+  emit('updated')
 }
 
 // Download TDS certificate (DPC for Custodial, Certificate for Insured)
@@ -3470,6 +3910,9 @@ const handleDrawerAction = (action: string) => {
       break
     case 'email-tenants':
       emit('action', 'email-tenants', tenancy.value)
+      break
+    case 'send-review-link':
+      showReviewLinkModal.value = true
       break
     case 'revert-to-draft':
       emit('action', 'revert-to-draft', tenancy.value)
@@ -4740,5 +5183,57 @@ const handleInitialMoniesSent = async () => {
   // Reload tenancy data to reflect the update
   await loadFullTenancyData()
   emit('updated')
+}
+
+// Send review request to tenants
+const sendReviewRequest = async () => {
+  const tenancyId = tenancy.value?.id
+  if (!tenancyId) return
+
+  const emails = tenantsWithEmail.value.map((t: any) => t.email)
+  if (emails.length === 0) {
+    toast.error('No tenants with email addresses')
+    return
+  }
+
+  sendingReviewLink.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) {
+      toast.error('Not authenticated')
+      return
+    }
+
+    const response = await authFetch(`${API_URL}/api/review-links/send`, {
+      method: 'POST',
+      token,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        tenancy_id: tenancyId,
+        tenant_emails: emails,
+        agent_note: reviewNote.value || undefined
+      })
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to send review request')
+    }
+
+    const result = await response.json()
+    toast.success(`Review request sent to ${result.sent_count} tenant(s)`)
+    showReviewLinkModal.value = false
+    reviewNote.value = ''
+
+    // Reload activity
+    loadTenancyActivity()
+  } catch (error: any) {
+    console.error('Error sending review request:', error)
+    toast.error(error.message || 'Failed to send review request')
+  } finally {
+    sendingReviewLink.value = false
+  }
 }
 </script>

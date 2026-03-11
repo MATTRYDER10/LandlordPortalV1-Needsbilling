@@ -1136,7 +1136,7 @@ router.post('/records/:id/send-move-out-notice', authenticateToken, async (req: 
       displayCompanyName = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) + ' Property Management' : null
     }
     if (!displayCompanyName) {
-      displayCompanyName = 'Your letting agent'
+      displayCompanyName = 'PropertyGoose'
     }
 
     const branding = {
@@ -4749,10 +4749,10 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
     // Build a sensible company name - never use generic "Your Agent"
     if (!companyName && companyEmail) {
       const domain = companyEmail.split('@')[1]?.split('.')[0]
-      companyName = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) + ' Property Management' : 'Your letting agent'
+      companyName = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) + ' Property Management' : 'PropertyGoose'
     }
     if (!companyName) {
-      companyName = 'Your letting agent'
+      companyName = 'PropertyGoose'
     }
 
     // Create rent due date change record
@@ -5041,7 +5041,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
 
     // Decrypt company fields
     const company = companyRaw ? {
-      name: decrypt(companyRaw.name_encrypted) || 'Your letting agent',
+      name: decrypt(companyRaw.name_encrypted) || 'PropertyGoose',
       logo_url: companyRaw.logo_url,
       email: decrypt(companyRaw.email_encrypted) || undefined,
       phone: decrypt(companyRaw.phone_encrypted) || undefined,
@@ -5229,7 +5229,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/activate', authenticate
         PaymentConfirmedDate: paymentReceivedDate,
         MonthlyRent: parseFloat(change.monthly_rent).toFixed(2),
         NextRentDueDate: nextRentDueDateStr,
-        CompanyName: company?.name || 'Your letting agent',
+        CompanyName: company?.name || 'PropertyGoose',
         AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
         ContactSection: contactSection
       })
@@ -5425,7 +5425,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
 
     // Decrypt company fields
     const company = companyRaw ? {
-      name: decrypt(companyRaw.name_encrypted) || 'Your letting agent',
+      name: decrypt(companyRaw.name_encrypted) || 'PropertyGoose',
       logo_url: companyRaw.logo_url,
       email: decrypt(companyRaw.email_encrypted) || undefined,
       phone: decrypt(companyRaw.phone_encrypted) || undefined,
@@ -5490,7 +5490,7 @@ router.post('/records/:id/rent-due-date-change/:changeId/resend', authenticateTo
       BankAccountNumber: company?.bank_account_number || '',
       PaymentReference: `RDC-${change.id.slice(0, 8).toUpperCase()}`,
       ConfirmationUrl: confirmationUrl,
-      CompanyName: company?.name || 'Your letting agent',
+      CompanyName: company?.name || 'PropertyGoose',
       AgentLogoUrl: company?.logo_url || 'https://propertygoose.co.uk/logo.png',
       ContactSection: contactSection
     })
@@ -5869,7 +5869,7 @@ For more information about your rights, visit www.gov.uk/private-renting or cont
 If you have any questions about this notice, please do not hesitate to contact us.
 
 Kind regards,
-${company?.name || 'Your letting agent'}`,
+${company?.name || 'PropertyGoose'}`,
           replyTo: company?.email,
           attachments: [{
             filename: `Section_13_Notice_${propertyAddress.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,

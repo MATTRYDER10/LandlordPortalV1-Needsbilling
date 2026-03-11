@@ -50,6 +50,8 @@ export interface ReferenceDataForConversion {
   depositAmount?: number
   tenants: TenantDataForConversion[]
   isGroupTenancy: boolean
+  holdingDepositAmount?: number
+  holdingDepositReceivedAt?: string
 }
 
 export interface TenantDataForConversion {
@@ -267,7 +269,9 @@ export async function validateConversion(
       agreementSigned: !!agreement?.signing_completed_at,
       depositAmount: agreement?.deposit_amount,
       tenants,
-      isGroupTenancy: isGroupParent
+      isGroupTenancy: isGroupParent,
+      holdingDepositAmount: reference.holding_deposit_amount || undefined,
+      holdingDepositReceivedAt: reference.holding_deposit_received_at || undefined
     }
   }
 
@@ -357,7 +361,9 @@ export async function convertReferenceToTenancy(
       rentDueDay: options.rentDueDay || 1,
       notes: options.notes,
       createdBy: userId,
-      managementType
+      managementType,
+      holdingDepositAmount: refData.holdingDepositAmount,
+      holdingDepositReceivedAt: refData.holdingDepositReceivedAt
     }, tenantInputs)
 
     // If activateImmediately, update status to active

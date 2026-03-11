@@ -1,0 +1,772 @@
+/**
+ * V2 Chase Routes (Staff)
+ *
+ * Endpoints for managing chase queue items.
+ * Handles email/SMS chase, call logging, and verbal reference capture.
+ */
+
+import { Router } from 'express'
+import { authenticateStaff, StaffAuthRequest } from '../../middleware/staffAuth'
+import { decrypt } from '../../services/encryption'
+import { supabase } from '../../config/supabase'
+import {
+  getChaseQueue,
+  getChaseItemDecrypted,
+  recordChaseAction,
+  markChaseUnable
+} from '../../services/v2/chaseServiceV2'
+import {
+  recordVerbalReference,
+  getFormTemplate,
+  validateEmployerResponses,
+  validateLandlordResponses
+} from '../../services/v2/verbalReferenceService'
+import { V2RefereeType, RecordVerbalReferenceInput } from '../../services/v2/types'
+import {
+  sendEmployerReferenceRequest,
+  sendLandlordReferenceRequest,
+  sendAgentReferenceRequest,
+  sendAccountantReferenceRequest
+} from '../../services/emailService'
+import {
+  sendEmployerReferenceRequestSMS,
+  sendLandlordReferenceRequestSMS,
+  sendAgentReferenceRequestSMS,
+  sendAccountantReferenceRequestSMS
+} from '../../services/smsService'
+import { getV2FrontendUrl } from '../../utils/frontendUrl'
+
+const router = Router()
+const frontendUrl = getV2FrontendUrl()
+
+// ============================================================================
+// CHASE QUEUE
+// ============================================================================
+
+/**
+ * Get chase queue items (main endpoint)
+ */
+router.get('/', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { limit } = req.query
+
+    const items = await getChaseQueue(limit ? parseInt(limit as string) : 50)
+
+    // Decrypt referee and reference details
+    const enrichedItems = items.map((item: any) => ({
+      ...item,
+      referee_name: decrypt(item.referee_name_encrypted),
+      referee_email: decrypt(item.referee_email_encrypted),
+      referee_phone: decrypt(item.referee_phone_encrypted),
+      reference: item.reference ? {
+        ...item.reference,
+        tenant_first_name: decrypt(item.reference.tenant_first_name_encrypted),
+        tenant_last_name: decrypt(item.reference.tenant_last_name_encrypted),
+        property_address: decrypt(item.reference.property_address_encrypted)
+      } : null
+    }))
+
+    res.json({ items: enrichedItems })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error getting chase queue:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get chase queue items (alternative /queue endpoint for frontend compatibility)
+ */
+router.get('/queue', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { limit } = req.query
+
+    const items = await getChaseQueue(limit ? parseInt(limit as string) : 50)
+
+    // Get company names
+    const companyIds = [...new Set(items.map((i: any) => i.reference?.company_id).filter(Boolean))]
+    const { data: companies } = companyIds.length > 0 ? await supabase
+      .from('companies')
+      .select('id, company_name')
+      .in('id', companyIds) : { data: [] }
+
+    const companyMap = new Map(companies?.map(c => [c.id, c.company_name]) || [])
+
+    // Transform to frontend format
+    const enrichedItems = items.map((item: any) => {
+      const tenantName = item.reference
+        ? `${decrypt(item.reference.tenant_first_name_encrypted)} ${decrypt(item.reference.tenant_last_name_encrypted)}`
+        : 'Unknown'
+
+      const hoursWaiting = item.chase_queue_entered_at
+        ? Math.round((Date.now() - new Date(item.chase_queue_entered_at).getTime()) / (1000 * 60 * 60))
+        : 0
+
+      return {
+        id: item.id,
+        reference_id: item.reference_id,
+        section_type: item.section?.section_type || null,
+        // Both naming conventions for frontend compatibility
+        contact_type: item.referee_type,
+        referee_type: item.referee_type,
+        contact_name: decrypt(item.referee_name_encrypted) || 'Unknown',
+        referee_name: decrypt(item.referee_name_encrypted) || 'Unknown',
+        contact_email: decrypt(item.referee_email_encrypted) || '',
+        referee_email: decrypt(item.referee_email_encrypted) || '',
+        contact_phone: decrypt(item.referee_phone_encrypted) || null,
+        referee_phone: decrypt(item.referee_phone_encrypted) || null,
+        tenant_name: tenantName,
+        property_address: item.reference
+          ? decrypt(item.reference.property_address_encrypted)
+          : 'Unknown',
+        company_name: companyMap.get(item.reference?.company_id) || 'Unknown',
+        chase_count: item.chase_count || 0,
+        next_chase_due: item.next_chase_due || null,
+        last_chased_at: item.last_chased_at,
+        chase_method: null,
+        hours_waiting: hoursWaiting,
+        age_hours: hoursWaiting,
+        urgency: hoursWaiting > 72 ? 'URGENT' : hoursWaiting > 48 ? 'WARNING' : 'NORMAL',
+        chase_history: item.chase_history || [],
+        created_at: item.created_at
+      }
+    })
+
+    res.json({ items: enrichedItems })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error getting chase queue:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get single chase item details
+ */
+router.get('/:id', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    const result = await getChaseItemDecrypted(id)
+    if (!result) {
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+
+    // Get form template for verbal reference
+    const formTemplate = getFormTemplate(result.chaseItem.referee_type)
+
+    res.json({
+      ...result,
+      formTemplate
+    })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error getting chase item:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// CHASE ACTIONS
+// ============================================================================
+
+/**
+ * Send chase email
+ */
+router.post('/:id/email', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    const result = await getChaseItemDecrypted(id)
+    if (!result) {
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+
+    const { chaseItem, refereeName, refereeEmail } = result
+
+    // Get reference and company details
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select(`
+        id,
+        company_id,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        companies:company_id (
+          name_encrypted,
+          phone_encrypted,
+          email_encrypted,
+          logo_url
+        )
+      `)
+      .eq('id', chaseItem.reference_id)
+      .single()
+
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`.trim()
+    const company = reference.companies as any
+    const companyName = company ? decrypt(company.name_encrypted) || '' : ''
+    const companyPhone = company ? decrypt(company.phone_encrypted) || '' : ''
+    const companyEmail = company ? decrypt(company.email_encrypted) || '' : ''
+    const logoUrl = company?.logo_url
+
+    // Generate referee form URL (V2 - we'll need to create these forms)
+    // For now, using a placeholder that will be updated in Sprint 3
+    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+
+    // Send email based on referee type
+    try {
+      switch (chaseItem.referee_type) {
+        case 'EMPLOYER':
+          await sendEmployerReferenceRequest(
+            refereeEmail, refereeName, tenantName, formUrl,
+            companyName, companyPhone, companyEmail, reference.id, logoUrl
+          )
+          break
+        case 'LANDLORD':
+          await sendLandlordReferenceRequest(
+            refereeEmail, refereeName, tenantName, formUrl,
+            companyName, companyPhone, companyEmail, reference.id, logoUrl
+          )
+          break
+        case 'AGENT':
+          await sendAgentReferenceRequest(
+            refereeEmail, refereeName, tenantName, formUrl,
+            companyName, companyPhone, companyEmail, reference.id, logoUrl
+          )
+          break
+        case 'ACCOUNTANT':
+          await sendAccountantReferenceRequest(
+            refereeEmail, refereeName, tenantName, formUrl,
+            companyName, companyPhone, companyEmail, reference.id
+          )
+          break
+      }
+    } catch (emailError) {
+      console.error('[V2 Chase] Email send error:', emailError)
+      return res.status(500).json({ error: 'Failed to send email' })
+    }
+
+    // Record the action
+    await recordChaseAction(id, 'EMAIL', staffUser.id)
+
+    res.json({ message: 'Chase email sent', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error sending chase email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Send chase SMS
+ */
+router.post('/:id/sms', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    const result = await getChaseItemDecrypted(id)
+    if (!result) {
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+
+    const { chaseItem, refereeName, refereePhone } = result
+
+    if (!refereePhone) {
+      return res.status(400).json({ error: 'No phone number available for this referee' })
+    }
+
+    // Get reference details
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted')
+      .eq('id', chaseItem.reference_id)
+      .single()
+
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`.trim()
+    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+
+    // Send SMS based on referee type
+    try {
+      switch (chaseItem.referee_type) {
+        case 'EMPLOYER':
+          await sendEmployerReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+          break
+        case 'LANDLORD':
+          await sendLandlordReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+          break
+        case 'AGENT':
+          await sendAgentReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+          break
+        case 'ACCOUNTANT':
+          await sendAccountantReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+          break
+      }
+    } catch (smsError) {
+      console.error('[V2 Chase] SMS send error:', smsError)
+      return res.status(500).json({ error: 'Failed to send SMS' })
+    }
+
+    // Record the action
+    await recordChaseAction(id, 'SMS', staffUser.id)
+
+    res.json({ message: 'Chase SMS sent', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error sending chase SMS:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Log call attempt
+ */
+router.post('/:id/call', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+    const { outcome, notes } = req.body
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    await recordChaseAction(id, 'CALL', staffUser.id, notes)
+
+    res.json({ message: 'Call logged', chaseItemId: id, outcome })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error logging call:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Record verbal reference
+ */
+router.post('/:id/verbal', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+    const {
+      refereeName,
+      refereePosition,
+      refereePhone,
+      callDatetime,
+      callDurationMinutes,
+      responses
+    } = req.body
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    // Get chase item
+    const result = await getChaseItemDecrypted(id)
+    if (!result) {
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+
+    const { chaseItem } = result
+
+    // Validate required fields
+    if (!refereeName || !refereePhone || !callDatetime || !responses) {
+      return res.status(400).json({ error: 'Missing required fields: refereeName, refereePhone, callDatetime, responses' })
+    }
+
+    // Validate responses based on referee type
+    let validation: { valid: boolean; errors: string[] }
+    if (chaseItem.referee_type === 'EMPLOYER') {
+      validation = validateEmployerResponses(responses)
+    } else if (chaseItem.referee_type === 'LANDLORD' || chaseItem.referee_type === 'AGENT') {
+      validation = validateLandlordResponses(responses)
+    } else {
+      validation = { valid: true, errors: [] } // Accountant - less strict validation
+    }
+
+    if (!validation.valid) {
+      return res.status(400).json({ error: 'Invalid responses', details: validation.errors })
+    }
+
+    // Record verbal reference
+    const input: RecordVerbalReferenceInput = {
+      referenceId: chaseItem.reference_id,
+      sectionId: chaseItem.section_id,
+      chaseItemId: id,
+      refereeType: chaseItem.referee_type,
+      refereeName,
+      refereePosition,
+      refereePhone,
+      callDatetime: new Date(callDatetime),
+      callDurationMinutes,
+      responses,
+      staffUserId: staffUser.id
+    }
+
+    const verbalRef = await recordVerbalReference(input)
+    if (!verbalRef) {
+      return res.status(500).json({ error: 'Failed to record verbal reference' })
+    }
+
+    res.json({
+      message: 'Verbal reference recorded',
+      verbalReferenceId: verbalRef.id,
+      chaseItemId: id
+    })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error recording verbal reference:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Mark chase as unable to obtain
+ */
+router.post('/:id/unable', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { reason } = req.body
+
+    if (!reason) {
+      return res.status(400).json({ error: 'Reason required' })
+    }
+
+    const success = await markChaseUnable(id, reason)
+    if (!success) {
+      return res.status(500).json({ error: 'Failed to mark as unable' })
+    }
+
+    res.json({ message: 'Marked as unable to obtain', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error marking unable:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Send chase (unified endpoint for EMAIL or SMS)
+ * Frontend sends { method: 'EMAIL' | 'SMS' }
+ */
+router.post('/:id/send', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { method } = req.body
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    if (!method || !['EMAIL', 'SMS'].includes(method)) {
+      return res.status(400).json({ error: 'Invalid method. Must be EMAIL or SMS' })
+    }
+
+    const result = await getChaseItemDecrypted(id)
+    if (!result) {
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+
+    const { chaseItem, refereeName, refereeEmail, refereePhone } = result
+
+    // Get reference and company details
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select(`
+        id,
+        company_id,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        companies:company_id (
+          name_encrypted,
+          phone_encrypted,
+          email_encrypted,
+          logo_url
+        )
+      `)
+      .eq('id', chaseItem.reference_id)
+      .single()
+
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`.trim()
+    const company = reference.companies as any
+    const companyName = company ? decrypt(company.name_encrypted) || '' : ''
+    const companyPhone = company ? decrypt(company.phone_encrypted) || '' : ''
+    const companyEmail = company ? decrypt(company.email_encrypted) || '' : ''
+    const logoUrl = company?.logo_url
+    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+
+    if (method === 'EMAIL') {
+      if (!refereeEmail) {
+        return res.status(400).json({ error: 'No email address available' })
+      }
+
+      switch (chaseItem.referee_type) {
+        case 'EMPLOYER':
+          await sendEmployerReferenceRequest(
+            refereeEmail, refereeName, tenantName, formUrl,
+            companyName, companyPhone, companyEmail, reference.id, logoUrl
+          )
+          break
+        case 'LANDLORD':
+          await sendLandlordReferenceRequest(
+            refereeEmail, refereeName, tenantName, formUrl,
+            companyName, companyPhone, companyEmail, reference.id, logoUrl
+          )
+          break
+        case 'AGENT':
+          await sendAgentReferenceRequest(
+            refereeEmail, refereeName, tenantName, formUrl,
+            companyName, companyPhone, companyEmail, reference.id, logoUrl
+          )
+          break
+        case 'ACCOUNTANT':
+          await sendAccountantReferenceRequest(
+            refereeEmail, refereeName, tenantName, formUrl,
+            companyName, companyPhone, companyEmail, reference.id
+          )
+          break
+      }
+    } else {
+      // SMS
+      if (!refereePhone) {
+        return res.status(400).json({ error: 'No phone number available' })
+      }
+
+      switch (chaseItem.referee_type) {
+        case 'EMPLOYER':
+          await sendEmployerReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+          break
+        case 'LANDLORD':
+          await sendLandlordReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+          break
+        case 'AGENT':
+          await sendAgentReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+          break
+        case 'ACCOUNTANT':
+          await sendAccountantReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+          break
+      }
+    }
+
+    // Record the action
+    await recordChaseAction(id, method, staffUser.id)
+
+    res.json({ message: `Chase ${method.toLowerCase()} sent`, chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error sending chase:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Mark reference as received
+ */
+router.post('/:id/received', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // Update chase item status to RECEIVED
+    const { error } = await supabase
+      .from('chase_items_v2')
+      .update({
+        status: 'RECEIVED',
+        resolved_at: new Date().toISOString(),
+        resolution_type: 'ONLINE_FORM',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (error) {
+      throw error
+    }
+
+    res.json({ message: 'Marked as received', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error marking received:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// FRONTEND ALIAS ROUTES
+// These provide alternative endpoint names used by the frontend
+// ============================================================================
+
+/**
+ * Resend email (alias for /email)
+ */
+router.post('/:id/resend-email', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    const result = await getChaseItemDecrypted(id)
+    if (!result) {
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+
+    const { chaseItem, refereeName, refereeEmail } = result
+
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select(`
+        id,
+        company_id,
+        tenant_first_name_encrypted,
+        tenant_last_name_encrypted,
+        companies:company_id (
+          name_encrypted,
+          phone_encrypted,
+          email_encrypted,
+          logo_url
+        )
+      `)
+      .eq('id', chaseItem.reference_id)
+      .single()
+
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`.trim()
+    const company = reference.companies as any
+    const companyName = company ? decrypt(company.name_encrypted) || '' : ''
+    const companyPhone = company ? decrypt(company.phone_encrypted) || '' : ''
+    const companyEmail = company ? decrypt(company.email_encrypted) || '' : ''
+    const logoUrl = company?.logo_url
+    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+
+    switch (chaseItem.referee_type) {
+      case 'EMPLOYER':
+        await sendEmployerReferenceRequest(
+          refereeEmail, refereeName, tenantName, formUrl,
+          companyName, companyPhone, companyEmail, reference.id, logoUrl
+        )
+        break
+      case 'LANDLORD':
+        await sendLandlordReferenceRequest(
+          refereeEmail, refereeName, tenantName, formUrl,
+          companyName, companyPhone, companyEmail, reference.id, logoUrl
+        )
+        break
+      case 'AGENT':
+        await sendAgentReferenceRequest(
+          refereeEmail, refereeName, tenantName, formUrl,
+          companyName, companyPhone, companyEmail, reference.id, logoUrl
+        )
+        break
+      case 'ACCOUNTANT':
+        await sendAccountantReferenceRequest(
+          refereeEmail, refereeName, tenantName, formUrl,
+          companyName, companyPhone, companyEmail, reference.id
+        )
+        break
+    }
+
+    await recordChaseAction(id, 'EMAIL', staffUser.id)
+    res.json({ message: 'Chase email resent', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error resending email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Send SMS (alias for /sms)
+ */
+router.post('/:id/send-sms', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    const result = await getChaseItemDecrypted(id)
+    if (!result) {
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+
+    const { chaseItem, refereeName, refereePhone } = result
+
+    if (!refereePhone) {
+      return res.status(400).json({ error: 'No phone number available' })
+    }
+
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted')
+      .eq('id', chaseItem.reference_id)
+      .single()
+
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`.trim()
+    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+
+    switch (chaseItem.referee_type) {
+      case 'EMPLOYER':
+        await sendEmployerReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+        break
+      case 'LANDLORD':
+        await sendLandlordReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+        break
+      case 'AGENT':
+        await sendAgentReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+        break
+      case 'ACCOUNTANT':
+        await sendAccountantReferenceRequestSMS(refereePhone, refereeName, tenantName, formUrl, reference.id)
+        break
+    }
+
+    await recordChaseAction(id, 'SMS', staffUser.id)
+    res.json({ message: 'Chase SMS sent', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error sending SMS:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Log call (alias for /call)
+ */
+router.post('/:id/log-call', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+    const { outcome, notes } = req.body
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    await recordChaseAction(id, 'CALL', staffUser.id, notes)
+    res.json({ message: 'Call logged', chaseItemId: id, outcome })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error logging call:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+export default router

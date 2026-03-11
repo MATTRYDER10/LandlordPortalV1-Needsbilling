@@ -6,7 +6,7 @@
         <div class="flex justify-center mb-4">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
         </div>
-        <p class="text-sm text-gray-600">Notifying your agent...</p>
+        <p class="text-sm text-gray-600">Notifying the agent...</p>
       </template>
 
       <!-- Success state -->
@@ -18,11 +18,11 @@
           Thank you for confirming your holding deposit payment.
         </p>
         <p class="text-sm text-gray-600 mb-4">
-          Your agent has been notified and will verify your payment. Once this is done, you will receive a confirmation
+          The agent has been notified and will verify your payment. Once this is done, you will receive a confirmation
           email and your references will be started.
         </p>
         <p class="text-sm text-gray-600">
-          If you have any questions in the meantime, please contact your agent directly.
+          If you have any questions in the meantime, please contact the agent directly.
         </p>
       </template>
 
@@ -35,7 +35,7 @@
           {{ errorMessage }}
         </p>
         <p class="text-sm text-gray-600">
-          Please contact your agent directly to let them know you've made the payment.
+          Please contact the agent directly to let them know you've made the payment.
         </p>
       </template>
 
@@ -45,7 +45,7 @@
           Invalid Link
         </h1>
         <p class="text-sm text-gray-600">
-          This link appears to be invalid or expired. Please use the link from your email or contact your agent directly.
+          This link appears to be invalid or expired. Please use the link from your email or contact the agent directly.
         </p>
       </template>
     </div>

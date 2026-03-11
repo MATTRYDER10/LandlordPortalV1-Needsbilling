@@ -396,7 +396,7 @@ export async function setReferencingDecision(
       .eq('id', companyId)
       .single()
 
-    const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'Your agent') : 'Your agent'
+    const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
     const companyPhone = company?.phone_encrypted ? (decrypt(company.phone_encrypted) || '') : ''
     const companyEmail = company?.email_encrypted ? (decrypt(company.email_encrypted) || '') : ''
     const companyLogoUrl = company?.logo_url

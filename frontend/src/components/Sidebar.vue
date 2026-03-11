@@ -427,7 +427,9 @@ const closeMobileMenu = () => {
 const navigation = [
   { name: 'Dashboard', path: '/dashboard', icon: GooseDashboard },
   { name: 'Offers', path: '/tenant-offers', icon: GooseOffers },
+  { name: 'Offers V2', path: '/tenant-offers-v2', icon: GooseOffers },
   { name: 'References', path: '/references', icon: GooseClipboard },
+  { name: 'References V2', path: '/references-v2', icon: GooseClipboard },
   { name: 'Tenancies', path: '/tenancies', icon: GooseTenancies },
   { name: 'Properties', path: '/properties', icon: GooseProperty },
   { name: 'Landlords', path: '/landlords', icon: GooseLandlord },

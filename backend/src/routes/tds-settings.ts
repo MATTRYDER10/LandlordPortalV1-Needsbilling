@@ -86,12 +86,15 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Get TDS Custodial integration data (Insured columns may not exist yet)
+    // Get TDS Custodial integration data
     const { data: integration, error: integrationError } = await supabase
       .from('company_integrations')
       .select(`
         tds_member_id, tds_branch_id, tds_environment, tds_connected_at,
-        tds_last_tested_at, tds_last_test_status, tds_api_key_encrypted
+        tds_last_tested_at, tds_last_test_status, tds_api_key_encrypted,
+        tds_insured_client_id, tds_insured_member_id, tds_insured_branch_id,
+        tds_insured_environment, tds_insured_connected_at, tds_insured_access_token_encrypted,
+        tds_insured_last_tested_at, tds_insured_last_test_status
       `)
       .eq('company_id', companyId)
       .single()
@@ -110,9 +113,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       }
     }
 
-    // Insured status (columns may not exist in DB yet)
-    const insuredConfigured = false
-    const insuredAuthorized = false
+    // Insured status
+    const insuredConfigured = !!(integration?.tds_insured_client_id && integration?.tds_insured_member_id)
+    const insuredAuthorized = !!integration?.tds_insured_access_token_encrypted
 
     // Debug: log what we're about to return
     console.log('[TDS Settings] Returning response:', {
@@ -133,17 +136,17 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
         lastTestedAt: integration?.tds_last_tested_at || null,
         lastTestStatus: integration?.tds_last_test_status || null
       },
-      // Insured (not yet implemented - columns don't exist)
+      // Insured
       insured: {
-        configured: false,
-        authorized: false,
-        clientId: null,
-        memberId: null,
-        branchId: null,
-        environment: 'sandbox',
-        connectedAt: null,
-        lastTestedAt: null,
-        lastTestStatus: null
+        configured: insuredConfigured,
+        authorized: insuredAuthorized,
+        clientId: integration?.tds_insured_client_id || null,
+        memberId: integration?.tds_insured_member_id || null,
+        branchId: integration?.tds_insured_branch_id || null,
+        environment: integration?.tds_insured_environment || 'sandbox',
+        connectedAt: integration?.tds_insured_connected_at || null,
+        lastTestedAt: integration?.tds_insured_last_tested_at || null,
+        lastTestStatus: integration?.tds_insured_last_test_status || null
       },
       // Legacy format for backwards compatibility
       configured: custodialConfigured,

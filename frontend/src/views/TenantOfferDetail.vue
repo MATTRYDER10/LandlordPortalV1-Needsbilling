@@ -28,8 +28,8 @@
               <Check v-if="showStatusTick" class="w-4 h-4 text-green-600" />
             </span>
             <span v-if="offer.deposit_replacement_requested"
-              class="px-3 py-1 text-sm font-semibold rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 whitespace-nowrap">
-              Deposit replacement service applied for
+              class="px-3 py-1 text-sm font-semibold rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 whitespace-nowrap flex items-center gap-1.5">
+              <span class="font-bold">Rep<span class="text-blue-500">o</span>sit</span> Selected
             </span>
             <button @click="confirmDelete"
               class="mt-2 px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-md"
@@ -194,12 +194,12 @@
               <dt class="text-sm font-medium text-gray-500 dark:text-slate-400">Deposit Replacement Service</dt>
               <dd class="mt-1 text-sm text-gray-900 dark:text-white">
                 <span v-if="!offer.deposit_replacement_offered" class="text-gray-500 dark:text-slate-400">
-                  Declined by Agent
+                  Not offered
                 </span>
-                <span v-else-if="offer.deposit_replacement_requested" class="text-green-700 dark:text-green-400 font-medium">
-                  Deposit replacement service applied for
+                <span v-else-if="offer.deposit_replacement_requested" class="text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1">
+                  <span class="font-bold">Rep<span class="text-blue-500">o</span>sit</span> Selected
                 </span>
-                <span v-else class="text-gray-600 dark:text-slate-400">Not requested</span>
+                <span v-else class="text-gray-600 dark:text-slate-400">Offered but not selected</span>
               </dd>
             </div>
             <div v-if="offer.holding_deposit_amount_paid">

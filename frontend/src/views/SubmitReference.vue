@@ -62,7 +62,7 @@
             <!-- Reference Details Notice -->
             <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
               <p class="text-sm text-gray-700 dark:text-slate-300">
-                Your agent <strong>{{ reference.company_name || 'from the lettings agency' }}</strong> has requested
+                The agent <strong>{{ reference.company_name || 'from the lettings agency' }}</strong> has requested
                 this reference for you to begin your new tenancy at <strong>{{ reference.property_address }}</strong>.
                 They have proposed <strong>{{ formatDate(reference.move_in_date) }}</strong> as your move-in date.
               </p>
@@ -2786,7 +2786,7 @@ const fetchReferenceByToken = async () => {
 
     if (!response.ok) {
       if (response.status === 404) {
-        tokenError.value = 'Reference not found. Please check your link or contact your letting agent.'
+        tokenError.value = 'Reference not found. Please check your link or contact the agent.'
       } else {
         tokenError.value = 'Failed to load reference details.'
       }
@@ -3245,7 +3245,7 @@ const formatDate = (date: string) =>
     'Not specified'
   )
 
-const agentCompanyName = computed(() => reference.value?.company_name || reference.value?.companies?.name || 'your letting agent')
+const agentCompanyName = computed(() => reference.value?.company_name || reference.value?.companies?.name || 'PropertyGoose')
 const agentCompanyEmail = computed(() => reference.value?.company_email || reference.value?.companies?.email || '')
 const agentCompanyPhone = computed(() => reference.value?.company_phone || reference.value?.companies?.phone || '')
 const agentCompanyAddress = computed(() => {

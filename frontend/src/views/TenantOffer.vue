@@ -75,8 +75,11 @@
                                 Offered Rent Amount (£ per month) *
                             </label>
                             <input id="offered-rent" v-model.number="formData.offered_rent_amount" type="number"
-                                step="0.01" required min="0"
+                                step="0.01" required min="0" :max="originalOfferRent || undefined"
                                 class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                            <p v-if="originalOfferRent" class="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                                Agent's offer: £{{ originalOfferRent }}/month
+                            </p>
                         </div>
                         <div>
                             <label for="move-in-date" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
@@ -195,23 +198,84 @@
                     </div>
                 </div>
 
-            <!-- Deposit Replacement Service -->
-            <div v-if="depositReplacementOffered" class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Deposit Replacement Service</h2>
-                <p class="text-sm text-gray-600 dark:text-slate-400">
-                    We offer a deposit replacement service that can reduce upfront costs while providing landlords with
-                    protection comparable to a traditional deposit.
-                </p>
-                <div class="mt-4 flex items-start gap-3">
-                    <input id="deposit-replacement-opt-in" v-model="formData.deposit_replacement_requested" type="checkbox"
-                        class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900" />
-                    <label for="deposit-replacement-opt-in" class="text-sm text-gray-700 dark:text-slate-300">
-                        I would like to apply for the deposit replacement service.
-                    </label>
+            <!-- Deposit Replacement Service (Reposit) -->
+            <div v-if="depositReplacementOffered" class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+                <!-- Reposit Header -->
+                <div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-600">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center">
+                            <span class="text-2xl font-bold text-slate-800 dark:text-white">Rep</span>
+                            <span class="text-2xl font-bold text-blue-500">o</span>
+                            <span class="text-2xl font-bold text-slate-800 dark:text-white">sit</span>
+                        </div>
+                        <span class="text-sm text-gray-500 dark:text-slate-400">Deposit Alternative</span>
+                    </div>
                 </div>
-                <p class="mt-2 text-xs text-gray-500 dark:text-slate-400">
-                    We will review your request and confirm eligibility with you after receiving your offer.
-                </p>
+
+                <div class="p-6">
+                    <!-- Savings Banner -->
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 mb-5">
+                        <p class="text-emerald-800 dark:text-emerald-300 font-semibold">
+                            Save money on your upfront move-in costs
+                        </p>
+                        <p class="text-sm text-emerald-700 dark:text-emerald-400 mt-1">
+                            Pay around one week's rent instead of a 5-week deposit
+                        </p>
+                    </div>
+
+                    <!-- What is Reposit -->
+                    <div class="mb-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">What is Reposit?</h3>
+                        <ul class="space-y-2 text-sm text-gray-600 dark:text-slate-400">
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500 mt-0.5">•</span>
+                                <span>Reposit is a <strong>no deposit</strong> option - pay a small fee instead of a large cash deposit</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500 mt-0.5">•</span>
+                                <span>The fee is <strong>non-refundable</strong> but significantly lower than a traditional deposit</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500 mt-0.5">•</span>
+                                <span>You remain responsible for any damages or unpaid rent at the end of your tenancy</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500 mt-0.5">•</span>
+                                <span>Subject to eligibility - we'll confirm during the referencing process</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Opt-in Checkbox -->
+                    <div class="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <input
+                                id="deposit-replacement-opt-in"
+                                v-model="formData.deposit_replacement_requested"
+                                type="checkbox"
+                                class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900"
+                            />
+                            <label for="deposit-replacement-opt-in" class="text-sm text-gray-700 dark:text-slate-300">
+                                <span class="font-medium">Yes, I'm interested in using Reposit</span>
+                                <p class="text-gray-500 dark:text-slate-400 mt-1">
+                                    We'll review your eligibility during referencing and confirm the exact fee with you.
+                                </p>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Learn More Link -->
+                    <div class="mt-4 text-center">
+                        <a
+                            href="https://reposit.co.uk/tenants/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                            Learn more about Reposit →
+                        </a>
+                    </div>
+                </div>
             </div>
 
                 <!-- Terms and Conditions -->
@@ -333,6 +397,9 @@ const companyLogo = ref('')
 const primaryColor = ref(defaultBranding.primaryColor)
 const buttonColor = ref(defaultBranding.buttonColor)
 
+// Store original offer terms from agent (query params)
+const originalOfferRent = ref<number | null>(null)
+
 const formData = ref({
     property_address: '',
     property_city: '',
@@ -372,6 +439,10 @@ const parseBooleanQueryParam = (value: string | string[] | undefined): boolean =
 
 const depositReplacementOffered = computed(() =>
     parseBooleanQueryParam(route.query.deposit_replacement_offered as string | string[] | undefined)
+)
+
+const isV2Offer = computed(() =>
+    parseBooleanQueryParam(route.query.v2 as string | string[] | undefined)
 )
 
 const addTenant = () => {
@@ -418,6 +489,11 @@ const handleSubmit = async () => {
             throw new Error('Please fill in all required fields')
         }
 
+        // Validate rent is not higher than original offer (can only go down)
+        if (originalOfferRent.value && formData.value.offered_rent_amount > originalOfferRent.value) {
+            throw new Error(`Offered rent cannot exceed the original offer of £${originalOfferRent.value}`)
+        }
+
         if (formData.value.proposed_tenancy_length_months < 1 || formData.value.proposed_tenancy_length_months > 12) {
             throw new Error('Tenancy length must be between 1 and 12 months')
         }
@@ -448,8 +524,9 @@ const handleSubmit = async () => {
             throw new Error('You must agree to the terms and conditions')
         }
 
-        // Get company ID from query parameter
+        // Get company ID and form_ref from query parameters
         const companyId = route.query.company_id as string
+        const formRef = route.query.form_ref as string
         if (!companyId) {
             throw new Error('Company ID is required. Please provide company_id as a query parameter.')
         }
@@ -476,7 +553,9 @@ const handleSubmit = async () => {
                 signature_name: formData.value.signature_name
             })),
             deposit_replacement_offered: depositReplacementOffered.value,
-            deposit_replacement_requested: depositReplacementOffered.value ? formData.value.deposit_replacement_requested : false
+            deposit_replacement_requested: depositReplacementOffered.value ? formData.value.deposit_replacement_requested : false,
+            is_v2: isV2Offer.value,
+            form_ref: formRef || undefined
         }
 
         // Submit offer
@@ -495,13 +574,6 @@ const handleSubmit = async () => {
         }
 
         submitted.value = true
-        // Store email in localStorage to check on future visits
-        if (formData.value.tenants.length > 0 && formData.value.tenants[0]?.email) {
-            const companyId = route.query.company_id as string
-            if (companyId) {
-                localStorage.setItem(`tenant_offer_submitted_${companyId}`, formData.value.tenants[0].email)
-            }
-        }
     } catch (error: any) {
         submitError.value = error.message || 'An error occurred while submitting the offer'
     } finally {
@@ -509,62 +581,38 @@ const handleSubmit = async () => {
     }
 }
 
-// Check if tenant has already submitted
+// Check if this specific offer form has already been submitted
 const checkExistingSubmission = async () => {
     try {
-        const companyId = route.query.company_id as string
-        if (!companyId) {
+        const formRef = route.query.form_ref as string
+
+        // Skip check if URL has skip_check=1 (for testing)
+        if (route.query.skip_check === '1') {
+            console.log('[TenantOffer] Skipping submission check (skip_check=1)')
             return
         }
 
-        // Check localStorage first for quick check
-        const storedEmail = localStorage.getItem(`tenant_offer_submitted_${companyId}`)
-        if (storedEmail) {
-            // Verify with backend
-            const response = await fetch(`${API_URL}/api/tenant-offers/check-submission?email=${encodeURIComponent(storedEmail)}&company_id=${companyId}`)
+        // If we have a form_ref, check if this specific form was already submitted
+        if (formRef) {
+            console.log('[TenantOffer] Checking form_ref:', formRef)
+            const response = await fetch(`${API_URL}/api/tenant-offers/check-submission?form_ref=${encodeURIComponent(formRef)}`)
             if (response.ok) {
                 const data = await response.json()
+                console.log('[TenantOffer] Form ref check response:', data)
                 if (data.submitted) {
+                    console.log('[TenantOffer] This form was already submitted')
                     alreadySubmitted.value = true
                     return
                 }
             }
+        } else {
+            console.log('[TenantOffer] No form_ref in URL (legacy link)')
         }
-
-        // Also check if user has entered email in form and check on that
-        // This will be checked when they start filling the form
     } catch (error) {
         console.error('Failed to check existing submission:', error)
         // Don't block the form if check fails
     }
 }
-
-// Watch for email input to check if already submitted
-let emailCheckTimeout: number | null = null
-watch(() => formData.value.tenants[0]?.email, async (newEmail) => {
-    if (emailCheckTimeout) {
-        clearTimeout(emailCheckTimeout)
-    }
-
-    if (newEmail && newEmail.length > 5 && !alreadySubmitted.value) {
-        emailCheckTimeout = setTimeout(async () => {
-            const companyId = route.query.company_id as string
-            if (companyId) {
-                try {
-                    const response = await fetch(`${API_URL}/api/tenant-offers/check-submission?email=${encodeURIComponent(newEmail)}&company_id=${companyId}`)
-                    if (response.ok) {
-                        const data = await response.json()
-                        if (data.submitted) {
-                            alreadySubmitted.value = true
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to check submission:', error)
-                }
-            }
-        }, 1000) as unknown as number
-    }
-})
 
 // Fetch company branding on mount
 onMounted(async () => {
@@ -580,6 +628,7 @@ onMounted(async () => {
         const propertyCity = route.query.property_city as string
         const propertyPostcode = route.query.property_postcode as string
         const rentAmount = route.query.rent_amount as string
+        const moveInDate = route.query.move_in_date as string
 
         if (propertyAddress) {
             formData.value.property_address = decodeURIComponent(propertyAddress)
@@ -594,7 +643,11 @@ onMounted(async () => {
             const rent = parseFloat(rentAmount)
             if (!isNaN(rent)) {
                 formData.value.offered_rent_amount = rent
+                originalOfferRent.value = rent // Store original for validation
             }
+        }
+        if (moveInDate) {
+            formData.value.proposed_move_in_date = decodeURIComponent(moveInDate)
         }
 
         // Check for existing submission first

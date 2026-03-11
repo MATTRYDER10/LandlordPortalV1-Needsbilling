@@ -41,60 +41,59 @@
         <p class="mt-2 text-gray-600 dark:text-slate-400">{{ searchQuery ? 'No agreements match your search' : 'No agreements created yet' }}</p>
       </div>
 
-      <div v-else class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+      <div v-else>
+        <table class="w-full divide-y divide-gray-200 dark:divide-slate-700">
           <thead class="bg-gray-50 dark:bg-slate-800">
             <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                Property Address
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                Property
               </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-40">
                 Tenant(s)
               </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-24">
                 Template
               </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-28">
                 Status
               </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-28">
                 Created
               </th>
-              <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                Actions
+              <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-16">
               </th>
             </tr>
           </thead>
           <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
             <tr v-for="agreement in filteredAgreements" :key="agreement.id" class="hover:bg-gray-50 dark:hover:bg-slate-800">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium text-gray-900 dark:text-white">
+              <td class="px-4 py-3">
+                <div class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" :title="formatPropertyAddress(agreement.property_address)">
                   {{ formatPropertyAddress(agreement.property_address) }}
                 </div>
-                <div v-if="agreement.language === 'welsh'" class="text-xs text-gray-500 dark:text-slate-400">Welsh Occupation Contract</div>
+                <div v-if="agreement.language === 'welsh'" class="text-xs text-gray-500 dark:text-slate-400">Welsh</div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900 dark:text-white">
-                  {{ getTenantNames(agreement.tenants) }}
+              <td class="px-4 py-3">
+                <div class="text-sm text-gray-900 dark:text-white truncate max-w-[10rem]" :title="getTenantNames(agreement.tenants)">
+                  {{ getAbbreviatedTenantNames(agreement.tenants) }}
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="px-4 py-3">
                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
                   {{ formatTemplateType(agreement.template_type) }}
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="px-4 py-3">
                 <span :class="getSigningStatusClass(agreement.signing_status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                   {{ getSigningStatusLabel(agreement.signing_status) }}
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
+              <td class="px-4 py-3 text-sm text-gray-500 dark:text-slate-400 whitespace-nowrap">
                 {{ formatDate(agreement.created_at) }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <td class="px-4 py-3 text-right text-sm font-medium">
                 <div class="relative actions-menu-container inline-block">
                   <button
-                    @click.stop="toggleActionsMenu(agreement.id)"
+                    @click.stop="toggleActionsMenu(agreement.id, $event)"
                     class="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-800"
                     title="Actions"
                   >
@@ -102,7 +101,8 @@
                   </button>
                   <div
                     v-if="actionsMenuOpen === agreement.id"
-                    class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-slate-800 ring-1 ring-black ring-opacity-5 dark:ring-slate-700 z-50"
+                    class="fixed w-48 rounded-md shadow-lg bg-white dark:bg-slate-800 ring-1 ring-black ring-opacity-5 dark:ring-slate-700 z-50"
+                    :style="{ top: dropdownPosition.top + 'px', right: dropdownPosition.right + 'px' }"
                   >
                     <div class="py-1">
                       <!-- Download -->
@@ -432,6 +432,7 @@ const searchQuery = ref('')
 
 // Actions dropdown state
 const actionsMenuOpen = ref<string | null>(null)
+const dropdownPosition = ref({ top: 0, right: 0 })
 
 // Modal states
 const showSigningModal = ref(false)
@@ -518,6 +519,22 @@ const getTenantNames = (tenants: any[]): string => {
   if (!tenants || tenants.length === 0) return 'N/A'
   return tenants.map(t => t.name).join(', ')
 }
+
+const getAbbreviatedTenantNames = (tenants: any[]): string => {
+  if (!tenants || tenants.length === 0) return 'N/A'
+  if (tenants.length === 1) {
+    const name = tenants[0].name || ''
+    const parts = name.split(' ')
+    if (parts.length > 1) {
+      return `${parts[0]} ${parts[parts.length - 1][0]}.`
+    }
+    return name
+  }
+  // Multiple tenants: show first name + count
+  const firstName = tenants[0].name?.split(' ')[0] || 'Tenant'
+  return `${firstName} +${tenants.length - 1}`
+}
+
 
 const formatTemplateType = (type: string): string => {
   const labels: Record<string, string> = {
@@ -865,8 +882,20 @@ const formatDate = (value?: string | null, fallback = 'N/A') =>
   )
 
 // Actions dropdown functions
-const toggleActionsMenu = (id: string) => {
-  actionsMenuOpen.value = actionsMenuOpen.value === id ? null : id
+const toggleActionsMenu = (id: string, event?: MouseEvent) => {
+  if (actionsMenuOpen.value === id) {
+    actionsMenuOpen.value = null
+  } else {
+    actionsMenuOpen.value = id
+    if (event) {
+      const button = event.currentTarget as HTMLElement
+      const rect = button.getBoundingClientRect()
+      dropdownPosition.value = {
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right
+      }
+    }
+  }
 }
 
 const handleClickOutside = (event: MouseEvent) => {

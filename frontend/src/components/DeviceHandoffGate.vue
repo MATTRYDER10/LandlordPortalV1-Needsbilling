@@ -7,7 +7,7 @@
                         class="h-14 w-14 object-contain rounded" />
                     <div>
                         <p class="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Secure Request From</p>
-                        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ companyName || 'Your letting agent' }}</p>
+                        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ companyName }}</p>
                     </div>
                 </div>
                 <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"

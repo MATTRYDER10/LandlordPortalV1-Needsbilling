@@ -92,7 +92,7 @@ router.get('/:token', async (req: Request, res: Response) => {
 
     if (!signature) {
       return res.status(400).json({
-        error: 'This signing link is not valid. Please check the URL or contact your letting agent for assistance.',
+        error: 'This signing link is not valid. Please check the URL or contact the agent for assistance.',
         code: 'INVALID_TOKEN'
       })
     }
@@ -152,7 +152,7 @@ router.get('/:token/pdf', async (req: Request, res: Response) => {
 
     if (!signature) {
       return res.status(400).json({
-        error: 'This signing link is not valid. Please check the URL or contact your letting agent for assistance.',
+        error: 'This signing link is not valid. Please check the URL or contact the agent for assistance.',
         code: 'INVALID_TOKEN'
       })
     }

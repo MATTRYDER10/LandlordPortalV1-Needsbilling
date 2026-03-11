@@ -102,7 +102,7 @@ async function backfillGuarantorEmails() {
     const tenantName = `${tenantFirstName} ${tenantLastName}`.trim() || 'Tenant'
     const propertyAddress = ref.property_address_encrypted ? decrypt(ref.property_address_encrypted) || 'the property' : 'the property'
     const company = (ref.companies as unknown) as { id: string; name_encrypted: string } | null
-    const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'Your agent' : 'Your agent'
+    const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'PropertyGoose' : 'PropertyGoose'
 
     console.log(`\nReference ${refId}:`)
     console.log(`  Tenant: ${tenantName}`)

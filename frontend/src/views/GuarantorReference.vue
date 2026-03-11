@@ -2751,9 +2751,9 @@ const fetchReferenceByToken = async () => {
 
     if (!response.ok) {
       if (response.status === 404) {
-        tokenError.value = 'Reference not found. Please check your link or contact your letting agent.'
+        tokenError.value = 'Reference not found. Please check your link or contact the agent.'
       } else {
-        tokenError.value = 'Failed to load reference details. Please try again or contact your letting agent.'
+        tokenError.value = 'Failed to load reference details. Please try again or contact the agent.'
       }
       return
     }
@@ -3166,7 +3166,7 @@ const formatFileSize = (bytes: number) => {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 
-const agentCompanyName = computed(() => reference.value?.company_name || reference.value?.companies?.name || 'your agent')
+const agentCompanyName = computed(() => reference.value?.company_name || reference.value?.companies?.name || 'PropertyGoose')
 const agentCompanyEmail = computed(() => reference.value?.company_email || reference.value?.companies?.email || '')
 const agentCompanyPhone = computed(() => reference.value?.company_phone || reference.value?.companies?.phone || '')
 const agentCompanyAddress = computed(() => {
