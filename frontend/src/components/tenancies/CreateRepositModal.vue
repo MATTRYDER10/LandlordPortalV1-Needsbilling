@@ -219,16 +219,19 @@ const handleCreate = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
+    const payload = {
+      tenancyId: props.tenancyId,
+      agentId: selectedAgentId.value || undefined,
+      publishImmediately: publishImmediately.value
+    }
+    console.log('[CreateRepositModal] Sending create request with payload:', payload)
+
     const response = await authFetch(
       `${API_URL}/api/reposit/create`,
       {
         token,
         method: 'POST',
-        body: JSON.stringify({
-          tenancyId: props.tenancyId,
-          agentId: selectedAgentId.value || undefined,
-          publishImmediately: publishImmediately.value
-        })
+        body: JSON.stringify(payload)
       }
     )
 

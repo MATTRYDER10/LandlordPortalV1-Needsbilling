@@ -7,7 +7,7 @@
 
     <!-- Signature Canvas -->
     <div
-      class="relative border-2 rounded-lg overflow-hidden bg-white dark:bg-slate-900"
+      class="relative border-2 rounded-xl overflow-hidden bg-white dark:bg-slate-900"
       :class="[
         hasSignature ? 'border-green-500' : 'border-gray-300 dark:border-slate-600',
         error ? 'border-red-500' : ''
@@ -19,11 +19,16 @@
         @mousemove="draw"
         @mouseup="stopDrawing"
         @mouseleave="stopDrawing"
-        @touchstart.prevent="handleTouchStart"
-        @touchmove.prevent="handleTouchMove"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
         @touchend="stopDrawing"
-        class="w-full cursor-crosshair"
-        :style="{ height: height + 'px' }"
+        @touchcancel="stopDrawing"
+        class="w-full cursor-crosshair select-none"
+        :style="{
+          height: height + 'px',
+          minHeight: height + 'px',
+          touchAction: 'none'
+        }"
       ></canvas>
 
       <!-- Clear Button -->
@@ -31,9 +36,9 @@
         v-if="hasSignature"
         type="button"
         @click="clear"
-        class="absolute top-2 right-2 p-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+        class="absolute top-3 right-3 p-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
       >
-        <RotateCcw class="w-4 h-4 text-gray-500 dark:text-slate-400" />
+        <RotateCcw class="w-5 h-5 text-gray-500 dark:text-slate-400" />
       </button>
 
       <!-- Placeholder Text -->
@@ -41,7 +46,7 @@
         v-if="!hasSignature"
         class="absolute inset-0 flex items-center justify-center pointer-events-none"
       >
-        <p class="text-gray-400 dark:text-slate-500 text-sm">Sign here</p>
+        <p class="text-gray-400 dark:text-slate-500 text-base">Sign here</p>
       </div>
     </div>
 
@@ -71,7 +76,7 @@ const props = withDefaults(defineProps<{
   height?: number
   modelValue?: string | null
 }>(), {
-  height: 150
+  height: 200
 })
 
 const emit = defineEmits<{
@@ -83,9 +88,12 @@ const ctx = ref<CanvasRenderingContext2D | null>(null)
 const isDrawing = ref(false)
 const hasSignature = ref(false)
 const error = ref('')
+const lastPoint = ref<{ x: number; y: number } | null>(null)
 
 onMounted(() => {
-  initCanvas()
+  setTimeout(() => {
+    initCanvas()
+  }, 50)
   window.addEventListener('resize', handleResize)
 })
 
@@ -107,23 +115,35 @@ watch(() => props.modelValue, (newValue) => {
   }
 })
 
-function initCanvas() {
+function initCanvas(retryCount = 0) {
   if (!canvas.value) return
 
   const rect = canvas.value.getBoundingClientRect()
-  canvas.value.width = rect.width * window.devicePixelRatio
-  canvas.value.height = props.height * window.devicePixelRatio
 
-  canvas.value.style.width = rect.width + 'px'
+  if (rect.width === 0 && retryCount < 3) {
+    setTimeout(() => initCanvas(retryCount + 1), 100)
+    return
+  }
+
+  const width = rect.width > 0 ? rect.width : (canvas.value.parentElement?.clientWidth || 300)
+  const dpr = window.devicePixelRatio || 1
+
+  canvas.value.width = width * dpr
+  canvas.value.height = props.height * dpr
+
+  canvas.value.style.width = width + 'px'
   canvas.value.style.height = props.height + 'px'
 
-  ctx.value = canvas.value.getContext('2d')
+  // Use willReadFrequently for better performance with getImageData
+  ctx.value = canvas.value.getContext('2d', { willReadFrequently: true })
   if (ctx.value) {
-    ctx.value.scale(window.devicePixelRatio, window.devicePixelRatio)
-    ctx.value.strokeStyle = '#1f2937'
-    ctx.value.lineWidth = 2
+    ctx.value.scale(dpr, dpr)
+    ctx.value.strokeStyle = '#1a1a1a'
+    ctx.value.lineWidth = 2.5
     ctx.value.lineCap = 'round'
     ctx.value.lineJoin = 'round'
+    ctx.value.imageSmoothingEnabled = true
+    ctx.value.imageSmoothingQuality = 'high'
   }
 }
 
@@ -148,38 +168,76 @@ function getPos(event: MouseEvent | Touch): { x: number; y: number } {
 }
 
 function startDrawing(event: MouseEvent) {
+  event.preventDefault()
   isDrawing.value = true
   const pos = getPos(event)
+  lastPoint.value = pos
   ctx.value?.beginPath()
   ctx.value?.moveTo(pos.x, pos.y)
+  // Draw a small dot for click without drag
+  ctx.value?.arc(pos.x, pos.y, 1, 0, Math.PI * 2)
+  ctx.value?.fill()
 }
 
 function draw(event: MouseEvent) {
   if (!isDrawing.value || !ctx.value) return
+  event.preventDefault()
+
   const pos = getPos(event)
-  ctx.value.lineTo(pos.x, pos.y)
-  ctx.value.stroke()
+
+  // Draw smooth line using quadratic curves
+  if (lastPoint.value) {
+    ctx.value.beginPath()
+    ctx.value.moveTo(lastPoint.value.x, lastPoint.value.y)
+
+    // Use quadratic curve for smoother lines
+    const midX = (lastPoint.value.x + pos.x) / 2
+    const midY = (lastPoint.value.y + pos.y) / 2
+    ctx.value.quadraticCurveTo(lastPoint.value.x, lastPoint.value.y, midX, midY)
+    ctx.value.stroke()
+  }
+
+  lastPoint.value = pos
 }
 
 function handleTouchStart(event: TouchEvent) {
+  event.preventDefault()
   if (event.touches.length === 1) {
     isDrawing.value = true
     const pos = getPos(event.touches[0])
+    lastPoint.value = pos
     ctx.value?.beginPath()
     ctx.value?.moveTo(pos.x, pos.y)
+    // Draw a small dot for tap without drag
+    ctx.value?.arc(pos.x, pos.y, 1, 0, Math.PI * 2)
+    ctx.value?.fill()
   }
 }
 
 function handleTouchMove(event: TouchEvent) {
+  event.preventDefault()
   if (!isDrawing.value || !ctx.value || event.touches.length !== 1) return
+
   const pos = getPos(event.touches[0])
-  ctx.value.lineTo(pos.x, pos.y)
-  ctx.value.stroke()
+
+  // Draw smooth line using quadratic curves
+  if (lastPoint.value) {
+    ctx.value.beginPath()
+    ctx.value.moveTo(lastPoint.value.x, lastPoint.value.y)
+
+    const midX = (lastPoint.value.x + pos.x) / 2
+    const midY = (lastPoint.value.y + pos.y) / 2
+    ctx.value.quadraticCurveTo(lastPoint.value.x, lastPoint.value.y, midX, midY)
+    ctx.value.stroke()
+  }
+
+  lastPoint.value = pos
 }
 
 function stopDrawing() {
   if (isDrawing.value) {
     isDrawing.value = false
+    lastPoint.value = null
     hasSignature.value = !isCanvasEmpty()
     if (hasSignature.value) {
       emit('update:modelValue', getSignatureData())
@@ -191,7 +249,6 @@ function isCanvasEmpty(): boolean {
   if (!canvas.value || !ctx.value) return true
   const imageData = ctx.value.getImageData(0, 0, canvas.value.width, canvas.value.height)
   return !imageData.data.some((channel, index) => {
-    // Check alpha channel (every 4th value starting at index 3)
     return index % 4 === 3 && channel !== 0
   })
 }
@@ -202,8 +259,10 @@ function getSignatureData(): string {
 
 function clear() {
   if (!canvas.value || !ctx.value) return
-  ctx.value.clearRect(0, 0, canvas.value.width / window.devicePixelRatio, canvas.value.height / window.devicePixelRatio)
+  const dpr = window.devicePixelRatio || 1
+  ctx.value.clearRect(0, 0, canvas.value.width / dpr, canvas.value.height / dpr)
   hasSignature.value = false
+  lastPoint.value = null
   emit('update:modelValue', null)
 }
 

@@ -60,7 +60,7 @@ router.get('/:token', async (req: Request, res: Response) => {
     let depositAmount = reference.deposit_amount || null
 
     // If not on reference, try to get from linked offer
-    if (!depositReplacementOffered && reference.offer_id) {
+    if (reference.offer_id) {
       const { data: offer } = await supabase
         .from('tenant_offers')
         .select('deposit_amount, offer_deposit_replacement')
@@ -68,9 +68,18 @@ router.get('/:token', async (req: Request, res: Response) => {
         .single()
 
       if (offer) {
-        depositReplacementOffered = offer.offer_deposit_replacement || false
-        depositAmount = offer.deposit_amount || null
+        if (!depositReplacementOffered) {
+          depositReplacementOffered = offer.offer_deposit_replacement || false
+        }
+        if (!depositAmount) {
+          depositAmount = offer.deposit_amount || null
+        }
       }
+    }
+
+    // If still no deposit amount, calculate based on 5 weeks' rent (standard UK deposit)
+    if (!depositAmount && reference.monthly_rent) {
+      depositAmount = Math.round((reference.monthly_rent / 4.33) * 5 * 100) / 100
     }
 
     // Check if company has Reposit integration enabled
@@ -107,7 +116,9 @@ router.get('/:token', async (req: Request, res: Response) => {
         // Reposit/deposit info
         deposit_replacement_offered: depositReplacementOffered && repositIntegrationActive,
         deposit_amount: depositAmount,
-        reposit_confirmed: reference.reposit_confirmed
+        reposit_confirmed: reference.reposit_confirmed,
+        // Saved form data for restoring progress
+        form_data: reference.form_data || null
       },
       companyName: company?.name || 'PropertyGoose',
       companyLogo: company?.logo_url || '',
@@ -130,9 +141,12 @@ router.post('/:token/save', async (req: Request, res: Response) => {
     const { token } = req.params
     const { section, data } = req.body
 
+    console.log(`[V2 TenantForm] Save request for section: ${section}`)
+
     // Validate section type
     const validSections = ['identity', 'rtr', 'income', 'residential', 'personal', 'guarantor', 'deposit', 'consent']
     if (!validSections.includes(section)) {
+      console.log(`[V2 TenantForm] Invalid section: ${section}`)
       return res.status(400).json({ error: 'Invalid section' })
     }
 
@@ -140,8 +154,11 @@ router.post('/:token/save', async (req: Request, res: Response) => {
     const reference = await getReferenceByFormToken(token)
 
     if (!reference) {
+      console.log(`[V2 TenantForm] Reference not found for token`)
       return res.status(404).json({ error: 'Reference not found' })
     }
+
+    console.log(`[V2 TenantForm] Saving to reference ${reference.id}`)
 
     // Merge the section data with existing form data
     const existingFormData = reference.form_data || {}
@@ -160,13 +177,14 @@ router.post('/:token/save', async (req: Request, res: Response) => {
       .eq('id', reference.id)
 
     if (updateError) {
-      console.error('Error saving section:', updateError)
-      return res.status(500).json({ error: 'Failed to save progress' })
+      console.error('[V2 TenantForm] Error saving section:', updateError)
+      return res.status(500).json({ error: 'Failed to save progress', details: updateError.message })
     }
 
+    console.log(`[V2 TenantForm] Section ${section} saved successfully`)
     return res.json({ success: true })
   } catch (error) {
-    console.error('Error saving tenant form section:', error)
+    console.error('[V2 TenantForm] Exception saving section:', error)
     return res.status(500).json({ error: 'Failed to save progress' })
   }
 })
@@ -322,6 +340,11 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
     if (deposit && typeof deposit.repositConfirmed === 'boolean') {
       updateData.reposit_confirmed = deposit.repositConfirmed
       updateData.reposit_confirmed_at = new Date().toISOString()
+    }
+
+    // Save Reposit interest if tenant expressed interest (when not offered via offer stage)
+    if (deposit && deposit.repositInterested === true) {
+      updateData.reposit_interested = true
     }
 
     // Save smoker status

@@ -734,62 +734,11 @@ const handleSubmit = async () => {
 
     // For Insured, we use apiReference; for Custodial, we use batchId
     const referenceId = createData.apiReference || createData.batchId
-    submittingStatus.value = 'Processing with TDS...'
 
-    // Poll for completion
-    let attempts = 0
-    const maxAttempts = 10
-    const pollInterval = 3000
-
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, pollInterval))
-      attempts++
-
-      const statusEndpoint = schemeType === 'insured'
-        ? `${API_URL}/api/tds/insured/deposit-status/${referenceId}?tenancyId=${props.tenancy.id}&depositAmount=${formData.value.deposit.amount}&depositReceivedDate=${formData.value.deposit.receivedDate}`
-        : `${API_URL}/api/tds/custodial/deposit-status/${referenceId}?tenancyId=${props.tenancy.id}&depositAmount=${formData.value.deposit.amount}&depositReceivedDate=${formData.value.deposit.receivedDate}`
-
-      const statusResponse = await fetch(statusEndpoint, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      const statusData = await statusResponse.json()
-
-      if (statusData.success && statusData.dan) {
-        // Success!
-        registrationDAN.value = statusData.dan
-        registrationSchemeType.value = schemeType
-        registrationComplete.value = true
-        toast.success(`Deposit registered with TDS ${schemeLabel.value}`)
-        emit('registered', statusData.dan)
-        return
-      }
-
-      if (statusData.status === 'failed') {
-        throw new Error(statusData.error || 'TDS registration failed')
-      }
-
-      // Handle timeout - show pending state instead of error
-      if (statusData.status === 'timeout') {
-        pendingBatchId.value = referenceId
-        registrationPending.value = true
-        registrationSchemeType.value = schemeType
-        toast.warning('TDS is taking longer than expected. Your registration has been saved as pending.')
-        emit('pending', referenceId)
-        return
-      }
-
-      submittingStatus.value = `Processing... (attempt ${attempts}/${maxAttempts})`
-    }
-
-    // Max attempts reached - show pending state
-    pendingBatchId.value = referenceId
-    registrationPending.value = true
-    registrationSchemeType.value = schemeType
-    toast.warning('TDS is still processing. Your registration has been saved as pending.')
+    // Emit pending and close immediately - drawer will handle polling
+    toast.info('Deposit submitted to TDS. Processing in background...')
     emit('pending', referenceId)
+    emit('close')
   } catch (err: any) {
     console.error('TDS registration error:', err)
     errorMessage.value = err.message || 'Failed to register deposit'

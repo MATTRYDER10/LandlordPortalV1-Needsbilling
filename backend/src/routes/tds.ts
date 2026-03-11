@@ -8,7 +8,11 @@ import {
   pollDepositStatus,
   downloadDPC,
   getTDSRegistration,
-  saveTDSRegistration
+  saveTDSRegistration,
+  savePendingTDSRegistration,
+  updateTDSRegistrationWithDAN,
+  markTDSRegistrationFailed,
+  getPendingTDSRegistration
 } from '../services/tdsService'
 import {
   getCompanyTDSInsuredConfig,
@@ -438,7 +442,10 @@ router.get('/custodial/certificate/:dan', authenticateToken, async (req: AuthReq
  * Register a deposit with TDS Insured
  */
 router.post('/insured/create-deposit', authenticateToken, async (req: AuthRequest, res) => {
+  console.log('[TDS Insured] ===== CREATE DEPOSIT ENDPOINT HIT =====')
+  console.log('[TDS Insured] Request body:', JSON.stringify(req.body))
   try {
+    const userId = req.user?.id
     const { tenancyId, depositReceivedDate } = req.body
 
     if (!tenancyId) {
@@ -461,11 +468,26 @@ router.post('/insured/create-deposit', authenticateToken, async (req: AuthReques
     }
 
     const existingRegistration = await getTDSRegistration(tenancyId)
+    console.log('[TDS Insured] Existing registration check:', existingRegistration ? JSON.stringify(existingRegistration) : 'none')
     if (existingRegistration) {
-      return res.status(400).json({
-        error: 'This deposit is already registered with TDS',
-        dan: existingRegistration.dan
-      })
+      // If already completed with a DAN, don't allow re-registration
+      if (existingRegistration.status === 'registered' && existingRegistration.dan) {
+        console.log('[TDS Insured] Already registered with DAN:', existingRegistration.dan)
+        return res.status(400).json({
+          error: 'This deposit is already registered with TDS',
+          dan: existingRegistration.dan
+        })
+      }
+      // If pending, return the existing batch_id so frontend can continue polling
+      if (existingRegistration.status === 'pending' && existingRegistration.batch_id) {
+        console.log('[TDS Insured] Found pending registration, returning existing apiReference:', existingRegistration.batch_id)
+        return res.json({
+          success: true,
+          apiReference: existingRegistration.batch_id,
+          schemeType: 'insured',
+          message: 'Deposit already submitted. Polling for completion...'
+        })
+      }
     }
 
     const tenancyResult = await getTenancyWithDetails(tenancyId, companyId)
@@ -473,14 +495,39 @@ router.post('/insured/create-deposit', authenticateToken, async (req: AuthReques
       return res.status(404).json({ error: tenancyResult.error })
     }
 
+    console.log('[TDS Insured] Creating deposit for tenancy:', tenancyId)
+
     const createResult = await createInsuredDeposit(
       companyId,
       tenancyResult.tenancy,
       depositReceivedDate
     )
 
+    console.log('[TDS Insured] createInsuredDeposit result:', JSON.stringify(createResult))
+
     if (!createResult.success || !createResult.apiReference) {
       return res.status(400).json({ error: createResult.error || 'Failed to create deposit with TDS Insured' })
+    }
+
+    // Save a pending registration immediately so we have a record even if polling times out
+    console.log('[TDS Insured] Saving pending registration for apiReference:', createResult.apiReference)
+    const { error: insertError } = await supabase
+      .from('tds_registrations')
+      .insert({
+        tenancy_id: tenancyId,
+        company_id: companyId,
+        registered_by: userId,
+        batch_id: createResult.apiReference, // Using batch_id field to store apiReference
+        deposit_amount: Number(tenancyResult.tenancy.deposit_amount) || 0,
+        deposit_received_date: depositReceivedDate,
+        status: 'pending',
+        scheme_type: 'insured'
+      })
+
+    if (insertError) {
+      console.error('[TDS Insured] Failed to save pending registration:', insertError)
+    } else {
+      console.log('[TDS Insured] Pending registration saved successfully')
     }
 
     res.json({

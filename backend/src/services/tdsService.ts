@@ -45,6 +45,7 @@ interface TDSConfig {
 
 interface PersonObject {
   type: string
+  person_classification: 'Individual' | 'Company'
   title?: string
   forename: string
   surname: string
@@ -276,8 +277,11 @@ export function mapTenancyToTDSPayload(
 
   landlords.forEach((landlord: any, index: number) => {
     const isPrimary = landlord.id === primaryLandlord?.id
+    // Check if landlord is a company (has company_name or is_company flag)
+    const isCompany = !!(landlord.company_name || landlord.is_company)
     people.push({
       type: isPrimary ? 'Primary Landlord' : 'Joint Landlord',
+      person_classification: isCompany ? 'Company' : 'Individual',
       title: landlord.title || 'Mr',
       forename: decrypt(landlord.first_name_encrypted) || landlord.first_name || '',
       surname: decrypt(landlord.last_name_encrypted) || landlord.last_name || '',
@@ -298,6 +302,7 @@ export function mapTenancyToTDSPayload(
     const isLead = tenant.id === leadTenant?.id
     people.push({
       type: isLead ? 'Lead Tenant' : 'Joint Tenant',
+      person_classification: 'Individual',
       title: tenant.title || 'Mr',
       forename: decrypt(tenant.first_name_encrypted) || tenant.first_name || '',
       surname: decrypt(tenant.last_name_encrypted) || tenant.last_name || '',
@@ -766,4 +771,106 @@ export async function saveTDSRegistration(
   }
 
   return { success: true }
+}
+
+/**
+ * Save pending TDS registration (before DAN is received)
+ */
+export async function savePendingTDSRegistration(
+  tenancyId: string,
+  companyId: string,
+  userId: string,
+  batchId: string,
+  depositAmount: number,
+  depositReceivedDate: string,
+  schemeType: 'custodial' | 'insured' = 'custodial'
+): Promise<{ success: boolean; registrationId?: string; error?: string }> {
+  const { data, error } = await supabase
+    .from('tds_registrations')
+    .insert({
+      tenancy_id: tenancyId,
+      company_id: companyId,
+      registered_by: userId,
+      batch_id: batchId,
+      deposit_amount: depositAmount,
+      deposit_received_date: depositReceivedDate,
+      status: 'processing',
+      scheme_type: schemeType
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Error saving pending TDS registration:', error)
+    return { success: false, error: 'Failed to save registration record' }
+  }
+
+  return { success: true, registrationId: data?.id }
+}
+
+/**
+ * Update TDS registration with DAN (when processing completes)
+ */
+export async function updateTDSRegistrationWithDAN(
+  batchId: string,
+  dan: string,
+  rawResponse?: any
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('tds_registrations')
+    .update({
+      dan,
+      status: 'registered',
+      raw_response: rawResponse,
+      updated_at: new Date().toISOString()
+    })
+    .eq('batch_id', batchId)
+
+  if (error) {
+    console.error('Error updating TDS registration:', error)
+    return { success: false, error: 'Failed to update registration record' }
+  }
+
+  return { success: true }
+}
+
+/**
+ * Mark TDS registration as failed
+ */
+export async function markTDSRegistrationFailed(
+  batchId: string,
+  errorMessage: string
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('tds_registrations')
+    .update({
+      status: 'failed',
+      error_message: errorMessage,
+      updated_at: new Date().toISOString()
+    })
+    .eq('batch_id', batchId)
+
+  if (error) {
+    console.error('Error marking TDS registration as failed:', error)
+    return { success: false, error: 'Failed to update registration record' }
+  }
+
+  return { success: true }
+}
+
+/**
+ * Get pending TDS registration by batch ID
+ */
+export async function getPendingTDSRegistration(batchId: string): Promise<any | null> {
+  const { data, error } = await supabase
+    .from('tds_registrations')
+    .select('*')
+    .eq('batch_id', batchId)
+    .single()
+
+  if (error || !data) {
+    return null
+  }
+
+  return data
 }

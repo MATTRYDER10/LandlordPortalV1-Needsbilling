@@ -297,8 +297,8 @@
               <span v-if="offer.holding_deposit_amount" class="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg">
                 Holding Deposit: £{{ offer.holding_deposit_amount }}
               </span>
-              <span v-if="offer.offer_deposit_replacement" class="px-2 py-1 text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg">
-                Deposit Replacement Available
+              <span v-if="offer.offer_deposit_replacement" class="px-2 py-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg">
+                Reposit Available
               </span>
               <span v-if="offer.reference_created" class="px-2 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg flex items-center gap-1">
                 <CheckCircle class="w-3 h-3" />
@@ -561,15 +561,21 @@
                       />
                       <p class="text-xs text-gray-400 mt-1">5 weeks rent</p>
                     </div>
-                    <label class="flex items-center gap-3 cursor-pointer pb-6">
+                    <label class="flex items-start gap-3 cursor-pointer pb-6">
                       <input
                         v-model="sendForm.offer_deposit_replacement"
                         type="checkbox"
-                        class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                        class="w-4 h-4 mt-1 text-primary border-gray-300 rounded focus:ring-primary"
                       />
                       <div>
-                        <span class="text-sm font-medium text-gray-700 dark:text-slate-300">Offer Deposit Replacement</span>
-                        <p class="text-xs text-gray-500">Allow tenant to choose deposit insurance instead of traditional deposit</p>
+                        <span class="text-sm font-medium text-gray-700 dark:text-slate-300">Offer Reposit</span>
+                        <p class="text-xs text-gray-500 mt-1">
+                          Reposit is a deposit replacement where tenants pay ~1 week's rent instead of a 5-week deposit.
+                          The landlord receives full deposit-equivalent protection.
+                        </p>
+                        <p class="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                          <strong>Important:</strong> The landlord MUST have a professional inventory and check-out report to make claims with Reposit.
+                        </p>
                       </div>
                     </label>
                   </div>
@@ -979,30 +985,13 @@
                 </button>
               </div>
 
-              <!-- Approved - Waiting for Payment -->
-              <div v-else-if="selectedOffer.status === 'approved' && !selectedOffer.tenant_payment_confirmed_at" class="flex flex-col gap-3">
+              <!-- Approved - Ready for Referencing (with or without tenant confirmation) -->
+              <div v-else-if="selectedOffer.status === 'approved' && !selectedOffer.reference_id" class="flex flex-col gap-3">
                 <div class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
                   <Clock class="w-4 h-4" />
-                  Awaiting holding deposit payment
+                  <span v-if="selectedOffer.tenant_payment_confirmed_at">Tenant marked as paid</span>
+                  <span v-else>Awaiting holding deposit payment</span>
                 </div>
-                <button
-                  @click="receiptPayment"
-                  :disabled="processingAction"
-                  class="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                  <Loader2 v-if="processingAction" class="w-4 h-4 animate-spin" />
-                  <template v-else>
-                    <Banknote class="w-4 h-4" />
-                    Receipt Payment
-                  </template>
-                </button>
-              </div>
-
-              <!-- Payment Confirmed - Ready for Referencing -->
-              <div v-else-if="selectedOffer.status === 'approved' && selectedOffer.tenant_payment_confirmed_at && !selectedOffer.reference_id" class="flex items-center gap-3">
-                <span class="px-3 py-1.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg font-medium">
-                  Tenant marked as paid
-                </span>
                 <button
                   @click="sendToReferencing"
                   :disabled="processingAction"
@@ -1011,7 +1000,7 @@
                   <Loader2 v-if="processingAction" class="w-4 h-4 animate-spin" />
                   <template v-else>
                     <Send class="w-4 h-4" />
-                    Send to Referencing
+                    Receipt &amp; Send to Referencing
                   </template>
                 </button>
               </div>
@@ -1718,47 +1707,7 @@ async function approveOffer() {
 }
 
 // ============================================================================
-// RECEIPT PAYMENT (Agent marks holding deposit as received)
-// ============================================================================
-
-async function receiptPayment() {
-  if (!selectedOffer.value) return
-
-  processingAction.value = true
-  try {
-    const response = await fetch(`${API_URL}/api/tenant-offers/confirm-payment`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json',
-        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
-      },
-      body: JSON.stringify({
-        offer_id: selectedOffer.value.id
-      })
-    })
-
-    if (response.ok) {
-      toast.success('Payment receipted successfully')
-      refreshData()
-      // Update local state to reflect the change
-      if (selectedOffer.value) {
-        selectedOffer.value.tenant_payment_confirmed_at = new Date().toISOString()
-      }
-    } else {
-      const error = await response.json()
-      toast.error(error.error || 'Failed to receipt payment')
-    }
-  } catch (error) {
-    console.error('Error receipting payment:', error)
-    toast.error('Failed to receipt payment')
-  } finally {
-    processingAction.value = false
-  }
-}
-
-// ============================================================================
-// SEND TO REFERENCING (V2)
+// SEND TO REFERENCING (V2) - Also receipts payment in one step
 // ============================================================================
 
 async function sendToReferencing() {
@@ -1812,9 +1761,9 @@ async function sendToReferencing() {
 
     if (response.ok) {
       const data = await response.json()
-      // Update offer with reference_id to mark as converted
+      // Update offer status to holding_deposit_received
       if (data.references && data.references.length > 0) {
-        const linkResponse = await fetch(`${API_URL}/api/tenant-offers/${selectedOffer.value.id}/link-reference`, {
+        await fetch(`${API_URL}/api/tenant-offers/${selectedOffer.value.id}/mark-referencing`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${authStore.session?.access_token}`,
@@ -1823,9 +1772,6 @@ async function sendToReferencing() {
           },
           body: JSON.stringify({ reference_id: data.references[0].id })
         })
-        if (!linkResponse.ok) {
-          console.error('Failed to link reference to offer')
-        }
       }
       closeDetailModal()
       await refreshData()

@@ -54,6 +54,12 @@ interface RepositCreatePayload {
     email: string
     phone?: string
   }>
+  landlord?: {
+    first_name: string
+    last_name: string
+    email: string
+    phone?: string
+  }
 }
 
 interface RepositResponse {
@@ -204,17 +210,23 @@ export async function getSupplierAgents(config: RepositConfig): Promise<{ succes
 
     // Get agents for this supplier
     const agentsUrl = `${baseUrl}/deposits/v1/suppliers/${supplierId}/agents`
+    console.log('[Reposit] Fetching agents from:', agentsUrl)
+
     const response = await fetch(agentsUrl, {
       method: 'GET',
       headers: buildHeaders(config)
     })
 
     if (!response.ok) {
-      return { success: false, error: `API error (${response.status})` }
+      const errorText = await response.text()
+      console.error('[Reposit] Agents API error:', response.status, errorText)
+      return { success: false, error: `API error (${response.status}): ${errorText}` }
     }
 
-    const data = await response.json() as { agents?: any[] }
-    return { success: true, agents: data.agents || [] }
+    // API returns array directly, not wrapped in { agents: [] }
+    const agents = await response.json() as any[]
+    console.log('[Reposit] Found agents:', agents?.length || 0)
+    return { success: true, agents: agents || [] }
   } catch (err) {
     console.error('[Reposit] getSupplierAgents error:', err)
     return { success: false, error: err instanceof Error ? err.message : 'Failed to get agents' }
@@ -231,27 +243,34 @@ export async function getRepositPricing(
 ): Promise<{ success: boolean; pricing?: RepositPricingResponse; error?: string }> {
   const baseUrl = REPOSIT_BASE_URLS[config.environment]
 
+  // API requires ppm >= 25000 (£250 minimum rent)
+  if (monthlyRentPence < 25000) {
+    return { success: false, error: 'Monthly rent must be at least £250 for Reposit pricing' }
+  }
+
   try {
     const response = await fetch(`${baseUrl}/deposits/v1/reposits/pricing`, {
       method: 'POST',
       headers: buildHeaders(config),
       body: JSON.stringify({
-        monthly_rent_pence: monthlyRentPence,
+        ppm: monthlyRentPence, // API uses "ppm" not "monthly_rent_pence"
         headcount: headcount
       })
     })
 
     if (!response.ok) {
       const errorText = await response.text()
+      console.error('[Reposit] Pricing API error:', response.status, errorText)
       return { success: false, error: `Pricing API error: ${errorText.substring(0, 100)}` }
     }
 
-    const data = await response.json() as { total_fee_pence: number; per_tenant_fee_pence: number }
+    // API returns camelCase: totalFee, tenantFee
+    const data = await response.json() as { totalFee: number; tenantFee: number }
     return {
       success: true,
       pricing: {
-        total_fee_pence: data.total_fee_pence,
-        per_tenant_fee_pence: data.per_tenant_fee_pence,
+        total_fee_pence: data.totalFee,
+        per_tenant_fee_pence: data.tenantFee,
         monthly_rent_pence: monthlyRentPence,
         headcount: headcount
       }

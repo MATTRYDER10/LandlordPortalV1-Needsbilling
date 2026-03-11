@@ -90,7 +90,7 @@
       />
 
       <!-- Form -->
-      <form v-else-if="reference && !showDeviceGate" @submit.prevent="handleSubmit" class="space-y-6">
+      <form v-else-if="reference && !showDeviceGate" @submit.prevent="handleSubmit" novalidate class="space-y-6">
         <!-- Reference Info Banner -->
         <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
           <p class="text-sm text-blue-800 dark:text-blue-300">
@@ -1223,129 +1223,263 @@
           </div>
         </div>
 
-        <!-- ========== SECTION 7: DEPOSIT CHOICE (Conditional) ========== -->
+        <!-- ========== SECTION 7: DEPOSIT OPTIONS ========== -->
         <div v-show="steps[currentStep - 1]?.id === 'deposit'" class="space-y-6">
-          <!-- Reposit Header Card -->
-          <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-            <div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-600">
-              <div class="flex items-center gap-3">
-                <span class="text-2xl font-bold text-slate-800 dark:text-white">Rep</span>
-                <span class="text-2xl font-bold text-blue-500">o</span>
-                <span class="text-2xl font-bold text-slate-800 dark:text-white">sit</span>
-              </div>
+          <!-- Reposit Branded Card -->
+          <div class="rounded-xl border-2 border-[#00B4B4] overflow-hidden">
+            <!-- Header with Logo -->
+            <div class="bg-white dark:bg-slate-800 px-6 py-4 border-b border-[#00B4B4]/30 flex items-center justify-between">
+              <img
+                src="https://d1jj9i760ttpd.cloudfront.net/logos/primary/primary-full-colour.png"
+                alt="Reposit"
+                class="h-8 w-auto"
+              />
+              <a
+                href="https://reposit.co.uk/tenants/"
+                target="_blank"
+                class="text-xs text-[#1a365d] hover:text-[#00B4B4] flex items-center gap-1"
+              >
+                Learn more
+                <ExternalLink class="w-3 h-3" />
+              </a>
             </div>
 
-            <div class="p-6">
-              <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 mb-6">
-                <p class="text-emerald-800 dark:text-emerald-300 font-semibold text-lg">
-                  Save £{{ repositSavings.toFixed(2) }} on upfront move-in costs
-                </p>
-                <p class="text-sm text-emerald-700 dark:text-emerald-400 mt-1">
-                  Your landlord has agreed to offer Reposit as an alternative to a traditional cash deposit
-                </p>
-              </div>
-
-              <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Select your tenancy deposit option</h2>
-              <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">
-                Choose between a traditional cash deposit or an alternative that helps you save on upfront renting costs.
-              </p>
-
-              <div class="grid md:grid-cols-2 gap-4 mb-6">
-                <!-- Reposit Option -->
-                <div
-                  @click="formData.deposit.repositConfirmed = true"
-                  class="relative border-2 rounded-xl p-5 cursor-pointer transition-all"
-                  :class="formData.deposit.repositConfirmed === true
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-slate-600 hover:border-blue-300'"
-                >
-                  <div class="absolute -top-3 left-4">
-                    <span class="bg-emerald-500 text-white text-xs font-semibold px-3 py-1 rounded-full">Recommended</span>
-                  </div>
-
-                  <div class="flex items-center justify-between mb-4 mt-2">
-                    <h3 class="font-semibold text-gray-900 dark:text-white">Deposit alternative</h3>
-                    <div class="flex items-center">
-                      <span class="text-sm font-bold text-slate-700 dark:text-slate-300">Rep</span>
-                      <span class="text-sm font-bold text-blue-500">o</span>
-                      <span class="text-sm font-bold text-slate-700 dark:text-slate-300">sit</span>
-                    </div>
-                  </div>
-
-                  <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
-                    Pay a small, one-time fee instead of a large upfront cash deposit.
+            <!-- Content -->
+            <div class="bg-gradient-to-br from-[#00B4B4]/5 to-[#0891b2]/10 dark:from-[#00B4B4]/10 dark:to-[#0891b2]/20 p-6">
+              <!-- When Reposit is OFFERED by landlord -->
+              <template v-if="reference?.deposit_replacement_offered">
+                <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 mb-6">
+                  <p class="text-emerald-800 dark:text-emerald-300 font-semibold text-lg">
+                    Save £{{ repositSavings.toFixed(2) }} on upfront move-in costs
                   </p>
+                  <p class="text-sm text-emerald-700 dark:text-emerald-400 mt-1">
+                    Your landlord has agreed to offer Reposit as an alternative to a traditional cash deposit
+                  </p>
+                </div>
 
-                  <div class="space-y-2 text-sm border-t border-gray-200 dark:border-slate-600 pt-4">
-                    <div class="flex justify-between">
-                      <span class="text-gray-600 dark:text-slate-400">First month's rent</span>
-                      <span class="font-medium text-gray-900 dark:text-white">£{{ (reference?.monthly_rent || 0).toFixed(2) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-gray-600 dark:text-slate-400">Reposit fee</span>
-                      <span class="font-medium text-blue-600">£{{ repositFee.toFixed(2) }}*</span>
-                    </div>
-                    <div class="flex justify-between pt-2 border-t border-gray-200 dark:border-slate-600">
-                      <span class="font-semibold text-gray-900 dark:text-white">Total upfront</span>
-                      <span class="font-bold text-gray-900 dark:text-white">£{{ ((reference?.monthly_rent || 0) + repositFee).toFixed(2) }}</span>
-                    </div>
-                  </div>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Select your tenancy deposit option</h2>
+                <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">
+                  Choose between a traditional cash deposit or an alternative that helps you save on upfront renting costs.
+                </p>
 
-                  <button
-                    type="button"
-                    class="w-full mt-4 py-2.5 rounded-lg font-medium transition-colors"
+                <div class="grid md:grid-cols-2 gap-4 mb-6">
+                  <!-- Reposit Option -->
+                  <div
+                    @click="formData.deposit.repositConfirmed = true"
+                    class="relative border-2 rounded-xl p-5 cursor-pointer transition-all bg-white dark:bg-slate-800"
                     :class="formData.deposit.repositConfirmed === true
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200'"
+                      ? 'border-[#00B4B4] ring-2 ring-[#00B4B4]/20'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-[#00B4B4]/50'"
                   >
-                    {{ formData.deposit.repositConfirmed === true ? '✓ Selected' : 'Choose Reposit' }}
-                  </button>
-                  <p class="text-xs text-gray-500 mt-2 text-center">*Non-refundable</p>
-                </div>
+                    <div class="absolute -top-3 left-4">
+                      <span class="bg-[#00B4B4] text-white text-xs font-semibold px-3 py-1 rounded-full">Recommended</span>
+                    </div>
 
-                <!-- Traditional Deposit -->
-                <div
-                  @click="formData.deposit.repositConfirmed = false"
-                  class="border-2 rounded-xl p-5 cursor-pointer transition-all"
-                  :class="formData.deposit.repositConfirmed === false
-                    ? 'border-gray-500 bg-gray-50 dark:bg-slate-700'
-                    : 'border-gray-200 dark:border-slate-600 hover:border-gray-400'"
-                >
-                  <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-semibold text-gray-900 dark:text-white">Traditional cash deposit</h3>
+                    <div class="flex items-center justify-between mb-4 mt-2">
+                      <h3 class="font-semibold text-gray-900 dark:text-white">Deposit alternative</h3>
+                      <img src="https://d1jj9i760ttpd.cloudfront.net/logos/primary/primary-full-colour.png" alt="Reposit" class="h-5" />
+                    </div>
+
+                    <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                      Pay a small, one-time fee instead of a large upfront cash deposit.
+                    </p>
+
+                    <div class="space-y-2 text-sm border-t border-gray-200 dark:border-slate-600 pt-4">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-slate-400">First month's rent</span>
+                        <span class="font-medium text-gray-900 dark:text-white">£{{ (reference?.monthly_rent || 0).toFixed(2) }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-slate-400">Reposit fee</span>
+                        <span class="font-medium text-[#00B4B4]">£{{ repositFee.toFixed(2) }}*</span>
+                      </div>
+                      <div class="flex justify-between pt-2 border-t border-gray-200 dark:border-slate-600">
+                        <span class="font-semibold text-gray-900 dark:text-white">Total upfront</span>
+                        <span class="font-bold text-[#1a365d] dark:text-[#00B4B4]">£{{ ((reference?.monthly_rent || 0) + repositFee).toFixed(2) }}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="w-full mt-4 py-2.5 rounded-lg font-medium transition-colors"
+                      :class="formData.deposit.repositConfirmed === true
+                        ? 'bg-[#1a365d] text-white'
+                        : 'bg-[#00B4B4]/20 text-[#1a365d] hover:bg-[#00B4B4]/30'"
+                    >
+                      {{ formData.deposit.repositConfirmed === true ? '✓ Selected' : 'Choose Reposit' }}
+                    </button>
+                    <p class="text-xs text-gray-500 mt-2 text-center">*Non-refundable</p>
                   </div>
 
-                  <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
-                    Pay a traditional cash deposit - usually five weeks' rent.
-                  </p>
-
-                  <div class="space-y-2 text-sm border-t border-gray-200 dark:border-slate-600 pt-4">
-                    <div class="flex justify-between">
-                      <span class="text-gray-600 dark:text-slate-400">First month's rent</span>
-                      <span class="font-medium text-gray-900 dark:text-white">£{{ (reference?.monthly_rent || 0).toFixed(2) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-gray-600 dark:text-slate-400">Traditional deposit</span>
-                      <span class="font-medium text-gray-900 dark:text-white">£{{ (reference?.deposit_amount || 0).toFixed(2) }}*</span>
-                    </div>
-                    <div class="flex justify-between pt-2 border-t border-gray-200 dark:border-slate-600">
-                      <span class="font-semibold text-gray-900 dark:text-white">Total upfront</span>
-                      <span class="font-bold text-gray-900 dark:text-white">£{{ ((reference?.monthly_rent || 0) + (reference?.deposit_amount || 0)).toFixed(2) }}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    class="w-full mt-4 py-2.5 rounded-lg font-medium transition-colors"
+                  <!-- Traditional Deposit -->
+                  <div
+                    @click="formData.deposit.repositConfirmed = false"
+                    class="border-2 rounded-xl p-5 cursor-pointer transition-all bg-white dark:bg-slate-800"
                     :class="formData.deposit.repositConfirmed === false
-                      ? 'bg-gray-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                      ? 'border-gray-500 ring-2 ring-gray-200'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-gray-400'"
                   >
-                    {{ formData.deposit.repositConfirmed === false ? '✓ Selected' : 'Choose traditional deposit' }}
-                  </button>
-                  <p class="text-xs text-gray-500 mt-2 text-center">*Refundable at end of tenancy</p>
+                    <div class="flex items-center justify-between mb-4">
+                      <h3 class="font-semibold text-gray-900 dark:text-white">Traditional cash deposit</h3>
+                    </div>
+
+                    <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                      Pay a traditional cash deposit - usually five weeks' rent.
+                    </p>
+
+                    <div class="space-y-2 text-sm border-t border-gray-200 dark:border-slate-600 pt-4">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-slate-400">First month's rent</span>
+                        <span class="font-medium text-gray-900 dark:text-white">£{{ (reference?.monthly_rent || 0).toFixed(2) }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-slate-400">Traditional deposit</span>
+                        <span class="font-medium text-gray-900 dark:text-white">£{{ (reference?.deposit_amount || 0).toFixed(2) }}*</span>
+                      </div>
+                      <div class="flex justify-between pt-2 border-t border-gray-200 dark:border-slate-600">
+                        <span class="font-semibold text-gray-900 dark:text-white">Total upfront</span>
+                        <span class="font-bold text-gray-900 dark:text-white">£{{ ((reference?.monthly_rent || 0) + (reference?.deposit_amount || 0)).toFixed(2) }}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="w-full mt-4 py-2.5 rounded-lg font-medium transition-colors"
+                      :class="formData.deposit.repositConfirmed === false
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    >
+                      {{ formData.deposit.repositConfirmed === false ? '✓ Selected' : 'Choose traditional deposit' }}
+                    </button>
+                    <p class="text-xs text-gray-500 mt-2 text-center">*Refundable at end of tenancy</p>
+                  </div>
                 </div>
-              </div>
+              </template>
+
+              <!-- When Reposit is NOT offered - Sales Pitch -->
+              <template v-else>
+                <div class="text-center mb-6">
+                  <h2 class="text-2xl font-bold text-[#1a365d] dark:text-white mb-2">
+                    Want to save on your deposit?
+                  </h2>
+                  <p class="text-gray-600 dark:text-slate-400">
+                    Reposit is a deposit replacement that could save you hundreds of pounds in upfront costs.
+                  </p>
+                </div>
+
+                <!-- Savings Highlight -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-6 mb-6 border border-[#00B4B4]/30">
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <div class="text-center p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                      <p class="text-sm text-gray-500 dark:text-slate-400 mb-1">Traditional Deposit</p>
+                      <p class="text-2xl font-bold text-gray-400 line-through">£{{ (reference?.deposit_amount || 0).toFixed(2) }}</p>
+                    </div>
+                    <div class="text-center p-4 bg-[#00B4B4]/10 rounded-lg border-2 border-[#00B4B4]">
+                      <p class="text-sm text-[#0e7490] dark:text-[#00B4B4] mb-1">Reposit Fee</p>
+                      <p class="text-2xl font-bold text-[#1a365d] dark:text-[#00B4B4]">£{{ repositFee.toFixed(2) }}</p>
+                    </div>
+                  </div>
+                  <div class="mt-4 text-center">
+                    <p class="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
+                      Potential savings: £{{ repositSavings.toFixed(2) }}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Benefits -->
+                <div class="grid md:grid-cols-3 gap-4 mb-6">
+                  <div class="bg-white dark:bg-slate-800 rounded-lg p-4 text-center">
+                    <div class="w-10 h-10 bg-[#00B4B4]/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <Wallet class="w-5 h-5 text-[#00B4B4]" />
+                    </div>
+                    <h4 class="font-medium text-gray-900 dark:text-white text-sm">Save Money</h4>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Pay just one week's rent instead of five</p>
+                  </div>
+                  <div class="bg-white dark:bg-slate-800 rounded-lg p-4 text-center">
+                    <div class="w-10 h-10 bg-[#00B4B4]/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <Shield class="w-5 h-5 text-[#00B4B4]" />
+                    </div>
+                    <h4 class="font-medium text-gray-900 dark:text-white text-sm">Same Protection</h4>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Landlord gets full deposit equivalent cover</p>
+                  </div>
+                  <div class="bg-white dark:bg-slate-800 rounded-lg p-4 text-center">
+                    <div class="w-10 h-10 bg-[#00B4B4]/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <CheckCircle class="w-5 h-5 text-[#00B4B4]" />
+                    </div>
+                    <h4 class="font-medium text-gray-900 dark:text-white text-sm">Quick & Easy</h4>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Sign up online in minutes</p>
+                  </div>
+                </div>
+
+                <!-- Options -->
+                <div class="space-y-3">
+                  <!-- Interest in Reposit -->
+                  <div
+                    @click="formData.deposit.repositInterested = true"
+                    class="bg-white dark:bg-slate-800 rounded-xl p-5 cursor-pointer transition-all border-2"
+                    :class="formData.deposit.repositInterested
+                      ? 'border-[#00B4B4] ring-2 ring-[#00B4B4]/20'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-[#00B4B4]/50'"
+                  >
+                    <div class="flex items-start gap-4">
+                      <div
+                        class="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors"
+                        :class="formData.deposit.repositInterested
+                          ? 'bg-[#00B4B4] border-[#00B4B4]'
+                          : 'border-gray-300 dark:border-slate-500'"
+                      >
+                        <div v-if="formData.deposit.repositInterested" class="w-2 h-2 bg-white rounded-full" />
+                      </div>
+                      <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                          <h4 class="font-semibold text-gray-900 dark:text-white">
+                            Yes, I'm interested in using Reposit
+                          </h4>
+                          <span class="text-[#00B4B4] font-bold">£{{ repositFee.toFixed(2) }}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">
+                          I'd like {{ companyName }} to set up Reposit for my tenancy so I can save on my upfront costs.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Traditional Deposit Option -->
+                  <div
+                    @click="formData.deposit.repositInterested = false"
+                    class="bg-white dark:bg-slate-800 rounded-xl p-5 cursor-pointer transition-all border-2"
+                    :class="!formData.deposit.repositInterested
+                      ? 'border-gray-500 ring-2 ring-gray-200'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-gray-400'"
+                  >
+                    <div class="flex items-start gap-4">
+                      <div
+                        class="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors"
+                        :class="!formData.deposit.repositInterested
+                          ? 'bg-gray-500 border-gray-500'
+                          : 'border-gray-300 dark:border-slate-500'"
+                      >
+                        <div v-if="!formData.deposit.repositInterested" class="w-2 h-2 bg-white rounded-full" />
+                      </div>
+                      <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                          <h4 class="font-semibold text-gray-900 dark:text-white">
+                            No thanks, I'll pay the traditional deposit
+                          </h4>
+                          <span class="text-gray-600 dark:text-slate-400 font-bold">£{{ (reference?.deposit_amount || 0).toFixed(2) }}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">
+                          I'll pay a cash deposit of five weeks' rent, refundable at the end of my tenancy.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="text-xs text-gray-500 dark:text-slate-400 text-center mt-4">
+                  No obligation - your letting agent will confirm if Reposit is available for your tenancy.
+                </p>
+              </template>
             </div>
           </div>
 
@@ -1354,25 +1488,26 @@
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">How does Reposit work?</h3>
             <ul class="space-y-3 text-sm text-gray-600 dark:text-slate-400">
               <li class="flex items-start gap-2">
-                <span class="text-blue-500 mt-0.5">•</span>
+                <span class="text-[#00B4B4] mt-0.5">•</span>
                 <span>Reposit is a <strong>no deposit</strong> option. By purchasing a Reposit, you pay a service charge equal to one week's rent to avoid paying a cash deposit.</span>
               </li>
               <li class="flex items-start gap-2">
-                <span class="text-blue-500 mt-0.5">•</span>
+                <span class="text-[#00B4B4] mt-0.5">•</span>
                 <span>The Reposit service charge is <strong>non-refundable</strong> and cannot be off-set at end of tenancy.</span>
               </li>
               <li class="flex items-start gap-2">
-                <span class="text-blue-500 mt-0.5">•</span>
+                <span class="text-[#00B4B4] mt-0.5">•</span>
                 <span>You remain fully responsible for the property condition and rent payments. Any charges at tenancy end will be your responsibility.</span>
               </li>
               <li class="flex items-start gap-2">
-                <span class="text-blue-500 mt-0.5">•</span>
+                <span class="text-[#00B4B4] mt-0.5">•</span>
                 <span>Defaulting on liabilities could impact your credit history.</span>
               </li>
             </ul>
             <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
-              <a href="https://reposit.co.uk/tenants/" target="_blank" class="text-blue-600 hover:underline text-sm font-medium">
-                Learn more about Reposit →
+              <a href="https://reposit.co.uk/tenants/" target="_blank" class="text-[#00B4B4] hover:text-[#1a365d] text-sm font-medium flex items-center gap-1">
+                Learn more about Reposit
+                <ExternalLink class="w-3 h-3" />
               </a>
             </div>
           </div>
@@ -1513,7 +1648,8 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   Loader2, CheckCircle, AlertCircle, User, Shield, Briefcase, Home,
-  UserCircle, Users, FileSignature, ChevronLeft, ChevronRight, Plus, Trash2, Camera
+  UserCircle, Users, FileSignature, ChevronLeft, ChevronRight, Plus, Trash2, Camera,
+  Wallet, ExternalLink
 } from 'lucide-vue-next'
 import FileUpload from '@/components/forms/FileUpload.vue'
 import SignaturePad from '@/components/forms/SignaturePad.vue'
@@ -1581,10 +1717,8 @@ const steps = computed(() => {
     baseSteps.push({ id: 'guarantor', label: 'Guarantor' })
   }
 
-  // Add deposit step if offered
-  if (reference.value?.deposit_replacement_offered) {
-    baseSteps.push({ id: 'deposit', label: 'Deposit' })
-  }
+  // Always show deposit step - either as choice (if offered) or as sales pitch
+  baseSteps.push({ id: 'deposit', label: 'Deposit Options' })
 
   baseSteps.push({ id: 'consent', label: 'Consent' })
   return baseSteps
@@ -1701,7 +1835,8 @@ const formData = ref({
     relationship: ''
   },
   deposit: {
-    repositConfirmed: null as boolean | null
+    repositConfirmed: null as boolean | null,
+    repositInterested: false
   },
   consent: {
     creditCheck: false,
@@ -1783,7 +1918,11 @@ const canProceed = computed(() => {
              formData.value.guarantor.email &&
              formData.value.guarantor.relationship
     case 'deposit':
-      return formData.value.deposit.repositConfirmed !== null
+      // If offered, must choose one. If sales pitch, can proceed (interest is optional)
+      if (reference.value?.deposit_replacement_offered) {
+        return formData.value.deposit.repositConfirmed !== null
+      }
+      return true // Sales page - can always proceed
     case 'consent':
       return true
     default:
@@ -1908,16 +2047,54 @@ async function loadReference() {
     primaryColor.value = data.primaryColor || '#f97316'
     buttonColor.value = data.buttonColor || '#f97316'
 
-    // Pre-fill name from reference
-    if (data.reference.tenant_first_name) {
-      formData.value.identity.firstName = data.reference.tenant_first_name
+    // Restore saved form data if available
+    if (data.reference.form_data) {
+      const saved = data.reference.form_data
+      // Merge each section, preserving structure
+      if (saved.identity) {
+        formData.value.identity = { ...formData.value.identity, ...saved.identity }
+      }
+      if (saved.rtr) {
+        formData.value.rtr = { ...formData.value.rtr, ...saved.rtr }
+      }
+      if (saved.income) {
+        formData.value.income = { ...formData.value.income, ...saved.income }
+      }
+      if (saved.residential) {
+        formData.value.residential = { ...formData.value.residential, ...saved.residential }
+      }
+      if (saved.personal) {
+        formData.value.personal = { ...formData.value.personal, ...saved.personal }
+      }
+      if (saved.guarantor) {
+        formData.value.guarantor = { ...formData.value.guarantor, ...saved.guarantor }
+      }
+      if (saved.deposit) {
+        formData.value.deposit = { ...formData.value.deposit, ...saved.deposit }
+      }
+      if (saved.consent) {
+        // Don't restore signature - require fresh signature
+        const { signature, ...consentWithoutSig } = saved.consent
+        formData.value.consent = { ...formData.value.consent, ...consentWithoutSig }
+      }
+      console.log('[TenantForm] Restored saved form data')
+    } else {
+      // Pre-fill name from reference (only if no saved data)
+      if (data.reference.tenant_first_name) {
+        formData.value.identity.firstName = data.reference.tenant_first_name
+      }
+      if (data.reference.tenant_last_name) {
+        formData.value.identity.lastName = data.reference.tenant_last_name
+      }
+      // Pre-fill phone if available
+      if (data.reference.tenant_phone) {
+        formData.value.identity.phone = data.reference.tenant_phone
+      }
     }
-    if (data.reference.tenant_last_name) {
-      formData.value.identity.lastName = data.reference.tenant_last_name
-    }
-    // Pre-fill phone if available
-    if (data.reference.tenant_phone) {
-      formData.value.identity.phone = data.reference.tenant_phone
+
+    // Default Reposit interest to true for sales page (when not offered via offer stage)
+    if (!data.reference.deposit_replacement_offered && !data.reference.form_data?.deposit) {
+      formData.value.deposit.repositInterested = true
     }
 
     // Set device gate description

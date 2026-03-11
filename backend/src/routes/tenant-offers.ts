@@ -1519,6 +1519,32 @@ router.post('/:id/set-rent-shares', authenticateToken, async (req: AuthRequest, 
     }
 })
 
+// Simple endpoint to mark offer as sent to referencing
+router.post('/:id/mark-referencing', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params
+        const { reference_id } = req.body
+
+        const { error } = await supabase
+            .from('tenant_offers')
+            .update({
+                status: 'holding_deposit_received',
+                reference_id: reference_id || null,
+                holding_deposit_received_at: new Date().toISOString()
+            })
+            .eq('id', id)
+
+        if (error) {
+            return res.status(400).json({ error: error.message })
+        }
+
+        res.json({ success: true })
+    } catch (error: any) {
+        console.error('Error marking referencing:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Link a V2 reference to an offer (after V2 referencing conversion)
 router.post('/:id/link-reference', authenticateToken, async (req: AuthRequest, res) => {
     try {
@@ -1536,19 +1562,29 @@ router.post('/:id/link-reference', authenticateToken, async (req: AuthRequest, r
         }
 
         // Update offer with reference_id
-        const { error } = await supabase
+        const { data: updatedOffer, error } = await supabase
             .from('tenant_offers')
             .update({
                 reference_id: reference_id,
-                holding_deposit_received_at: new Date().toISOString()
+                holding_deposit_received_at: new Date().toISOString(),
+                status: 'holding_deposit_received'
             })
             .eq('id', id)
             .eq('company_id', companyId)
+            .select('id')
+            .single()
 
         if (error) {
+            console.error('[link-reference] Update error:', error.message, { offerId: id, companyId, reference_id })
             return res.status(400).json({ error: error.message })
         }
 
+        if (!updatedOffer) {
+            console.error('[link-reference] No rows updated - company_id mismatch?', { offerId: id, companyId, reference_id })
+            return res.status(404).json({ error: 'Offer not found or company mismatch' })
+        }
+
+        console.log('[link-reference] Success:', { offerId: id, reference_id })
         res.json({ success: true, message: 'Offer linked to reference' })
     } catch (error: any) {
         console.error('Error linking reference:', error)
@@ -1633,7 +1669,7 @@ router.post('/:id/holding-deposit-received', authenticateToken, checkCredits, ch
                 holding_deposit_received: true,
                 holding_deposit_received_at: new Date().toISOString(),
                 holding_deposit_amount_paid: parsedAmount,
-                status: 'approved'
+                status: 'holding_deposit_received'
             })
             .eq('id', id)
 

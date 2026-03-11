@@ -151,6 +151,7 @@ export interface V2ReferenceRow {
   reposit_confirmed_at: string | null
   reposit_eligible: boolean | null
   reposit_eligibility_notes: string | null
+  reposit_interested: boolean | null
 }
 
 export interface V2SectionRow {

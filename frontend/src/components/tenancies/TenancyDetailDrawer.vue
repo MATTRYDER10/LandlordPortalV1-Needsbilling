@@ -585,8 +585,24 @@
                   </template>
                 </EditableField>
 
+                <!-- TDS Processing State -->
+                <div v-if="tdsProcessing || (tdsRegistration && tdsRegistration.status === 'pending' && !tdsRegistration.dan)" class="mt-2 space-y-2">
+                  <div class="flex items-center gap-2">
+                    <Loader2 class="w-4 h-4 text-blue-500 animate-spin" />
+                    <p class="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                      Registering with TDS...
+                    </p>
+                  </div>
+                  <p class="text-xs text-gray-500 dark:text-slate-400">
+                    TDS is processing your deposit registration. This may take a few minutes.
+                  </p>
+                  <div v-if="tdsRegistration?.batchId" class="text-xs text-gray-400 dark:text-slate-500">
+                    Batch ID: {{ tdsRegistration.batchId }}
+                  </div>
+                </div>
+
                 <!-- TDS Registered State -->
-                <div v-if="tdsRegistration" class="mt-2 space-y-1">
+                <div v-else-if="tdsRegistration && tdsRegistration.dan" class="mt-2 space-y-1">
                   <p class="text-xs text-gray-500 dark:text-slate-400">
                     Scheme: TDS {{ tdsRegistration.schemeType === 'insured' ? 'Insured' : 'Custodial' }}
                   </p>
@@ -676,115 +692,194 @@
                   </button>
                 </div>
 
-                <!-- Reposit Section (Deposit Replacement) -->
-                <div v-if="showRepositSection" class="mt-4 pt-3 border-t border-gray-200 dark:border-slate-700">
-                  <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                      <Sparkles class="w-4 h-4 text-blue-600" />
+                <!-- Reposit Section (Deposit Replacement) - Branded Card -->
+                <div v-if="showRepositSection" class="mt-4">
+                  <div class="rounded-lg border-2 border-[#00B4B4] bg-gradient-to-br from-[#00B4B4]/5 to-[#0891b2]/10 dark:from-[#00B4B4]/10 dark:to-[#0891b2]/20 overflow-hidden">
+                    <!-- Header -->
+                    <div class="px-4 py-3 bg-white dark:bg-slate-800 border-b border-[#00B4B4]/30 flex items-center justify-between">
+                      <a
+                        href="https://reposit.co.uk/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex items-center gap-2 group"
+                      >
+                        <img
+                          src="https://d1jj9i760ttpd.cloudfront.net/logos/primary/primary-full-colour.png"
+                          alt="Reposit"
+                          class="h-7 w-auto"
+                        />
+                      </a>
                       <a
                         href="https://reposit.co.uk/tenants/"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="text-xs font-bold text-gray-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        class="text-xs text-[#1a365d] hover:text-[#00B4B4] dark:text-slate-300 dark:hover:text-[#00B4B4] transition-colors flex items-center gap-1"
                       >
-                        Rep<span class="text-blue-500">o</span>sit
+                        Learn more
+                        <ExternalLink class="w-3 h-3" />
                       </a>
                     </div>
-                    <a
-                      href="https://reposit.co.uk/tenants/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-xs text-blue-500 hover:text-blue-700"
-                    >
-                      Learn more →
-                    </a>
-                  </div>
 
-                  <!-- Reposit Registered -->
-                  <div v-if="repositRegistration" class="space-y-1">
-                    <p class="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                      <CheckCircle class="w-3 h-3" />
-                      Reposit Active
-                    </p>
-                    <p class="text-xs text-gray-600 dark:text-slate-400">ID: {{ repositRegistration.repositId }}</p>
-                    <p class="text-xs text-gray-600 dark:text-slate-400">
-                      Fee: &pound;{{ repositRegistration.totalFee?.toFixed(2) || 'N/A' }} total
-                    </p>
-                    <p class="text-xs text-gray-500 dark:text-slate-400">
-                      Status: <span class="capitalize">{{ repositRegistration.status?.replace(/_/g, ' ') }}</span>
-                    </p>
-                  </div>
+                    <!-- Content -->
+                    <div class="p-4">
+                      <!-- Reposit Active/Registered -->
+                      <div v-if="repositRegistration" class="space-y-3">
+                        <!-- Status Badge -->
+                        <div class="flex items-center justify-between">
+                          <div
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                            :class="{
+                              'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300': repositLiveStatus?.isActive,
+                              'bg-[#00B4B4]/20 text-[#0e7490] dark:bg-[#00B4B4]/30 dark:text-[#00B4B4]': !repositLiveStatus?.isActive && !repositLiveStatus?.isDeactivated && !repositLiveStatus?.isClosed,
+                              'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400': repositLiveStatus?.isDeactivated || repositLiveStatus?.isClosed
+                            }"
+                          >
+                            <CheckCircle v-if="repositLiveStatus?.isActive" class="w-3.5 h-3.5" />
+                            <Clock v-else-if="!repositLiveStatus?.isDeactivated && !repositLiveStatus?.isClosed" class="w-3.5 h-3.5" />
+                            <XCircle v-else class="w-3.5 h-3.5" />
+                            {{ repositLiveStatus?.statusLabel || 'Loading...' }}
+                          </div>
+                          <button
+                            @click="refreshRepositStatus"
+                            class="p-1.5 text-gray-400 hover:text-[#00B4B4] hover:bg-[#00B4B4]/10 rounded-full transition-colors"
+                            title="Refresh status"
+                          >
+                            <RefreshCw class="w-3.5 h-3.5" />
+                          </button>
+                        </div>
 
-                  <!-- Reposit Scheme Selected (manual) -->
-                  <div v-else-if="isRepositScheme && !hasRepositIntegration" class="space-y-2">
-                    <p class="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                      <CheckCircle class="w-3 h-3" />
-                      <span class="font-bold">Rep<span class="text-blue-500">o</span>sit</span> Selected
-                    </p>
-                    <p class="text-xs text-gray-500 dark:text-slate-400">
-                      Deposit replacement via Reposit
-                    </p>
-                    <router-link
-                      to="/settings/reposit"
-                      class="block text-xs text-blue-600 hover:text-blue-800"
-                    >
-                      Connect Reposit in Settings →
-                    </router-link>
-                  </div>
+                        <!-- Info Grid -->
+                        <div class="grid grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <p class="text-gray-500 dark:text-slate-500">Reposit ID</p>
+                            <p class="font-mono text-gray-700 dark:text-slate-300 truncate" :title="repositRegistration.repositId">
+                              {{ repositRegistration.repositId }}
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-gray-500 dark:text-slate-500">Total Fee</p>
+                            <p class="font-semibold text-[#1a365d] dark:text-[#00B4B4]">
+                              &pound;{{ (repositRegistration.totalFee || repositPricing?.totalFee)?.toFixed(2) || 'N/A' }}
+                            </p>
+                          </div>
+                        </div>
 
-                  <!-- Reposit Available but Not Created -->
-                  <div v-else-if="hasRepositIntegration">
-                    <div v-if="repositPricing" class="mb-2">
-                      <p class="text-xs text-gray-600 dark:text-slate-400">
-                        Tenant fee: <span class="font-medium text-blue-600">&pound;{{ repositPricing.perTenantFee?.toFixed(2) }}</span> per tenant
-                      </p>
-                      <p class="text-xs text-gray-500 dark:text-slate-400">
-                        Total: &pound;{{ repositPricing.totalFee?.toFixed(2) }} for {{ repositPricing.headcount }} tenant(s)
-                      </p>
+                        <!-- Tenant Progress (if not yet active) -->
+                        <div v-if="repositLiveStatus?.tenants?.length && !repositLiveStatus.isActive" class="pt-3 border-t border-[#00B4B4]/20">
+                          <p class="text-xs font-medium text-gray-600 dark:text-slate-400 mb-2">Tenant Progress</p>
+                          <div class="space-y-2">
+                            <div
+                              v-for="tenant in repositLiveStatus.tenants"
+                              :key="tenant.email"
+                              class="flex items-center justify-between bg-white/50 dark:bg-slate-800/50 rounded-md px-2.5 py-1.5"
+                            >
+                              <span class="text-xs text-gray-700 dark:text-slate-300 truncate flex-1 mr-2" :title="tenant.email">
+                                {{ tenant.email }}
+                              </span>
+                              <span
+                                class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide"
+                                :class="{
+                                  'bg-emerald-500 text-white': tenant.status === 'PAID',
+                                  'bg-blue-500 text-white': tenant.status === 'SIGNED',
+                                  'bg-purple-500 text-white': tenant.status === 'CONFIRMED',
+                                  'bg-amber-500 text-white': ['INVITED', 'REGISTERED', 'REFERENCED'].includes(tenant.status),
+                                  'bg-gray-400 text-white': tenant.status === 'DRAFT'
+                                }"
+                              >
+                                {{ tenant.status }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Active Success State -->
+                        <div v-if="repositLiveStatus?.isActive" class="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-md">
+                          <Shield class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <p class="text-xs text-emerald-700 dark:text-emerald-300">Landlord protection is now active</p>
+                        </div>
+                      </div>
+
+                      <!-- Reposit Scheme Selected (manual - not connected) -->
+                      <div v-else-if="isRepositScheme && !hasRepositIntegration" class="space-y-3">
+                        <div class="flex items-center gap-2 text-[#0e7490]">
+                          <CheckCircle class="w-4 h-4" />
+                          <span class="text-sm font-medium">Reposit Selected</span>
+                        </div>
+                        <p class="text-xs text-gray-600 dark:text-slate-400">
+                          Deposit replacement via Reposit. Connect your account to create Reposits directly.
+                        </p>
+                        <router-link
+                          to="/settings/reposit"
+                          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#1a365d] hover:bg-[#2d4a6f] rounded-md transition-colors"
+                        >
+                          <Settings class="w-3.5 h-3.5" />
+                          Connect in Settings
+                        </router-link>
+                      </div>
+
+                      <!-- Reposit Available but Not Created -->
+                      <div v-else-if="hasRepositIntegration" class="space-y-3">
+                        <!-- Pricing Info -->
+                        <div v-if="repositPricing" class="flex items-center justify-between p-2.5 bg-white/60 dark:bg-slate-800/60 rounded-md">
+                          <div>
+                            <p class="text-xs text-gray-500 dark:text-slate-500">Tenant Fee</p>
+                            <p class="text-lg font-bold text-[#1a365d] dark:text-[#00B4B4]">
+                              &pound;{{ repositPricing.perTenantFee?.toFixed(2) }}
+                              <span class="text-xs font-normal text-gray-500">/ tenant</span>
+                            </p>
+                          </div>
+                          <div class="text-right">
+                            <p class="text-xs text-gray-500 dark:text-slate-500">Total</p>
+                            <p class="text-sm font-semibold text-gray-700 dark:text-slate-300">
+                              &pound;{{ repositPricing.totalFee?.toFixed(2) }}
+                              <span class="text-xs font-normal text-gray-500">for {{ repositPricing.headcount }} tenant(s)</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <!-- Eligibility Status -->
+                        <div v-if="repositEligibility" class="flex items-center gap-2 p-2 rounded-md" :class="repositEligibility.allEligible ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-amber-50 dark:bg-amber-900/20'">
+                          <CheckCircle v-if="repositEligibility.allEligible" class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <AlertCircle v-else class="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                          <p class="text-xs" :class="repositEligibility.allEligible ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'">
+                            {{ repositEligibility.allEligible ? 'All tenants eligible' : (repositEligibility.notes || 'Some tenants may need guarantors') }}
+                          </p>
+                        </div>
+
+                        <!-- Create Button -->
+                        <button
+                          @click="showCreateRepositModal = true"
+                          :disabled="creatingReposit"
+                          class="w-full px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#1a365d] to-[#2d4a6f] hover:from-[#2d4a6f] hover:to-[#1a365d] rounded-md flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md"
+                        >
+                          <Loader2 v-if="creatingReposit" class="w-4 h-4 animate-spin" />
+                          <Sparkles v-else class="w-4 h-4 text-[#00B4B4]" />
+                          {{ creatingReposit ? 'Creating...' : 'Create Reposit' }}
+                        </button>
+
+                        <button
+                          @click="checkRepositEligibility"
+                          :disabled="checkingEligibility"
+                          class="w-full text-xs text-[#0e7490] hover:text-[#1a365d] dark:text-[#00B4B4] dark:hover:text-white transition-colors"
+                        >
+                          {{ checkingEligibility ? 'Checking...' : 'Check eligibility' }}
+                        </button>
+                      </div>
+
+                      <!-- No Reposit Integration (from offer flow) -->
+                      <div v-else class="space-y-2">
+                        <p class="text-xs text-gray-600 dark:text-slate-400">
+                          Deposit replacement requested. Connect your Reposit account to proceed.
+                        </p>
+                        <router-link
+                          to="/settings/reposit"
+                          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#1a365d] hover:bg-[#2d4a6f] rounded-md transition-colors"
+                        >
+                          <Settings class="w-3.5 h-3.5" />
+                          Connect in Settings
+                        </router-link>
+                      </div>
                     </div>
-
-                    <!-- Eligibility Status -->
-                    <div v-if="repositEligibility" class="mb-2">
-                      <p v-if="repositEligibility.allEligible" class="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                        <CheckCircle class="w-3 h-3" />
-                        All tenants eligible
-                      </p>
-                      <p v-else class="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                        <AlertCircle class="w-3 h-3" />
-                        {{ repositEligibility.notes || 'Some tenants may need guarantors' }}
-                      </p>
-                    </div>
-
-                    <button
-                      @click="showCreateRepositModal = true"
-                      :disabled="creatingReposit"
-                      class="w-full px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center justify-center gap-2"
-                    >
-                      <Loader2 v-if="creatingReposit" class="w-4 h-4 animate-spin" />
-                      <Sparkles v-else class="w-4 h-4" />
-                      {{ creatingReposit ? 'Creating...' : 'Create Reposit' }}
-                    </button>
-
-                    <button
-                      @click="checkRepositEligibility"
-                      :disabled="checkingEligibility"
-                      class="mt-1 w-full text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
-                    >
-                      {{ checkingEligibility ? 'Checking...' : 'Check eligibility' }}
-                    </button>
-                  </div>
-
-                  <!-- No Reposit Integration (from offer flow) -->
-                  <div v-else>
-                    <p class="text-xs text-gray-500 dark:text-slate-400">
-                      Deposit replacement requested
-                    </p>
-                    <router-link
-                      to="/settings/reposit"
-                      class="block mt-1 text-xs text-blue-600 hover:text-blue-800"
-                    >
-                      Connect Reposit in Settings →
-                    </router-link>
                   </div>
                 </div>
 
@@ -2419,7 +2514,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -2428,7 +2523,7 @@ import {
   FileSignature, Send, Loader2, Plus, Search, ExternalLink, Upload, Trash2, Clock,
   ClipboardCheck, CheckCircle, Download, RotateCcw, Calendar,
   UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX,
-  Sparkles, Star
+  Sparkles, Star, RefreshCw
 } from 'lucide-vue-next'
 import EndTenancyModal from './EndTenancyModal.vue'
 import ProtectDepositModal from './ProtectDepositModal.vue'
@@ -2543,6 +2638,9 @@ const tdsRegistration = ref<any>(null)
 const downloadingDPC = ref(false)
 const showTDSSchemeMenu = ref(false)
 const selectedTDSScheme = ref<'custodial' | 'insured'>('custodial')
+const tdsProcessing = ref(false)
+const tdsPollingStartTime = ref<number | null>(null)
+let tdsPollingTimer: ReturnType<typeof setTimeout> | null = null
 
 // Reposit computed properties
 const hasRepositIntegration = computed(() => repositConfigStatus.value?.configured || false)
@@ -2551,7 +2649,8 @@ const showRepositSection = computed(() => {
   // Show Reposit section when:
   // 1. Deposit scheme is set to 'reposit', OR
   // 2. Deposit replacement was offered/requested, OR
-  // 3. Reposit is already registered for this tenancy
+  // 3. Reposit is already registered for this tenancy, OR
+  // 4. Reposit integration is configured AND tenancy has a deposit amount
   if (isRepositScheme.value) return true
   if (repositRegistration.value) return true
   // Check if deposit replacement was part of the offer
@@ -2560,6 +2659,8 @@ const showRepositSection = computed(() => {
   // Also check primary reference
   const primaryRef = props.tenancy?.primary_reference
   if (primaryRef?.offer?.deposit_replacement_requested) return true
+  // Show if Reposit is configured and tenancy has a deposit (alternative option)
+  if (hasRepositIntegration.value && props.tenancy?.deposit_amount) return true
   return false
 })
 
@@ -2702,12 +2803,14 @@ watch(() => props.open, async (isOpen) => {
     rentDueDateChanges.value = []
     selectedRentDueDateChange.value = null
     // Reset TDS state
+    stopTDSPolling() // Stop any active polling
     tdsRegistration.value = null
     tdsConfigStatus.value = null
     showTDSSchemeMenu.value = false
     showReceiptRentDueDateChangeModal.value = false
     // Reset Reposit state
     repositRegistration.value = null
+    repositLiveStatus.value = null
     repositConfigStatus.value = null
     repositPricing.value = null
     repositEligibility.value = null
@@ -3156,9 +3259,102 @@ const loadTDSRegistration = async () => {
     if (response.ok) {
       const data = await response.json()
       tdsRegistration.value = data.registration
+
+      // If there's a pending registration, start polling
+      if (data.registration && data.registration.status === 'pending' && data.registration.batchId && !data.registration.dan) {
+        startTDSPolling(data.registration.batchId, data.registration.schemeType || 'custodial')
+      }
     }
   } catch (error) {
     console.error('[TenancyDrawer] Error loading TDS registration:', error)
+  }
+}
+
+// Stop any existing TDS polling
+const stopTDSPolling = () => {
+  if (tdsPollingTimer) {
+    clearTimeout(tdsPollingTimer)
+    tdsPollingTimer = null
+  }
+  tdsProcessing.value = false
+  tdsPollingStartTime.value = null
+}
+
+// Start polling for TDS registration completion
+const startTDSPolling = async (batchId: string, schemeType: 'custodial' | 'insured' = 'custodial') => {
+  // Don't start if already processing
+  if (tdsProcessing.value) return
+
+  const MAX_POLLING_TIME = 15 * 60 * 1000 // 15 minutes
+  const POLL_INTERVAL = 30 * 1000 // 30 seconds
+
+  tdsProcessing.value = true
+  tdsPollingStartTime.value = Date.now()
+
+  console.log('[TenancyDrawer] Starting TDS polling for batchId:', batchId)
+
+  const pollOnce = async (): Promise<boolean> => {
+    try {
+      const token = authStore.session?.access_token
+      if (!token) return false
+
+      const statusEndpoint = schemeType === 'insured'
+        ? `${API_URL}/api/tds/insured/deposit-status/${batchId}?tenancyId=${props.tenancy?.id}`
+        : `${API_URL}/api/tds/custodial/deposit-status/${batchId}?tenancyId=${props.tenancy?.id}`
+
+      const response = await authFetch(statusEndpoint, { token })
+
+      if (!response.ok) return false
+
+      const data = await response.json()
+
+      if (data.success && data.dan) {
+        // Success! Update registration and stop polling
+        console.log('[TenancyDrawer] TDS registration complete, DAN:', data.dan)
+        await loadTDSRegistration()
+        await loadFullTenancyData()
+        stopTDSPolling()
+        toast.success('Deposit registered with TDS successfully!')
+        emit('updated')
+        return true
+      }
+
+      if (data.status === 'failed') {
+        console.error('[TenancyDrawer] TDS registration failed:', data.error)
+        stopTDSPolling()
+        toast.error(data.error || 'TDS registration failed')
+        return true // Stop polling
+      }
+
+      return false // Continue polling
+    } catch (error) {
+      console.error('[TenancyDrawer] TDS polling error:', error)
+      return false // Continue polling despite error
+    }
+  }
+
+  const scheduleNextPoll = () => {
+    // Check if we've exceeded max polling time
+    const elapsedTime = Date.now() - (tdsPollingStartTime.value || 0)
+    if (elapsedTime >= MAX_POLLING_TIME) {
+      console.log('[TenancyDrawer] TDS polling timeout reached (15 minutes)')
+      stopTDSPolling()
+      toast.warning('TDS is taking longer than expected. Please check the TDS portal for status.')
+      return
+    }
+
+    tdsPollingTimer = setTimeout(async () => {
+      const completed = await pollOnce()
+      if (!completed && tdsProcessing.value) {
+        scheduleNextPoll()
+      }
+    }, POLL_INTERVAL)
+  }
+
+  // Do first poll immediately
+  const completed = await pollOnce()
+  if (!completed && tdsProcessing.value) {
+    scheduleNextPoll()
   }
 }
 
@@ -3175,7 +3371,10 @@ const loadRepositConfigStatus = async () => {
 
     if (response.ok) {
       const data = await response.json()
+      console.log('[TenancyDrawer] Reposit config status:', data)
       repositConfigStatus.value = { configured: data.configured || false }
+    } else {
+      console.log('[TenancyDrawer] Reposit config status failed:', response.status)
     }
   } catch (error) {
     console.error('[TenancyDrawer] Error loading Reposit config status:', error)
@@ -3198,9 +3397,63 @@ const loadRepositRegistration = async () => {
     if (response.ok) {
       const data = await response.json()
       repositRegistration.value = data.registration
+
+      // If we have a registration, poll for live status
+      if (data.registration?.repositId) {
+        await pollRepositStatus(data.registration.repositId)
+      }
     }
   } catch (error) {
     console.error('[TenancyDrawer] Error loading Reposit registration:', error)
+  }
+}
+
+// Poll Reposit API for live status
+const repositLiveStatus = ref<{
+  overallStatus: string
+  statusLabel: string
+  tenants: Array<{
+    email: string
+    firstName?: string
+    lastName?: string
+    status: string
+    progressUrl?: string
+  }>
+  isActive: boolean
+  isClosed: boolean
+  isDeactivated: boolean
+} | null>(null)
+
+const pollRepositStatus = async (repositId: string) => {
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(
+      `${API_URL}/api/reposit/${repositId}/status`,
+      { token }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      repositLiveStatus.value = {
+        overallStatus: data.overallStatus,
+        statusLabel: data.statusLabel,
+        tenants: data.tenants || [],
+        isActive: data.isActive,
+        isClosed: data.isClosed,
+        isDeactivated: data.isDeactivated
+      }
+    }
+  } catch (error) {
+    console.error('[TenancyDrawer] Error polling Reposit status:', error)
+  }
+}
+
+// Refresh Reposit status (can be called manually)
+const refreshRepositStatus = async () => {
+  if (repositRegistration.value?.repositId) {
+    await pollRepositStatus(repositRegistration.value.repositId)
   }
 }
 
@@ -3357,10 +3610,14 @@ const handleTDSRegistered = async (_dan: string) => {
   emit('updated')
 }
 
-const handleTDSPending = async (_batchId: string) => {
+const handleTDSPending = async (batchId: string) => {
   showRegisterWithTDSModal.value = false
-  // Reload to show pending status
+  // Reload registration and start background polling
   await loadTDSRegistration()
+  // Start polling if not already started by loadTDSRegistration
+  if (!tdsProcessing.value && batchId) {
+    startTDSPolling(batchId, selectedTDSScheme.value)
+  }
   emit('updated')
 }
 
@@ -5236,4 +5493,9 @@ const sendReviewRequest = async () => {
     sendingReviewLink.value = false
   }
 }
+
+// Cleanup on unmount
+onBeforeUnmount(() => {
+  stopTDSPolling()
+})
 </script>
