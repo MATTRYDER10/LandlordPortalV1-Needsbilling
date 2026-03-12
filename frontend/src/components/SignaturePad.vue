@@ -113,7 +113,7 @@ const mode = ref<'draw' | 'type'>('draw')
 const typedSignature = ref('')
 
 onMounted(() => {
-  const canvasHeight = props.compact ? 100 : 200
+  const canvasHeight = props.compact ? 70 : 200
 
   if (canvas.value) {
     // Set canvas size
@@ -277,7 +277,7 @@ const updateTypedSignature = () => {
 }
 
 .signature-canvas.compact {
-  height: 100px;
+  height: 70px;
 }
 
 .font-signature {

@@ -95,90 +95,88 @@
                 <div class="relative actions-menu-container inline-block">
                   <button
                     @click.stop="toggleActionsMenu(agreement.id)"
-                    class="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-800"
+                    class="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                     title="Actions"
                   >
                     <MoreVertical class="w-5 h-5" />
                   </button>
                   <div
                     v-if="actionsMenuOpen === agreement.id"
-                    class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-slate-800 ring-1 ring-black ring-opacity-5 dark:ring-slate-700 z-50"
+                    class="absolute right-0 mt-1 w-56 rounded-lg shadow-xl bg-white dark:bg-slate-800 ring-1 ring-black/5 dark:ring-slate-700 z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150"
                   >
-                    <div class="py-1">
-                      <!-- Download -->
-                      <button
-                        v-if="canDownload(agreement)"
-                        @click.stop="downloadAgreement(agreement); actionsMenuOpen = null"
-                        class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
-                      >
-                        <Download class="w-4 h-4 mr-2" />
-                        {{ agreement.signed_pdf_url ? 'Download Signed PDF' : 'Download PDF' }}
-                      </button>
+                    <!-- Download -->
+                    <button
+                      v-if="canDownload(agreement)"
+                      @click.stop="downloadAgreement(agreement); actionsMenuOpen = null"
+                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <Download class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
+                      {{ agreement.signed_pdf_url ? 'Download Signed PDF' : 'Download PDF' }}
+                    </button>
 
-                      <!-- Generate PDF (draft without PDF) -->
-                      <button
-                        v-if="canGeneratePdf(agreement)"
-                        @click.stop="generatePdf(agreement); actionsMenuOpen = null"
-                        :disabled="generatingPdf === agreement.id"
-                        class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
-                      >
-                        <FileText class="w-4 h-4 mr-2" />
-                        {{ generatingPdf === agreement.id ? 'Generating...' : 'Generate PDF' }}
-                      </button>
+                    <!-- Generate PDF (draft without PDF) -->
+                    <button
+                      v-if="canGeneratePdf(agreement)"
+                      @click.stop="generatePdf(agreement); actionsMenuOpen = null"
+                      :disabled="generatingPdf === agreement.id"
+                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
+                    >
+                      <FileText class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
+                      {{ generatingPdf === agreement.id ? 'Generating...' : 'Generate PDF' }}
+                    </button>
 
-                      <!-- Preview & Send (draft with PDF) -->
-                      <button
-                        v-if="canPreview(agreement)"
-                        @click.stop="goToPreview(agreement); actionsMenuOpen = null"
-                        class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
-                      >
-                        <Eye class="w-4 h-4 mr-2" />
-                        Preview & Send
-                      </button>
+                    <!-- Preview & Send (draft with PDF) -->
+                    <button
+                      v-if="canPreview(agreement)"
+                      @click.stop="goToPreview(agreement); actionsMenuOpen = null"
+                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <Eye class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
+                      Preview & Send
+                    </button>
 
-                      <!-- View Signing Status -->
-                      <button
-                        v-if="canViewSigningStatus(agreement)"
-                        @click.stop="openStatusModal(agreement); actionsMenuOpen = null"
-                        class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
-                      >
-                        <ClipboardCheck class="w-4 h-4 mr-2" />
-                        View Signing Status
-                      </button>
+                    <!-- View Signing Status -->
+                    <button
+                      v-if="canViewSigningStatus(agreement)"
+                      @click.stop="openStatusModal(agreement); actionsMenuOpen = null"
+                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <ClipboardCheck class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
+                      View Signing Status
+                    </button>
 
-                      <!-- Send for Signing (draft only) -->
-                      <button
-                        v-if="canSendForSigning(agreement)"
-                        @click.stop="openSigningModal(agreement); actionsMenuOpen = null"
-                        class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
-                      >
-                        <Send class="w-4 h-4 mr-2" />
-                        Send for Signing
-                      </button>
+                    <!-- Send for Signing (draft only) -->
+                    <button
+                      v-if="canSendForSigning(agreement)"
+                      @click.stop="openSigningModal(agreement); actionsMenuOpen = null"
+                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <Send class="w-4 h-4 mr-3 text-gray-400 group-hover:text-green-500 transition-colors" />
+                      Send for Signing
+                    </button>
 
-                      <!-- Edit -->
-                      <button
-                        v-if="canEdit(agreement)"
-                        @click.stop="openEditModal(agreement); actionsMenuOpen = null"
-                        class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
-                      >
-                        <Pencil class="w-4 h-4 mr-2" />
-                        Edit Agreement
-                      </button>
+                    <!-- Edit -->
+                    <button
+                      v-if="canEdit(agreement)"
+                      @click.stop="openEditModal(agreement); actionsMenuOpen = null"
+                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <Pencil class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary transition-colors" />
+                      Edit Agreement
+                    </button>
 
-                      <!-- Divider before destructive action -->
-                      <div v-if="canDelete(agreement)" class="border-t border-gray-100 dark:border-slate-700 my-1"></div>
+                    <!-- Divider before destructive action -->
+                    <div v-if="canDelete(agreement)" class="border-t border-gray-100 dark:border-slate-700 my-1.5 mx-2"></div>
 
-                      <!-- Delete -->
-                      <button
-                        v-if="canDelete(agreement)"
-                        @click.stop="confirmDelete(agreement); actionsMenuOpen = null"
-                        class="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700"
-                      >
-                        <Trash2 class="w-4 h-4 mr-2" />
-                        Delete
-                      </button>
-                    </div>
+                    <!-- Delete -->
+                    <button
+                      v-if="canDelete(agreement)"
+                      @click.stop="confirmDelete(agreement); actionsMenuOpen = null"
+                      class="group flex items-center w-full text-left px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 class="w-4 h-4 mr-3" />
+                      Delete Agreement
+                    </button>
                   </div>
                 </div>
               </td>
