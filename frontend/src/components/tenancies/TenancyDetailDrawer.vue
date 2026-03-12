@@ -2909,6 +2909,7 @@ const depositSchemeLabel = computed(() => {
     tds_insured: 'TDS Insured',
     custodial: 'Custodial',
     insured: 'Insured',
+    landlord_held: 'Landlord Held',
     reposit: 'Reposit',
     no_deposit: 'No Deposit'
   }
@@ -2954,6 +2955,7 @@ const depositSchemeOptions = [
   { value: 'mydeposits', label: 'mydeposits' },
   { value: 'tds', label: 'TDS' },
   { value: 'reposit', label: 'Reposit' },
+  { value: 'landlord_held', label: 'Landlord Held' },
   { value: 'no_deposit', label: 'No Deposit' }
 ]
 

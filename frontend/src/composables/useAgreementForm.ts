@@ -40,6 +40,7 @@ export function useAgreementForm(options: UseAgreementFormOptions = {}) {
     { value: 'mydeposits_insured', label: 'MyDeposits Insured' },
     { value: 'tds_custodial', label: 'TDS Custodial' },
     { value: 'tds_insured', label: 'TDS Insured' },
+    { value: 'landlord_held', label: 'Landlord Held' },
     { value: 'reposit', label: 'Reposit (Deposit-free)' },
     { value: 'no_deposit', label: 'No Deposit' }
   ]

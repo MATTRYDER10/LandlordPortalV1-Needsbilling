@@ -94,15 +94,15 @@
       <!-- Fixed Signature Panel at Bottom -->
       <div class="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 shadow-lg">
         <!-- Prominent Sign Here Banner -->
-        <div class="bg-primary/10 dark:bg-primary/20 px-4 py-2 border-b border-primary/20">
+        <div class="bg-primary/10 dark:bg-primary/20 px-4 py-1.5 border-b border-primary/20">
           <div class="max-w-4xl mx-auto flex items-center justify-center gap-2">
-            <PenTool class="w-5 h-5 text-primary" />
-            <p class="text-sm font-semibold text-primary">Please sign electronically below - do not print and sign</p>
+            <PenTool class="w-4 h-4 text-primary" />
+            <p class="text-xs font-semibold text-primary">Please sign electronically below - do not print and sign</p>
           </div>
         </div>
 
-        <div class="max-w-4xl mx-auto px-4 py-4">
-          <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+        <div class="max-w-4xl mx-auto px-4 py-2">
+          <div class="flex flex-col lg:flex-row gap-3 items-start lg:items-center">
             <!-- Signer Info -->
             <div class="flex-shrink-0">
               <p class="text-xs text-gray-500 dark:text-slate-400 uppercase">Signing as</p>
