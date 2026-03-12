@@ -713,7 +713,7 @@ class PDFGenerationService {
     }
 
     const signatureElement = signature.signatureType === 'draw'
-      ? `<img src="${signature.signatureImage}" alt="Signature" class="signature-image" style="max-height: 80px; max-width: 300px; object-fit: contain;" />`
+      ? `<img src="${signature.signatureImage}" alt="Signature" class="signature-image" style="max-height: 60px; max-width: 200px;" />`
       : `<div class="typed-signature" style="font-family: 'Brush Script MT', cursive; font-size: 24px;">${signature.typedName}</div>`
 
     return `
@@ -806,7 +806,7 @@ class PDFGenerationService {
       return `
         <div class="signature-block" style="margin: 15px 0;">
           <p style="margin-bottom: 5px;">SIGNED:</p>
-          <img src="${signature.signatureImage}" alt="Signature" style="max-height: 80px; max-width: 300px; object-fit: contain; display: block; margin: 5px 0;" />
+          <img src="${signature.signatureImage}" alt="Signature" style="max-height: 60px; max-width: 250px; display: block; margin: 5px 0;" />
           <p style="margin-top: 10px;">DATED: ${signedDate}</p>
         </div>
       `

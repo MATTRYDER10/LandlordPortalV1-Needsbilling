@@ -235,7 +235,7 @@ const buildRecipients = () => {
 
   // Add tenants
   agreement.value.tenants?.forEach((tenant: any, index: number) => {
-    const tenantEmail = tenant.email ||
+    const tenantEmail = tenant.email
       (index === 0 ? (agreement.value.tenant_email || '') : '')
 
     recipientsList.push({

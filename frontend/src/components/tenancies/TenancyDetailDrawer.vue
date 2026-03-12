@@ -658,30 +658,6 @@
                 <p v-else-if="depositProtected && !tdsRegistration" class="text-xs text-green-600 mt-1">
                   Protected {{ formatDate(tenancy?.deposit_protected_at) }}
                 </p>
-
-                <!-- Deposit Paid Out State -->
-                <div v-if="tenancy?.deposit_paid_out_at" class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded">
-                  <p class="text-xs text-blue-700 dark:text-blue-300 font-medium flex items-center gap-1">
-                    <CheckCircle class="w-3 h-3" />
-                    Paid out to landlord {{ formatDate(tenancy.deposit_paid_out_at) }}
-                  </p>
-                  <p v-if="tenancy.deposit_paid_out_amount" class="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                    Amount: &pound;{{ tenancy.deposit_paid_out_amount?.toLocaleString() }}
-                  </p>
-                  <p v-if="tenancy.deposit_paid_out_notes" class="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                    {{ tenancy.deposit_paid_out_notes }}
-                  </p>
-                </div>
-
-                <!-- Mark as Paid Out Button (only show if protected and not yet paid out) -->
-                <button
-                  v-if="(depositProtected || tdsRegistration) && !tenancy?.deposit_paid_out_at && tenancy?.deposit_amount"
-                  @click="showDepositPayoutModal = true"
-                  class="mt-2 w-full px-3 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-700 rounded transition-colors flex items-center justify-center gap-1"
-                >
-                  <Banknote class="w-3 h-3" />
-                  Mark as paid out to landlord
-                </button>
               </div>
               <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                 <p class="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">Start Date</p>
@@ -1976,60 +1952,6 @@
       @saved="handleDepositProtected"
     />
 
-    <!-- Deposit Payout Modal -->
-    <div v-if="showDepositPayoutModal" class="fixed inset-0 bg-gray-600 dark:bg-gray-900 bg-opacity-50 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-      <div class="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md mx-4 p-6 w-full">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Mark Deposit as Paid Out</h3>
-        <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
-          Record that the deposit has been returned to the landlord at the end of this tenancy.
-        </p>
-
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Amount Paid Out</label>
-            <div class="relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">&pound;</span>
-              <input
-                v-model="depositPayoutAmount"
-                type="number"
-                step="0.01"
-                min="0"
-                :placeholder="tenancy?.deposit_amount?.toString() || '0'"
-                class="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white"
-              />
-            </div>
-            <p class="text-xs text-gray-500 mt-1">Original deposit: &pound;{{ tenancy?.deposit_amount?.toLocaleString() || '0' }}</p>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Notes (optional)</label>
-            <textarea
-              v-model="depositPayoutNotes"
-              rows="2"
-              placeholder="e.g., Any deductions made, payment reference..."
-              class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white text-sm"
-            ></textarea>
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-3 mt-6">
-          <button
-            @click="showDepositPayoutModal = false; depositPayoutAmount = null; depositPayoutNotes = ''"
-            class="px-4 py-2 text-gray-700 dark:text-slate-300 font-medium border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
-          >
-            Cancel
-          </button>
-          <button
-            @click="handleDepositPayout"
-            :disabled="savingDepositPayout"
-            class="px-4 py-2 text-white font-medium bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50"
-          >
-            {{ savingDepositPayout ? 'Saving...' : 'Confirm Payout' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Register Deposit with TDS Modal -->
     <RegisterDepositWithTDSModal
       :show="showRegisterWithTDSModal"
@@ -2275,7 +2197,7 @@ import {
   UserCircle, MapPin, AlertCircle, Shield, ShieldCheck, Wallet,
   FileSignature, Send, Loader2, Plus, Search, ExternalLink, Upload, Trash2, Clock,
   ClipboardCheck, CheckCircle, Download, RotateCcw, Calendar,
-  UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX, Banknote
+  UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX
 } from 'lucide-vue-next'
 import EndTenancyModal from './EndTenancyModal.vue'
 import ProtectDepositModal from './ProtectDepositModal.vue'
@@ -2317,10 +2239,6 @@ const activating = ref(false)
 const deletingTenancy = ref(false)
 const showEndTenancyModal = ref(false)
 const showProtectDepositModal = ref(false)
-const showDepositPayoutModal = ref(false)
-const depositPayoutAmount = ref<number | null>(null)
-const depositPayoutNotes = ref('')
-const savingDepositPayout = ref(false)
 const showRegisterWithTDSModal = ref(false)
 const showSection48Modal = ref(false)
 const showMoveInPackModal = ref(false)
@@ -4815,52 +4733,6 @@ const handleTenancyEnded = () => {
 const handleDepositProtected = () => {
   showProtectDepositModal.value = false
   emit('updated')
-}
-
-const handleDepositPayout = async () => {
-  if (!tenancy.value?.id) return
-
-  savingDepositPayout.value = true
-  try {
-    const token = authStore.session?.access_token
-    if (!token) throw new Error('No authentication token')
-
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-
-    const activeBranchId = localStorage.getItem('activeBranchId')
-    if (activeBranchId) {
-      headers['X-Branch-Id'] = activeBranchId
-    }
-
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tenancies/records/${tenancy.value.id}/deposit-payout`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        amount: depositPayoutAmount.value || tenancy.value.deposit_amount,
-        notes: depositPayoutNotes.value || null
-      })
-    })
-
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.error || 'Failed to mark deposit as paid out')
-    }
-
-    toast.success('Deposit marked as paid out to landlord')
-    showDepositPayoutModal.value = false
-    depositPayoutAmount.value = null
-    depositPayoutNotes.value = ''
-    await loadFullTenancyData()
-    emit('updated')
-  } catch (error: any) {
-    console.error('Error marking deposit as paid out:', error)
-    toast.error(error.message || 'Failed to mark deposit as paid out')
-  } finally {
-    savingDepositPayout.value = false
-  }
 }
 
 const handleInitialMoniesSent = async () => {
