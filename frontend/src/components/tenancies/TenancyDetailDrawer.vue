@@ -2520,6 +2520,7 @@ const depositSchemeLabel = computed(() => {
     tds_insured: 'TDS Insured',
     custodial: 'Custodial',
     insured: 'Insured',
+    landlord_held: 'Landlord Held',
     reposit: 'Reposit',
     no_deposit: 'No Deposit'
   }
@@ -2563,7 +2564,8 @@ const tenancyTypeOptions = [
 const depositSchemeOptions = [
   { value: 'dps', label: 'DPS' },
   { value: 'mydeposits', label: 'mydeposits' },
-  { value: 'tds', label: 'TDS' }
+  { value: 'tds', label: 'TDS' },
+  { value: 'landlord_held', label: 'Landlord Held' }
 ]
 
 // Management type options for dropdown
