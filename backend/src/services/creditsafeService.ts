@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios'
 import { supabase } from '../config/supabase'
 import { encrypt, decrypt } from './encryption'
+import { sendCreditsafeErrorAlert } from './emailService'
 
 interface CreditsafeConfig {
   apiUrl: string
@@ -49,6 +50,8 @@ class CreditsafeService {
   private authToken: string | null = null
   private tokenExpiry: Date | null = null
   private axiosInstance: AxiosInstance
+  private lastErrorAlertSentAt: Date | null = null
+  private readonly ERROR_ALERT_COOLDOWN_MS = 60 * 60 * 1000 // 1 hour
 
   constructor() {
     this.config = {
@@ -83,6 +86,24 @@ class CreditsafeService {
   }
 
   /**
+   * Send error alert email if cooldown period has elapsed
+   */
+  private async sendErrorAlertIfNeeded(errorType: string, errorMessage: string): Promise<void> {
+    try {
+      const now = new Date()
+      if (this.lastErrorAlertSentAt && (now.getTime() - this.lastErrorAlertSentAt.getTime()) < this.ERROR_ALERT_COOLDOWN_MS) {
+        console.log('Creditsafe error alert suppressed (cooldown active, last sent:', this.lastErrorAlertSentAt.toISOString(), ')')
+        return
+      }
+      this.lastErrorAlertSentAt = now
+      await sendCreditsafeErrorAlert(errorType, errorMessage)
+      console.log('Creditsafe error alert email sent to info@ and craig@propertygoose.co.uk')
+    } catch (emailError) {
+      console.error('Failed to send Creditsafe error alert email:', emailError)
+    }
+  }
+
+  /**
    * Authenticate with Creditsafe API and get access token
    */
   private async authenticate(): Promise<string> {
@@ -110,6 +131,10 @@ class CreditsafeService {
       throw new Error('Failed to get authentication token from Creditsafe')
     } catch (error: any) {
       console.error('Creditsafe authentication error:', error.response?.data || error.message)
+      await this.sendErrorAlertIfNeeded(
+        'Authentication Failed',
+        error.response?.data?.message || error.message
+      )
       throw new Error(`Creditsafe authentication failed: ${error.response?.data?.message || error.message}`)
     }
   }
@@ -155,6 +180,10 @@ class CreditsafeService {
       return this.parseVerificationResponse(response.data)
     } catch (error: any) {
       console.error('Creditsafe verification error:', error.response?.data || error.message)
+      await this.sendErrorAlertIfNeeded(
+        'Verification API Error',
+        error.response?.data?.message || error.message
+      )
       return {
         status: 'error',
         verifyMatch: false,
