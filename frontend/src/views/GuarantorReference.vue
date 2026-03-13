@@ -3454,11 +3454,11 @@ const handlePageSubmit = async () => {
   } else if (currentPage.value === 7) {
     // Validate that at least one income source is selected
     const hasIncomeSource =
-      formData.value.income_regular_employment
-      formData.value.income_self_employed
-      formData.value.income_benefits
-      formData.value.income_savings_pension_investments
-      formData.value.income_pension
+      formData.value.income_regular_employment ||
+      formData.value.income_self_employed ||
+      formData.value.income_benefits ||
+      formData.value.income_savings_pension_investments ||
+      formData.value.income_pension ||
       formData.value.income_landlord_rental
 
     if (!hasIncomeSource) {
