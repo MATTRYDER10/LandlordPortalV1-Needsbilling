@@ -116,28 +116,37 @@ const DEFAULT_CONTACT_DETAILS: ContactDetails = {
 
 const DEFAULT_LOGO_URL = 'https://app.propertygoose.co.uk/PropertyGooseLogo.png';
 const PROD_FRONTEND_URL = 'https://app.propertygoose.co.uk';
-const LOCALHOST_PATTERN = /(localhost|127\.0\.0\.1)/i;
+
+// Pattern to detect local/private URLs: localhost, 127.x.x.x, 192.168.x.x, 10.x.x.x, 172.16-31.x.x
+const LOCAL_URL_PATTERN = /(localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})/i;
 
 type ReferenceType = 'tenant' | 'guarantor' | 'landlord' | 'employer' | 'accountant' | 'agent';
 
 /**
- * Check if we should allow localhost URLs (for local testing)
- * When USE_LOCAL_EMAIL_LINKS=true, we allow localhost URLs in emails
+ * Check if we should allow local URLs (for local testing only)
+ * NEVER allow in production, even if USE_LOCAL_EMAIL_LINKS is set
  */
-function shouldAllowLocalhostUrls(): boolean {
+function shouldAllowLocalUrls(): boolean {
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
   return process.env.USE_LOCAL_EMAIL_LINKS === 'true';
 }
 
-function containsLocalhost(input?: string): boolean {
-  return !!input && LOCALHOST_PATTERN.test(input);
+function containsLocalUrl(input?: string): boolean {
+  return !!input && LOCAL_URL_PATTERN.test(input);
 }
 
-function sanitizeLocalhostUrls(input: string): string {
-  // If local email links are enabled, don't sanitize - allow localhost URLs
-  if (shouldAllowLocalhostUrls()) {
+function sanitizeLocalUrls(input: string): string {
+  // NEVER allow local URLs in production
+  if (process.env.NODE_ENV === 'production') {
+    return input.replace(/https?:\/\/(localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?/gi, PROD_FRONTEND_URL);
+  }
+  // In development, only sanitize if local links not explicitly enabled
+  if (shouldAllowLocalUrls()) {
     return input;
   }
-  return input.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/gi, PROD_FRONTEND_URL);
+  return input.replace(/https?:\/\/(localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?/gi, PROD_FRONTEND_URL);
 }
 
 function buildReferenceLink(referenceId: string, referenceType?: ReferenceType | null): string {
@@ -191,7 +200,7 @@ async function buildLocalhostFallback(options: EmailOptions): Promise<{ subject:
   }
 
   const link = buildReferenceLink(referenceInfo.referenceId, referenceInfo.referenceType);
-  const subject = containsLocalhost(options.subject) ? 'PropertyGoose reference link' : options.subject;
+  const subject = containsLocalUrl(options.subject) ? 'PropertyGoose reference link' : options.subject;
 
   const html = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;color:#111827;">
@@ -413,21 +422,21 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
   let html = footer ? `${options.html}${footer}` : options.html;
   let subject = options.subject;
 
-  // Only sanitize localhost URLs if USE_LOCAL_EMAIL_LINKS is not enabled
-  // This allows local testing with actual localhost links
-  if (!shouldAllowLocalhostUrls() && (containsLocalhost(subject) || containsLocalhost(html))) {
+  // Always sanitize local/private URLs in production, regardless of env vars
+  // In development, only sanitize if USE_LOCAL_EMAIL_LINKS is not enabled
+  if (!shouldAllowLocalUrls() && (containsLocalUrl(subject) || containsLocalUrl(html))) {
     const fallback = await buildLocalhostFallback(options);
     if (fallback) {
-      console.warn(`[EmailGuard] Localhost detected, sending fallback link for ${options.to}.`);
+      console.warn(`[EmailGuard] Local/private URL detected, sending fallback link for ${options.to}.`);
       html = fallback.html;
       subject = fallback.subject;
     } else {
-      console.warn(`[EmailGuard] Localhost detected, sanitizing content for ${options.to}.`);
-      html = sanitizeLocalhostUrls(html);
-      subject = containsLocalhost(subject) ? sanitizeLocalhostUrls(subject) : subject;
+      console.warn(`[EmailGuard] Local/private URL detected, sanitizing content for ${options.to}.`);
+      html = sanitizeLocalUrls(html);
+      subject = containsLocalUrl(subject) ? sanitizeLocalUrls(subject) : subject;
     }
-  } else if (shouldAllowLocalhostUrls() && containsLocalhost(html)) {
-    console.log(`[EmailGuard] Localhost URLs allowed (USE_LOCAL_EMAIL_LINKS=true) for ${options.to}`);
+  } else if (shouldAllowLocalUrls() && containsLocalUrl(html)) {
+    console.log(`[EmailGuard] Local URLs allowed (USE_LOCAL_EMAIL_LINKS=true, non-production) for ${options.to}`);
   }
 
   const maxRetries = 3;
