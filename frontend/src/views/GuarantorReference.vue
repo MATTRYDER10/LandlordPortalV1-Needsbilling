@@ -835,7 +835,7 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Pension Statement *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Pension Statement (Optional - can be emailed)</label>
                   <input ref="pensionStatementInput" type="file" @change="handlePensionStatementUpload"
                     accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
                   <button type="button" @click="($refs.pensionStatementInput as any).click()"
@@ -882,7 +882,7 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bank Statement *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bank Statement (Optional - can be emailed)</label>
                   <input ref="landlordRentalBankStatementInput" type="file" @change="handleLandlordRentalBankStatementUpload"
                     accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
                   <button type="button" @click="($refs.landlordRentalBankStatementInput as any).click()"
@@ -1433,7 +1433,7 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Proof of Funds *</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Proof of Funds (Optional - can be emailed)</label>
                   <input
                     ref="proofOfFundsInput"
                     type="file"
@@ -1649,7 +1649,7 @@
             <div>
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Bank Statement</h3>
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bank Statement (Last 3 months) *</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bank Statement (Last 3 months) (Optional - can be emailed)</label>
                 <input
                   ref="bankStatementInput"
                   type="file"
@@ -1665,7 +1665,7 @@
                 >
                   {{ bankStatement ? 'Change File' : 'Choose File' }}
                 </button>
-                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload if possible, or email to your agent (max 10MB, PDF/JPG/PNG)</p>
                 <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 dark:bg-slate-800 rounded">
                   <div class="flex items-center justify-between">
                     <span class="text-sm text-gray-700 dark:text-slate-300">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
@@ -3484,20 +3484,8 @@ const handlePageSubmit = async () => {
       }
     }
 
-    // Validate proof of funds if savings/investments is selected
-    if (formData.value.income_savings_pension_investments) {
-      if (!proofOfFunds.value && !formData.value.proof_of_funds_path) {
-        submitError.value = 'Please upload proof of funds (bank statement or investment portfolio)'
-        return
-      }
-    }
-
-    // Validate pension income if selected
+    // Validate pension income if selected (text fields only - uploads are optional, can be emailed)
     if (formData.value.income_pension) {
-      if (!pensionStatement.value && !formData.value.pension_statement_path) {
-        submitError.value = 'Please upload your pension statement'
-        return
-      }
       if (!formData.value.pension_monthly_amount) {
         submitError.value = 'Please enter your monthly pension amount'
         return
@@ -3508,31 +3496,17 @@ const handlePageSubmit = async () => {
       }
     }
 
-    // Validate landlord/rental income if selected
+    // Validate landlord/rental income if selected (text fields only - uploads are optional, can be emailed)
     if (formData.value.income_landlord_rental) {
-      if (!landlordRentalBankStatement.value && !formData.value.landlord_rental_bank_statement_path) {
-        submitError.value = 'Please upload bank statement showing rental income'
-        return
-      }
       if (!formData.value.landlord_rental_monthly_amount) {
         submitError.value = 'Please enter your monthly rental income'
         return
       }
     }
   } else if (currentPage.value === 8) {
-    // Validate proof of additional income/savings if declared
-    if (formData.value.has_additional_income) {
-      if (!proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {
-        submitError.value = 'Please upload proof of additional income or savings'
-        return
-      }
-    }
+    // Additional income proof upload is optional - can be emailed instead
   } else if (currentPage.value === 9) {
-    // Validate bank statement (mandatory for all guarantors)
-    if (!bankStatement.value && !formData.value.bank_statement_path) {
-      submitError.value = 'Please upload your bank statement (last 3 months). This is required to verify your financial capability.'
-      return
-    }
+    // Bank statement upload is optional - can be emailed instead
     // If savings is selected and they've started entering a value, validate it's valid
     // Note: We make it optional - if they don't want to enter savings, that's fine
     // But if they do enter something, it should be a positive number
