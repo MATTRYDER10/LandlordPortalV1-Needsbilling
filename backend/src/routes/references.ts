@@ -2470,6 +2470,86 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 /**
+ * PATCH /:id/tenant-email
+ * Update tenant's email address on a reference
+ * NOTE: This route must be defined BEFORE the generic /:id route
+ */
+router.patch('/:id/tenant-email', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+    const referenceId = req.params.id
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' })
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email address' })
+    }
+
+    // Get user's company
+    const { data: companyUsers } = await supabase
+      .from('company_users')
+      .select('company_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (!companyUsers || companyUsers.length === 0) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const companyId = companyUsers[0].company_id
+
+    // Verify reference belongs to company
+    const { data: reference, error: refError } = await supabase
+      .from('tenant_references')
+      .select('tenant_email_encrypted')
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (refError || !reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Get old value for audit log
+    const oldEmail = decrypt(reference.tenant_email_encrypted) || ''
+
+    // Update with encrypted value
+    const { error: updateError } = await supabase
+      .from('tenant_references')
+      .update({
+        tenant_email_encrypted: encrypt(email)
+      })
+      .eq('id', referenceId)
+      .eq('company_id', companyId)
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message })
+    }
+
+    // Audit log
+    await auditReferenceAction(
+      companyId,
+      userId!,
+      referenceId,
+      'reference.updated',
+      `Updated tenant email from "${oldEmail}" to "${email}"`,
+      req,
+      { old_email: oldEmail, new_email: email }
+    )
+
+    res.json({ message: 'Tenant email updated successfully' })
+  } catch (error: any) {
+    console.error('Error updating tenant email:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * PATCH /:id/tenant-name
  * Update tenant's first and last name
  * NOTE: This route must be defined BEFORE the generic /:id route
