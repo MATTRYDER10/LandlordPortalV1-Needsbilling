@@ -2757,7 +2757,7 @@ async function handleUpdateName() {
 }
 
 function openEditEmailModal() {
-  editEmail.value = fullDetails.value?.tenant_email || person.value?.email || ''
+  editEmail.value = fullDetails.value?.tenant_email || props.person?.email || ''
   showEditEmailModal.value = true
 }
 
