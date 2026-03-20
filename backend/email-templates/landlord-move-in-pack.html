@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Your New Home - PropertyGoose</title>
+    <title>Property Compliance Documents - PropertyGoose</title>
 </head>
 
 <body
@@ -36,41 +36,24 @@
                         <td style="padding: 40px;">
                             <h1
                                 style="margin: 0 0 24px; font-size: 24px; font-weight: bold; color: #111827; text-align: center;">
-                                Welcome to Your New Home!</h1>
+                                Property Compliance Documents</h1>
 
                             <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; color: #4b5563;">
-                                Dear {{ TenantName }},
+                                Dear {{ LandlordName }},
                             </p>
 
                             <p style="margin: 0 0 24px; font-size: 16px; line-height: 24px; color: #4b5563;">
-                                We wish you all the best for your move into <strong>{{ PropertyAddress }}</strong> on <strong>{{ MoveInDate }}</strong>. Below you'll find important information and documents for your tenancy.
+                                Please find below the current compliance documents for your property at <strong>{{ PropertyAddress }}</strong>. These documents are important for your records and may be required for legal compliance.
                             </p>
 
-                            <!-- Key Information Box -->
+                            <!-- Property Address Box -->
                             <div
                                 style="background-color: #f9fafb; padding: 24px; border-radius: 8px; margin: 24px 0; border: 1px solid #e5e7eb;">
-                                <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #111827;">Your Tenancy Details:</p>
-
+                                <p style="margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #111827;">Property Details</p>
                                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="font-size: 15px; color: #4b5563;">
                                     <tr>
-                                        <td style="padding: 8px 0; width: 40%;">Move-in Date</td>
-                                        <td style="padding: 8px 0; font-weight: 500; color: #111827;">{{ MoveInDate }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 8px 0;">Monthly Rent</td>
-                                        <td style="padding: 8px 0; font-weight: 500; color: #111827;">{{ MonthlyRent }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 8px 0;">Rent Due</td>
-                                        <td style="padding: 8px 0; font-weight: 500; color: #111827;">{{ RentDueDay }} of each month</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 8px 0;">Deposit Amount</td>
-                                        <td style="padding: 8px 0; font-weight: 500; color: #111827;">{{ DepositAmount }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 8px 0;">Deposit Scheme</td>
-                                        <td style="padding: 8px 0; font-weight: 500; color: #111827;">{{ DepositScheme }}</td>
+                                        <td style="padding: 8px 0; width: 40%;">Address</td>
+                                        <td style="padding: 8px 0; font-weight: 500; color: #111827;">{{ PropertyAddress }}</td>
                                     </tr>
                                 </table>
                             </div>
@@ -78,31 +61,18 @@
                             <!-- Important Documents Section -->
                             <div style="margin: 32px 0;">
                                 <h2 style="margin: 0 0 16px; font-size: 18px; font-weight: 600; color: #111827;">
-                                    Important Documents
+                                    Compliance Documents
                                 </h2>
                                 <p style="margin: 0 0 16px; font-size: 15px; color: #4b5563;">
-                                    Please review and keep copies of the following compliance documents for your records:
+                                    The following compliance documents are enclosed for your records. Please download and keep copies safe:
                                 </p>
                                 {{ DocumentList }}
                             </div>
 
-                            <!-- How to Rent Guide Box -->
-                            <div
-                                style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #3b82f6;">
-                                <p style="margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #1e40af;">
-                                    How to Rent Guide
-                                </p>
-                                <p style="margin: 0 0 12px; font-size: 15px; color: #3b82f6;">
-                                    As required by law, please read the Government's "How to Rent" guide which explains your rights and responsibilities as a tenant.
-                                </p>
-                                <a href="{{ HowToRentLink }}"
-                                   style="display: inline-block; padding: 10px 20px; background-color: #3b82f6; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
-                                    View How to Rent Guide
-                                </a>
-                            </div>
-
-                            <!-- Renters' Rights Act 2026 Notice -->
-                            {{ RentersRightsSection }}
+                            <!-- Additional Information Section -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                {{ AdditionalInfoSection }}
+                            </table>
 
                             <!-- Contact Information -->
                             <div
@@ -116,7 +86,7 @@
                             </div>
 
                             <p style="margin: 24px 0 0; font-size: 16px; line-height: 24px; color: #4b5563;">
-                                If you have any questions before your move-in date, please don't hesitate to get in touch. We wish you a happy tenancy!
+                                If you have any questions regarding these documents, please don't hesitate to get in touch.
                             </p>
                         </td>
                     </tr>
@@ -127,7 +97,7 @@
                             style="padding: 30px 40px; background-color: #f9fafb; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border-top: 1px solid #e5e7eb;">
                             <p
                                 style="margin: 0 0 8px; font-size: 14px; line-height: 20px; color: #6b7280; text-align: center;">
-                                Please keep this email for your records.
+                                Please keep this email and the attached documents for your records.
                             </p>
                             <p
                                 style="margin: 0; font-size: 12px; line-height: 16px; color: #9ca3af; text-align: center;">

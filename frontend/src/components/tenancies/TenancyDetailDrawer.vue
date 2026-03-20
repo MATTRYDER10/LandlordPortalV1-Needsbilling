@@ -211,6 +211,15 @@
                         </button>
 
                         <button
+                          v-if="tenancy?.status === 'pending'"
+                          @click="handleDrawerAction('mark-fallen-through')"
+                          class="w-full px-3 py-2.5 text-left text-sm text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 flex items-center gap-3"
+                        >
+                          <XCircle class="w-4 h-4" />
+                          Mark as Fallen Through
+                        </button>
+
+                        <button
                           @click="handleDrawerAction('email-tenants')"
                           class="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-3"
                         >
@@ -388,6 +397,21 @@
                   </span>
                   <span v-else-if="!hasTenantsWithEmail" class="text-xs text-red-500 dark:text-red-400 mt-1 text-center">
                     No tenant email
+                  </span>
+                </div>
+
+                <!-- Send Landlord Pack -->
+                <div class="flex flex-col">
+                  <button
+                    @click="showLandlordPackModal = true"
+                    :disabled="!allLandlords?.length"
+                    class="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-sm font-medium text-gray-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send class="w-4 h-4 text-amber-600" />
+                    Send Landlord Pack
+                  </button>
+                  <span v-if="!allLandlords?.length" class="text-xs text-red-500 dark:text-red-400 mt-1 text-center">
+                    No landlord linked
                   </span>
                 </div>
 
@@ -2384,6 +2408,14 @@
           >
             End Tenancy
           </button>
+          <button
+            v-else-if="tenancy?.status === 'pending'"
+            @click="markTenancyFallenThrough"
+            :disabled="markingFallenThrough"
+            class="px-4 py-2 text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg"
+          >
+            {{ markingFallenThrough ? 'Marking...' : 'Mark as Fallen Through' }}
+          </button>
           <div v-else></div>
           <button
             @click="$emit('update:open', false)"
@@ -2402,6 +2434,41 @@
       @close="showEndTenancyModal = false"
       @ended="handleTenancyEnded"
     />
+
+    <!-- Fallen Through Confirmation Modal -->
+    <Teleport to="body">
+      <div v-if="showFallenThroughModal" class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="fixed inset-0 bg-black/50 transition-opacity" @click="showFallenThroughModal = false" />
+        <div class="flex min-h-full items-center justify-center p-4">
+          <div class="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6" @click.stop>
+            <div class="flex items-center gap-3 mb-4">
+              <div class="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <AlertTriangle class="w-5 h-5 text-amber-600" />
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Mark as Fallen Through</h3>
+            </div>
+            <p class="text-sm text-gray-600 dark:text-slate-400 mb-6">
+              Are you sure you want to mark this tenancy as fallen through? It will be moved to the archived section.
+            </p>
+            <div class="flex justify-end gap-3">
+              <button
+                @click="showFallenThroughModal = false"
+                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                @click="confirmFallenThrough"
+                :disabled="markingFallenThrough"
+                class="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50"
+              >
+                {{ markingFallenThrough ? 'Processing...' : 'Confirm' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Protect Deposit Modal -->
     <ProtectDepositModal
@@ -2486,6 +2553,20 @@
       :management-info="moveInPackManagementInfo"
       @close="showMoveInPackModal = false"
       @sent="handleMoveInPackSent"
+    />
+
+    <!-- Landlord Move-In Pack Modal -->
+    <LandlordMoveInPackModal
+      v-if="showLandlordPackModal"
+      :show="showLandlordPackModal"
+      :property-id="tenancy?.property_id || ''"
+      :property-address="propertyAddress"
+      :landlords="allLandlords"
+      :compliance-documents="moveInPackComplianceDocs"
+      :property-docs="[]"
+      :signed-agreement-url="moveInPackSignedAgreementUrl"
+      @close="showLandlordPackModal = false"
+      @sent="showLandlordPackModal = false"
     />
 
     <!-- Signing Status Modal -->
@@ -2746,7 +2827,7 @@ import {
   FileSignature, Send, Loader2, Plus, Search, ExternalLink, Upload, Trash2, Clock,
   ClipboardCheck, CheckCircle, Download, RotateCcw, Calendar,
   UserPlus, TrendingUp, FileWarning, XCircle, Settings, ChevronDown, Scale, UserX,
-  Sparkles, Star, RefreshCw
+  Sparkles, Star, RefreshCw, AlertTriangle
 } from 'lucide-vue-next'
 import EndTenancyModal from './EndTenancyModal.vue'
 import ProtectDepositModal from './ProtectDepositModal.vue'
@@ -2755,6 +2836,7 @@ import ManualReceiptModal from './ManualReceiptModal.vue'
 import TenancyAgreementModal from './TenancyAgreementModal.vue'
 import TenancyAgreementStatus from './TenancyAgreementStatus.vue'
 import MoveInPackModal from './MoveInPackModal.vue'
+import LandlordMoveInPackModal from '../properties/LandlordMoveInPackModal.vue'
 import EditableTenantCard from './EditableTenantCard.vue'
 import EditableGuarantorCard from './EditableGuarantorCard.vue'
 import EditableField from './EditableField.vue'
@@ -2798,6 +2880,7 @@ watch(showRegisterWithTDSModal, (newVal) => {
 })
 const showSection48Modal = ref(false)
 const showMoveInPackModal = ref(false)
+const showLandlordPackModal = ref(false)
 const showInitialMoniesModal = ref(false)
 const showManualReceiptModal = ref(false)
 const showAgreementModal = ref(false)
@@ -2805,6 +2888,8 @@ const showSigningStatusModal = ref(false)
 const showDrawerActions = ref(false)
 const showMoveOutModal = ref(false)
 const revertingToActive = ref(false)
+const markingFallenThrough = ref(false)
+const showFallenThroughModal = ref(false)
 const showChangeRentDueDateModal = ref(false)
 const showMoveInTimeModal = ref(false)
 const showReceiptRentDueDateChangeModal = ref(false)
@@ -3182,7 +3267,8 @@ const statusClass = computed(() => {
     notice_given: 'bg-orange-100 text-orange-800',
     ended: 'bg-gray-100 text-gray-800',
     terminated: 'bg-red-100 text-red-800',
-    expired: 'bg-gray-100 text-gray-600'
+    expired: 'bg-gray-100 text-gray-600',
+    fallen_through: 'bg-amber-100 text-amber-800'
   }
   return classes[tenancy.value?.status] || 'bg-gray-100 text-gray-800'
 })
@@ -3194,7 +3280,8 @@ const statusLabel = computed(() => {
     notice_given: 'Notice Given',
     ended: 'Ended',
     terminated: 'Terminated',
-    expired: 'Expired'
+    expired: 'Expired',
+    fallen_through: 'Fallen Through'
   }
   return labels[tenancy.value?.status] || tenancy.value?.status
 })
@@ -3317,8 +3404,8 @@ const ordinal = (n: number): string => {
   }
 }
 
-// Rent due day options (1-28)
-const rentDueDayOptions = Array.from({ length: 28 }, (_, i) => ({
+// Rent due day options (1-31)
+const rentDueDayOptions = Array.from({ length: 31 }, (_, i) => ({
   value: i + 1,
   label: ordinal(i + 1)
 }))
@@ -4623,6 +4710,9 @@ const handleDrawerAction = (action: string) => {
     case 'revert-to-draft':
       emit('action', 'revert-to-draft', tenancy.value)
       break
+    case 'mark-fallen-through':
+      markTenancyFallenThrough()
+      break
     case 'delete':
       // Only allow deleting draft tenancies
       if (tenancy.value?.status !== 'pending') {
@@ -5234,6 +5324,47 @@ const handleMoveOutNoticeSent = (result: any) => {
   emit('updated')
 }
 
+// Mark pending tenancy as fallen through
+const markTenancyFallenThrough = () => {
+  showFallenThroughModal.value = true
+  showDrawerActions.value = false
+}
+
+const confirmFallenThrough = async () => {
+  if (!tenancy.value?.id) return
+
+  markingFallenThrough.value = true
+  try {
+    const token = authStore.session?.access_token
+    if (!token) throw new Error('Not authenticated')
+
+    const response = await authFetch(
+      `${API_URL}/api/tenancies/records/${tenancy.value.id}/mark-fallen-through`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        token
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to mark tenancy as fallen through')
+    }
+
+    showFallenThroughModal.value = false
+    toast.success('Tenancy marked as fallen through')
+    emit('updated')
+    emit('update:open', false)
+  } catch (error: any) {
+    toast.error(error.message || 'Failed to mark tenancy as fallen through')
+  } finally {
+    markingFallenThrough.value = false
+  }
+}
+
 // Delete pending tenancy
 const confirmDeleteTenancy = async () => {
   if (!tenancy.value?.id) return
@@ -5460,8 +5591,15 @@ const addTenant = async () => {
     )
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to add tenant')
+      let errorMessage = 'Failed to add tenant'
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.error || errorMessage
+      } catch {
+        // Response wasn't JSON - use status text
+        errorMessage = `Failed to add tenant (${response.status}: ${response.statusText})`
+      }
+      throw new Error(errorMessage)
     }
 
     toast.success('Tenant added successfully')

@@ -76,7 +76,7 @@
                         type="text"
                         placeholder="Search properties by address..."
                         class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary bg-white"
-                        :class="{ 'border-green-500': selectedProperty }"
+                        :class="{ 'border-green-500': selectedProperty, 'border-red-500': needsPropertySelection && !selectedProperty && !pendingPropertyData }"
                         @focus="showPropertyDropdown = true"
                         @blur="delayedClosePropertyDropdown"
                       />
@@ -295,7 +295,7 @@
                   v-model.number="options.rentDueDay"
                   class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 >
-                  <option v-for="day in 28" :key="day" :value="day">{{ day }}{{ day === defaultRentDueDay ? ' (from move-in date)' : '' }}</option>
+                  <option v-for="day in 31" :key="day" :value="day">{{ day }}{{ day === defaultRentDueDay ? ' (from move-in date)' : '' }}</option>
                 </select>
               </div>
 
@@ -469,7 +469,7 @@ const defaultRentDueDay = computed(() => {
   const moveInDate = editableDetails.value.moveInDate || previewData.value?.moveInDate
   if (!moveInDate) return 1
   const day = new Date(moveInDate).getDate()
-  return Math.min(day, 28)
+  return Math.min(day, 31)
 })
 
 // Extract postcode from a string (UK format)
@@ -955,7 +955,7 @@ const loadPreview = async () => {
       // Default rent due day to the day of the move-in date
       if (data.referenceData.moveInDate) {
         const moveInDay = new Date(data.referenceData.moveInDate).getDate()
-        options.value.rentDueDay = Math.min(moveInDay, 28) // Cap at 28 for month consistency
+        options.value.rentDueDay = Math.min(moveInDay, 31) // Cap at 31 for month consistency
       }
     } else if (needsPropertySelection.value && props.tenancy) {
       // Build preview data from tenancy for legacy references
@@ -981,7 +981,7 @@ const loadPreview = async () => {
       // Default rent due day to the day of the move-in date
       if (props.tenancy?.moveInDate) {
         const moveInDay = new Date(props.tenancy.moveInDate).getDate()
-        options.value.rentDueDay = Math.min(moveInDay, 28)
+        options.value.rentDueDay = Math.min(moveInDay, 31)
       }
     }
 
@@ -1179,7 +1179,7 @@ const goToTenancy = () => {
 watch(() => editableDetails.value.moveInDate, (newDate) => {
   if (newDate) {
     const day = new Date(newDate).getDate()
-    options.value.rentDueDay = Math.min(day, 28)
+    options.value.rentDueDay = Math.min(day, 31)
   }
 })
 

@@ -2117,6 +2117,35 @@ interface ComplianceDocument {
 /**
  * Send move-in pack email to tenants
  */
+// Helper: attach Renters' Rights Act 2026 PDF if before June 1st 2026
+function getRentersRightsAttachment(): { filename: string; content: Buffer } | null {
+  const deadline = new Date('2026-06-01T00:00:00Z')
+  if (new Date() >= deadline) return null
+  try {
+    const pdfPath = path.join(__dirname, '..', '..', 'assets', 'renters-rights-act-2026.pdf')
+    const content = fs.readFileSync(pdfPath)
+    return { filename: 'Renters_Rights_Act_Information_Sheet_2026.pdf', content }
+  } catch (e) {
+    console.error('[RentersRightsAct] Failed to read PDF:', e)
+    return null
+  }
+}
+
+// Generate Renters' Rights Act 2026 HTML section (shown until May 31 2026)
+function getRentersRightsHtml(): string {
+  const deadline = new Date('2026-06-01T00:00:00Z')
+  if (new Date() >= deadline) return ''
+  return `
+    <div style="background-color: #fffbeb; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+      <p style="margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #92400e;">
+        Renters' Rights Act 2026
+      </p>
+      <p style="margin: 0; font-size: 15px; color: #78350f; line-height: 1.5;">
+        Attached to this email is the Renters' Rights Act Information Sheet 2026. Under current legislation, this document must be served to all tenants before 31st May 2026. This email serves as confirmation that this information has been provided to you. Please read and retain a copy for your records.
+      </p>
+    </div>`
+}
+
 export async function sendMoveInPack(
   tenants: { email: string; name: string }[],
   propertyAddress: string,
@@ -2175,15 +2204,21 @@ export async function sendMoveInPack(
       DepositScheme: depositSchemeLabel,
       DocumentList: documentListHtml,
       HowToRentLink: 'https://www.gov.uk/government/publications/how-to-rent/how-to-rent-the-checklist-for-renting-in-england',
+      RentersRightsSection: getRentersRightsHtml(),
       ContactBlock: contactBlock,
       CompanyName: companyName,
       AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL
     })
 
+    const attachments: { filename: string; content: Buffer }[] = []
+    const rentersRights = getRentersRightsAttachment()
+    if (rentersRights) attachments.push(rentersRights)
+
     await sendEmail({
       to: tenant.email,
       subject: `Welcome to Your New Home - ${propertyAddress}`,
       html,
+      attachments: attachments.length > 0 ? attachments : undefined,
       contactDetails: {
         companyName,
         email: contactDetails.email,
@@ -2191,7 +2226,7 @@ export async function sendMoveInPack(
       }
     })
 
-    console.log(`[sendMoveInPack] Email sent to ${tenant.email} for ${propertyAddress}`)
+    console.log(`[sendMoveInPack] Email sent to ${tenant.email} for ${propertyAddress} (attachments: ${attachments.length})`)
   }
 }
 
@@ -2265,6 +2300,7 @@ export async function sendEnhancedMoveInPack(
       DepositScheme: depositSchemeLabel,
       DocumentList: documentListHtml,
       HowToRentLink: 'https://www.gov.uk/government/publications/how-to-rent/how-to-rent-the-checklist-for-renting-in-england',
+      RentersRightsSection: getRentersRightsHtml(),
       ContactBlock: contactBlock,
       CompanyName: companyName,
       AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
@@ -2273,9 +2309,76 @@ export async function sendEnhancedMoveInPack(
       AdditionalInfoSection: additionalInfoHtml
     })
 
+    const attachments: { filename: string; content: Buffer }[] = []
+    const rentersRights = getRentersRightsAttachment()
+    if (rentersRights) attachments.push(rentersRights)
+
     await sendEmail({
       to: tenant.email,
       subject: `Welcome to Your New Home - ${propertyAddress}`,
+      html,
+      attachments: attachments.length > 0 ? attachments : undefined,
+      contactDetails: {
+        companyName,
+        email: contactDetails.email,
+        phone: contactDetails.phone
+      }
+    })
+
+    console.log(`[sendEnhancedMoveInPack] Email sent to ${tenant.email} for ${propertyAddress} (attachments: ${attachments.length})`)
+  }
+}
+
+/**
+ * Send landlord compliance pack email
+ */
+export async function sendLandlordMoveInPack(
+  landlords: { email: string; name: string }[],
+  propertyAddress: string,
+  documents: ComplianceDocument[],
+  contactDetails: { name: string; email: string; phone: string },
+  companyName: string,
+  agentLogoUrl: string | null | undefined,
+  additionalInfoHtml: string
+): Promise<void> {
+  // Build document list HTML
+  let documentListHtml = ''
+  if (documents.length > 0) {
+    documentListHtml = '<ul style="margin: 0; padding-left: 20px;">'
+    for (const doc of documents) {
+      documentListHtml += `
+        <li style="margin-bottom: 8px;">
+          <a href="${doc.url}" style="color: #2563eb; text-decoration: none; font-weight: 500;">${doc.name}</a>
+          <span style="color: #6b7280; font-size: 14px;"> (${doc.type})</span>
+        </li>`
+    }
+    documentListHtml += '</ul>'
+  } else {
+    documentListHtml = '<p style="color: #6b7280; font-style: italic;">No compliance documents currently available.</p>'
+  }
+
+  // Format contact block
+  const contactBlock = `
+    <p style="margin: 4px 0;"><strong>${contactDetails.name}</strong></p>
+    ${contactDetails.email ? `<p style="margin: 4px 0;">Email: <a href="mailto:${contactDetails.email}" style="color: #2563eb;">${contactDetails.email}</a></p>` : ''}
+    ${contactDetails.phone ? `<p style="margin: 4px 0;">Phone: <a href="tel:${contactDetails.phone}" style="color: #2563eb;">${contactDetails.phone}</a></p>` : ''}
+  `
+
+  // Send to each landlord
+  for (const landlord of landlords) {
+    const html = loadEmailTemplate('landlord-move-in-pack', {
+      LandlordName: capitalizeWords(landlord.name),
+      PropertyAddress: capitalizeWords(propertyAddress),
+      DocumentList: documentListHtml,
+      ContactBlock: contactBlock,
+      CompanyName: companyName,
+      AgentLogoUrl: agentLogoUrl || DEFAULT_LOGO_URL,
+      AdditionalInfoSection: additionalInfoHtml
+    })
+
+    await sendEmail({
+      to: landlord.email,
+      subject: `Property Compliance Documents - ${propertyAddress}`,
       html,
       contactDetails: {
         companyName,
@@ -2284,7 +2387,7 @@ export async function sendEnhancedMoveInPack(
       }
     })
 
-    console.log(`[sendEnhancedMoveInPack] Email sent to ${tenant.email} for ${propertyAddress}`)
+    console.log(`[sendLandlordMoveInPack] Email sent to ${landlord.email} for ${propertyAddress}`)
   }
 }
 

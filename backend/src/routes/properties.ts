@@ -1471,4 +1471,215 @@ router.get('/validate/:id', authenticateToken, async (req: AuthRequest, res) => 
   }
 })
 
+/**
+ * POST /api/properties/:id/landlord-move-in-pack
+ * Send compliance documents to landlord(s) linked to this property
+ */
+router.post('/:id/landlord-move-in-pack', authenticateToken, requireMember, async (req: AuthRequest, res) => {
+  try {
+    const companyId = req.companyId!
+    const userId = req.user?.id
+    const propertyId = req.params.id
+
+    const { selectedDocuments, additionalInfo } = req.body
+
+    if (!selectedDocuments || !Array.isArray(selectedDocuments)) {
+      return res.status(400).json({ error: 'selectedDocuments array is required' })
+    }
+
+    // Get property details
+    const { data: prop, error: propError } = await supabase
+      .from('properties')
+      .select('id, address_line1_encrypted, city_encrypted, postcode, full_address_encrypted, company_id')
+      .eq('id', propertyId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (propError || !prop) {
+      return res.status(404).json({ error: 'Property not found' })
+    }
+
+    const addressLine1 = prop.address_line1_encrypted ? decrypt(prop.address_line1_encrypted) : ''
+    const city = prop.city_encrypted ? decrypt(prop.city_encrypted) : ''
+    const propertyAddress = [addressLine1, city, prop.postcode].filter(Boolean).join(', ')
+
+    // Get landlords linked to this property
+    const { data: propertyLandlords, error: landlordError } = await supabase
+      .from('property_landlords')
+      .select(`
+        landlord_id,
+        is_primary_contact,
+        landlords (
+          id,
+          first_name_encrypted,
+          last_name_encrypted,
+          email_encrypted
+        )
+      `)
+      .eq('property_id', propertyId)
+
+    if (landlordError) {
+      console.error('[LandlordPack] Error fetching landlords:', landlordError)
+      return res.status(500).json({ error: 'Failed to fetch landlords' })
+    }
+
+    // Build landlord recipients list
+    const landlordRecipients: { email: string; name: string }[] = []
+    for (const pl of propertyLandlords || []) {
+      const landlord = pl.landlords as any
+      if (!landlord) continue
+
+      const firstName = landlord.first_name_encrypted ? decrypt(landlord.first_name_encrypted) || '' : ''
+      const lastName = landlord.last_name_encrypted ? decrypt(landlord.last_name_encrypted) || '' : ''
+      const email = landlord.email_encrypted ? decrypt(landlord.email_encrypted) || '' : ''
+
+      if (email) {
+        landlordRecipients.push({
+          email,
+          name: [firstName, lastName].filter(Boolean).join(' ') || 'Landlord'
+        })
+      }
+    }
+
+    if (landlordRecipients.length === 0) {
+      return res.status(400).json({ error: 'No landlords with email addresses found for this property' })
+    }
+
+    // Get company details for branding
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted, phone_encrypted, email_encrypted, logo_url')
+      .eq('id', companyId)
+      .single()
+
+    const companyName = company?.name_encrypted ? decrypt(company.name_encrypted) || 'PropertyGoose' : 'PropertyGoose'
+    const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) || '' : ''
+    const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) || '' : ''
+
+    // Get compliance records for this property
+    const { data: complianceRecords } = await supabase
+      .from('compliance_records')
+      .select(`
+        id,
+        compliance_type,
+        custom_type_name,
+        compliance_documents (
+          id,
+          file_name,
+          file_path
+        )
+      `)
+      .eq('property_id', propertyId)
+      .in('status', ['valid', 'expiring_soon'])
+
+    // Also get property documents
+    const { data: propDocuments } = await supabase
+      .from('property_documents')
+      .select('id, file_name, file_path')
+      .eq('property_id', propertyId)
+
+    // Generate signed URLs for selected documents
+    const complianceTypeLabels: Record<string, string> = {
+      gas_safety: 'Gas Safety Certificate',
+      epc: 'Energy Performance Certificate (EPC)',
+      eicr: 'Electrical Safety Certificate (EICR)',
+      fire_safety: 'Fire Safety Certificate',
+      legionella: 'Legionella Risk Assessment',
+      smoke_alarm: 'Smoke & CO Alarms Certificate'
+    }
+
+    const documents: { name: string; url: string; type: string }[] = []
+
+    // Process compliance documents
+    for (const record of complianceRecords || []) {
+      if (!selectedDocuments.includes(record.id)) continue
+
+      const docs = record.compliance_documents || []
+      for (const doc of docs) {
+        if (doc.file_path) {
+          const { data: signedUrlData } = await supabase.storage
+            .from('property-documents')
+            .createSignedUrl(doc.file_path.replace('property-documents/', ''), 86400)
+
+          if (signedUrlData?.signedUrl) {
+            documents.push({
+              name: doc.file_name || complianceTypeLabels[record.compliance_type] || record.custom_type_name || 'Document',
+              url: signedUrlData.signedUrl,
+              type: complianceTypeLabels[record.compliance_type] || record.custom_type_name || record.compliance_type
+            })
+          }
+        }
+      }
+    }
+
+    // Process property documents
+    for (const doc of propDocuments || []) {
+      if (!selectedDocuments.includes(doc.id)) continue
+
+      if (doc.file_path) {
+        const { data: signedUrlData } = await supabase.storage
+          .from('property-documents')
+          .createSignedUrl(doc.file_path.replace('property-documents/', ''), 86400)
+
+        if (signedUrlData?.signedUrl) {
+          documents.push({
+            name: doc.file_name || 'Document',
+            url: signedUrlData.signedUrl,
+            type: 'Property Document'
+          })
+        }
+      }
+    }
+
+    // Build additional info HTML
+    let additionalInfoHtml = ''
+    if (additionalInfo && additionalInfo.trim()) {
+      additionalInfoHtml = `
+        <tr>
+          <td style="padding: 20px 0; border-bottom: 1px solid #e5e7eb;">
+            <h3 style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Additional Information</h3>
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+              <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${additionalInfo}</p>
+            </div>
+          </td>
+        </tr>
+      `
+    }
+
+    // Send email via email service
+    const { sendLandlordMoveInPack } = await import('../services/emailService')
+    await sendLandlordMoveInPack(
+      landlordRecipients,
+      propertyAddress,
+      documents,
+      { name: companyName, email: companyEmail, phone: companyPhone },
+      companyName,
+      company?.logo_url,
+      additionalInfoHtml
+    )
+
+    // Log activity
+    await logPropertyAuditAction({
+      propertyId,
+      companyId,
+      action: 'LANDLORD_PACK_SENT',
+      description: `Compliance pack with ${documents.length} document(s) sent to ${landlordRecipients.length} landlord(s)`,
+      metadata: {
+        documentCount: documents.length,
+        landlordEmails: landlordRecipients.map(l => l.email)
+      },
+      userId
+    })
+
+    res.json({
+      success: true,
+      documentsSent: documents.length,
+      recipientCount: landlordRecipients.length
+    })
+  } catch (error: any) {
+    console.error('Error in POST /api/properties/:id/landlord-move-in-pack:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router

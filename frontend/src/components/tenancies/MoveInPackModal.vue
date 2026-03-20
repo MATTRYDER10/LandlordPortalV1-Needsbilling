@@ -76,6 +76,16 @@
                 </div>
               </div>
 
+              <!-- Renters' Rights Act 2026 (auto-attached until May 31 2026) -->
+              <div v-if="showRentersRightsAct" class="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+                <CheckCircle class="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <FileText class="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <div class="flex-1">
+                  <span class="text-sm font-medium text-gray-900 dark:text-white">Renters' Rights Act 2026</span>
+                  <span class="text-xs text-amber-600 dark:text-amber-400 ml-2">Auto-attached until 31 May 2026</span>
+                </div>
+              </div>
+
               <p v-if="complianceDocuments.length === 0 && !signedAgreementUrl" class="text-sm text-gray-500 dark:text-slate-400 italic py-2">
                 No compliance documents available for this property.
               </p>
@@ -317,6 +327,9 @@ const editableBankAccountNumber = ref('')
 
 // Computed
 const isManaged = computed(() => props.managementType === 'managed')
+
+// Show Renters' Rights Act checkbox until May 31 2026
+const showRentersRightsAct = computed(() => new Date() < new Date('2026-06-01T00:00:00Z'))
 
 const tenantsWithEmail = computed(() =>
   props.tenants.filter(t => t.email && t.email.trim())
