@@ -1018,31 +1018,6 @@ const openTenancy = (tenancy: any) => {
   drawerOpen.value = true
 }
 
-const openTenancyById = async (tenancyId: string) => {
-  // First check if already loaded in the tenancies list
-  const found = tenancies.value.find((t: any) => t.id === tenancyId)
-  if (found) {
-    openTenancy(found)
-    return
-  }
-
-  // If not found, fetch it from the API
-  try {
-    const token = authStore.session?.access_token
-    if (!token) return
-
-    const response = await authFetch(`${API_URL}/api/tenancies/records/${tenancyId}`, { token })
-    if (response.ok) {
-      const data = await response.json()
-      if (data.tenancy) {
-        openTenancy(data.tenancy)
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load tenancy:', error)
-  }
-}
-
 const handleTenancyCreated = () => {
   showCreateModal.value = false
   loadTenancies()

@@ -332,7 +332,7 @@
                           <div
                             v-if="day.fullDate && getComplianceForDay(day.fullDate).length > 0"
                             class="absolute -top-0.5 right-0 w-1.5 h-1.5 rounded-full bg-red-500 cursor-pointer"
-                            @click.stop="router.push(`/properties/${getComplianceForDay(day.fullDate!)[0].propertyId}`)"
+                            @click.stop="router.push(`/properties/${getComplianceForDay(day.fullDate!)[0]?.propertyId}`)"
                           />
                           <!-- Compliance expiry tooltip -->
                           <div
