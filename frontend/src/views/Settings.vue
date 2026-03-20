@@ -754,6 +754,11 @@
           <RepositIntegrationSettings />
         </div>
 
+        <!-- mydeposits Tab -->
+        <div v-else-if="activeTab === 'mydeposits'" class="max-w-3xl">
+          <MyDepositsIntegrationSettings />
+        </div>
+
         <!-- Review Links Tab -->
         <div v-else-if="activeTab === 'review-links'" class="max-w-3xl">
           <ReviewLinkSettings />
@@ -924,6 +929,7 @@ import Sidebar from '../components/Sidebar.vue'
 import Billing from './Billing.vue'
 import TDSIntegrationSettings from '../components/settings/TDSIntegrationSettings.vue'
 import RepositIntegrationSettings from '../components/settings/RepositIntegrationSettings.vue'
+import MyDepositsIntegrationSettings from '../components/settings/MyDepositsIntegrationSettings.vue'
 import ReviewLinkSettings from '../components/settings/ReviewLinkSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { formatDate as formatUkDate } from '../utils/date'
@@ -932,7 +938,7 @@ import { defaultBranding } from '../config/colors'
 import { Lock, Image, AlertTriangle } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -946,6 +952,7 @@ const activeTab = computed(() => {
   if (path.includes('/settings/audit-logs')) return 'audit-logs'
   if (path.includes('/settings/tds')) return 'tds'
   if (path.includes('/settings/reposit')) return 'reposit'
+  if (path.includes('/settings/mydeposits')) return 'mydeposits'
   if (path.includes('/settings/review-links')) return 'review-links'
   // Legacy route support
   if (path.includes('/settings/integrations')) return 'tds'
@@ -960,6 +967,7 @@ const tabs = computed(() => {
     { id: 'branding', name: 'Branding' },
     { id: 'team', name: 'Team' },
     { id: 'tds', name: 'TDS Integration' },
+    { id: 'mydeposits', name: 'mydeposits' },
     { id: 'reposit', name: 'Reposit' },
     { id: 'review-links', name: 'Review Links' },
     { id: 'billing', name: 'Billing' },

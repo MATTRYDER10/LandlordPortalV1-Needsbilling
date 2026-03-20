@@ -355,7 +355,7 @@
                   </div>
                 </div>
 
-                <div v-else>
+                <div v-else class="space-y-3">
                   <button
                     type="button"
                     @click="startCamera"
@@ -364,6 +364,52 @@
                   >
                     📷 Take Photo
                   </button>
+
+                  <!-- Direct Upload Option -->
+                  <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
+                    <label
+                      class="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                    >
+                      📤 Upload Clear Photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        class="hidden"
+                        @change="handleSelfieFileUploadGuarantor"
+                      />
+                    </label>
+                    <div class="mt-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                      <p class="text-xs text-amber-800 dark:text-amber-300">
+                        <strong>Important:</strong> The photo must be clear and non-blurry, taken within 24 hours of this application.
+                        If you cannot provide a suitable photo, please go back and use the mobile version of this form where you can take a photo on your device.
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- QR Code Mobile Capture Option -->
+                  <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mb-2">No camera? Use your phone instead:</p>
+                    <button
+                      v-if="!mobileCaptureG.qrUrl"
+                      type="button"
+                      @click="generateMobileCaptureQRGuarantor"
+                      :disabled="mobileCaptureG.generating"
+                      class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                    >
+                      {{ mobileCaptureG.generating ? 'Generating...' : '📱 Scan QR Code on Phone' }}
+                    </button>
+
+                    <div v-if="mobileCaptureG.qrUrl" class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4 text-center">
+                      <img :src="mobileCaptureG.qrDataUrl" alt="QR Code" class="w-48 h-48 mx-auto mb-3" />
+                      <p class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Scan with your phone camera</p>
+                      <p class="text-xs text-gray-500 dark:text-slate-400 mb-3">Take your ID photo and selfie on mobile</p>
+                      <div class="flex items-center justify-center gap-2 text-sm" :class="mobileCaptureG.selfieUploaded ? 'text-green-600' : 'text-gray-400'">
+                        <span>{{ mobileCaptureG.selfieUploaded ? '✓' : '⏳' }}</span>
+                        <span>Selfie {{ mobileCaptureG.selfieUploaded ? 'uploaded' : 'waiting...' }}</span>
+                      </div>
+                      <button type="button" @click="cancelMobileCaptureGuarantor" class="mt-3 text-xs text-gray-400 hover:text-gray-600 underline">Cancel</button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -836,31 +882,65 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Pension Statement *</label>
-                  <input ref="pensionStatementInput" type="file" @change="handlePensionStatementUpload"
-                    accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
-                  <button type="button" @click="($refs.pensionStatementInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                    :style="{ color: buttonColor }">
-                    {{ pensionStatement ? 'Change Document' : 'Upload Document' }}
-                  </button>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload your most recent pension statement (max 10MB, PDF/JPG/PNG)</p>
-                  <div v-if="pensionStatement" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center">
-                        <FileText class="w-5 h-5 text-blue-600 mr-2" />
-                        <span class="text-sm text-gray-700 dark:text-slate-300">{{ pensionStatement.name }} ({{ formatFileSize(pensionStatement.size) }})</span>
-                      </div>
-                      <button type="button" @click="removePensionStatement"
-                        class="text-red-600 hover:text-red-800 text-sm">
-                        Remove
-                      </button>
-                    </div>
+
+                  <!-- Email option checkbox -->
+                  <div class="mb-4">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                      <input
+                        v-model="formData.pension_statement_will_email"
+                        type="checkbox"
+                        class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                      />
+                      <span class="text-sm text-gray-700 dark:text-slate-300">
+                        I will email my documents directly to PropertyGoose instead
+                      </span>
+                    </label>
                   </div>
-                  <div v-else-if="formData.pension_statement_path"
-                    class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                    <div class="flex items-center">
-                      <Check class="w-4 h-4 text-green-600 mr-2" />
-                      <span class="text-sm text-green-700">Pension statement uploaded successfully</span>
+
+                  <!-- Email instructions (shown when checkbox is selected) -->
+                  <div v-if="formData.pension_statement_will_email" class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                    <p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                      <strong>Email your pension statement to:</strong>
+                    </p>
+                    <p class="text-sm font-mono bg-white dark:bg-slate-800 px-3 py-2 rounded border border-blue-200 dark:border-blue-700 mb-2">
+                      info@propertygoose.co.uk
+                    </p>
+                    <p class="text-sm text-blue-700 dark:text-blue-300 mb-1">
+                      <strong>Subject line:</strong> Pension Statement - {{ referenceNumber || 'Your Reference Number' }}
+                    </p>
+                    <p class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                      Please send your documents before submitting this form. Our team will match them to your reference.
+                    </p>
+                  </div>
+
+                  <!-- File upload (hidden when email option is selected) -->
+                  <div v-if="!formData.pension_statement_will_email">
+                    <input ref="pensionStatementInput" type="file" @change="handlePensionStatementUpload"
+                      accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
+                    <button type="button" @click="($refs.pensionStatementInput as any).click()"
+                      class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                      :style="{ color: buttonColor }">
+                      {{ pensionStatement ? 'Change Document' : 'Upload Document' }}
+                    </button>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload your most recent pension statement (max 10MB, PDF/JPG/PNG)</p>
+                    <div v-if="pensionStatement" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                          <FileText class="w-5 h-5 text-blue-600 mr-2" />
+                          <span class="text-sm text-gray-700 dark:text-slate-300">{{ pensionStatement.name }} ({{ formatFileSize(pensionStatement.size) }})</span>
+                        </div>
+                        <button type="button" @click="removePensionStatement"
+                          class="text-red-600 hover:text-red-800 text-sm">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <div v-else-if="formData.pension_statement_path"
+                      class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                      <div class="flex items-center">
+                        <Check class="w-4 h-4 text-green-600 mr-2" />
+                        <span class="text-sm text-green-700">Pension statement uploaded successfully</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -883,36 +963,70 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bank Statement *</label>
-                  <input ref="landlordRentalBankStatementInput" type="file" @change="handleLandlordRentalBankStatementUpload"
-                    accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
-                  <button type="button" @click="($refs.landlordRentalBankStatementInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                    :style="{ color: buttonColor }">
-                    {{ landlordRentalBankStatement ? 'Change Document' : 'Upload Document' }}
-                  </button>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload bank statement showing rental income deposits (max 10MB, PDF/JPG/PNG)</p>
-                  <div class="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
-                    <p class="text-xs text-blue-800 dark:text-blue-300">
-                      <strong>Tip:</strong> Your statement only needs to display the inbound rental income deposits. You may redact other transaction details for privacy.
+
+                  <!-- Email option checkbox -->
+                  <div class="mb-4">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                      <input
+                        v-model="formData.landlord_rental_bank_statement_will_email"
+                        type="checkbox"
+                        class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                      />
+                      <span class="text-sm text-gray-700 dark:text-slate-300">
+                        I will email my documents directly to PropertyGoose instead
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Email instructions (shown when checkbox is selected) -->
+                  <div v-if="formData.landlord_rental_bank_statement_will_email" class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                    <p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                      <strong>Email your bank statement to:</strong>
+                    </p>
+                    <p class="text-sm font-mono bg-white dark:bg-slate-800 px-3 py-2 rounded border border-blue-200 dark:border-blue-700 mb-2">
+                      info@propertygoose.co.uk
+                    </p>
+                    <p class="text-sm text-blue-700 dark:text-blue-300 mb-1">
+                      <strong>Subject line:</strong> Rental Income Statement - {{ referenceNumber || 'Your Reference Number' }}
+                    </p>
+                    <p class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                      Please send your documents before submitting this form. Our team will match them to your reference.
                     </p>
                   </div>
-                  <div v-if="landlordRentalBankStatement" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center">
-                        <FileText class="w-5 h-5 text-blue-600 mr-2" />
-                        <span class="text-sm text-gray-700 dark:text-slate-300">{{ landlordRentalBankStatement.name }} ({{ formatFileSize(landlordRentalBankStatement.size) }})</span>
-                      </div>
-                      <button type="button" @click="removeLandlordRentalBankStatement"
-                        class="text-red-600 hover:text-red-800 text-sm">
-                        Remove
-                      </button>
+
+                  <!-- File upload (hidden when email option is selected) -->
+                  <div v-if="!formData.landlord_rental_bank_statement_will_email">
+                    <input ref="landlordRentalBankStatementInput" type="file" @change="handleLandlordRentalBankStatementUpload"
+                      accept=".pdf,.jpg,.jpeg,.png" class="hidden" />
+                    <button type="button" @click="($refs.landlordRentalBankStatementInput as any).click()"
+                      class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                      :style="{ color: buttonColor }">
+                      {{ landlordRentalBankStatement ? 'Change Document' : 'Upload Document' }}
+                    </button>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload bank statement showing rental income deposits (max 10MB, PDF/JPG/PNG)</p>
+                    <div class="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
+                      <p class="text-xs text-blue-800 dark:text-blue-300">
+                        <strong>Tip:</strong> Your statement only needs to display the inbound rental income deposits. You may redact other transaction details for privacy.
+                      </p>
                     </div>
-                  </div>
-                  <div v-else-if="formData.landlord_rental_bank_statement_path"
-                    class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                    <div class="flex items-center">
-                      <Check class="w-4 h-4 text-green-600 mr-2" />
-                      <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
+                    <div v-if="landlordRentalBankStatement" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                          <FileText class="w-5 h-5 text-blue-600 mr-2" />
+                          <span class="text-sm text-gray-700 dark:text-slate-300">{{ landlordRentalBankStatement.name }} ({{ formatFileSize(landlordRentalBankStatement.size) }})</span>
+                        </div>
+                        <button type="button" @click="removeLandlordRentalBankStatement"
+                          class="text-red-600 hover:text-red-800 text-sm">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <div v-else-if="formData.landlord_rental_bank_statement_path"
+                      class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                      <div class="flex items-center">
+                        <Check class="w-4 h-4 text-green-600 mr-2" />
+                        <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1301,6 +1415,11 @@
 
                 <!-- Accountant Contact -->
                 <div class="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <div class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-3">
+                    <p class="text-sm text-blue-800 dark:text-blue-300">
+                      <strong>Income verification:</strong> Please either provide your accountant's details below so we can verify your income directly, <strong>or</strong> upload an official Tax Return / SA302 document confirming your previous year's self-employed income. At least one is required.
+                    </p>
+                  </div>
                   <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">Accountant Contact</h4>
                   <div class="space-y-4">
                     <div>
@@ -1349,35 +1468,69 @@
                   <div class="space-y-4">
                     <div>
                       <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Upload Most Recent Tax Return ({{ currentTaxYear }}) *</label>
-                      <input
-                        ref="taxReturnInput"
-                        type="file"
-                        @change="handleTaxReturnUpload"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        class="hidden"
-                      />
-                      <button
-                        type="button"
-                        @click="($refs.taxReturnInput as any).click()"
-                        class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                        :style="{ color: buttonColor }"
-                      >
-                        {{ taxReturn ? 'Change File' : 'Upload Tax Return' }}
-                      </button>
-                      <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload your most recent tax return statement (max 10MB, PDF or image)</p>
 
-                      <div v-if="taxReturn" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
-                        <div class="flex items-center justify-between">
-                          <span class="text-sm text-gray-700 dark:text-slate-300">{{ taxReturn.name }} ({{ formatFileSize(taxReturn.size) }})</span>
-                          <button type="button" @click="removeTaxReturn" class="text-red-600 hover:text-red-800 text-sm">
-                            Remove
-                          </button>
-                        </div>
+                      <!-- Email option checkbox -->
+                      <div class="mb-4">
+                        <label class="flex items-start gap-3 cursor-pointer">
+                          <input
+                            v-model="formData.tax_return_will_email"
+                            type="checkbox"
+                            class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                          />
+                          <span class="text-sm text-gray-700 dark:text-slate-300">
+                            I will email my documents directly to PropertyGoose instead
+                          </span>
+                        </label>
                       </div>
-                      <div v-else-if="formData.tax_return_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                        <div class="flex items-center">
-                          <Check class="w-4 h-4 text-green-600 mr-2" />
-                          <span class="text-sm text-green-700">Tax return uploaded successfully</span>
+
+                      <!-- Email instructions (shown when checkbox is selected) -->
+                      <div v-if="formData.tax_return_will_email" class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                        <p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                          <strong>Email your tax return to:</strong>
+                        </p>
+                        <p class="text-sm font-mono bg-white dark:bg-slate-800 px-3 py-2 rounded border border-blue-200 dark:border-blue-700 mb-2">
+                          info@propertygoose.co.uk
+                        </p>
+                        <p class="text-sm text-blue-700 dark:text-blue-300 mb-1">
+                          <strong>Subject line:</strong> Tax Return - {{ referenceNumber || 'Your Reference Number' }}
+                        </p>
+                        <p class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                          Please send your documents before submitting this form. Our team will match them to your reference.
+                        </p>
+                      </div>
+
+                      <!-- File upload (hidden when email option is selected) -->
+                      <div v-if="!formData.tax_return_will_email">
+                        <input
+                          ref="taxReturnInput"
+                          type="file"
+                          @change="handleTaxReturnUpload"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          class="hidden"
+                        />
+                        <button
+                          type="button"
+                          @click="($refs.taxReturnInput as any).click()"
+                          class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                          :style="{ color: buttonColor }"
+                        >
+                          {{ taxReturn ? 'Change File' : 'Upload Tax Return' }}
+                        </button>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload your most recent tax return statement (max 10MB, PDF or image)</p>
+
+                        <div v-if="taxReturn" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
+                          <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-700 dark:text-slate-300">{{ taxReturn.name }} ({{ formatFileSize(taxReturn.size) }})</span>
+                            <button type="button" @click="removeTaxReturn" class="text-red-600 hover:text-red-800 text-sm">
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                        <div v-else-if="formData.tax_return_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                          <div class="flex items-center">
+                            <Check class="w-4 h-4 text-green-600 mr-2" />
+                            <span class="text-sm text-green-700">Tax return uploaded successfully</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1434,42 +1587,76 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Proof of Funds *</label>
-                  <input
-                    ref="proofOfFundsInput"
-                    type="file"
-                    @change="handleProofOfFundsUpload"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    class="hidden"
-                  />
-                  <button
-                    type="button"
-                    @click="($refs.proofOfFundsInput as any).click()"
-                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                    :style="{ color: buttonColor }"
-                  >
-                    {{ proofOfFunds ? 'Change Document' : 'Upload Document' }}
-                  </button>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload bank statement, pension statement, or investment portfolio statement (max 10MB, PDF/JPG/PNG)</p>
-                  <div class="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
-                    <p class="text-xs text-blue-800 dark:text-blue-300">
-                      <strong>Tip:</strong> Your statement only needs to display the inbound income/deposits. You may redact other transaction details for privacy. Alternatively, you can upload payslips if you have regular employment income.
+
+                  <!-- Email option checkbox -->
+                  <div class="mb-4">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                      <input
+                        v-model="formData.proof_of_funds_will_email"
+                        type="checkbox"
+                        class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                      />
+                      <span class="text-sm text-gray-700 dark:text-slate-300">
+                        I will email my documents directly to PropertyGoose instead
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Email instructions (shown when checkbox is selected) -->
+                  <div v-if="formData.proof_of_funds_will_email" class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                    <p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                      <strong>Email your proof of funds to:</strong>
+                    </p>
+                    <p class="text-sm font-mono bg-white dark:bg-slate-800 px-3 py-2 rounded border border-blue-200 dark:border-blue-700 mb-2">
+                      info@propertygoose.co.uk
+                    </p>
+                    <p class="text-sm text-blue-700 dark:text-blue-300 mb-1">
+                      <strong>Subject line:</strong> Proof of Funds - {{ referenceNumber || 'Your Reference Number' }}
+                    </p>
+                    <p class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                      Please send your documents before submitting this form. Our team will match them to your reference.
                     </p>
                   </div>
-                  <div v-if="proofOfFunds" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center">
-                        <FileText class="w-5 h-5 text-blue-600 mr-2" />
-                        <span class="text-sm text-gray-700 dark:text-slate-300">{{ proofOfFunds.name }} ({{ formatFileSize(proofOfFunds.size) }})</span>
-                      </div>
-                      <button type="button" @click="removeProofOfFunds" class="text-red-600 hover:text-red-800 text-sm">
-                        Remove
-                      </button>
+
+                  <!-- File upload (hidden when email option is selected) -->
+                  <div v-if="!formData.proof_of_funds_will_email">
+                    <input
+                      ref="proofOfFundsInput"
+                      type="file"
+                      @change="handleProofOfFundsUpload"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      class="hidden"
+                    />
+                    <button
+                      type="button"
+                      @click="($refs.proofOfFundsInput as any).click()"
+                      class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                      :style="{ color: buttonColor }"
+                    >
+                      {{ proofOfFunds ? 'Change Document' : 'Upload Document' }}
+                    </button>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload bank statement, pension statement, or investment portfolio statement (max 10MB, PDF/JPG/PNG)</p>
+                    <div class="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
+                      <p class="text-xs text-blue-800 dark:text-blue-300">
+                        <strong>Tip:</strong> Your statement only needs to display the inbound income/deposits. You may redact other transaction details for privacy. Alternatively, you can upload payslips if you have regular employment income.
+                      </p>
                     </div>
-                  </div>
-                  <div v-else-if="formData.proof_of_funds_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                    <div class="flex items-center">
-                      <Check class="w-4 h-4 text-green-600 mr-2" />
-                      <span class="text-sm text-green-700">Proof of funds uploaded successfully</span>
+                    <div v-if="proofOfFunds" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                          <FileText class="w-5 h-5 text-blue-600 mr-2" />
+                          <span class="text-sm text-gray-700 dark:text-slate-300">{{ proofOfFunds.name }} ({{ formatFileSize(proofOfFunds.size) }})</span>
+                        </div>
+                        <button type="button" @click="removeProofOfFunds" class="text-red-600 hover:text-red-800 text-sm">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <div v-else-if="formData.proof_of_funds_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                      <div class="flex items-center">
+                        <Check class="w-4 h-4 text-green-600 mr-2" />
+                        <span class="text-sm text-green-700">Proof of funds uploaded successfully</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1566,42 +1753,76 @@
 
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Proof of Additional Income or Savings *</label>
-                <input
-                  ref="proofOfAdditionalIncomeInput"
-                  type="file"
-                  @change="handleProofOfAdditionalIncomeUpload"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  class="hidden"
-                />
-                <button
-                  type="button"
-                  @click="($refs.proofOfAdditionalIncomeInput as any).click()"
-                  class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                  :style="{ color: buttonColor }"
-                >
-                  {{ proofOfAdditionalIncome ? 'Change Document' : 'Upload Document' }}
-                </button>
-                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload proof such as bank statements, savings account statements, investment portfolios, invoices, contracts, etc. (max 10MB, PDF/JPG/PNG)</p>
-                <div class="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
-                  <p class="text-xs text-blue-800 dark:text-blue-300">
-                    <strong>Tip:</strong> If uploading a bank statement, it only needs to display the inbound income. You may redact other transaction details for privacy.
+
+                <!-- Email option checkbox -->
+                <div class="mb-4">
+                  <label class="flex items-start gap-3 cursor-pointer">
+                    <input
+                      v-model="formData.proof_of_additional_income_will_email"
+                      type="checkbox"
+                      class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                    />
+                    <span class="text-sm text-gray-700 dark:text-slate-300">
+                      I will email my documents directly to PropertyGoose instead
+                    </span>
+                  </label>
+                </div>
+
+                <!-- Email instructions (shown when checkbox is selected) -->
+                <div v-if="formData.proof_of_additional_income_will_email" class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                  <p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                    <strong>Email your proof of additional income to:</strong>
+                  </p>
+                  <p class="text-sm font-mono bg-white dark:bg-slate-800 px-3 py-2 rounded border border-blue-200 dark:border-blue-700 mb-2">
+                    info@propertygoose.co.uk
+                  </p>
+                  <p class="text-sm text-blue-700 dark:text-blue-300 mb-1">
+                    <strong>Subject line:</strong> Additional Income - {{ referenceNumber || 'Your Reference Number' }}
+                  </p>
+                  <p class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                    Please send your documents before submitting this form. Our team will match them to your reference.
                   </p>
                 </div>
-                <div v-if="proofOfAdditionalIncome" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                      <FileText class="w-5 h-5 text-blue-600 mr-2" />
-                      <span class="text-sm text-gray-700 dark:text-slate-300">{{ proofOfAdditionalIncome.name }} ({{ formatFileSize(proofOfAdditionalIncome.size) }})</span>
-                    </div>
-                    <button type="button" @click="removeProofOfAdditionalIncome" class="text-red-600 hover:text-red-800 text-sm">
-                      Remove
-                    </button>
+
+                <!-- File upload (hidden when email option is selected) -->
+                <div v-if="!formData.proof_of_additional_income_will_email">
+                  <input
+                    ref="proofOfAdditionalIncomeInput"
+                    type="file"
+                    @change="handleProofOfAdditionalIncomeUpload"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    class="hidden"
+                  />
+                  <button
+                    type="button"
+                    @click="($refs.proofOfAdditionalIncomeInput as any).click()"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                    :style="{ color: buttonColor }"
+                  >
+                    {{ proofOfAdditionalIncome ? 'Change Document' : 'Upload Document' }}
+                  </button>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Upload proof such as bank statements, savings account statements, investment portfolios, invoices, contracts, etc. (max 10MB, PDF/JPG/PNG)</p>
+                  <div class="mt-2 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
+                    <p class="text-xs text-blue-800 dark:text-blue-300">
+                      <strong>Tip:</strong> If uploading a bank statement, it only needs to display the inbound income. You may redact other transaction details for privacy.
+                    </p>
                   </div>
-                </div>
-                <div v-else-if="formData.proof_of_additional_income_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                  <div class="flex items-center">
-                    <Check class="w-4 h-4 text-green-600 mr-2" />
-                    <span class="text-sm text-green-700">Proof of additional income uploaded successfully</span>
+                  <div v-if="proofOfAdditionalIncome" class="mt-4 p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center">
+                        <FileText class="w-5 h-5 text-blue-600 mr-2" />
+                        <span class="text-sm text-gray-700 dark:text-slate-300">{{ proofOfAdditionalIncome.name }} ({{ formatFileSize(proofOfAdditionalIncome.size) }})</span>
+                      </div>
+                      <button type="button" @click="removeProofOfAdditionalIncome" class="text-red-600 hover:text-red-800 text-sm">
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else-if="formData.proof_of_additional_income_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                    <div class="flex items-center">
+                      <Check class="w-4 h-4 text-green-600 mr-2" />
+                      <span class="text-sm text-green-700">Proof of additional income uploaded successfully</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1650,34 +1871,68 @@
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Bank Statement</h3>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Bank Statement (Last 3 months) *</label>
-                <input
-                  ref="bankStatementInput"
-                  type="file"
-                  @change="handleBankStatementUpload"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  class="hidden"
-                />
-                <button
-                  type="button"
-                  @click="($refs.bankStatementInput as any).click()"
-                  class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                  :style="{ color: buttonColor }"
-                >
-                  {{ bankStatement ? 'Change File' : 'Choose File' }}
-                </button>
-                <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
-                <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 dark:bg-slate-800 rounded">
-                  <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-700 dark:text-slate-300">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
-                    <button type="button" @click="removeBankStatement" class="text-red-600 hover:text-red-800">
-                      <X class="w-4 h-4" />
-                    </button>
-                  </div>
+
+                <!-- Email option checkbox -->
+                <div class="mb-4">
+                  <label class="flex items-start gap-3 cursor-pointer">
+                    <input
+                      v-model="formData.bank_statement_will_email"
+                      type="checkbox"
+                      class="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                    />
+                    <span class="text-sm text-gray-700 dark:text-slate-300">
+                      I will email my documents directly to PropertyGoose instead
+                    </span>
+                  </label>
                 </div>
-                <div v-else-if="formData.bank_statement_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                  <div class="flex items-center">
-                    <Check class="w-4 h-4 text-green-600 mr-2" />
-                    <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
+
+                <!-- Email instructions (shown when checkbox is selected) -->
+                <div v-if="formData.bank_statement_will_email" class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                  <p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                    <strong>Email your bank statement to:</strong>
+                  </p>
+                  <p class="text-sm font-mono bg-white dark:bg-slate-800 px-3 py-2 rounded border border-blue-200 dark:border-blue-700 mb-2">
+                    info@propertygoose.co.uk
+                  </p>
+                  <p class="text-sm text-blue-700 dark:text-blue-300 mb-1">
+                    <strong>Subject line:</strong> Bank Statement - {{ referenceNumber || 'Your Reference Number' }}
+                  </p>
+                  <p class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                    Please send your documents before submitting this form. Our team will match them to your reference.
+                  </p>
+                </div>
+
+                <!-- File upload (hidden when email option is selected) -->
+                <div v-if="!formData.bank_statement_will_email">
+                  <input
+                    ref="bankStatementInput"
+                    type="file"
+                    @change="handleBankStatementUpload"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    class="hidden"
+                  />
+                  <button
+                    type="button"
+                    @click="($refs.bankStatementInput as any).click()"
+                    class="px-4 py-2 text-sm font-semibold bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                    :style="{ color: buttonColor }"
+                  >
+                    {{ bankStatement ? 'Change File' : 'Choose File' }}
+                  </button>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">Required to verify financial capability (max 10MB, PDF/JPG/PNG)</p>
+                  <div v-if="bankStatement" class="mt-2 p-3 bg-gray-50 dark:bg-slate-800 rounded">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-gray-700 dark:text-slate-300">{{ bankStatement.name }} ({{ formatFileSize(bankStatement.size) }})</span>
+                      <button type="button" @click="removeBankStatement" class="text-red-600 hover:text-red-800">
+                        <X class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else-if="formData.bank_statement_path" class="mt-2 p-3 bg-green-50 rounded border border-green-200">
+                    <div class="flex items-center">
+                      <Check class="w-4 h-4 text-green-600 mr-2" />
+                      <span class="text-sm text-green-700">Bank statement uploaded successfully</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1932,9 +2187,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { CheckCircle, X, Check, FileText } from 'lucide-vue-next'
+import QRCode from 'qrcode'
 import PhoneInput from '../components/PhoneInput.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 import AddressAutocomplete from '../components/AddressAutocomplete.vue'
@@ -1944,7 +2200,7 @@ import { useGeolocationCapture } from '../composables/useGeolocationCapture'
 import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } from '../utils/countries'
 import { defaultBranding } from '../config/colors'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const LEGACY_LINK_MESSAGE = "This link has expired. We've sent a new one."
@@ -2504,6 +2760,19 @@ const videoElement = ref<HTMLVideoElement | null>(null)
 const canvasElement = ref<HTMLCanvasElement | null>(null)
 const cameraStream = ref<MediaStream | null>(null)
 const cameraError = ref<string>('')
+
+// Mobile capture state
+const mobileCaptureG = ref({
+  generating: false,
+  qrUrl: '',
+  qrDataUrl: '',
+  sessionId: '',
+  captureToken: '',
+  idPhotoUploaded: false,
+  selfieUploaded: false,
+  pollInterval: null as ReturnType<typeof setInterval> | null
+})
+
 const payslips = ref<File[]>([])
 const proofOfFunds = ref<File | null>(null)
 const proofOfAdditionalIncome = ref<File | null>(null)
@@ -2578,6 +2847,7 @@ const formData = ref({
   // Savings, Pensions or Investments Details
   savings_amount: null,
   proof_of_funds_path: '',
+  proof_of_funds_will_email: false, // Will email proof of funds instead of uploading
 
   // Employment Details
   employment_contract_type: '',
@@ -2616,6 +2886,7 @@ const formData = ref({
   accountant_email: '',
   accountant_phone: '',
   tax_return_path: '', // Tax return document path
+  tax_return_will_email: false, // Will email documents instead of uploading
 
   // Page 7: Additional Income or Savings
   has_additional_income: false,
@@ -2624,6 +2895,7 @@ const formData = ref({
   additional_income_amount: null,
   additional_income_frequency: '',
   proof_of_additional_income_path: '',
+  proof_of_additional_income_will_email: false, // Will email proof instead of uploading
 
   // Page 8: Adverse Credit
   has_adverse_credit: false,
@@ -2671,14 +2943,17 @@ const formData = ref({
   pension_monthly_amount: null as number | null,
   pension_provider: '',
   pension_statement_path: '',
+  pension_statement_will_email: false, // Will email pension statement instead of uploading
 
   // Landlord/Rental Income Details
   landlord_rental_monthly_amount: null as number | null,
   landlord_rental_bank_statement_path: '',
+  landlord_rental_bank_statement_will_email: false, // Will email bank statement instead of uploading
 
   // Savings & Assets (note: savings_amount already defined above at line 2847)
   other_assets: '',
   bank_statement_path: '',
+  bank_statement_will_email: false, // Will email bank statement instead of uploading
 
   // Financial Obligations (removed - not needed for guarantors as pass rate is 32x monthly rent)
   // monthly_mortgage_rent: null as number | null,
@@ -2717,6 +2992,78 @@ const handleLegacyToken = async (token: string) => {
   initialLoading.value = false
   return true
 }
+
+// ============================================================================
+// MOBILE CAPTURE (QR Code)
+// ============================================================================
+
+async function generateMobileCaptureQRGuarantor() {
+  const formToken = route.params.token as string
+  if (!formToken) return
+
+  mobileCaptureG.value.generating = true
+  try {
+    const response = await fetch(`${API_URL}/api/v2/mobile-capture/generate/${formToken}`, {
+      method: 'POST'
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      cameraError.value = data.error || 'Failed to generate QR code'
+      return
+    }
+
+    mobileCaptureG.value.captureToken = data.captureToken
+    mobileCaptureG.value.sessionId = data.sessionId
+    mobileCaptureG.value.qrUrl = data.captureUrl
+
+    mobileCaptureG.value.qrDataUrl = await QRCode.toDataURL(data.captureUrl, {
+      width: 256,
+      margin: 1,
+      color: { dark: '#1f2937', light: '#ffffff' }
+    })
+
+    // Start polling
+    if (mobileCaptureG.value.pollInterval) clearInterval(mobileCaptureG.value.pollInterval)
+    mobileCaptureG.value.pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/v2/mobile-capture/status/${formToken}/${mobileCaptureG.value.sessionId}`)
+        if (!res.ok) return
+        const status = await res.json()
+
+        mobileCaptureG.value.selfieUploaded = status.selfieUploaded
+
+        if (status.selfieUploaded) {
+          if (status.selfieUrl) {
+            formData.value.selfie_path = status.selfieUrl
+            selfiePreview.value = status.selfieUrl
+          }
+          cancelMobileCaptureGuarantor()
+        }
+      } catch { /* continue polling */ }
+    }, 3000)
+  } catch (err: any) {
+    cameraError.value = err.message || 'Failed to generate QR code'
+  } finally {
+    mobileCaptureG.value.generating = false
+  }
+}
+
+function cancelMobileCaptureGuarantor() {
+  if (mobileCaptureG.value.pollInterval) {
+    clearInterval(mobileCaptureG.value.pollInterval)
+    mobileCaptureG.value.pollInterval = null
+  }
+  mobileCaptureG.value.qrUrl = ''
+  mobileCaptureG.value.qrDataUrl = ''
+  mobileCaptureG.value.sessionId = ''
+  mobileCaptureG.value.captureToken = ''
+  mobileCaptureG.value.idPhotoUploaded = false
+  mobileCaptureG.value.selfieUploaded = false
+}
+
+onUnmounted(() => {
+  cancelMobileCaptureGuarantor()
+})
 
 onMounted(async () => {
   if (typeof window !== 'undefined') {
@@ -2981,6 +3328,17 @@ const capturePhoto = () => {
   }, 'image/jpeg', 0.9)
 }
 
+async function handleSelfieFileUploadGuarantor(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  selfiePreview.value = URL.createObjectURL(file)
+  selfie.value = file
+  // The file will be uploaded on form submission along with other files
+  input.value = ''
+}
+
 const removeSelfie = () => {
   selfie.value = null
   selfiePreview.value = null
@@ -3169,6 +3527,7 @@ const formatFileSize = (bytes: number) => {
 const agentCompanyName = computed(() => reference.value?.company_name || reference.value?.companies?.name || 'PropertyGoose')
 const agentCompanyEmail = computed(() => reference.value?.company_email || reference.value?.companies?.email || '')
 const agentCompanyPhone = computed(() => reference.value?.company_phone || reference.value?.companies?.phone || '')
+const referenceNumber = computed(() => reference.value?.id?.slice(0, 8)?.toUpperCase() || route.params.token?.toString().slice(0, 8)?.toUpperCase() || '')
 const agentCompanyAddress = computed(() => {
   const parts = [
     reference.value?.company_address || reference.value?.companies?.address || '',
@@ -3486,16 +3845,18 @@ const handlePageSubmit = async () => {
 
     // Validate proof of funds if savings/investments is selected
     if (formData.value.income_savings_pension_investments) {
-      if (!proofOfFunds.value && !formData.value.proof_of_funds_path) {
-        submitError.value = 'Please upload proof of funds (bank statement or investment portfolio)'
+      // Allow either file upload OR email option
+      if (!proofOfFunds.value && !formData.value.proof_of_funds_path && !formData.value.proof_of_funds_will_email) {
+        submitError.value = 'Please upload proof of funds (bank statement or investment portfolio), or select the option to email documents'
         return
       }
     }
 
     // Validate pension income if selected
     if (formData.value.income_pension) {
-      if (!pensionStatement.value && !formData.value.pension_statement_path) {
-        submitError.value = 'Please upload your pension statement'
+      // Allow either file upload OR email option
+      if (!pensionStatement.value && !formData.value.pension_statement_path && !formData.value.pension_statement_will_email) {
+        submitError.value = 'Please upload your pension statement, or select the option to email documents'
         return
       }
       if (!formData.value.pension_monthly_amount) {
@@ -3510,8 +3871,9 @@ const handlePageSubmit = async () => {
 
     // Validate landlord/rental income if selected
     if (formData.value.income_landlord_rental) {
-      if (!landlordRentalBankStatement.value && !formData.value.landlord_rental_bank_statement_path) {
-        submitError.value = 'Please upload bank statement showing rental income'
+      // Allow either file upload OR email option
+      if (!landlordRentalBankStatement.value && !formData.value.landlord_rental_bank_statement_path && !formData.value.landlord_rental_bank_statement_will_email) {
+        submitError.value = 'Please upload bank statement showing rental income, or select the option to email documents'
         return
       }
       if (!formData.value.landlord_rental_monthly_amount) {
@@ -3522,15 +3884,17 @@ const handlePageSubmit = async () => {
   } else if (currentPage.value === 8) {
     // Validate proof of additional income/savings if declared
     if (formData.value.has_additional_income) {
-      if (!proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path) {
-        submitError.value = 'Please upload proof of additional income or savings'
+      // Allow either file upload OR email option
+      if (!proofOfAdditionalIncome.value && !formData.value.proof_of_additional_income_path && !formData.value.proof_of_additional_income_will_email) {
+        submitError.value = 'Please upload proof of additional income or savings, or select the option to email documents'
         return
       }
     }
   } else if (currentPage.value === 9) {
     // Validate bank statement (mandatory for all guarantors)
-    if (!bankStatement.value && !formData.value.bank_statement_path) {
-      submitError.value = 'Please upload your bank statement (last 3 months). This is required to verify your financial capability.'
+    // Allow either file upload OR email option
+    if (!bankStatement.value && !formData.value.bank_statement_path && !formData.value.bank_statement_will_email) {
+      submitError.value = 'Please upload your bank statement (last 3 months), or select the option to email documents. This is required to verify your financial capability.'
       return
     }
     // If savings is selected and they've started entering a value, validate it's valid

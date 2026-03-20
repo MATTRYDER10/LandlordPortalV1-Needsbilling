@@ -251,7 +251,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '../../stores/auth'
 import { X, Trash2, CheckCircle, AlertTriangle, UserPlus, Plus, Search } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 interface LandlordAssignment {
   landlord_id?: string

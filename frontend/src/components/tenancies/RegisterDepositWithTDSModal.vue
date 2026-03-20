@@ -2,14 +2,22 @@
   <Teleport to="body">
     <div
       v-if="show"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
     >
-      <div class="bg-white dark:bg-slate-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <!-- Header -->
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-900">
+      <div class="bg-white dark:bg-slate-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-[#3DDBB3]/30">
+        <!-- TDS Branded Header -->
+        <div class="px-6 py-4 border-b border-[#3DDBB3]/30 sticky top-0 bg-gradient-to-r from-[#3DDBB3]/10 to-[#1E3A8A]/5 dark:from-[#3DDBB3]/20 dark:to-[#1E3A8A]/10">
           <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Register Deposit with TDS {{ schemeLabel }}</h3>
-            <button @click="handleClose" :disabled="isSubmitting" class="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300">
+            <div class="flex items-center gap-3">
+              <div class="flex items-center justify-center w-10 h-10 rounded-full bg-[#3DDBB3]">
+                <div class="w-3 h-3 rounded-full bg-[#1E3A8A]"></div>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-[#1E3A8A] dark:text-white">Register with TDS</h3>
+                <p class="text-xs text-gray-500 dark:text-slate-400">{{ schemeLabel }} Scheme</p>
+              </div>
+            </div>
+            <button @click="handleClose" :disabled="isSubmitting" class="text-gray-400 hover:text-[#1E3A8A] dark:text-slate-400 dark:hover:text-[#3DDBB3]">
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -18,33 +26,33 @@
         <!-- Success State -->
         <div v-if="registrationComplete" class="p-6">
           <div class="text-center py-8">
-            <div class="w-16 h-16 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle class="w-8 h-8 text-green-600 dark:text-green-400" />
+            <div class="w-16 h-16 bg-[#3DDBB3]/20 dark:bg-[#3DDBB3]/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle class="w-8 h-8 text-[#3DDBB3]" />
             </div>
-            <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Deposit Registered Successfully</h4>
+            <h4 class="text-xl font-semibold text-[#1E3A8A] dark:text-white mb-2">Deposit Protected</h4>
             <p class="text-gray-600 dark:text-slate-400 mb-4">
               The deposit has been registered with TDS {{ schemeLabel }}.
             </p>
-            <div class="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 inline-block">
+            <div class="bg-[#3DDBB3]/10 dark:bg-[#3DDBB3]/20 border border-[#3DDBB3]/30 rounded-lg p-4 inline-block">
               <p class="text-sm text-gray-500 dark:text-slate-400">Deposit Assurance Number (DAN)</p>
-              <p class="text-2xl font-mono font-bold text-primary">{{ registrationDAN }}</p>
+              <p class="text-2xl font-mono font-bold text-[#1E3A8A] dark:text-[#3DDBB3]">{{ registrationDAN }}</p>
             </div>
             <p class="text-sm text-gray-500 dark:text-slate-400 mt-4">
               TDS will contact the tenant by email with deposit protection details.
             </p>
           </div>
-          <div class="flex justify-center gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
+          <div class="flex justify-center gap-3 pt-4 border-t border-[#3DDBB3]/30">
             <button
               @click="handleDownloadDPC"
               :disabled="downloadingDPC"
-              class="px-4 py-2 text-sm font-medium text-primary border border-primary hover:bg-primary/5 dark:hover:bg-primary/10 rounded-lg flex items-center gap-2"
+              class="px-4 py-2 text-sm font-medium text-[#1E3A8A] border border-[#3DDBB3] hover:bg-[#3DDBB3]/10 dark:text-[#3DDBB3] dark:hover:bg-[#3DDBB3]/20 rounded-lg flex items-center gap-2"
             >
               <Download class="w-4 h-4" />
-              {{ downloadingDPC ? 'Downloading...' : 'Download DPC Certificate' }}
+              {{ downloadingDPC ? 'Downloading...' : 'Download Certificate' }}
             </button>
             <button
               @click="handleClose"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg"
+              class="px-4 py-2 text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 rounded-lg"
             >
               Done
             </button>
@@ -57,7 +65,7 @@
             <div class="w-16 h-16 bg-amber-100 dark:bg-amber-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertTriangle class="w-8 h-8 text-amber-600 dark:text-amber-400" />
             </div>
-            <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Registration Pending</h4>
+            <h4 class="text-xl font-semibold text-[#1E3A8A] dark:text-white mb-2">Registration Pending</h4>
             <p class="text-gray-600 dark:text-slate-400 mb-4">
               TDS is taking longer than expected to process this deposit. Your registration has been saved and will complete automatically.
             </p>
@@ -69,22 +77,22 @@
                 <li>You can check the TDS portal for immediate status</li>
               </ul>
             </div>
-            <div class="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 inline-block">
+            <div class="bg-[#3DDBB3]/10 dark:bg-[#3DDBB3]/20 border border-[#3DDBB3]/30 rounded-lg p-4 inline-block">
               <p class="text-sm text-gray-500 dark:text-slate-400">Batch Reference</p>
-              <p class="text-lg font-mono font-bold text-gray-700 dark:text-slate-300">{{ pendingBatchId }}</p>
+              <p class="text-lg font-mono font-bold text-[#1E3A8A] dark:text-[#3DDBB3]">{{ pendingBatchId }}</p>
             </div>
           </div>
-          <div class="flex justify-center gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
+          <div class="flex justify-center gap-3 pt-4 border-t border-[#3DDBB3]/30">
             <a
               href="https://www.tenancydepositscheme.com"
               target="_blank"
-              class="px-4 py-2 text-sm font-medium text-primary border border-primary hover:bg-primary/5 dark:hover:bg-primary/10 rounded-lg flex items-center gap-2"
+              class="px-4 py-2 text-sm font-medium text-[#1E3A8A] border border-[#3DDBB3] hover:bg-[#3DDBB3]/10 dark:text-[#3DDBB3] dark:hover:bg-[#3DDBB3]/20 rounded-lg flex items-center gap-2"
             >
               Open TDS Portal
             </a>
             <button
               @click="handleClose"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg"
+              class="px-4 py-2 text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 rounded-lg"
             >
               Close
             </button>
@@ -386,12 +394,12 @@
 
           <!-- Submitting State -->
           <div v-if="isSubmitting" class="mb-6">
-            <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+            <div class="bg-[#3DDBB3]/10 dark:bg-[#3DDBB3]/20 border border-[#3DDBB3]/30 rounded-lg p-4">
               <div class="flex items-center gap-3">
-                <Loader2 class="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
+                <Loader2 class="w-5 h-5 text-[#3DDBB3] animate-spin" />
                 <div>
-                  <p class="text-sm font-medium text-blue-800 dark:text-blue-200">{{ submittingStatus }}</p>
-                  <p class="text-xs text-blue-600 dark:text-blue-400">Please wait...</p>
+                  <p class="text-sm font-medium text-[#1E3A8A] dark:text-white">{{ submittingStatus }}</p>
+                  <p class="text-xs text-gray-500 dark:text-slate-400">Please wait...</p>
                 </div>
               </div>
             </div>
@@ -399,7 +407,7 @@
         </div>
 
         <!-- Footer -->
-        <div v-if="!registrationComplete && !registrationPending" class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3 sticky bottom-0 bg-white dark:bg-slate-900">
+        <div v-if="!registrationComplete && !registrationPending" class="px-6 py-4 border-t border-[#3DDBB3]/30 flex justify-end gap-3 sticky bottom-0 bg-white dark:bg-slate-900">
           <button
             type="button"
             @click="handleClose"
@@ -411,7 +419,7 @@
           <button
             @click="handleSubmit"
             :disabled="isSubmitting || !isFormValid"
-            class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg disabled:opacity-50 flex items-center gap-2"
+            class="px-4 py-2 text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 rounded-lg disabled:opacity-50 flex items-center gap-2"
           >
             <Loader2 v-if="isSubmitting" class="w-4 h-4 animate-spin" />
             {{ isSubmitting ? 'Registering...' : 'Confirm & Register' }}
@@ -449,6 +457,14 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
+
+// Reset state when modal opens
+watch(() => props.show, (newVal) => {
+  if (newVal) {
+    console.log('[RegisterDepositWithTDSModal] Modal opened for tenancy:', props.tenancy?.id)
+  }
+}, { immediate: true })
+
 // State
 const isSubmitting = ref(false)
 const submittingStatus = ref('')
@@ -681,12 +697,24 @@ const validateForm = (): boolean => {
 }
 
 const handleSubmit = async () => {
-  if (!validateForm()) return
-  if (!props.tenancy) return
+  console.log('[RegisterDepositWithTDSModal] handleSubmit called')
+  toast.info('Submitting to TDS...')
+
+  if (!validateForm()) {
+    console.log('[RegisterDepositWithTDSModal] Form validation failed:', validationErrors.value)
+    toast.error('Please fix form errors: ' + validationErrors.value.join(', '))
+    return
+  }
+  if (!props.tenancy) {
+    console.log('[RegisterDepositWithTDSModal] No tenancy provided')
+    toast.error('No tenancy data available')
+    return
+  }
 
   isSubmitting.value = true
   errorMessage.value = ''
   submittingStatus.value = 'Submitting to TDS...'
+  console.log('[RegisterDepositWithTDSModal] Starting API call to TDS...')
 
   try {
     const token = authStore.session?.access_token
@@ -698,19 +726,43 @@ const handleSubmit = async () => {
       ? `${API_URL}/api/tds/insured/create-deposit`
       : `${API_URL}/api/tds/custodial/create-deposit`
 
+    // Build headers including branch ID for multi-branch support
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
+
     // Create deposit
+    console.log('[RegisterDepositWithTDSModal] Calling:', createEndpoint)
+    console.log('[RegisterDepositWithTDSModal] Payload:', {
+      tenancyId: props.tenancy.id,
+      depositReceivedDate: formData.value.deposit.receivedDate,
+      furnishedStatus: formData.value.deposit.furnished
+    })
+    console.log('[RegisterDepositWithTDSModal] X-Branch-Id:', activeBranchId || 'not set')
+
+    // Send ALL form data - don't rely on backend to pull from linked tables
     const createResponse = await fetch(createEndpoint, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({
         tenancyId: props.tenancy.id,
         depositReceivedDate: formData.value.deposit.receivedDate,
-        furnishedStatus: formData.value.deposit.furnished
+        furnishedStatus: formData.value.deposit.furnished,
+        // Send the actual form data
+        property: formData.value.property,
+        tenancy: formData.value.tenancy,
+        deposit: formData.value.deposit,
+        landlord: formData.value.landlord,
+        tenants: formData.value.tenants
       })
     })
+
+    console.log('[RegisterDepositWithTDSModal] Response status:', createResponse.status)
 
     // Handle non-JSON responses gracefully
     let createData: any
@@ -735,15 +787,21 @@ const handleSubmit = async () => {
     // For Insured, we use apiReference; for Custodial, we use batchId
     const referenceId = createData.apiReference || createData.batchId
 
-    // Emit pending and close immediately - drawer will handle polling
-    toast.info('Deposit submitted to TDS. Processing in background...')
+    // Show pending state in modal with the batch reference
+    pendingBatchId.value = referenceId
+    registrationPending.value = true
+    isSubmitting.value = false
+    submittingStatus.value = ''
+
+    // Emit pending event so drawer starts polling, but don't close modal yet
     emit('pending', referenceId)
-    emit('close')
+    toast.success('Deposit submitted to TDS successfully!')
+
+    // The modal will stay open showing pending state - user can click Close when ready
   } catch (err: any) {
     console.error('TDS registration error:', err)
     errorMessage.value = err.message || 'Failed to register deposit'
     toast.error(err.message || 'Registration failed')
-  } finally {
     isSubmitting.value = false
     submittingStatus.value = ''
   }
@@ -758,11 +816,18 @@ const handleDownloadDPC = async () => {
     const token = authStore.session?.access_token
     if (!token) throw new Error('Not authenticated')
 
+    // Build headers including branch ID for multi-branch support
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`
+    }
+    const activeBranchId = localStorage.getItem('activeBranchId')
+    if (activeBranchId) {
+      headers['X-Branch-Id'] = activeBranchId
+    }
+
     // Use unified certificate endpoint
     const response = await fetch(`${API_URL}/api/tds/certificate/${registrationDAN.value}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers
     })
 
     if (!response.ok) {

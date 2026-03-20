@@ -15,6 +15,10 @@ export default defineConfig({
   },
   server: {
     host: true, // Listen on all network interfaces (0.0.0.0)
+    hmr: {
+      clientPort: 443,
+      protocol: 'wss'
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
@@ -29,7 +33,8 @@ export default defineConfig({
       'app.propertygoose.co.uk',
       '.ngrok-free.app',
       '.ngrok-free.dev',
-      '.ngrok.io'
+      '.ngrok.io',
+      '.ngrok.app'
     ]
   },
   preview: {

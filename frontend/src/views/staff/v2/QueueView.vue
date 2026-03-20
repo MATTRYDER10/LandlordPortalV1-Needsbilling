@@ -127,7 +127,7 @@ import {
   FileText
 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -149,6 +149,7 @@ const queueTitle = computed(() => {
     RTR: 'Right to Rent',
     INCOME: 'Income',
     RESIDENTIAL: 'Residential',
+    ADDRESS: 'Address', // Guarantor address verification
     CREDIT: 'Credit',
     AML: 'AML'
   }
@@ -161,6 +162,7 @@ const queueIcon = computed(() => {
     RTR: Home,
     INCOME: Briefcase,
     RESIDENTIAL: Building2,
+    ADDRESS: Home, // Guarantor address verification
     CREDIT: CreditCard,
     AML: Shield
   }

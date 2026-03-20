@@ -6,10 +6,11 @@
  */
 
 import { Router } from 'express'
+import { randomBytes } from 'crypto'
 import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../../middleware/auth'
 import { supabase } from '../../config/supabase'
 import { encrypt, decrypt } from '../../services/encryption'
-import { sendTenantOfferRequest, sendLandlordOfferSummary } from '../../services/emailService'
+import { sendTenantOfferRequest, sendLandlordOfferSummary, sendEmail, loadEmailTemplate } from '../../services/emailService'
 import { shouldUseV2 } from '../../services/v2/referenceServiceV2'
 import { matchOrCreateProperty } from '../../services/propertyMatchingService'
 import { auditOfferSent } from '../../services/propertyAuditService'
@@ -406,6 +407,341 @@ router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
 })
 
 // ============================================================================
+// LANDLORD DECISION ENDPOINTS (PUBLIC - no auth required)
+// These MUST be defined before /:id to avoid route conflicts
+// ============================================================================
+
+/**
+ * Get offer(s) by landlord decision token (PUBLIC)
+ * Supports both single-offer tokens and group tokens (multiple offers)
+ */
+router.get('/landlord-decision/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' })
+    }
+
+    // Try single-offer token first, then group token
+    let offers: any[] = []
+
+    const offerSelect = `
+        id,
+        property_address_encrypted,
+        property_city_encrypted,
+        property_postcode_encrypted,
+        offered_rent_amount,
+        proposed_move_in_date,
+        proposed_tenancy_length_months,
+        deposit_amount,
+        deposit_replacement_requested,
+        bills_included,
+        special_conditions_encrypted,
+        status,
+        landlord_decision,
+        landlord_decision_at,
+        landlord_decision_reason,
+        landlord_decision_token,
+        company_id,
+        tenant_offer_tenants (
+          id,
+          tenant_order,
+          name_encrypted,
+          annual_income_encrypted,
+          job_title_encrypted,
+          rent_share
+        )
+    `
+
+    // Try single-offer token first (use maybeSingle to avoid error on no match)
+    const { data: singleOffer, error: singleError } = await supabase
+      .from('tenant_offers')
+      .select(offerSelect)
+      .eq('landlord_decision_token', token)
+      .maybeSingle()
+
+    console.log(`[V2 Offers] Landlord decision lookup - single token match: ${singleOffer ? 'YES' : 'NO'}${singleError ? ', error: ' + singleError.message : ''}`)
+
+    if (singleOffer) {
+      offers = [singleOffer]
+    } else {
+      // Try group token
+      const { data: groupOffers, error: groupError } = await supabase
+        .from('tenant_offers')
+        .select(offerSelect)
+        .eq('landlord_group_token', token)
+        .order('created_at', { ascending: true })
+
+      console.log(`[V2 Offers] Landlord decision lookup - group token match: ${groupOffers?.length || 0} offers${groupError ? ', error: ' + groupError.message : ''}`)
+
+      if (groupOffers && groupOffers.length > 0) {
+        offers = groupOffers
+      }
+    }
+
+    if (offers.length === 0) {
+      return res.status(404).json({ error: 'Offer not found or link expired' })
+    }
+
+    // Check if ALL have been decided already
+    const allDecided = offers.every(o => o.landlord_decision)
+    if (allDecided) {
+      return res.json({
+        alreadyDecided: true,
+        decisions: offers.map(o => ({
+          offerId: o.id,
+          decision: o.landlord_decision,
+          decidedAt: o.landlord_decision_at
+        }))
+      })
+    }
+
+    // Get company name
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name_encrypted')
+      .eq('id', offers[0].company_id)
+      .single()
+
+    const companyName = company?.name_encrypted
+      ? decrypt(company.name_encrypted)
+      : 'PropertyGoose'
+
+    // Build offer data with full details
+    const offerDataList = offers.map(offer => {
+      const tenants = (offer.tenant_offer_tenants || [])
+        .sort((a: any, b: any) => a.tenant_order - b.tenant_order)
+        .map((tenant: any) => {
+          const fullName = tenant.name_encrypted ? decrypt(tenant.name_encrypted) : 'Tenant'
+          const firstName = fullName?.split(' ')[0] || 'Tenant'
+          const annualIncomeStr = tenant.annual_income_encrypted
+            ? decrypt(tenant.annual_income_encrypted)
+            : null
+          const annualIncome = annualIncomeStr ? parseFloat(annualIncomeStr) : undefined
+          const jobTitle = tenant.job_title_encrypted
+            ? decrypt(tenant.job_title_encrypted)
+            : undefined
+
+          return {
+            firstName,
+            jobTitle: jobTitle || undefined,
+            annualIncome: annualIncome || undefined,
+            rentShare: tenant.rent_share || undefined
+          }
+        })
+
+      return {
+        id: offer.id,
+        token: offer.landlord_decision_token || null,
+        propertyAddress: offer.property_address_encrypted ? decrypt(offer.property_address_encrypted) : '',
+        propertyCity: offer.property_city_encrypted ? decrypt(offer.property_city_encrypted) : '',
+        propertyPostcode: offer.property_postcode_encrypted ? decrypt(offer.property_postcode_encrypted) : '',
+        monthlyRent: offer.offered_rent_amount || 0,
+        moveInDate: offer.proposed_move_in_date || null,
+        tenancyLengthMonths: offer.proposed_tenancy_length_months || null,
+        depositAmount: offer.deposit_amount || null,
+        depositReplacementRequested: offer.deposit_replacement_requested || false,
+        billsIncluded: offer.bills_included || false,
+        specialConditions: offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : null,
+        landlordDecision: offer.landlord_decision || null,
+        landlordDecisionAt: offer.landlord_decision_at || null,
+        landlordDecisionReason: offer.landlord_decision_reason || null,
+        tenants
+      }
+    })
+
+    // For single offer, return backwards-compatible shape
+    if (offers.length === 1) {
+      res.json({
+        alreadyDecided: false,
+        multiOffer: false,
+        offer: offerDataList[0],
+        companyName
+      })
+    } else {
+      res.json({
+        alreadyDecided: false,
+        multiOffer: true,
+        offers: offerDataList,
+        companyName
+      })
+    }
+  } catch (error: any) {
+    console.error('[V2 Offers] Error getting landlord decision offer:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Submit landlord decision for a single offer (PUBLIC)
+ */
+router.post('/landlord-decision/:token', async (req, res) => {
+  try {
+    const { token } = req.params
+    const { decision, reason, offerId } = req.body
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' })
+    }
+
+    if (!decision || !['approved', 'declined'].includes(decision)) {
+      return res.status(400).json({ error: 'Decision must be "approved" or "declined"' })
+    }
+
+    if (decision === 'declined' && !reason) {
+      return res.status(400).json({ error: 'Reason is required when declining' })
+    }
+
+    // Find the offer - either by individual token or by offerId + group token
+    let offer: any = null
+
+    if (offerId) {
+      // Multi-offer: verify the offerId belongs to this group token
+      const { data } = await supabase
+        .from('tenant_offers')
+        .select('id, landlord_decision, company_id, property_address_encrypted, created_by')
+        .eq('id', offerId)
+        .eq('landlord_group_token', token)
+        .single()
+      offer = data
+
+      // Also try individual token match
+      if (!offer) {
+        const { data: singleData } = await supabase
+          .from('tenant_offers')
+          .select('id, landlord_decision, company_id, property_address_encrypted, created_by')
+          .eq('id', offerId)
+          .eq('landlord_decision_token', token)
+          .single()
+        offer = singleData
+      }
+    } else {
+      // Single-offer: use the token directly
+      const { data } = await supabase
+        .from('tenant_offers')
+        .select('id, landlord_decision, company_id, property_address_encrypted, created_by')
+        .eq('landlord_decision_token', token)
+        .single()
+      offer = data
+    }
+
+    if (!offer) {
+      return res.status(404).json({ error: 'Offer not found or link expired' })
+    }
+
+    if (offer.landlord_decision) {
+      return res.status(400).json({ error: 'Decision has already been submitted for this offer' })
+    }
+
+    // Update the offer with landlord decision
+    const { error: updateError } = await supabase
+      .from('tenant_offers')
+      .update({
+        landlord_decision: decision,
+        landlord_decision_reason: decision === 'declined' ? reason : null,
+        landlord_decision_at: new Date().toISOString()
+      })
+      .eq('id', offer.id)
+
+    if (updateError) {
+      console.error('[V2 Offers] Error updating landlord decision:', updateError)
+      return res.status(500).json({ error: 'Failed to save decision' })
+    }
+
+    // Notify the agent/user who created the offer
+    try {
+      const propertyAddress = offer.property_address_encrypted
+        ? (decrypt(offer.property_address_encrypted) || 'Property')
+        : 'Property'
+
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name_encrypted, logo_url')
+        .eq('id', offer.company_id)
+        .single()
+
+      const companyName = company?.name_encrypted
+        ? (decrypt(company.name_encrypted) || 'PropertyGoose')
+        : 'PropertyGoose'
+      const agentLogoUrl = company?.logo_url || 'https://app.propertygoose.co.uk/PropertyGooseLogo.png'
+
+      let agentEmail: string | null = null
+      if (offer.created_by) {
+        const { data: member } = await supabase
+          .from('company_members')
+          .select('email_encrypted')
+          .eq('user_id', offer.created_by)
+          .eq('company_id', offer.company_id)
+          .single()
+
+        if (member?.email_encrypted) {
+          agentEmail = decrypt(member.email_encrypted)
+        }
+      }
+
+      if (!agentEmail) {
+        const { data: members } = await supabase
+          .from('company_members')
+          .select('email_encrypted')
+          .eq('company_id', offer.company_id)
+          .limit(1)
+
+        if (members && members.length > 0 && members[0].email_encrypted) {
+          agentEmail = decrypt(members[0].email_encrypted)
+        }
+      }
+
+      if (agentEmail) {
+        const decisionLabel = decision === 'approved' ? 'Approved' : 'Declined'
+        const decisionColor = decision === 'approved' ? '#16a34a' : '#dc2626'
+        const decisionBg = decision === 'approved' ? '#f0fdf4' : '#fef2f2'
+        const decisionBorder = decision === 'approved' ? '#bbf7d0' : '#fecaca'
+        const decisionIcon = decision === 'approved' ? '✓' : '✗'
+        const reasonHtml = decision === 'declined' && reason
+          ? `<div style="margin: 16px 0 0; padding: 12px; background-color: #fef2f2; border-radius: 6px; border: 1px solid #fecaca;">
+              <p style="margin: 0; font-size: 13px; font-weight: 600; color: #991b1b;">Reason for declining:</p>
+              <p style="margin: 4px 0 0; font-size: 14px; color: #dc2626; font-style: italic;">"${reason}"</p>
+            </div>`
+          : ''
+
+        const html = loadEmailTemplate('landlord-decision-notification', {
+          AgentLogoUrl: agentLogoUrl,
+          CompanyName: companyName,
+          PropertyAddress: propertyAddress,
+          DecisionLabel: decisionLabel,
+          DecisionColor: decisionColor,
+          DecisionBg: decisionBg,
+          DecisionBorder: decisionBorder,
+          DecisionIcon: decisionIcon,
+          ReasonHtml: reasonHtml
+        })
+
+        await sendEmail({
+          to: agentEmail,
+          subject: `Landlord ${decisionLabel} Offer - ${propertyAddress}`,
+          html
+        })
+
+        console.log(`[V2 Offers] Landlord decision notification sent to agent ${agentEmail}`)
+      }
+    } catch (notifyError) {
+      console.error('[V2 Offers] Error notifying agent of landlord decision:', notifyError)
+    }
+
+    res.json({
+      success: true,
+      message: decision === 'approved'
+        ? 'Thank you! Your approval has been recorded.'
+        : 'Thank you! Your response has been recorded.'
+    })
+  } catch (error: any) {
+    console.error('[V2 Offers] Error submitting landlord decision:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
 // GET OFFERS
 // ============================================================================
 
@@ -709,24 +1045,63 @@ router.post('/send-to-landlord', authenticateToken, async (req: AuthRequest, res
           }
         })
 
-      // Use offered_rent_amount (tenant's offered amount) or fall back to rent_amount
-      const monthlyRent = offer.offered_rent_amount || offer.rent_amount || 0
+      const monthlyRent = offer.offered_rent_amount || 0
       // Use proposed_move_in_date (tenant's proposed date) or fall back to move_in_date
-      const moveInDate = offer.proposed_move_in_date || offer.move_in_date || undefined
+      const moveInDate = offer.proposed_move_in_date || undefined
 
       return {
         monthlyRent,
         moveInDate,
+        tenancyLengthMonths: offer.proposed_tenancy_length_months || null,
+        depositAmount: offer.deposit_amount || null,
+        depositReplacementRequested: offer.deposit_replacement_requested || false,
+        billsIncluded: offer.bills_included || false,
+        specialConditions: offer.special_conditions_encrypted ? decrypt(offer.special_conditions_encrypted) : null,
         status: offer.status || 'PENDING',
         tenants
       }
     })
 
-    // Get decision token from first offer (for single offer scenarios)
-    // For multiple offers, landlord can only respond to first one via email
-    const decisionToken = offers.length === 1 ? firstOffer.landlord_decision_token : null
+    // Generate decision tokens for landlord
+    let decisionToken: string | null = null
+    if (offers.length === 1) {
+      // Single offer: use individual token
+      decisionToken = randomBytes(32).toString('hex')
+      const { error: tokenError } = await supabase
+        .from('tenant_offers')
+        .update({
+          landlord_decision_token: decisionToken,
+          landlord_sent_at: new Date().toISOString()
+        })
+        .eq('id', firstOffer.id)
+      if (tokenError) {
+        console.error('[V2 Offers] Error saving decision token:', tokenError)
+      } else {
+        console.log(`[V2 Offers] Decision token saved for offer ${firstOffer.id}: ${decisionToken.substring(0, 8)}...`)
+      }
+    } else {
+      // Multiple offers: use a shared group token, plus individual tokens for each
+      const groupToken = randomBytes(32).toString('hex')
+      decisionToken = groupToken
+      for (const offer of offers) {
+        const individualToken = randomBytes(32).toString('hex')
+        const { error: tokenError } = await supabase
+          .from('tenant_offers')
+          .update({
+            landlord_decision_token: individualToken,
+            landlord_group_token: groupToken,
+            landlord_sent_at: new Date().toISOString()
+          })
+          .eq('id', offer.id)
+        if (tokenError) {
+          console.error(`[V2 Offers] Error saving group token for offer ${offer.id}:`, tokenError)
+        }
+      }
+      console.log(`[V2 Offers] Group token saved for ${offers.length} offers: ${groupToken.substring(0, 8)}...`)
+    }
 
     // Send email
+    console.log(`[V2 Offers] Sending email with decisionToken: ${decisionToken}`)
     await sendLandlordOfferSummary(
       landlordEmail,
       landlordName,
@@ -848,176 +1223,6 @@ router.post('/landlord-email', authenticateToken, async (req: AuthRequest, res) 
     })
   } catch (error: any) {
     console.error('[V2 Offers] Error getting landlord email:', error)
-    res.status(500).json({ error: error.message })
-  }
-})
-
-// ============================================================================
-// LANDLORD DECISION ENDPOINTS (PUBLIC - no auth required)
-// ============================================================================
-
-/**
- * Get offer details by landlord decision token (PUBLIC)
- * Used by the landlord decision page
- */
-router.get('/landlord-decision/:token', async (req, res) => {
-  try {
-    const { token } = req.params
-
-    if (!token) {
-      return res.status(400).json({ error: 'Token is required' })
-    }
-
-    // Get offer by landlord_decision_token
-    const { data: offer, error } = await supabase
-      .from('tenant_offers')
-      .select(`
-        id,
-        property_address_encrypted,
-        property_city_encrypted,
-        property_postcode_encrypted,
-        offered_rent_amount,
-        rent_amount,
-        proposed_move_in_date,
-        move_in_date,
-        status,
-        landlord_decision,
-        landlord_decision_at,
-        company_id,
-        tenant_offer_tenants (
-          id,
-          tenant_order,
-          name_encrypted,
-          annual_income_encrypted,
-          job_title_encrypted,
-          rent_share
-        )
-      `)
-      .eq('landlord_decision_token', token)
-      .single()
-
-    if (error || !offer) {
-      return res.status(404).json({ error: 'Offer not found or link expired' })
-    }
-
-    // Check if already decided
-    if (offer.landlord_decision) {
-      return res.json({
-        alreadyDecided: true,
-        decision: offer.landlord_decision,
-        decidedAt: offer.landlord_decision_at
-      })
-    }
-
-    // Get company name
-    const { data: company } = await supabase
-      .from('companies')
-      .select('name_encrypted')
-      .eq('id', offer.company_id)
-      .single()
-
-    const companyName = company?.name_encrypted
-      ? decrypt(company.name_encrypted)
-      : 'PropertyGoose'
-
-    // Build tenant info (first names only, job, salary - NO contact details)
-    const tenants = (offer.tenant_offer_tenants || [])
-      .sort((a: any, b: any) => a.tenant_order - b.tenant_order)
-      .map((tenant: any) => {
-        const fullName = tenant.name_encrypted ? decrypt(tenant.name_encrypted) : 'Tenant'
-        const firstName = fullName?.split(' ')[0] || 'Tenant'
-        const annualIncomeStr = tenant.annual_income_encrypted
-          ? decrypt(tenant.annual_income_encrypted)
-          : null
-        const annualIncome = annualIncomeStr ? parseFloat(annualIncomeStr) : undefined
-        const jobTitle = tenant.job_title_encrypted
-          ? decrypt(tenant.job_title_encrypted)
-          : undefined
-
-        return {
-          firstName,
-          jobTitle: jobTitle || undefined,
-          annualIncome: annualIncome || undefined,
-          rentShare: tenant.rent_share || undefined
-        }
-      })
-
-    res.json({
-      alreadyDecided: false,
-      offer: {
-        propertyAddress: offer.property_address_encrypted ? decrypt(offer.property_address_encrypted) : '',
-        propertyCity: offer.property_city_encrypted ? decrypt(offer.property_city_encrypted) : '',
-        propertyPostcode: offer.property_postcode_encrypted ? decrypt(offer.property_postcode_encrypted) : '',
-        monthlyRent: offer.offered_rent_amount || offer.rent_amount || 0,
-        moveInDate: offer.proposed_move_in_date || offer.move_in_date || null,
-        tenants
-      },
-      companyName
-    })
-  } catch (error: any) {
-    console.error('[V2 Offers] Error getting landlord decision offer:', error)
-    res.status(500).json({ error: error.message })
-  }
-})
-
-/**
- * Submit landlord decision (PUBLIC)
- */
-router.post('/landlord-decision/:token', async (req, res) => {
-  try {
-    const { token } = req.params
-    const { decision, reason } = req.body
-
-    if (!token) {
-      return res.status(400).json({ error: 'Token is required' })
-    }
-
-    if (!decision || !['approved', 'declined'].includes(decision)) {
-      return res.status(400).json({ error: 'Decision must be "approved" or "declined"' })
-    }
-
-    if (decision === 'declined' && !reason) {
-      return res.status(400).json({ error: 'Reason is required when declining' })
-    }
-
-    // Get offer to verify it exists and hasn't been decided
-    const { data: offer, error: offerError } = await supabase
-      .from('tenant_offers')
-      .select('id, landlord_decision, company_id, property_address_encrypted')
-      .eq('landlord_decision_token', token)
-      .single()
-
-    if (offerError || !offer) {
-      return res.status(404).json({ error: 'Offer not found or link expired' })
-    }
-
-    if (offer.landlord_decision) {
-      return res.status(400).json({ error: 'Decision has already been submitted' })
-    }
-
-    // Update the offer with landlord decision
-    const { error: updateError } = await supabase
-      .from('tenant_offers')
-      .update({
-        landlord_decision: decision,
-        landlord_decision_reason: decision === 'declined' ? reason : null,
-        landlord_decision_at: new Date().toISOString()
-      })
-      .eq('id', offer.id)
-
-    if (updateError) {
-      console.error('[V2 Offers] Error updating landlord decision:', updateError)
-      return res.status(500).json({ error: 'Failed to save decision' })
-    }
-
-    res.json({
-      success: true,
-      message: decision === 'approved'
-        ? 'Thank you! Your approval has been recorded.'
-        : 'Thank you! Your response has been recorded.'
-    })
-  } catch (error: any) {
-    console.error('[V2 Offers] Error submitting landlord decision:', error)
     res.status(500).json({ error: error.message })
   }
 })

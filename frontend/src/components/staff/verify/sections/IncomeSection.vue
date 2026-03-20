@@ -1025,7 +1025,7 @@ const confirmIncome = async () => {
   confirmLoading.value = true
 
   try {
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const API_BASE = import.meta.env.VITE_API_URL ?? ''
     const response = await fetch(`${API_BASE}/api/verify/confirm-income/${props.referenceId}`, {
       method: 'POST',
       headers: {

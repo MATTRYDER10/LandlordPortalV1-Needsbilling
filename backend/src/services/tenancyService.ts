@@ -109,7 +109,7 @@ export interface PaginationOptions {
 
 export type TenancyType = 'ast' | 'periodic' | 'company_let' | 'lodger' | 'license'
 export type TenancyStatus = 'pending' | 'active' | 'notice_given' | 'ended' | 'terminated' | 'expired'
-export type DepositScheme = 'dps' | 'mydeposits' | 'tds' | 'reposit' | 'custodial' | 'insured'
+export type DepositScheme = 'dps' | 'dps_custodial' | 'dps_insured' | 'mydeposits' | 'mydeposits_custodial' | 'mydeposits_insured' | 'tds' | 'tds_custodial' | 'tds_insured' | 'reposit' | 'custodial' | 'insured' | 'landlord_held' | 'no_deposit'
 
 export interface AdditionalCharge {
   name: string

@@ -256,6 +256,7 @@
                   >
                     <ThumbsUp class="w-3 h-3" />
                     Landlord Approved
+                    <span v-if="offer.status === 'pending' || offer.status === 'accepted_with_changes'" class="text-green-600/70 dark:text-green-400/70">(tenant not informed yet)</span>
                   </span>
                   <span
                     v-else-if="offer.landlord_decision === 'declined'"
@@ -264,6 +265,14 @@
                   >
                     <ThumbsDown class="w-3 h-3" />
                     Landlord Declined
+                    <span v-if="offer.status === 'pending' || offer.status === 'accepted_with_changes'" class="text-red-600/70 dark:text-red-400/70">(tenant not informed yet)</span>
+                  </span>
+                  <span
+                    v-else-if="offer.landlord_sent_at && !offer.landlord_decision"
+                    class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1"
+                  >
+                    <Send class="w-3 h-3" />
+                    Sent to Landlord
                   </span>
                 </div>
                 <!-- Show landlord decline reason -->
@@ -540,11 +549,15 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Move-in Date</label>
-                  <input
-                    v-model="sendForm.move_in_date"
-                    type="date"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
+                  <div class="relative cursor-pointer" @click="($refs.moveInDateInput as HTMLInputElement)?.showPicker?.()">
+                    <input
+                      ref="moveInDateInput"
+                      v-model="sendForm.move_in_date"
+                      type="date"
+                      class="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
+                    />
+                    <Calendar class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500 pointer-events-none" />
+                  </div>
                   <p class="text-xs text-gray-400 mt-1">Propose a move-in date, or leave blank for tenant to select</p>
                 </div>
 
@@ -638,6 +651,7 @@
                       >
                         <ThumbsUp class="w-3 h-3" />
                         Landlord Approved
+                        <span v-if="selectedOffer.status === 'pending' || selectedOffer.status === 'accepted_with_changes'" class="text-green-600/70 dark:text-green-400/70">(tenant not informed yet)</span>
                       </span>
                       <span
                         v-else-if="selectedOffer.landlord_decision === 'declined'"
@@ -645,6 +659,14 @@
                       >
                         <ThumbsDown class="w-3 h-3" />
                         Landlord Declined
+                        <span v-if="selectedOffer.status === 'pending' || selectedOffer.status === 'accepted_with_changes'" class="text-red-600/70 dark:text-red-400/70">(tenant not informed yet)</span>
+                      </span>
+                      <span
+                        v-else-if="selectedOffer.landlord_sent_at && !selectedOffer.landlord_decision"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1"
+                      >
+                        <Send class="w-3 h-3" />
+                        Sent to Landlord
                       </span>
                     </div>
                   </div>
@@ -899,7 +921,7 @@
                         class="flex items-start gap-3"
                       >
                         <div v-if="tenant.signature" class="flex-1">
-                          <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-lg p-2 mb-1">
+                          <div class="bg-white border border-gray-200 dark:border-slate-600 rounded-lg p-2 mb-1">
                             <img
                               v-if="tenant.signature.startsWith('data:image')"
                               :src="tenant.signature"
@@ -993,7 +1015,7 @@
                   <span v-else>Awaiting holding deposit payment</span>
                 </div>
                 <button
-                  @click="sendToReferencing"
+                  @click="openReceiptModal"
                   :disabled="processingAction"
                   class="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
                 >
@@ -1085,11 +1107,15 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Move-in Date</label>
-                <input
-                  v-model="changesForm.proposed_move_in_date"
-                  type="date"
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                />
+                <div class="relative cursor-pointer" @click="($refs.changesDateInput as HTMLInputElement)?.showPicker?.()">
+                  <input
+                    ref="changesDateInput"
+                    v-model="changesForm.proposed_move_in_date"
+                    type="date"
+                    class="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white cursor-pointer"
+                  />
+                  <Calendar class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500 pointer-events-none" />
+                </div>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tenancy Length (months)</label>
@@ -1211,6 +1237,122 @@
           </div>
         </div>
       </Transition>
+
+      <!-- Receipt Holding Deposit Modal -->
+      <Transition name="modal">
+        <div v-if="showReceiptModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl">
+            <div class="p-6 border-b border-gray-200 dark:border-slate-700">
+              <h2 class="text-xl font-bold text-gray-900 dark:text-white">Receipt & Send to Referencing</h2>
+              <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                Confirm the holding deposit and review tenants before sending to referencing.
+              </p>
+            </div>
+
+            <div class="p-6 space-y-5">
+              <!-- Holding Deposit -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  Holding Deposit Received (£)
+                </label>
+                <input
+                  v-model.number="receiptAmount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary text-lg font-semibold"
+                />
+                <p v-if="calculatedHoldingDeposit" class="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                  Expected: £{{ calculatedHoldingDeposit.toFixed(2) }} (1 week's rent)
+                </p>
+              </div>
+
+              <!-- Tenants List -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                    Tenants to Reference ({{ receiptTenants.length }})
+                  </label>
+                </div>
+
+                <!-- Existing tenants from offer -->
+                <div class="space-y-2 mb-3">
+                  <div v-for="(tenant, idx) in receiptTenants" :key="idx"
+                    class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700"
+                  >
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ tenant.first_name }} {{ tenant.last_name }}</p>
+                      <p class="text-xs text-gray-500 dark:text-slate-400">{{ tenant.email }}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span v-if="tenant.rent_share" class="text-xs text-gray-500">£{{ tenant.rent_share }}/mo</span>
+                      <button v-if="idx >= originalTenantCount" @click="receiptTenants.splice(idx, 1)" class="text-red-400 hover:text-red-600">
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Add tenant form -->
+                <div v-if="showAddTenantForm" class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg space-y-3">
+                  <div class="grid grid-cols-2 gap-2">
+                    <input v-model="newTenant.first_name" type="text" placeholder="First name *"
+                      class="px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                    <input v-model="newTenant.last_name" type="text" placeholder="Last name *"
+                      class="px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                  </div>
+                  <input v-model="newTenant.email" type="email" placeholder="Email address *"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                  <div class="grid grid-cols-2 gap-2">
+                    <input v-model="newTenant.phone" type="tel" placeholder="Phone (optional)"
+                      class="px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                    <input v-model.number="newTenant.rent_share" type="number" placeholder="Rent share £/mo"
+                      class="px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                  </div>
+                  <div class="flex gap-2">
+                    <button @click="addTenantToReceipt"
+                      :disabled="!newTenant.first_name || !newTenant.last_name || !newTenant.email"
+                      class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+                      <Plus class="w-3.5 h-3.5" /> Add
+                    </button>
+                    <button @click="showAddTenantForm = false"
+                      class="px-3 py-1.5 text-sm text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+                <button v-else @click="showAddTenantForm = true"
+                  class="w-full px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 border border-dashed border-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center justify-center gap-1.5"
+                >
+                  <Plus class="w-4 h-4" />
+                  Add Another Tenant
+                </button>
+              </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
+              <button
+                @click="showReceiptModal = false; showAddTenantForm = false"
+                class="px-4 py-2 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                @click="confirmReceiptAndSendToReferencing"
+                :disabled="!receiptAmount || receiptAmount <= 0 || processingAction || receiptTenants.length === 0"
+                class="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Loader2 v-if="processingAction" class="w-4 h-4 animate-spin" />
+                <template v-else>
+                  <Send class="w-4 h-4" />
+                  Receipt &amp; Send {{ receiptTenants.length }} Reference{{ receiptTenants.length > 1 ? 's' : '' }}
+                </template>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </div>
   </Sidebar>
 </template>
@@ -1247,7 +1389,7 @@ import {
   Trash2
 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 const authStore = useAuthStore()
 const router = useRouter()
 const toast = useToast()
@@ -1263,6 +1405,20 @@ const showDeclineModal = ref(false)
 const showAcceptChangesModal = ref(false)
 const selectedOffer = ref<any>(null)
 const processingAction = ref(false)
+
+// Receipt modal state
+const showReceiptModal = ref(false)
+const receiptAmount = ref<number | null>(null)
+const calculatedHoldingDeposit = computed(() => {
+  if (!selectedOffer.value?.offered_rent_amount) return null
+  return Math.floor((selectedOffer.value.offered_rent_amount * 12) / 52)
+})
+
+// Add tenant to receipt state
+const showAddTenantForm = ref(false)
+const receiptTenants = ref<Array<{ first_name: string; last_name: string; email: string; phone: string; rent_share: number | null }>>([])
+const originalTenantCount = ref(0)
+const newTenant = ref({ first_name: '', last_name: '', email: '', phone: '', rent_share: null as number | null })
 
 // Send to Landlord state
 const showSendToLandlordModal = ref(false)
@@ -1710,30 +1866,55 @@ async function approveOffer() {
 // SEND TO REFERENCING (V2) - Also receipts payment in one step
 // ============================================================================
 
+function openReceiptModal() {
+  receiptAmount.value = calculatedHoldingDeposit.value || null
+  showAddTenantForm.value = false
+  newTenant.value = { first_name: '', last_name: '', email: '', phone: '', rent_share: null }
+
+  // Populate tenants from the offer
+  const offerTenants = (selectedOffer.value?.tenants || []).map((t: any) => ({
+    first_name: t.name?.split(' ')[0] || t.first_name || '',
+    last_name: t.name?.split(' ').slice(1).join(' ') || t.last_name || '',
+    email: t.email || '',
+    phone: t.phone || '',
+    rent_share: t.rent_share || null
+  }))
+
+  // Fallback to main tenant fields if no tenants array
+  if (offerTenants.length === 0 && selectedOffer.value) {
+    offerTenants.push({
+      first_name: selectedOffer.value.tenant_first_name || '',
+      last_name: selectedOffer.value.tenant_last_name || '',
+      email: selectedOffer.value.tenant_email || '',
+      phone: '',
+      rent_share: null
+    })
+  }
+
+  receiptTenants.value = offerTenants
+  originalTenantCount.value = offerTenants.length
+  showReceiptModal.value = true
+}
+
+function addTenantToReceipt() {
+  if (!newTenant.value.first_name || !newTenant.value.last_name || !newTenant.value.email) return
+  receiptTenants.value.push({ ...newTenant.value })
+  newTenant.value = { first_name: '', last_name: '', email: '', phone: '', rent_share: null }
+  showAddTenantForm.value = false
+}
+
+async function confirmReceiptAndSendToReferencing() {
+  showReceiptModal.value = false
+  await sendToReferencing()
+}
+
 async function sendToReferencing() {
   if (!selectedOffer.value) return
 
   processingAction.value = true
   try {
-    // Build tenants array from offer tenants
-    const tenants = (selectedOffer.value.tenants || []).map((t: any) => ({
-      first_name: t.name?.split(' ')[0] || t.first_name || '',
-      last_name: t.name?.split(' ').slice(1).join(' ') || t.last_name || '',
-      email: t.email,
-      phone: t.phone || '',
-      rent_share: t.rent_share || null
-    }))
-
-    // If no tenants array, use the main tenant fields
-    if (tenants.length === 0 && (selectedOffer.value.tenant_email || selectedOffer.value.tenant_first_name)) {
-      tenants.push({
-        first_name: selectedOffer.value.tenant_first_name || '',
-        last_name: selectedOffer.value.tenant_last_name || '',
-        email: selectedOffer.value.tenant_email || '',
-        phone: '',
-        rent_share: null
-      })
-    }
+    // Use tenants from receipt modal (includes any added tenants)
+    const tenants = receiptTenants.value
 
     const payload = {
       property_address: selectedOffer.value.property_address,
@@ -1745,7 +1926,7 @@ async function sendToReferencing() {
       termMonths: selectedOffer.value.proposed_tenancy_length_months || 12,
       billsIncluded: selectedOffer.value.bills_included || false,
       tenants,
-      holding_deposit_amount: selectedOffer.value.holding_deposit_amount_paid || null,
+      holding_deposit_amount: receiptAmount.value || null,
       offer_id: selectedOffer.value.id
     }
 
@@ -1863,6 +2044,8 @@ async function sendOffersToLandlord() {
     }
 
     sendToLandlordSuccess.value = true
+    // Refresh offers list to show "Sent to Landlord" tag
+    await fetchOffers()
     setTimeout(() => {
       showSendToLandlordModal.value = false
       selectedOfferIds.value = []

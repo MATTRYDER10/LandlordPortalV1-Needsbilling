@@ -4,13 +4,40 @@
     <header class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 px-6 py-4">
       <div class="max-w-7xl mx-auto flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <img src="/logo-icon.png" alt="PropertyGoose" class="h-8 w-8" />
+          <img src="/PropertyGooseIcon.png" alt="PropertyGoose" class="h-8 w-8" />
           <div>
             <h1 class="text-xl font-bold text-gray-900 dark:text-white">Assessor Dashboard</h1>
             <p class="text-sm text-gray-500 dark:text-slate-400">V2 Verification System</p>
           </div>
         </div>
         <div class="flex items-center gap-6">
+          <!-- Search Bar -->
+          <div class="relative">
+            <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              v-model="searchQuery"
+              @input="onSearchInput"
+              type="text"
+              placeholder="Search references..."
+              class="w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+            <!-- Search Results Dropdown -->
+            <div
+              v-if="searchResults.length > 0"
+              class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-64 overflow-y-auto z-50"
+            >
+              <div
+                v-for="result in searchResults"
+                :key="result.id"
+                @click="openReference(result)"
+                class="px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer border-b border-gray-100 dark:border-slate-700 last:border-0"
+              >
+                <div class="font-medium text-gray-900 dark:text-white text-sm">{{ result.tenant_first_name }} {{ result.tenant_last_name }}</div>
+                <div class="text-xs text-gray-500">{{ result.property_address }} - {{ result.status }}</div>
+                <div class="text-xs text-gray-400">{{ result.company_name }}</div>
+              </div>
+            </div>
+          </div>
           <UKTimeClock />
           <div class="flex items-center gap-2">
             <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
@@ -71,6 +98,24 @@
               variant="success"
               large
               @click="navigateToFinalReview"
+            />
+            <QueueTile
+              v-if="canAccessFinalReview"
+              title="Group Assessment"
+              subtitle="Combined Affordability"
+              :count="queueCounts.groupAssessment"
+              count-label="ready"
+              :icon="Users"
+              variant="success"
+              @click="navigateToGroupAssessment"
+            />
+            <QueueTile
+              title="Tenant Responses"
+              :count="pendingResponsesCount"
+              count-label="pending"
+              :icon="MessageCircle"
+              variant="warning"
+              @click="router.push({ name: 'StaffResponsesQueueV2' })"
             />
           </div>
         </section>
@@ -150,15 +195,22 @@ import {
   Shield,
   PhoneCall,
   Award,
-  FileText
+  FileText,
+  Search,
+  MessageCircle,
+  Users
 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 const router = useRouter()
 const authStore = useAuthStore()
 
 const loading = ref(true)
 const activeQueue = ref<string | null>(null)
+const searchQuery = ref('')
+const searchResults = ref<any[]>([])
+const pendingResponsesCount = ref(0)
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
 
 const queueCounts = ref({
   identity: 0,
@@ -170,6 +222,7 @@ const queueCounts = ref({
   chase: 0,
   chaseUrgent: 0,
   finalReview: 0,
+  groupAssessment: 0,
   total: 0
 })
 
@@ -195,6 +248,7 @@ const verificationQueues = computed(() => [
   { type: 'RTR', label: 'RTR', icon: Home, count: queueCounts.value.rtr, urgentCount: 0 },
   { type: 'INCOME', label: 'Income', icon: Briefcase, count: queueCounts.value.income, urgentCount: 0 },
   { type: 'RESIDENTIAL', label: 'Residential', icon: Building2, count: queueCounts.value.residential, urgentCount: 0 },
+  { type: 'ADDRESS', label: 'Address', icon: Home, count: queueCounts.value.address || 0, urgentCount: 0 },
   { type: 'CREDIT', label: 'Credit', icon: CreditCard, count: queueCounts.value.credit, urgentCount: 0 },
   { type: 'AML', label: 'AML', icon: Shield, count: queueCounts.value.aml, urgentCount: 0 }
 ])
@@ -205,6 +259,7 @@ function getSectionIcon(type: string) {
     RTR: Home,
     INCOME: Briefcase,
     RESIDENTIAL: Building2,
+    ADDRESS: Home,
     CREDIT: CreditCard,
     AML: Shield
   }
@@ -225,11 +280,13 @@ async function fetchQueueCounts() {
         rtr: data.RTR || 0,
         income: data.INCOME || 0,
         residential: data.RESIDENTIAL || 0,
+        address: data.ADDRESS || 0,
         credit: data.CREDIT || 0,
         aml: data.AML || 0,
         chase: data.CHASE || 0,
         chaseUrgent: data.CHASE_URGENT || 0,
         finalReview: data.FINAL_REVIEW || 0,
+        groupAssessment: data.GROUP_ASSESSMENT || 0,
         total: Object.values(data).reduce((a: number, b: any) => a + (typeof b === 'number' ? b : 0), 0)
       }
     }
@@ -286,6 +343,10 @@ function navigateToFinalReview() {
   router.push({ name: 'StaffFinalReviewV2' })
 }
 
+function navigateToGroupAssessment() {
+  router.push({ name: 'GroupAssessmentV2' })
+}
+
 function continueWork(item: any) {
   router.push({
     name: 'StaffSectionReviewV2',
@@ -307,12 +368,50 @@ function formatTimeAgo(dateStr: string): string {
   return `${Math.floor(diffHours / 24)} days ago`
 }
 
+function onSearchInput() {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  if (!searchQuery.value || searchQuery.value.length < 2) {
+    searchResults.value = []
+    return
+  }
+  searchTimeout = setTimeout(async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/v2/admin/references/search?q=${encodeURIComponent(searchQuery.value)}`, {
+        headers: { 'Authorization': `Bearer ${authStore.session?.access_token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        searchResults.value = data.references || []
+      }
+    } catch {}
+  }, 300)
+}
+
+function openReference(result: any) {
+  searchResults.value = []
+  searchQuery.value = ''
+  router.push({ name: 'StaffReferenceDetailV2', params: { id: result.id } })
+}
+
+async function fetchPendingResponses() {
+  try {
+    const response = await fetch(`${API_URL}/api/v2/admin/pending-responses`, {
+      headers: { 'Authorization': `Bearer ${authStore.session?.access_token}` }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      pendingResponsesCount.value = data.count || 0
+    }
+  } catch {}
+}
+
 onMounted(async () => {
   loading.value = true
   await Promise.all([
     fetchQueueCounts(),
     fetchMyWork(),
-    fetchStats()
+    fetchStats(),
+    fetchPendingResponses()
   ])
   loading.value = false
 

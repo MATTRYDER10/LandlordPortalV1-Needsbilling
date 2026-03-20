@@ -114,6 +114,7 @@ export async function getFinalReviewItems(limit: number = 50): Promise<V2WorkIte
         reference:tenant_references_v2!work_items_v2_reference_id_fkey (
           id,
           company_id,
+          reference_number,
           is_group_parent,
           parent_reference_id,
           tenant_first_name_encrypted,

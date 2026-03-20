@@ -167,6 +167,14 @@ const failReasons = computed(() => {
         { value: 'EVICTION_HISTORY', label: 'Previous eviction' },
         ...common
       ]
+    case 'ADDRESS':
+      // Guarantor address verification
+      return [
+        { value: 'NO_PROOF_OF_ADDRESS', label: 'No proof of address provided' },
+        { value: 'ADDRESS_MISMATCH', label: 'Address does not match document' },
+        { value: 'DOCUMENT_EXPIRED', label: 'Proof of address too old (>3 months)' },
+        ...common
+      ]
     case 'CREDIT':
       return [
         { value: 'CCJ_FOUND', label: 'CCJ found' },

@@ -631,7 +631,7 @@ import { isValidEmail } from '../utils/validation'
 import { Building, FileText } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const router = useRouter()
 const route = useRoute()

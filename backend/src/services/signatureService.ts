@@ -186,31 +186,58 @@ class SignatureService {
     let agentEmail = ''
 
     if (isManagedProperty) {
-      // Get agent email for managed properties
+      // Get agent email for managed properties with multiple fallbacks
       if (agreement.agent_email) {
         agentEmail = agreement.agent_email
-      } else {
-        // Fallback: get from user who created agreement
+      } else if (agreement.created_by_user_id) {
+        // Fallback 1: get from user who created agreement
         const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
           agreement.created_by_user_id
         )
         if (!userError && userData?.user?.email) {
           agentEmail = userData.user.email
+          console.log(`[AgreementSigning] Using creator's email as agent fallback: ${agentEmail}`)
         }
+      }
+
+      // Fallback 2: use landlord_email from agreement
+      if (!agentEmail && agreement.landlord_email) {
+        agentEmail = agreement.landlord_email
+        console.log(`[AgreementSigning] Using landlord_email as agent fallback: ${agentEmail}`)
+      }
+
+      // Fallback 3: use first landlord's email if available
+      if (!agentEmail && agreement.landlords?.[0]?.email) {
+        agentEmail = agreement.landlords[0].email
+        console.log(`[AgreementSigning] Using first landlord's email as agent fallback: ${agentEmail}`)
+      }
+
+      if (!agentEmail) {
+        console.error(`[AgreementSigning] CRITICAL: Managed property agreement ${agreementId} has no agent email - landlords will NOT receive signing links`)
       }
     }
 
     // Create signature records for ALL landlords
     for (let i = 0; i < agreement.landlords.length; i++) {
       const landlord = agreement.landlords[i]
+      // For managed properties, use agent email for ALL landlords
+      // For non-managed, use landlord's individual email with fallback to agreement.landlord_email
+      let landlordEmail: string | undefined
+      if (isManagedProperty) {
+        landlordEmail = agentEmail
+      } else {
+        // Use landlord's email, fallback to agreement.landlord_email for ANY landlord without email
+        landlordEmail = landlord.email || agreement.landlord_email
+      }
+
+      if (!landlordEmail) {
+        console.warn(`[AgreementSigning] Landlord ${i + 1} (${landlord.name}) has no email address`)
+      }
+
       signaturePromises.push(
         this.createSignatureRecord(agreementId, 'landlord', i, {
           name: landlord.name,
-          // For managed properties, use agent email for ALL landlords
-          // For non-managed, use landlord's individual email
-          email: isManagedProperty
-            ? agentEmail
-            : (landlord.email || (i === 0 ? agreement.landlord_email : undefined)),
+          email: landlordEmail,
           address: landlord.address
         })
       )
@@ -219,11 +246,17 @@ class SignatureService {
     // Create records for tenants
     for (let i = 0; i < agreement.tenants.length; i++) {
       const tenant = agreement.tenants[i]
+      // Use tenant's individual email, fallback to agreement.tenant_email for ANY tenant without email
+      const tenantEmail = tenant.email || agreement.tenant_email
+
+      if (!tenantEmail) {
+        console.warn(`[AgreementSigning] Tenant ${i + 1} (${tenant.name}) has no email address`)
+      }
+
       signaturePromises.push(
         this.createSignatureRecord(agreementId, 'tenant', i, {
           name: tenant.name,
-          // Use tenant's individual email, fallback to agreement.tenant_email for first tenant
-          email: tenant.email || (i === 0 ? agreement.tenant_email : undefined),
+          email: tenantEmail,
           address: tenant.address
         })
       )
@@ -233,10 +266,27 @@ class SignatureService {
     const guarantors = agreement.guarantors || []
     for (let i = 0; i < guarantors.length; i++) {
       const guarantor = guarantors[i]
+
+      // Try to find guarantor's email with fallback to their linked tenant's email
+      let guarantorEmail = guarantor.email
+      if (!guarantorEmail && guarantor.guarantorForTenantId) {
+        // Find the tenant this guarantor is linked to
+        const linkedTenant = agreement.tenants.find((t: any) => t.id === guarantor.guarantorForTenantId)
+        if (linkedTenant?.email) {
+          console.log(`[AgreementSigning] Using linked tenant's email for guarantor ${guarantor.name}`)
+          guarantorEmail = linkedTenant.email
+        }
+      }
+
+      if (!guarantorEmail) {
+        const tenantInfo = guarantor.guarantorForTenantName ? ` (guarantor for ${guarantor.guarantorForTenantName})` : ''
+        console.warn(`[AgreementSigning] Guarantor ${i + 1} (${guarantor.name})${tenantInfo} has no email address`)
+      }
+
       signaturePromises.push(
         this.createSignatureRecord(agreementId, 'guarantor', i, {
           name: guarantor.name,
-          email: guarantor.email,
+          email: guarantorEmail,
           address: guarantor.address
         })
       )

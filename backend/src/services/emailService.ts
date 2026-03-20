@@ -1229,7 +1229,7 @@ export async function sendOfferAcceptedEmail(
   extraDetailsHtml?: string,
   agentLogoUrl?: string | null
 ): Promise<void> {
-  const frontendBaseUrl = getFrontendUrl()
+  const frontendBaseUrl = getV2FrontendUrl()
   const paymentConfirmedUrl = `${frontendBaseUrl}/tenant-offer/payment-confirmed?offer_id=${offerId}`
 
   const html = loadEmailTemplate('offer-accepted', {
@@ -2846,6 +2846,11 @@ export async function sendLandlordOfferSummary(
   offers: Array<{
     monthlyRent: number
     moveInDate?: string
+    tenancyLengthMonths?: number | null
+    depositAmount?: number | null
+    depositReplacementRequested?: boolean
+    billsIncluded?: boolean
+    specialConditions?: string | null
     status: string
     tenants: Array<{
       firstName: string
@@ -2909,12 +2914,35 @@ export async function sendLandlordOfferSummary(
           ${offers.length > 1 ? `Offer ${index + 1}` : 'Offer Details'}
           <span style="margin-left: 12px; padding: 4px 10px; font-size: 12px; font-weight: 500; background-color: #e0e7ff; color: #3730a3; border-radius: 9999px;">${formattedStatus}</span>
         </h3>
-        <p style="margin: 0 0 8px; font-size: 14px; color: #374151;">
-          <strong>Monthly Rent:</strong> £${offer.monthlyRent.toFixed(2)}
-        </p>
-        <p style="margin: 0 0 16px; font-size: 14px; color: #374151;">
-          <strong>Proposed Move-in:</strong> ${formattedMoveInDate}
-        </p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 16px;">
+          <tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151; width: 160px;"><strong>Monthly Rent:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">£${offer.monthlyRent.toFixed(2)}${offer.billsIncluded ? ' <span style="color: #6b7280; font-size: 12px;">(bills included)</span>' : ''}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;"><strong>Proposed Move-in:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">${formattedMoveInDate}</td>
+          </tr>
+          ${offer.tenancyLengthMonths ? `<tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;"><strong>Tenancy Length:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">${offer.tenancyLengthMonths} months</td>
+          </tr>` : ''}
+          ${offer.depositAmount ? `<tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;"><strong>Deposit:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">£${offer.depositAmount.toLocaleString()}</td>
+          </tr>` : ''}
+          ${offer.depositReplacementRequested ? `<tr>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;"><strong>Deposit Type:</strong></td>
+            <td style="padding: 4px 0; font-size: 14px; color: #374151;">
+              <span style="display: inline-block; padding: 2px 8px; background-color: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 12px; font-weight: 600;">Reposit Selected</span>
+              <br><span style="font-size: 12px; color: #6b7280;">Deposit replacement scheme — tenants pay ~1 week's rent instead of a full deposit. Full protection included. <a href="https://www.reposit.co.uk/landlords" style="color: #f97316;">Learn more</a></span>
+            </td>
+          </tr>` : ''}
+        </table>
+        ${offer.specialConditions ? `<div style="margin: 0 0 16px; padding: 10px 12px; background-color: #fffbeb; border-radius: 6px; border: 1px solid #fde68a;">
+          <p style="margin: 0; font-size: 13px; font-weight: 600; color: #92400e;">Special Conditions:</p>
+          <p style="margin: 4px 0 0; font-size: 13px; color: #92400e;">${offer.specialConditions}</p>
+        </div>` : ''}
         <h4 style="margin: 0 0 12px; font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Applicants</h4>
         ${tenantRows}
       </div>

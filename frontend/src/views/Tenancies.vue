@@ -684,7 +684,7 @@ import EmptyState from '@/components/tenancies/EmptyState.vue'
 import { Search, RefreshCw, Plus, FileEdit, CheckCircle2, Archive, Send, Shield, X, AlertTriangle } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const router = useRouter()

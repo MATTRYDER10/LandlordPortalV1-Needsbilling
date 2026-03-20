@@ -388,7 +388,7 @@ import { X, AlertTriangle, User, Loader2, ArrowRightCircle, Search, Building2, F
 import type { Tenancy } from '@/composables/useTenancies'
 import { authFetch } from '@/lib/authFetch'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const props = defineProps<{
   show: boolean

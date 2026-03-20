@@ -145,13 +145,12 @@
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Phone Number *</label>
-                <input
+                <PhoneInput
                   v-model="formData.identity.phone"
-                  type="tel"
-                  required
-                  placeholder="+44 7XXX XXXXXX"
-                  class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  label="Phone Number"
+                  :required="true"
+                  select-class="px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  input-class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
                 />
               </div>
             </div>
@@ -353,13 +352,72 @@
                     <Camera class="w-5 h-5" />
                     Open Camera & Take Photo
                   </button>
+
+                  <!-- Direct Upload Option -->
+                  <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
+                    <label
+                      class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                    >
+                      <Upload class="w-4 h-4" />
+                      Upload Clear Photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        class="hidden"
+                        @change="handleSelfieFileUpload"
+                      />
+                    </label>
+                    <div class="mt-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                      <p class="text-xs text-amber-800 dark:text-amber-300">
+                        <strong>Important:</strong> The photo must be clear and non-blurry, taken within 24 hours of this application.
+                        If you cannot provide a suitable photo, please go back and use the mobile version of this form where you can take a photo on your device.
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- QR Code Mobile Capture Option -->
+                  <div class="pt-3 border-t border-gray-200 dark:border-slate-700">
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mb-2">No camera? Use your phone instead:</p>
+                    <button
+                      v-if="!mobileCapture.qrUrl"
+                      type="button"
+                      @click="generateMobileCaptureQR"
+                      :disabled="mobileCapture.generating"
+                      class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                    >
+                      <QrCode class="w-4 h-4" />
+                      {{ mobileCapture.generating ? 'Generating...' : 'Scan QR Code on Phone' }}
+                    </button>
+
+                    <!-- QR Code Display -->
+                    <div v-if="mobileCapture.qrUrl" class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4 text-center">
+                      <img :src="mobileCapture.qrDataUrl" alt="QR Code" class="w-48 h-48 mx-auto mb-3" />
+                      <p class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Scan with your phone camera</p>
+                      <p class="text-xs text-gray-500 dark:text-slate-400 mb-3">Take a selfie on your mobile device</p>
+
+                      <!-- Status indicator -->
+                      <div class="flex items-center justify-center gap-2 text-sm" :class="mobileCapture.selfieUploaded ? 'text-green-600' : 'text-gray-400'">
+                        <CheckCircle2 v-if="mobileCapture.selfieUploaded" class="w-4 h-4" />
+                        <Clock v-else class="w-4 h-4 animate-pulse" />
+                        <span>Selfie {{ mobileCapture.selfieUploaded ? 'uploaded' : 'waiting...' }}</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        @click="cancelMobileCapture"
+                        class="mt-3 text-xs text-gray-400 hover:text-gray-600 underline"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <!-- Security Notice -->
               <div class="mt-5 flex items-start gap-3 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-700">
                 <svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 <div class="text-xs text-gray-500 dark:text-slate-400">
                   <strong class="text-gray-700 dark:text-slate-300">Your data is protected.</strong>
@@ -667,6 +725,12 @@
                 </div>
               </div>
 
+              <div class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
+                <p class="text-sm text-blue-800 dark:text-blue-300">
+                  <strong>Income verification:</strong> Please either provide your accountant's details below so we can verify your income directly, <strong>or</strong> upload an official Tax Return / SA302 document confirming your previous year's self-employed income. At least one is required.
+                </p>
+              </div>
+
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Name/Firm</label>
@@ -681,6 +745,14 @@
                   <input
                     v-model="formData.income.accountantEmail"
                     type="email"
+                    class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Accountant Phone</label>
+                  <input
+                    v-model="formData.income.accountantPhone"
+                    type="tel"
                     class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -819,10 +891,11 @@
                 @uploaded="handleFileUploaded('income', 'studentDoc', $event)"
               />
 
-              <!-- Guarantor suggestion for students -->
-              <div class="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                <p class="text-sm text-amber-800 dark:text-amber-300">
-                  <strong>Note:</strong> Students typically require a guarantor. You'll be asked to provide guarantor details in a later section.
+              <!-- Guarantor requirement notice -->
+              <div class="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg border border-amber-300 dark:border-amber-700">
+                <p class="text-sm text-amber-800 dark:text-amber-300 font-medium flex items-center gap-2">
+                  <Shield class="w-4 h-4 flex-shrink-0" />
+                  A guarantor is required. You'll provide their details in a later step — a form will be sent to them automatically.
                 </p>
               </div>
             </div>
@@ -934,6 +1007,71 @@
               />
             </div>
 
+            <!-- Current Living Situation -->
+            <div class="space-y-3">
+              <h3 class="font-medium text-gray-900 dark:text-white">Current Living Situation</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label
+                  v-for="option in [
+                    { value: 'renting_landlord', label: 'Renting from Landlord' },
+                    { value: 'renting_agent', label: 'Renting via Agent' },
+                    { value: 'living_with_family', label: 'Living with Family/Friends' }
+                  ]"
+                  :key="option.value"
+                  :class="[
+                    'p-3 border-2 rounded-xl cursor-pointer transition-all text-center text-sm font-medium',
+                    formData.residential.currentLivingSituation === option.value
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:border-gray-300'
+                  ]"
+                >
+                  <input
+                    type="radio"
+                    :value="option.value"
+                    v-model="formData.residential.currentLivingSituation"
+                    class="hidden"
+                  />
+                  {{ option.label }}
+                </label>
+              </div>
+
+              <!-- Current landlord details (if renting) -->
+              <div v-if="formData.residential.currentLivingSituation === 'renting_landlord' || formData.residential.currentLivingSituation === 'renting_agent'" class="p-4 border border-gray-200 dark:border-slate-600 rounded-lg space-y-3 bg-gray-50 dark:bg-slate-700/30">
+                <h4 class="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  Current {{ formData.residential.currentLivingSituation === 'renting_agent' ? 'Letting Agent' : 'Landlord' }} Details
+                </h4>
+                <div>
+                  <label class="block text-xs text-gray-600 dark:text-slate-400 mb-1">Name *</label>
+                  <input
+                    v-model="formData.residential.currentLandlordName"
+                    type="text"
+                    placeholder="Full name"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
+                  />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs text-gray-600 dark:text-slate-400 mb-1">Email *</label>
+                    <input
+                      v-model="formData.residential.currentLandlordEmail"
+                      type="email"
+                      placeholder="Email address"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-600 dark:text-slate-400 mb-1">Phone</label>
+                    <input
+                      v-model="formData.residential.currentLandlordPhone"
+                      type="tel"
+                      placeholder="Phone number"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Address History Progress -->
             <div class="p-3 rounded-lg" :class="addressHistoryMonths >= 36 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-amber-100 dark:bg-amber-900/30'">
               <div class="flex items-center justify-between">
@@ -1031,12 +1169,47 @@
                 </div>
 
                 <div>
+                  <label class="text-xs text-gray-500">Previous landlord/agent name</label>
                   <input
-                    v-model="addr.landlordEmail"
-                    type="email"
-                    placeholder="Previous landlord email (for reference)"
+                    v-model="addr.landlordName"
+                    type="text"
+                    placeholder="Previous landlord/agent name"
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
                   />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs text-gray-500">Previous landlord/agent email</label>
+                    <input
+                      v-model="addr.landlordEmail"
+                      type="email"
+                      placeholder="Email address"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-500">Previous landlord/agent phone</label>
+                    <input
+                      v-model="addr.landlordPhone"
+                      type="text"
+                      placeholder="Phone number"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="text-xs text-gray-500">Previous landlord type</label>
+                  <select
+                    v-model="addr.landlordType"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm"
+                  >
+                    <option value="">Select type...</option>
+                    <option value="Private Landlord">Private Landlord</option>
+                    <option value="Letting Agent">Letting Agent</option>
+                    <option value="Living with Family/Friends">Living with Family/Friends</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -1194,12 +1367,12 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Guarantor Phone *</label>
-              <input
+              <PhoneInput
                 v-model="formData.guarantor.phone"
-                type="tel"
-                required
-                class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                label="Guarantor Phone"
+                :required="true"
+                select-class="px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                input-class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
               />
             </div>
 
@@ -1639,23 +1812,60 @@
           </button>
         </div>
       </form>
+
+      <!-- Guarantor Required Modal -->
+      <Transition name="fade">
+        <div v-if="showGuarantorModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div class="bg-amber-500 px-6 py-4">
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <Shield class="w-5 h-5" />
+                Guarantor Required
+              </h2>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-700 dark:text-slate-300 mb-4">
+                Based on your income sources, you will need to provide a <strong>guarantor</strong> for this tenancy.
+              </p>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                A guarantor is someone who agrees to cover your rent if you are unable to pay. They must be a UK homeowner with sufficient income (typically earning at least 36x your monthly rent share annually).
+              </p>
+              <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
+                <p class="text-sm text-amber-800 dark:text-amber-300">
+                  You'll be asked to provide your guarantor's name, email, and relationship on a later step. A separate reference form will be sent to them automatically.
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="showGuarantorModal = false"
+                class="w-full px-4 py-2.5 text-sm font-semibold text-white rounded-xl"
+                :style="{ backgroundColor: buttonColor }"
+              >
+                I Understand — Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  Loader2, CheckCircle, AlertCircle, User, Shield, Briefcase, Home,
+  Loader2, CheckCircle, CheckCircle2, AlertCircle, User, Shield, Briefcase, Home,
   UserCircle, Users, FileSignature, ChevronLeft, ChevronRight, Plus, Trash2, Camera,
-  Wallet, ExternalLink
+  Wallet, ExternalLink, QrCode, Clock, Upload
 } from 'lucide-vue-next'
+import QRCode from 'qrcode'
 import FileUpload from '@/components/forms/FileUpload.vue'
 import SignaturePad from '@/components/forms/SignaturePad.vue'
 import DeviceHandoffGate from '@/components/DeviceHandoffGate.vue'
+import PhoneInput from '@/components/PhoneInput.vue'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 const route = useRoute()
 const token = computed(() => route.params.token as string)
 
@@ -1689,6 +1899,22 @@ const selfiePreview = ref<string | null>(null)
 const selfieFile = ref<File | null>(null)
 const selfieUploaded = ref(false)
 const selfieUploading = ref(false)
+
+// Guarantor modal
+const showGuarantorModal = ref(false)
+const guarantorModalShown = ref(false)
+
+// Mobile capture state
+const mobileCapture = ref({
+  generating: false,
+  qrUrl: '',
+  qrDataUrl: '',
+  sessionId: '',
+  captureToken: '',
+  idPhotoUploaded: false,
+  selfieUploaded: false,
+  pollInterval: null as ReturnType<typeof setInterval> | null
+})
 
 const currentStep = ref(1)
 
@@ -1775,6 +2001,7 @@ const formData = ref({
     selfEmployedIncome: null as number | null,
     accountantName: '',
     accountantEmail: '',
+    accountantPhone: '',
     taxReturn: null as File | null,
     taxReturnUrl: '',
     // Benefits
@@ -1807,6 +2034,10 @@ const formData = ref({
     },
     proofOfAddress: null as File | null,
     proofOfAddressUrl: '',
+    currentLivingSituation: '' as string,
+    currentLandlordName: '',
+    currentLandlordEmail: '',
+    currentLandlordPhone: '',
     previousAddresses: [] as Array<{
       line1: string
       line2: string
@@ -1814,7 +2045,10 @@ const formData = ref({
       postcode: string
       years: number
       months: number
+      landlordName: string
       landlordEmail: string
+      landlordPhone: string
+      landlordType: string
     }>
   },
   personal: {
@@ -1952,7 +2186,10 @@ function addPreviousAddress() {
     postcode: '',
     years: 0,
     months: 0,
-    landlordEmail: ''
+    landlordName: '',
+    landlordEmail: '',
+    landlordPhone: '',
+    landlordType: ''
   })
 }
 
@@ -2239,6 +2476,23 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+async function handleSelfieFileUpload(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  // Show preview
+  selfiePreview.value = URL.createObjectURL(file)
+  selfieFile.value = file
+  formData.value.identity.selfie = file
+
+  // Auto-upload
+  await uploadSelfie(file)
+
+  // Reset input so same file can be re-selected
+  input.value = ''
+}
+
 function removeSelfie() {
   selfieFile.value = null
   selfiePreview.value = null
@@ -2248,11 +2502,99 @@ function removeSelfie() {
   stopCamera()
 }
 
+// ============================================================================
+// MOBILE CAPTURE (QR Code)
+// ============================================================================
+
+async function generateMobileCaptureQR() {
+  mobileCapture.value.generating = true
+  try {
+    const response = await fetch(`${API_URL}/api/v2/mobile-capture/generate/${token.value}`, {
+      method: 'POST'
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      cameraError.value = data.error || 'Failed to generate QR code'
+      return
+    }
+
+    mobileCapture.value.captureToken = data.captureToken
+    mobileCapture.value.sessionId = data.sessionId
+    mobileCapture.value.qrUrl = data.captureUrl
+
+    // Generate QR code image
+    mobileCapture.value.qrDataUrl = await QRCode.toDataURL(data.captureUrl, {
+      width: 256,
+      margin: 1,
+      color: { dark: '#1f2937', light: '#ffffff' }
+    })
+
+    // Start polling for upload status
+    startMobileCapturePolling()
+  } catch (err: any) {
+    cameraError.value = err.message || 'Failed to generate QR code'
+  } finally {
+    mobileCapture.value.generating = false
+  }
+}
+
+function startMobileCapturePolling() {
+  if (mobileCapture.value.pollInterval) {
+    clearInterval(mobileCapture.value.pollInterval)
+  }
+  mobileCapture.value.pollInterval = setInterval(async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/v2/mobile-capture/status/${token.value}/${mobileCapture.value.sessionId}`
+      )
+      if (!response.ok) return
+      const data = await response.json()
+
+
+      mobileCapture.value.selfieUploaded = data.selfieUploaded
+
+      // If both uploaded, update form data and stop polling
+      if (data.selfieUploaded) {
+        if (data.selfieUrl) {
+          formData.value.identity.selfieUrl = data.selfieUrl
+          selfieUploaded.value = true
+          selfiePreview.value = data.selfieUrl
+        }
+        cancelMobileCapture()
+      }
+    } catch {
+      // Silently continue polling
+    }
+  }, 3000)
+}
+
+function cancelMobileCapture() {
+  if (mobileCapture.value.pollInterval) {
+    clearInterval(mobileCapture.value.pollInterval)
+    mobileCapture.value.pollInterval = null
+  }
+  mobileCapture.value.qrUrl = ''
+  mobileCapture.value.qrDataUrl = ''
+  mobileCapture.value.sessionId = ''
+  mobileCapture.value.captureToken = ''
+  mobileCapture.value.idPhotoUploaded = false
+  mobileCapture.value.selfieUploaded = false
+}
+
+// Show guarantor modal when student or unemployed is first selected
+watch(() => formData.value.income.sources, (sources) => {
+  if (!guarantorModalShown.value && (sources.includes('student') || sources.includes('unemployed'))) {
+    showGuarantorModal.value = true
+    guarantorModalShown.value = true
+  }
+}, { deep: true })
+
 onMounted(() => {
   loadReference()
 })
 
 onUnmounted(() => {
   stopCamera()
+  cancelMobileCapture()
 })
 </script>

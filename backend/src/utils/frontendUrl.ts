@@ -1,6 +1,6 @@
 const PROD_FRONTEND_URL = 'https://app.propertygoose.co.uk'
 // Use LAN IP for local testing from other devices
-const LOCAL_FRONTEND_URL = 'http://192.168.1.81:5173'
+const LOCAL_FRONTEND_URL = 'http://192.168.1.190:5174'
 const LOCALHOST_URL = 'http://localhost:5173'
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1'])

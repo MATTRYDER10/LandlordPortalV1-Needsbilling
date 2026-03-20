@@ -1,8 +1,24 @@
 <template>
   <div class="flex flex-col md:flex-row h-screen bg-background dark:bg-slate-950 transition-colors duration-300">
+    <!-- Mobile Viewing As Banner -->
+    <div
+      v-if="adminCompanyStore.isOverrideActive"
+      class="md:hidden fixed top-0 left-0 right-0 z-40 bg-amber-500 text-white px-4 py-1.5 flex items-center justify-between"
+    >
+      <span class="text-xs font-semibold truncate">Viewing as: {{ adminCompanyStore.selectedCompanyName }}</span>
+      <button
+        @click="exitViewAs"
+        class="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-white/20 hover:bg-white/30 rounded transition-colors"
+      >
+        <X class="w-3 h-3" />
+        Exit
+      </button>
+    </div>
+
     <!-- Mobile top header bar -->
     <div :class="[
-      'md:hidden fixed top-0 left-0 right-0 z-30 h-14 shadow-sm flex items-center justify-between px-4 transition-colors duration-300',
+      'md:hidden fixed top-0 left-0 right-0 z-30 shadow-sm flex items-center justify-between px-4 transition-colors duration-300',
+      adminCompanyStore.isOverrideActive ? 'h-14 mt-7' : 'h-14',
       isDark ? 'bg-[#1a2e44]' : 'bg-white border-b border-gray-200'
     ]">
       <div class="flex items-center">
@@ -53,6 +69,24 @@
       ></div>
 
       <div class="relative flex flex-col h-full">
+        <!-- Viewing As Banner -->
+        <div
+          v-if="adminCompanyStore.isOverrideActive"
+          class="bg-amber-500 text-white px-3 py-2 flex items-center justify-between gap-2"
+        >
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs font-semibold whitespace-nowrap">Viewing as:</span>
+            <span class="text-xs font-medium truncate">{{ adminCompanyStore.selectedCompanyName }}</span>
+          </div>
+          <button
+            @click="exitViewAs"
+            class="flex-shrink-0 flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-white/20 hover:bg-white/30 rounded transition-colors"
+          >
+            <X class="w-3 h-3" />
+            Exit
+          </button>
+        </div>
+
         <!-- Logo Row -->
         <div :class="[
           'flex items-center justify-between h-16 px-4 border-b transition-colors duration-300',
@@ -271,16 +305,23 @@
 import { computed, ref, h, Transition, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useAdminCompanyStore } from '../stores/adminCompany'
 import { useDarkMode } from '@/composables/useDarkMode'
 import CreditsDisplay from './CreditsDisplay.vue'
 import NotificationBell from './NotificationBell.vue'
 import AdminCompanySwitcher from './AdminCompanySwitcher.vue'
-import { Plus, ChevronDown, Menu, LogOut } from 'lucide-vue-next'
+import { Plus, ChevronDown, Menu, LogOut, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const adminCompanyStore = useAdminCompanyStore()
 const { isDark, toggleDarkMode } = useDarkMode()
+
+const exitViewAs = () => {
+  adminCompanyStore.clearOverride()
+  router.push('/admin/customers')
+}
 
 // ============================================================================
 // CUSTOM GOOSE-THEMED ICONS

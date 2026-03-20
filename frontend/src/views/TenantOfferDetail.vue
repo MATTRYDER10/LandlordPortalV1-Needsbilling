@@ -27,6 +27,21 @@
               <span>{{ statusDisplay }}</span>
               <Check v-if="showStatusTick" class="w-4 h-4 text-green-600" />
             </span>
+            <!-- Landlord Decision Tag -->
+            <span v-if="offer.landlord_decision === 'approved'"
+              class="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 flex items-center gap-1">
+              Landlord Approved
+              <span v-if="offer.status === 'pending' || offer.status === 'accepted_with_changes'" class="text-green-600/70 dark:text-green-400/70 text-xs">(tenant not informed yet)</span>
+            </span>
+            <span v-else-if="offer.landlord_decision === 'declined'"
+              class="px-3 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 flex items-center gap-1">
+              Landlord Declined
+              <span v-if="offer.status === 'pending' || offer.status === 'accepted_with_changes'" class="text-red-600/70 dark:text-red-400/70 text-xs">(tenant not informed yet)</span>
+            </span>
+            <span v-else-if="offer.landlord_sent_at && !offer.landlord_decision"
+              class="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+              Sent to Landlord
+            </span>
             <span v-if="offer.deposit_replacement_requested"
               class="px-3 py-1 text-sm font-semibold rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 whitespace-nowrap flex items-center gap-1.5">
               <span class="font-bold">Rep<span class="text-blue-500">o</span>sit</span> Selected
@@ -353,7 +368,7 @@
                   <dt class="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Signature</dt>
                   <dd class="mt-1">
                     <img :src="tenant.signature" alt="Signature"
-                      class="border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 p-2 max-w-md" style="max-height: 150px;" />
+                      class="border border-gray-300 dark:border-slate-600 rounded bg-white p-2 max-w-md" style="max-height: 150px;" />
                   </dd>
                 </div>
                 <div v-if="tenant.signed_at">
@@ -581,7 +596,7 @@ import RentShareModal from '../components/RentShareModal.vue'
 import { formatDateTime } from '../utils/date'
 import { authFetch } from '@/lib/authFetch'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const router = useRouter()

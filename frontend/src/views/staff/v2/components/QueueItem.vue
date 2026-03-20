@@ -44,9 +44,6 @@
     <!-- Additional info row -->
     <div class="mt-3 flex items-center justify-between text-sm">
       <div class="flex items-center gap-4">
-        <span class="text-gray-500 dark:text-slate-400">
-          Rent: £{{ item.rent_share || item.monthly_rent }}/mo
-        </span>
         <span v-if="item.move_in_date" class="text-gray-500 dark:text-slate-400">
           Move: {{ formatDate(item.move_in_date) }}
         </span>

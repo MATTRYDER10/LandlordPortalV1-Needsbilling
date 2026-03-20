@@ -124,7 +124,7 @@ watch(() => props.modelValue, (newValue) => {
 // Phone number placeholder based on country
 const phonePlaceholder = computed(() => {
   const placeholders: { [key: string]: string } = {
-    '+44': '7123456789',
+    '+44': '07123456789',
     '+1': '2025551234',
     '+353': '851234567',
     '+61': '412345678',
@@ -133,9 +133,15 @@ const phonePlaceholder = computed(() => {
   return placeholders[countryCode.value] || 'Phone number'
 })
 
-// Handle number input - filter to numbers only and update combined value
+// Handle number input - filter to numbers only, strip leading zero, and update combined value
 const handleNumberInput = () => {
-  number.value = number.value.replace(/\D/g, '')
+  // Remove non-digits
+  let cleaned = number.value.replace(/\D/g, '')
+  // Strip leading zero (UK numbers like 07xxx should be 7xxx when combined with +44)
+  if (cleaned.startsWith('0')) {
+    cleaned = cleaned.substring(1)
+  }
+  number.value = cleaned
   updateCombinedValue()
 }
 

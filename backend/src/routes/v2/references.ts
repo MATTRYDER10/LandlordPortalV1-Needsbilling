@@ -7,7 +7,7 @@
 
 import { Router } from 'express'
 import { authenticateToken, AuthRequest, getCompanyIdForRequest } from '../../middleware/auth'
-import { decrypt, generateToken, hash } from '../../services/encryption'
+import { decrypt, encrypt, generateToken, hash } from '../../services/encryption'
 import {
   shouldUseV2,
   createReference,
@@ -17,17 +17,114 @@ import {
   updateReferenceStatus,
   updateRentShare,
   getGroupChildren,
-  getGuarantor
+  getGuarantor,
+  editReferenceField
 } from '../../services/v2/referenceServiceV2'
+import { logActivity, getActivityForReference } from '../../services/v2/activityServiceV2'
 import { getSections } from '../../services/v2/sectionServiceV2'
 import { V2ReferenceStatus, CreateV2ReferenceInput } from '../../services/v2/types'
 import { auditReferenceStarted, auditReferenceCompleted } from '../../services/propertyAuditService'
 import { supabase } from '../../config/supabase'
-import { sendTenantReferenceRequest, sendLandlordReferenceSummary } from '../../services/emailService'
+import { sendTenantReferenceRequest, sendLandlordReferenceSummary, sendEmail } from '../../services/emailService'
 import { getV2FrontendUrl } from '../../utils/frontendUrl'
 import { refundCredits } from '../../services/creditService'
+import { creditsafeService } from '../../services/creditsafeService'
+import { sanctionsService } from '../../services/sanctionsService'
+import { updateSectionStatus } from '../../services/v2/sectionServiceV2'
+import { validateV2Conversion, convertV2ReferenceToTenancy } from '../../services/v2/tenancyConversionServiceV2'
 
 const router = Router()
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Decrypt sensitive fields in form_data for display
+ * Encrypted fields: identity.phone, identity.dateOfBirth, rtr.shareCode,
+ *                   income.employerAddress, guarantor.email, guarantor.phone, consent.signature
+ */
+function decryptFormData(formData: any): any {
+  if (!formData) return null
+
+  const decrypted = { ...formData }
+
+  // Identity section
+  if (decrypted.identity) {
+    decrypted.identity = { ...decrypted.identity }
+    if (decrypted.identity.phone) {
+      try {
+        decrypted.identity.phone = decrypt(decrypted.identity.phone)
+      } catch (e) {
+        // Already decrypted or invalid
+      }
+    }
+    if (decrypted.identity.dateOfBirth) {
+      try {
+        decrypted.identity.dateOfBirth = decrypt(decrypted.identity.dateOfBirth)
+      } catch (e) {
+        // Already decrypted or invalid
+      }
+    }
+  }
+
+  // RTR section
+  if (decrypted.rtr) {
+    decrypted.rtr = { ...decrypted.rtr }
+    if (decrypted.rtr.shareCode) {
+      try {
+        decrypted.rtr.shareCode = decrypt(decrypted.rtr.shareCode)
+      } catch (e) {
+        // Already decrypted or invalid
+      }
+    }
+  }
+
+  // Income section
+  if (decrypted.income) {
+    decrypted.income = { ...decrypted.income }
+    if (decrypted.income.employerAddress) {
+      try {
+        decrypted.income.employerAddress = decrypt(decrypted.income.employerAddress)
+      } catch (e) {
+        // Already decrypted or invalid
+      }
+    }
+  }
+
+  // Guarantor section
+  if (decrypted.guarantor) {
+    decrypted.guarantor = { ...decrypted.guarantor }
+    if (decrypted.guarantor.email) {
+      try {
+        decrypted.guarantor.email = decrypt(decrypted.guarantor.email)
+      } catch (e) {
+        // Already decrypted or invalid
+      }
+    }
+    if (decrypted.guarantor.phone) {
+      try {
+        decrypted.guarantor.phone = decrypt(decrypted.guarantor.phone)
+      } catch (e) {
+        // Already decrypted or invalid
+      }
+    }
+  }
+
+  // Consent section - decrypt signature for display (though typically not shown)
+  if (decrypted.consent) {
+    decrypted.consent = { ...decrypted.consent }
+    if (decrypted.consent.signature) {
+      try {
+        decrypted.consent.signature = decrypt(decrypted.consent.signature)
+      } catch (e) {
+        // Already decrypted or invalid
+      }
+    }
+  }
+
+  return decrypted
+}
 
 // ============================================================================
 // REFERENCE CRUD
@@ -134,7 +231,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           propertyCity: propCity,
           propertyPostcode: propPostcode || '',
           monthlyRent: parseFloat(rent),
-          rentShare: tenant.rent_share ? parseFloat(tenant.rent_share) : parseFloat(rent),
+          rentShare: tenant.rent_share ? parseFloat(tenant.rent_share) : (isGroup ? Math.round(parseFloat(rent) / tenants.length * 100) / 100 : parseFloat(rent)),
           moveInDate: moveDate,
           termYears: termYears ? parseInt(termYears) : undefined,
           termMonths: termMonths ? parseInt(termMonths) : undefined,
@@ -365,20 +462,39 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       excludeChildren: excludeChildren === 'true'
     })
 
-    // Decrypt fields and fetch sections for display
-    const decryptedReferences = await Promise.all(references.map(async ref => {
-      const sections = await getSections(ref.id)
-      return {
-        ...ref,
-        tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
-        tenant_last_name: decrypt(ref.tenant_last_name_encrypted),
-        tenant_email: decrypt(ref.tenant_email_encrypted),
-        tenant_phone: decrypt(ref.tenant_phone_encrypted),
-        property_address: decrypt(ref.property_address_encrypted),
-        property_city: decrypt(ref.property_city_encrypted),
-        property_postcode: decrypt(ref.property_postcode_encrypted),
-        sections: sections || []
-      }
+    // Batch fetch all sections for all references in one query
+    const refIds = references.map(r => r.id)
+    const { data: allSections } = refIds.length > 0
+      ? await supabase
+          .from('reference_sections_v2')
+          .select('id, reference_id, section_type, queue_status, decision, assessor_notes, completed_at, section_data')
+          .in('reference_id', refIds)
+      : { data: [] }
+
+    // Group sections by reference_id
+    const sectionsByRef = new Map<string, any[]>()
+    for (const s of (allSections || [])) {
+      const arr = sectionsByRef.get(s.reference_id) || []
+      arr.push(s)
+      sectionsByRef.set(s.reference_id, arr)
+    }
+
+    // Decrypt fields (sync - no extra DB calls)
+    const decryptedReferences = references.map(ref => ({
+      ...ref,
+      tenant_first_name: decrypt(ref.tenant_first_name_encrypted),
+      tenant_last_name: decrypt(ref.tenant_last_name_encrypted),
+      tenant_email: decrypt(ref.tenant_email_encrypted),
+      tenant_phone: decrypt(ref.tenant_phone_encrypted),
+      property_address: decrypt(ref.property_address_encrypted),
+      property_city: decrypt(ref.property_city_encrypted),
+      property_postcode: decrypt(ref.property_postcode_encrypted),
+      form_data: decryptFormData(ref.form_data),
+      sections: sectionsByRef.get(ref.id) || [],
+      has_open_issues: (sectionsByRef.get(ref.id) || []).some((s: any) => {
+        const issueStatus = s.section_data?.issue_status
+        return issueStatus === 'OPEN' || issueStatus === 'RESPONSE_PENDING_REVIEW'
+      })
     }))
 
     res.json({ references: decryptedReferences, total })
@@ -406,23 +522,43 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // Get sections
-    const sections = await getSections(id)
-
-    // Get children if group parent
-    let children = null
-    if (result.reference.is_group_parent) {
-      children = await getGroupChildren(id)
-    }
-
-    // Get guarantor if exists
-    const guarantor = await getGuarantor(id)
+    // Decrypt form_data + run all queries in parallel for speed
+    const [decryptedFormData, sections, guarantor, creditResult, amlResult, children] = await Promise.all([
+      Promise.resolve(decryptFormData(result.reference.form_data)),
+      getSections(id),
+      getGuarantor(id),
+      supabase.from('creditsafe_verifications_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle().then(r => r.data),
+      supabase.from('sanctions_screenings_v2').select('*').eq('reference_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle().then(r => r.data),
+      result.reference.is_group_parent ? getGroupChildren(id) : Promise.resolve(null)
+    ])
 
     res.json({
       ...result,
+      reference: {
+        ...result.reference,
+        tenant_first_name: decrypt(result.reference.tenant_first_name_encrypted),
+        tenant_last_name: decrypt(result.reference.tenant_last_name_encrypted),
+        tenant_email: decrypt(result.reference.tenant_email_encrypted),
+        tenant_phone: decrypt(result.reference.tenant_phone_encrypted),
+        property_address: decrypt(result.reference.property_address_encrypted),
+        property_city: decrypt(result.reference.property_city_encrypted),
+        property_postcode: decrypt(result.reference.property_postcode_encrypted),
+        employer_ref_name: decrypt(result.reference.employer_ref_name_encrypted),
+        employer_ref_email: decrypt(result.reference.employer_ref_email_encrypted),
+        employer_ref_phone: decrypt(result.reference.employer_ref_phone_encrypted),
+        previous_landlord_name: decrypt(result.reference.previous_landlord_name_encrypted),
+        previous_landlord_email: decrypt(result.reference.previous_landlord_email_encrypted),
+        previous_landlord_phone: decrypt(result.reference.previous_landlord_phone_encrypted),
+        accountant_name: decrypt(result.reference.accountant_name_encrypted),
+        accountant_email: decrypt(result.reference.accountant_email_encrypted),
+        accountant_phone: decrypt(result.reference.accountant_phone_encrypted),
+        form_data: decryptedFormData
+      },
       sections,
       children,
-      guarantor
+      guarantor,
+      creditCheck: creditResult,
+      amlCheck: amlResult
     })
   } catch (error: any) {
     console.error('[V2 References] Error getting reference:', error)
@@ -637,21 +773,58 @@ router.post('/:id/send-to-landlord', authenticateToken, async (req: AuthRequest,
       }
     }
 
-    // Send email
-    await sendLandlordReferenceSummary(
-      landlordEmail,
-      landlordName,
-      result.propertyAddress || '',
-      reference.monthly_rent || 0,
-      reference.move_in_date || '',
-      tenants,
-      reference.status || 'PENDING',
-      companyName,
-      companyLogoUrl
-    )
+    // Build decision label
+    const isAccepted = ['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION'].includes(reference.status)
+    const decisionLabel = isAccepted ? 'Accepted' : reference.status === 'REJECTED' ? 'Rejected' : reference.status
+    const decisionColor = isAccepted ? '#1A7A4A' : '#C0392B'
+    const decisionBg = isAccepted ? '#EAF7F1' : '#FDECEA'
+
+    // Get agent logo as base64 for email
+    let logoHtml = ''
+    if (companyLogoUrl) {
+      logoHtml = `<img src="${companyLogoUrl}" alt="${companyName}" style="max-height:48px;max-width:180px;" />`
+    } else {
+      logoHtml = `<span style="font-size:18px;font-weight:600;color:#1B3464;">${companyName}</span>`
+    }
+
+    const reportUrl = reference.report_pdf_url || ''
+    const reportButton = reportUrl ? `
+      <div style="margin:24px 0;text-align:center;">
+        <a href="${reportUrl}" style="display:inline-block;padding:14px 32px;background:#F48024;color:#fff;text-decoration:none;font-weight:600;border-radius:8px;font-size:15px;">View Full Report</a>
+      </div>` : ''
+
+    const emailHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+    <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f3f4f6;">
+      <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <div style="background:#1B3464;padding:20px 24px;border-bottom:3px solid #F48024;text-align:center;">
+          ${logoHtml}
+        </div>
+        <div style="padding:32px 24px;">
+          <p style="font-size:15px;color:#374151;margin:0 0 16px;">Dear ${landlordName},</p>
+          <p style="font-size:15px;color:#374151;margin:0 0 20px;">
+            The reference for <strong>${result.tenantName}</strong> has been completed. The decision is:
+          </p>
+          <div style="background:${decisionBg};border-radius:8px;padding:16px;text-align:center;margin:0 0 20px;">
+            <span style="font-size:22px;font-weight:700;color:${decisionColor};">${decisionLabel}</span>
+          </div>
+          <p style="font-size:14px;color:#6b7280;margin:0 0 8px;">Please see the attached report for full details.</p>
+          ${reportButton}
+          <p style="font-size:13px;color:#9ca3af;margin-top:20px;">Reference: ${reference.reference_number || id}</p>
+        </div>
+        <div style="padding:16px 24px;text-align:center;border-top:1px solid #e5e7eb;">
+          <p style="font-size:11px;color:#9ca3af;margin:0;">Sent on behalf of ${companyName} via PropertyGoose</p>
+        </div>
+      </div>
+    </body></html>`
+
+    await sendEmail({
+      to: landlordEmail,
+      subject: `Reference ${decisionLabel} - ${result.tenantName} - ${result.propertyAddress || 'Property'}`,
+      html: emailHtml
+    })
 
     res.json({
-      message: 'Reference summary sent to landlord',
+      message: 'Reference report sent to landlord',
       sentTo: landlordEmail
     })
   } catch (error: any) {
@@ -769,11 +942,11 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
     // Get company details
     const { data: company } = await supabase
       .from('companies')
-      .select('name, logo_url, phone_encrypted, email_encrypted')
+      .select('name_encrypted, logo_url, phone_encrypted, email_encrypted')
       .eq('id', companyId)
       .single()
 
-    const companyName = company?.name || 'PropertyGoose'
+    const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
     const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) || '' : ''
     const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) || '' : ''
     const companyLogoUrl = company?.logo_url || null
@@ -789,7 +962,7 @@ router.post('/:id/resend-email', authenticateToken, async (req: AuthRequest, res
       .from('tenant_references_v2')
       .update({
         form_token_hash: newTokenHash,
-        sent_at: new Date().toISOString()
+        updated_at: new Date().toISOString()
       })
       .eq('id', id)
 
@@ -914,6 +1087,740 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     })
   } catch (error: any) {
     console.error('[V2 References] Error deleting reference:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// CREDIT CHECK & AML ENDPOINTS
+// ============================================================================
+
+/**
+ * Run credit check for a V2 reference
+ * Uses Creditsafe Verify API to check electoral roll, CCJs, insolvencies
+ */
+router.post('/:id/creditsafe/run', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    const { id } = req.params
+
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID required' })
+    }
+
+    // Check if Creditsafe is enabled
+    if (!creditsafeService.isEnabled()) {
+      return res.status(400).json({ error: 'Creditsafe integration is not enabled' })
+    }
+
+    // Get the reference with decrypted data
+    const result = await getReferenceDecrypted(id)
+    if (!result) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify company access
+    if (result.reference.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const reference = result.reference
+    const formData = decryptFormData(reference.form_data)
+
+    if (!formData) {
+      return res.status(400).json({ error: 'Tenant form not yet submitted' })
+    }
+
+    // Extract required fields from form_data
+    const firstName = formData.identity?.firstName || decrypt(reference.tenant_first_name_encrypted)
+    const lastName = formData.identity?.lastName || decrypt(reference.tenant_last_name_encrypted)
+    const dateOfBirth = formData.identity?.dateOfBirth
+    const address = formData.residential?.currentAddress
+      ? `${formData.residential.currentAddress.line1}, ${formData.residential.currentAddress.city}`
+      : null
+    const postcode = formData.residential?.currentAddress?.postcode
+
+    if (!firstName || !lastName) {
+      return res.status(400).json({ error: 'Tenant name not available' })
+    }
+    if (!dateOfBirth) {
+      return res.status(400).json({ error: 'Date of birth not available - required for credit check' })
+    }
+    if (!address || !postcode) {
+      return res.status(400).json({ error: 'Current address not available - required for credit check' })
+    }
+
+    // Run the credit check
+    const verificationResult = await creditsafeService.verifyIndividual({
+      firstName,
+      lastName,
+      dateOfBirth,
+      address,
+      postcode
+    })
+
+    // Store result in V2 table
+    let verificationId: string | null = null
+    try {
+      const { data: insertedVerification } = await supabase.from('creditsafe_verifications_v2').insert({
+        reference_id: id,
+        request_data_encrypted: encrypt(JSON.stringify({ firstName, lastName, dateOfBirth, address, postcode })),
+        response_data_encrypted: encrypt(JSON.stringify(verificationResult)),
+        transaction_id: verificationResult.transactionId || null,
+        risk_level: verificationResult.riskLevel,
+        risk_score: verificationResult.riskScore,
+        status: verificationResult.status,
+        fraud_indicators: (verificationResult as any).fraudIndicators || null
+      }).select('id').single()
+      verificationId = insertedVerification?.id || null
+    } catch (storeErr) {
+      console.error('[V2 References] Failed to store credit result:', storeErr)
+    }
+
+    // Update the CREDIT section status
+    const sections = await getSections(id)
+    const creditSection = sections?.find(s => s.section_type === 'CREDIT')
+    if (creditSection) {
+      // Determine section status based on result
+      let decision: 'PASS' | 'FAIL' | 'REFER' | null = null
+      if (verificationResult.status === 'passed') {
+        decision = 'PASS'
+      } else if (verificationResult.status === 'failed') {
+        decision = 'FAIL'
+      } else if (verificationResult.status === 'refer') {
+        decision = 'REFER'
+      }
+
+      await updateSectionStatus(creditSection.id, {
+        status: 'READY',
+        decision,
+        sectionData: {
+          riskLevel: verificationResult.riskLevel,
+          riskScore: verificationResult.riskScore,
+          verifyMatch: verificationResult.verifyMatch,
+          notFound: verificationResult.notFound,
+          ccjMatch: verificationResult.ccjMatch,
+          insolvencyMatch: verificationResult.insolvencyMatch,
+          electoralRegisterMatch: verificationResult.electoralRegisterMatch,
+          ccjCount: verificationResult.countyCourtJudgments?.length || 0,
+          insolvencyCount: verificationResult.insolvencies?.length || 0,
+          verificationId
+        }
+      })
+    }
+
+    console.log(`[V2 References] Credit check completed for ${id}: ${verificationResult.status}`)
+
+    res.json({
+      success: true,
+      status: verificationResult.status,
+      riskLevel: verificationResult.riskLevel,
+      riskScore: verificationResult.riskScore,
+      verifyMatch: verificationResult.verifyMatch,
+      notFound: verificationResult.notFound,
+      flags: {
+        ccjMatch: verificationResult.ccjMatch,
+        insolvencyMatch: verificationResult.insolvencyMatch,
+        electoralRegisterMatch: verificationResult.electoralRegisterMatch,
+        deceasedMatch: verificationResult.deceasedRegisterMatch
+      },
+      ccjCount: verificationResult.countyCourtJudgments?.length || 0,
+      insolvencyCount: verificationResult.insolvencies?.length || 0,
+      verificationId
+    })
+  } catch (error: any) {
+    console.error('[V2 References] Error running credit check:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get credit check result for a V2 reference
+ */
+router.get('/:id/creditsafe', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    const { id } = req.params
+
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID required' })
+    }
+
+    // Get the reference
+    const reference = await getReference(id)
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify company access
+    if (reference.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get the credit check result from V2 table
+    const { data: result } = await supabase
+      .from('creditsafe_verifications_v2')
+      .select('*')
+      .eq('reference_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!result) {
+      return res.json({ hasResult: false, result: null })
+    }
+
+    // Parse fraud indicators if present
+    let fraudIndicators: any = null
+    if (result.fraud_indicators) {
+      try {
+        fraudIndicators = typeof result.fraud_indicators === 'string'
+          ? JSON.parse(result.fraud_indicators)
+          : result.fraud_indicators
+      } catch (e) { /* ignore */ }
+    }
+
+    // Decrypt response data for detailed arrays
+    let responseData: any = null
+    if (result.response_data_encrypted) {
+      try {
+        const decrypted = decrypt(result.response_data_encrypted)
+        responseData = decrypted ? JSON.parse(decrypted) : null
+      } catch (e) { /* ignore */ }
+    }
+
+    res.json({
+      hasResult: true,
+      result: {
+        status: result.status,
+        riskLevel: result.risk_level,
+        riskScore: result.risk_score,
+        verifyMatch: responseData?.verifyMatch || fraudIndicators?.verifyMatch,
+        electoralRegisterMatch: responseData?.electoralRegisterMatch || fraudIndicators?.electoralRollMatch,
+        ccjMatch: responseData?.ccjMatch || fraudIndicators?.ccjMatch,
+        insolvencyMatch: responseData?.insolvencyMatch || fraudIndicators?.insolvencyMatch,
+        deceasedMatch: responseData?.deceasedRegisterMatch || fraudIndicators?.deceasedMatch,
+        ccjCount: responseData?.countyCourtJudgments?.length || fraudIndicators?.ccjCount || 0,
+        insolvencyCount: responseData?.insolvencies?.length || fraudIndicators?.insolvencyCount || 0,
+        verifiedAt: result.created_at,
+        countyCourtJudgments: responseData?.countyCourtJudgments || [],
+        insolvencies: responseData?.insolvencies || []
+      }
+    })
+  } catch (error: any) {
+    console.error('[V2 References] Error getting credit check:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Run AML/sanctions check for a V2 reference
+ * Screens against UK Sanctions List and Electoral Commission donations
+ */
+router.post('/:id/aml/run', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    const { id } = req.params
+
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID required' })
+    }
+
+    // Check if sanctions service is enabled
+    if (!sanctionsService.isEnabled()) {
+      return res.status(400).json({ error: 'AML/Sanctions screening is not enabled' })
+    }
+
+    // Get the reference with decrypted data
+    const result = await getReferenceDecrypted(id)
+    if (!result) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify company access
+    if (result.reference.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const reference = result.reference
+    const formData = decryptFormData(reference.form_data)
+
+    if (!formData) {
+      return res.status(400).json({ error: 'Tenant form not yet submitted' })
+    }
+
+    // Extract required fields
+    const firstName = formData.identity?.firstName || decrypt(reference.tenant_first_name_encrypted)
+    const lastName = formData.identity?.lastName || decrypt(reference.tenant_last_name_encrypted)
+    const dateOfBirth = formData.identity?.dateOfBirth
+    const postcode = formData.residential?.currentAddress?.postcode
+
+    if (!firstName || !lastName) {
+      return res.status(400).json({ error: 'Tenant name not available' })
+    }
+
+    const fullName = `${firstName} ${lastName}`.trim()
+
+    // Run the AML/sanctions screening
+    const screeningResult = await sanctionsService.screenTenant({
+      name: fullName,
+      dateOfBirth: dateOfBirth || undefined,
+      postcode: postcode || undefined
+    })
+
+    // Store result in V2 table
+    try {
+      await supabase.from('sanctions_screenings_v2').insert({
+        reference_id: id,
+        screening_data_encrypted: encrypt(JSON.stringify(screeningResult)),
+        risk_level: screeningResult.risk_level,
+        total_matches: screeningResult.total_matches || 0,
+        sanctions_matches: screeningResult.sanctions_matches?.length || 0,
+        donation_matches: screeningResult.donation_matches?.length || 0,
+        summary: screeningResult.summary || null
+      })
+    } catch (storeErr) {
+      console.error('[V2 References] Failed to store AML result:', storeErr)
+    }
+
+    // Update the AML section status
+    const sections = await getSections(id)
+    const amlSection = sections?.find(s => s.section_type === 'AML')
+    if (amlSection) {
+      // Determine section status based on result
+      let decision: 'PASS' | 'FAIL' | 'REFER' | null = null
+      if (screeningResult.risk_level === 'clear' || screeningResult.risk_level === 'low') {
+        decision = 'PASS'
+      } else if (screeningResult.risk_level === 'high') {
+        decision = 'FAIL'
+      } else if (screeningResult.risk_level === 'medium') {
+        decision = 'REFER'
+      }
+
+      await updateSectionStatus(amlSection.id, {
+        status: 'READY',
+        decision,
+        sectionData: {
+          riskLevel: screeningResult.risk_level,
+          totalMatches: screeningResult.total_matches,
+          sanctionsMatches: screeningResult.sanctions_matches?.length || 0,
+          donationMatches: screeningResult.donation_matches?.length || 0,
+          summary: screeningResult.summary,
+          screeningDate: screeningResult.screening_date
+        }
+      })
+    }
+
+    console.log(`[V2 References] AML check completed for ${id}: ${screeningResult.risk_level}`)
+
+    res.json({
+      success: true,
+      riskLevel: screeningResult.risk_level,
+      totalMatches: screeningResult.total_matches,
+      sanctionsMatches: screeningResult.sanctions_matches?.length || 0,
+      donationMatches: screeningResult.donation_matches?.length || 0,
+      summary: screeningResult.summary,
+      requiresManualReview: sanctionsService.requiresManualReview(screeningResult),
+      shouldReject: sanctionsService.shouldReject(screeningResult)
+    })
+  } catch (error: any) {
+    console.error('[V2 References] Error running AML check:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get AML/sanctions check result for a V2 reference
+ */
+router.get('/:id/aml', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    const { id } = req.params
+
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID required' })
+    }
+
+    // Get the reference
+    const reference = await getReference(id)
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
+    // Verify company access
+    if (reference.company_id !== companyId) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Get the AML screening result from V2 table
+    const { data: result } = await supabase
+      .from('sanctions_screenings_v2')
+      .select('*')
+      .eq('reference_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!result) {
+      return res.json({ hasResult: false, result: null })
+    }
+
+    res.json({
+      hasResult: true,
+      result: {
+        riskLevel: result.risk_level,
+        totalMatches: result.total_matches,
+        sanctionsMatches: result.sanctions_matches || 0,
+        donationMatches: result.donation_matches || 0,
+        summary: result.summary,
+        screeningDate: result.created_at
+      }
+    })
+  } catch (error: any) {
+    console.error('[V2 References] Error getting AML check:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// FIELD EDITING & ACTIVITY LOG
+// ============================================================================
+
+/**
+ * Edit a field on a reference (agent auth - requires company ownership)
+ */
+router.patch('/:id/edit', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { field, value } = req.body
+    const companyId = await getCompanyIdForRequest(req)
+
+    if (!field || value === undefined) {
+      return res.status(400).json({ error: 'field and value are required' })
+    }
+
+    // Verify company ownership
+    const reference = await getReference(id)
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+    if (reference.company_id !== companyId) {
+      return res.status(403).json({ error: 'Not authorized to edit this reference' })
+    }
+
+    const result = await editReferenceField(
+      id,
+      field,
+      value,
+      req.user?.id || 'unknown',
+      'agent'
+    )
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error })
+    }
+
+    res.json({ success: true, isRefereeField: result.isRefereeField })
+  } catch (error: any) {
+    console.error('[V2 References] Error editing field:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get activity log for a reference (agent auth)
+ */
+router.get('/:id/activity', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const companyId = await getCompanyIdForRequest(req)
+
+    // Verify company ownership
+    const reference = await getReference(id)
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+    if (reference.company_id !== companyId) {
+      return res.status(403).json({ error: 'Not authorized' })
+    }
+
+    const activity = await getActivityForReference(id)
+    res.json({ activity })
+  } catch (error: any) {
+    console.error('[V2 References] Error getting activity:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Upload document for a section (agent auth)
+ */
+router.post('/:id/sections/:sectionId/upload', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id, sectionId } = req.params
+    const { fileData, fileName, fileType, evidenceType } = req.body
+    const companyId = await getCompanyIdForRequest(req)
+
+    // Verify company ownership
+    const reference = await getReference(id)
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+    if (reference.company_id !== companyId) {
+      return res.status(403).json({ error: 'Not authorized' })
+    }
+
+    // Get section to determine section_type
+    const { data: section } = await supabase
+      .from('reference_sections_v2')
+      .select('section_type, section_data')
+      .eq('id', sectionId)
+      .eq('reference_id', id)
+      .single()
+
+    if (!section) {
+      return res.status(404).json({ error: 'Section not found' })
+    }
+
+    // Upload file
+    const buffer = Buffer.from(fileData, 'base64')
+    const timestamp = Date.now()
+    const filePath = `v2-evidence/${reference.company_id}/${id}/${section.section_type.toLowerCase()}/${timestamp}-${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('reference-documents')
+      .upload(filePath, buffer, { contentType: fileType })
+
+    if (uploadError) {
+      return res.status(500).json({ error: 'Failed to upload file' })
+    }
+
+    const { data: urlData } = supabase.storage.from('reference-documents').getPublicUrl(filePath)
+
+    // Create evidence record
+    await supabase
+      .from('evidence_v2')
+      .insert({
+        reference_id: id,
+        section_type: section.section_type,
+        evidence_type: evidenceType || 'issue_document',
+        file_path: filePath,
+        file_name: fileName,
+        file_type: fileType,
+        uploaded_by: 'agent'
+      })
+
+    // Update section issue_status if there's an open issue
+    const sectionData = (section.section_data || {}) as Record<string, any>
+    if (sectionData.issue_status === 'OPEN') {
+      sectionData.issue_status = 'RESPONSE_PENDING_REVIEW'
+      await supabase
+        .from('reference_sections_v2')
+        .update({ section_data: sectionData, updated_at: new Date().toISOString() })
+        .eq('id', sectionId)
+    }
+
+    await logActivity({
+      referenceId: id,
+      sectionId,
+      action: 'AGENT_UPLOAD',
+      performedBy: req.user?.id || 'unknown',
+      performedByType: 'agent',
+      notes: `Uploaded ${fileName}`
+    })
+
+    res.json({ success: true, fileUrl: urlData?.publicUrl })
+  } catch (error: any) {
+    console.error('[V2 References] Error uploading:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Chase a referee (agent + staff auth)
+ */
+router.post('/:id/chase-referee', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { refereeType, sectionType } = req.body
+    const companyId = await getCompanyIdForRequest(req)
+
+    if (!refereeType || !sectionType) {
+      return res.status(400).json({ error: 'refereeType and sectionType are required' })
+    }
+
+    const reference = await getReference(id)
+    if (!reference) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+    if (reference.company_id !== companyId) {
+      return res.status(403).json({ error: 'Not authorized' })
+    }
+
+    // Find the referee
+    const { data: referee } = await supabase
+      .from('referees_v2')
+      .select('*')
+      .eq('reference_id', id)
+      .eq('referee_type', refereeType)
+      .maybeSingle()
+
+    if (!referee) {
+      return res.status(404).json({ error: 'Referee not found' })
+    }
+
+    // Generate new form token for the referee
+    const formToken = generateToken()
+    const formTokenHash = hash(formToken)
+
+    await supabase
+      .from('referees_v2')
+      .update({
+        form_token_hash: formTokenHash,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', referee.id)
+
+    // Find or create chase item
+    const { data: section } = await supabase
+      .from('reference_sections_v2')
+      .select('id')
+      .eq('reference_id', id)
+      .eq('section_type', sectionType)
+      .single()
+
+    if (section) {
+      // Import chase service dynamically to avoid circular deps
+      const { createChaseItem } = await import('../../services/v2/chaseServiceV2')
+      const refereeName = decrypt(referee.referee_name_encrypted) || ''
+      const refereeEmail = decrypt(referee.referee_email_encrypted) || ''
+      const refereePhone = decrypt(referee.referee_phone_encrypted) || undefined
+
+      await createChaseItem(id, section.id, refereeType, {
+        name: refereeName,
+        email: refereeEmail,
+        phone: refereePhone
+      })
+
+      // Send referee email with new form link
+      const frontendUrl = getV2FrontendUrl()
+      const refereeTypeRoute = refereeType.toLowerCase()
+      const referenceLink = `${frontendUrl}/v2/${refereeTypeRoute}-reference/${formToken}`
+
+      // Get company details for email
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name, email, phone')
+        .eq('id', reference.company_id)
+        .single()
+
+      const tenantName = `${decrypt(reference.tenant_first_name_encrypted) || ''} ${decrypt(reference.tenant_last_name_encrypted) || ''}`.trim()
+
+      if (refereeType === 'EMPLOYER') {
+        const { sendEmployerReferenceRequest } = await import('../../services/emailService')
+        await sendEmployerReferenceRequest(
+          refereeEmail,
+          refereeName,
+          tenantName,
+          referenceLink,
+          company?.name || '',
+          company?.phone || '',
+          company?.email || '',
+          id
+        )
+      } else if (refereeType === 'LANDLORD') {
+        const { sendLandlordReferenceRequest } = await import('../../services/emailService')
+        await sendLandlordReferenceRequest(
+          refereeEmail,
+          refereeName,
+          tenantName,
+          referenceLink,
+          company?.name || '',
+          company?.phone || '',
+          company?.email || '',
+          id
+        )
+      }
+    }
+
+    await logActivity({
+      referenceId: id,
+      action: 'REFEREE_CHASED',
+      performedBy: req.user?.id || 'unknown',
+      performedByType: 'agent',
+      notes: `Chased ${refereeType} referee`
+    })
+
+    res.json({ success: true })
+  } catch (error: any) {
+    console.error('[V2 References] Error chasing referee:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// TENANCY CONVERSION
+// ============================================================================
+
+/**
+ * Validate and preview conversion data
+ */
+router.get('/:id/convert/validate', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(401).json({ error: 'Company not found' })
+    const { id } = req.params
+
+    const result = await validateV2Conversion(id, companyId)
+    res.json(result)
+  } catch (error: any) {
+    console.error('[V2 References] Error validating conversion:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Convert V2 reference to tenancy
+ */
+router.post('/:id/convert', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) return res.status(401).json({ error: 'Company not found' })
+    const { id } = req.params
+    const {
+      depositScheme,
+      depositReference,
+      depositAmount,
+      additionalCharges,
+      rentDueDay,
+      notes,
+      activateImmediately,
+      managementType
+    } = req.body
+
+    const result = await convertV2ReferenceToTenancy(
+      id,
+      companyId,
+      {
+        depositScheme,
+        depositReference,
+        depositAmount,
+        additionalCharges,
+        rentDueDay,
+        notes,
+        activateImmediately,
+        managementType
+      },
+      req.user?.id
+    )
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error })
+    }
+
+    res.json({ tenancy: result.tenancy })
+  } catch (error: any) {
+    console.error('[V2 References] Error converting reference:', error)
     res.status(500).json({ error: error.message })
   }
 })

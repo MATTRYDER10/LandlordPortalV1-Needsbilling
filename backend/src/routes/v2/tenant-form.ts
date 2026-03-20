@@ -9,8 +9,12 @@ import express, { Request, Response, Router } from 'express'
 import { supabase } from '../../config/supabase'
 import { encrypt, decrypt, hash, generateToken } from '../../services/encryption'
 import { getReferenceByFormToken, getReferenceDecrypted } from '../../services/v2/referenceServiceV2'
-import { initializeSections } from '../../services/v2/sectionServiceV2'
-import { sendGuarantorReferenceRequest } from '../../services/emailService'
+import { initializeSections, updateSectionStatus } from '../../services/v2/sectionServiceV2'
+import { sendGuarantorReferenceRequest, sendEmployerReferenceRequest, sendLandlordReferenceRequest, sendAccountantReferenceRequest } from '../../services/emailService'
+import { createChaseItem } from '../../services/v2/chaseServiceV2'
+import { getV2FrontendUrl } from '../../utils/frontendUrl'
+import { creditsafeService } from '../../services/creditsafeService'
+import { sanctionsService } from '../../services/sanctionsService'
 
 const router: Router = express.Router()
 
@@ -284,6 +288,10 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
           months: residential.currentAddress.months
         },
         proofOfAddressUrl: residential.proofOfAddressUrl || null,
+        currentLivingSituation: residential.currentLivingSituation || null,
+        currentLandlordName: residential.currentLandlordName || null,
+        currentLandlordEmail: residential.currentLandlordEmail || null,
+        currentLandlordPhone: residential.currentLandlordPhone || null,
         previousAddresses: (residential.previousAddresses || []).map((addr: any) => ({
           line1: addr.line1,
           line2: addr.line2 || null,
@@ -291,7 +299,10 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
           postcode: addr.postcode,
           years: addr.years,
           months: addr.months,
-          landlordEmail: addr.landlordEmail || null
+          landlordName: addr.landlordName || null,
+          landlordEmail: addr.landlordEmail || null,
+          landlordPhone: addr.landlordPhone || null,
+          landlordType: addr.landlordType || null
         }))
       },
       personal: {
@@ -386,21 +397,30 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       await initializeSections(reference.id, reference.is_guarantor || false)
     }
 
+    // Build tenant name for referee emails
+    const tenantFullName = `${identity.firstName} ${identity.lastName}`.trim()
+
     // Create referee requests
     // Employer reference
     if (income.employerRefEmail) {
-      await createRefereeRequest(reference.id, reference.company_id, 'EMPLOYER', income.employerRefEmail, income.employerRefName)
+      await createRefereeRequest(reference.id, reference.company_id, 'EMPLOYER', income.employerRefEmail, tenantFullName, income.employerRefName)
     }
 
     // Accountant reference (for self-employed)
     if (income.accountantEmail) {
-      await createRefereeRequest(reference.id, reference.company_id, 'ACCOUNTANT', income.accountantEmail, income.accountantName)
+      await createRefereeRequest(reference.id, reference.company_id, 'ACCOUNTANT', income.accountantEmail, tenantFullName, income.accountantName)
     }
 
-    // Previous landlord references
-    for (const addr of (residential.previousAddresses || [])) {
-      if (addr.landlordEmail) {
-        await createRefereeRequest(reference.id, reference.company_id, 'LANDLORD', addr.landlordEmail)
+    // Most recent landlord/agent reference only (current landlord if renting, otherwise first previous landlord)
+    if (residential.currentLandlordEmail && residential.currentLivingSituation !== 'living_with_family') {
+      await createRefereeRequest(reference.id, reference.company_id, 'LANDLORD', residential.currentLandlordEmail, tenantFullName, residential.currentLandlordName || undefined)
+    } else {
+      // Fall back to first previous address landlord if not currently renting
+      const firstLandlord = (residential.previousAddresses || []).find(
+        (addr: any) => addr.landlordEmail && addr.landlordType !== 'Living with Family/Friends'
+      )
+      if (firstLandlord) {
+        await createRefereeRequest(reference.id, reference.company_id, 'LANDLORD', firstLandlord.landlordEmail, tenantFullName, firstLandlord.landlordName || undefined)
       }
     }
 
@@ -408,6 +428,86 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
     if (guarantor && guarantor.firstName && guarantor.email) {
       await createGuarantorReference(reference, guarantor)
     }
+
+    // Mark IDENTITY and RTR sections as READY (tenant provided evidence in form)
+    try {
+      const { data: sections } = await supabase
+        .from('reference_sections_v2')
+        .select('id, section_type')
+        .eq('reference_id', reference.id)
+        .in('section_type', ['IDENTITY', 'RTR'])
+
+      for (const section of (sections || [])) {
+        await supabase
+          .from('reference_sections_v2')
+          .update({
+            queue_status: 'READY',
+            evidence_submitted_at: new Date().toISOString(),
+            queue_entered_at: new Date().toISOString()
+          })
+          .eq('id', section.id)
+        console.log(`[V2 TenantForm] Marked ${section.section_type} section as READY`)
+      }
+
+      // If no landlord referees needed (living with family for all), mark RESIDENTIAL as READY too
+      const hasLandlordReferee = (residential.previousAddresses || []).some(
+        (addr: any) => addr.landlordEmail && addr.landlordType !== 'Living with Family/Friends'
+      )
+      if (!hasLandlordReferee) {
+        const { data: resSections } = await supabase
+          .from('reference_sections_v2')
+          .select('id')
+          .eq('reference_id', reference.id)
+          .eq('section_type', 'RESIDENTIAL')
+          .single()
+
+        if (resSections) {
+          await supabase
+            .from('reference_sections_v2')
+            .update({
+              queue_status: 'READY',
+              evidence_submitted_at: new Date().toISOString(),
+              queue_entered_at: new Date().toISOString()
+            })
+            .eq('id', resSections.id)
+          console.log('[V2 TenantForm] No landlord referee needed - marked RESIDENTIAL as READY')
+        }
+      }
+
+      // If no employer/accountant referee needed, mark INCOME as READY
+      const hasIncomeReferee = income.employerRefEmail || income.accountantEmail
+      if (!hasIncomeReferee) {
+        const { data: incSection } = await supabase
+          .from('reference_sections_v2')
+          .select('id')
+          .eq('reference_id', reference.id)
+          .eq('section_type', 'INCOME')
+          .single()
+
+        if (incSection) {
+          await supabase
+            .from('reference_sections_v2')
+            .update({
+              queue_status: 'READY',
+              evidence_submitted_at: new Date().toISOString(),
+              queue_entered_at: new Date().toISOString()
+            })
+            .eq('id', incSection.id)
+          console.log('[V2 TenantForm] No income referee needed - marked INCOME as READY')
+        }
+      }
+    } catch (sectionErr) {
+      console.error('[V2 TenantForm] Error updating section statuses:', sectionErr)
+    }
+
+    // Auto-trigger Credit and AML checks (run in background, don't block response)
+    triggerAutomatedChecks(reference.id, {
+      firstName: identity.firstName,
+      lastName: identity.lastName,
+      dateOfBirth: identity.dateOfBirth,
+      address: residential.currentAddress.line1 + (residential.currentAddress.line2 ? ', ' + residential.currentAddress.line2 : '') + ', ' + residential.currentAddress.city,
+      postcode: residential.currentAddress.postcode
+    }).catch(err => console.error('[V2 TenantForm] Background checks error:', err))
 
     return res.json({
       success: true,
@@ -494,13 +594,14 @@ async function createRefereeRequest(
   companyId: string,
   refereeType: 'EMPLOYER' | 'LANDLORD' | 'ACCOUNTANT',
   email: string,
+  tenantName: string,
   name?: string
 ): Promise<void> {
   try {
     const formToken = generateToken()
     const formTokenHash = hash(formToken)
 
-    const { error } = await supabase
+    const { data: referee, error } = await supabase
       .from('referees_v2')
       .insert({
         reference_id: referenceId,
@@ -509,14 +610,113 @@ async function createRefereeRequest(
         referee_name: name || null,
         form_token_hash: formTokenHash
       })
+      .select()
+      .single()
 
     if (error) {
       console.error(`Error creating ${refereeType} referee request:`, error)
       return
     }
 
-    // TODO: Send email to referee with form link
-    console.log(`[V2] Created ${refereeType} referee request for ${email}, token: ${formToken}`)
+    // Get company info for email
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name, logo_url, phone_encrypted, email_encrypted')
+      .eq('id', companyId)
+      .single()
+
+    const companyName = company?.name || 'PropertyGoose'
+    const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) || '' : ''
+    const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) || '' : ''
+    const companyLogoUrl = company?.logo_url || null
+
+    // Build referee form URL
+    const frontendUrl = getV2FrontendUrl()
+    const refereeName = name || 'Referee'
+    let formUrl: string
+
+    const refereeTypeToPath: Record<string, string> = {
+      'EMPLOYER': 'v2/employer-reference',
+      'LANDLORD': 'v2/landlord-reference',
+      'ACCOUNTANT': 'v2/accountant-reference'
+    }
+    formUrl = `${frontendUrl}/${refereeTypeToPath[refereeType]}/${formToken}`
+
+    // Send the appropriate email
+    try {
+      if (refereeType === 'EMPLOYER') {
+        await sendEmployerReferenceRequest(
+          email,
+          refereeName,
+          tenantName,
+          formUrl,
+          companyName,
+          companyPhone,
+          companyEmail,
+          referenceId,
+          companyLogoUrl
+        )
+      } else if (refereeType === 'LANDLORD') {
+        await sendLandlordReferenceRequest(
+          email,
+          refereeName,
+          tenantName,
+          formUrl,
+          companyName,
+          companyPhone,
+          companyEmail,
+          referenceId,
+          companyLogoUrl
+        )
+      } else if (refereeType === 'ACCOUNTANT') {
+        await sendAccountantReferenceRequest(
+          email,
+          refereeName,
+          tenantName,
+          formUrl,
+          companyName,
+          companyPhone,
+          companyEmail,
+          referenceId
+        )
+      }
+      console.log(`[V2] Sent ${refereeType} referee email to ${email}`)
+    } catch (emailError) {
+      console.error(`[V2] Failed to send ${refereeType} referee email:`, emailError)
+    }
+
+    // Create chase item for follow-up tracking
+    const sectionTypeMap: Record<string, string> = {
+      'EMPLOYER': 'INCOME',
+      'ACCOUNTANT': 'INCOME',
+      'LANDLORD': 'RESIDENTIAL'
+    }
+    const sectionType = sectionTypeMap[refereeType]
+
+    // Look up the section ID
+    const { data: section } = await supabase
+      .from('reference_sections_v2')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .eq('section_type', sectionType)
+      .single()
+
+    if (section) {
+      await createChaseItem(
+        referenceId,
+        section.id,
+        refereeType,
+        {
+          name: refereeName,
+          email: email
+        }
+      )
+      console.log(`[V2] Created chase item for ${refereeType} referee`)
+    } else {
+      console.warn(`[V2] Could not find ${sectionType} section for reference ${referenceId}, skipping chase item`)
+    }
+
+    console.log(`[V2] Created ${refereeType} referee request for ${email}`)
   } catch (error) {
     console.error(`Error creating referee request:`, error)
   }
@@ -545,7 +745,8 @@ async function createGuarantorReference(
         property_address_encrypted: tenantReference.property_address_encrypted,
         property_city: tenantReference.property_city,
         property_postcode: tenantReference.property_postcode,
-        monthly_rent: tenantReference.monthly_rent,
+        monthly_rent: tenantReference.rent_share || tenantReference.monthly_rent,
+        rent_share: tenantReference.rent_share || tenantReference.monthly_rent,
         move_in_date: tenantReference.move_in_date,
         is_guarantor: true,
         guarantor_for_reference_id: tenantReference.id,
@@ -588,8 +789,8 @@ async function createGuarantorReference(
       ? decrypt(tenantReference.tenant_last_name_encrypted)
       : ''
 
-    // Send email to guarantor
-    const guarantorFormUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/submit-reference-v2/${formToken}`
+    // Send email to guarantor - use the V2 guarantor form (separate from tenant form)
+    const guarantorFormUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/guarantor-reference-v2/${formToken}`
 
     // Use the guarantor email template
     await sendGuarantorReferenceRequest(
@@ -611,6 +812,158 @@ async function createGuarantorReference(
   } catch (error) {
     console.error('Error creating guarantor reference:', error)
   }
+}
+
+/**
+ * Auto-trigger Credit and AML checks when tenant submits form
+ * Runs in background - errors are logged but don't fail the submission
+ */
+async function triggerAutomatedChecks(
+  referenceId: string,
+  tenantData: {
+    firstName: string
+    lastName: string
+    dateOfBirth: string
+    address: string
+    postcode: string
+  }
+): Promise<void> {
+  console.log(`[V2 AutoChecks] Starting automated checks for reference ${referenceId}`)
+
+  // Get section IDs for updating status
+  const { data: sections } = await supabase
+    .from('reference_sections_v2')
+    .select('id, section_type')
+    .eq('reference_id', referenceId)
+    .in('section_type', ['CREDIT', 'AML'])
+
+  const creditSection = sections?.find(s => s.section_type === 'CREDIT')
+  const amlSection = sections?.find(s => s.section_type === 'AML')
+
+  // Run both checks in parallel
+  const results = await Promise.allSettled([
+    // Credit Check
+    (async () => {
+      if (!creditsafeService.isEnabled()) {
+        console.log('[V2 AutoChecks] Creditsafe not enabled, skipping credit check')
+        return null
+      }
+
+      console.log(`[V2 AutoChecks] Running credit check for ${tenantData.firstName} ${tenantData.lastName}`)
+      const result = await creditsafeService.verifyIndividual({
+        firstName: tenantData.firstName,
+        lastName: tenantData.lastName,
+        dateOfBirth: tenantData.dateOfBirth,
+        address: tenantData.address,
+        postcode: tenantData.postcode
+      })
+
+      // Store result in V2 table (V1 table has FK to tenant_references, not tenant_references_v2)
+      try {
+        await supabase.from('creditsafe_verifications_v2').insert({
+          reference_id: referenceId,
+          request_data_encrypted: encrypt(JSON.stringify(tenantData)),
+          response_data_encrypted: encrypt(JSON.stringify(result)),
+          transaction_id: result.transactionId || null,
+          risk_level: result.riskLevel,
+          risk_score: result.riskScore,
+          status: result.status,
+          fraud_indicators: (result as any).fraudIndicators || null
+        })
+      } catch (storeErr) {
+        console.error('[V2 AutoChecks] Failed to store credit result:', storeErr)
+      }
+
+      // Update section status
+      if (creditSection) {
+        const sectionData = {
+          status: result.status,
+          riskLevel: result.riskLevel,
+          riskScore: result.riskScore,
+          verifyMatch: result.verifyMatch,
+          notFound: result.notFound,
+          ccjMatch: result.ccjMatch,
+          insolvencyMatch: result.insolvencyMatch,
+          electoralRegisterMatch: result.electoralRegisterMatch,
+          deceasedRegisterMatch: result.deceasedRegisterMatch || false,
+          ccjCount: result.countyCourtJudgments?.length || 0,
+          insolvencyCount: result.insolvencies?.length || 0,
+          transactionId: result.transactionId || null,
+          checkedAt: new Date().toISOString()
+        }
+        await updateSectionStatus(creditSection.id, {
+          status: 'READY',
+          sectionData
+        })
+      }
+
+      console.log(`[V2 AutoChecks] Credit check completed: ${result.status} (risk: ${result.riskLevel})`)
+      return result
+    })(),
+
+    // AML/Sanctions Check
+    (async () => {
+      if (!sanctionsService.isEnabled()) {
+        console.log('[V2 AutoChecks] Sanctions service not enabled, skipping AML check')
+        return null
+      }
+
+      const fullName = `${tenantData.firstName} ${tenantData.lastName}`
+      console.log(`[V2 AutoChecks] Running AML check for ${fullName}`)
+
+      const result = await sanctionsService.screenTenant({
+        name: fullName,
+        dateOfBirth: tenantData.dateOfBirth,
+        postcode: tenantData.postcode
+      })
+
+      // Store result in V2 table (V1 table has FK to tenant_references, not tenant_references_v2)
+      try {
+        await supabase.from('sanctions_screenings_v2').insert({
+          reference_id: referenceId,
+          screening_data_encrypted: encrypt(JSON.stringify(result)),
+          risk_level: result.risk_level,
+          total_matches: result.total_matches || 0,
+          sanctions_matches: result.sanctions_matches?.length || 0,
+          donation_matches: result.donation_matches?.length || 0,
+          summary: result.summary || null
+        })
+      } catch (storeErr) {
+        console.error('[V2 AutoChecks] Failed to store AML result:', storeErr)
+      }
+
+      // Update section status
+      if (amlSection) {
+        const sectionData = {
+          riskLevel: result.risk_level,
+          sanctionsMatches: result.sanctions_matches?.length || 0,
+          donationMatches: result.donation_matches?.length || 0,
+          totalMatches: result.total_matches || 0,
+          summary: result.summary,
+          requiresManualReview: sanctionsService.requiresManualReview(result),
+          shouldReject: sanctionsService.shouldReject(result),
+          checkedAt: new Date().toISOString()
+        }
+        await updateSectionStatus(amlSection.id, {
+          status: 'READY',
+          sectionData
+        })
+      }
+
+      console.log(`[V2 AutoChecks] AML check completed: ${result.risk_level}`)
+      return result
+    })()
+  ])
+
+  // Log any failures
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      const checkType = index === 0 ? 'Credit' : 'AML'
+      console.error(`[V2 AutoChecks] ${checkType} check failed:`, result.reason)
+    }
+  })
+
+  console.log(`[V2 AutoChecks] Completed automated checks for reference ${referenceId}`)
 }
 
 export default router

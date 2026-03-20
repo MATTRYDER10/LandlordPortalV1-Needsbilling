@@ -94,7 +94,10 @@
                 For: {{ item.tenant_name }} - {{ item.section_type }}
               </p>
               <p class="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
-                {{ item.referee_email }} | {{ item.referee_phone }}
+                {{ item.referee_email }}
+                <template v-if="item.referee_phone">
+                  | <a :href="`tel:${item.referee_phone}`" class="text-primary hover:underline">{{ item.referee_phone }}</a>
+                </template>
               </p>
             </div>
             <div class="text-right">
@@ -140,6 +143,14 @@
             >
               <FileText class="w-4 h-4" />
               Record Verbal
+            </button>
+            <button
+              @click="markReceived(item)"
+              :disabled="actionLoading === item.id"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200 dark:bg-teal-900/30 dark:text-teal-400 disabled:opacity-50"
+            >
+              <CheckCircle class="w-4 h-4" />
+              Received
             </button>
             <button
               @click="markUnable(item)"
@@ -320,7 +331,7 @@ import {
   ChevronDown
 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -494,6 +505,23 @@ function openVerbalModal(item: any) {
 function onVerbalSubmitted() {
   showVerbalModal.value = false
   fetchItems()
+}
+
+async function markReceived(item: any) {
+  actionLoading.value = item.id
+  try {
+    await fetch(`${API_URL}/api/v2/chase/${item.id}/mark-received`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`
+      }
+    })
+    await fetchItems()
+  } catch (error) {
+    console.error('Error marking received:', error)
+  } finally {
+    actionLoading.value = null
+  }
 }
 
 function markUnable(item: any) {

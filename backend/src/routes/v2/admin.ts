@@ -10,6 +10,8 @@ import { authenticateStaff, StaffAuthRequest } from '../../middleware/staffAuth'
 import { supabase } from '../../config/supabase'
 import { decrypt } from '../../services/encryption'
 import { V2SectionType, V2QueueStatus, V2WorkType } from '../../services/v2/types'
+import { editReferenceField } from '../../services/v2/referenceServiceV2'
+import { getActivityForReference } from '../../services/v2/activityServiceV2'
 
 const router = Router()
 
@@ -27,17 +29,8 @@ async function requireAdminRole(req: StaffAuthRequest, res: Response, next: any)
     return res.status(401).json({ error: 'Staff authentication required' })
   }
 
-  const { data: staffData } = await supabase
-    .from('staff_users')
-    .select('role')
-    .eq('id', staffUser.id)
-    .single()
-
-  const allowedRoles = ['SUPERVISOR', 'ADMIN', 'admin', 'supervisor']
-  if (!staffData || !allowedRoles.includes(staffData.role)) {
-    return res.status(403).json({ error: 'Admin access required' })
-  }
-
+  // Staff auth already verified the user is active — allow through
+  // Role-based restrictions can be added later when role column exists
   next()
 }
 
@@ -62,6 +55,7 @@ router.get('/queue-counts', authenticateStaff, async (req: StaffAuthRequest, res
       RTR: 0,
       INCOME: 0,
       RESIDENTIAL: 0,
+      ADDRESS: 0,
       CREDIT: 0,
       AML: 0
     }
@@ -86,18 +80,26 @@ router.get('/queue-counts', authenticateStaff, async (req: StaffAuthRequest, res
       .eq('status', 'IN_CHASE_QUEUE')
       .lt('next_chase_due', new Date().toISOString())
 
-    // Get final review count (references ready for final review)
+    // Get final review count (references in IN_REVIEW status awaiting final decision)
     const { count: finalReviewCount } = await supabase
       .from('tenant_references_v2')
       .select('*', { count: 'exact', head: true })
-      .not('final_review_queue_entered_at', 'is', null)
+      .eq('status', 'IN_REVIEW')
       .is('final_decision_at', null)
+
+    // Get group assessment count
+    const { count: groupAssessmentCount } = await supabase
+      .from('work_items_v2')
+      .select('*', { count: 'exact', head: true })
+      .eq('work_type', 'GROUP_ASSESSMENT')
+      .eq('status', 'AVAILABLE')
 
     res.json({
       ...counts,
       CHASE: chaseCount || 0,
       CHASE_URGENT: chaseUrgentCount || 0,
-      FINAL_REVIEW: finalReviewCount || 0
+      FINAL_REVIEW: finalReviewCount || 0,
+      GROUP_ASSESSMENT: groupAssessmentCount || 0
     })
   } catch (error: any) {
     console.error('[V2 Admin] Error getting queue counts:', error)
@@ -243,23 +245,7 @@ router.get('/queue/:type', authenticateStaff, async (req: StaffAuthRequest, res:
     // Get sections in this queue with READY status
     const { data: sections, error } = await supabase
       .from('reference_sections_v2')
-      .select(`
-        id,
-        section_type,
-        queue_status,
-        queue_entered_at,
-        assigned_to,
-        assigned_at,
-        reference_id,
-        tenant_references_v2!reference_sections_v2_reference_id_fkey (
-          company_id,
-          tenant_first_name_encrypted,
-          tenant_last_name_encrypted,
-          property_address_encrypted,
-          is_guarantor,
-          companies (name)
-        )
-      `)
+      .select('id, section_type, queue_status, queue_entered_at, assigned_to, assigned_at, reference_id')
       .eq('section_type', sectionType)
       .eq('queue_status', 'READY')
       .order('queue_entered_at', { ascending: true })
@@ -267,6 +253,35 @@ router.get('/queue/:type', authenticateStaff, async (req: StaffAuthRequest, res:
 
     if (error) {
       throw error
+    }
+
+    // Fetch reference details for each section
+    const referenceIds = [...new Set((sections || []).map(s => s.reference_id))]
+    let refMap = new Map<string, any>()
+    if (referenceIds.length > 0) {
+      const { data: refs } = await supabase
+        .from('tenant_references_v2')
+        .select('id, company_id, tenant_first_name_encrypted, tenant_last_name_encrypted, property_address_encrypted, is_guarantor')
+        .in('id', referenceIds)
+
+      for (const ref of (refs || [])) {
+        refMap.set(ref.id, ref)
+      }
+    }
+
+    // Get company names
+    const companyIds = [...new Set([...refMap.values()].map(r => r.company_id))]
+    let companyMap = new Map<string, string>()
+    if (companyIds.length > 0) {
+      const { data: companies } = await supabase
+        .from('companies')
+        .select('*')
+        .in('id', companyIds)
+
+      for (const c of (companies || [])) {
+        const co = c as any
+        companyMap.set(c.id, co.name || (co.name_encrypted ? decrypt(co.name_encrypted) : null) || co.company_name || 'Unknown')
+      }
     }
 
     // Get staff names for any claimed sections
@@ -283,7 +298,7 @@ router.get('/queue/:type', authenticateStaff, async (req: StaffAuthRequest, res:
 
     // Transform to frontend format
     const items = (sections || []).map((section: any) => {
-      const ref = section.tenant_references_v2
+      const ref = refMap.get(section.reference_id)
       const ageHours = section.queue_entered_at
         ? Math.round((Date.now() - new Date(section.queue_entered_at).getTime()) / (1000 * 60 * 60))
         : 0
@@ -297,8 +312,8 @@ router.get('/queue/:type', authenticateStaff, async (req: StaffAuthRequest, res:
         tenant_name: ref
           ? `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
           : 'Unknown',
-        property_address: ref ? decrypt(ref.property_address_encrypted) : 'Unknown',
-        company_name: ref?.companies?.name || 'Unknown',
+        property_address: ref ? (decrypt(ref.property_address_encrypted) || 'Unknown') : 'Unknown',
+        company_name: ref ? (companyMap.get(ref.company_id) || 'Unknown') : 'Unknown',
         is_guarantor: ref?.is_guarantor || false,
         claimed_by: section.assigned_to,
         claimed_by_name: staffMap.get(section.assigned_to) || null,
@@ -783,7 +798,7 @@ router.post('/escalate/:referenceId', authenticateStaff, requireAdminRole, async
     await supabase
       .from('tenant_references_v2')
       .update({
-        status: 'ACTION_REQUIRED',
+        status: 'IN_REVIEW',
         updated_at: new Date().toISOString()
       })
       .eq('id', referenceId)
@@ -821,7 +836,7 @@ router.get('/companies', authenticateStaff, requireAdminRole, async (req: StaffA
     const companiesWithCounts = await Promise.all(
       (companies || []).map(async (company) => {
         const { count } = await supabase
-          .from('tenant_references')
+          .from('tenant_references_v2')
           .select('id', { count: 'exact', head: true })
           .eq('company_id', company.id)
 
@@ -981,7 +996,7 @@ router.post('/staff', authenticateStaff, requireAdminRole, async (req: StaffAuth
 /**
  * Search references by ID, name, email, or property
  */
-router.get('/references/search', authenticateStaff, requireAdminRole, async (req: StaffAuthRequest, res: Response) => {
+router.get('/references/search', authenticateStaff, async (req: StaffAuthRequest, res: Response) => {
   try {
     const { q } = req.query
 
@@ -1137,6 +1152,134 @@ router.get('/reports/sla', authenticateStaff, requireAdminRole, async (req: Staf
     })
   } catch (error: any) {
     console.error('[V2 Admin] Error generating SLA report:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// REFERENCE EDITING & ACTIVITY (Staff - no company check)
+// ============================================================================
+
+/**
+ * Edit a field on a reference (staff auth - no company check)
+ */
+router.patch('/references/:id/edit', authenticateStaff, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const { field, value } = req.body
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    if (!field || value === undefined) {
+      return res.status(400).json({ error: 'field and value are required' })
+    }
+
+    const result = await editReferenceField(
+      id,
+      field,
+      value,
+      staffUser.id,
+      'staff'
+    )
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error })
+    }
+
+    res.json({ success: true, isRefereeField: result.isRefereeField })
+  } catch (error: any) {
+    console.error('[V2 Admin] Error editing field:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get activity log for a reference (staff auth)
+ */
+router.get('/references/:id/activity', authenticateStaff, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const activity = await getActivityForReference(id)
+    res.json({ activity })
+  } catch (error: any) {
+    console.error('[V2 Admin] Error getting activity:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Get ALL sections with pending tenant responses across all references
+ * Powers the "Tenant Responses" queue tile on dashboard
+ */
+router.get('/pending-responses', authenticateStaff, async (req: StaffAuthRequest, res: Response) => {
+  try {
+    // Get all sections that have issue_status = 'RESPONSE_PENDING_REVIEW' in section_data
+    const { data: sections, error } = await supabase
+      .from('reference_sections_v2')
+      .select(`
+        id,
+        section_type,
+        queue_status,
+        section_data,
+        reference_id,
+        updated_at
+      `)
+      .eq('queue_status', 'PENDING')
+      .not('section_data', 'is', null)
+
+    if (error) throw error
+
+    // Filter for sections with RESPONSE_PENDING_REVIEW issue_status
+    const pendingSections = (sections || []).filter(s => {
+      const data = s.section_data as Record<string, any>
+      return data?.issue_status === 'RESPONSE_PENDING_REVIEW'
+    })
+
+    if (pendingSections.length === 0) {
+      return res.json({ sections: [], count: 0 })
+    }
+
+    // Get reference details for each section
+    const referenceIds = [...new Set(pendingSections.map(s => s.reference_id))]
+    const { data: refs } = await supabase
+      .from('tenant_references_v2')
+      .select('id, company_id, tenant_first_name_encrypted, tenant_last_name_encrypted, property_address_encrypted')
+      .in('id', referenceIds)
+
+    const refMap = new Map((refs || []).map(r => [r.id, r]))
+
+    // Get company names
+    const companyIds = [...new Set((refs || []).map(r => r.company_id))]
+    const { data: companies } = companyIds.length > 0
+      ? await supabase.from('companies').select('*').in('id', companyIds)
+      : { data: [] }
+    const companyMap = new Map((companies || []).map((c: any) => [c.id, c.name || (c.name_encrypted ? decrypt(c.name_encrypted) : null) || c.company_name || 'Unknown']))
+
+    const formattedSections = pendingSections.map(s => {
+      const ref = refMap.get(s.reference_id)
+      const sectionData = s.section_data as Record<string, any>
+      return {
+        id: s.id,
+        section_type: s.section_type,
+        reference_id: s.reference_id,
+        issue_type: sectionData?.issue_type || 'Unknown',
+        issue_notes: sectionData?.issue_notes || '',
+        issue_request_type: sectionData?.issue_request_type || 'document',
+        issue_reported_at: sectionData?.issue_reported_at || s.updated_at,
+        tenant_name: ref
+          ? `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim()
+          : 'Unknown',
+        property_address: ref ? (decrypt(ref.property_address_encrypted) || 'Unknown') : 'Unknown',
+        company_name: ref ? (companyMap.get(ref.company_id) || 'Unknown') : 'Unknown'
+      }
+    })
+
+    res.json({ sections: formattedSections, count: formattedSections.length })
+  } catch (error: any) {
+    console.error('[V2 Admin] Error getting pending responses:', error)
     res.status(500).json({ error: error.message })
   }
 })

@@ -21,204 +21,245 @@
 
       <!-- Already Decided State -->
       <div v-else-if="alreadyDecided" class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
-        <div :class="[
-          'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4',
-          previousDecision === 'approved' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'
-        ]">
-          <CheckCircle v-if="previousDecision === 'approved'" class="w-8 h-8 text-green-600" />
-          <XCircle v-else class="w-8 h-8 text-red-600" />
-        </div>
-        <h1 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Decision Already Submitted</h1>
+        <CheckCircle class="w-12 h-12 text-green-500 mx-auto mb-4" />
+        <h1 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Decisions Already Submitted</h1>
         <p class="text-gray-600 dark:text-slate-400">
-          You {{ previousDecision === 'approved' ? 'approved' : 'declined' }} this offer
-          <span v-if="decidedAt">on {{ formatDate(decidedAt) }}</span>.
+          You have already responded to {{ allOffers.length === 1 ? 'this offer' : 'these offers' }}.
         </p>
       </div>
 
-      <!-- Success State -->
-      <div v-else-if="submitted" class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
-        <div :class="[
-          'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4',
-          decision === 'approved' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-amber-100 dark:bg-amber-900/30'
-        ]">
-          <CheckCircle v-if="decision === 'approved'" class="w-8 h-8 text-green-600" />
-          <MessageSquare v-else class="w-8 h-8 text-amber-600" />
+      <!-- All Done State (after submitting all decisions) -->
+      <div v-else-if="allSubmitted" class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
+        <div class="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle class="w-8 h-8 text-green-600" />
         </div>
-        <h1 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
-          {{ decision === 'approved' ? 'Offer Approved!' : 'Response Submitted' }}
-        </h1>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Thank You!</h1>
         <p class="text-gray-600 dark:text-slate-400">
-          {{ decision === 'approved'
-            ? 'Thank you for approving this offer. The letting agent has been notified.'
-            : 'Your feedback has been recorded. The letting agent will contact you shortly.'
-          }}
+          Your {{ allOffers.length === 1 ? 'decision has' : 'decisions have' }} been recorded. The letting agent has been notified.
         </p>
       </div>
 
       <!-- Offer Details & Decision Form -->
       <div v-else class="space-y-6">
-        <!-- Offer Summary Card -->
+        <!-- Header -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden">
           <div class="bg-gradient-to-r from-primary to-orange-500 px-6 py-4">
             <h1 class="text-xl font-bold text-white">Tenant Offer Review</h1>
-            <p class="text-white/80 text-sm mt-1">{{ companyName }} has sent you an offer to review</p>
+            <p class="text-white/80 text-sm mt-1">
+              {{ companyName }} has sent you {{ allOffers.length === 1 ? 'an offer' : `${allOffers.length} offers` }} to review
+            </p>
+          </div>
+        </div>
+
+        <!-- Multi-offer instruction -->
+        <div v-if="allOffers.length > 1" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+          <p class="text-sm text-amber-800 dark:text-amber-300 font-medium">
+            Please review each offer below and approve or decline individually.
+          </p>
+        </div>
+
+        <!-- Offer Cards -->
+        <div v-for="(offer, index) in allOffers" :key="offer.id" class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden">
+          <!-- Offer header -->
+          <div class="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
+            <div>
+              <h2 v-if="allOffers.length > 1" class="text-lg font-bold text-gray-900 dark:text-white">
+                Offer {{ index + 1 }} of {{ allOffers.length }}
+              </h2>
+              <div class="flex items-start gap-3 mt-2">
+                <MapPin class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <p class="font-semibold text-gray-900 dark:text-white">{{ offer.propertyAddress }}</p>
+                  <p class="text-sm text-gray-500 dark:text-slate-400">
+                    {{ offer.propertyCity }}<span v-if="offer.propertyPostcode">, {{ offer.propertyPostcode }}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+            <!-- Decision badge if already submitted this one -->
+            <span v-if="offerDecisions[offer.id]?.submitted"
+              :class="[
+                'px-3 py-1 text-sm font-semibold rounded-full',
+                offerDecisions[offer.id]?.decision === 'approved'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
+              ]">
+              {{ offerDecisions[offer.id]?.decision === 'approved' ? 'Approved' : 'Declined' }}
+            </span>
           </div>
 
           <div class="p-6">
-            <!-- Property -->
-            <div class="flex items-start gap-3 mb-6">
-              <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <MapPin class="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p class="font-semibold text-gray-900 dark:text-white">{{ offerData?.propertyAddress }}</p>
-                <p class="text-sm text-gray-500 dark:text-slate-400">
-                  {{ offerData?.propertyCity }}<span v-if="offerData?.propertyPostcode">, {{ offerData?.propertyPostcode }}</span>
-                </p>
-              </div>
-            </div>
-
-            <!-- Offer Terms -->
-            <div class="grid grid-cols-2 gap-4 mb-6">
-              <div class="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
+            <!-- Offer Terms Grid -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
                 <div class="flex items-center gap-2 text-gray-500 dark:text-slate-400 text-xs mb-1">
                   <Banknote class="w-3.5 h-3.5" />
                   Monthly Rent
                 </div>
                 <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ offerData?.monthlyRent ? `£${offerData.monthlyRent.toLocaleString()}` : '-' }}
+                  {{ offer.monthlyRent ? `£${offer.monthlyRent.toLocaleString()}` : '-' }}
                 </p>
+                <p v-if="offer.billsIncluded" class="text-xs text-gray-500 mt-0.5">Bills included</p>
               </div>
-              <div class="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
+              <div class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
                 <div class="flex items-center gap-2 text-gray-500 dark:text-slate-400 text-xs mb-1">
                   <Calendar class="w-3.5 h-3.5" />
                   Move-in Date
                 </div>
                 <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ offerData?.moveInDate ? formatDate(offerData.moveInDate) : 'TBC' }}
+                  {{ offer.moveInDate ? formatDate(offer.moveInDate) : 'TBC' }}
                 </p>
+              </div>
+              <div v-if="offer.tenancyLengthMonths" class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
+                <div class="text-gray-500 dark:text-slate-400 text-xs mb-1">Tenancy Length</div>
+                <p class="text-lg font-bold text-gray-900 dark:text-white">{{ offer.tenancyLengthMonths }} months</p>
+              </div>
+              <div v-if="offer.depositAmount" class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
+                <div class="text-gray-500 dark:text-slate-400 text-xs mb-1">Deposit</div>
+                <p class="text-lg font-bold text-gray-900 dark:text-white">£{{ offer.depositAmount.toLocaleString() }}</p>
               </div>
             </div>
 
+            <!-- Reposit Badge -->
+            <div v-if="offer.depositReplacementRequested" class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Shield class="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p class="font-semibold text-blue-800 dark:text-blue-300 text-sm">
+                    <span class="font-bold">Rep<span class="text-blue-500">o</span>sit</span> Selected
+                  </p>
+                  <p class="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                    Deposit replacement scheme — tenants pay ~1 week's rent instead of a full deposit. You receive full deposit-equivalent protection.
+                    <a href="https://www.reposit.co.uk/landlords" target="_blank" class="underline font-medium hover:text-blue-900">Learn more</a>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Special Conditions -->
+            <div v-if="offer.specialConditions" class="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+              <p class="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1">Special Conditions</p>
+              <p class="text-sm text-amber-700 dark:text-amber-400">{{ offer.specialConditions }}</p>
+            </div>
+
             <!-- Tenants -->
-            <div v-if="offerData?.tenants && offerData.tenants.length > 0">
+            <div v-if="offer.tenants && offer.tenants.length > 0">
               <h3 class="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-                Applicants ({{ offerData.tenants.length }})
+                Applicants ({{ offer.tenants.length }})
               </h3>
-              <div class="space-y-3">
+              <div class="space-y-2">
                 <div
-                  v-for="(tenant, index) in offerData.tenants"
-                  :key="index"
-                  class="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl"
+                  v-for="(tenant, tIdx) in offer.tenants"
+                  :key="tIdx"
+                  class="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl"
                 >
                   <div class="flex items-start justify-between">
                     <div>
                       <p class="font-semibold text-gray-900 dark:text-white">{{ tenant.firstName }}</p>
                       <p v-if="tenant.jobTitle" class="text-sm text-gray-600 dark:text-slate-400">{{ tenant.jobTitle }}</p>
                     </div>
-                    <div v-if="tenant.annualIncome" class="text-right">
-                      <p class="font-bold text-green-600 dark:text-green-400">£{{ tenant.annualIncome.toLocaleString() }}</p>
-                      <p class="text-xs text-gray-500">per year</p>
+                    <div class="text-right">
+                      <div v-if="tenant.annualIncome">
+                        <p class="font-bold text-green-600 dark:text-green-400">£{{ tenant.annualIncome.toLocaleString() }}</p>
+                        <p class="text-xs text-gray-500">per year</p>
+                      </div>
+                      <p v-if="tenant.rentShare" class="text-xs text-gray-500 mt-1">Rent share: £{{ tenant.rentShare }}/mo</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            <!-- Decision Form (only if not yet submitted for this offer) -->
+            <div v-if="!offerDecisions[offer.id]?.submitted && !offer.landlordDecision" class="mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Your Decision</h3>
+
+              <!-- Decision Buttons -->
+              <div class="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  @click="setDecision(offer.id, 'approved')"
+                  :class="[
+                    'p-3 rounded-xl border-2 transition-all text-left',
+                    offerDecisions[offer.id]?.decision === 'approved'
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-green-300'
+                  ]"
+                >
+                  <div class="flex items-center gap-2">
+                    <ThumbsUp :class="[
+                      'w-5 h-5',
+                      offerDecisions[offer.id]?.decision === 'approved' ? 'text-green-600' : 'text-gray-400'
+                    ]" />
+                    <span :class="[
+                      'font-semibold text-sm',
+                      offerDecisions[offer.id]?.decision === 'approved' ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-slate-300'
+                    ]">Approve</span>
+                  </div>
+                </button>
+
+                <button
+                  @click="setDecision(offer.id, 'declined')"
+                  :class="[
+                    'p-3 rounded-xl border-2 transition-all text-left',
+                    offerDecisions[offer.id]?.decision === 'declined'
+                      ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-red-300'
+                  ]"
+                >
+                  <div class="flex items-center gap-2">
+                    <ThumbsDown :class="[
+                      'w-5 h-5',
+                      offerDecisions[offer.id]?.decision === 'declined' ? 'text-red-600' : 'text-gray-400'
+                    ]" />
+                    <span :class="[
+                      'font-semibold text-sm',
+                      offerDecisions[offer.id]?.decision === 'declined' ? 'text-red-700 dark:text-red-400' : 'text-gray-700 dark:text-slate-300'
+                    ]">Decline</span>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Decline Reason -->
+              <div v-if="offerDecisions[offer.id]?.decision === 'declined'" class="mb-4">
+                <textarea
+                  v-model="offerDecisions[offer.id].reason"
+                  rows="2"
+                  placeholder="Please provide a reason for declining..."
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                ></textarea>
+              </div>
+
+              <!-- Submit Button -->
+              <button
+                @click="submitOfferDecision(offer)"
+                :disabled="!offerDecisions[offer.id]?.decision || (offerDecisions[offer.id]?.decision === 'declined' && !offerDecisions[offer.id]?.reason) || offerDecisions[offer.id]?.submitting"
+                class="w-full py-2.5 bg-gradient-to-r from-primary to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+              >
+                <Loader2 v-if="offerDecisions[offer.id]?.submitting" class="w-4 h-4 animate-spin" />
+                <span v-else>Submit Decision</span>
+              </button>
+            </div>
+
+            <!-- Already decided in this session -->
+            <div v-else-if="offer.landlordDecision" class="mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
+              <div :class="[
+                'p-3 rounded-xl text-center',
+                offer.landlordDecision === 'approved' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+              ]">
+                <p class="font-semibold">
+                  You {{ offer.landlordDecision === 'approved' ? 'approved' : 'declined' }} this offer
+                  <span v-if="offer.landlordDecisionAt">on {{ formatDate(offer.landlordDecisionAt) }}</span>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Decision Form -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6">
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Your Decision</h2>
-
-          <!-- Decision Buttons -->
-          <div class="grid grid-cols-2 gap-4 mb-6">
-            <button
-              @click="decision = 'approved'"
-              :class="[
-                'p-4 rounded-xl border-2 transition-all text-left',
-                decision === 'approved'
-                  ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                  : 'border-gray-200 dark:border-slate-600 hover:border-green-300'
-              ]"
-            >
-              <div class="flex items-center gap-3">
-                <div :class="[
-                  'w-10 h-10 rounded-full flex items-center justify-center',
-                  decision === 'approved' ? 'bg-green-500' : 'bg-gray-100 dark:bg-slate-700'
-                ]">
-                  <ThumbsUp :class="[
-                    'w-5 h-5',
-                    decision === 'approved' ? 'text-white' : 'text-gray-400'
-                  ]" />
-                </div>
-                <div>
-                  <p :class="[
-                    'font-semibold',
-                    decision === 'approved' ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-slate-300'
-                  ]">Approve</p>
-                  <p class="text-xs text-gray-500 dark:text-slate-400">Accept this offer</p>
-                </div>
-              </div>
-            </button>
-
-            <button
-              @click="decision = 'declined'"
-              :class="[
-                'p-4 rounded-xl border-2 transition-all text-left',
-                decision === 'declined'
-                  ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                  : 'border-gray-200 dark:border-slate-600 hover:border-red-300'
-              ]"
-            >
-              <div class="flex items-center gap-3">
-                <div :class="[
-                  'w-10 h-10 rounded-full flex items-center justify-center',
-                  decision === 'declined' ? 'bg-red-500' : 'bg-gray-100 dark:bg-slate-700'
-                ]">
-                  <ThumbsDown :class="[
-                    'w-5 h-5',
-                    decision === 'declined' ? 'text-white' : 'text-gray-400'
-                  ]" />
-                </div>
-                <div>
-                  <p :class="[
-                    'font-semibold',
-                    decision === 'declined' ? 'text-red-700 dark:text-red-400' : 'text-gray-700 dark:text-slate-300'
-                  ]">Decline</p>
-                  <p class="text-xs text-gray-500 dark:text-slate-400">Reject this offer</p>
-                </div>
-              </div>
-            </button>
-          </div>
-
-          <!-- Decline Reason -->
-          <div v-if="decision === 'declined'" class="mb-6">
-            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-              Reason for declining <span class="text-red-500">*</span>
-            </label>
-            <textarea
-              v-model="declineReason"
-              rows="3"
-              placeholder="Please provide a reason for declining this offer..."
-              class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent"
-            ></textarea>
-          </div>
-
-          <!-- Submit Button -->
-          <button
-            @click="submitDecision"
-            :disabled="submitting || !decision || (decision === 'declined' && !declineReason)"
-            class="w-full py-3 bg-gradient-to-r from-primary to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            <Loader2 v-if="submitting" class="w-5 h-5 animate-spin" />
-            <span v-else>Submit Decision</span>
-          </button>
-
-          <p class="text-center text-xs text-gray-500 dark:text-slate-400 mt-4">
-            Your response will be shared with the letting agent
-          </p>
-        </div>
+        <p class="text-center text-xs text-gray-500 dark:text-slate-400 mt-4">
+          Your responses will be shared with the letting agent. The tenants will not be informed directly.
+        </p>
       </div>
 
       <!-- Footer -->
@@ -230,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   Loader2,
@@ -242,28 +283,35 @@ import {
   Calendar,
   ThumbsUp,
   ThumbsDown,
+  Shield,
   MessageSquare
 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 const route = useRoute()
 
 const loading = ref(true)
 const error = ref('')
 const alreadyDecided = ref(false)
-const previousDecision = ref('')
-const decidedAt = ref('')
-const submitted = ref(false)
-const submitting = ref(false)
-
 const companyName = ref('')
-const offerData = ref<any>(null)
-const decision = ref<'approved' | 'declined' | ''>('')
-const declineReason = ref('')
+const allOffers = ref<any[]>([])
+const offerDecisions = reactive<Record<string, { decision: string; reason: string; submitting: boolean; submitted: boolean }>>({})
+
+const allSubmitted = computed(() => {
+  if (allOffers.value.length === 0) return false
+  return allOffers.value.every(o => offerDecisions[o.id]?.submitted || o.landlordDecision)
+})
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function setDecision(offerId: string, decision: string) {
+  if (!offerDecisions[offerId]) {
+    offerDecisions[offerId] = { decision: '', reason: '', submitting: false, submitted: false }
+  }
+  offerDecisions[offerId].decision = decision
 }
 
 async function fetchOffer() {
@@ -285,13 +333,21 @@ async function fetchOffer() {
 
     if (data.alreadyDecided) {
       alreadyDecided.value = true
-      previousDecision.value = data.decision
-      decidedAt.value = data.decidedAt
       return
     }
 
-    offerData.value = data.offer
     companyName.value = data.companyName
+
+    if (data.multiOffer) {
+      allOffers.value = data.offers
+    } else {
+      allOffers.value = [data.offer]
+    }
+
+    // Initialize decision state for each offer
+    for (const offer of allOffers.value) {
+      offerDecisions[offer.id] = { decision: '', reason: '', submitting: false, submitted: false }
+    }
   } catch (err: any) {
     error.value = err.message || 'Failed to load offer'
   } finally {
@@ -299,23 +355,23 @@ async function fetchOffer() {
   }
 }
 
-async function submitDecision() {
+async function submitOfferDecision(offer: any) {
   const token = route.params.token as string
-  if (!token || !decision.value) return
+  const state = offerDecisions[offer.id]
+  if (!token || !state?.decision) return
 
-  if (decision.value === 'declined' && !declineReason.value.trim()) {
-    return
-  }
+  if (state.decision === 'declined' && !state.reason.trim()) return
 
-  submitting.value = true
+  state.submitting = true
 
   try {
     const response = await fetch(`${API_URL}/api/v2/offers/landlord-decision/${token}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        decision: decision.value,
-        reason: decision.value === 'declined' ? declineReason.value.trim() : undefined
+        decision: state.decision,
+        reason: state.decision === 'declined' ? state.reason.trim() : undefined,
+        offerId: allOffers.value.length > 1 ? offer.id : undefined
       })
     })
 
@@ -326,11 +382,11 @@ async function submitDecision() {
       return
     }
 
-    submitted.value = true
+    state.submitted = true
   } catch (err: any) {
     error.value = err.message || 'Failed to submit decision'
   } finally {
-    submitting.value = false
+    state.submitting = false
   }
 }
 

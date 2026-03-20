@@ -29,7 +29,7 @@
 import axios, { type AxiosResponse } from 'axios'
 import { ref, watch } from 'vue'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 interface AddressComponents {
   addressLine1: string

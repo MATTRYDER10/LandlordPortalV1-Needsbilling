@@ -205,7 +205,7 @@ import { useAuthStore } from '../../stores/auth'
 import { X, Upload, FileText } from 'lucide-vue-next'
 import { formatDate as formatUkDate } from '../../utils/date'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 interface ComplianceRecord {
   id: string

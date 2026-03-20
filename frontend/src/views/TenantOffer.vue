@@ -382,7 +382,7 @@ import { isValidEmail } from '../utils/validation'
 import { defaultBranding } from '../config/colors'
 import { CheckCircle2 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const loading = ref(false)
@@ -413,6 +413,11 @@ const formData = ref({
         {
             name: '',
             address: '',
+            address_line2: '',
+            address_city: '',
+            address_county: '',
+            address_postcode: '',
+            address_country: '',
             phone: '',
             email: '',
             annual_income: '',
@@ -449,6 +454,11 @@ const addTenant = () => {
     formData.value.tenants.push({
         name: '',
         address: '',
+        address_line2: '',
+        address_city: '',
+        address_county: '',
+        address_postcode: '',
+        address_country: '',
         phone: '',
         email: '',
         annual_income: '',
@@ -472,9 +482,12 @@ const handlePropertyAddressSelected = (addressData: any) => {
 const handleTenantAddressSelected = (index: number, addressData: any) => {
     const tenant = formData.value.tenants[index]
     if (tenant) {
-        tenant.address = addressData.addressLine1
-        // Note: We're only storing the address line 1 for tenant addresses
-        // If you need to store city/postcode for tenants, you'd need to add those fields
+        tenant.address = addressData.addressLine1 || ''
+        tenant.address_line2 = addressData.addressLine2 || ''
+        tenant.address_city = addressData.city || ''
+        tenant.address_county = addressData.county || ''
+        tenant.address_postcode = addressData.postcode || ''
+        tenant.address_country = addressData.country || 'United Kingdom'
     }
 }
 

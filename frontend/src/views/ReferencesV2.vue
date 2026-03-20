@@ -90,58 +90,94 @@
           </button>
         </div>
 
-        <!-- Reference List -->
-        <div v-else class="space-y-3">
+        <!-- Reference List (grouped by property) -->
+        <div v-else class="space-y-4">
           <div
-            v-for="ref in filteredReferences"
-            :key="ref.id"
-            @click="openDrawer(ref)"
-            class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 cursor-pointer hover:border-primary hover:shadow-md transition-all flex items-stretch"
+            v-for="group in groupedReferences"
+            :key="group.id"
+            class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden"
           >
-            <!-- Left side: Info -->
-            <div class="p-4 min-w-0 max-w-md">
-              <div class="flex items-center gap-2">
-                <h3 class="font-semibold text-gray-900 dark:text-white truncate">
-                  {{ ref.tenant_first_name }} {{ ref.tenant_last_name }}
-                </h3>
-                <span
-                  v-if="ref.requires_action"
-                  class="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full shrink-0"
-                >
-                  Action Required
-                </span>
+            <!-- Property Header (for groups) -->
+            <div v-if="group.isGroup" class="px-4 py-3 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+              <div>
+                <p class="text-sm font-semibold text-primary">{{ group.property_address }}, {{ group.property_city }}</p>
+                <p class="text-xs text-gray-400 dark:text-slate-500">
+                  {{ group.members.length }} tenant{{ group.members.length > 1 ? 's' : '' }} · £{{ group.monthly_rent }}/month total
+                </p>
               </div>
-              <p class="text-sm text-primary mt-1 truncate">
-                {{ ref.property_address }}, {{ ref.property_city }}
-              </p>
-              <p class="text-xs text-gray-400 dark:text-slate-500 mt-1">
-                Created {{ formatDate(ref.created_at) }}
-              </p>
-              <div class="mt-2 flex items-center gap-3">
+              <div class="flex items-center gap-2">
+                <a
+                  v-if="getGroupReportUrl(group)"
+                  :href="getGroupReportUrl(group)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  @click.stop
+                  class="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  Group Report
+                </a>
                 <span
                   class="px-2 py-0.5 text-xs font-medium rounded-full"
-                  :class="getStatusClass(ref.status)"
+                  :class="getStatusClass(group.status)"
                 >
-                  {{ formatStatus(ref.status) }}
-                </span>
-                <span class="text-xs text-gray-400">
-                  £{{ ref.monthly_rent }}/month
+                  {{ formatStatus(group.status) }}
                 </span>
               </div>
             </div>
 
-            <!-- Section Status Blocks -->
-            <div class="flex items-stretch ml-auto">
-              <div
-                v-for="section in getSortedSections(ref.sections)"
-                :key="section.section_type"
-                class="w-[72px] flex items-center justify-center text-xs font-semibold border-l border-gray-200 dark:border-slate-700"
-                :class="getSectionBlockClass(section)"
-              >
-                {{ getSectionLabel(section.section_type) }}
+            <!-- Tenant Rows -->
+            <div
+              v-for="(ref, idx) in group.members"
+              :key="ref.id"
+              @click="openDrawer(ref)"
+              class="flex items-stretch cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
+              :class="{ 'border-t border-gray-100 dark:border-slate-800': idx > 0 }"
+            >
+              <!-- Left side: Info -->
+              <div class="p-4 min-w-0 max-w-md">
+                <div class="flex items-center gap-2">
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+                    {{ ref.tenant_first_name }} {{ ref.tenant_last_name }}
+                  </h3>
+                  <span v-if="ref.is_guarantor" class="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full shrink-0">
+                    Guarantor
+                  </span>
+                </div>
+                <p v-if="ref.reference_number" class="text-xs text-gray-400 dark:text-slate-500 font-mono mt-0.5">
+                  {{ ref.reference_number }}
+                </p>
+                <p v-if="!group.isGroup" class="text-sm text-primary mt-1 truncate">
+                  {{ ref.property_address }}, {{ ref.property_city }}
+                </p>
+                <p class="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                  Created {{ formatDate(ref.created_at) }}
+                </p>
+                <div class="mt-2 flex items-center gap-3">
+                  <span v-if="!group.isGroup"
+                    class="px-2 py-0.5 text-xs font-medium rounded-full"
+                    :class="getStatusClass(ref.status)"
+                  >
+                    {{ formatStatus(ref.status) }}
+                  </span>
+                  <span class="text-xs text-gray-400">
+                    £{{ ref.rent_share || ref.monthly_rent }}/month{{ group.isGroup ? ' share' : '' }}
+                  </span>
+                </div>
               </div>
-              <div class="w-10 flex items-center justify-center border-l border-gray-200 dark:border-slate-700">
-                <ChevronRight class="w-5 h-5 text-gray-400" />
+
+              <!-- Section Status Blocks -->
+              <div class="flex items-stretch ml-auto">
+                <div
+                  v-for="section in getSortedSections(ref.sections)"
+                  :key="section.section_type"
+                  class="w-[72px] flex items-center justify-center text-xs font-semibold border-l border-gray-200 dark:border-slate-700"
+                  :class="getSectionBlockClass(section)"
+                >
+                  {{ getSectionLabel(section.section_type) }}
+                </div>
+                <div class="w-10 flex items-center justify-center border-l border-gray-200 dark:border-slate-700">
+                  <ChevronRight class="w-5 h-5 text-gray-400" />
+                </div>
               </div>
             </div>
           </div>
@@ -428,12 +464,12 @@
                       />
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Phone *</label>
-                      <input
+                      <PhoneInput
                         v-model="createForm.tenant_phone"
-                        type="tel"
-                        required
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                        label="Phone"
+                        :required="true"
+                        select-class="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                        input-class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -479,12 +515,12 @@
                         />
                       </div>
                       <div>
-                        <label class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Phone *</label>
-                        <input
+                        <PhoneInput
                           v-model="tenant.phone"
-                          type="tel"
-                          required
-                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          label="Phone"
+                          :required="true"
+                          select-class="px-2 py-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          input-class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                         />
                       </div>
                       <div class="col-span-2">
@@ -614,16 +650,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import Sidebar from '@/components/Sidebar.vue'
 import ReferenceDrawerV2 from '@/components/ReferenceDrawerV2.vue'
+import PhoneInput from '@/components/PhoneInput.vue'
 import {
   Search,
   Plus,
   RefreshCcw,
   FileText,
   ChevronRight,
-  Check,
-  Clock,
   AlertCircle,
-  XCircle,
   X,
   Home,
   User,
@@ -633,7 +667,7 @@ import {
   Loader2
 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 const authStore = useAuthStore()
 
 const loading = ref(false)
@@ -763,7 +797,7 @@ const statusTabs = computed(() => [
   { label: 'All', value: 'all', count: references.value.length },
   { label: 'Sent', value: 'SENT', count: references.value.filter(r => r.status === 'SENT').length },
   { label: 'Collecting', value: 'COLLECTING_EVIDENCE', count: references.value.filter(r => r.status === 'COLLECTING_EVIDENCE').length },
-  { label: 'In Review', value: 'IN_REVIEW', count: references.value.filter(r => r.status === 'IN_REVIEW' || r.status === 'READY_FOR_REVIEW').length },
+  { label: 'In Review', value: 'IN_REVIEW', count: references.value.filter(r => r.status === 'IN_REVIEW' || r.status === 'READY_FOR_REVIEW' || r.status === 'INDIVIDUAL_COMPLETE' || r.status === 'GROUP_ASSESSMENT').length },
   { label: 'Completed', value: 'COMPLETED', count: references.value.filter(r => ['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'REJECTED'].includes(r.status)).length }
 ])
 
@@ -774,7 +808,7 @@ const filteredReferences = computed(() => {
     if (activeStatus.value === 'COMPLETED') {
       result = result.filter(r => ['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'REJECTED'].includes(r.status))
     } else if (activeStatus.value === 'IN_REVIEW') {
-      result = result.filter(r => r.status === 'IN_REVIEW' || r.status === 'READY_FOR_REVIEW')
+      result = result.filter(r => r.status === 'IN_REVIEW' || r.status === 'READY_FOR_REVIEW' || r.status === 'INDIVIDUAL_COMPLETE' || r.status === 'GROUP_ASSESSMENT')
     } else {
       result = result.filter(r => r.status === activeStatus.value)
     }
@@ -792,6 +826,91 @@ const filteredReferences = computed(() => {
   }
 
   return result
+})
+
+// Group references: parents with their children, standalone refs on their own
+interface RefGroup {
+  id: string
+  property_address: string
+  property_city: string
+  monthly_rent: number
+  isGroup: boolean
+  status: string
+  created_at: string
+  members: any[] // parent + children
+}
+
+const groupedReferences = computed((): RefGroup[] => {
+  const refs = filteredReferences.value
+  const parentIds = new Set(refs.filter(r => r.is_group_parent).map(r => r.id))
+  const childMap = new Map<string, any[]>()
+
+  // Collect children by parent_reference_id
+  for (const ref of refs) {
+    if (ref.parent_reference_id) {
+      if (!childMap.has(ref.parent_reference_id)) {
+        childMap.set(ref.parent_reference_id, [])
+      }
+      childMap.get(ref.parent_reference_id)!.push(ref)
+    }
+  }
+
+  const groups: RefGroup[] = []
+  const handled = new Set<string>()
+
+  // Process group parents first
+  for (const ref of refs) {
+    if (ref.is_group_parent) {
+      const children = childMap.get(ref.id) || []
+      groups.push({
+        id: ref.id,
+        property_address: ref.property_address,
+        property_city: ref.property_city,
+        monthly_rent: ref.monthly_rent,
+        isGroup: true,
+        status: ref.status,
+        created_at: ref.created_at,
+        members: [ref, ...children]
+      })
+      handled.add(ref.id)
+      children.forEach(c => handled.add(c.id))
+    }
+  }
+
+  // Process standalone (non-group, non-child) refs
+  for (const ref of refs) {
+    if (!handled.has(ref.id) && !ref.parent_reference_id) {
+      groups.push({
+        id: ref.id,
+        property_address: ref.property_address,
+        property_city: ref.property_city,
+        monthly_rent: ref.monthly_rent,
+        isGroup: false,
+        status: ref.status,
+        created_at: ref.created_at,
+        members: [ref]
+      })
+      handled.add(ref.id)
+    }
+  }
+
+  // Any orphan children (parent not in current filter) — show as standalone
+  for (const ref of refs) {
+    if (!handled.has(ref.id)) {
+      groups.push({
+        id: ref.id,
+        property_address: ref.property_address,
+        property_city: ref.property_city,
+        monthly_rent: ref.monthly_rent,
+        isGroup: false,
+        status: ref.status,
+        created_at: ref.created_at,
+        members: [ref]
+      })
+    }
+  }
+
+  return groups.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 })
 
 const canProceed = computed(() => {
@@ -949,6 +1068,12 @@ function refreshData() {
   fetchReferences()
 }
 
+function getGroupReportUrl(group: RefGroup): string | null {
+  // Find the parent member (is_group_parent = true) and check for group_report_pdf_url
+  const parent = group.members.find(m => m.is_group_parent)
+  return parent?.group_report_pdf_url || null
+}
+
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
   const date = new Date(dateStr)
@@ -968,11 +1093,12 @@ function formatStatus(status: string) {
     'COLLECTING_EVIDENCE': 'Collecting',
     'READY_FOR_REVIEW': 'Ready for Review',
     'IN_REVIEW': 'In Review',
-    'ACTION_REQUIRED': 'Action Required',
     'ACCEPTED': 'Accepted',
     'ACCEPTED_WITH_GUARANTOR': 'Accepted (Guarantor)',
     'ACCEPTED_ON_CONDITION': 'Accepted (Condition)',
-    'REJECTED': 'Rejected'
+    'REJECTED': 'Rejected',
+    'INDIVIDUAL_COMPLETE': 'Individual Complete',
+    'GROUP_ASSESSMENT': 'Group Assessment'
   }
   return labels[status] || status
 }
@@ -984,14 +1110,14 @@ function getStatusClass(status: string) {
   if (status === 'REJECTED') {
     return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
   }
-  if (status === 'IN_REVIEW' || status === 'READY_FOR_REVIEW') {
+  if (status === 'IN_REVIEW' || status === 'READY_FOR_REVIEW' || status === 'INDIVIDUAL_COMPLETE') {
     return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+  }
+  if (status === 'GROUP_ASSESSMENT') {
+    return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
   }
   if (status === 'COLLECTING_EVIDENCE') {
     return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-  }
-  if (status === 'ACTION_REQUIRED') {
-    return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
   }
   return 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300'
 }

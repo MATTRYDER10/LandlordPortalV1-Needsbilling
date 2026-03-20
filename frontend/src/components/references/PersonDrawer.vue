@@ -1567,7 +1567,7 @@ import CollapsibleSection from './CollapsibleSection.vue'
 import ViewOfferModal from './ViewOfferModal.vue'
 import { X, AlertTriangle, Upload, Mail, Pencil, Loader2, CheckCircle, FileText, File, Trash2, Eye, RefreshCw } from 'lucide-vue-next'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 // Use tenancies composable for API actions
 const { getActionRequiredDetails, uploadDocument, updateRefereeEmail, resendForm, submitForReReferencing, loadTenancies } = useTenancies()

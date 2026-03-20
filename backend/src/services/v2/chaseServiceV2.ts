@@ -233,7 +233,7 @@ export async function processChaseQueue(): Promise<number> {
  */
 export async function recordChaseAction(
   chaseItemId: string,
-  actionType: 'EMAIL' | 'SMS' | 'CALL',
+  actionType: 'EMAIL' | 'SMS' | 'CALL' | 'RECEIVED',
   staffUserId: string,
   notes?: string
 ): Promise<boolean> {
@@ -406,6 +406,105 @@ export async function markChaseUnable(
   } catch (error) {
     console.error('[ChaseServiceV2] Error:', error)
     return false
+  }
+}
+
+// ============================================================================
+// CHASE REACTIVATION
+// ============================================================================
+
+/**
+ * Reactivate an existing chase item or create a new one for issue resolution
+ */
+export async function reactivateOrCreateChaseItem(
+  referenceId: string,
+  sectionId: string,
+  reason: string
+): Promise<V2ChaseItemRow | null> {
+  try {
+    // Check for existing chase item for this section
+    const existing = await getChaseItemForSection(sectionId)
+
+    if (existing && existing.status !== 'RECEIVED' && existing.status !== 'VERBAL_OBTAINED') {
+      // Reactivate existing chase item
+      const now = new Date().toISOString()
+      const { error } = await supabase
+        .from('chase_items_v2')
+        .update({
+          status: 'IN_CHASE_QUEUE',
+          chase_queue_entered_at: now,
+          updated_at: now
+        })
+        .eq('id', existing.id)
+
+      if (error) {
+        console.error('[ChaseServiceV2] Error reactivating chase item:', error)
+        return null
+      }
+
+      // Create work item for the reactivated chase
+      await supabase
+        .from('work_items_v2')
+        .insert({
+          reference_id: referenceId,
+          section_id: sectionId,
+          work_type: 'CHASE',
+          status: 'AVAILABLE'
+        })
+
+      console.log(`[ChaseServiceV2] Reactivated chase item ${existing.id} for section ${sectionId}: ${reason}`)
+      return { ...existing, status: 'IN_CHASE_QUEUE' as V2ChaseStatus }
+    }
+
+    // Get section to determine referee type
+    const { data: section } = await supabase
+      .from('reference_sections_v2')
+      .select('section_type, referee_name_encrypted, referee_email_encrypted, referee_phone_encrypted')
+      .eq('id', sectionId)
+      .single()
+
+    if (!section) return null
+
+    const refereeType = getSectionRefereeType(section.section_type as any)
+    if (!refereeType) {
+      // For sections without referees (IDENTITY, RTR, CREDIT, AML), no chase item needed
+      console.log(`[ChaseServiceV2] No referee type for section type ${section.section_type}, skipping chase creation`)
+      return null
+    }
+
+    // Get referee details from the reference
+    const { data: reference } = await supabase
+      .from('tenant_references_v2')
+      .select('*')
+      .eq('id', referenceId)
+      .single()
+
+    if (!reference) return null
+
+    let name = '', email = '', phone: string | undefined
+    if (refereeType === 'EMPLOYER') {
+      name = decrypt(reference.employer_ref_name_encrypted) || ''
+      email = decrypt(reference.employer_ref_email_encrypted) || ''
+      phone = decrypt(reference.employer_ref_phone_encrypted) || undefined
+    } else if (refereeType === 'LANDLORD') {
+      name = decrypt(reference.previous_landlord_name_encrypted) || ''
+      email = decrypt(reference.previous_landlord_email_encrypted) || ''
+      phone = decrypt(reference.previous_landlord_phone_encrypted) || undefined
+    } else if (refereeType === 'ACCOUNTANT') {
+      name = decrypt(reference.accountant_name_encrypted) || ''
+      email = decrypt(reference.accountant_email_encrypted) || ''
+      phone = decrypt(reference.accountant_phone_encrypted) || undefined
+    }
+
+    if (!email) {
+      console.log(`[ChaseServiceV2] No referee email found for ${refereeType}, skipping chase creation`)
+      return null
+    }
+
+    return await createChaseItem(referenceId, sectionId, refereeType, { name, email, phone })
+  } catch (error) {
+    console.error('[ChaseServiceV2] Error in reactivateOrCreateChaseItem:', error)
+    return null
   }
 }
 

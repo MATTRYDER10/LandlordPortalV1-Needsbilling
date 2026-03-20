@@ -4,8 +4,8 @@ import { CheckCircle, XCircle, AlertTriangle, ChevronRight, Info } from 'lucide-
 import { useAuthStore } from '@/stores/auth'
 
 const API_URL = (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost')
-  ? 'http://localhost:3001'
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+  ? ''
+  : (import.meta.env.VITE_API_URL ?? '')
 
 interface TenantChange {
   id: string

@@ -2011,7 +2011,7 @@ import SanctionsScreeningCard from '../components/SanctionsScreeningCard.vue'
 import ScoreCard from '../components/ScoreCard.vue'
 import { formatDate as formatUkDate, formatDateTime as formatUkDateTime } from '../utils/date'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const router = useRouter()

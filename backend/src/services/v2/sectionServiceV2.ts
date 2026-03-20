@@ -143,10 +143,12 @@ export async function getQueueCounts(): Promise<V2QueueCounts> {
     RTR: 0,
     INCOME: 0,
     RESIDENTIAL: 0,
+    ADDRESS: 0,
     CREDIT: 0,
     AML: 0,
     CHASE: 0,
-    FINAL_REVIEW: 0
+    FINAL_REVIEW: 0,
+    GROUP_ASSESSMENT: 0
   }
 
   try {
@@ -186,10 +188,85 @@ export async function getQueueCounts(): Promise<V2QueueCounts> {
       counts.FINAL_REVIEW = finalCount || 0
     }
 
+    // Count group assessment items
+    const { count: groupAssessmentCount, error: groupError } = await supabase
+      .from('work_items_v2')
+      .select('*', { count: 'exact', head: true })
+      .eq('work_type', 'GROUP_ASSESSMENT')
+      .eq('status', 'AVAILABLE')
+
+    if (!groupError) {
+      counts.GROUP_ASSESSMENT = groupAssessmentCount || 0
+    }
+
     return counts
   } catch (error) {
     console.error('[SectionServiceV2] Error getting queue counts:', error)
     return counts
+  }
+}
+
+// ============================================================================
+// SECTION STATUS UPDATES
+// ============================================================================
+
+/**
+ * Update section status and optional data (used by automated checks like credit/AML)
+ */
+export async function updateSectionStatus(
+  sectionId: string,
+  updates: {
+    status?: V2QueueStatus
+    decision?: V2SectionDecision | null
+    sectionData?: Record<string, unknown>
+    notes?: string
+  }
+): Promise<boolean> {
+  try {
+    const now = new Date().toISOString()
+
+    const updateData: Partial<V2SectionRow> = {
+      updated_at: now
+    }
+
+    if (updates.status) {
+      updateData.queue_status = updates.status
+      if (updates.status === 'READY') {
+        updateData.queue_entered_at = now
+      }
+    }
+
+    if (updates.decision !== undefined) {
+      updateData.decision = updates.decision
+      if (updates.decision !== null) {
+        updateData.completed_at = now
+        updateData.queue_status = 'COMPLETED'
+      }
+    }
+
+    if (updates.sectionData) {
+      updateData.section_data = updates.sectionData as any
+    }
+
+    if (updates.notes) {
+      updateData.assessor_notes = updates.notes
+    }
+
+    const { error } = await supabase
+      .from('reference_sections_v2')
+      .update(updateData)
+      .eq('id', sectionId)
+
+    if (error) {
+      console.error('[SectionServiceV2] Failed to update section status:', error)
+      return false
+    }
+
+    console.log(`[SectionServiceV2] Section ${sectionId} updated`)
+    return true
+  } catch (error) {
+    console.error('[SectionServiceV2] Error updating section status:', error)
+    return false
   }
 }
 
@@ -351,13 +428,27 @@ export async function submitSectionDecision(
     // Update work item
     await updateWorkItemStatus(input.sectionId, 'COMPLETED', input.staffUserId)
 
+    // Resolve any chase items linked to this section
+    await supabase
+      .from('chase_items_v2')
+      .update({
+        status: 'RECEIVED',
+        resolved_at: now,
+        updated_at: now
+      })
+      .eq('section_id', input.sectionId)
+      .in('status', ['IN_CHASE_QUEUE', 'WAITING'])
+
     // Check if all sections complete for this reference
     const section = await getSection(input.sectionId)
     if (section) {
-      await checkAndTriggerFinalReview(section.reference_id)
+      console.log(`[SectionServiceV2] Section ${input.sectionId} decision: ${input.decision} — checking final review for ref ${section.reference_id}`)
+      const triggered = await checkAndTriggerFinalReview(section.reference_id)
+      console.log(`[SectionServiceV2] Final review trigger result for ${section.reference_id}: ${triggered}`)
+    } else {
+      console.error(`[SectionServiceV2] Could not re-fetch section ${input.sectionId} after decision`)
     }
 
-    console.log(`[SectionServiceV2] Section ${input.sectionId} decision: ${input.decision}`)
     return true
   } catch (error) {
     console.error('[SectionServiceV2] Error submitting decision:', error)
@@ -393,38 +484,51 @@ export async function checkAndTriggerFinalReview(referenceId: string): Promise<b
       .select('id')
       .eq('reference_id', referenceId)
       .eq('work_type', 'FINAL_REVIEW')
-      .single()
+      .maybeSingle()
 
     if (existingWorkItem) {
-      console.log(`[SectionServiceV2] Final review already exists for ${referenceId}`)
+      // Work item exists — but ensure reference status is correct
+      const { data: refStatus, error: refStatusErr } = await supabase
+        .from('tenant_references_v2')
+        .select('status')
+        .eq('id', referenceId)
+        .maybeSingle()
+
+      console.log(`[SectionServiceV2] Existing work item for ${referenceId}, current status: ${refStatus?.status}, error: ${refStatusErr?.message || 'none'}`)
+
+      if (refStatus && refStatus.status !== 'IN_REVIEW' && !['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'REJECTED'].includes(refStatus.status)) {
+        const { error: updateErr } = await supabase
+          .from('tenant_references_v2')
+          .update({
+            status: 'IN_REVIEW',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', referenceId)
+
+        if (updateErr) {
+          console.error(`[SectionServiceV2] Failed to update status for ${referenceId}:`, updateErr)
+        } else {
+          console.log(`[SectionServiceV2] Fixed reference ${referenceId} status → IN_REVIEW`)
+        }
+      }
+
       return true
     }
 
     // Check if this is part of a group (has parent)
-    const { data: reference } = await supabase
+    const { data: reference, error: refError } = await supabase
       .from('tenant_references_v2')
       .select('parent_reference_id, is_group_parent')
       .eq('id', referenceId)
       .single()
 
-    if (reference?.parent_reference_id) {
-      // This is a child reference - check if whole group is ready
-      const groupReady = await isGroupReadyForFinalReview(reference.parent_reference_id)
-      if (!groupReady) {
-        console.log(`[SectionServiceV2] Group not ready for final review yet`)
-        return false
-      }
-      // Group final review is created on the parent
-      return true
+    if (refError || !reference) {
+      console.error(`[SectionServiceV2] Failed to fetch reference ${referenceId}:`, refError)
+      // Still try to create final review — don't block on missing reference metadata
     }
 
-    if (reference?.is_group_parent) {
-      // This is a parent - check if all children ready
-      const groupReady = await isGroupReadyForFinalReview(referenceId)
-      if (!groupReady) {
-        return false
-      }
-    }
+    // Each individual gets their own FINAL_REVIEW work item when THEIR sections are complete
+    // No waiting for siblings — group assessment happens later after all individuals are done
 
     // Create final review work item
     const { error } = await supabase
@@ -442,7 +546,18 @@ export async function checkAndTriggerFinalReview(referenceId: string): Promise<b
       return false
     }
 
-    console.log(`[SectionServiceV2] Final review created for ${referenceId}`)
+    // Update reference status to IN_REVIEW
+    const now2 = new Date().toISOString()
+    await supabase
+      .from('tenant_references_v2')
+      .update({
+        status: 'IN_REVIEW',
+        // final_review_queue_entered_at: now2,
+        updated_at: now2
+      })
+      .eq('id', referenceId)
+
+    console.log(`[SectionServiceV2] Final review created for ${referenceId}, status → IN_REVIEW`)
     return true
   } catch (error) {
     console.error('[SectionServiceV2] Error checking final review:', error)

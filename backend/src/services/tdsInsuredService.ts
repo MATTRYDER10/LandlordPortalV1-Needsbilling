@@ -24,7 +24,7 @@ interface TDSInsuredConfig {
 
 // TDS Insured person object
 interface InsuredPersonObject {
-  person_classification: 'Landlord' | 'Lead Tenant' | 'Tenant'
+  person_classification: 'Primary Landlord' | 'Landlord' | 'Lead Tenant' | 'Tenant'
   person_id?: string
   person_reference?: string
   person_title: string
@@ -117,12 +117,18 @@ export async function getCompanyTDSInsuredConfig(companyId: string): Promise<TDS
  */
 export async function exchangeCodeForToken(
   config: { clientId: string; clientSecret: string; environment: 'sandbox' | 'live' },
-  authorizationCode: string
+  authorizationCode: string,
+  redirectUri?: string
 ): Promise<{ success: boolean; accessToken?: string; refreshToken?: string; expiresIn?: number; error?: string }> {
   const baseUrl = TDS_INSURED_ENDPOINTS[config.environment]
 
   try {
     const credentials = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')
+
+    let body = `grant_type=authorization_code&code=${encodeURIComponent(authorizationCode)}`
+    if (redirectUri) {
+      body += `&redirect_uri=${encodeURIComponent(redirectUri)}`
+    }
 
     const response = await fetch(`${baseUrl}/${API_VERSION}/token`, {
       method: 'POST',
@@ -131,7 +137,7 @@ export async function exchangeCodeForToken(
         'Authorization': `Basic ${credentials}`,
         'User-Agent': USER_AGENT
       },
-      body: `grant_type=authorization_code&code=${encodeURIComponent(authorizationCode)}`
+      body
     })
 
     const responseText = await response.text()
@@ -301,7 +307,28 @@ export async function testInsuredConnection(
  * Format date to TDS Insured format (DD/MM/YYYY)
  */
 function formatDateForTDSInsured(date: string | Date): string {
+  if (!date) {
+    console.warn('[TDS Insured] formatDateForTDSInsured called with empty date')
+    return ''
+  }
+
+  // If already in DD/MM/YYYY format, return as-is
+  if (typeof date === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+    return date
+  }
+
+  // If in YYYY-MM-DD format (ISO), parse without timezone issues
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] = date.split('-')
+    return `${day}/${month}/${year}`
+  }
+
+  // Otherwise use Date parsing
   const d = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(d.getTime())) {
+    console.warn('[TDS Insured] formatDateForTDSInsured: Invalid date:', date)
+    return ''
+  }
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const year = d.getFullYear()
@@ -331,7 +358,8 @@ function parseAddressLine(addressLine1: string): { paon: string; street: string 
     return { paon: numberMatch[1], street: numberMatch[2] }
   }
 
-  return { paon: '', street: addressLine1 }
+  // Use '1' as default paon (must be valid BS7666 format, not 'N/A')
+  return { paon: '1', street: addressLine1 || 'Unknown Street' }
 }
 
 /**
@@ -359,16 +387,18 @@ export function mapTenancyToInsuredPayload(
 
     people.push({
       person_classification: 'Landlord',
+      person_id: '',
+      person_reference: '',
       person_title: primaryLandlord.title || 'Mr',
       person_firstname: decrypt(primaryLandlord.first_name_encrypted) || primaryLandlord.first_name || '',
       person_surname: decrypt(primaryLandlord.last_name_encrypted) || primaryLandlord.last_name || '',
       person_email: decrypt(primaryLandlord.email_encrypted) || primaryLandlord.email || '',
       person_mobile: decrypt(primaryLandlord.phone_encrypted) || primaryLandlord.phone || '',
       is_business: 'N',
-      person_paon: landlordAddressParts.paon,
-      person_street: landlordAddressParts.street,
-      person_town: decrypt(primaryLandlord.city_encrypted) || primaryLandlord.city || '',
-      person_administrative_area: primaryLandlord.county || '',
+      person_paon: landlordAddressParts.paon || '1',
+      person_street: landlordAddressParts.street || 'Not provided',
+      person_town: decrypt(primaryLandlord.city_encrypted) || primaryLandlord.city || 'N/A',
+      person_administrative_area: primaryLandlord.county || decrypt(primaryLandlord.city_encrypted) || primaryLandlord.city || 'N/A',
       person_postcode: decrypt(primaryLandlord.postcode_encrypted) || primaryLandlord.postcode || '',
       person_country: 'United Kingdom',
       person_correspondence_country: 'United Kingdom'
@@ -378,10 +408,13 @@ export function mapTenancyToInsuredPayload(
   // Add tenants
   const leadTenant = tenants.find((t: any) => t.is_lead) || tenants[0]
 
-  tenants.forEach((tenant: any) => {
-    const isLead = tenant.id === leadTenant?.id
+  tenants.forEach((tenant: any, index: number) => {
+    // Check is_lead flag directly (for form data) or compare IDs (for database data)
+    const isLead = tenant.is_lead || (tenant.id && tenant.id === leadTenant?.id) || index === 0
     people.push({
-      person_classification: isLead ? 'Lead Tenant' : 'Tenant',
+      person_classification: 'Tenant',
+      person_id: '',
+      person_reference: '',
       person_title: tenant.title || 'Mr',
       person_firstname: decrypt(tenant.first_name_encrypted) || tenant.first_name || '',
       person_surname: decrypt(tenant.last_name_encrypted) || tenant.last_name || '',
@@ -391,15 +424,23 @@ export function mapTenancyToInsuredPayload(
     })
   })
 
+  // Strip spaces from all postcodes (TDS requires no spaces)
+  const stripPostcode = (pc: string) => (pc || '').replace(/\s+/g, '')
+
+  // Strip spaces from postcodes in person objects
+  for (const person of people) {
+    if (person.person_postcode) person.person_postcode = stripPostcode(person.person_postcode)
+  }
+
   // Build payload
   // Note: TDS Insured only supports 1 landlord per tenancy (the primary/main landlord)
   const payload: InsuredTenancyPayload = {
     tenancy_id: tenancy.id,
     property_paon: addressParts.paon,
     property_street: addressParts.street,
-    property_town: property.city || '',
-    property_administrative_area: property.county || '',
-    property_postcode: property.postcode || '',
+    property_town: property.city || 'N/A',
+    property_administrative_area: property.county || property.city || 'N/A',
+    property_postcode: stripPostcode(property.postcode || ''),
     tenancy_start_date: formatDateForTDSInsured(tenancy.tenancy_start_date || tenancy.start_date),
     rent_amount: Number(tenancy.monthly_rent) || 0,
     deposit_amount: Number(tenancy.deposit_amount),
@@ -409,9 +450,17 @@ export function mapTenancyToInsuredPayload(
     people
   }
 
-  // Add optional end date
+  // TDS REQUIRES end date - use provided or default to start date + 12 months
   if (tenancy.end_date || tenancy.tenancy_end_date) {
     payload.tenancy_expected_end_date = formatDateForTDSInsured(tenancy.end_date || tenancy.tenancy_end_date)
+  } else {
+    // Default to 12 months from start date
+    const startDateStr = tenancy.tenancy_start_date || tenancy.start_date
+    if (startDateStr) {
+      const startDate = new Date(startDateStr)
+      startDate.setFullYear(startDate.getFullYear() + 1)
+      payload.tenancy_expected_end_date = formatDateForTDSInsured(startDate)
+    }
   }
 
   return payload
@@ -448,6 +497,10 @@ export async function createInsuredDeposit(
   }
 
   try {
+    console.log('[TDS Insured] Full payload being sent:', JSON.stringify(payload, null, 2))
+    console.log('[TDS Insured] People count:', payload.tenancy?.people?.length || 0)
+    console.log('[TDS Insured] API URL:', `${baseUrl}/${API_VERSION}/tenancy`)
+
     const response = await fetch(`${baseUrl}/${API_VERSION}/tenancy`, {
       method: 'POST',
       headers: {

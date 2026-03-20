@@ -9,11 +9,14 @@ import sectionsRouter from './sections'
 import chaseRouter from './chase'
 import finalReviewRouter from './finalReview'
 import tenantFormRouter from './tenant-form'
+import guarantorFormRouter from './guarantor-form'
 import refereeFormsRouter from './referee-forms'
 import reportsRouter from './reports'
 import adminRouter from './admin'
 import verifyRouter from './verify'
 import offersRouter from './offers'
+import mobileCaptureRouter from './mobile-capture'
+import groupAssessmentRouter from './groupAssessment'
 
 export {
   referencesRouter,
@@ -21,9 +24,12 @@ export {
   chaseRouter,
   finalReviewRouter,
   tenantFormRouter,
+  guarantorFormRouter,
   refereeFormsRouter,
   reportsRouter,
   adminRouter,
   verifyRouter,
-  offersRouter
+  offersRouter,
+  mobileCaptureRouter,
+  groupAssessmentRouter
 }

@@ -46,9 +46,11 @@ import tenantChangeRoutes from './routes/tenant-change'
 import repositSettingsRoutes from './routes/reposit-settings'
 import repositRoutes from './routes/reposit'
 import reviewLinksRoutes from './routes/review-links'
+import mydepositsSettingsRoutes from './routes/mydeposits-settings'
+import mydepositsRoutes from './routes/mydeposits'
 
 // V2 Reference System Routes
-import { referencesRouter as v2ReferencesRouter, sectionsRouter as v2SectionsRouter, chaseRouter as v2ChaseRouter, finalReviewRouter as v2FinalReviewRouter, tenantFormRouter as v2TenantFormRouter, refereeFormsRouter as v2RefereeFormsRouter, reportsRouter as v2ReportsRouter, adminRouter as v2AdminRouter, verifyRouter as v2VerifyRouter, offersRouter as v2OffersRouter } from './routes/v2'
+import { referencesRouter as v2ReferencesRouter, sectionsRouter as v2SectionsRouter, chaseRouter as v2ChaseRouter, finalReviewRouter as v2FinalReviewRouter, tenantFormRouter as v2TenantFormRouter, guarantorFormRouter as v2GuarantorFormRouter, refereeFormsRouter as v2RefereeFormsRouter, reportsRouter as v2ReportsRouter, adminRouter as v2AdminRouter, verifyRouter as v2VerifyRouter, offersRouter as v2OffersRouter, mobileCaptureRouter as v2MobileCaptureRouter, groupAssessmentRouter as v2GroupAssessmentRouter } from './routes/v2'
 import { startChaseSchedulerV2 } from './services/v2'
 
 dotenv.config()
@@ -106,6 +108,8 @@ const allowedOrigins = [
   'http://localhost:5174', // Local development (alternate port)
   'http://192.168.1.81:5173', // Local network access
   'http://192.168.1.81:5174', // Local network access (alternate port)
+  'http://192.168.1.190:5173', // Local network access
+  'http://192.168.1.190:5174', // Local network access (alternate port)
   'https://app.propertygoose.co.uk', // Production
   process.env.FRONTEND_URL // Production (Railway)
 ].filter(Boolean) // Remove undefined values
@@ -116,7 +120,7 @@ app.use(cors({
     if (!origin) return callback(null, true)
 
     // Allow ngrok tunnels for testing
-    if (origin.endsWith('.ngrok-free.dev') || origin.endsWith('.ngrok.io') || origin.endsWith('.loca.lt')) {
+    if (origin.endsWith('.ngrok-free.dev') || origin.endsWith('.ngrok.io') || origin.endsWith('.ngrok.app') || origin.endsWith('.ngrok-free.app') || origin.endsWith('.loca.lt')) {
       return callback(null, true)
     }
 
@@ -206,6 +210,8 @@ app.use('/api/tenant-change', tenantChangeRoutes)
 app.use('/api/settings/reposit', repositSettingsRoutes)
 app.use('/api/reposit', repositRoutes)
 app.use('/api/review-links', reviewLinksRoutes)
+app.use('/api/settings/mydeposits', mydepositsSettingsRoutes)
+app.use('/api/mydeposits', mydepositsRoutes)
 
 // V2 Reference System Routes (new section-based verification)
 app.use('/api/v2/references', v2ReferencesRouter)
@@ -217,11 +223,15 @@ app.use('/api/v2/sections', v2SectionsRouter)
 app.use('/api/v2/chase', v2ChaseRouter)
 app.use('/api/v2/final-review', v2FinalReviewRouter)
 app.use('/api/v2/tenant-form', v2TenantFormRouter)
+app.use('/api/v2/guarantor-form', v2GuarantorFormRouter)
 app.use('/api/v2', v2RefereeFormsRouter)
 app.use('/api/v2/reports', v2ReportsRouter)
 app.use('/api/v2/admin', v2AdminRouter)
 app.use('/api/v2/verify', v2VerifyRouter)
 app.use('/api/v2/offers', v2OffersRouter)
+app.use('/api/v2/mobile-capture', v2MobileCaptureRouter)
+app.use('/api/v2/group-assessment', v2GroupAssessmentRouter)
+app.use('/api/v2/staff/group-assessment', v2GroupAssessmentRouter)
 
 // Start server - listen on all interfaces for local network access
 app.listen(PORT, '0.0.0.0', () => {

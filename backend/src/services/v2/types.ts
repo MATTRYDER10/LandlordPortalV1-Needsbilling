@@ -13,6 +13,8 @@ export type V2ReferenceStatus =
   | 'SENT'
   | 'COLLECTING_EVIDENCE'
   | 'ACTION_REQUIRED'
+  | 'INDIVIDUAL_COMPLETE'
+  | 'GROUP_ASSESSMENT'
   | 'ACCEPTED'
   | 'ACCEPTED_WITH_GUARANTOR'
   | 'ACCEPTED_ON_CONDITION'
@@ -23,6 +25,7 @@ export type V2SectionType =
   | 'RTR'
   | 'INCOME'
   | 'RESIDENTIAL'
+  | 'ADDRESS' // For guarantors - proof of address without residential history
   | 'CREDIT'
   | 'AML'
 
@@ -36,6 +39,7 @@ export type V2SectionDecision =
   | 'PASS'
   | 'PASS_WITH_CONDITION'
   | 'FAIL'
+  | 'REFER'
 
 export type V2ChaseStatus =
   | 'WAITING'
@@ -60,6 +64,7 @@ export type V2WorkType =
   | 'AML'
   | 'CHASE'
   | 'FINAL_REVIEW'
+  | 'GROUP_ASSESSMENT'
 
 export type V2RefereeType =
   | 'EMPLOYER'
@@ -84,6 +89,7 @@ export interface V2ReferenceRow {
   is_group_parent: boolean
   is_guarantor: boolean
   guarantor_for_reference_id: string | null
+  guarantor_relationship: string | null
   status: V2ReferenceStatus
   final_decision_notes: string | null
   final_decision_by: string | null
@@ -140,6 +146,7 @@ export interface V2ReferenceRow {
   created_by: string | null
   converted_to_tenancy_id: string | null
   converted_at: string | null
+  reference_number: string | null
   report_pdf_url: string | null
   report_generated_at: string | null
   holding_deposit_amount: number | null
@@ -175,6 +182,7 @@ export interface V2SectionRow {
   referee_email_encrypted: string | null
   referee_phone_encrypted: string | null
   referee_name_encrypted: string | null
+  section_data: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }
@@ -299,10 +307,12 @@ export interface V2QueueCounts {
   RTR: number
   INCOME: number
   RESIDENTIAL: number
+  ADDRESS: number
   CREDIT: number
   AML: number
   CHASE: number
   FINAL_REVIEW: number
+  GROUP_ASSESSMENT: number
 }
 
 export interface AffordabilityResult {
@@ -316,7 +326,7 @@ export const TENANT_SECTIONS: V2SectionType[] = [
   'IDENTITY', 'RTR', 'INCOME', 'RESIDENTIAL', 'CREDIT', 'AML'
 ]
 
-// Guarantor sections (5 - no RESIDENTIAL)
+// Guarantor sections (5 - ADDRESS instead of RTR/RESIDENTIAL, 32x income requirement)
 export const GUARANTOR_SECTIONS: V2SectionType[] = [
-  'IDENTITY', 'RTR', 'INCOME', 'CREDIT', 'AML'
+  'IDENTITY', 'ADDRESS', 'INCOME', 'CREDIT', 'AML'
 ]

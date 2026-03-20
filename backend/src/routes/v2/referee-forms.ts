@@ -7,7 +7,7 @@
 
 import express, { Request, Response, Router } from 'express'
 import { supabase } from '../../config/supabase'
-import { encrypt } from '../../services/encryption'
+import { encrypt, decrypt, hash } from '../../services/encryption'
 
 const router: Router = express.Router()
 
@@ -22,27 +22,24 @@ router.get('/guarantor-form/:token', async (req: Request, res: Response) => {
 
     const { data: guarantor, error } = await supabase
       .from('v2_guarantors')
-      .select(`
-        id,
-        guarantor_email,
-        form_submitted_at,
-        reference:v2_references!inner(
-          id,
-          tenant_first_name,
-          tenant_last_name,
-          property_address,
-          monthly_rent,
-          company_id
-        )
-      `)
-      .eq('form_token', token)
+      .select('id, guarantor_email, form_completed_at, reference_id')
+      .eq('form_token_hash', hash(token))
       .single()
 
     if (error || !guarantor) {
       return res.status(404).json({ error: 'Reference not found or link expired' })
     }
 
-    const ref = (guarantor as any).reference
+    const { data: ref } = await supabase
+      .from('tenant_references_v2')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, property_address, monthly_rent, company_id')
+      .eq('id', guarantor.reference_id)
+      .single()
+
+    if (!ref) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
     const { data: company } = await supabase
       .from('companies')
       .select('name, logo_url')
@@ -52,11 +49,11 @@ router.get('/guarantor-form/:token', async (req: Request, res: Response) => {
     return res.json({
       reference: {
         id: guarantor.id,
-        tenant_name: `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.trim(),
+        tenant_name: `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim(),
         property_address: ref.property_address,
         monthly_rent: ref.monthly_rent,
         guarantor_email: guarantor.guarantor_email,
-        form_submitted_at: guarantor.form_submitted_at
+        form_completed_at: guarantor.form_completed_at
       },
       companyName: company?.name || 'PropertyGoose',
       companyLogo: company?.logo_url || ''
@@ -75,15 +72,15 @@ router.post('/guarantor-form/:token/submit', async (req: Request, res: Response)
 
     const { data: guarantor, error: gError } = await supabase
       .from('v2_guarantors')
-      .select('id, reference_id, form_submitted_at')
-      .eq('form_token', token)
+      .select('id, reference_id, form_completed_at')
+      .eq('form_token_hash', hash(token))
       .single()
 
     if (gError || !guarantor) {
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    if (guarantor.form_submitted_at) {
+    if (guarantor.form_completed_at) {
       return res.status(400).json({ error: 'Form has already been submitted' })
     }
 
@@ -107,7 +104,7 @@ router.post('/guarantor-form/:token/submit', async (req: Request, res: Response)
         guarantor_last_name: identity.lastName,
         guarantor_phone: identity.phone,
         form_data: encryptedFormData,
-        form_submitted_at: new Date().toISOString()
+        form_completed_at: new Date().toISOString()
       })
       .eq('id', guarantor.id)
 
@@ -132,30 +129,31 @@ router.get('/employer-form/:token', async (req: Request, res: Response) => {
   try {
     const { token } = req.params
 
+    // Hash the token to look up in DB
+    const tokenHash = hash(token)
+
     const { data: referee, error } = await supabase
-      .from('v2_referees')
-      .select(`
-        id,
-        referee_type,
-        referee_email,
-        submitted_at,
-        reference:v2_references!inner(
-          id,
-          tenant_first_name,
-          tenant_last_name,
-          form_data,
-          company_id
-        )
-      `)
-      .eq('form_token', token)
+      .from('referees_v2')
+      .select('id, referee_type, referee_email_encrypted, completed_at, reference_id')
+      .eq('form_token_hash', tokenHash)
       .eq('referee_type', 'EMPLOYER')
-      .single()
+      .maybeSingle()
 
     if (error || !referee) {
       return res.status(404).json({ error: 'Reference not found or link expired' })
     }
 
-    const ref = (referee as any).reference
+    // Get reference details separately
+    const { data: ref } = await supabase
+      .from('tenant_references_v2')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, form_data, company_id')
+      .eq('id', referee.reference_id)
+      .single()
+
+    if (!ref) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
     const { data: company } = await supabase
       .from('companies')
       .select('name, logo_url')
@@ -167,9 +165,9 @@ router.get('/employer-form/:token', async (req: Request, res: Response) => {
     return res.json({
       reference: {
         id: referee.id,
-        employee_name: `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.trim(),
+        employee_name: `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim(),
         employer_name: employerName,
-        submitted_at: referee.submitted_at
+        submitted_at: referee.completed_at
       },
       companyName: company?.name || 'A letting agent',
       companyLogo: company?.logo_url || ''
@@ -187,9 +185,9 @@ router.post('/employer-form/:token/submit', async (req: Request, res: Response) 
     const formData = req.body
 
     const { data: referee, error: rError } = await supabase
-      .from('v2_referees')
-      .select('id, reference_id, submitted_at')
-      .eq('form_token', token)
+      .from('referees_v2')
+      .select('id, reference_id, completed_at')
+      .eq('form_token_hash', hash(token))
       .eq('referee_type', 'EMPLOYER')
       .single()
 
@@ -197,19 +195,19 @@ router.post('/employer-form/:token/submit', async (req: Request, res: Response) 
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    if (referee.submitted_at) {
+    if (referee.completed_at) {
       return res.status(400).json({ error: 'Form has already been submitted' })
     }
 
     const { error: updateError } = await supabase
-      .from('v2_referees')
+      .from('referees_v2')
       .update({
         referee_name: formData.refereeName,
         form_data: {
           ...formData,
           submittedAt: new Date().toISOString()
         },
-        submitted_at: new Date().toISOString()
+        completed_at: new Date().toISOString()
       })
       .eq('id', referee.id)
 
@@ -220,11 +218,26 @@ router.post('/employer-form/:token/submit', async (req: Request, res: Response) 
 
     // Update the INCOME section to READY if it's PENDING
     await supabase
-      .from('v2_sections')
-      .update({ queue_status: 'READY' })
+      .from('reference_sections_v2')
+      .update({
+        queue_status: 'READY',
+        referee_submitted_at: new Date().toISOString(),
+        queue_entered_at: new Date().toISOString()
+      })
       .eq('reference_id', referee.reference_id)
       .eq('section_type', 'INCOME')
       .eq('queue_status', 'PENDING')
+
+    // Resolve any chase items for this referee
+    await supabase
+      .from('chase_items_v2')
+      .update({
+        status: 'RECEIVED',
+        resolved_at: new Date().toISOString()
+      })
+      .eq('reference_id', referee.reference_id)
+      .eq('referee_type', 'EMPLOYER')
+      .in('status', ['IN_CHASE_QUEUE', 'WAITING'])
 
     return res.json({ success: true })
   } catch (error) {
@@ -243,28 +256,26 @@ router.get('/landlord-form/:token', async (req: Request, res: Response) => {
     const { token } = req.params
 
     const { data: referee, error } = await supabase
-      .from('v2_referees')
-      .select(`
-        id,
-        referee_type,
-        referee_email,
-        submitted_at,
-        reference:v2_references!inner(
-          id,
-          tenant_first_name,
-          tenant_last_name,
-          company_id
-        )
-      `)
-      .eq('form_token', token)
+      .from('referees_v2')
+      .select('id, referee_type, referee_email_encrypted, completed_at, reference_id')
+      .eq('form_token_hash', hash(token))
       .eq('referee_type', 'LANDLORD')
-      .single()
+      .maybeSingle()
 
     if (error || !referee) {
       return res.status(404).json({ error: 'Reference not found or link expired' })
     }
 
-    const ref = (referee as any).reference
+    const { data: ref } = await supabase
+      .from('tenant_references_v2')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, company_id')
+      .eq('id', referee.reference_id)
+      .single()
+
+    if (!ref) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
     const { data: company } = await supabase
       .from('companies')
       .select('name, logo_url')
@@ -274,8 +285,8 @@ router.get('/landlord-form/:token', async (req: Request, res: Response) => {
     return res.json({
       reference: {
         id: referee.id,
-        tenant_name: `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.trim(),
-        submitted_at: referee.submitted_at
+        tenant_name: `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim(),
+        submitted_at: referee.completed_at
       },
       companyName: company?.name || 'A letting agent',
       companyLogo: company?.logo_url || ''
@@ -293,9 +304,9 @@ router.post('/landlord-form/:token/submit', async (req: Request, res: Response) 
     const formData = req.body
 
     const { data: referee, error: rError } = await supabase
-      .from('v2_referees')
-      .select('id, reference_id, submitted_at')
-      .eq('form_token', token)
+      .from('referees_v2')
+      .select('id, reference_id, completed_at')
+      .eq('form_token_hash', hash(token))
       .eq('referee_type', 'LANDLORD')
       .single()
 
@@ -303,19 +314,19 @@ router.post('/landlord-form/:token/submit', async (req: Request, res: Response) 
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    if (referee.submitted_at) {
+    if (referee.completed_at) {
       return res.status(400).json({ error: 'Form has already been submitted' })
     }
 
     const { error: updateError } = await supabase
-      .from('v2_referees')
+      .from('referees_v2')
       .update({
         referee_name: formData.refereeName,
         form_data: {
           ...formData,
           submittedAt: new Date().toISOString()
         },
-        submitted_at: new Date().toISOString()
+        completed_at: new Date().toISOString()
       })
       .eq('id', referee.id)
 
@@ -326,11 +337,26 @@ router.post('/landlord-form/:token/submit', async (req: Request, res: Response) 
 
     // Update the RESIDENTIAL section to READY if it's PENDING
     await supabase
-      .from('v2_sections')
-      .update({ queue_status: 'READY' })
+      .from('reference_sections_v2')
+      .update({
+        queue_status: 'READY',
+        referee_submitted_at: new Date().toISOString(),
+        queue_entered_at: new Date().toISOString()
+      })
       .eq('reference_id', referee.reference_id)
       .eq('section_type', 'RESIDENTIAL')
       .eq('queue_status', 'PENDING')
+
+    // Resolve any chase items for this referee
+    await supabase
+      .from('chase_items_v2')
+      .update({
+        status: 'RECEIVED',
+        resolved_at: new Date().toISOString()
+      })
+      .eq('reference_id', referee.reference_id)
+      .eq('referee_type', 'LANDLORD')
+      .in('status', ['IN_CHASE_QUEUE', 'WAITING'])
 
     return res.json({ success: true })
   } catch (error) {
@@ -349,28 +375,26 @@ router.get('/accountant-form/:token', async (req: Request, res: Response) => {
     const { token } = req.params
 
     const { data: referee, error } = await supabase
-      .from('v2_referees')
-      .select(`
-        id,
-        referee_type,
-        referee_email,
-        submitted_at,
-        reference:v2_references!inner(
-          id,
-          tenant_first_name,
-          tenant_last_name,
-          company_id
-        )
-      `)
-      .eq('form_token', token)
+      .from('referees_v2')
+      .select('id, referee_type, referee_email_encrypted, completed_at, reference_id')
+      .eq('form_token_hash', hash(token))
       .eq('referee_type', 'ACCOUNTANT')
-      .single()
+      .maybeSingle()
 
     if (error || !referee) {
       return res.status(404).json({ error: 'Reference not found or link expired' })
     }
 
-    const ref = (referee as any).reference
+    const { data: ref } = await supabase
+      .from('tenant_references_v2')
+      .select('id, tenant_first_name_encrypted, tenant_last_name_encrypted, company_id')
+      .eq('id', referee.reference_id)
+      .single()
+
+    if (!ref) {
+      return res.status(404).json({ error: 'Reference not found' })
+    }
+
     const { data: company } = await supabase
       .from('companies')
       .select('name, logo_url')
@@ -380,8 +404,8 @@ router.get('/accountant-form/:token', async (req: Request, res: Response) => {
     return res.json({
       reference: {
         id: referee.id,
-        client_name: `${ref.tenant_first_name || ''} ${ref.tenant_last_name || ''}`.trim(),
-        submitted_at: referee.submitted_at
+        client_name: `${decrypt(ref.tenant_first_name_encrypted) || ''} ${decrypt(ref.tenant_last_name_encrypted) || ''}`.trim(),
+        submitted_at: referee.completed_at
       },
       companyName: company?.name || 'A letting agent',
       companyLogo: company?.logo_url || ''
@@ -399,9 +423,9 @@ router.post('/accountant-form/:token/submit', async (req: Request, res: Response
     const formData = req.body
 
     const { data: referee, error: rError } = await supabase
-      .from('v2_referees')
-      .select('id, reference_id, submitted_at')
-      .eq('form_token', token)
+      .from('referees_v2')
+      .select('id, reference_id, completed_at')
+      .eq('form_token_hash', hash(token))
       .eq('referee_type', 'ACCOUNTANT')
       .single()
 
@@ -409,19 +433,19 @@ router.post('/accountant-form/:token/submit', async (req: Request, res: Response
       return res.status(404).json({ error: 'Reference not found' })
     }
 
-    if (referee.submitted_at) {
+    if (referee.completed_at) {
       return res.status(400).json({ error: 'Form has already been submitted' })
     }
 
     const { error: updateError } = await supabase
-      .from('v2_referees')
+      .from('referees_v2')
       .update({
         referee_name: formData.accountantName,
         form_data: {
           ...formData,
           submittedAt: new Date().toISOString()
         },
-        submitted_at: new Date().toISOString()
+        completed_at: new Date().toISOString()
       })
       .eq('id', referee.id)
 
@@ -432,11 +456,26 @@ router.post('/accountant-form/:token/submit', async (req: Request, res: Response
 
     // Update the INCOME section to READY if it's PENDING
     await supabase
-      .from('v2_sections')
-      .update({ queue_status: 'READY' })
+      .from('reference_sections_v2')
+      .update({
+        queue_status: 'READY',
+        referee_submitted_at: new Date().toISOString(),
+        queue_entered_at: new Date().toISOString()
+      })
       .eq('reference_id', referee.reference_id)
       .eq('section_type', 'INCOME')
       .eq('queue_status', 'PENDING')
+
+    // Resolve any chase items for this referee
+    await supabase
+      .from('chase_items_v2')
+      .update({
+        status: 'RECEIVED',
+        resolved_at: new Date().toISOString()
+      })
+      .eq('reference_id', referee.reference_id)
+      .eq('referee_type', 'ACCOUNTANT')
+      .in('status', ['IN_CHASE_QUEUE', 'WAITING'])
 
     return res.json({ success: true })
   } catch (error) {

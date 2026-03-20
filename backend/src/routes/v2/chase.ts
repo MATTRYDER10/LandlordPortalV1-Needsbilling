@@ -7,7 +7,7 @@
 
 import { Router } from 'express'
 import { authenticateStaff, StaffAuthRequest } from '../../middleware/staffAuth'
-import { decrypt } from '../../services/encryption'
+import { decrypt, generateToken, hash } from '../../services/encryption'
 import { supabase } from '../../config/supabase'
 import {
   getChaseQueue,
@@ -86,10 +86,10 @@ router.get('/queue', authenticateStaff, async (req: StaffAuthRequest, res) => {
     const companyIds = [...new Set(items.map((i: any) => i.reference?.company_id).filter(Boolean))]
     const { data: companies } = companyIds.length > 0 ? await supabase
       .from('companies')
-      .select('id, company_name')
+      .select('*')
       .in('id', companyIds) : { data: [] }
 
-    const companyMap = new Map(companies?.map(c => [c.id, c.company_name]) || [])
+    const companyMap = new Map((companies || []).map((c: any) => [c.id, c.name || (c.name_encrypted ? decrypt(c.name_encrypted) : null) || c.company_name || 'Unknown']))
 
     // Transform to frontend format
     const enrichedItems = items.map((item: any) => {
@@ -215,9 +215,31 @@ router.post('/:id/email', authenticateStaff, async (req: StaffAuthRequest, res) 
     const companyEmail = company ? decrypt(company.email_encrypted) || '' : ''
     const logoUrl = company?.logo_url
 
-    // Generate referee form URL (V2 - we'll need to create these forms)
-    // For now, using a placeholder that will be updated in Sprint 3
-    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+    // Look up referee form token to build correct URL
+    const { data: referee } = await supabase
+      .from('referees_v2')
+      .select('id, form_token_hash')
+      .eq('reference_id', chaseItem.reference_id)
+      .eq('referee_type', chaseItem.referee_type)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const refereeTypeToPath: Record<string, string> = {
+      'EMPLOYER': 'v2/employer-reference',
+      'LANDLORD': 'v2/landlord-reference',
+      'ACCOUNTANT': 'v2/accountant-reference'
+    }
+    // Use the chase item's section_id as fallback token if no referee found
+    const refereePath = refereeTypeToPath[chaseItem.referee_type] || 'v2/employer-reference'
+    // Generate a new token for the chase email (referee already has one from initial creation)
+    const formToken = generateToken()
+    const formTokenHash = hash(formToken)
+    // Update the referee with new token so the link works
+    if (referee) {
+      await supabase.from('referees_v2').update({ form_token_hash: formTokenHash }).eq('id', referee.id)
+    }
+    const formUrl = `${frontendUrl}/${refereePath}/${formToken}`
 
     // Send email based on referee type
     try {
@@ -297,7 +319,14 @@ router.post('/:id/sms', authenticateStaff, async (req: StaffAuthRequest, res) =>
     }
 
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`.trim()
-    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+    // Build referee form URL with correct path per type
+    const _refTypeToPath: Record<string, string> = { 'EMPLOYER': 'v2/employer-reference', 'LANDLORD': 'v2/landlord-reference', 'ACCOUNTANT': 'v2/accountant-reference' }
+    const _refPath = _refTypeToPath[chaseItem.referee_type] || 'v2/employer-reference'
+    const _chaseToken = generateToken()
+    const _chaseTokenHash = hash(_chaseToken)
+    const { data: _chaseRef } = await supabase.from('referees_v2').select('id').eq('reference_id', chaseItem.reference_id).eq('referee_type', chaseItem.referee_type).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (_chaseRef) await supabase.from('referees_v2').update({ form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
+    const formUrl = `${frontendUrl}/${_refPath}/${_chaseToken}`
 
     // Send SMS based on referee type
     try {
@@ -507,7 +536,14 @@ router.post('/:id/send', authenticateStaff, async (req: StaffAuthRequest, res) =
     const companyPhone = company ? decrypt(company.phone_encrypted) || '' : ''
     const companyEmail = company ? decrypt(company.email_encrypted) || '' : ''
     const logoUrl = company?.logo_url
-    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+    // Build referee form URL with correct path per type
+    const _refTypeToPath: Record<string, string> = { 'EMPLOYER': 'v2/employer-reference', 'LANDLORD': 'v2/landlord-reference', 'ACCOUNTANT': 'v2/accountant-reference' }
+    const _refPath = _refTypeToPath[chaseItem.referee_type] || 'v2/employer-reference'
+    const _chaseToken = generateToken()
+    const _chaseTokenHash = hash(_chaseToken)
+    const { data: _chaseRef } = await supabase.from('referees_v2').select('id').eq('reference_id', chaseItem.reference_id).eq('referee_type', chaseItem.referee_type).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (_chaseRef) await supabase.from('referees_v2').update({ form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
+    const formUrl = `${frontendUrl}/${_refPath}/${_chaseToken}`
 
     if (method === 'EMAIL') {
       if (!refereeEmail) {
@@ -652,7 +688,14 @@ router.post('/:id/resend-email', authenticateStaff, async (req: StaffAuthRequest
     const companyPhone = company ? decrypt(company.phone_encrypted) || '' : ''
     const companyEmail = company ? decrypt(company.email_encrypted) || '' : ''
     const logoUrl = company?.logo_url
-    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+    // Build referee form URL with correct path per type
+    const _refTypeToPath: Record<string, string> = { 'EMPLOYER': 'v2/employer-reference', 'LANDLORD': 'v2/landlord-reference', 'ACCOUNTANT': 'v2/accountant-reference' }
+    const _refPath = _refTypeToPath[chaseItem.referee_type] || 'v2/employer-reference'
+    const _chaseToken = generateToken()
+    const _chaseTokenHash = hash(_chaseToken)
+    const { data: _chaseRef } = await supabase.from('referees_v2').select('id').eq('reference_id', chaseItem.reference_id).eq('referee_type', chaseItem.referee_type).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (_chaseRef) await supabase.from('referees_v2').update({ form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
+    const formUrl = `${frontendUrl}/${_refPath}/${_chaseToken}`
 
     switch (chaseItem.referee_type) {
       case 'EMPLOYER':
@@ -723,7 +766,14 @@ router.post('/:id/send-sms', authenticateStaff, async (req: StaffAuthRequest, re
     }
 
     const tenantName = `${decrypt(reference.tenant_first_name_encrypted)} ${decrypt(reference.tenant_last_name_encrypted)}`.trim()
-    const formUrl = `${frontendUrl}/v2/referee/${chaseItem.section_id}`
+    // Build referee form URL with correct path per type
+    const _refTypeToPath: Record<string, string> = { 'EMPLOYER': 'v2/employer-reference', 'LANDLORD': 'v2/landlord-reference', 'ACCOUNTANT': 'v2/accountant-reference' }
+    const _refPath = _refTypeToPath[chaseItem.referee_type] || 'v2/employer-reference'
+    const _chaseToken = generateToken()
+    const _chaseTokenHash = hash(_chaseToken)
+    const { data: _chaseRef } = await supabase.from('referees_v2').select('id').eq('reference_id', chaseItem.reference_id).eq('referee_type', chaseItem.referee_type).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (_chaseRef) await supabase.from('referees_v2').update({ form_token_hash: _chaseTokenHash }).eq('id', _chaseRef.id)
+    const formUrl = `${frontendUrl}/${_refPath}/${_chaseToken}`
 
     switch (chaseItem.referee_type) {
       case 'EMPLOYER':
@@ -765,6 +815,73 @@ router.post('/:id/log-call', authenticateStaff, async (req: StaffAuthRequest, re
     res.json({ message: 'Call logged', chaseItemId: id, outcome })
   } catch (error: any) {
     console.error('[V2 Chase] Error logging call:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * Mark chase item as received (manual)
+ */
+router.post('/:id/mark-received', authenticateStaff, async (req: StaffAuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const staffUser = req.staffUser
+
+    if (!staffUser) {
+      return res.status(401).json({ error: 'Staff authentication required' })
+    }
+
+    // Get chase item with its linked section
+    const { data: chaseItem, error: fetchError } = await supabase
+      .from('chase_items_v2')
+      .select(`
+        id, reference_id, section_id,
+        section:reference_sections_v2!chase_items_v2_section_id_fkey (
+          id, section_type
+        )
+      `)
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !chaseItem) {
+      console.error('[V2 Chase] mark-received fetch error:', fetchError)
+      return res.status(404).json({ error: 'Chase item not found' })
+    }
+
+    // Mark chase as received
+    const { error: updateError } = await supabase
+      .from('chase_items_v2')
+      .update({
+        status: 'RECEIVED',
+        resolved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (updateError) {
+      console.error('[V2 Chase] mark-received update error:', updateError)
+      return res.status(500).json({ error: 'Failed to update chase item' })
+    }
+
+    // Move the related section to READY if still PENDING
+    const sectionType = (chaseItem.section as any)?.section_type
+    if (sectionType) {
+      await supabase
+        .from('reference_sections_v2')
+        .update({
+          queue_status: 'READY',
+          referee_submitted_at: new Date().toISOString(),
+          queue_entered_at: new Date().toISOString()
+        })
+        .eq('reference_id', chaseItem.reference_id)
+        .eq('section_type', sectionType)
+        .eq('queue_status', 'PENDING')
+    }
+
+    console.log(`[V2 Chase] Chase item ${id} manually marked as received`)
+    res.json({ message: 'Chase item marked as received', chaseItemId: id })
+  } catch (error: any) {
+    console.error('[V2 Chase] Error marking received:', error)
     res.status(500).json({ error: error.message })
   }
 })

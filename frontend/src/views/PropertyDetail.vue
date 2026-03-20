@@ -720,7 +720,7 @@ import { authFetch } from '../lib/authFetch'
 import { useDownload } from '../composables/useDownload'
 import { formatDate as formatUkDate } from '../utils/date'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 interface PropertyLandlord {
   id: string

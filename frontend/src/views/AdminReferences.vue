@@ -313,7 +313,7 @@ import AdminHeader from '../components/AdminHeader.vue'
 import { useAuthStore } from '../stores/auth'
 import { Search, ChevronRight, Eye, Trash2, FileText, AlertTriangle, Loader2 } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const authStore = useAuthStore()
 // State

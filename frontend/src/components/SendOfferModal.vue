@@ -224,7 +224,7 @@ import AddressAutocomplete from './AddressAutocomplete.vue'
 import { isValidEmail } from '../utils/validation'
 import { X, Building } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const props = defineProps<{
   show: boolean

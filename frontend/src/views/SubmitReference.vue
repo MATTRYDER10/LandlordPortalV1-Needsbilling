@@ -1979,7 +1979,7 @@ import { COUNTRIES, POSTCODE_LABELS, POSTCODE_PLACEHOLDERS, CAPITAL_CITIES } fro
 import { formatDate as formatUkDate } from '../utils/date'
 import { defaultBranding } from '../config/colors'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const route = useRoute()
 const LEGACY_LINK_MESSAGE = "This link has expired. We've sent a new one."

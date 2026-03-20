@@ -89,6 +89,7 @@ const isDrawing = ref(false)
 const hasSignature = ref(false)
 const error = ref('')
 const lastPoint = ref<{ x: number; y: number } | null>(null)
+const lastEmitTime = ref(0)
 
 onMounted(() => {
   setTimeout(() => {
@@ -102,11 +103,18 @@ onUnmounted(() => {
 })
 
 watch(() => props.modelValue, (newValue) => {
+  // Skip if this change came from our own emit within the last 500ms
+  if (Date.now() - lastEmitTime.value < 500) return
+
   if (newValue && canvas.value && ctx.value) {
     const img = new Image()
     img.onload = () => {
-      ctx.value?.clearRect(0, 0, canvas.value!.width, canvas.value!.height)
-      ctx.value?.drawImage(img, 0, 0)
+      if (!ctx.value || !canvas.value) return
+      const dpr = window.devicePixelRatio || 1
+      ctx.value.clearRect(0, 0, canvas.value.width / dpr, canvas.value.height / dpr)
+      const cssWidth = canvas.value.width / dpr
+      const cssHeight = canvas.value.height / dpr
+      ctx.value.drawImage(img, 0, 0, cssWidth, cssHeight)
       hasSignature.value = true
     }
     img.src = newValue
@@ -240,6 +248,7 @@ function stopDrawing() {
     lastPoint.value = null
     hasSignature.value = !isCanvasEmpty()
     if (hasSignature.value) {
+      lastEmitTime.value = Date.now()
       emit('update:modelValue', getSignatureData())
     }
   }

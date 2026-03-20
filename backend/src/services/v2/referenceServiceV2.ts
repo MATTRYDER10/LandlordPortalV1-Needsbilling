@@ -14,6 +14,7 @@ import {
 } from './types'
 import { initializeSections } from './sectionServiceV2'
 import { updateReferenceAffordability } from './affordabilityService'
+import { logActivity } from './activityServiceV2'
 
 // ============================================================================
 // FEATURE FLAG
@@ -306,8 +307,8 @@ export async function updateReferenceStatus(
       updated_at: now
     }
 
-    // Add final decision fields for terminal statuses
-    if (['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'REJECTED'].includes(status)) {
+    // Add final decision fields for terminal statuses (and INDIVIDUAL_COMPLETE as intermediate decision)
+    if (['ACCEPTED', 'ACCEPTED_WITH_GUARANTOR', 'ACCEPTED_ON_CONDITION', 'REJECTED', 'INDIVIDUAL_COMPLETE'].includes(status)) {
       updateData.final_decision_at = now
       if (options?.finalDecisionNotes) {
         updateData.final_decision_notes = options.finalDecisionNotes
@@ -472,5 +473,175 @@ export async function getGuarantor(referenceId: string): Promise<V2ReferenceRow 
   } catch (error) {
     console.error('[ReferenceServiceV2] Error:', error)
     return null
+  }
+}
+
+// ============================================================================
+// FIELD EDITING
+// ============================================================================
+
+// Fields that can be edited by agents/staff
+const EDITABLE_FIELDS: Record<string, { column: string; isEncrypted: boolean; isRefereeField: boolean; formDataPath?: string }> = {
+  tenant_first_name: { column: 'tenant_first_name_encrypted', isEncrypted: true, isRefereeField: false },
+  tenant_last_name: { column: 'tenant_last_name_encrypted', isEncrypted: true, isRefereeField: false },
+  tenant_email: { column: 'tenant_email_encrypted', isEncrypted: true, isRefereeField: false },
+  tenant_phone: { column: 'tenant_phone_encrypted', isEncrypted: true, isRefereeField: false },
+  current_address_line1: { column: 'current_address_line1_encrypted', isEncrypted: true, isRefereeField: false },
+  current_address_line2: { column: 'current_address_line2_encrypted', isEncrypted: true, isRefereeField: false },
+  current_city: { column: 'current_city_encrypted', isEncrypted: true, isRefereeField: false },
+  current_postcode: { column: 'current_postcode_encrypted', isEncrypted: true, isRefereeField: false },
+  employer_ref_name: { column: 'employer_ref_name_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'income.employerContactName' },
+  employer_ref_email: { column: 'employer_ref_email_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'income.employerContactEmail' },
+  employer_ref_phone: { column: 'employer_ref_phone_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'income.employerContactPhone' },
+  previous_landlord_name: { column: 'previous_landlord_name_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'residential.previousLandlordName' },
+  previous_landlord_email: { column: 'previous_landlord_email_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'residential.previousLandlordEmail' },
+  previous_landlord_phone: { column: 'previous_landlord_phone_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'residential.previousLandlordPhone' },
+  accountant_name: { column: 'accountant_name_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'income.accountantName' },
+  accountant_email: { column: 'accountant_email_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'income.accountantEmail' },
+  accountant_phone: { column: 'accountant_phone_encrypted', isEncrypted: true, isRefereeField: true, formDataPath: 'income.accountantPhone' },
+}
+
+/**
+ * Edit a field on a reference with audit logging
+ */
+export async function editReferenceField(
+  referenceId: string,
+  field: string,
+  value: string,
+  performedBy: string,
+  performedByType: string
+): Promise<{ success: boolean; isRefereeField: boolean; error?: string }> {
+  try {
+    const fieldConfig = EDITABLE_FIELDS[field]
+    if (!fieldConfig) {
+      return { success: false, isRefereeField: false, error: `Field '${field}' is not editable` }
+    }
+
+    const reference = await getReference(referenceId)
+    if (!reference) {
+      return { success: false, isRefereeField: false, error: 'Reference not found' }
+    }
+
+    // Get old value for audit log
+    const oldValue = fieldConfig.isEncrypted
+      ? decrypt((reference as any)[fieldConfig.column]) || ''
+      : (reference as any)[fieldConfig.column] || ''
+
+    // Update the main column
+    const updateData: Record<string, any> = {
+      [fieldConfig.column]: fieldConfig.isEncrypted ? encrypt(value) : value,
+      updated_at: new Date().toISOString()
+    }
+
+    const { error: updateError } = await supabase
+      .from('tenant_references_v2')
+      .update(updateData)
+      .eq('id', referenceId)
+
+    if (updateError) {
+      console.error('[ReferenceServiceV2] Error updating field:', updateError)
+      return { success: false, isRefereeField: false, error: updateError.message }
+    }
+
+    // Update form_data if this field has a formDataPath
+    if (fieldConfig.formDataPath) {
+      const formData = { ...(reference.form_data || {}) } as Record<string, any>
+      const [section, key] = fieldConfig.formDataPath.split('.')
+      if (!formData[section]) formData[section] = {}
+      formData[section][key] = value
+
+      await supabase
+        .from('tenant_references_v2')
+        .update({ form_data: formData })
+        .eq('id', referenceId)
+    }
+
+    // Update matching referees_v2 record if this is a referee field
+    if (fieldConfig.isRefereeField) {
+      await updateRefereeRecord(referenceId, field, value)
+    }
+
+    // Log the activity
+    await logActivity({
+      referenceId,
+      action: 'FIELD_EDITED',
+      fieldName: field,
+      oldValue,
+      newValue: value,
+      performedBy,
+      performedByType
+    })
+
+    console.log(`[ReferenceServiceV2] Field '${field}' updated on reference ${referenceId}`)
+    return { success: true, isRefereeField: fieldConfig.isRefereeField }
+  } catch (error) {
+    console.error('[ReferenceServiceV2] Error editing field:', error)
+    return { success: false, isRefereeField: false, error: 'Internal error' }
+  }
+}
+
+/**
+ * Update matching referee record when referee details change
+ */
+async function updateRefereeRecord(referenceId: string, field: string, value: string): Promise<void> {
+  try {
+    let refereeType: string | null = null
+    let updateColumn: string | null = null
+
+    if (field.startsWith('employer_ref_')) {
+      refereeType = 'EMPLOYER'
+      if (field === 'employer_ref_name') updateColumn = 'referee_name_encrypted'
+      else if (field === 'employer_ref_email') updateColumn = 'referee_email_encrypted'
+      else if (field === 'employer_ref_phone') updateColumn = 'referee_phone_encrypted'
+    } else if (field.startsWith('previous_landlord_')) {
+      refereeType = 'LANDLORD'
+      if (field === 'previous_landlord_name') updateColumn = 'referee_name_encrypted'
+      else if (field === 'previous_landlord_email') updateColumn = 'referee_email_encrypted'
+      else if (field === 'previous_landlord_phone') updateColumn = 'referee_phone_encrypted'
+    } else if (field.startsWith('accountant_')) {
+      refereeType = 'ACCOUNTANT'
+      if (field === 'accountant_name') updateColumn = 'referee_name_encrypted'
+      else if (field === 'accountant_email') updateColumn = 'referee_email_encrypted'
+      else if (field === 'accountant_phone') updateColumn = 'referee_phone_encrypted'
+    }
+
+    if (!refereeType || !updateColumn) return
+
+    const { data: referee } = await supabase
+      .from('referees_v2')
+      .select('id')
+      .eq('reference_id', referenceId)
+      .eq('referee_type', refereeType)
+      .maybeSingle()
+
+    if (referee) {
+      await supabase
+        .from('referees_v2')
+        .update({
+          [updateColumn]: encrypt(value),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', referee.id)
+    }
+
+    // Also update the section's referee fields if they exist
+    const sectionTypeMap: Record<string, string> = {
+      EMPLOYER: 'INCOME',
+      LANDLORD: 'RESIDENTIAL',
+      ACCOUNTANT: 'INCOME'
+    }
+    const sectionType = sectionTypeMap[refereeType]
+    if (sectionType && updateColumn) {
+      await supabase
+        .from('reference_sections_v2')
+        .update({
+          [updateColumn]: encrypt(value),
+          updated_at: new Date().toISOString()
+        })
+        .eq('reference_id', referenceId)
+        .eq('section_type', sectionType)
+    }
+  } catch (error) {
+    console.error('[ReferenceServiceV2] Error updating referee record:', error)
   }
 }

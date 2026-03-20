@@ -105,12 +105,27 @@
             v-else-if="step.evidence.type === 'data'"
             class="bg-gray-50 dark:bg-slate-800 rounded-lg p-4"
           >
+            <div v-if="step.refereeName" class="mb-3 text-sm font-semibold text-gray-700 dark:text-slate-300">
+              Referee: {{ step.refereeName }}
+            </div>
             <div class="grid grid-cols-2 gap-3">
               <div v-for="(value, key) in step.evidence.data" :key="key">
                 <span class="text-xs text-gray-500 dark:text-slate-400">{{ formatLabel(key) }}</span>
                 <p class="font-medium text-gray-900 dark:text-white">{{ value || '-' }}</p>
               </div>
             </div>
+            <div v-if="step.signatureUrl" class="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+              <span class="text-xs text-gray-500 dark:text-slate-400">Signature</span>
+              <img :src="step.signatureUrl" alt="Signature" class="max-h-16 mt-1 cursor-zoom-in" @click="$emit('viewImage', step.signatureUrl)" />
+            </div>
+          </div>
+
+          <!-- Confirmed income highlight -->
+          <div
+            v-if="step.confirmedIncomeNote"
+            class="mt-3 px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
+          >
+            <p class="font-semibold text-green-700 dark:text-green-400">{{ step.confirmedIncomeNote }}</p>
           </div>
         </div>
 
@@ -147,7 +162,9 @@
               :type="field.type"
               v-model="inputValues[field.name]"
               :placeholder="field.placeholder"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              :readonly="field.readonly"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              :class="field.readonly ? 'bg-gray-100 dark:bg-slate-700 cursor-not-allowed' : 'bg-white dark:bg-slate-800'"
             />
             <select
               v-else-if="field.type === 'select'"
@@ -216,8 +233,21 @@
             v-model="issueNotes"
             rows="3"
             placeholder="Additional details..."
-            class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white mb-4"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white mb-3"
           />
+          <div class="mb-4">
+            <p class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Request from tenant:</p>
+            <div class="flex gap-4">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" v-model="issueRequestType" value="document" class="text-primary focus:ring-primary" />
+                <span class="text-sm text-gray-700 dark:text-slate-300">Request new document</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" v-model="issueRequestType" value="information" class="text-primary focus:ring-primary" />
+                <span class="text-sm text-gray-700 dark:text-slate-300">Request updated information</span>
+              </label>
+            </div>
+          </div>
           <div class="flex gap-3">
             <button
               @click="showIssueModal = false"
@@ -253,6 +283,7 @@ interface InputField {
   label: string
   type: 'text' | 'date' | 'select'
   placeholder?: string
+  readonly?: boolean
   options?: { value: string; label: string }[]
 }
 
@@ -275,6 +306,10 @@ interface Step {
   inputFields?: InputField[]
   hasIssue?: boolean
   issueReason?: string
+  signatureUrl?: string | null
+  refereeName?: string
+  confirmedIncomeNote?: string | null
+  refereeConfirmedAnnual?: number | null
 }
 
 const props = defineProps<{
@@ -284,7 +319,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   viewImage: [url: string]
   stepComplete: [index: number, data: { inputValues: Record<string, any> }]
-  issueReported: [index: number, reason: string, notes: string]
+  issueReported: [index: number, reason: string, notes: string, requestType: string]
   allComplete: [data: { inputValues: Record<string, any>; completedSteps: number[] }]
 }>()
 
@@ -296,6 +331,7 @@ const showIssueModal = ref(false)
 const currentIssueStep = ref<number | null>(null)
 const issueReason = ref('')
 const issueNotes = ref('')
+const issueRequestType = ref('document')
 
 function isStepComplete(index: number): boolean {
   return completedSteps.value.includes(index)
@@ -339,12 +375,13 @@ function openIssueModal(index: number) {
   currentIssueStep.value = index
   issueReason.value = ''
   issueNotes.value = ''
+  issueRequestType.value = 'document'
   showIssueModal.value = true
 }
 
 function submitIssue() {
   if (currentIssueStep.value !== null && issueReason.value) {
-    emit('issueReported', currentIssueStep.value, issueReason.value, issueNotes.value)
+    emit('issueReported', currentIssueStep.value, issueReason.value, issueNotes.value, issueRequestType.value)
     showIssueModal.value = false
   }
 }

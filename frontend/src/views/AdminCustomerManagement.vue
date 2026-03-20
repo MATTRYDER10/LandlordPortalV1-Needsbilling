@@ -35,18 +35,27 @@
             <div
               v-for="company in searchResults"
               :key="company.id"
-              @click="selectCompany(company.id)"
-              class="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+              class="px-4 py-3 hover:bg-gray-50 transition-colors"
             >
               <div class="flex items-center justify-between">
-                <div>
+                <div class="cursor-pointer flex-1" @click="selectCompany(company.id)">
                   <p class="text-sm font-medium text-gray-900">{{ company.name }}</p>
                   <p class="text-sm text-gray-500">{{ company.email }}</p>
                   <p class="text-xs text-gray-400 font-mono">{{ company.id }}</p>
                 </div>
-                <div class="text-right">
-                  <p class="text-sm text-gray-600">{{ company.reference_credits }} credits</p>
-                  <p class="text-xs text-gray-400">Since {{ formatDate(company.created_at) }}</p>
+                <div class="flex items-center gap-3">
+                  <div class="text-right">
+                    <p class="text-sm text-gray-600">{{ company.reference_credits }} credits</p>
+                    <p class="text-xs text-gray-400">Since {{ formatDate(company.created_at) }}</p>
+                  </div>
+                  <button
+                    @click.stop="viewAsCompany(company)"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 transition-colors"
+                    title="View as this company"
+                  >
+                    <Eye class="w-3.5 h-3.5" />
+                    View As
+                  </button>
                 </div>
               </div>
             </div>
@@ -355,12 +364,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios from 'axios'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useAdminCompanyStore } from '../stores/adminCompany'
 import AdminHeader from '../components/AdminHeader.vue'
 import DeleteConfirmModal from '../components/DeleteConfirmModal.vue'
-import { Search, CircleDollarSign, FileText, Wallet, Users } from 'lucide-vue-next'
+import { Search, CircleDollarSign, FileText, Wallet, Users, Eye } from 'lucide-vue-next'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const router = useRouter()
+const adminCompanyStore = useAdminCompanyStore()
+
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 const authStore = useAuthStore()
 const searchQuery = ref('')
@@ -538,6 +552,15 @@ const deleteCustomerUser = async (confirmEmail: string) => {
   } finally {
     deletingUser.value = false
   }
+}
+
+const viewAsCompany = (company: any) => {
+  adminCompanyStore.setSelectedCompany({
+    id: company.id,
+    name: company.name,
+    email: company.email || ''
+  })
+  router.push('/dashboard')
 }
 
 const openDeleteCompanyModal = () => {

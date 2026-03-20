@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth'
 import { supabase } from '../config/supabase'
 import { decrypt } from '../services/encryption'
+import { sendEmail, loadEmailTemplate } from '../services/emailService'
+import { getFrontendUrl } from '../utils/frontendUrl'
 import {
   getCompanyTDSConfig,
   createDeposit,
@@ -184,6 +186,56 @@ async function saveRegistrationAndUpdateTenancy(
       performed_by: userId,
       is_system_action: false
     })
+
+  // Send notification email + in-app notification to agent
+  try {
+    const propertyAddress = (() => {
+      try {
+        const { data: t } = supabase.from('tenancies').select('property_address_encrypted').eq('id', tenancyId).single() as any
+        return t?.property_address_encrypted ? decrypt(t.property_address_encrypted) : 'Property'
+      } catch { return 'Property' }
+    })()
+
+    // Get company email
+    const { data: company } = await supabase
+      .from('companies')
+      .select('email_encrypted')
+      .eq('id', companyId)
+      .single()
+
+    const agentEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : null
+
+    // In-app notification
+    await supabase.from('notifications').insert({
+      company_id: companyId,
+      user_id: userId,
+      type: 'deposit_registered',
+      title: `Deposit Registered - ${schemeName}`,
+      message: `Deposit registered with ${schemeName}. DAN: ${dan}`,
+      metadata: { tenancy_id: tenancyId, dan, scheme: schemeName },
+      read: false
+    })
+
+    // Email notification
+    if (agentEmail) {
+      await sendEmail({
+        to: agentEmail,
+        subject: `Deposit Registered with ${schemeName} - DAN: ${dan}`,
+        html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+          <h2 style="color:#16a34a;">Deposit Successfully Registered</h2>
+          <p>The deposit has been registered with <strong>${schemeName}</strong>.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">DAN</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold;">${dan}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Scheme</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${schemeName}</td></tr>
+            <tr><td style="padding:8px;color:#6b7280;">Date</td><td style="padding:8px;">${new Date().toLocaleDateString('en-GB')}</td></tr>
+          </table>
+          <p style="font-size:14px;color:#6b7280;">Download the certificate from PropertyGoose.</p>
+        </div>`
+      }).catch(err => console.error('[TDS] Notification email failed:', err))
+    }
+  } catch (notifyErr) {
+    console.error('[TDS] Notification error:', notifyErr)
+  }
 }
 
 // ============================================================================
@@ -238,7 +290,7 @@ router.post('/custodial/create-deposit', authenticateToken, async (req: AuthRequ
   console.log('[TDS] Request body:', JSON.stringify(req.body))
   try {
     const userId = req.user?.id
-    const { tenancyId, depositReceivedDate, furnishedStatus } = req.body
+    const { tenancyId, depositReceivedDate, furnishedStatus, property, tenancy, deposit, landlord, tenants } = req.body
 
     if (!tenancyId) {
       return res.status(400).json({ error: 'Tenancy ID is required' })
@@ -282,16 +334,70 @@ router.post('/custodial/create-deposit', authenticateToken, async (req: AuthRequ
       }
     }
 
-    const tenancyResult = await getTenancyWithDetails(tenancyId, companyId)
-    if (tenancyResult.error) {
-      return res.status(404).json({ error: tenancyResult.error })
+    // Validate form data - USE THE DATA FROM THE FORM, not from linked tables
+    if (!landlord || !landlord.firstName || !landlord.lastName) {
+      return res.status(400).json({ error: 'Landlord details are required. Please fill in the landlord information.' })
     }
 
-    console.log('[TDS Custodial] Creating deposit for tenancy:', tenancyId)
+    if (!tenants || tenants.length === 0) {
+      return res.status(400).json({ error: 'At least one tenant is required.' })
+    }
+
+    const leadTenant = tenants.find((t: any) => t.isLead) || tenants[0]
+    if (!leadTenant.firstName || !leadTenant.lastName) {
+      return res.status(400).json({ error: 'Lead tenant name is required.' })
+    }
+
+    if (!leadTenant.email && !leadTenant.phone) {
+      return res.status(400).json({ error: 'Lead tenant must have an email or phone number.' })
+    }
+
+    console.log('[TDS Custodial] Creating deposit for tenancy:', tenancyId, 'with form data - landlord:', landlord.firstName, landlord.lastName, ', tenants:', tenants.length)
+
+    // Parse landlord address into components (address might be combined like "3 Road, City, BS1 1AA")
+    const landlordAddressParts = (landlord.address || '').split(',').map((p: string) => p.trim())
+    const landlordAddressLine1 = landlordAddressParts[0] || ''
+    const landlordCity = landlordAddressParts[1] || ''
+    const landlordPostcode = landlordAddressParts[landlordAddressParts.length - 1] || ''
+
+    // Build tenancy data from form - USE FORM DATA, not database lookups
+    const formTenancyData = {
+      id: tenancyId,
+      property: {
+        address_line1: property.addressLine1,
+        city: property.city,
+        county: property.county,
+        postcode: property.postcode
+      },
+      tenancy_start_date: tenancy.startDate,
+      end_date: tenancy.endDate,
+      monthly_rent: tenancy.rent,
+      deposit_amount: deposit.amount || deposit.amountToProtect,
+      // Use form data for landlord - NOT from property_landlords table
+      landlords: [{
+        title: landlord.title,
+        first_name: landlord.firstName,
+        last_name: landlord.lastName,
+        email: landlord.email,
+        address_line1: landlordAddressLine1,
+        city: landlordCity,
+        postcode: landlordPostcode,
+        is_primary: true
+      }],
+      // Use form data for tenants - NOT from tenancy_tenants table
+      tenants: tenants.map((t: any) => ({
+        title: t.title,
+        first_name: t.firstName,
+        last_name: t.lastName,
+        email: t.email,
+        phone: t.phone,
+        is_lead: t.isLead
+      }))
+    }
 
     const createResult = await createDeposit(
       companyId,
-      tenancyResult.tenancy,
+      formTenancyData,
       depositReceivedDate,
       furnishedStatus || 'furnished'
     )
@@ -304,6 +410,7 @@ router.post('/custodial/create-deposit', authenticateToken, async (req: AuthRequ
 
     // Save a pending registration immediately so we have a record even if polling times out
     console.log('[TDS] Saving pending registration for batch:', createResult.batchId)
+    const depositAmount = Number(deposit.amount || deposit.amountToProtect) || 0
     const { error: insertError } = await supabase
       .from('tds_registrations')
       .insert({
@@ -311,7 +418,7 @@ router.post('/custodial/create-deposit', authenticateToken, async (req: AuthRequ
         company_id: companyId,
         registered_by: userId,
         batch_id: createResult.batchId,
-        deposit_amount: Number(tenancyResult.tenancy.deposit_amount) || 0,
+        deposit_amount: depositAmount,
         deposit_received_date: depositReceivedDate,
         status: 'pending',
         scheme_type: 'custodial'
@@ -319,6 +426,7 @@ router.post('/custodial/create-deposit', authenticateToken, async (req: AuthRequ
 
     if (insertError) {
       console.error('[TDS] Failed to save pending registration:', insertError)
+      // Don't fail the request - TDS already received it, we just couldn't track it locally
     } else {
       console.log('[TDS] Pending registration saved successfully')
     }
@@ -353,9 +461,9 @@ router.get('/custodial/deposit-status/:batchId', authenticateToken, async (req: 
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Poll TDS multiple times per request (10 attempts, 3 seconds apart = 30 seconds max)
+    // Poll TDS multiple times per request (40 attempts, 5 seconds apart = ~3.5 minutes max)
     console.log('[TDS Custodial] Starting polling for batchId:', batchId)
-    const statusResult = await pollDepositStatus(companyId, batchId, 10, 3000)
+    const statusResult = await pollDepositStatus(companyId, batchId, 40, 5000)
 
     console.log('[TDS Custodial] pollDepositStatus result:', JSON.stringify(statusResult))
 
@@ -381,6 +489,18 @@ router.get('/custodial/deposit-status/:batchId', authenticateToken, async (req: 
         schemeType: 'custodial'
       })
     } else if (statusResult.status === 'failed') {
+      // Update registration status to failed in database so it persists
+      if (tenancyId) {
+        await supabase
+          .from('tds_registrations')
+          .update({
+            status: 'failed',
+            error_message: statusResult.error,
+            updated_at: new Date().toISOString()
+          })
+          .eq('tenancy_id', tenancyId)
+          .eq('batch_id', batchId)
+      }
       res.json({ success: false, status: 'failed', error: statusResult.error })
     } else if (statusResult.status === 'timeout') {
       res.json({ success: false, status: 'timeout', error: statusResult.error })
@@ -446,7 +566,7 @@ router.post('/insured/create-deposit', authenticateToken, async (req: AuthReques
   console.log('[TDS Insured] Request body:', JSON.stringify(req.body))
   try {
     const userId = req.user?.id
-    const { tenancyId, depositReceivedDate } = req.body
+    const { tenancyId, depositReceivedDate, furnishedStatus, property, tenancy, deposit, landlord, tenants } = req.body
 
     if (!tenancyId) {
       return res.status(400).json({ error: 'Tenancy ID is required' })
@@ -490,16 +610,64 @@ router.post('/insured/create-deposit', authenticateToken, async (req: AuthReques
       }
     }
 
-    const tenancyResult = await getTenancyWithDetails(tenancyId, companyId)
-    if (tenancyResult.error) {
-      return res.status(404).json({ error: tenancyResult.error })
+    // Validate form data - USE THE DATA FROM THE FORM, not from linked tables
+    if (!landlord || !landlord.firstName || !landlord.lastName) {
+      return res.status(400).json({ error: 'Landlord details are required. Please fill in the landlord information.' })
     }
 
-    console.log('[TDS Insured] Creating deposit for tenancy:', tenancyId)
+    if (!tenants || tenants.length === 0) {
+      return res.status(400).json({ error: 'At least one tenant is required.' })
+    }
+
+    const leadTenant = tenants.find((t: any) => t.isLead) || tenants[0]
+    if (!leadTenant.firstName || !leadTenant.lastName) {
+      return res.status(400).json({ error: 'Lead tenant name is required.' })
+    }
+
+    // Parse landlord address into components
+    const landlordAddressParts = (landlord.address || '').split(',').map((p: string) => p.trim())
+    const landlordAddressLine1 = landlordAddressParts[0] || ''
+    const landlordCity = landlordAddressParts[1] || ''
+    const landlordPostcode = landlordAddressParts[landlordAddressParts.length - 1] || ''
+
+    // Build tenancy data from form - USE FORM DATA, not database lookups
+    const formTenancyData = {
+      id: tenancyId,
+      property: {
+        address_line1: property.addressLine1,
+        city: property.city,
+        county: property.county,
+        postcode: property.postcode
+      },
+      tenancy_start_date: tenancy.startDate,
+      end_date: tenancy.endDate,
+      monthly_rent: tenancy.rent,
+      deposit_amount: deposit.amount || deposit.amountToProtect,
+      landlords: [{
+        title: landlord.title,
+        first_name: landlord.firstName,
+        last_name: landlord.lastName,
+        email: landlord.email,
+        address_line1: landlordAddressLine1,
+        city: landlordCity,
+        postcode: landlordPostcode,
+        is_primary: true
+      }],
+      tenants: tenants.map((t: any) => ({
+        title: t.title,
+        first_name: t.firstName,
+        last_name: t.lastName,
+        email: t.email,
+        phone: t.phone,
+        is_lead: t.isLead
+      }))
+    }
+
+    console.log('[TDS Insured] Creating deposit for tenancy:', tenancyId, 'with form data')
 
     const createResult = await createInsuredDeposit(
       companyId,
-      tenancyResult.tenancy,
+      formTenancyData,
       depositReceivedDate
     )
 
@@ -511,6 +679,7 @@ router.post('/insured/create-deposit', authenticateToken, async (req: AuthReques
 
     // Save a pending registration immediately so we have a record even if polling times out
     console.log('[TDS Insured] Saving pending registration for apiReference:', createResult.apiReference)
+    const insuredDepositAmount = Number(deposit.amount || deposit.amountToProtect) || 0
     const { error: insertError } = await supabase
       .from('tds_registrations')
       .insert({
@@ -518,7 +687,7 @@ router.post('/insured/create-deposit', authenticateToken, async (req: AuthReques
         company_id: companyId,
         registered_by: userId,
         batch_id: createResult.apiReference, // Using batch_id field to store apiReference
-        deposit_amount: Number(tenancyResult.tenancy.deposit_amount) || 0,
+        deposit_amount: insuredDepositAmount,
         deposit_received_date: depositReceivedDate,
         status: 'pending',
         scheme_type: 'insured'
@@ -645,8 +814,11 @@ router.get('/insured/certificate/:dan', authenticateToken, async (req: AuthReque
 router.get('/registration/:tenancyId', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { tenancyId } = req.params
+    const branchHeader = req.headers['x-branch-id']
+    console.log('[TDS Registration] Fetching for tenancy:', tenancyId, 'X-Branch-Id:', branchHeader)
 
     const companyId = await getUserCompanyId(req)
+    console.log('[TDS Registration] Resolved company_id:', companyId)
 
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -661,11 +833,14 @@ router.get('/registration/:tenancyId', authenticateToken, async (req: AuthReques
       .limit(1)
       .single()
 
+    console.log('[TDS Registration] Query result:', { found: !!registration, status: registration?.status, dan: registration?.dan, error: regError?.code })
+
     if (regError && regError.code !== 'PGRST116') {
       console.error('Error fetching TDS registration:', regError)
     }
 
     if (!registration) {
+      console.log('[TDS Registration] No registration found, returning null')
       return res.json({ registration: null })
     }
 
@@ -688,7 +863,8 @@ router.get('/registration/:tenancyId', authenticateToken, async (req: AuthReques
         registeredAt: registration.registered_at,
         registeredByName,
         status: registration.status,
-        schemeType: registration.scheme_type || 'custodial'
+        schemeType: registration.scheme_type || 'custodial',
+        error: registration.error_message || null
       }
     })
   } catch (error) {
@@ -704,8 +880,10 @@ router.get('/registration/:tenancyId', authenticateToken, async (req: AuthReques
 router.get('/certificate/:dan', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { dan } = req.params
+    console.log('[TDS Certificate] Downloading certificate for DAN:', dan)
 
     const companyId = await getUserCompanyId(req)
+    console.log('[TDS Certificate] Company ID:', companyId)
 
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' })
@@ -717,6 +895,8 @@ router.get('/certificate/:dan', authenticateToken, async (req: AuthRequest, res)
       .eq('dan', dan)
       .eq('company_id', companyId)
       .single()
+
+    console.log('[TDS Certificate] Registration lookup:', { found: !!registration, error: regError?.message, schemeType: registration?.scheme_type })
 
     if (regError || !registration) {
       return res.status(404).json({ error: 'Registration not found' })
@@ -730,6 +910,8 @@ router.get('/certificate/:dan', authenticateToken, async (req: AuthRequest, res)
     } else {
       result = await downloadDPC(companyId, dan)
     }
+
+    console.log('[TDS Certificate] Download result:', { success: result.success, hasBuffer: !!result.buffer, error: result.error })
 
     if (!result.success || !result.buffer) {
       return res.status(400).json({ error: result.error || 'Failed to download certificate' })
@@ -820,8 +1002,8 @@ router.get('/deposit-status/:batchId', authenticateToken, async (req: AuthReques
       return res.status(404).json({ error: 'Company not found' })
     }
 
-    // Poll TDS multiple times per request (10 attempts, 3 seconds apart = 30 seconds max)
-    const statusResult = await pollDepositStatus(companyId, batchId, 10, 3000)
+    // Poll TDS multiple times per request (40 attempts, 5 seconds apart = ~3.5 minutes max)
+    const statusResult = await pollDepositStatus(companyId, batchId, 40, 5000)
 
     if (statusResult.success && statusResult.dan) {
       if (tenancyId) {

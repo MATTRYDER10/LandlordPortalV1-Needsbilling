@@ -838,7 +838,7 @@ const closeConfirmModal = () => {
   document.body.style.overflow = ''
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 const confirmResidential = async () => {
   if (!selectedStatus.value) return
