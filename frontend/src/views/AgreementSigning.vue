@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-100 dark:bg-slate-900 flex flex-col">
+  <div class="min-h-screen bg-white dark:bg-slate-900 flex flex-col">
     <!-- Compact Header -->
     <header class="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-3">
       <div class="max-w-6xl mx-auto flex items-center justify-between">
@@ -76,14 +76,15 @@
 
     <!-- Main Signing Interface -->
     <div v-else-if="signingData" class="flex-1 flex flex-col">
-      <!-- Document Viewer - Takes most of the space -->
-      <div class="flex-1 overflow-hidden">
+      <!-- Document Viewer -->
+      <div class="flex-1 overflow-auto">
         <iframe
           v-if="pdfUrl"
-          :src="pdfUrl + '#toolbar=0&navpanes=0&scrollbar=1'"
-          class="w-full h-full border-0"
+          :src="pdfUrl + '#toolbar=0&navpanes=0&scrollbar=1&view=FitH'"
+          class="w-full border-0 bg-white"
+          style="height: calc(100vh - 140px);"
         ></iframe>
-        <div v-else class="h-full flex items-center justify-center bg-gray-200 dark:bg-slate-700">
+        <div v-else class="flex items-center justify-center py-16 bg-white dark:bg-slate-900">
           <div class="text-center">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
             <p class="text-sm text-gray-500 dark:text-slate-400">Loading document...</p>
@@ -91,7 +92,7 @@
         </div>
       </div>
 
-      <!-- Fixed Signature Panel at Bottom - Compact Design -->
+      <!-- Signature Panel at Bottom -->
       <div class="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 shadow-lg">
         <div class="max-w-6xl mx-auto px-4 py-3">
           <!-- Single row layout on desktop, stacked on mobile -->

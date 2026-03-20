@@ -3212,14 +3212,15 @@ async function generateAgreement() {
     }
 
     const { agreementId } = generateData
+    const previewId = agreementId || agreement.id
 
     success.value = 'Agreement generated successfully!'
     toast.success('Agreement generated! Redirecting to preview...')
+    loading.value = false
 
-    // Redirect to preview page
-    setTimeout(() => {
-      router.push(`/agreements/${agreementId || agreement.id}/preview`)
-    }, 1000)
+    // Redirect to preview page immediately
+    await router.push(`/agreements/${previewId}/preview`)
+    return
   } catch (err: any) {
     console.error('Error generating agreement:', err)
     error.value = err.message || 'Failed to generate agreement'
@@ -3258,15 +3259,13 @@ async function handleAgreementPaid() {
     success.value = 'Agreement generated successfully!'
     toast.success('Agreement generated! Redirecting to preview...')
 
-    // Redirect to preview page
     const previewId = agreementId || pendingAgreementId.value
 
     // Clear pending agreement before redirecting
     pendingAgreementId.value = null
 
-    setTimeout(() => {
-      router.push(`/agreements/${previewId}/preview`)
-    }, 1000)
+    // Redirect to preview page immediately
+    await router.push(`/agreements/${previewId}/preview`)
   } catch (err: any) {
     console.error('Error generating agreement after payment:', err)
     error.value = err.message || 'Failed to generate agreement'
