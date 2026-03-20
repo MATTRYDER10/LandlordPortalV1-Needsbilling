@@ -1,16 +1,51 @@
 const PROD_FRONTEND_URL = 'https://app.propertygoose.co.uk'
-// Use LAN IP for local testing from other devices
-const LOCAL_FRONTEND_URL = 'http://192.168.1.190:5174'
 const LOCALHOST_URL = 'http://localhost:5173'
 
-const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1'])
+/**
+ * Check if a hostname is a local/private address that should never be used in production emails.
+ * Matches: localhost, 127.x.x.x, 192.168.x.x, 10.x.x.x, 172.16-31.x.x, and ports like :5173
+ */
+const isLocalOrPrivateHost = (hostname: string): boolean => {
+  // Direct localhost checks
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return true
+  }
+
+  // Private IP ranges (RFC 1918)
+  // 10.0.0.0 - 10.255.255.255
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+    return true
+  }
+
+  // 172.16.0.0 - 172.31.255.255
+  if (/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+    return true
+  }
+
+  // 192.168.0.0 - 192.168.255.255
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+    return true
+  }
+
+  // 127.x.x.x loopback range
+  if (/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+    return true
+  }
+
+  return false
+}
 
 export const getFrontendUrl = (): string => {
-  // Check at runtime (not module load time) so dotenv has loaded
-  // Set USE_LOCAL_EMAIL_LINKS=true in .env to use localhost URLs in emails for testing
-  if (process.env.USE_LOCAL_EMAIL_LINKS === 'true') {
-    console.log('[getFrontendUrl] Using LOCAL URLs for email links (USE_LOCAL_EMAIL_LINKS=true)')
-    return LOCAL_FRONTEND_URL
+  // ALWAYS return production URL in production environment
+  // This prevents any accidental local URLs from being sent in emails
+  if (process.env.NODE_ENV === 'production') {
+    return PROD_FRONTEND_URL
+  }
+
+  // In development, only use local URLs if explicitly enabled
+  if (process.env.USE_LOCAL_EMAIL_LINKS === 'true' && process.env.NODE_ENV !== 'production') {
+    console.log('[getFrontendUrl] Using LOCAL URLs for email links (USE_LOCAL_EMAIL_LINKS=true, non-production)')
+    return process.env.LOCAL_FRONTEND_URL || 'http://localhost:5173'
   }
 
   const rawUrl = process.env.FRONTEND_URL
@@ -20,7 +55,8 @@ export const getFrontendUrl = (): string => {
 
   try {
     const parsed = new URL(rawUrl)
-    if (LOCAL_HOSTNAMES.has(parsed.hostname)) {
+    if (isLocalOrPrivateHost(parsed.hostname)) {
+      console.warn(`[getFrontendUrl] Blocked local/private URL "${rawUrl}", using production URL`)
       return PROD_FRONTEND_URL
     }
     return rawUrl
