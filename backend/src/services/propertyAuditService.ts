@@ -28,6 +28,7 @@ export type PropertyAuditAction =
   | 'AGREEMENT_SENT'
   | 'AML_BYPASSED'
   | 'SPECIAL_CLAUSES_UPDATED'
+  | 'LANDLORD_PACK_SENT'
 
 export interface PropertyAuditParams {
   propertyId: string

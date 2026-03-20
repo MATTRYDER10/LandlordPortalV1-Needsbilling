@@ -81,11 +81,11 @@ function getDaySuffix(day: number): string {
 }
 
 function formatCurrency(amount: number): string {
-  return amount.toFixed(2)
+  return Number(amount || 0).toFixed(2)
 }
 
-// Generate day options (1-28)
-const dayOptions = Array.from({ length: 28 }, (_, i) => i + 1)
+// Generate day options (1-31)
+const dayOptions = Array.from({ length: 31 }, (_, i) => i + 1)
 
 // Reset state when modal opens
 watch(() => props.isOpen, (isOpen) => {

@@ -665,7 +665,7 @@ router.get('/records/stats', authenticateToken, async (req: AuthRequest, res) =>
           (t.status === 'active' || t.status === 'pending')
       }).length || 0,
       noticeGiven: tenancies?.filter(t => t.status === 'notice_given').length || 0,
-      ended: tenancies?.filter(t => ['ended', 'terminated', 'expired'].includes(t.status)).length || 0,
+      ended: tenancies?.filter(t => ['ended', 'terminated', 'expired', 'fallen_through'].includes(t.status)).length || 0,
       total: tenancies?.length || 0
     }
 
@@ -720,7 +720,7 @@ router.get('/records/archived', authenticateToken, async (req: AuthRequest, res)
     const { limit, offset, search } = req.query
 
     const result = await tenancyService.listTenancies(companyId, {
-      status: ['ended', 'terminated', 'expired'],
+      status: ['ended', 'terminated', 'expired', 'fallen_through'],
       search: search as string
     }, {
       limit: limit ? parseInt(limit as string) : 100,
@@ -731,6 +731,203 @@ router.get('/records/archived', authenticateToken, async (req: AuthRequest, res)
   } catch (error: any) {
     console.error('Error in GET /api/tenancies/records/archived:', error)
     res.status(500).json({ error: error.message })
+  }
+})
+
+/**
+ * GET /api/tenancies/records/calendar
+ * Get upcoming move-in dates from the tenancies table for the dashboard calendar
+ */
+router.get('/records/calendar', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    const now = new Date()
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 12, 0)
+
+    // Show all pending/active tenancies with a start date
+    const { data: tenancies, error } = await supabase
+      .from('tenancies')
+      .select('id, tenancy_start_date, monthly_rent, status, property_id, compliance_pack_sent_at, initial_monies_paid_at, move_in_time_confirmed, agreement_id')
+      .eq('company_id', companyId)
+      .in('status', ['pending', 'active'])
+      .is('deleted_at', null)
+      .not('tenancy_start_date', 'is', null)
+      .lte('tenancy_start_date', endDate.toISOString().split('T')[0])
+      .order('tenancy_start_date', { ascending: true })
+
+    if (error) {
+      console.error('Tenancy calendar query error:', error)
+      return res.status(500).json({ error: 'Failed to fetch calendar data' })
+    }
+
+    // Fetch property addresses and tenants separately to avoid join issues
+    const propertyIds = [...new Set((tenancies || []).map(t => t.property_id).filter(Boolean))]
+    const tenancyIds = (tenancies || []).map(t => t.id)
+
+    let propertyMap = new Map<string, any>()
+    if (propertyIds.length > 0) {
+      const { data: properties } = await supabase
+        .from('properties')
+        .select('id, address_line1_encrypted, city_encrypted, postcode')
+        .in('id', propertyIds)
+      if (properties) {
+        for (const p of properties) {
+          propertyMap.set(p.id, p)
+        }
+      }
+    }
+
+    let tenantMap = new Map<string, any[]>()
+    if (tenancyIds.length > 0) {
+      const { data: allTenants, error: tenantError } = await supabase
+        .from('tenancy_tenants')
+        .select('id, tenancy_id, tenant_name_encrypted, tenant_order, is_lead_tenant, status')
+        .in('tenancy_id', tenancyIds)
+        .eq('is_active', true)
+      if (tenantError) {
+        console.error('Tenant query error:', tenantError)
+      }
+      if (allTenants) {
+        for (const t of allTenants) {
+          if (!tenantMap.has(t.tenancy_id)) tenantMap.set(t.tenancy_id, [])
+          tenantMap.get(t.tenancy_id)!.push(t)
+        }
+      }
+    }
+
+    // For each tenancy with an agreement_id, check if the agreement is signed
+    const agreementIds = (tenancies || [])
+      .map(t => t.agreement_id)
+      .filter((id): id is string => !!id)
+
+    let agreementMap = new Map<string, string>()
+    if (agreementIds.length > 0) {
+      const { data: agreements } = await supabase
+        .from('agreements')
+        .select('id, signing_status')
+        .in('id', agreementIds)
+
+      if (agreements) {
+        for (const a of agreements) {
+          agreementMap.set(a.id, a.signing_status)
+        }
+      }
+    }
+
+    const entries = (tenancies || []).map(tenancy => {
+      let propertyAddress = ''
+      let propertyCity = ''
+      let propertyPostcode = ''
+      const prop = propertyMap.get(tenancy.property_id)
+      if (prop) {
+        try {
+          propertyAddress = prop.address_line1_encrypted ? (decrypt(prop.address_line1_encrypted) || '') : ''
+          propertyCity = prop.city_encrypted ? (decrypt(prop.city_encrypted) || '') : ''
+          propertyPostcode = prop.postcode || ''
+        } catch (e) {}
+      }
+
+      const tenantList: Array<{ id: string; name: string }> = []
+      for (const tenant of (tenantMap.get(tenancy.id) || [])) {
+        let tenantName = 'Unknown'
+        try {
+          tenantName = tenant.tenant_name_encrypted ? (decrypt(tenant.tenant_name_encrypted) || 'Unknown') : 'Unknown'
+        } catch (e) {}
+        tenantList.push({ id: tenant.id, name: tenantName })
+      }
+
+      // Sort tenants by order
+      tenantList.sort((a, b) => {
+        const tenantA = (tenantMap.get(tenancy.id) || []).find((t: any) => t.id === a.id)
+        const tenantB = (tenantMap.get(tenancy.id) || []).find((t: any) => t.id === b.id)
+        return (tenantA?.tenant_order || 99) - (tenantB?.tenant_order || 99)
+      })
+
+      // Check pre-tenancy actions
+      const agreementSigned = tenancy.agreement_id
+        ? ['fully_signed', 'executed'].includes(agreementMap.get(tenancy.agreement_id) || '')
+        : false
+
+      const allActionsComplete =
+        !!tenancy.compliance_pack_sent_at &&
+        !!agreementSigned &&
+        !!tenancy.initial_monies_paid_at &&
+        !!tenancy.move_in_time_confirmed
+
+      return {
+        tenancyId: tenancy.id,
+        moveInDate: (tenancy as any).tenancy_start_date,
+        property: {
+          address: propertyAddress,
+          city: propertyCity,
+          postcode: propertyPostcode
+        },
+        rentAmount: tenancy.monthly_rent || null,
+        tenants: tenantList,
+        allActionsComplete
+      }
+    })
+
+    // Fetch upcoming compliance expiries for all company properties
+    let complianceExpiries: any[] = []
+    try {
+      const { data: expiringCompliance } = await supabase
+        .from('compliance_records')
+        .select('id, compliance_type, expiry_date, status, property_id')
+        .eq('company_id', companyId)
+        .not('expiry_date', 'is', null)
+        .gte('expiry_date', now.toISOString().split('T')[0])
+        .lte('expiry_date', endDate.toISOString().split('T')[0])
+        .order('expiry_date', { ascending: true })
+
+      if (expiringCompliance && expiringCompliance.length > 0) {
+        // Fetch property addresses for compliance records
+        const compPropertyIds = [...new Set(expiringCompliance.map(c => c.property_id))]
+        let compPropertyMap = new Map<string, any>()
+        if (compPropertyIds.length > 0) {
+          const { data: compProperties } = await supabase
+            .from('properties')
+            .select('id, address_line1_encrypted, city_encrypted, postcode')
+            .in('id', compPropertyIds)
+          if (compProperties) {
+            for (const p of compProperties) compPropertyMap.set(p.id, p)
+          }
+        }
+
+        complianceExpiries = expiringCompliance.map(c => {
+          const prop = compPropertyMap.get(c.property_id)
+          let address = ''
+          try {
+            address = prop?.address_line1_encrypted ? (decrypt(prop.address_line1_encrypted) || '') : ''
+          } catch (e) {}
+          return {
+            id: c.id,
+            type: c.compliance_type,
+            expiryDate: c.expiry_date,
+            status: c.status,
+            propertyId: c.property_id,
+            propertyAddress: address,
+            propertyPostcode: prop?.postcode || ''
+          }
+        })
+      }
+    } catch (e) {
+      console.error('Error fetching compliance expiries for calendar:', e)
+    }
+
+    res.json({
+      startDate: now.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      entries,
+      complianceExpiries
+    })
+  } catch (error: any) {
+    console.error('Error in tenancy calendar:', error?.message, error?.stack)
+    res.status(500).json({ error: error.message || 'Calendar error' })
   }
 })
 
@@ -1464,6 +1661,75 @@ router.post('/records/:id/revert-to-draft', authenticateToken, async (req: AuthR
 })
 
 /**
+ * POST /api/tenancies/records/:id/mark-fallen-through
+ * Mark a pending (draft) tenancy as fallen through
+ */
+router.post('/records/:id/mark-fallen-through', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const companyId = await getCompanyIdForRequest(req)
+    const userId = req.user?.id
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' })
+    }
+
+    // Fetch the current tenancy
+    const { data: currentTenancy, error: fetchError } = await supabase
+      .from('tenancies')
+      .select('status')
+      .eq('id', req.params.id)
+      .eq('company_id', companyId)
+      .single()
+
+    if (fetchError || !currentTenancy) {
+      return res.status(404).json({ error: 'Tenancy not found' })
+    }
+
+    // Only pending (draft) tenancies can be marked as fallen through
+    if (currentTenancy.status !== 'pending') {
+      return res.status(400).json({ error: 'Only draft/pending tenancies can be marked as fallen through' })
+    }
+
+    const { data: tenancy, error: updateError } = await supabase
+      .from('tenancies')
+      .update({
+        status: 'fallen_through',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id)
+      .eq('company_id', companyId)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error marking tenancy as fallen through:', updateError)
+      return res.status(500).json({ error: `Failed to update tenancy: ${updateError.message}` })
+    }
+
+    // Log activity
+    try {
+      await tenancyService.logTenancyActivity(req.params.id, {
+        action: 'STATUS_CHANGED',
+        category: 'general',
+        title: 'Tenancy Marked as Fallen Through',
+        description: 'Pending tenancy was marked as fallen through and moved to archived.',
+        metadata: {
+          previousStatus: 'pending',
+          newStatus: 'fallen_through'
+        },
+        performedBy: userId
+      })
+    } catch (logError) {
+      console.error('Failed to log activity:', logError)
+    }
+
+    res.json({ tenancy, message: 'Tenancy marked as fallen through' })
+  } catch (error: any) {
+    console.error('Error in POST /api/tenancies/records/:id/mark-fallen-through:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/**
  * DELETE /api/tenancies/records/:id
  * Soft delete a tenancy
  */
@@ -1569,7 +1835,10 @@ router.post('/records/:id/tenants', authenticateToken, async (req: AuthRequest, 
     res.status(201).json({ tenant })
   } catch (error: any) {
     console.error('Error in POST /api/tenancies/records/:id/tenants:', error)
-    res.status(500).json({ error: error.message })
+    const message = error.message || 'An unexpected error occurred while adding the tenant'
+    // Return 400 for known validation/business errors, 500 for unexpected
+    const statusCode = message.includes('Failed to') ? 400 : 500
+    res.status(statusCode).json({ error: message })
   }
 })
 
@@ -4627,12 +4896,13 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
     }
 
     const { newDueDay, adminFee = 0 } = req.body
+    const adminFeeNum = Number(adminFee || 0)
 
     // Validate inputs
-    if (!newDueDay || newDueDay < 1 || newDueDay > 28) {
-      return res.status(400).json({ error: 'New due day must be between 1 and 28' })
+    if (!newDueDay || newDueDay < 1 || newDueDay > 31) {
+      return res.status(400).json({ error: 'New due day must be between 1 and 31' })
     }
-    if (adminFee < 0 || adminFee > 50) {
+    if (adminFeeNum < 0 || adminFeeNum > 50) {
       return res.status(400).json({ error: 'Admin fee must be between £0 and £50 (Tenant Fee Ban Act 2019)' })
     }
 
@@ -4714,7 +4984,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
     const monthlyRent = parseFloat(tenancy.rent_amount)
     const dailyRate = (monthlyRent * 12) / 365
     const proRataAmount = dailyRate * proRataDays
-    const totalAmount = proRataAmount + parseFloat(adminFee)
+    const totalAmount = proRataAmount + adminFeeNum
 
     // Get lead tenant (tenant_order === 1 is the lead tenant)
     const leadTenant = tenants?.find((t: any) => t.tenant_order === 1)
@@ -4769,7 +5039,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
         pro_rata_days: proRataDays,
         daily_rate: parseFloat(dailyRate.toFixed(4)),
         pro_rata_amount: parseFloat(proRataAmount.toFixed(2)),
-        admin_fee: parseFloat(adminFee),
+        admin_fee: adminFeeNum,
         total_amount: parseFloat(totalAmount.toFixed(2)),
         lead_tenant_id: leadTenant.id,
         lead_tenant_email_encrypted: leadTenant.tenant_email_encrypted,
@@ -4799,11 +5069,11 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
 
     // Build admin fee row if applicable
     let adminFeeRow = ''
-    if (adminFee > 0) {
+    if (adminFeeNum > 0) {
       adminFeeRow = `
         <tr>
           <td style="padding: 8px 0; font-size: 14px; color: #78350f;">Administration fee:</td>
-          <td style="padding: 8px 0; font-size: 14px; color: #92400e; font-weight: 600; text-align: right;">£${parseFloat(adminFee).toFixed(2)}</td>
+          <td style="padding: 8px 0; font-size: 14px; color: #92400e; font-weight: 600; text-align: right;">£${adminFeeNum.toFixed(2)}</td>
         </tr>
       `
     }
@@ -4864,7 +5134,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
       action: 'RENT_DUE_DATE_CHANGE_INITIATED',
       category: 'financial',
       title: 'Rent due date change initiated',
-      description: `Change from ${currentDueDay}${getDaySuffix(currentDueDay)} to ${newDueDay}${getDaySuffix(newDueDay)} requested. Pro-rata: £${proRataAmount.toFixed(2)}${adminFee > 0 ? ` + £${parseFloat(adminFee).toFixed(2)} fee` : ''} = £${totalAmount.toFixed(2)}`,
+      description: `Change from ${currentDueDay}${getDaySuffix(currentDueDay)} to ${newDueDay}${getDaySuffix(newDueDay)} requested. Pro-rata: £${proRataAmount.toFixed(2)}${adminFeeNum > 0 ? ` + £${adminFeeNum.toFixed(2)} fee` : ''} = £${totalAmount.toFixed(2)}`,
       performedBy: userId,
       metadata: {
         changeId: changeRecord.id,
@@ -4872,7 +5142,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
         newDueDay,
         proRataDays,
         proRataAmount: parseFloat(proRataAmount.toFixed(2)),
-        adminFee: parseFloat(adminFee),
+        adminFee: adminFeeNum,
         totalAmount: parseFloat(totalAmount.toFixed(2))
       }
     })
@@ -4887,7 +5157,7 @@ router.post('/records/:id/rent-due-date-change', authenticateToken, async (req: 
         proRataDays,
         dailyRate: parseFloat(dailyRate.toFixed(4)),
         proRataAmount: parseFloat(proRataAmount.toFixed(2)),
-        adminFee: parseFloat(adminFee),
+        adminFee: adminFeeNum,
         totalAmount: parseFloat(totalAmount.toFixed(2)),
         status: 'pending_payment'
       }

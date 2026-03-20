@@ -51,10 +51,21 @@
             <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
               <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Compliance</h3>
-                <button @click="showAddComplianceModal = true"
-                  class="text-sm text-primary hover:text-primary/80">
-                  + Add
-                </button>
+                <div class="flex items-center gap-2">
+                  <button
+                    v-if="propertyLandlords.length > 0 && complianceRecords.length > 0"
+                    @click="showLandlordPackModal = true"
+                    class="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80"
+                    title="Send compliance documents to landlord(s)"
+                  >
+                    <Send class="w-3.5 h-3.5" />
+                    Send to Landlord
+                  </button>
+                  <button @click="showAddComplianceModal = true"
+                    class="text-sm text-primary hover:text-primary/80">
+                    + Add
+                  </button>
+                </div>
               </div>
 
               <div v-if="complianceRecords.length === 0" class="text-sm text-gray-500 dark:text-slate-400">
@@ -549,7 +560,16 @@
 
               <!-- Tenancies Tab Content -->
               <div v-if="rightTab === 'tenancies'" class="p-4">
-                <h4 class="text-sm font-medium text-gray-700 dark:text-slate-300 mb-4">Property Tenancies</h4>
+                <div class="flex items-center justify-between mb-4">
+                  <h4 class="text-sm font-medium text-gray-700 dark:text-slate-300">Property Tenancies</h4>
+                  <button
+                    @click="showCreateTenancyModal = true"
+                    class="inline-flex items-center px-2.5 py-1 bg-primary text-white text-xs font-medium rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    <Plus class="w-3.5 h-3.5 mr-1" />
+                    Create Tenancy
+                  </button>
+                </div>
 
                 <!-- Loading State -->
                 <div v-if="loadingTenancies" class="text-center py-8">
@@ -641,6 +661,28 @@
       @saved="handleLandlordsSaved"
     />
 
+    <!-- Create Tenancy Modal -->
+    <CreateTenancyModal
+      v-if="showCreateTenancyModal"
+      :show="showCreateTenancyModal"
+      :preselected-property-id="property?.id"
+      @close="showCreateTenancyModal = false"
+      @created="handleTenancyCreated"
+    />
+
+    <!-- Landlord Move-In Pack Modal -->
+    <LandlordMoveInPackModal
+      v-if="showLandlordPackModal"
+      :show="showLandlordPackModal"
+      :property-id="property?.id || ''"
+      :property-address="displayAddress"
+      :landlords="propertyLandlords"
+      :compliance-documents="complianceDocsForPack"
+      :property-docs="propertyDocuments"
+      @close="showLandlordPackModal = false"
+      @sent="showLandlordPackModal = false"
+    />
+
     <!-- Document Preview Modal -->
     <div v-if="showDocumentPreview" class="fixed inset-0 z-50 flex items-center justify-center">
       <div class="absolute inset-0 bg-black/50" @click="closeDocumentPreview"></div>
@@ -709,12 +751,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import { ArrowLeft, Pencil, FileText, Download, AlertTriangle, X, KeyRound, Users, Plus, Trash2, Sparkles, Loader2 } from 'lucide-vue-next'
+import { ArrowLeft, Pencil, FileText, Download, AlertTriangle, X, KeyRound, Users, Plus, Trash2, Sparkles, Loader2, Send } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import AddEditPropertyModal from '../components/properties/AddEditPropertyModal.vue'
 import AddComplianceModal from '../components/properties/AddComplianceModal.vue'
 import UploadDocumentModal from '../components/properties/UploadDocumentModal.vue'
 import EditPropertyLandlordsModal from '../components/properties/EditPropertyLandlordsModal.vue'
+import CreateTenancyModal from '../components/tenancies/CreateTenancyModal.vue'
+import LandlordMoveInPackModal from '../components/properties/LandlordMoveInPackModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { authFetch } from '../lib/authFetch'
 import { useDownload } from '../composables/useDownload'
@@ -808,6 +852,8 @@ const showEditModal = ref(false)
 const showEditLandlordsModal = ref(false)
 const showAddComplianceModal = ref(false)
 const showUploadDocumentModal = ref(false)
+const showCreateTenancyModal = ref(false)
+const showLandlordPackModal = ref(false)
 const editingComplianceRecord = ref<ComplianceRecord | null>(null)
 const showDocumentPreview = ref(false)
 const previewDocument = ref<PropertyDocument | null>(null)
@@ -852,6 +898,17 @@ const displayAddress = computed(() => {
 
 const totalOwnership = computed(() => {
   return propertyLandlords.value.reduce((sum, pl) => sum + (pl.ownership_percentage || 0), 0)
+})
+
+const complianceDocsForPack = computed(() => {
+  return complianceRecords.value
+    .filter(r => r.status === 'valid' || r.status === 'expiring_soon')
+    .map(r => ({
+      id: r.id,
+      type: r.compliance_type,
+      file_url: r.documents?.[0]?.file_path || '',
+      expiry_date: r.expiry_date
+    }))
 })
 
 const filteredDocuments = computed(() => {
@@ -1091,6 +1148,11 @@ const handleDocumentUploaded = () => {
 const handleLandlordsSaved = () => {
   showEditLandlordsModal.value = false
   fetchProperty()
+}
+
+const handleTenancyCreated = () => {
+  showCreateTenancyModal.value = false
+  fetchPropertyTenancies()
 }
 
 // Fetch property tenancies

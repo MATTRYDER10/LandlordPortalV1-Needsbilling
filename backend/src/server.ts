@@ -97,6 +97,7 @@ app.use(helmet({
 const allowedOrigins = [
   'http://localhost:5173', // Local development
   'http://localhost:5174', // Local development (alternate port)
+  'http://localhost:5180', // Local development (alternate port)
   'http://192.168.1.81:5173', // Local network access
   'http://192.168.1.81:5174', // Local network access (alternate port)
   'https://app.propertygoose.co.uk', // Production

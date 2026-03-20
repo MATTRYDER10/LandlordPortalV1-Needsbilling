@@ -1466,7 +1466,7 @@ watch(drawerOpen, (isOpen) => {
 })
 
 // Open drawer from URL param after tenancies load
-const openDrawerFromUrl = () => {
+const openDrawerFromUrl = (): boolean => {
   const personId = route.query.person
   if (personId && typeof personId === 'string') {
     // Find the person across all tenancies
@@ -1475,11 +1475,21 @@ const openDrawerFromUrl = () => {
       if (person) {
         openPersonDrawer(person, tenancy)
         expandedTenancyId.value = tenancy.id
-        return
+        return true
       }
     }
   }
+  return false
 }
+
+// Watch tenancies data to retry opening drawer from URL param
+// Handles race conditions where data hasn't loaded when openDrawerFromUrl first runs
+watch(tenancies, () => {
+  const personId = route.query.person
+  if (personId && typeof personId === 'string' && !drawerOpen.value) {
+    openDrawerFromUrl()
+  }
+})
 
 // Lifecycle
 onMounted(async () => {

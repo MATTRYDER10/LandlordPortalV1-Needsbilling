@@ -668,7 +668,9 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
 
       // Build tenant list from tenancy.tenants
       const tenantList: Array<{ id: string; name: string; status: string; verificationState: string | null; isGuarantor: boolean }> = []
-      let leadTenantId = tenancy.id
+      // Use primary_reference_id as the leadTenantId so it matches the reference ID
+      // used in the References.vue people array (tenant_references.id)
+      let leadTenantId = tenancy.primary_reference_id || tenancy.id
 
       for (const tenant of (tenancy as any).tenancy_tenants || []) {
         let tenantName = 'Unknown'
@@ -676,10 +678,6 @@ router.get('/calendar', authenticateToken, async (req: AuthRequest, res) => {
           tenantName = tenant.tenant_name_encrypted ? (decrypt(tenant.tenant_name_encrypted) || 'Unknown') : 'Unknown'
         } catch (e) {
           // Decryption failed
-        }
-
-        if (tenant.tenant_order === 1) {
-          leadTenantId = tenant.id
         }
 
         tenantList.push({

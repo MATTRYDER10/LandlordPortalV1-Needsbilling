@@ -285,7 +285,7 @@
                     v-model.number="form.rentDueDay"
                     class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-primary focus:border-primary bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                   >
-                    <option v-for="day in 28" :key="day" :value="day">{{ ordinal(day) }} of month</option>
+                    <option v-for="day in 31" :key="day" :value="day">{{ ordinal(day) }} of month</option>
                   </select>
                 </div>
 
@@ -410,6 +410,7 @@ import { API_URL } from '@/lib/apiUrl'
 
 const props = defineProps<{
   show: boolean
+  preselectedPropertyId?: string
 }>()
 
 const emit = defineEmits<{
@@ -975,6 +976,14 @@ watch(() => props.show, async (isShow) => {
     loading.value = true
     await Promise.all([loadProperties(), loadCompletedReferences()])
     loading.value = false
+
+    // Pre-select property if provided
+    if (props.preselectedPropertyId) {
+      const matchedProp = properties.value.find(p => p.id === props.preselectedPropertyId)
+      if (matchedProp) {
+        selectProperty(matchedProp)
+      }
+    }
 
     // Calculate initial end date
     calculateEndDate()

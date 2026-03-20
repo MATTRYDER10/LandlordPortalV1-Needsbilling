@@ -106,7 +106,7 @@ export interface PaginationOptions {
 }
 
 export type TenancyType = 'ast' | 'periodic' | 'company_let' | 'lodger' | 'license'
-export type TenancyStatus = 'pending' | 'active' | 'notice_given' | 'ended' | 'terminated' | 'expired'
+export type TenancyStatus = 'pending' | 'active' | 'notice_given' | 'ended' | 'terminated' | 'expired' | 'fallen_through'
 export type DepositScheme = 'dps' | 'mydeposits' | 'tds' | 'reposit' | 'custodial' | 'insured'
 
 export interface AdditionalCharge {
@@ -406,7 +406,7 @@ export async function getTenancy(
     .from('tenancies')
     .select(`
       *,
-      properties(id, postcode, address_line1_encrypted, city_encrypted, status),
+      properties(id, postcode, address_line1_encrypted, city_encrypted, status, management_type),
       tenancy_tenants(*)
     `)
     .eq('id', tenancyId)
@@ -465,7 +465,7 @@ export async function listTenancies(
     .from('tenancies')
     .select(`
       *,
-      properties(id, postcode, address_line1_encrypted, city_encrypted, status),
+      properties(id, postcode, address_line1_encrypted, city_encrypted, status, management_type),
       tenancy_tenants(*),
       agreements:agreement_id(id, signing_status)
     `, { count: 'exact' })
@@ -780,10 +780,74 @@ export async function deleteTenancy(
 export async function addTenantToTenancy(
   tenancyId: string,
   tenant: TenancyTenantInput,
-  tenantOrder: number = 1
+  tenantOrder?: number
 ): Promise<TenancyTenant> {
   // Combine first and last name for the database
   const fullName = `${tenant.firstName} ${tenant.lastName}`.trim()
+
+  // Determine tenant_order: always calculate based on existing tenants
+  let resolvedOrder = tenantOrder as number | undefined
+
+  if (resolvedOrder === undefined) {
+    // Find the highest current tenant_order for this tenancy
+    const { data: existingTenants, error: fetchError } = await supabase
+      .from('tenancy_tenants')
+      .select('tenant_order')
+      .eq('tenancy_id', tenancyId)
+      .order('tenant_order', { ascending: false })
+      .limit(1)
+
+    if (fetchError) {
+      console.error('[TenancyService] Failed to fetch existing tenants for order calculation:', fetchError)
+    }
+
+    // Handle null tenant_order values gracefully
+    const maxOrder = (existingTenants?.[0]?.tenant_order != null) ? existingTenants[0].tenant_order : 0
+
+    if (tenant.isLeadTenant) {
+      resolvedOrder = 1
+    } else {
+      resolvedOrder = maxOrder + 1
+      // Ensure non-lead tenants never get order 1 if there are existing tenants
+      if (resolvedOrder! <= 1 && existingTenants && existingTenants.length > 0) {
+        resolvedOrder = maxOrder + 1 > 1 ? maxOrder + 1 : 2
+      }
+    }
+  }
+
+  // Fallback — should never be reached but satisfies TypeScript
+  if (resolvedOrder === undefined) {
+    resolvedOrder = 1
+  }
+
+  // If this tenant should be lead, demote the existing lead tenant first
+  if (tenant.isLeadTenant && resolvedOrder === 1) {
+    // First, find the next available order for the demoted tenant
+    const { data: allTenants } = await supabase
+      .from('tenancy_tenants')
+      .select('tenant_order')
+      .eq('tenancy_id', tenancyId)
+      .order('tenant_order', { ascending: false })
+      .limit(1)
+
+    const nextOrder = ((allTenants?.[0]?.tenant_order != null) ? allTenants[0].tenant_order : 0) + 1
+    const demoteOrder = nextOrder > 1 ? nextOrder : 2
+
+    const { error: demoteError } = await supabase
+      .from('tenancy_tenants')
+      .update({
+        tenant_order: demoteOrder,
+        is_lead_tenant: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('tenancy_id', tenancyId)
+      .eq('tenant_order', 1)
+
+    if (demoteError) {
+      console.error('[TenancyService] Failed to demote current lead tenant:', demoteError)
+      throw new Error(`Failed to demote current lead tenant: ${demoteError.message}`)
+    }
+  }
 
   const { data, error } = await supabase
     .from('tenancy_tenants')
@@ -793,7 +857,8 @@ export async function addTenantToTenancy(
       tenant_name_encrypted: encrypt(fullName),
       tenant_email_encrypted: tenant.email ? encrypt(tenant.email) : null,
       tenant_phone_encrypted: tenant.phone ? encrypt(tenant.phone) : null,
-      tenant_order: tenantOrder,
+      tenant_order: resolvedOrder,
+      is_lead_tenant: resolvedOrder === 1,
       rent_share_amount: tenant.rentShare,
       rent_share_percentage: tenant.rentSharePercentage,
       is_active: true,
@@ -1280,7 +1345,8 @@ function formatTenancyWithRelations(data: any): Tenancy {
       postcode: data.properties.postcode,
       address_line1: decrypt(data.properties.address_line1_encrypted),
       city: decrypt(data.properties.city_encrypted),
-      status: data.properties.status
+      status: data.properties.status,
+      management_type: data.properties.management_type || null
     }
   }
 

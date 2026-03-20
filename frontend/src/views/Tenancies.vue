@@ -25,6 +25,33 @@
                   <X class="w-3 h-3" />
                 </button>
               </div>
+              <!-- Management Type Filter Toggles -->
+              <div class="flex items-center gap-1.5">
+                <button
+                  @click="toggleManagementFilter('managed')"
+                  :class="[
+                    'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors border',
+                    managementFilter === 'managed'
+                      ? 'bg-primary/10 text-primary border-primary/30'
+                      : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  ]"
+                >
+                  <Building2 class="w-3.5 h-3.5" />
+                  Managed
+                </button>
+                <button
+                  @click="toggleManagementFilter('let_only')"
+                  :class="[
+                    'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors border',
+                    managementFilter === 'let_only'
+                      ? 'bg-primary/10 text-primary border-primary/30'
+                      : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  ]"
+                >
+                  <Key class="w-3.5 h-3.5" />
+                  Let Only
+                </button>
+              </div>
             </div>
 
             <!-- Actions -->
@@ -373,10 +400,11 @@
                   :class="{
                     'bg-slate-500': tenancy.status === 'ended',
                     'bg-red-500': tenancy.status === 'terminated',
-                    'bg-amber-500': tenancy.status === 'expired'
+                    'bg-amber-500': tenancy.status === 'expired',
+                    'bg-amber-600': tenancy.status === 'fallen_through'
                   }"
                 >
-                  {{ tenancy.status === 'ended' ? 'Ended' : tenancy.status === 'terminated' ? 'Terminated' : 'Expired' }}
+                  {{ tenancy.status === 'ended' ? 'Ended' : tenancy.status === 'terminated' ? 'Terminated' : tenancy.status === 'fallen_through' ? 'Fallen Through' : 'Expired' }}
                 </span>
               </div>
               <div class="opacity-80 hover:opacity-100 transition-opacity">
@@ -681,7 +709,7 @@ import DraftTenancyRow from '@/components/tenancies/DraftTenancyRow.vue'
 import ActiveTenancyRow from '@/components/tenancies/ActiveTenancyRow.vue'
 import MonthBanner from '@/components/tenancies/MonthBanner.vue'
 import EmptyState from '@/components/tenancies/EmptyState.vue'
-import { Search, RefreshCw, Plus, FileEdit, CheckCircle2, Archive, Send, Shield, X, AlertTriangle } from 'lucide-vue-next'
+import { Search, RefreshCw, Plus, FileEdit, CheckCircle2, Archive, Send, Shield, X, AlertTriangle, Building2, Key } from 'lucide-vue-next'
 import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -694,6 +722,7 @@ const authStore = useAuthStore()
 // Watch for query params
 // Active filter state
 const activeFilter = ref<string | null>(null)
+const managementFilter = ref<'let_only' | 'managed' | null>(null)
 
 watch(() => route.query, (query) => {
   // Handle create=true query param
@@ -718,6 +747,31 @@ watch(() => route.query, (query) => {
     }
     // Clear the tab param after applying
     router.replace({ path: route.path, query: { ...query, tab: undefined } })
+  }
+  // Handle tenancy query param (from dashboard calendar - open specific tenancy drawer)
+  if (query.tenancy && typeof query.tenancy === 'string') {
+    const tenancyId = query.tenancy
+    // Clear the query param first
+    router.replace({ path: route.path, query: {} })
+    // Defer to allow function to be defined (hoisting)
+    setTimeout(async () => {
+      const found = tenancies.value.find((t: any) => t.id === tenancyId)
+      if (found) {
+        openTenancy(found)
+      } else {
+        try {
+          const token = authStore.session?.access_token
+          if (!token) return
+          const response = await authFetch(`${API_URL}/api/tenancies/records/${tenancyId}`, { token })
+          if (response.ok) {
+            const data = await response.json()
+            if (data.tenancy) openTenancy(data.tenancy)
+          }
+        } catch (e) {
+          console.error('Failed to open tenancy from calendar:', e)
+        }
+      }
+    }, 500)
   }
   // Handle filter query param (for unprotected deposits, etc.)
   if (query.filter && typeof query.filter === 'string') {
@@ -772,7 +826,7 @@ const filteredTenancies = computed(() => {
   if (!isSearching.value) return tenancies.value
 
   const query = search.value.toLowerCase().trim()
-  return allTenanciesForSearch.value.filter(t => {
+  let results = allTenanciesForSearch.value.filter(t => {
     const address = (t.property?.address_line1 || '').toLowerCase()
     const city = (t.property?.city || '').toLowerCase()
     const postcode = (t.property?.postcode || '').toLowerCase()
@@ -787,6 +841,10 @@ const filteredTenancies = computed(() => {
            landlordName.includes(query)
            tenantMatch
   })
+  if (managementFilter.value) {
+    results = results.filter(matchesManagementType)
+  }
+  return results
 })
 
 // Computed: Split by status
@@ -795,10 +853,19 @@ const needsDepositProtection = (t: any): boolean => {
   return t.deposit_amount && t.deposit_amount > 0 && !t.deposit_protected_at
 }
 
+const matchesManagementType = (t: any): boolean => {
+  if (!managementFilter.value) return true
+  const type = t.management_type || t.property?.management_type
+  return type === managementFilter.value
+}
+
 const draftTenancies = computed(() => {
   let filtered = tenancies.value.filter(t => t.status === 'pending')
   if (activeFilter.value === 'unprotected_deposits') {
     filtered = filtered.filter(needsDepositProtection)
+  }
+  if (managementFilter.value) {
+    filtered = filtered.filter(matchesManagementType)
   }
   return filtered
 })
@@ -808,13 +875,19 @@ const activeTenancies = computed(() => {
   if (activeFilter.value === 'unprotected_deposits') {
     filtered = filtered.filter(needsDepositProtection)
   }
+  if (managementFilter.value) {
+    filtered = filtered.filter(matchesManagementType)
+  }
   return filtered
 })
 
 const noticeServedTenancies = computed(() => {
-  return tenancies.value
+  let filtered = tenancies.value
     .filter(t => t.status === 'notice_given')
-    .sort((a, b) => {
+  if (managementFilter.value) {
+    filtered = filtered.filter(matchesManagementType)
+  }
+  return filtered.sort((a, b) => {
       // Sort by end date (ascending - soonest end date first)
       const aEnd = a.tenancy_end_date || a.end_date || ''
       const bEnd = b.tenancy_end_date || b.end_date || ''
@@ -826,7 +899,7 @@ const archivedTenancies = computed(() => archivedTenanciesData.value)
 
 // Helper: Check if tenancy is archived/expired
 const isArchivedStatus = (status: string) => {
-  return ['ended', 'terminated', 'expired'].includes(status)
+  return ['ended', 'terminated', 'expired', 'fallen_through'].includes(status)
 }
 
 // Computed: Group drafts by month
@@ -936,9 +1009,38 @@ const clearFilter = () => {
   router.replace({ path: route.path, query: {} })
 }
 
+const toggleManagementFilter = (type: 'let_only' | 'managed') => {
+  managementFilter.value = managementFilter.value === type ? null : type
+}
+
 const openTenancy = (tenancy: any) => {
   selectedTenancy.value = tenancy
   drawerOpen.value = true
+}
+
+const openTenancyById = async (tenancyId: string) => {
+  // First check if already loaded in the tenancies list
+  const found = tenancies.value.find((t: any) => t.id === tenancyId)
+  if (found) {
+    openTenancy(found)
+    return
+  }
+
+  // If not found, fetch it from the API
+  try {
+    const token = authStore.session?.access_token
+    if (!token) return
+
+    const response = await authFetch(`${API_URL}/api/tenancies/records/${tenancyId}`, { token })
+    if (response.ok) {
+      const data = await response.json()
+      if (data.tenancy) {
+        openTenancy(data.tenancy)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load tenancy:', error)
+  }
 }
 
 const handleTenancyCreated = () => {

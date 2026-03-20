@@ -254,7 +254,7 @@
             </div>
 
             <!-- Calendar Empty State -->
-            <div v-else-if="calendarEntries.length === 0" class="py-12 text-center">
+            <div v-else-if="calendarEntries.length === 0 && complianceExpiries.length === 0" class="py-12 text-center">
               <CalendarDays class="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-3" />
               <p class="text-sm font-medium text-slate-600 dark:text-slate-400">No scheduled move-ins</p>
               <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Move-in dates from tenancies will appear here</p>
@@ -318,7 +318,7 @@
                           <div
                             class="w-full h-full rounded-md flex flex-col items-center justify-center text-[10px] transition-all"
                             :class="getDayClasses(day, monthData)"
-                            @click="day.entries.length > 0 ? navigateToReference(day.entries[0]!.leadTenantId) : null"
+                            @click="day.entries.length > 0 ? navigateToTenancy(day.entries[0]!.tenancyId) : null"
                           >
                             <span>{{ day.date }}</span>
                           </div>
@@ -328,13 +328,30 @@
                             class="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
                             :class="getEntryDotColor(day.entries)"
                           />
+                          <!-- Compliance expiry indicator -->
+                          <div
+                            v-if="day.fullDate && getComplianceForDay(day.fullDate).length > 0"
+                            class="absolute -top-0.5 right-0 w-1.5 h-1.5 rounded-full bg-red-500 cursor-pointer"
+                            @click.stop="router.push(`/properties/${getComplianceForDay(day.fullDate!)[0].propertyId}`)"
+                          />
+                          <!-- Compliance expiry tooltip -->
+                          <div
+                            v-if="day.fullDate && getComplianceForDay(day.fullDate).length > 0"
+                            class="calendar-tooltip absolute right-0 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none"
+                          >
+                            <div class="bg-red-900 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-lg border border-red-700">
+                              <div v-for="c in getComplianceForDay(day.fullDate!)" :key="c.id" class="py-0.5">
+                                {{ c.propertyAddress || 'Property' }} - {{ formatComplianceType(c.type) }} expires
+                              </div>
+                            </div>
+                          </div>
                           <!-- Tooltip on hover showing all tenants moving in -->
                           <div
                             v-if="day.entries.length > 0"
                             class="calendar-tooltip absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none"
                           >
                             <div class="bg-slate-900 dark:bg-slate-700 text-white text-[10px] rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap">
-                              <div v-for="entry in day.entries" :key="entry.leadTenantId" class="mb-1.5 last:mb-0">
+                              <div v-for="entry in day.entries" :key="entry.tenancyId" class="mb-1.5 last:mb-0">
                                 <p class="font-medium">{{ entry.property.address }}</p>
                                 <p v-for="tenant in entry.tenants" :key="tenant.id" class="text-slate-300 pl-2">
                                   • {{ tenant.name }}
@@ -353,9 +370,12 @@
                   <div v-if="monthData.entries.length > 0" class="mt-3 space-y-1.5">
                     <div
                       v-for="entry in monthData.entries"
-                      :key="entry.leadTenantId"
-                      class="flex items-center gap-2 px-2.5 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-                      @click="navigateToReference(entry.leadTenantId)"
+                      :key="entry.tenancyId"
+                      class="flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors"
+                      :class="entry.allActionsComplete
+                        ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
+                        : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800'"
+                      @click="navigateToTenancy(entry.tenancyId)"
                     >
                       <div
                         class="w-7 h-7 rounded bg-slate-900 dark:bg-slate-700 text-white flex flex-col items-center justify-center flex-shrink-0"
@@ -414,7 +434,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 interface CalendarEntry {
   tenancyId: string
-  leadTenantId: string
   moveInDate: string
   property: {
     address: string
@@ -425,10 +444,18 @@ interface CalendarEntry {
   tenants: Array<{
     id: string
     name: string
-    status: string
-    verificationState: string
-    isGuarantor: boolean
   }>
+  allActionsComplete: boolean
+}
+
+interface ComplianceExpiry {
+  id: string
+  type: string
+  expiryDate: string
+  status: string
+  propertyId: string
+  propertyAddress: string
+  propertyPostcode: string
 }
 
 interface CalendarDay {
@@ -483,6 +510,7 @@ const depositsToProtect = ref(0)
 
 // Calendar
 const calendarEntries = ref<CalendarEntry[]>([])
+const complianceExpiries = ref<ComplianceExpiry[]>([])
 const calendarLoading = ref(true)
 
 // Generate 12 months of calendar data
@@ -583,16 +611,9 @@ const getDayClasses = (day: CalendarDay, monthData: MonthData): string => {
 
 const getEntryDotColor = (entriesOrEntry: CalendarEntry[] | CalendarEntry): string => {
   const entries = Array.isArray(entriesOrEntry) ? entriesOrEntry : [entriesOrEntry]
-  // Check status of all tenants in entries
-  const allCompleted = entries.every(e =>
-    e.tenants.every(t => t.status === 'completed')
-  )
-  const hasRejected = entries.some(e =>
-    e.tenants.some(t => t.status === 'rejected')
-  )
+  const allComplete = entries.every(e => e.allActionsComplete)
 
-  if (allCompleted) return 'bg-emerald-500'
-  if (hasRejected) return 'bg-red-500'
+  if (allComplete) return 'bg-emerald-500'
   return 'bg-amber-500'
 }
 
@@ -675,17 +696,34 @@ const fetchTenancyStats = async () => {
   }
 }
 
+const getComplianceForDay = (fullDate: string): ComplianceExpiry[] => {
+  return complianceExpiries.value.filter(c => c.expiryDate === fullDate)
+}
+
+const formatComplianceType = (type: string): string => {
+  const types: Record<string, string> = {
+    gas_safety: 'Gas Safety',
+    eicr: 'EICR',
+    epc: 'EPC',
+    council_licence: 'Council Licence',
+    pat_test: 'PAT Test',
+    other: 'Other'
+  }
+  return types[type] || type
+}
+
 const fetchCalendarData = async () => {
   try {
     const token = authStore.session?.access_token
     if (!token) return
 
     calendarLoading.value = true
-    const response = await authFetch(`${API_URL}/api/references/calendar`, { token })
+    const response = await authFetch(`${API_URL}/api/tenancies/records/calendar`, { token })
 
     if (response.ok) {
       const data = await response.json()
       calendarEntries.value = data.entries || []
+      complianceExpiries.value = data.complianceExpiries || []
     }
   } catch (error) {
     console.error('Failed to fetch calendar data:', error)
@@ -695,8 +733,8 @@ const fetchCalendarData = async () => {
 }
 
 // Navigation
-const navigateToReference = (personId: string) => {
-  router.push(`/references?person=${personId}`)
+const navigateToTenancy = (tenancyId: string) => {
+  router.push(`/tenancies?tenancy=${tenancyId}`)
 }
 
 const navigateToDeposits = () => {
