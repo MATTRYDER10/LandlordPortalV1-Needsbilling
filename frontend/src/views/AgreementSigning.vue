@@ -91,45 +91,39 @@
         </div>
       </div>
 
-      <!-- Fixed Signature Panel at Bottom -->
+      <!-- Fixed Signature Panel at Bottom - Compact Design -->
       <div class="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 shadow-lg">
-        <!-- Prominent Sign Here Banner -->
-        <div class="bg-primary/10 dark:bg-primary/20 px-4 py-1.5 border-b border-primary/20">
-          <div class="max-w-4xl mx-auto flex items-center justify-center gap-2">
-            <PenTool class="w-4 h-4 text-primary" />
-            <p class="text-xs font-semibold text-primary">Please sign electronically below - do not print and sign</p>
-          </div>
-        </div>
-
-        <div class="max-w-4xl mx-auto px-4 py-2">
-          <div class="flex flex-col lg:flex-row gap-3 items-start lg:items-center">
-            <!-- Signer Info -->
-            <div class="flex-shrink-0">
-              <p class="text-xs text-gray-500 dark:text-slate-400 uppercase">Signing as</p>
-              <p class="font-medium text-gray-900 dark:text-white">{{ signingData.signature.signer_name }}</p>
-              <span class="text-xs text-gray-500 dark:text-slate-400 capitalize">({{ signingData.signature.signer_type }})</span>
+        <div class="max-w-6xl mx-auto px-4 py-3">
+          <!-- Single row layout on desktop, stacked on mobile -->
+          <div class="flex flex-col md:flex-row gap-3 items-center">
+            <!-- Signer Info - Compact inline -->
+            <div class="flex-shrink-0 text-center md:text-left">
+              <p class="text-xs text-gray-500 dark:text-slate-400">
+                Signing as <span class="font-medium text-gray-900 dark:text-white">{{ signingData.signature.signer_name }}</span>
+                <span class="text-gray-400 dark:text-slate-500 capitalize">({{ signingData.signature.signer_type }})</span>
+              </p>
             </div>
 
-            <!-- Compact Signature Pad -->
-            <div class="flex-1 w-full lg:w-auto">
+            <!-- Compact Signature Pad - Limited width -->
+            <div class="flex-1 w-full md:max-w-xs">
               <SignaturePad
                 v-model="signature"
                 label=""
-                type-placeholder="Type your full name to sign"
+                type-placeholder="Type your name to sign"
                 compact
               />
             </div>
 
-            <!-- Actions -->
-            <div class="flex flex-col gap-2 w-full lg:w-auto">
-              <label class="flex items-start gap-2 text-xs">
+            <!-- Terms & Actions - Side by side -->
+            <div class="flex flex-col sm:flex-row items-center gap-3 flex-shrink-0">
+              <label class="flex items-center gap-2 text-xs max-w-xs">
                 <input
                   type="checkbox"
                   v-model="agreedToTerms"
-                  class="mt-0.5 h-4 w-4 text-primary border-gray-300 dark:border-slate-600 rounded focus:ring-primary dark:bg-slate-900"
+                  class="h-4 w-4 text-primary border-gray-300 dark:border-slate-600 rounded focus:ring-primary dark:bg-slate-900 flex-shrink-0"
                 />
                 <span class="text-gray-600 dark:text-slate-400">
-                  I confirm I have read the agreement and understand this electronic signature is legally binding.
+                  I confirm this e-signature is legally binding
                 </span>
               </label>
               <div class="flex gap-2">
@@ -137,23 +131,23 @@
                   type="button"
                   @click="submitSignature"
                   :disabled="!canSign || submitting"
-                  class="flex-1 lg:flex-none px-6 py-2.5 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                  class="px-5 py-2 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm whitespace-nowrap"
                   :class="canSign && !submitting ? 'bg-primary hover:bg-primary-dark' : 'bg-gray-400'"
                 >
                   <span v-if="submitting" class="flex items-center justify-center">
                     <Loader2 class="animate-spin mr-2 h-4 w-4" />
                     Signing...
                   </span>
-                  <span v-else class="flex items-center justify-center gap-2">
+                  <span v-else class="flex items-center justify-center gap-1.5">
                     <Check class="w-4 h-4" />
-                    Sign Agreement
+                    Sign
                   </span>
                 </button>
                 <button
                   type="button"
                   @click="showDeclineModal = true"
                   :disabled="submitting"
-                  class="px-4 py-2.5 text-red-600 dark:text-red-400 font-medium border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors text-sm disabled:opacity-50"
+                  class="px-3 py-2 text-red-600 dark:text-red-400 font-medium border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors text-sm disabled:opacity-50"
                 >
                   Decline
                 </button>
@@ -203,7 +197,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import SignaturePad from '../components/SignaturePad.vue'
-import { AlertTriangle, CheckCircle, XCircle, Download, Check, Loader2, PenTool } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle, XCircle, Download, Check, Loader2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const token = route.params.token as string
