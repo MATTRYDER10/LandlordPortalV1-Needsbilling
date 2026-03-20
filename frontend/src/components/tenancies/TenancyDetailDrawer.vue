@@ -5288,7 +5288,9 @@ const confirmInitialMonies = async () => {
       `${API_URL}/api/tenancies/records/${tenancy.value.id}/confirm-initial-monies`,
       {
         method: 'POST',
-        token
+        token,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
       }
     )
 

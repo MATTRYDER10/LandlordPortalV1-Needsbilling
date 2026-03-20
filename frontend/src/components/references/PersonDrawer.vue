@@ -223,6 +223,13 @@
                   Edit Name
                 </button>
                 <button
+                  @click="openEditEmailModal"
+                  class="px-3 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-700 border border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-600 rounded-md flex items-center gap-1"
+                >
+                  <Mail class="w-4 h-4" />
+                  Edit Email
+                </button>
+                <button
                   @click="refreshReferenceStatus"
                   :disabled="refreshingStatus"
                   class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 rounded-md flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1546,6 +1553,58 @@
       </div>
     </Transition>
 
+    <!-- Edit Email Modal -->
+    <Transition
+      enter-active-class="transition-opacity duration-200"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-200"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="showEditEmailModal" class="fixed inset-0 z-[60] flex items-center justify-center" @click="showEditEmailModal = false">
+        <div class="absolute inset-0 bg-black/50"></div>
+        <div class="relative bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-md w-full mx-4 border border-gray-200 dark:border-slate-700" @click.stop>
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Edit Tenant Email</h3>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Update the tenant's email address for this reference</p>
+          </div>
+          <div class="p-6 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Email Address</label>
+              <input
+                v-model="editEmail"
+                type="email"
+                placeholder="tenant@example.com"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+            <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-md p-3">
+              <p class="text-sm text-amber-800 dark:text-amber-200">
+                <strong>Note:</strong> This will update the email address used for future reference form emails. You may want to resend the form after updating.
+              </p>
+            </div>
+          </div>
+          <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
+            <button
+              @click="showEditEmailModal = false"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700"
+            >
+              Cancel
+            </button>
+            <button
+              @click="handleUpdateEmail"
+              :disabled="!editEmail || updatingEmail"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Loader2 v-if="updatingEmail" class="animate-spin h-4 w-4" />
+              {{ updatingEmail ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- View Offer Modal -->
     <ViewOfferModal
       :show="showOfferModal"
@@ -1626,6 +1685,11 @@ const showEditNameModal = ref(false)
 const editFirstName = ref('')
 const editLastName = ref('')
 const updatingName = ref(false)
+
+// Edit email modal state
+const showEditEmailModal = ref(false)
+const editEmail = ref('')
+const updatingEmail = ref(false)
 
 // Loading states for actions
 const resendingForm = ref(false)
@@ -2689,6 +2753,44 @@ async function handleUpdateName() {
     showToast(error.message || 'Failed to update name', 'error')
   } finally {
     updatingName.value = false
+  }
+}
+
+function openEditEmailModal() {
+  editEmail.value = fullDetails.value?.tenant_email || person.value?.email || ''
+  showEditEmailModal.value = true
+}
+
+async function handleUpdateEmail() {
+  if (!props.person?.id || !editEmail.value) return
+
+  updatingEmail.value = true
+  try {
+    const response = await fetch(`${API_BASE}/api/references/${props.person.id}/tenant-email`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: editEmail.value
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to update email')
+    }
+
+    showToast('Tenant email updated successfully', 'success')
+    showEditEmailModal.value = false
+    editEmail.value = ''
+    await loadFullDetails(props.person.id)
+    emit('updated')
+  } catch (error: any) {
+    showToast(error.message || 'Failed to update email', 'error')
+  } finally {
+    updatingEmail.value = false
   }
 }
 </script>
