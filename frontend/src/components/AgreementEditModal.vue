@@ -34,7 +34,7 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Scheme</label>
                 <select
-                  v-model="formData.templateType"
+                  v-model="formData.depositSchemeType"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
                 >
                   <option value="dps">DPS</option>

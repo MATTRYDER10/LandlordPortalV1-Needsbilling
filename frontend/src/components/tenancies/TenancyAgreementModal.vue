@@ -779,6 +779,15 @@
       </div>
     </div>
   </Teleport>
+
+  <!-- Compliance Override Modal -->
+  <ComplianceOverrideModal
+    :show="showComplianceOverrideModal"
+    :property-address="props.tenancy?.property_address || ''"
+    :expired-types="expiredComplianceTypes"
+    @close="showComplianceOverrideModal = false"
+    @confirm="handleComplianceOverrideConfirm"
+  />
 </template>
 
 <script setup lang="ts">
@@ -791,6 +800,7 @@ import {
   Download, Send, User, Pencil
 } from 'lucide-vue-next'
 import AddressAutocomplete from '@/components/AddressAutocomplete.vue'
+import ComplianceOverrideModal from '@/components/properties/ComplianceOverrideModal.vue'
 import { API_URL } from '@/lib/apiUrl'
 import { authFetch } from '@/lib/authFetch'
 
@@ -825,6 +835,9 @@ const generating = ref(false)
 const sendingForSigning = ref(false)
 const error = ref<string | null>(null)
 const generatedAgreement = ref<any>(null)
+const showComplianceOverrideModal = ref(false)
+const expiredComplianceTypes = ref<string[]>([])
+const complianceOverrideReason = ref<string | null>(null)
 
 // Track which addresses are being edited
 const editingLandlordAddress = ref<number | null>(null)
@@ -1115,6 +1128,15 @@ const prevStep = () => {
 }
 
 // Generate agreement
+// Handle compliance override confirmation - retry agreement generation
+function handleComplianceOverrideConfirm(reason: string) {
+  complianceOverrideReason.value = reason
+  showComplianceOverrideModal.value = false
+  toast.success('Compliance override acknowledged')
+  // Retry generation with the override
+  generateAgreement()
+}
+
 const generateAgreement = async () => {
   generating.value = true
   error.value = null
@@ -1124,10 +1146,18 @@ const generateAgreement = async () => {
     if (!token) throw new Error('Not authenticated')
 
     // Build request data
-    const requestData = {
+    const requestData: Record<string, any> = {
       ...getRequestData(),
       tenancyId: props.tenancy?.id,
       propertyId: props.tenancy?.property_id
+    }
+
+    // Include compliance override if user has acknowledged
+    if (complianceOverrideReason.value) {
+      requestData.complianceOverride = {
+        acknowledged: true,
+        reason: complianceOverrideReason.value
+      }
     }
 
     console.log('[TenancyAgreementModal] Request data being sent:')
@@ -1148,6 +1178,15 @@ const generateAgreement = async () => {
 
     if (!createResponse.ok) {
       const errorData = await createResponse.json()
+
+      // Handle compliance override required
+      if (errorData.requiresComplianceOverride && errorData.expiredComplianceTypes) {
+        expiredComplianceTypes.value = errorData.expiredComplianceTypes
+        showComplianceOverrideModal.value = true
+        generating.value = false
+        return
+      }
+
       throw new Error(errorData.error || 'Failed to create agreement')
     }
 
