@@ -1050,6 +1050,37 @@ export async function sendSanctionsAlert(
 }
 
 /**
+ * Send CreditSafe error alert to PropertyGoose team
+ */
+export async function sendCreditsafeErrorAlert(
+  errorType: string,
+  errorMessage: string
+): Promise<void> {
+  const recipients = ['info@propertygoose.co.uk', 'craig@propertygoose.co.uk']
+
+  const html = loadEmailTemplate('creditsafe-error-alert', {
+    ErrorType: errorType,
+    ErrorMessage: errorMessage,
+    ErrorTime: new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  })
+
+  for (const recipient of recipients) {
+    await sendEmail({
+      to: recipient,
+      subject: `⚠️ CreditSafe Service Error - ${errorType}`,
+      html,
+      contactDetails: DEFAULT_CONTACT_DETAILS
+    })
+  }
+}
+
+/**
  * Send reference completion notification to agent
  */
 export async function sendReferenceCompletedNotification(
