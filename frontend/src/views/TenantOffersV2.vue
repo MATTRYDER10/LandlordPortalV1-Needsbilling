@@ -29,7 +29,7 @@
           </div>
         </div>
 
-        <!-- Stats Cards - Order: Pending, Payment Pending, Approved, Referencing, Sent, All Offers -->
+        <!-- Stats Cards - Order: Pending, Approved, Marked as Paid, Referencing, Sent, All Offers -->
         <div class="mt-6 grid grid-cols-2 md:grid-cols-6 gap-3">
           <button
             @click="statusFilter = 'pending'"
@@ -50,24 +50,6 @@
           </button>
 
           <button
-            @click="statusFilter = 'payment_pending'"
-            class="p-4 rounded-xl border-2 transition-all text-left"
-            :class="statusFilter === 'payment_pending'
-              ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
-              : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="text-2xl font-bold text-amber-600">{{ statusCounts.payment_pending }}</div>
-                <div class="text-xs text-gray-500 dark:text-slate-400">Marked as Paid</div>
-              </div>
-              <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
-                <Clock class="w-5 h-5 text-amber-600" />
-              </div>
-            </div>
-          </button>
-
-          <button
             @click="statusFilter = 'approved'"
             class="p-4 rounded-xl border-2 transition-all text-left"
             :class="statusFilter === 'approved'
@@ -81,6 +63,24 @@
               </div>
               <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
                 <CheckCircle class="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+          </button>
+
+          <button
+            @click="statusFilter = 'payment_pending'"
+            class="p-4 rounded-xl border-2 transition-all text-left"
+            :class="statusFilter === 'payment_pending'
+              ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
+              : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-2xl font-bold text-amber-600">{{ statusCounts.payment_pending }}</div>
+                <div class="text-xs text-gray-500 dark:text-slate-400">Marked<br/>as Paid</div>
+              </div>
+              <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                <Banknote class="w-5 h-5 text-amber-600" />
               </div>
             </div>
           </button>
@@ -202,9 +202,16 @@
               Clear Selection
             </button>
             <button
+              @click="openBulkDeclineModal"
+              class="px-3 py-1.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-1"
+            >
+              <ThumbsDown class="w-3.5 h-3.5" />
+              Decline ({{ selectedOfferIds.length }})
+            </button>
+            <button
               @click="deleteSelectedOffers"
               :disabled="deletingOffers"
-              class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-1"
+              class="px-3 py-1.5 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-1"
             >
               <Loader2 v-if="deletingOffers" class="w-3.5 h-3.5 animate-spin" />
               <Trash2 v-else class="w-3.5 h-3.5" />
@@ -306,8 +313,9 @@
               <span v-if="offer.holding_deposit_amount" class="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg">
                 Holding Deposit: £{{ offer.holding_deposit_amount }}
               </span>
-              <span v-if="offer.offer_deposit_replacement" class="px-2 py-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg">
-                Reposit Available
+              <span v-if="offer.offer_deposit_replacement" class="px-2 py-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-lg flex items-center gap-1">
+                <Sparkles class="w-3 h-3" />
+                Deposit Replacement
               </span>
               <span v-if="offer.reference_created" class="px-2 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg flex items-center gap-1">
                 <CheckCircle class="w-3 h-3" />
@@ -549,16 +557,66 @@
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Move-in Date</label>
-                  <div class="relative cursor-pointer" @click="($refs.moveInDateInput as HTMLInputElement)?.showPicker?.()">
-                    <input
-                      ref="moveInDateInput"
-                      v-model="sendForm.move_in_date"
-                      type="date"
-                      class="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
-                    />
-                    <Calendar class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500 pointer-events-none" />
+
+                  <!-- Always-visible calendar -->
+                  <div class="border border-gray-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 p-4">
+                    <!-- Selected date banner -->
+                    <div v-if="sendForm.move_in_date" class="flex items-center justify-between mb-3 px-2 py-1.5 bg-primary/10 rounded-lg">
+                      <span class="text-sm font-medium text-primary">
+                        {{ formatCalendarDisplayDate(sendForm.move_in_date) }}
+                      </span>
+                      <button
+                        type="button"
+                        @click="sendForm.move_in_date = ''"
+                        class="p-0.5 rounded hover:bg-primary/20 text-primary/60 hover:text-primary"
+                      >
+                        <X class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <!-- Month/Year nav -->
+                    <div class="flex items-center justify-between mb-3">
+                      <button type="button" @click="calendarPrevMonth" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                        <ChevronLeft class="w-4 h-4 text-gray-600 dark:text-slate-400" />
+                      </button>
+                      <span class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ calendarMonthNames[calendarViewMonth] }} {{ calendarViewYear }}
+                      </span>
+                      <button type="button" @click="calendarNextMonth" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                        <ChevronRight class="w-4 h-4 text-gray-600 dark:text-slate-400" />
+                      </button>
+                    </div>
+                    <!-- Day headers -->
+                    <div class="grid grid-cols-7 mb-1">
+                      <div v-for="d in ['Mo','Tu','We','Th','Fr','Sa','Su']" :key="d" class="text-center text-xs font-medium text-gray-400 dark:text-slate-500 py-1">{{ d }}</div>
+                    </div>
+                    <!-- Days grid -->
+                    <div class="grid grid-cols-7">
+                      <div v-for="(day, i) in calendarDays" :key="i" class="flex items-center justify-center">
+                        <button
+                          v-if="day"
+                          type="button"
+                          @click="selectMoveInDate(day)"
+                          :disabled="day.disabled"
+                          class="w-9 h-9 rounded-full text-sm font-medium transition-all"
+                          :class="[
+                            day.isSelected
+                              ? 'bg-primary text-white shadow-sm'
+                              : day.isToday
+                                ? 'bg-primary/10 text-primary font-bold hover:bg-primary/20'
+                                : day.disabled
+                                  ? 'text-gray-300 dark:text-slate-700 cursor-not-allowed'
+                                  : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                          ]"
+                        >
+                          {{ day.date }}
+                        </button>
+                        <span v-else class="w-9 h-9"></span>
+                      </div>
+                    </div>
                   </div>
-                  <p class="text-xs text-gray-400 mt-1">Propose a move-in date, or leave blank for tenant to select</p>
+
+                  <p class="text-xs text-gray-400 mt-1.5">Propose a move-in date, or leave blank for tenant to select</p>
                 </div>
 
                 <!-- Deposit and Options -->
@@ -682,15 +740,35 @@
 
             <!-- Modal Content -->
             <div class="flex-1 overflow-y-auto p-6 space-y-6">
-              <!-- Property Info -->
+              <!-- Property & Tenant Info -->
               <div class="bg-gray-50 dark:bg-slate-800 rounded-xl p-4">
-                <div class="flex items-start gap-3">
-                  <MapPin class="w-5 h-5 text-primary mt-0.5" />
-                  <div>
-                    <p class="font-semibold text-gray-900 dark:text-white">{{ selectedOffer.property_address }}</p>
-                    <p class="text-sm text-gray-500 dark:text-slate-400">
-                      {{ selectedOffer.property_city }}<span v-if="selectedOffer.property_postcode">, {{ selectedOffer.property_postcode }}</span>
-                    </p>
+                <div class="flex items-start justify-between gap-4">
+                  <!-- Property (left) -->
+                  <div class="flex items-start gap-3 min-w-0">
+                    <MapPin class="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                    <div class="min-w-0">
+                      <p class="font-semibold text-gray-900 dark:text-white truncate">{{ selectedOffer.property_address }}</p>
+                      <p class="text-sm text-gray-500 dark:text-slate-400">
+                        {{ selectedOffer.property_city }}<span v-if="selectedOffer.property_postcode">, {{ selectedOffer.property_postcode }}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <!-- Tenant (right) -->
+                  <div v-if="selectedOffer.tenant_first_name || selectedOffer.tenant_email" class="flex items-center gap-2 shrink-0">
+                    <div class="text-right">
+                      <p v-if="selectedOffer.tenant_first_name" class="font-medium text-gray-900 dark:text-white text-sm">
+                        {{ selectedOffer.tenant_first_name }} {{ selectedOffer.tenant_last_name }}
+                      </p>
+                      <p v-if="selectedOffer.tenant_email" class="text-xs text-gray-500 dark:text-slate-400 flex items-center justify-end gap-1">
+                        {{ selectedOffer.tenant_email }}
+                        <button @click="copyToClipboard(selectedOffer.tenant_email)" class="p-0.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded">
+                          <Copy class="w-3 h-3" />
+                        </button>
+                      </p>
+                    </div>
+                    <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                      <User class="w-4 h-4 text-primary" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -724,27 +802,6 @@
                     </p>
                     <p v-if="selectedOffer.landlord_decision_reason" class="text-sm text-red-700 dark:text-red-400 mt-2 italic">
                       "{{ selectedOffer.landlord_decision_reason }}"
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Tenant Info -->
-              <div v-if="selectedOffer.tenant_first_name || selectedOffer.tenant_email">
-                <h3 class="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-3">Tenant</h3>
-                <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
-                  <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <User class="w-5 h-5 text-primary" />
-                  </div>
-                  <div class="flex-1">
-                    <p v-if="selectedOffer.tenant_first_name" class="font-medium text-gray-900 dark:text-white">
-                      {{ selectedOffer.tenant_first_name }} {{ selectedOffer.tenant_last_name }}
-                    </p>
-                    <p v-if="selectedOffer.tenant_email" class="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-2">
-                      {{ selectedOffer.tenant_email }}
-                      <button @click="copyToClipboard(selectedOffer.tenant_email)" class="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded">
-                        <Copy class="w-3 h-3" />
-                      </button>
                     </p>
                   </div>
                 </div>
@@ -911,21 +968,17 @@
                     </div>
                   </div>
 
-                  <!-- Signatures -->
-                  <div class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4">
-                    <p class="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-3">Signatures</p>
-                    <div class="space-y-3">
-                      <div
-                        v-for="(tenant, index) in (selectedOffer.tenants || [])"
-                        :key="'sig-' + index"
-                        class="flex items-start gap-3"
-                      >
-                        <div v-if="tenant.signature" class="flex-1">
+                  <!-- Signature (Lead Tenant only) -->
+                  <div v-if="leadTenantSignature" class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4">
+                    <p class="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-3">Signature</p>
+                    <div>
+                      <div class="flex items-start gap-3">
+                        <div class="flex-1">
                           <div class="bg-white border border-gray-200 dark:border-slate-600 rounded-lg p-2 mb-1">
                             <img
-                              v-if="tenant.signature.startsWith('data:image')"
-                              :src="tenant.signature"
-                              :alt="tenant.name + ' signature'"
+                              v-if="leadTenantSignature.signature?.startsWith('data:image')"
+                              :src="leadTenantSignature.signature"
+                              :alt="leadTenantSignature.name + ' signature'"
                               class="max-h-12 w-auto"
                             />
                             <div v-else class="text-xs text-gray-400 italic py-2">
@@ -933,12 +986,10 @@
                             </div>
                           </div>
                           <p class="text-xs text-gray-600 dark:text-slate-400">
-                            <span class="font-medium">{{ tenant.signature_name || tenant.name }}</span>
-                            <span v-if="tenant.signed_at" class="text-gray-400 ml-1">{{ formatDate(tenant.signed_at) }}</span>
+                            <span class="font-medium">{{ leadTenantSignature.signature_name || leadTenantSignature.name }}</span>
+                            <span class="text-gray-400 ml-1">(Lead Tenant)</span>
+                            <span v-if="leadTenantSignature.signed_at" class="text-gray-400 ml-1">{{ formatDate(leadTenantSignature.signed_at) }}</span>
                           </p>
-                        </div>
-                        <div v-else class="flex-1 text-xs text-gray-400 italic">
-                          {{ tenant.name }} - No signature
                         </div>
                       </div>
                     </div>
@@ -1042,7 +1093,9 @@
         <div v-if="showDeclineModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full shadow-2xl">
             <div class="p-6 border-b border-gray-200 dark:border-slate-700">
-              <h2 class="text-xl font-bold text-gray-900 dark:text-white">Decline Offer</h2>
+              <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+                {{ bulkDeclineIds.length > 1 ? `Decline ${bulkDeclineIds.length} Offers` : 'Decline Offer' }}
+              </h2>
               <p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Select a reason or provide a custom message</p>
             </div>
             <div class="p-6 space-y-4">
@@ -1080,7 +1133,7 @@
                 class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 flex items-center gap-2"
               >
                 <Loader2 v-if="processingAction" class="w-4 h-4 animate-spin" />
-                <span>Decline Offer</span>
+                <span>{{ bulkDeclineIds.length > 1 ? `Decline ${bulkDeclineIds.length} Offers` : 'Decline Offer' }}</span>
               </button>
             </div>
           </div>
@@ -1369,6 +1422,7 @@ import {
   RefreshCcw,
   FileText,
   ChevronRight,
+  ChevronLeft,
   Clock,
   CheckCircle,
   Mail,
@@ -1386,7 +1440,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   RotateCcw,
-  Trash2
+  Trash2,
+  Sparkles
 } from 'lucide-vue-next'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -1404,6 +1459,10 @@ const showDetailModal = ref(false)
 const showDeclineModal = ref(false)
 const showAcceptChangesModal = ref(false)
 const selectedOffer = ref<any>(null)
+const leadTenantSignature = computed(() => {
+  const tenants = selectedOffer.value?.tenants || []
+  return tenants.find((t: any) => t.signature) || tenants[0] || null
+})
 const processingAction = ref(false)
 
 // Receipt modal state
@@ -1436,6 +1495,7 @@ const resendingOfferId = ref<string | null>(null)
 const deletingOffers = ref(false)
 
 // Decline form
+const bulkDeclineIds = ref<string[]>([])
 const declineForm = ref({
   reason: '',
   customReason: ''
@@ -1470,6 +1530,75 @@ const sendForm = ref({
   move_in_date: '',
   offer_deposit_replacement: false
 })
+
+// Move-in date calendar
+const showMoveInCalendar = ref(false)
+const calendarViewMonth = ref(new Date().getMonth())
+const calendarViewYear = ref(new Date().getFullYear())
+const calendarMonthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
+
+const calendarPrevMonth = () => {
+  if (calendarViewMonth.value === 0) {
+    calendarViewMonth.value = 11
+    calendarViewYear.value--
+  } else {
+    calendarViewMonth.value--
+  }
+}
+
+const calendarNextMonth = () => {
+  if (calendarViewMonth.value === 11) {
+    calendarViewMonth.value = 0
+    calendarViewYear.value++
+  } else {
+    calendarViewMonth.value++
+  }
+}
+
+const calendarDays = computed(() => {
+  const year = calendarViewYear.value
+  const month = calendarViewMonth.value
+  const firstDay = new Date(year, month, 1)
+  // Monday = 0, Sunday = 6
+  let startDay = firstDay.getDay() - 1
+  if (startDay < 0) startDay = 6
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const selectedStr = sendForm.value.move_in_date // yyyy-mm-dd format
+
+  const days: (null | { date: number; disabled: boolean; isToday: boolean; isSelected: boolean })[] = []
+
+  // Leading blanks
+  for (let i = 0; i < startDay; i++) days.push(null)
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const thisDate = new Date(year, month, d)
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    days.push({
+      date: d,
+      disabled: thisDate < today,
+      isToday: thisDate.getTime() === today.getTime(),
+      isSelected: dateStr === selectedStr
+    })
+  }
+  return days
+})
+
+const selectMoveInDate = (day: { date: number; disabled: boolean }) => {
+  if (day.disabled) return
+  const y = calendarViewYear.value
+  const m = String(calendarViewMonth.value + 1).padStart(2, '0')
+  const d = String(day.date).padStart(2, '0')
+  sendForm.value.move_in_date = `${y}-${m}-${d}`
+}
+
+const formatCalendarDisplayDate = (dateStr: string): string => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 // Property search state
 interface PropertySearchResult {
@@ -1722,17 +1851,29 @@ function toggleOfferSelection(offerId: string) {
 // ============================================================================
 
 function openDeclineModal() {
+  // Single offer decline from detail modal
+  if (selectedOffer.value) {
+    bulkDeclineIds.value = [selectedOffer.value.id]
+  }
+  declineForm.value = { reason: '', customReason: '' }
+  showDeclineModal.value = true
+}
+
+function openBulkDeclineModal() {
+  // Multi-select decline
+  bulkDeclineIds.value = [...selectedOfferIds.value]
   declineForm.value = { reason: '', customReason: '' }
   showDeclineModal.value = true
 }
 
 function closeDeclineModal() {
   showDeclineModal.value = false
+  bulkDeclineIds.value = []
   declineForm.value = { reason: '', customReason: '' }
 }
 
 async function submitDecline() {
-  if (!selectedOffer.value) return
+  if (bulkDeclineIds.value.length === 0) return
 
   const reason = declineForm.value.reason === 'custom'
     ? declineForm.value.customReason
@@ -1741,28 +1882,44 @@ async function submitDecline() {
   if (!reason) return
 
   processingAction.value = true
-  try {
-    const response = await fetch(`${API_URL}/api/tenant-offers/${selectedOffer.value.id}/decline`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.session?.access_token}`,
-        'Content-Type': 'application/json',
-        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
-      },
-      body: JSON.stringify({ reason })
-    })
+  let successCount = 0
+  let errorCount = 0
 
-    if (response.ok) {
+  try {
+    for (const offerId of bulkDeclineIds.value) {
+      try {
+        const response = await fetch(`${API_URL}/api/tenant-offers/${offerId}/decline`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authStore.session?.access_token}`,
+            'Content-Type': 'application/json',
+            'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+          },
+          body: JSON.stringify({ reason })
+        })
+        if (response.ok) {
+          successCount++
+        } else {
+          errorCount++
+        }
+      } catch {
+        errorCount++
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} offer(s) declined`)
+      selectedOfferIds.value = []
       closeDeclineModal()
       closeDetailModal()
       refreshData()
-    } else {
-      const error = await response.json()
-      toast.error(error.error || 'Failed to decline offer')
+    }
+    if (errorCount > 0) {
+      toast.error(`Failed to decline ${errorCount} offer(s)`)
     }
   } catch (error) {
-    console.error('Error declining offer:', error)
-    toast.error('Failed to decline offer')
+    console.error('Error declining offers:', error)
+    toast.error('Failed to decline offers')
   } finally {
     processingAction.value = false
   }
@@ -1944,7 +2101,7 @@ async function sendToReferencing() {
       const data = await response.json()
       // Update offer status to holding_deposit_received
       if (data.references && data.references.length > 0) {
-        await fetch(`${API_URL}/api/tenant-offers/${selectedOffer.value.id}/mark-referencing`, {
+        const markRes = await fetch(`${API_URL}/api/tenant-offers/${selectedOffer.value.id}/mark-referencing`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${authStore.session?.access_token}`,
@@ -1953,6 +2110,13 @@ async function sendToReferencing() {
           },
           body: JSON.stringify({ reference_id: data.references[0].id })
         })
+        if (!markRes.ok) {
+          console.error('[V2 Offers] Failed to mark offer as referencing:', await markRes.text())
+        } else {
+          console.log('[V2 Offers] Offer marked as referencing successfully')
+        }
+      } else {
+        console.warn('[V2 Offers] No references returned, cannot mark offer as referencing')
       }
       closeDetailModal()
       await refreshData()
@@ -2074,6 +2238,10 @@ function closeSendModal() {
     move_in_date: '',
     offer_deposit_replacement: false
   }
+  // Reset calendar state
+  showMoveInCalendar.value = false
+  calendarViewMonth.value = new Date().getMonth()
+  calendarViewYear.value = new Date().getFullYear()
   // Reset property search state
   propertySearchQuery.value = ''
   propertySearchResults.value = []
@@ -2090,6 +2258,8 @@ async function sendOffer() {
     // Backend expects these fields for /send-link
     const payload: Record<string, any> = {
       tenant_email: sendForm.value.tenant_email,
+      tenant_first_name: sendForm.value.tenant_first_name,
+      tenant_last_name: sendForm.value.tenant_last_name,
       property_address: sendForm.value.property_address,
       property_city: sendForm.value.property_city,
       property_postcode: sendForm.value.property_postcode,
@@ -2240,17 +2410,32 @@ async function fetchOffers() {
 
     if (formsResponse.ok) {
       const formsData = await formsResponse.json()
+      console.log('[V2 Offers] Sent forms received:', formsData.sentForms?.length || 0)
       // Mark sent forms with status 'sent'
       const sentForms = (formsData.sentForms || []).map((f: any) => ({
         ...f,
-        status: 'sent'
+        status: 'sent',
+        tenant_first_name: f.tenant_first_name || '',
+        tenant_last_name: f.tenant_last_name || ''
       }))
       allOffers.push(...sentForms)
+    } else {
+      console.error('[V2 Offers] Sent forms fetch failed:', formsResponse.status, await formsResponse.text().catch(() => ''))
     }
 
     if (offersResponse.ok) {
       const offersData = await offersResponse.json()
-      allOffers.push(...(offersData.offers || []))
+      // Extract lead tenant name from tenants array
+      const offersWithNames = (offersData.offers || []).map((o: any) => {
+        if (!o.tenant_first_name && o.tenants?.length > 0) {
+          const leadTenant = o.tenants[0]
+          const nameParts = (leadTenant.name || '').split(' ')
+          o.tenant_first_name = nameParts[0] || ''
+          o.tenant_last_name = nameParts.slice(1).join(' ') || ''
+        }
+        return o
+      })
+      allOffers.push(...offersWithNames)
     }
 
     // Sort by created_at descending

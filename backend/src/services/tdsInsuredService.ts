@@ -24,7 +24,7 @@ interface TDSInsuredConfig {
 
 // TDS Insured person object
 interface InsuredPersonObject {
-  person_classification: 'Primary Landlord' | 'Landlord' | 'Lead Tenant' | 'Tenant'
+  person_classification: 'Landlord' | 'Tenant'
   person_id?: string
   person_reference?: string
   person_title: string
@@ -381,25 +381,26 @@ export function mapTenancyToInsuredPayload(
   // Add landlord (TDS Insured only supports one landlord per tenancy)
   const primaryLandlord = landlords.find((l: any) => l.is_primary) || landlords[0]
   if (primaryLandlord) {
-    const landlordAddressParts = parseAddressLine(
-      decrypt(primaryLandlord.address_line1_encrypted) || primaryLandlord.address_line1 || ''
-    )
+    // Use structured address fields — these come pre-decrypted from the route
+    const llAddr = primaryLandlord.address_line1 || ''
+    const llCity = primaryLandlord.city || ''
+    const llCounty = primaryLandlord.county || ''
+    const llPostcode = primaryLandlord.postcode || ''
+    const landlordAddressParts = parseAddressLine(llAddr)
 
     people.push({
       person_classification: 'Landlord',
-      person_id: '',
-      person_reference: '',
       person_title: primaryLandlord.title || 'Mr',
-      person_firstname: decrypt(primaryLandlord.first_name_encrypted) || primaryLandlord.first_name || '',
-      person_surname: decrypt(primaryLandlord.last_name_encrypted) || primaryLandlord.last_name || '',
-      person_email: decrypt(primaryLandlord.email_encrypted) || primaryLandlord.email || '',
-      person_mobile: decrypt(primaryLandlord.phone_encrypted) || primaryLandlord.phone || '',
+      person_firstname: primaryLandlord.first_name || '',
+      person_surname: primaryLandlord.last_name || '',
+      person_email: primaryLandlord.email || '',
+      person_mobile: primaryLandlord.phone || primaryLandlord.mobile || '07000000000',
       is_business: 'N',
       person_paon: landlordAddressParts.paon || '1',
       person_street: landlordAddressParts.street || 'Not provided',
-      person_town: decrypt(primaryLandlord.city_encrypted) || primaryLandlord.city || 'N/A',
-      person_administrative_area: primaryLandlord.county || decrypt(primaryLandlord.city_encrypted) || primaryLandlord.city || 'N/A',
-      person_postcode: decrypt(primaryLandlord.postcode_encrypted) || primaryLandlord.postcode || '',
+      person_town: llCity || 'N/A',
+      person_administrative_area: llCounty || llCity || 'N/A',
+      person_postcode: (llPostcode || '').replace(/\s+/g, ''),
       person_country: 'United Kingdom',
       person_correspondence_country: 'United Kingdom'
     })
@@ -411,15 +412,14 @@ export function mapTenancyToInsuredPayload(
   tenants.forEach((tenant: any, index: number) => {
     // Check is_lead flag directly (for form data) or compare IDs (for database data)
     const isLead = tenant.is_lead || (tenant.id && tenant.id === leadTenant?.id) || index === 0
+    const tenantPhone = tenant.phone || tenant.mobile || ''
     people.push({
       person_classification: 'Tenant',
-      person_id: '',
-      person_reference: '',
       person_title: tenant.title || 'Mr',
-      person_firstname: decrypt(tenant.first_name_encrypted) || tenant.first_name || '',
-      person_surname: decrypt(tenant.last_name_encrypted) || tenant.last_name || '',
-      person_email: decrypt(tenant.email_encrypted) || tenant.email || '',
-      person_mobile: decrypt(tenant.phone_encrypted) || tenant.phone || '',
+      person_firstname: tenant.first_name || '',
+      person_surname: tenant.last_name || '',
+      person_email: tenant.email || '',
+      person_mobile: (tenantPhone.startsWith('0') || tenantPhone.startsWith('+')) ? tenantPhone : '',
       is_business: 'N'
     })
   })
@@ -488,6 +488,41 @@ export async function createInsuredDeposit(
 
   const baseUrl = TDS_INSURED_ENDPOINTS[config.environment]
   const tenancyPayload = mapTenancyToInsuredPayload(tenancy, depositReceivedDate)
+
+  // Search for existing landlord by email to get their person_id
+  const landlordPerson = tenancyPayload.people.find(p => p.person_classification === 'Landlord')
+  if (landlordPerson && landlordPerson.person_email) {
+    try {
+      console.log(`[TDS Insured] Searching for landlord by email: ${landlordPerson.person_email}`)
+      const searchResponse = await fetch(`${baseUrl}/${API_VERSION}/search/landlord`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokenResult.accessToken}`,
+          'User-Agent': USER_AGENT
+        },
+        body: JSON.stringify({
+          member_id: Number(config.memberId),
+          page: 1,
+          query: landlordPerson.person_email,
+          archived: false
+        })
+      })
+      const searchText = await searchResponse.text()
+      console.log(`[TDS Insured] Landlord search response (${searchResponse.status}):`, searchText.substring(0, 300))
+      if (searchResponse.ok) {
+        const searchData = JSON.parse(searchText)
+        if (searchData.results && searchData.results.length > 0) {
+          landlordPerson.person_id = String(searchData.results[0].person_id)
+          console.log(`[TDS Insured] Found existing landlord with person_id: ${landlordPerson.person_id}`)
+        } else {
+          console.log('[TDS Insured] No existing landlord found, will create new')
+        }
+      }
+    } catch (searchErr) {
+      console.log('[TDS Insured] Landlord search failed (non-blocking):', searchErr)
+    }
+  }
 
   const payload: InsuredCreateDepositPayload = {
     member_id: config.memberId,
@@ -599,6 +634,7 @@ export async function pollInsuredDepositStatus(
       }
 
       if (data.status === 'failed') {
+        console.log('[TDS Insured] FULL STATUS RESPONSE:', JSON.stringify(data, null, 2))
         const errorMessage = data.errors?.map((e: any) => e.error).join(', ') || 'Registration failed'
         return {
           success: false,

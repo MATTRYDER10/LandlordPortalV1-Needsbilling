@@ -1403,7 +1403,7 @@
             <!-- Header with Logo -->
             <div class="bg-white dark:bg-slate-800 px-6 py-4 border-b border-[#00B4B4]/30 flex items-center justify-between">
               <img
-                src="https://d1jj9i760ttpd.cloudfront.net/logos/primary/primary-full-colour.png"
+                src="/reposit-logo.png"
                 alt="Reposit"
                 class="h-8 w-auto"
               />
@@ -1450,7 +1450,7 @@
 
                     <div class="flex items-center justify-between mb-4 mt-2">
                       <h3 class="font-semibold text-gray-900 dark:text-white">Deposit alternative</h3>
-                      <img src="https://d1jj9i760ttpd.cloudfront.net/logos/primary/primary-full-colour.png" alt="Reposit" class="h-5" />
+                      <img src="/reposit-logo.png" alt="Reposit" class="h-5" />
                     </div>
 
                     <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">

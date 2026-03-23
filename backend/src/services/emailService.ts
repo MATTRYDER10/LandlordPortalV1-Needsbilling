@@ -1332,19 +1332,29 @@ export async function sendPaymentConfirmedToAgentEmail(
   propertyAddress: string,
   tenantNames: string,
   holdingDepositAmount: string,
-  offerLink: string
+  offerLink: string,
+  companyName?: string,
+  companyLogoUrl?: string | null
 ): Promise<void> {
   const confirmedAt = new Date().toLocaleString('en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short'
   })
 
+  const resolvedCompanyName = companyName || 'PropertyGoose'
+  const logoHtml = companyLogoUrl
+    ? `<img src="${companyLogoUrl}" alt="${resolvedCompanyName}" style="height: 48px; width: auto;">`
+    : `<span style="font-size: 20px; font-weight: 700; color: #ffffff;">${resolvedCompanyName}</span>`
+
   const html = loadEmailTemplate('tenant-payment-confirmed', {
     PropertyAddress: propertyAddress,
     TenantNames: tenantNames,
     HoldingDepositAmount: holdingDepositAmount,
     ConfirmedAt: confirmedAt,
-    OfferLink: offerLink
+    OfferLink: offerLink,
+    CompanyName: resolvedCompanyName,
+    AgentLogoUrl: companyLogoUrl || '',
+    AgentLogoHtml: logoHtml
   })
 
   await sendEmail({
@@ -1437,22 +1447,23 @@ export async function sendTenantOfferConfirmation(params: {
     </table>
   `).join('')
 
-  // Build signatures list HTML
-  const signaturesHtml = tenants.filter(t => t.signature).map(t => `
+  // Build signature HTML - only lead tenant (first) signs for everyone
+  const leadTenant = tenants.find(t => t.signature || t.signatureName) || tenants[0]
+  const signaturesHtml = leadTenant ? `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 12px;">
       <tr>
-        <td style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px;">
-          <img src="${t.signature}" alt="${t.name} signature" style="max-height: 40px; max-width: 150px;" />
+        <td style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 14px;">
+          <p style="font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 22px; color: #1f2937; margin: 0;">${leadTenant.signatureName || leadTenant.name}</p>
         </td>
       </tr>
       <tr>
         <td style="padding-top: 4px;">
-          <p style="color: #374151; font-size: 12px; margin: 0;"><strong>${t.signatureName || t.name}</strong></p>
-          ${t.signedAt ? `<p style="color: #9ca3af; font-size: 10px; margin: 0;">${new Date(t.signedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>` : ''}
+          <p style="color: #374151; font-size: 12px; margin: 0;"><strong>${leadTenant.signatureName || leadTenant.name}</strong> (Lead Tenant)</p>
+          ${leadTenant.signedAt ? `<p style="color: #9ca3af; font-size: 10px; margin: 0;">${new Date(leadTenant.signedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>` : ''}
         </td>
       </tr>
     </table>
-  `).join('')
+  ` : ''
 
   // Build special conditions section
   const specialConditionsSection = specialConditions ? `
@@ -2157,7 +2168,8 @@ export async function sendMoveInPack(
   documents: ComplianceDocument[],
   contactDetails: { name: string; email: string; phone: string },
   companyName: string,
-  agentLogoUrl?: string | null
+  agentLogoUrl?: string | null,
+  ccEmail?: string | null
 ): Promise<void> {
   // Build document list HTML
   let documentListHtml = ''
@@ -2216,6 +2228,7 @@ export async function sendMoveInPack(
 
     await sendEmail({
       to: tenant.email,
+      cc: ccEmail || undefined,
       subject: `Welcome to Your New Home - ${propertyAddress}`,
       html,
       attachments: attachments.length > 0 ? attachments : undefined,
@@ -2226,7 +2239,7 @@ export async function sendMoveInPack(
       }
     })
 
-    console.log(`[sendMoveInPack] Email sent to ${tenant.email} for ${propertyAddress} (attachments: ${attachments.length})`)
+    console.log(`[sendMoveInPack] Email sent to ${tenant.email}${ccEmail ? ` (cc: ${ccEmail})` : ''} for ${propertyAddress} (attachments: ${attachments.length})`)
   }
 }
 
@@ -2247,7 +2260,8 @@ export async function sendEnhancedMoveInPack(
   agentLogoUrl: string | null | undefined,
   managementInfoHtml: string,
   rentPaymentHtml: string,
-  additionalInfoHtml: string
+  additionalInfoHtml: string,
+  ccEmail?: string | null
 ): Promise<void> {
   // Build document list HTML
   let documentListHtml = ''
@@ -2315,6 +2329,7 @@ export async function sendEnhancedMoveInPack(
 
     await sendEmail({
       to: tenant.email,
+      cc: ccEmail || undefined,
       subject: `Welcome to Your New Home - ${propertyAddress}`,
       html,
       attachments: attachments.length > 0 ? attachments : undefined,
@@ -2325,7 +2340,7 @@ export async function sendEnhancedMoveInPack(
       }
     })
 
-    console.log(`[sendEnhancedMoveInPack] Email sent to ${tenant.email} for ${propertyAddress} (attachments: ${attachments.length})`)
+    console.log(`[sendEnhancedMoveInPack] Email sent to ${tenant.email}${ccEmail ? ` (cc: ${ccEmail})` : ''} for ${propertyAddress} (attachments: ${attachments.length})`)
   }
 }
 

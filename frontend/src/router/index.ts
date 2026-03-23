@@ -406,6 +406,12 @@ const router = createRouter({
           meta: { requiresAuth: true }
         },
         {
+          path: 'apex27',
+          name: 'SettingsApex27',
+          component: Settings,
+          meta: { requiresAuth: true }
+        },
+        {
           path: 'billing',
           name: 'SettingsBilling',
           component: Settings,

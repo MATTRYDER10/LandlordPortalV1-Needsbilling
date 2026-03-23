@@ -118,13 +118,8 @@
 
                 <!-- Tenants -->
                 <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="mb-4">
                         <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Tenants</h2>
-                        <button type="button" @click="addTenant"
-                            class="px-4 py-2 text-sm font-medium text-white rounded-md hover:opacity-90"
-                            :style="{ backgroundColor: buttonColor }">
-                            Add Tenant
-                        </button>
                     </div>
 
                     <div v-for="(tenant, index) in formData.tenants" :key="index"
@@ -166,48 +161,86 @@
                                 <input :id="`tenant-${index}-email`" v-model="tenant.email" type="email" required
                                     class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
                             </div>
-                            <div>
-                                <label :for="`tenant-${index}-income`"
-                                    class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                    Annual Income (£) *
+
+                            <!-- Checkbox options row -->
+                            <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <label :for="`tenant-${index}-student`"
+                                    class="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all"
+                                    :class="tenant.is_student
+                                        ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-500'
+                                        : 'border-gray-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600'">
+                                    <input :id="`tenant-${index}-student`" v-model="tenant.is_student"
+                                        type="checkbox"
+                                        class="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500 dark:bg-slate-900 shrink-0" />
+                                    <span class="text-sm font-medium text-gray-700 dark:text-slate-300">I am a student</span>
                                 </label>
-                                <input :id="`tenant-${index}-income`" v-model="tenant.annual_income" type="text"
-                                    required placeholder="e.g., 30000"
-                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                            </div>
-                            <div>
-                                <label :for="`tenant-${index}-job-title`"
-                                    class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                    Job Title / Income Source
+
+                                <label :for="`tenant-${index}-guarantor`"
+                                    class="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all"
+                                    :class="tenant.has_guarantor
+                                        ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-500'
+                                        : 'border-gray-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600'">
+                                    <input :id="`tenant-${index}-guarantor`" v-model="tenant.has_guarantor"
+                                        type="checkbox"
+                                        class="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500 dark:bg-slate-900 shrink-0" />
+                                    <span class="text-sm font-medium text-gray-700 dark:text-slate-300">I have a guarantor</span>
                                 </label>
-                                <input :id="`tenant-${index}-job-title`" v-model="tenant.job_title" type="text"
-                                    placeholder="e.g., Software Engineer, Self-Employed, etc."
-                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
-                            </div>
-                            <div class="md:col-span-2">
-                                <div class="flex items-start">
+
+                                <label :for="`tenant-${index}-no-ccj`"
+                                    class="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all"
+                                    :class="tenant.no_ccj_bankruptcy_iva
+                                        ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-500'
+                                        : 'border-gray-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600'">
                                     <input :id="`tenant-${index}-no-ccj`" v-model="tenant.no_ccj_bankruptcy_iva"
                                         type="checkbox" required
-                                        class="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded dark:bg-slate-900" />
-                                    <label :for="`tenant-${index}-no-ccj`" class="ml-2 block text-sm text-gray-700 dark:text-slate-300">
-                                        I confirm that I do not have any CCJs, Bankruptcies or IVAs *
-                                    </label>
-                                </div>
+                                        class="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500 dark:bg-slate-900 shrink-0" />
+                                    <span class="text-sm font-medium text-gray-700 dark:text-slate-300">No CCJs, Bankruptcies or IVAs *</span>
+                                </label>
                             </div>
+
+                            <!-- Income fields (hidden for students) -->
+                            <template v-if="!tenant.is_student">
+                                <div>
+                                    <label :for="`tenant-${index}-income`"
+                                        class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                        Yearly Income (£) *
+                                    </label>
+                                    <input :id="`tenant-${index}-income`" v-model="tenant.annual_income" type="text"
+                                        placeholder="e.g., 30000"
+                                        class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                                </div>
+                                <div>
+                                    <label :for="`tenant-${index}-job-title`"
+                                        class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                        Job Title / Income Source
+                                    </label>
+                                    <input :id="`tenant-${index}-job-title`" v-model="tenant.job_title" type="text"
+                                        placeholder="e.g., Software Engineer, Self-Employed, etc."
+                                        class="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary dark:bg-slate-900 dark:text-white" />
+                                </div>
+                            </template>
                         </div>
+                    </div>
+
+                    <!-- Add Tenant section at the bottom -->
+                    <div class="mt-4 p-4 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg text-center">
+                        <p class="text-sm text-gray-600 dark:text-slate-400 mb-3">
+                            Will anyone else aged 18 or over be living at the property? Add them here so we have everyone's details.
+                        </p>
+                        <button type="button" @click="addTenant"
+                            class="px-6 py-2 text-sm font-medium text-white rounded-md hover:opacity-90"
+                            :style="{ backgroundColor: buttonColor }">
+                            + Add Another Tenant
+                        </button>
                     </div>
                 </div>
 
             <!-- Deposit Replacement Service (Reposit) -->
             <div v-if="depositReplacementOffered" class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
                 <!-- Reposit Header -->
-                <div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-600">
+                <div class="bg-white dark:bg-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-600">
                     <div class="flex items-center gap-3">
-                        <div class="flex items-center">
-                            <span class="text-2xl font-bold text-slate-800 dark:text-white">Rep</span>
-                            <span class="text-2xl font-bold text-blue-500">o</span>
-                            <span class="text-2xl font-bold text-slate-800 dark:text-white">sit</span>
-                        </div>
+                        <img src="/reposit-logo.png" alt="Reposit" class="h-7 w-auto" />
                         <span class="text-sm text-gray-500 dark:text-slate-400">Deposit Alternative</span>
                     </div>
                 </div>
@@ -422,6 +455,8 @@ const formData = ref({
             email: '',
             annual_income: '',
             job_title: '',
+            is_student: false,
+            has_guarantor: false,
             no_ccj_bankruptcy_iva: false
         }
     ],
@@ -463,6 +498,8 @@ const addTenant = () => {
         email: '',
         annual_income: '',
         job_title: '',
+        is_student: false,
+        has_guarantor: false,
         no_ccj_bankruptcy_iva: false
     })
 }
@@ -518,8 +555,16 @@ const handleSubmit = async () => {
         // Validate each tenant
         for (let i = 0; i < formData.value.tenants.length; i++) {
             const tenant = formData.value.tenants[i]
-            if (!tenant?.name || !tenant.address || !tenant.phone || !tenant.email || !tenant.annual_income) {
-                throw new Error(`Tenant ${i + 1} is missing required fields`)
+            if (!tenant?.name || !tenant.address || !tenant.phone || !tenant.email) {
+                const missing = []
+                if (!tenant?.name) missing.push('name')
+                if (!tenant?.address) missing.push('address')
+                if (!tenant?.phone) missing.push('phone')
+                if (!tenant?.email) missing.push('email')
+                throw new Error(`Tenant ${i + 1} is missing: ${missing.join(', ')}`)
+            }
+            if (!tenant.is_student && !tenant.annual_income) {
+                throw new Error(`Tenant ${i + 1}: please provide yearly income or tick "I am a student"`)
             }
             if (!isValidEmail(tenant.email)) {
                 throw new Error(`Please enter a valid email address for tenant ${i + 1}`)
@@ -559,8 +604,10 @@ const handleSubmit = async () => {
                 address: tenant.address,
                 phone: tenant.phone,
                 email: tenant.email,
-                annual_income: tenant.annual_income,
-                job_title: tenant.job_title || null,
+                annual_income: tenant.is_student ? 'Student' : tenant.annual_income,
+                job_title: tenant.is_student ? 'Student' : (tenant.job_title || null),
+                is_student: tenant.is_student || false,
+                has_guarantor: tenant.has_guarantor || false,
                 no_ccj_bankruptcy_iva: tenant.no_ccj_bankruptcy_iva,
                 signature: formData.value.signature,
                 signature_name: formData.value.signature_name

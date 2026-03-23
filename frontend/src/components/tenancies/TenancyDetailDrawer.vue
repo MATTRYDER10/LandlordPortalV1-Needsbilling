@@ -1934,15 +1934,27 @@
                       </p>
                     </div>
                   </div>
-                  <button
-                    @click="deleteDocument(doc.id)"
-                    :disabled="deletingDocumentId === doc.id"
-                    class="p-1 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400"
-                    title="Remove document"
-                  >
-                    <Trash2 v-if="deletingDocumentId !== doc.id" class="w-4 h-4" />
-                    <Loader2 v-else class="w-4 h-4 animate-spin" />
-                  </button>
+                  <div class="flex items-center gap-2">
+                    <button
+                      v-if="apex27Connected"
+                      @click="pushDocToApex27(doc.id, 'tenancy_document')"
+                      :disabled="pushingDocId === doc.id"
+                      class="p-1 text-gray-400 dark:text-slate-500 hover:text-[#6B21A8] dark:hover:text-[#9333EA]"
+                      title="Push to Apex27"
+                    >
+                      <Loader2 v-if="pushingDocId === doc.id" class="w-4 h-4 animate-spin" />
+                      <Upload v-else class="w-4 h-4" />
+                    </button>
+                    <button
+                      @click="deleteDocument(doc.id)"
+                      :disabled="deletingDocumentId === doc.id"
+                      class="p-1 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400"
+                      title="Remove document"
+                    >
+                      <Trash2 v-if="deletingDocumentId !== doc.id" class="w-4 h-4" />
+                      <Loader2 v-else class="w-4 h-4 animate-spin" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2008,6 +2020,22 @@
                     </router-link>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <!-- Apex27 Actions -->
+            <div v-if="apex27Connected" class="mt-4">
+              <h3 class="text-sm font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-3">Apex27</h3>
+              <div class="flex gap-2">
+                <button
+                  @click="pushTenancySummary"
+                  :disabled="pushingSummary"
+                  class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#6B21A8] bg-white dark:bg-slate-800 border border-[#6B21A8] hover:bg-[#6B21A8]/5 rounded-md disabled:opacity-50"
+                >
+                  <Loader2 v-if="pushingSummary" class="w-4 h-4 animate-spin" />
+                  <Upload v-else class="w-4 h-4" />
+                  Push Tenancy Summary
+                </button>
               </div>
             </div>
 
@@ -3100,6 +3128,11 @@ const documentTag = ref('other')
 const uploadingDocument = ref(false)
 const tenancyDocuments = ref<any[]>([])
 const deletingDocumentId = ref<string | null>(null)
+
+// Apex27 document push
+const apex27Connected = ref(false)
+const pushingDocId = ref<string | null>(null)
+const pushingSummary = ref(false)
 
 // Pre-tenancy action loading states
 const confirmingMonies = ref(false)
@@ -4233,6 +4266,9 @@ const loadAdditionalData = async () => {
 
       // Load tenancy-specific documents
       await loadTenancyDocuments()
+
+      // Check Apex27 connection status for document push buttons
+      loadApex27Status()
     }
 
     // Load special clauses from agreement if there's an agreement_id
@@ -5181,6 +5217,76 @@ const deleteDocument = async (documentId: string) => {
     toast.error(err.message || 'Failed to delete document')
   } finally {
     deletingDocumentId.value = null
+  }
+}
+
+const pushDocToApex27 = async (docId: string, sourceType: string) => {
+  pushingDocId.value = docId
+  try {
+    const token = authStore.session?.access_token
+    const response = await authFetch(
+      `${API_URL}/api/apex27/documents/push`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceType, sourceId: docId }),
+        token
+      } as any
+    )
+
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to push document')
+    }
+
+    toast.success('Document pushed to Apex27')
+  } catch (err: any) {
+    console.error('[TenancyDrawer] Error pushing to Apex27:', err)
+    toast.error(err.message || 'Failed to push to Apex27')
+  } finally {
+    pushingDocId.value = null
+  }
+}
+
+const pushTenancySummary = async () => {
+  const tenancyId = fullTenancyData.value?.id || props.tenancy?.id
+  if (!tenancyId) return
+
+  pushingSummary.value = true
+  try {
+    const token = authStore.session?.access_token
+    const response = await authFetch(
+      `${API_URL}/api/apex27/tenancy-summary/${tenancyId}/push`,
+      {
+        method: 'POST',
+        token
+      } as any
+    )
+
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to push summary')
+    }
+
+    toast.success('Tenancy summary pushed to Apex27')
+  } catch (err: any) {
+    console.error('[TenancyDrawer] Error pushing summary to Apex27:', err)
+    toast.error(err.message || 'Failed to push summary')
+  } finally {
+    pushingSummary.value = false
+  }
+}
+
+const loadApex27Status = async () => {
+  try {
+    const token = authStore.session?.access_token
+    const response = await authFetch(`${API_URL}/api/settings/apex27`, { token } as any)
+    if (response.ok) {
+      const data = await response.json()
+      apex27Connected.value = data.configured && data.lastTestStatus === 'success'
+    }
+  } catch {
+    // Silently fail - just don't show the button
   }
 }
 

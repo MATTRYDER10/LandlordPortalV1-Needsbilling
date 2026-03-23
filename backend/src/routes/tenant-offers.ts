@@ -484,8 +484,11 @@ router.post('/submit', async (req, res) => {
         // Validate each tenant
         for (let i = 0; i < tenants.length; i++) {
             const tenant = tenants[i]
-            if (!tenant.name || !tenant.address || !tenant.phone || !tenant.email || !tenant.annual_income) {
+            if (!tenant.name || !tenant.address || !tenant.phone || !tenant.email) {
                 return res.status(400).json({ error: `Tenant ${i + 1} is missing required fields` })
+            }
+            if (!tenant.is_student && !tenant.annual_income) {
+                return res.status(400).json({ error: `Tenant ${i + 1} must provide yearly income or be marked as a student` })
             }
             if (!tenant.no_ccj_bankruptcy_iva) {
                 return res.status(400).json({ error: `Tenant ${i + 1} must confirm they have no CCJs, Bankruptcies or IVAs` })
@@ -602,7 +605,7 @@ router.post('/submit', async (req, res) => {
                         tenant_offer_id: offer.id
                     })
                     .eq('form_ref', form_ref)
-                    .eq('status', 'sent')
+                    .or('status.eq.sent,status.is.null')
             } else {
                 // Legacy fallback: match by tenant email and company_id
                 const tenantEmails = tenants.map((t: any) => t.email.toLowerCase())
@@ -614,7 +617,7 @@ router.post('/submit', async (req, res) => {
                         tenant_offer_id: offer.id
                     })
                     .eq('company_id', companyId)
-                    .eq('status', 'sent')
+                    .or('status.eq.sent,status.is.null')
                     .in('tenant_email', tenantEmails)
             }
         } catch (updateError: any) {
@@ -633,23 +636,162 @@ router.post('/submit', async (req, res) => {
                 const tenantNames = tenants.map((t: any) => t.name).join(', ')
                 const propertyAddress = property_address
 
+                // Get company branding for styled email
+                const { data: brandingData } = await supabase
+                    .from('companies')
+                    .select('logo_url, primary_color')
+                    .eq('id', companyId)
+                    .single()
+
+                const primaryColor = brandingData?.primary_color || '#f97316'
+                const logoUrl = brandingData?.logo_url || null
+                const formattedMoveIn = proposed_move_in_date
+                    ? new Date(proposed_move_in_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                    : 'To be confirmed'
+                const depositText = deposit_amount ? `£${Number(deposit_amount).toLocaleString()}` : 'Standard'
+                const viewUrl = `${frontendUrl}/tenant-offers/${offer.id}`
+
+                const logoHtml = logoUrl
+                    ? `<img src="${logoUrl}" alt="${companyName}" style="max-height: 40px; max-width: 180px;" />`
+                    : `<span style="font-size: 18px; font-weight: 700; color: #ffffff;">${companyName}</span>`
+
+                // Build tenant cards
+                const tenantCardsHtml = tenants.map((t: any, i: number) => `
+                    <tr>
+                        <td style="padding: 4px 0;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 6px;">
+                                <tr>
+                                    <td width="36" style="padding: 10px;">
+                                        <div style="width: 28px; height: 28px; background-color: ${primaryColor}20; color: ${primaryColor}; border-radius: 50%; text-align: center; line-height: 28px; font-size: 12px; font-weight: 600;">${i + 1}</div>
+                                    </td>
+                                    <td style="padding: 10px 10px 10px 0;">
+                                        <p style="margin: 0; font-size: 14px; font-weight: 600; color: #111827;">${t.name}</p>
+                                        <p style="margin: 2px 0 0 0; font-size: 12px; color: #6b7280;">${t.email}${t.phone ? ` &middot; ${t.phone}` : ''}</p>
+                                    </td>
+                                    <td width="90" align="right" style="padding: 10px;">
+                                        ${t.annual_income && t.annual_income !== 'Student'
+                                            ? `<p style="margin: 0; font-size: 13px; font-weight: 700; color: #16a34a;">£${t.annual_income}</p><p style="margin: 0; font-size: 10px; color: #9ca3af;">per year</p>`
+                                            : t.annual_income === 'Student'
+                                                ? `<p style="margin: 0; font-size: 12px; font-weight: 600; color: ${primaryColor};">Student</p>`
+                                                : ''}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                `).join('')
+
                 const emailHtml = `
-          <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-              <h2>New Tenant Offer Received</h2>
-              <p>A new tenant offer has been submitted for your review.</p>
-              <h3>Offer Details:</h3>
-              <ul>
-                <li><strong>Property:</strong> ${propertyAddress}</li>
-                <li><strong>Tenants:</strong> ${tenantNames}</li>
-                <li><strong>Offered Rent:</strong> £${offered_rent_amount} per month</li>
-                <li><strong>Proposed Move-in Date:</strong> ${proposed_move_in_date}</li>
-                <li><strong>Tenancy Length:</strong> ${proposed_tenancy_length_months} months</li>
-              </ul>
-              <p><a href="${frontendUrl}/tenant-offers/${offer.id}" style="background-color: ${BRAND_COLORS.primary}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Offer</a></p>
-            </body>
-          </html>
-        `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+        <tr><td align="center" style="padding: 24px 16px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 560px;">
+                <!-- Header -->
+                <tr>
+                    <td style="background-color: ${primaryColor}; border-radius: 12px 12px 0 0; padding: 24px 28px; text-align: center;">
+                        ${logoHtml}
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="background-color: #ffffff; padding: 28px;">
+                        <!-- Title -->
+                        <h1 style="margin: 0 0 6px 0; font-size: 22px; font-weight: 700; color: #111827;">New Offer Received</h1>
+                        <p style="margin: 0 0 24px 0; font-size: 14px; color: #6b7280;">A tenant has submitted an offer for your review.</p>
+
+                        <!-- Property Card -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${primaryColor}10; border: 1px solid ${primaryColor}30; border-radius: 8px; margin-bottom: 20px;">
+                            <tr>
+                                <td style="padding: 16px;">
+                                    <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: ${primaryColor};">Property</p>
+                                    <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #111827;">${propertyAddress}</p>
+                                    ${property_city ? `<p style="margin: 2px 0 0 0; font-size: 13px; color: #6b7280;">${property_city}${property_postcode ? ', ' + property_postcode : ''}</p>` : ''}
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Offer Terms Grid -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 20px;">
+                            <tr>
+                                <td width="50%" style="padding: 0 8px 12px 0; vertical-align: top;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px;">
+                                        <tr><td style="padding: 14px;">
+                                            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Monthly Rent</p>
+                                            <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 700; color: #111827;">£${Number(offered_rent_amount).toLocaleString()}</p>
+                                        </td></tr>
+                                    </table>
+                                </td>
+                                <td width="50%" style="padding: 0 0 12px 8px; vertical-align: top;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px;">
+                                        <tr><td style="padding: 14px;">
+                                            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Move-in Date</p>
+                                            <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #111827;">${formattedMoveIn}</p>
+                                        </td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="50%" style="padding: 0 8px 0 0; vertical-align: top;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px;">
+                                        <tr><td style="padding: 14px;">
+                                            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Tenancy Length</p>
+                                            <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #111827;">${proposed_tenancy_length_months} months</p>
+                                        </td></tr>
+                                    </table>
+                                </td>
+                                <td width="50%" style="padding: 0 0 0 8px; vertical-align: top;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px;">
+                                        <tr><td style="padding: 14px;">
+                                            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Deposit</p>
+                                            <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #111827;">${depositText}</p>
+                                        </td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Tenants -->
+                        <p style="margin: 0 0 8px 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Applicants (${tenants.length})</p>
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 24px;">
+                            ${tenantCardsHtml}
+                        </table>
+
+                        ${special_conditions ? `
+                        <!-- Special Conditions -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; margin-bottom: 24px;">
+                            <tr><td style="padding: 14px;">
+                                <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 600; color: #92400e;">Special Conditions</p>
+                                <p style="margin: 0; font-size: 13px; color: #92400e; line-height: 1.5;">${special_conditions}</p>
+                            </td></tr>
+                        </table>
+                        ` : ''}
+
+                        <!-- CTA Button -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            <tr><td align="center">
+                                <a href="${viewUrl}" style="display: inline-block; background-color: ${primaryColor}; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 32px; border-radius: 8px;">
+                                    Review Offer
+                                </a>
+                            </td></tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="background-color: #f9fafb; border-radius: 0 0 12px 12px; padding: 16px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+                        <p style="margin: 0; font-size: 11px; color: #9ca3af;">This is an automated notification from PropertyGoose on behalf of ${companyName}.</p>
+                    </td>
+                </tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>`
 
                 await sendEmail({
                     to: notificationEmail,
@@ -802,8 +944,17 @@ router.post('/confirm-payment', async (req, res) => {
 
         // Get company and notification details
         const company = (offer as any).companies
+        const companyName = company?.name_encrypted ? (decrypt(company.name_encrypted) || 'PropertyGoose') : 'PropertyGoose'
         const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) : null
         const notificationEmail = company?.offer_notification_email || companyEmail
+
+        // Get company logo
+        const { data: companyBrandingData } = await supabase
+            .from('companies')
+            .select('logo_url')
+            .eq('id', offer.company_id)
+            .single()
+        const companyLogoUrl = companyBrandingData?.logo_url || null
 
         if (notificationEmail) {
             try {
@@ -831,7 +982,9 @@ router.post('/confirm-payment', async (req, res) => {
                     propertyAddress,
                     tenantNames,
                     holdingDepositAmount,
-                    offerLink
+                    offerLink,
+                    companyName,
+                    companyLogoUrl
                 )
             } catch (emailError) {
                 console.error('Failed to send payment confirmation email to agent:', emailError)

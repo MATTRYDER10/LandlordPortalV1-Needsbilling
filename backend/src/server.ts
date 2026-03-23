@@ -48,6 +48,9 @@ import repositRoutes from './routes/reposit'
 import reviewLinksRoutes from './routes/review-links'
 import mydepositsSettingsRoutes from './routes/mydeposits-settings'
 import mydepositsRoutes from './routes/mydeposits'
+import supportRoutes from './routes/support'
+import apex27SettingsRoutes from './routes/apex27-settings'
+import apex27SyncRoutes from './routes/apex27-sync'
 
 // V2 Reference System Routes
 import { referencesRouter as v2ReferencesRouter, sectionsRouter as v2SectionsRouter, chaseRouter as v2ChaseRouter, finalReviewRouter as v2FinalReviewRouter, tenantFormRouter as v2TenantFormRouter, guarantorFormRouter as v2GuarantorFormRouter, refereeFormsRouter as v2RefereeFormsRouter, reportsRouter as v2ReportsRouter, adminRouter as v2AdminRouter, verifyRouter as v2VerifyRouter, offersRouter as v2OffersRouter, mobileCaptureRouter as v2MobileCaptureRouter, groupAssessmentRouter as v2GroupAssessmentRouter } from './routes/v2'
@@ -213,6 +216,9 @@ app.use('/api/reposit', repositRoutes)
 app.use('/api/review-links', reviewLinksRoutes)
 app.use('/api/settings/mydeposits', mydepositsSettingsRoutes)
 app.use('/api/mydeposits', mydepositsRoutes)
+app.use('/api/support', supportRoutes)
+app.use('/api/settings/apex27', apex27SettingsRoutes)
+app.use('/api/apex27', apex27SyncRoutes)
 
 // V2 Reference System Routes (new section-based verification)
 app.use('/api/v2/references', v2ReferencesRouter)
@@ -238,15 +244,14 @@ app.use('/api/v2/staff/group-assessment', v2GroupAssessmentRouter)
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT} (accessible on local network)`)
 
-  // Start background schedulers for work queue management
-  startSchedulers()
-
-  // Start property compliance scheduler
-  startComplianceScheduler()
-
-  // Start rent increase scheduler
-  startRentIncreaseScheduler()
-
-  // Start V2 chase scheduler
-  startChaseSchedulerV2()
+  // Only run schedulers in production — prevents duplicate emails from dev servers
+  if (process.env.NODE_ENV === 'production') {
+    startSchedulers()
+    startComplianceScheduler()
+    startRentIncreaseScheduler()
+    startChaseSchedulerV2()
+    console.log('[Scheduler] All background schedulers started (production)')
+  } else {
+    console.log('[Scheduler] Skipping background schedulers (non-production)')
+  }
 })

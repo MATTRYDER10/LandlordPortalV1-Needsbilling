@@ -43,9 +43,9 @@ router.get('/:token', async (req: Request, res: Response) => {
     // Get company info for branding
     const { data: company } = await supabase
       .from('companies')
-      .select('name, logo_url, primary_color, button_color')
+      .select('*')
       .eq('id', reference.company_id)
-      .single()
+      .maybeSingle()
 
     // Decrypt fields for display
     const guarantorFirstName = reference.tenant_first_name_encrypted
@@ -108,8 +108,8 @@ router.get('/:token', async (req: Request, res: Response) => {
         form_data: reference.form_data || null
       },
       tenantName,
-      companyName: company?.name || 'PropertyGoose',
-      companyLogo: company?.logo_url || '',
+      companyName: (company as any)?.name || ((company as any)?.name_encrypted ? decrypt((company as any).name_encrypted) : null) || (company as any)?.company_name || 'PropertyGoose',
+      companyLogo: (company as any)?.logo_url || '',
       companyPhone: companyWithContact?.phone_encrypted ? decrypt(companyWithContact.phone_encrypted) : '',
       companyEmail: companyWithContact?.email_encrypted ? decrypt(companyWithContact.email_encrypted) : '',
       companyAddress: companyWithContact?.address || '',
@@ -493,11 +493,14 @@ router.post('/:token/send-upload-link', async (req: Request, res: Response) => {
     const uploadUrl = `${process.env.FRONTEND_URL || 'https://app.propertygoose.co.uk'}/upload/${uploadToken}`
 
     // Get company info
-    const { data: company } = await supabase
+    const { data: companyInfo } = await supabase
       .from('companies')
-      .select('name, logo_url')
+      .select('*')
       .eq('id', reference.company_id)
-      .single()
+      .maybeSingle()
+
+    const ci = companyInfo as any
+    const ciName = ci?.name || (ci?.name_encrypted ? decrypt(ci.name_encrypted) : null) || ci?.company_name || 'PropertyGoose'
 
     const guarantorName = reference.tenant_first_name_encrypted
       ? (decrypt(reference.tenant_first_name_encrypted) || 'there')
@@ -506,7 +509,7 @@ router.post('/:token/send-upload-link', async (req: Request, res: Response) => {
     // Send email with upload link
     const html = await loadEmailTemplate('upload-link', {
       RecipientName: guarantorName,
-      CompanyName: company?.name || 'PropertyGoose',
+      CompanyName: ciName,
       DocumentName: documentName,
       UploadUrl: uploadUrl,
       ExpiryDays: '7'
@@ -514,7 +517,7 @@ router.post('/:token/send-upload-link', async (req: Request, res: Response) => {
 
     await sendEmail({
       to: guarantorEmail,
-      subject: `Upload your ${documentName} - ${company?.name || 'PropertyGoose'}`,
+      subject: `Upload your ${documentName} - ${ciName}`,
       html
     })
 

@@ -624,13 +624,48 @@ router.post('/insured/create-deposit', authenticateToken, async (req: AuthReques
       return res.status(400).json({ error: 'Lead tenant name is required.' })
     }
 
-    // Parse landlord address into components
-    const landlordAddressParts = (landlord.address || '').split(',').map((p: string) => p.trim())
-    const landlordAddressLine1 = landlordAddressParts[0] || ''
-    const landlordCity = landlordAddressParts[1] || ''
-    const landlordPostcode = landlordAddressParts[landlordAddressParts.length - 1] || ''
+    // Get structured landlord address from the database (property_landlords → landlords)
+    // The form sends a flat string which can't be reliably parsed
+    const { decrypt: decryptField } = await import('../services/encryption')
+    const tenancyRecord = await supabase
+      .from('tenancies')
+      .select('property_id')
+      .eq('id', tenancyId)
+      .single()
 
-    // Build tenancy data from form - USE FORM DATA, not database lookups
+    let landlordAddressLine1 = ''
+    let landlordCity = ''
+    let landlordCounty = ''
+    let landlordPostcode = ''
+
+    if (tenancyRecord.data?.property_id) {
+      const { data: propLandlords } = await supabase
+        .from('property_landlords')
+        .select('landlords(residential_address_line1_encrypted, residential_city_encrypted, residential_county_encrypted, residential_postcode_encrypted)')
+        .eq('property_id', tenancyRecord.data.property_id)
+        .order('is_primary_contact', { ascending: false })
+        .limit(1)
+
+      if (propLandlords && propLandlords.length > 0) {
+        const ll = (propLandlords[0] as any).landlords
+        if (ll) {
+          landlordAddressLine1 = ll.residential_address_line1_encrypted ? decryptField(ll.residential_address_line1_encrypted) || '' : ''
+          landlordCity = ll.residential_city_encrypted ? decryptField(ll.residential_city_encrypted) || '' : ''
+          landlordCounty = ll.residential_county_encrypted ? decryptField(ll.residential_county_encrypted) || '' : ''
+          landlordPostcode = ll.residential_postcode_encrypted ? decryptField(ll.residential_postcode_encrypted) || '' : ''
+        }
+      }
+    }
+
+    // Fallback: try to parse from form if DB had nothing
+    if (!landlordAddressLine1 && landlord.address) {
+      const parts = (landlord.address || '').split(',').map((p: string) => p.trim())
+      landlordAddressLine1 = parts[0] || ''
+      landlordCity = parts.length > 2 ? parts[1] : ''
+      landlordPostcode = parts[parts.length - 1] || ''
+    }
+
+    // Build tenancy data from form + structured DB addresses
     const formTenancyData = {
       id: tenancyId,
       property: {
@@ -650,6 +685,7 @@ router.post('/insured/create-deposit', authenticateToken, async (req: AuthReques
         email: landlord.email,
         address_line1: landlordAddressLine1,
         city: landlordCity,
+        county: landlordCounty,
         postcode: landlordPostcode,
         is_primary: true
       }],

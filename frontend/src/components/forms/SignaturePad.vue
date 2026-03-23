@@ -102,9 +102,12 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
 
+const lastEmittedValue = ref<string | null>(null)
+
 watch(() => props.modelValue, (newValue) => {
-  // Skip if this change came from our own emit within the last 500ms
-  if (Date.now() - lastEmitTime.value < 500) return
+  // Skip if this change came from our own emit (prevents redraw loop that causes erasing)
+  if (Date.now() - lastEmitTime.value < 1000) return
+  if (newValue === lastEmittedValue.value) return
 
   if (newValue && canvas.value && ctx.value) {
     const img = new Image()
@@ -248,8 +251,10 @@ function stopDrawing() {
     lastPoint.value = null
     hasSignature.value = !isCanvasEmpty()
     if (hasSignature.value) {
+      const data = getSignatureData()
       lastEmitTime.value = Date.now()
-      emit('update:modelValue', getSignatureData())
+      lastEmittedValue.value = data
+      emit('update:modelValue', data)
     }
   }
 }

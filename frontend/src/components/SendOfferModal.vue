@@ -88,37 +88,25 @@
 
             <!-- Property Selector -->
             <div v-if="propertyEntryMode === 'select' && !selectedPropertyId" class="space-y-3">
-              <div class="flex gap-3">
-                <div class="flex-1">
-                  <input
-                    v-model="propertySearchQuery"
-                    type="text"
-                    placeholder="Search by address or postcode..."
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary text-sm"
-                    @keydown.enter.prevent="fetchProperties"
-                  />
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg v-if="!loadingProperties" class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  <div v-else class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                 </div>
-                <button
-                  @click="fetchProperties"
-                  type="button"
-                  :disabled="loadingProperties"
-                  class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 text-sm"
-                >
-                  {{ loadingProperties ? 'Loading...' : 'Search' }}
-                </button>
-              </div>
-
-              <!-- Loading State -->
-              <div v-if="loadingProperties" class="text-center py-4">
-                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <input
+                  v-model="propertySearchQuery"
+                  type="text"
+                  placeholder="Start typing to search by address or postcode..."
+                  class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md focus:ring-primary focus:border-primary text-sm"
+                />
               </div>
 
               <!-- No Properties -->
-              <div v-else-if="!loadingProperties && availableProperties.length === 0" class="text-center py-4">
+              <div v-if="!loadingProperties && availableProperties.length === 0" class="text-center py-4">
                 <p class="text-sm text-gray-600 dark:text-slate-400">
-                  {{ propertySearchQuery
-                    ? 'No properties match your search'
-                    : 'Search by address or postcode to select a property'
+                  {{ propertySearchQuery.length >= 1
+                    ? 'No properties found'
+                    : 'Start typing to search properties'
                   }}
                 </p>
               </div>
@@ -126,8 +114,8 @@
               <!-- Property Cards -->
               <div v-else class="space-y-2">
                 <!-- Results limit warning -->
-                <div v-if="availableProperties.length >= 20" class="text-xs text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded px-2 py-1.5">
-                  Showing first 20 results. Refine your search for more specific results.
+                <div v-if="availableProperties.length >= 100" class="text-xs text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded px-2 py-1.5">
+                  Showing first 100 results. Refine your search for more specific results.
                 </div>
 
                 <div class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
@@ -281,6 +269,22 @@ watch(() => props.show, (newVal) => {
   }
 })
 
+// Debounced property search - fires on every keystroke with 250ms debounce
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(propertySearchQuery, (query) => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+
+  if (!query || query.length < 1) {
+    availableProperties.value = []
+    return
+  }
+
+  searchDebounceTimer = setTimeout(() => {
+    fetchProperties()
+  }, 250)
+})
+
 // Fetch properties from API
 async function fetchProperties() {
   loadingProperties.value = true
@@ -288,12 +292,11 @@ async function fetchProperties() {
     const token = authStore.session?.access_token
     if (!token) return
 
-    // Build query params with search and limit
     const params = new URLSearchParams()
     if (propertySearchQuery.value) {
       params.append('search', propertySearchQuery.value)
     }
-    params.append('limit', '20') // Limit to 20 results for performance
+    params.append('limit', '100') // Fetch all matching results
 
     const response = await authFetch(`${API_URL}/api/properties?${params.toString()}`, { token })
 

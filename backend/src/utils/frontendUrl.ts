@@ -76,6 +76,6 @@ export const getV2FrontendUrl = (): string => {
     return PROD_FRONTEND_URL
   }
 
-  // In development, use localhost for V2 testing
-  return LOCALHOST_URL
+  // In development, use FRONTEND_URL if set (e.g. ngrok), otherwise localhost
+  return process.env.FRONTEND_URL || LOCALHOST_URL
 }

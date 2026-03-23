@@ -125,61 +125,102 @@
               </div>
             </div>
 
-            <!-- Tenant Rows -->
-            <div
+            <!-- Tenant & Guarantor Rows -->
+            <template
               v-for="(ref, idx) in group.members"
               :key="ref.id"
-              @click="openDrawer(ref)"
-              class="flex items-stretch cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
-              :class="{ 'border-t border-gray-100 dark:border-slate-800': idx > 0 }"
             >
-              <!-- Left side: Info -->
-              <div class="p-4 min-w-0 max-w-md">
-                <div class="flex items-center gap-2">
-                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">
-                    {{ ref.tenant_first_name }} {{ ref.tenant_last_name }}
-                  </h3>
-                  <span v-if="ref.is_guarantor" class="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full shrink-0">
+              <!-- Guarantor Row (narrow, indented) -->
+              <div
+                v-if="ref.is_guarantor"
+                @click="openDrawer(ref)"
+                class="flex items-stretch cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/30"
+              >
+                <div class="py-2 px-4 pl-10 min-w-0 max-w-md flex items-center gap-3">
+                  <span class="px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full shrink-0 uppercase tracking-wider">
                     Guarantor
                   </span>
-                </div>
-                <p v-if="ref.reference_number" class="text-xs text-gray-400 dark:text-slate-500 font-mono mt-0.5">
-                  {{ ref.reference_number }}
-                </p>
-                <p v-if="!group.isGroup" class="text-sm text-primary mt-1 truncate">
-                  {{ ref.property_address }}, {{ ref.property_city }}
-                </p>
-                <p class="text-xs text-gray-400 dark:text-slate-500 mt-1">
-                  Created {{ formatDate(ref.created_at) }}
-                </p>
-                <div class="mt-2 flex items-center gap-3">
-                  <span v-if="!group.isGroup"
-                    class="px-2 py-0.5 text-xs font-medium rounded-full"
+                  <span class="text-sm font-medium text-gray-700 dark:text-slate-300 truncate">
+                    {{ ref.tenant_first_name }} {{ ref.tenant_last_name }}
+                  </span>
+                  <span class="text-xs text-gray-400 dark:text-slate-500 font-mono">
+                    {{ ref.reference_number }}
+                  </span>
+                  <span
+                    class="px-2 py-0.5 text-[10px] font-medium rounded-full ml-auto"
                     :class="getStatusClass(ref.status)"
                   >
                     {{ formatStatus(ref.status) }}
                   </span>
-                  <span class="text-xs text-gray-400">
-                    £{{ ref.rent_share || ref.monthly_rent }}/month{{ group.isGroup ? ' share' : '' }}
-                  </span>
+                </div>
+                <!-- Guarantor Section Status Blocks -->
+                <div class="flex items-stretch ml-auto">
+                  <div
+                    v-for="section in getSortedSections(ref.sections)"
+                    :key="section.section_type"
+                    class="w-[72px] flex items-center justify-center text-[10px] font-semibold border-l border-gray-200 dark:border-slate-700"
+                    :class="getSectionBlockClass(section)"
+                  >
+                    {{ getSectionLabel(section.section_type) }}
+                  </div>
+                  <div class="w-10 flex items-center justify-center border-l border-gray-200 dark:border-slate-700">
+                    <ChevronRight class="w-4 h-4 text-gray-400" />
+                  </div>
                 </div>
               </div>
 
-              <!-- Section Status Blocks -->
-              <div class="flex items-stretch ml-auto">
-                <div
-                  v-for="section in getSortedSections(ref.sections)"
-                  :key="section.section_type"
-                  class="w-[72px] flex items-center justify-center text-xs font-semibold border-l border-gray-200 dark:border-slate-700"
-                  :class="getSectionBlockClass(section)"
-                >
-                  {{ getSectionLabel(section.section_type) }}
+              <!-- Regular Tenant Row -->
+              <div
+                v-else
+                @click="openDrawer(ref)"
+                class="flex items-stretch cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
+                :class="{ 'border-t border-gray-100 dark:border-slate-800': idx > 0 }"
+              >
+                <!-- Left side: Info -->
+                <div class="p-4 min-w-0 max-w-md">
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+                      {{ ref.tenant_first_name }} {{ ref.tenant_last_name }}
+                    </h3>
+                  </div>
+                  <p v-if="ref.reference_number" class="text-xs text-gray-400 dark:text-slate-500 font-mono mt-0.5">
+                    {{ ref.reference_number }}
+                  </p>
+                  <p v-if="!group.isGroup" class="text-sm text-primary mt-1 truncate">
+                    {{ ref.property_address }}, {{ ref.property_city }}
+                  </p>
+                  <p class="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                    Created {{ formatDate(ref.created_at) }}
+                  </p>
+                  <div class="mt-2 flex items-center gap-3">
+                    <span v-if="!group.isGroup"
+                      class="px-2 py-0.5 text-xs font-medium rounded-full"
+                      :class="getStatusClass(ref.status)"
+                    >
+                      {{ formatStatus(ref.status) }}
+                    </span>
+                    <span class="text-xs text-gray-400">
+                      £{{ ref.rent_share || ref.monthly_rent }}/month{{ group.isGroup ? ' share' : '' }}
+                    </span>
+                  </div>
                 </div>
-                <div class="w-10 flex items-center justify-center border-l border-gray-200 dark:border-slate-700">
-                  <ChevronRight class="w-5 h-5 text-gray-400" />
+
+                <!-- Section Status Blocks -->
+                <div class="flex items-stretch ml-auto">
+                  <div
+                    v-for="section in getSortedSections(ref.sections)"
+                    :key="section.section_type"
+                    class="w-[72px] flex items-center justify-center text-xs font-semibold border-l border-gray-200 dark:border-slate-700"
+                    :class="getSectionBlockClass(section)"
+                  >
+                    {{ getSectionLabel(section.section_type) }}
+                  </div>
+                  <div class="w-10 flex items-center justify-center border-l border-gray-200 dark:border-slate-700">
+                    <ChevronRight class="w-5 h-5 text-gray-400" />
+                  </div>
                 </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
       </div>
@@ -844,10 +885,11 @@ const groupedReferences = computed((): RefGroup[] => {
   const refs = filteredReferences.value
   const parentIds = new Set(refs.filter(r => r.is_group_parent).map(r => r.id))
   const childMap = new Map<string, any[]>()
+  const guarantorMap = new Map<string, any[]>()
 
   // Collect children by parent_reference_id
   for (const ref of refs) {
-    if (ref.parent_reference_id) {
+    if (ref.parent_reference_id && !ref.is_guarantor) {
       if (!childMap.has(ref.parent_reference_id)) {
         childMap.set(ref.parent_reference_id, [])
       }
@@ -855,13 +897,38 @@ const groupedReferences = computed((): RefGroup[] => {
     }
   }
 
+  // Collect guarantors by guarantor_for_reference_id
+  for (const ref of refs) {
+    if (ref.is_guarantor && ref.guarantor_for_reference_id) {
+      if (!guarantorMap.has(ref.guarantor_for_reference_id)) {
+        guarantorMap.set(ref.guarantor_for_reference_id, [])
+      }
+      guarantorMap.get(ref.guarantor_for_reference_id)!.push(ref)
+    }
+  }
+
   const groups: RefGroup[] = []
   const handled = new Set<string>()
+
+  // Helper: build members list with guarantors nested after their tenant
+  const buildMembersWithGuarantors = (tenants: any[]) => {
+    const members: any[] = []
+    for (const tenant of tenants) {
+      members.push(tenant)
+      const guarantors = guarantorMap.get(tenant.id) || []
+      for (const g of guarantors) {
+        members.push(g)
+        handled.add(g.id)
+      }
+    }
+    return members
+  }
 
   // Process group parents first
   for (const ref of refs) {
     if (ref.is_group_parent) {
       const children = childMap.get(ref.id) || []
+      const allTenants = [ref, ...children]
       groups.push({
         id: ref.id,
         property_address: ref.property_address,
@@ -870,16 +937,16 @@ const groupedReferences = computed((): RefGroup[] => {
         isGroup: true,
         status: ref.status,
         created_at: ref.created_at,
-        members: [ref, ...children]
+        members: buildMembersWithGuarantors(allTenants)
       })
       handled.add(ref.id)
       children.forEach(c => handled.add(c.id))
     }
   }
 
-  // Process standalone (non-group, non-child) refs
+  // Process standalone (non-group, non-child, non-guarantor) refs
   for (const ref of refs) {
-    if (!handled.has(ref.id) && !ref.parent_reference_id) {
+    if (!handled.has(ref.id) && !ref.parent_reference_id && !ref.is_guarantor) {
       groups.push({
         id: ref.id,
         property_address: ref.property_address,
@@ -888,13 +955,13 @@ const groupedReferences = computed((): RefGroup[] => {
         isGroup: false,
         status: ref.status,
         created_at: ref.created_at,
-        members: [ref]
+        members: buildMembersWithGuarantors([ref])
       })
       handled.add(ref.id)
     }
   }
 
-  // Any orphan children (parent not in current filter) — show as standalone
+  // Any orphans (parent not in current filter) — show as standalone
   for (const ref of refs) {
     if (!handled.has(ref.id)) {
       groups.push({
@@ -1128,6 +1195,7 @@ function getSectionLabel(type: string) {
     'RTR': 'RTR',
     'INCOME': 'Income',
     'RESIDENTIAL': 'Res',
+    'ADDRESS': 'Addr',
     'CREDIT': 'Credit',
     'AML': 'AML'
   }
@@ -1137,7 +1205,7 @@ function getSectionLabel(type: string) {
 // Sort sections in consistent order
 function getSortedSections(sections: any[] | null | undefined) {
   if (!sections || !Array.isArray(sections)) return []
-  const order = ['IDENTITY', 'RTR', 'INCOME', 'RESIDENTIAL', 'CREDIT', 'AML']
+  const order = ['IDENTITY', 'RTR', 'ADDRESS', 'INCOME', 'RESIDENTIAL', 'CREDIT', 'AML']
   return [...sections].sort((a, b) => {
     return order.indexOf(a.section_type) - order.indexOf(b.section_type)
   })

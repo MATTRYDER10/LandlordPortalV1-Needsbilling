@@ -593,7 +593,7 @@ import { useAuthStore } from '../stores/auth'
 import { ArrowLeft, Check, Pencil, Trash2, CheckCircle } from 'lucide-vue-next'
 import Sidebar from '../components/Sidebar.vue'
 import RentShareModal from '../components/RentShareModal.vue'
-import { formatDateTime } from '../utils/date'
+import { formatDate as formatDateOnly, formatDateTime } from '../utils/date'
 import { authFetch } from '@/lib/authFetch'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -711,7 +711,7 @@ const formatStatus = (status: string) => {
   return statusMap[status] || status
 }
 
-const formatDate = (dateString: string) => formatDateTime(dateString)
+const formatDate = (dateString: string) => formatDateOnly(dateString)
 
 const fetchOffer = async () => {
   loading.value = true

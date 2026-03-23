@@ -46,6 +46,8 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
 
     const {
       tenant_email,
+      tenant_first_name,
+      tenant_last_name,
       property_address,
       property_city,
       property_postcode,
@@ -132,13 +134,15 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // Store record with V2 flag
+    const formRef = 'OF-' + Math.random().toString(36).substring(2, 10).toUpperCase()
     try {
-      await supabase
+      const { data: insertedForm, error: insertError } = await supabase
         .from('sent_offer_forms')
         .insert({
           company_id: companyId,
           sent_by: userId,
           tenant_email: tenant_email,
+          form_ref: formRef,
           property_address_encrypted: encrypt(property_address),
           property_city_encrypted: property_city ? encrypt(property_city) : null,
           property_postcode_encrypted: property_postcode ? encrypt(property_postcode) : null,
@@ -148,10 +152,18 @@ router.post('/send-link', authenticateToken, async (req: AuthRequest, res) => {
           move_in_date: move_in_date || null,
           offer_deposit_replacement: !!offer_deposit_replacement,
           linked_property_id: propertyIdToLink || null,
-          is_v2: true
+          is_v2: true,
+          status: 'sent'
         })
+        .select('id, status')
+        .single()
+      if (insertError) {
+        console.error('[V2 Offers] Failed to store sent form:', insertError.message, insertError.details)
+      } else {
+        console.log('[V2 Offers] Stored sent form:', insertedForm)
+      }
     } catch (dbError: any) {
-      console.error('[V2 Offers] Failed to store sent form:', dbError)
+      console.error('[V2 Offers] Exception storing sent form:', dbError)
     }
 
     // Log property audit
@@ -378,8 +390,21 @@ router.get('/sent', authenticateToken, async (req: AuthRequest, res) => {
       .select('*')
       .eq('company_id', companyId)
       .eq('is_v2', true)
-      .eq('status', 'sent')
+      .or('status.eq.sent,status.is.null')
       .order('sent_at', { ascending: false })
+
+    console.log('[V2 Offers] Sent forms query:', { companyId, count: sentForms?.length, error: error?.message })
+
+    // Debug: check without is_v2 filter
+    if (!sentForms || sentForms.length === 0) {
+      const { data: allForms } = await supabase
+        .from('sent_offer_forms')
+        .select('id, company_id, is_v2, status, tenant_email, created_at')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      console.log('[V2 Offers] Debug - ALL forms for company (no is_v2/status filter):', JSON.stringify(allForms))
+    }
 
     if (error) {
       return res.status(400).json({ error: error.message })

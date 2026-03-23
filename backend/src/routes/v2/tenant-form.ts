@@ -38,9 +38,12 @@ router.get('/:token', async (req: Request, res: Response) => {
     // Get company info for branding
     const { data: company } = await supabase
       .from('companies')
-      .select('name, logo_url, primary_color, button_color')
+      .select('*')
       .eq('id', reference.company_id)
-      .single()
+      .maybeSingle()
+
+    const co = company as any
+    const resolvedCompanyName = co?.name || (co?.name_encrypted ? decrypt(co.name_encrypted) : null) || co?.company_name || 'PropertyGoose'
 
     // Decrypt fields for display
     const tenantFirstName = reference.tenant_first_name_encrypted
@@ -118,14 +121,14 @@ router.get('/:token', async (req: Request, res: Response) => {
         form_submitted_at: reference.form_submitted_at,
         status: reference.status,
         // Reposit/deposit info
-        deposit_replacement_offered: depositReplacementOffered && repositIntegrationActive,
+        deposit_replacement_offered: depositReplacementOffered && repositIntegrationActive && !reference.parent_reference_id,
         deposit_amount: depositAmount,
         reposit_confirmed: reference.reposit_confirmed,
         // Saved form data for restoring progress
         form_data: reference.form_data || null
       },
-      companyName: company?.name || 'PropertyGoose',
-      companyLogo: company?.logo_url || '',
+      companyName: resolvedCompanyName,
+      companyLogo: co?.logo_url || '',
       companyPhone: companyWithContact?.phone_encrypted ? decrypt(companyWithContact.phone_encrypted) : '',
       companyEmail: companyWithContact?.email_encrypted ? decrypt(companyWithContact.email_encrypted) : '',
       companyAddress: companyWithContact?.address || '',
@@ -200,6 +203,14 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
     const formData = req.body
 
     const { identity, rtr, income, residential, personal, guarantor, deposit, consent, calculatedAnnualIncome } = formData
+
+    // Auto-capitalise names
+    const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s
+    const capitalizeName = (name: string) => name ? name.split(/[\s-]/).map(capitalize).join(name.includes('-') ? '-' : ' ') : name
+    if (identity.firstName) identity.firstName = capitalizeName(identity.firstName.trim())
+    if (identity.lastName) identity.lastName = capitalizeName(identity.lastName.trim())
+    if (guarantor?.firstName) guarantor.firstName = capitalizeName(guarantor.firstName.trim())
+    if (guarantor?.lastName) guarantor.lastName = capitalizeName(guarantor.lastName.trim())
 
     // Validate required consents
     if (!consent?.creditCheck || !consent?.amlCheck || !consent?.dataProcessing || !consent?.declaration) {
@@ -340,6 +351,11 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
       tenant_last_name_encrypted: encrypt(identity.lastName),
       tenant_dob_encrypted: identity.dateOfBirth ? encrypt(identity.dateOfBirth) : null,
       tenant_phone_encrypted: identity.phone ? encrypt(identity.phone) : null,
+      // Save current address to encrypted columns (used by tenancy conversion)
+      current_address_line1_encrypted: residential?.currentAddress?.line1 ? encrypt(residential.currentAddress.line1) : null,
+      current_address_line2_encrypted: residential?.currentAddress?.line2 ? encrypt(residential.currentAddress.line2) : null,
+      current_city_encrypted: residential?.currentAddress?.city ? encrypt(residential.currentAddress.city) : null,
+      current_postcode_encrypted: residential?.currentAddress?.postcode ? encrypt(residential.currentAddress.postcode) : null,
       form_data: encryptedFormData,
       form_submitted_at: new Date().toISOString(),
       status: 'COLLECTING_EVIDENCE',
@@ -425,7 +441,9 @@ router.post('/:token/submit', async (req: Request, res: Response) => {
     }
 
     // Create guarantor reference if provided
+    console.log('[V2 TenantForm] Guarantor check:', { hasGuarantor: !!guarantor, firstName: guarantor?.firstName, email: guarantor?.email })
     if (guarantor && guarantor.firstName && guarantor.email) {
+      console.log('[V2 TenantForm] Creating guarantor reference for:', guarantor.email)
       await createGuarantorReference(reference, guarantor)
     }
 
@@ -619,16 +637,17 @@ async function createRefereeRequest(
     }
 
     // Get company info for email
-    const { data: company } = await supabase
+    const { data: companyData } = await supabase
       .from('companies')
-      .select('name, logo_url, phone_encrypted, email_encrypted')
+      .select('*')
       .eq('id', companyId)
-      .single()
+      .maybeSingle()
 
-    const companyName = company?.name || 'PropertyGoose'
-    const companyPhone = company?.phone_encrypted ? decrypt(company.phone_encrypted) || '' : ''
-    const companyEmail = company?.email_encrypted ? decrypt(company.email_encrypted) || '' : ''
-    const companyLogoUrl = company?.logo_url || null
+    const cd = companyData as any
+    const companyName = cd?.name || (cd?.name_encrypted ? decrypt(cd.name_encrypted) : null) || cd?.company_name || 'PropertyGoose'
+    const companyPhone = cd?.phone_encrypted ? decrypt(cd.phone_encrypted) || '' : ''
+    const companyEmail = cd?.email_encrypted ? decrypt(cd.email_encrypted) || '' : ''
+    const companyLogoUrl = cd?.logo_url || null
 
     // Build referee form URL
     const frontendUrl = getV2FrontendUrl()
@@ -752,16 +771,17 @@ async function createGuarantorReference(
         guarantor_for_reference_id: tenantReference.id,
         guarantor_relationship: guarantor.relationship,
         form_token_hash: formTokenHash,
-        status: 'SENT',
-        sent_at: new Date().toISOString()
+        status: 'SENT'
       })
       .select()
       .single()
 
     if (error) {
-      console.error('Error creating guarantor reference:', error)
+      console.error('[V2 TenantForm] Error creating guarantor reference:', error.message, error.details)
       return
     }
+
+    console.log('[V2 TenantForm] Guarantor reference created:', guarantorRef?.id, guarantorRef?.reference_number)
 
     // Link guarantor to tenant reference
     await supabase
@@ -770,11 +790,14 @@ async function createGuarantorReference(
       .eq('id', tenantReference.id)
 
     // Get company info for email
-    const { data: company } = await supabase
+    const { data: gCompany } = await supabase
       .from('companies')
-      .select('name, logo_url, primary_color, phone_encrypted, email_encrypted')
+      .select('*')
       .eq('id', tenantReference.company_id)
-      .single()
+      .maybeSingle()
+
+    const gc = gCompany as any
+    const gCompanyName = gc?.name || (gc?.name_encrypted ? decrypt(gc.name_encrypted) : null) || gc?.company_name || 'PropertyGoose'
 
     // Get property address
     const propertyAddress = tenantReference.property_address_encrypted
@@ -798,12 +821,12 @@ async function createGuarantorReference(
       guarantor.firstName,
       `${tenantFirstName} ${tenantLastName}`.trim(),
       propertyAddress || 'the property',
-      company?.name || 'PropertyGoose',
-      company?.phone_encrypted ? decrypt(company.phone_encrypted) || '' : '',
-      company?.email_encrypted ? decrypt(company.email_encrypted) || '' : '',
+      gCompanyName,
+      gc?.phone_encrypted ? decrypt(gc.phone_encrypted) || '' : '',
+      gc?.email_encrypted ? decrypt(gc.email_encrypted) || '' : '',
       guarantorFormUrl,
       guarantorRef.id,
-      company?.logo_url || null,
+      gc?.logo_url || null,
       tenantReference.monthly_rent || undefined,
       tenantReference.rent_share || tenantReference.monthly_rent || undefined
     )

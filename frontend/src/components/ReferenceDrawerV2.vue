@@ -72,6 +72,16 @@
             <Users class="w-4 h-4" />
             Download Group Report
           </a>
+          <button
+            v-if="apex27Connected"
+            @click="pushReportToApex27"
+            :disabled="pushingToApex27"
+            class="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-[#6B21A8] dark:border-[#9333EA] text-[#6B21A8] dark:text-[#9333EA] rounded-lg hover:bg-[#6B21A8]/5 dark:hover:bg-[#9333EA]/10 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <Loader2 v-if="pushingToApex27" class="w-4 h-4 animate-spin" />
+            <Upload v-else class="w-4 h-4" />
+            {{ pushingToApex27 ? 'Pushing...' : 'Push to Apex27' }}
+          </button>
         </div>
       </div>
 
@@ -533,6 +543,8 @@ const showDecisionModal = ref(false)
 const resendingEmail = ref(false)
 const showSendToLandlordModal = ref(false)
 const sendingToLandlord = ref(false)
+const apex27Connected = ref(false)
+const pushingToApex27 = ref(false)
 const landlordEmailInfo = ref<{ hasLandlord: boolean; email: string | null; name: string | null }>({ hasLandlord: false, email: null, name: null })
 const manualLandlordEmail = ref('')
 const sendToLandlordSuccess = ref(false)
@@ -1154,6 +1166,7 @@ watch(() => props.open, async (isOpen) => {
     }
     // Always fetch full data immediately — sections/credit/AML need it
     await fetchFullReference()
+    loadApex27Status()
   }
 }, { immediate: true })
 
@@ -1174,6 +1187,53 @@ async function fetchFullReference() {
     console.error('Error fetching reference:', error)
   } finally {
     loading.value = false
+  }
+}
+
+async function loadApex27Status() {
+  try {
+    const response = await fetch(`${API_URL}/api/settings/apex27`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+      }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      apex27Connected.value = data.configured && data.lastTestStatus === 'success'
+    }
+  } catch {
+    // Silently fail
+  }
+}
+
+async function pushReportToApex27() {
+  const refId = fullReference.value?.reference?.id || props.reference?.id
+  if (!refId) return
+
+  pushingToApex27.value = true
+  try {
+    const response = await fetch(`${API_URL}/api/apex27/documents/push`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.session?.access_token}`,
+        'Content-Type': 'application/json',
+        'X-Branch-Id': localStorage.getItem('activeBranchId') || ''
+      },
+      body: JSON.stringify({ sourceType: 'reference_report', sourceId: refId })
+    })
+
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to push report')
+    }
+
+    toast.success('Report pushed to Apex27')
+  } catch (err: any) {
+    console.error('Error pushing to Apex27:', err)
+    toast.error(err.message || 'Failed to push to Apex27')
+  } finally {
+    pushingToApex27.value = false
   }
 }
 
