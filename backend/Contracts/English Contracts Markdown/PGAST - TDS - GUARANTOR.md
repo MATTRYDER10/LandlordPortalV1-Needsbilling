@@ -164,7 +164,7 @@ In the name of: \[LANDLORD/AGENT\_ACCOUNT\_NAME\]
 
 **7\. Deposit**
 
-**7.1** The sum of \[DEPOSIT\_AMOUNT\] shall be paid by \[enter name and address of deposit payer\] (“The Relevant Person”) to the Landlord/Agent upon the signing of this Agreement by way of a security Deposit (“the Deposit”).
+**7.1** The sum of \[DEPOSIT\_AMOUNT\] shall be paid by \[DEPOSIT\_PAYER\_NAME\_AND\_ADDRESS\] (“The Relevant Person”) to the Landlord/Agent upon the signing of this Agreement by way of a security Deposit (“the Deposit”).
 
 **7.2** Upon the Tenant vacating the Premises and after deduction of all agreed or authorised deductions, the balance of the Deposit shall be refunded to the person or persons outlined at clause 7.1 above.
 

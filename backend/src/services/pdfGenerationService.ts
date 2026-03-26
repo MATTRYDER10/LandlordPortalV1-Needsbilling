@@ -468,8 +468,10 @@ class PDFGenerationService {
       : data.landlords[0] ? this.formatAddress(data.landlords[0].address) : '________'
     result = result.replace(/\[LANDLORD\/AGENT_ADDRESS\]/gi, noticeAddress)
 
-    // Deposit payer (usually first tenant)
-    const depositPayer = data.tenants[0] ? this.formatPartyWithAddress(data.tenants[0]) : '________'
+    // Deposit payer (all tenants)
+    const depositPayer = data.tenants.length > 0
+      ? data.tenants.map(t => this.formatPartyWithAddress(t)).join(' and ')
+      : '________'
     result = result.replace(/\[DEPOSIT_PAYER_NAME_AND_ADDRESS\]/gi, depositPayer)
 
     // Build special terms clauses with dynamic numbering (removes empty clause numbers)
