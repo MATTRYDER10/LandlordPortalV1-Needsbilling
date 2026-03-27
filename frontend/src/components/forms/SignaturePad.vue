@@ -205,13 +205,12 @@ function continueStroke(pos: { x: number; y: number }) {
   // Use quadratic curve through midpoints for silky smooth lines
   // This avoids the "dots" problem by continuing the existing path
   ctx.value.beginPath()
-  ctx.value.moveTo(pts[len - 2].x, pts[len - 2].y)
+  ctx.value.moveTo(pts[len - 2]!.x, pts[len - 2]!.y)
 
   if (len >= 3) {
     // Smooth curve: use previous point as control, midpoint as endpoint
-    const prev = pts[len - 3]
-    const curr = pts[len - 2]
-    const next = pts[len - 1]
+    const curr = pts[len - 2]!
+    const next = pts[len - 1]!
     const midX = (curr.x + next.x) / 2
     const midY = (curr.y + next.y) / 2
     ctx.value.quadraticCurveTo(curr.x, curr.y, midX, midY)
