@@ -47,7 +47,7 @@ router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) =
 router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id
-    const { email, role } = req.body
+    const { email, password, role } = req.body
 
     if (!email || !role) {
       return res.status(400).json({ error: 'Email and role are required' })
@@ -75,6 +75,33 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
       if (existingMember) {
         return res.status(400).json({ error: 'User is already a member of this company' })
       }
+    }
+
+    // If password provided and user doesn't exist, create user + add to company immediately
+    if (password && !existingUser) {
+      const { data: authData, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { is_invited: true }
+      })
+
+      if (createError) {
+        return res.status(400).json({ error: createError.message })
+      }
+
+      // Add to company
+      await supabase.from('company_users').insert({
+        user_id: authData.user.id,
+        company_id: companyId,
+        role
+      })
+
+      return res.json({
+        success: true,
+        message: `Account created for ${email} and added to company`,
+        immediate: true
+      })
     }
 
     // Check if there's already a pending invitation

@@ -319,7 +319,7 @@
                 <Sparkles class="w-3 h-3" />
                 Deposit Replacement
               </span>
-              <span v-if="offer.offer_unihomes || offer.unihomes_interested" class="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg flex items-center gap-1">
+              <span v-if="offer.offer_unihomes || offer.unihomes_offered || offer.unihomes_interested" class="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg flex items-center gap-1">
                 <Zap class="w-3 h-3" />
                 UniHomes{{ offer.unihomes_interested ? ' (Interested)' : '' }}
               </span>
@@ -742,6 +742,20 @@
                       >
                         <Send class="w-3 h-3" />
                         Sent to Landlord
+                      </span>
+                      <span
+                        v-if="selectedOffer.offer_unihomes || selectedOffer.unihomes_offered || selectedOffer.unihomes_interested"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 flex items-center gap-1"
+                      >
+                        <Zap class="w-3 h-3" />
+                        UniHomes{{ selectedOffer.unihomes_interested ? ' (Interested)' : '' }}
+                      </span>
+                      <span
+                        v-if="selectedOffer.offer_deposit_replacement"
+                        class="px-2 py-0.5 text-xs font-medium rounded-full bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400 flex items-center gap-1"
+                      >
+                        <Sparkles class="w-3 h-3" />
+                        Deposit Replacement
                       </span>
                     </div>
                   </div>
