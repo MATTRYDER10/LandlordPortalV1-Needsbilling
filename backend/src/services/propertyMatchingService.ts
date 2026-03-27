@@ -243,7 +243,7 @@ export async function searchProperties(
   searchTerm: string,
   limit: number = 10
 ): Promise<MatchedProperty[]> {
-  if (!searchTerm || searchTerm.length < 2) {
+  if (!searchTerm || searchTerm.length < 1) {
     return []
   }
 
@@ -279,12 +279,14 @@ export async function searchProperties(
     const city = decrypt(prop.city_encrypted) || ''
     const fullAddress = decrypt(prop.full_address_encrypted) || ''
 
-    // Match against any address field
+    // Match against any address field including postcode
+    const postcodeLower = (prop.postcode || '').toLowerCase()
     const matchesSearch = isPostcodeLike ||
       addressLine1.toLowerCase().includes(searchLower) ||
       addressLine2.toLowerCase().includes(searchLower) ||
       city.toLowerCase().includes(searchLower) ||
-      fullAddress.toLowerCase().includes(searchLower)
+      fullAddress.toLowerCase().includes(searchLower) ||
+      postcodeLower.includes(searchLower)
 
     if (matchesSearch) {
       results.push({
